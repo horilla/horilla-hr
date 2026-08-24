@@ -163,3 +163,6 @@ CLAUDE.md
 .mcp.json
 .mcp.safe.json
 .claudeignore
+
+# Local pgAdmin credentials file (dev only)
+docker/pgadmin/pgpass

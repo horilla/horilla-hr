@@ -1,0 +1,15 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "krew-hrms (local)",
+      "Group": "Servers",
+      "Host": "krew-hrms-db",
+      "Port": 5432,
+      "MaintenanceDB": "krew-dev-db",
+      "Username": "horilla_user",
+      "PassFile": "/pgpass",
+      "SSLMode": "prefer",
+      "Comment": "Local krew-hrms PostgreSQL 16 container"
+    }
+  }
+}

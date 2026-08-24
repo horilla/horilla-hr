@@ -1,0 +1,74 @@
+# Local development services for krew-hrms: PostgreSQL + pgAdmin.
+#
+# The Django app itself runs natively in a virtualenv (see SETUP.md) — this file
+# only provides the backing services, so you get fast reloads and a debugger
+# while still developing against real PostgreSQL.
+#
+#   make dev-db        start db + pgAdmin
+#   make dev-db-stop   stop them
+#   make dev-db-reset  destroy them AND all data
+#
+# For the all-in-Docker stack (web + db + redis + nginx) use docker-compose.yml
+# via `make dev` instead. The two use different databases and cannot both bind
+# host port 5432.
+#
+# Dev credentials below are intentionally weak and for local use only.
+
+name: krew-hrms-local
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: krew-hrms-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${LOCAL_DB_NAME:-krew-dev-db}
+      POSTGRES_USER: ${LOCAL_DB_USER:-horilla_user}
+      POSTGRES_PASSWORD: ${LOCAL_DB_PASSWORD:-horilla_pass}
+    ports:
+      # Override with LOCAL_DB_PORT=5433 in .env if 5432 is taken.
+      - "${LOCAL_DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      default:
+        aliases:
+          # servers.json and pgpass address the database by this name.
+          - krew-hrms-db
+    healthcheck:
+      test:
+        ["CMD-SHELL", "pg_isready -U ${LOCAL_DB_USER:-horilla_user} -d ${LOCAL_DB_NAME:-krew-dev-db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: krew-hrms-pgadmin
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-dev@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      # Desktop mode: no login screen, single local user. Local use only —
+      # never expose this container beyond localhost.
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+      PGADMIN_DISABLE_POSTFIX: "True"
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    volumes:
+      # Pre-registers the krew-dev-db server so there is nothing to configure
+      # in the UI. pgpass is gitignored — `make dev-db` creates it from
+      # pgpass.example if missing.
+      - ./docker/pgadmin/servers.json:/pgadmin4/servers.json:ro
+      - ./docker/pgadmin/pgpass:/pgpass:ro
+      - pgadmin:/var/lib/pgadmin
+
+volumes:
+  pgdata:
+    name: krew_hrms_pgdata
+  pgadmin:
+    name: krew_hrms_pgadmin

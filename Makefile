@@ -1,4 +1,4 @@
-.PHONY: help dev prod build stop logs logs-web shell clean db-shell status restart makemessages compilemessages test-smoke test-unit test-cov
+.PHONY: help env dev-db dev-db-stop dev-db-logs dev-db-shell dev-db-reset dev prod build stop logs logs-web shell clean db-shell status restart makemessages compilemessages test-smoke test-unit test-cov
 
 COMPOSE ?= docker compose
 COMPOSE_PROD ?= $(COMPOSE) -f docker-compose.yml -f docker-compose.prod.yml
@@ -48,6 +48,39 @@ compilemessages: ## Compile all gettext catalogs
 clean: ## Clean up (removes volumes — data loss!)
 	$(COMPOSE_PROD) down -v
 	docker system prune -f
+
+
+
+# ---------------------------------------------------------------------------
+# Local hybrid dev environment (Django in a venv + PostgreSQL/pgAdmin in Docker)
+# See SETUP.md. For the all-in-Docker stack use `make dev` instead.
+# ---------------------------------------------------------------------------
+COMPOSE_DEV ?= $(COMPOSE) -f docker-compose.dev.yml
+PYTHON ?= python
+
+env: ## Generate .env from .env.example with fresh random secrets
+	@$(PYTHON) scripts/generate_env.py
+
+docker/pgadmin/pgpass:
+	@cp docker/pgadmin/pgpass.example $@
+	@chmod 600 $@
+	@echo "Created $@ from pgpass.example."
+
+dev-db: docker/pgadmin/pgpass ## Start local PostgreSQL + pgAdmin (detached)
+	$(COMPOSE_DEV) up -d
+	@echo "PostgreSQL: localhost:5432/krew-dev-db   pgAdmin: http://localhost:5050"
+
+dev-db-stop: ## Stop local PostgreSQL + pgAdmin (keeps data)
+	$(COMPOSE_DEV) stop
+
+dev-db-logs: ## Tail local PostgreSQL + pgAdmin logs
+	$(COMPOSE_DEV) logs -f
+
+dev-db-shell: ## psql shell into the local development database
+	$(COMPOSE_DEV) exec db psql -U horilla_user -d krew-dev-db
+
+dev-db-reset: ## Destroy local PostgreSQL + pgAdmin AND all their data
+	$(COMPOSE_DEV) down -v
 
 
 # Unit-test coverage program (feature/unit-test-coverage)

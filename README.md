@@ -46,6 +46,11 @@ See [Discussion #1127](https://github.com/horilla/horilla-hr/discussions/1127) f
 
 ## ⚡ Quick Start
 
+> **Setting up to develop on krew-hrms?** Follow **[SETUP.md](SETUP.md)** — a
+> step-by-step local setup with PostgreSQL and pgAdmin, verified end to end.
+> The generic instructions below are upstream Horilla's.
+
+
 ### Using Docker (Recommended)
 
 ```bash
