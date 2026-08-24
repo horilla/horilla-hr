@@ -7,16 +7,16 @@
        theme, same as the Tailwind 'brand'/'primary' color below. */
     .oh-btn--secondary,
     .oh-btn--secondary:disabled {
-        background-color: {{ theme_obj.primary_600|default:"#E54F38" }} !important;
+        background-color: {{ theme_obj.primary_600|default:"#3535C8" }} !important;
     }
     .oh-btn--secondary:hover,
     .oh-btn--secondary:focus,
     .oh-btn--secondary:focus-visible {
-        background-color: {{ theme_obj.primary_700|default:"#ce4732" }} !important;
+        background-color: {{ theme_obj.primary_700|default:"#2E3192" }} !important;
     }
     .oh-btn--secondary-outline,
     .oh-btn--secondary-link {
-        color: {{ theme_obj.primary_600|default:"#E54F38" }} !important;
+        color: {{ theme_obj.primary_600|default:"#3535C8" }} !important;
     }
     .oh-btn--secondary-outline:hover,
     .oh-btn--secondary-outline:focus,
@@ -24,64 +24,64 @@
     .oh-btn--secondary-link:hover,
     .oh-btn--secondary-link:focus,
     .oh-btn--secondary-link:focus-visible {
-        color: {{ theme_obj.primary_700|default:"#ce4732" }} !important;
+        color: {{ theme_obj.primary_700|default:"#2E3192" }} !important;
     }
 
     /* Active-filter chip bar ("Filters:" label + each filter's remove-X,
        e.g. "Is active: Yes"). Follow the selected company theme too. */
     .oh-titlebar__tag--custom {
-        background-color: {{ theme_obj.primary_600|default:"#E54F38" }} !important;
+        background-color: {{ theme_obj.primary_600|default:"#3535C8" }} !important;
     }
     .oh-titlebar__tag-close {
-        background-color: {{ theme_obj.primary_600|default:"#E54F38" }} !important;
+        background-color: {{ theme_obj.primary_600|default:"#3535C8" }} !important;
     }
     .oh-titlebar__tag-close:hover {
-        background-color: {{ theme_obj.primary_700|default:"#ce4732" }} !important;
+        background-color: {{ theme_obj.primary_700|default:"#2E3192" }} !important;
     }
     .oh-titlebar__tag.filter-field {
-        border-color: {{ theme_obj.primary_600|default:"#E54F38" }} !important;
+        border-color: {{ theme_obj.primary_600|default:"#3535C8" }} !important;
     }
 
     /* "Save And Add Another" — secondary CTA next to Save on create forms.
        Uses a lighter tint of the theme color so it stays visually distinct
        from the solid "Save" button while still following the theme. */
     .oh-btn--add-another {
-        background-color: {{ theme_obj.primary_500|default:"#F7C8C1" }} !important;
+        background-color: {{ theme_obj.primary_500|default:"#C8C8FF" }} !important;
         color: #ffffff !important;
-        border: 1px solid {{ theme_obj.primary_500|default:"#F7C8C1" }} !important;
+        border: 1px solid {{ theme_obj.primary_500|default:"#C8C8FF" }} !important;
     }
     .oh-btn--add-another:hover,
     .oh-btn--add-another:focus,
     .oh-btn--add-another:focus-visible {
-        background-color: {{ theme_obj.primary_600|default:"#E54F38" }} !important;
-        border-color: {{ theme_obj.primary_600|default:"#E54F38" }} !important;
+        background-color: {{ theme_obj.primary_600|default:"#3535C8" }} !important;
+        border-color: {{ theme_obj.primary_600|default:"#3535C8" }} !important;
     }
 
     /* Checkmark bullet on "Changes" list items (e.g. Employee > History tab). */
     .list-checked li:before {
-        color: {{ theme_obj.primary_600|default:"#E54F38" }} !important;
+        color: {{ theme_obj.primary_600|default:"#3535C8" }} !important;
     }
 
     /* Legacy light icon button (e.g. the "View Comment" icon on Shift/Work
        Type/Document request lists). Icon color follows the theme too. */
     .oh-btn--light {
-        color: {{ theme_obj.primary_600|default:"#E54F38" }} !important;
+        color: {{ theme_obj.primary_600|default:"#3535C8" }} !important;
     }
     .oh-btn--light:hover,
     .oh-btn--light:focus,
     .oh-btn--light:focus-visible {
-        color: {{ theme_obj.primary_700|default:"#ce4732" }} !important;
+        color: {{ theme_obj.primary_700|default:"#2E3192" }} !important;
     }
 
     /* Tab pills inside "custom" modal dialogs (e.g. leave Allocation). The
        plain, unscoped .oh-general__tab-link--active rule in v1_styles.css
        already follows the theme via index.html's remap, but this selector's
        extra .oh-modal__dialog--custom .oh-general__tab ancestor prefix gives
-       it higher specificity, so its own hardcoded #e54f38 always wins over
+       it higher specificity, so its own hardcoded #3535C8 always wins over
        that remap regardless of load order. */
     .oh-modal__dialog--custom .oh-general__tab .oh-general__tab-link--active {
-        background-color: {{ theme_obj.primary_600|default:"#E54F38" }} !important;
-        border-color: {{ theme_obj.primary_600|default:"#E54F38" }} !important;
+        background-color: {{ theme_obj.primary_600|default:"#3535C8" }} !important;
+        border-color: {{ theme_obj.primary_600|default:"#3535C8" }} !important;
     }
 </style>
 <script>
@@ -132,15 +132,15 @@
 
                 primary: {
                     50:  '{{ theme_obj.primary_50  | default:"#f6f6f6" }}',
-                    100: '{{ theme_obj.primary_100 | default:"#FFF5F1" }}',
-                    200: '{{ theme_obj.primary_200 | default:"#FEF6F5" }}',
-                    300: '{{ theme_obj.primary_300 | default:"#FCEDEB" }}',
-                    400: '{{ theme_obj.primary_400 | default:"#FBE5E1" }}',
-                    500: '{{ theme_obj.primary_500 | default:"#F7C8C1" }}',
-                    600: '{{ theme_obj.primary_600 | default:"#E54F38" }}',
-                    700: '{{ theme_obj.primary_700 | default:"#ce4732" }}',
-                    800: '{{ theme_obj.primary_800 | default:"#AC3B2A" }}',
-                    900: '{{ theme_obj.primary_900 | default:"#672419" }}',
+                    100: '{{ theme_obj.primary_100 | default:"#F2F3FD" }}',
+                    200: '{{ theme_obj.primary_200 | default:"#F5F6FE" }}',
+                    300: '{{ theme_obj.primary_300 | default:"#EBEDFB" }}',
+                    400: '{{ theme_obj.primary_400 | default:"#DFE2F9" }}',
+                    500: '{{ theme_obj.primary_500 | default:"#C8C8FF" }}',
+                    600: '{{ theme_obj.primary_600 | default:"#3535C8" }}',
+                    700: '{{ theme_obj.primary_700 | default:"#2E3192" }}',
+                    800: '{{ theme_obj.primary_800 | default:"#262878" }}',
+                    900: '{{ theme_obj.primary_900 | default:"#171950" }}',
                 },
 
                 /* 'brand' = primary CTA color (Create/Save/Submit). Mirrors the
@@ -148,15 +148,15 @@
                    as 'primary'. 'info' = fixed blue for Edit/View/Details. */
                 brand: {
                     50:  '{{ theme_obj.primary_50  | default:"#f6f6f6" }}',
-                    100: '{{ theme_obj.primary_100 | default:"#FFF5F1" }}',
-                    200: '{{ theme_obj.primary_200 | default:"#FEF6F5" }}',
-                    300: '{{ theme_obj.primary_300 | default:"#FCEDEB" }}',
-                    400: '{{ theme_obj.primary_400 | default:"#FBE5E1" }}',
-                    500: '{{ theme_obj.primary_500 | default:"#F7C8C1" }}',
-                    600: '{{ theme_obj.primary_600 | default:"#E54F38" }}',
-                    700: '{{ theme_obj.primary_700 | default:"#ce4732" }}',
-                    800: '{{ theme_obj.primary_800 | default:"#AC3B2A" }}',
-                    900: '{{ theme_obj.primary_900 | default:"#672419" }}',
+                    100: '{{ theme_obj.primary_100 | default:"#F2F3FD" }}',
+                    200: '{{ theme_obj.primary_200 | default:"#F5F6FE" }}',
+                    300: '{{ theme_obj.primary_300 | default:"#EBEDFB" }}',
+                    400: '{{ theme_obj.primary_400 | default:"#DFE2F9" }}',
+                    500: '{{ theme_obj.primary_500 | default:"#C8C8FF" }}',
+                    600: '{{ theme_obj.primary_600 | default:"#3535C8" }}',
+                    700: '{{ theme_obj.primary_700 | default:"#2E3192" }}',
+                    800: '{{ theme_obj.primary_800 | default:"#262878" }}',
+                    900: '{{ theme_obj.primary_900 | default:"#171950" }}',
                 },
                 info: {
                     50:  '#eaf6fc', 100: '#c9e8f7', 200: '#95d0ec', 300: '#5eb8e2',
@@ -168,9 +168,9 @@
                     50:  '{{ theme_obj.dark_50  | default:"#E6E6E6" }}',
                     100: '{{ theme_obj.dark_100 | default:"#A8A8A8" }}',
                     200: '{{ theme_obj.dark_200 | default:"#515151" }}',
-                    300: '{{ theme_obj.dark_300 | default:"#501C14" }}',
+                    300: '{{ theme_obj.dark_300 | default:"#1B1D52" }}',
                     400: '{{ theme_obj.dark_400 | default:"#64748B" }}',
-                    500: '{{ theme_obj.dark_500 | default:"#190906" }}',
+                    500: '{{ theme_obj.dark_500 | default:"#0B0C24" }}',
                     600: '{{ theme_obj.dark_600 | default:"#000000" }}',
                 },
 
@@ -179,9 +179,9 @@
                     100: '{{ theme_obj.secondary_100 | default:"#f1f5f9" }}',
                     200: '{{ theme_obj.secondary_200 | default:"#e2e8f0" }}',
                     300: '{{ theme_obj.secondary_300 | default:"#cbd5e1" }}',
-                    400: '{{ theme_obj.secondary_400 | default:"#FBE5E1" }}',
-                    500: '{{ theme_obj.secondary_500 | default:"#F7C8C1" }}',
-                    600: '{{ theme_obj.secondary_600 | default:"#E54F38" }}',
+                    400: '{{ theme_obj.secondary_400 | default:"#DFE2F9" }}',
+                    500: '{{ theme_obj.secondary_500 | default:"#C8C8FF" }}',
+                    600: '{{ theme_obj.secondary_600 | default:"#3535C8" }}',
                     700: '{{ theme_obj.secondary_700 | default:"#334155" }}',
                     800: '{{ theme_obj.secondary_800 | default:"#1e293b" }}',
                     900: '{{ theme_obj.secondary_900 | default:"#0f172a" }}',

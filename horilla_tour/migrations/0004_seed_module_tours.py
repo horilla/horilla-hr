@@ -393,7 +393,7 @@ TOURS = [
             {
                 "sequence": 5,
                 "title": "Run payroll",
-                "description": "Generate payslips for a pay period in one click — Horilla calculates gross pay, deductions and net pay automatically.",
+                "description": "Generate payslips for a pay period in one click — Krew calculates gross pay, deductions and net pay automatically.",
                 "element_selector": "",
                 "side": "over",
                 "align": "start",

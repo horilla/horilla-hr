@@ -97,7 +97,7 @@ STEPS = {
         (
             1,
             "Company Settings",
-            "This is the Company page. Everything in Horilla — employees, leave, payroll — is scoped to a company, so you must create one first.",
+            "This is the Company page. Everything in Krew — employees, leave, payroll — is scoped to a company, so you must create one first.",
             "",
             "over",
             "start",

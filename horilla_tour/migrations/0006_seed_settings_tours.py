@@ -36,7 +36,7 @@ TOURS = [
             {
                 "sequence": 3,
                 "title": "Company first",
-                "description": "Start with your company profile — name, logo, address and contact details. Everything in Horilla is scoped to a company, so this must exist before anything else.",
+                "description": "Start with your company profile — name, logo, address and contact details. Everything in Krew is scoped to a company, so this must exist before anything else.",
                 "element_selector": "",
                 "side": "over",
                 "align": "start",
@@ -65,7 +65,7 @@ TOURS = [
     {
         "slug": "settings-company",
         "title": "Company Setup",
-        "description": "How to add and configure your company profile in Horilla.",
+        "description": "How to add and configure your company profile in Krew.",
         "page_match": "company-view",
         "match_type": "url_name",
         "audience": "managers",
@@ -77,7 +77,7 @@ TOURS = [
             {
                 "sequence": 1,
                 "title": "Your Company Profile",
-                "description": "This page lists all companies registered in Horilla. Every employee, leave policy, payroll run and setting is scoped to a company — so you need at least one before you can do anything else.",
+                "description": "This page lists all companies registered in Krew. Every employee, leave policy, payroll run and setting is scoped to a company — so you need at least one before you can do anything else.",
                 "element_selector": "",
                 "side": "over",
                 "align": "start",
@@ -93,7 +93,7 @@ TOURS = [
             {
                 "sequence": 3,
                 "title": "Multi-company support",
-                "description": "Horilla supports multiple companies in a single instance. Each company has its own employees, leave balances, payroll and reports — fully isolated from each other.",
+                "description": "Krew supports multiple companies in a single instance. Each company has its own employees, leave balances, payroll and reports — fully isolated from each other.",
                 "element_selector": "",
                 "side": "over",
                 "align": "start",
@@ -305,7 +305,7 @@ TOURS = [
             {
                 "sequence": 2,
                 "title": "Create a work type",
-                "description": "Click Create and give the work type a name. Horilla comes with common defaults — add any custom types your company uses.",
+                "description": "Click Create and give the work type a name. Krew comes with common defaults — add any custom types your company uses.",
                 "element_selector": "",
                 "side": "over",
                 "align": "start",
@@ -419,7 +419,7 @@ TOURS = [
             {
                 "sequence": 4,
                 "title": "Rotating shifts",
-                "description": "If employees rotate through different shifts (morning one week, evening the next), use the Rotating Shift feature to define the rotation schedule — Horilla will automatically assign the correct shift each period.",
+                "description": "If employees rotate through different shifts (morning one week, evening the next), use the Rotating Shift feature to define the rotation schedule — Krew will automatically assign the correct shift each period.",
                 "element_selector": "",
                 "side": "over",
                 "align": "start",

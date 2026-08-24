@@ -5,7 +5,7 @@
 <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 <style>
     :root {
-        --pr-indigo: #E54F38;
+        --pr-indigo: #3535C8;
         --pr-green: #22c55e;
         --pr-amber: #f59e0b;
         --pr-red: #ef4444;
@@ -320,7 +320,7 @@ function prLoadStatus() {
                         : PR_URLS.projectView;
                 }},
             },
-            colors: ["#E54F38","#22c55e","#a855f7","#f59e0b","#ef4444","#94a3b8"],
+            colors: ["#3535C8","#22c55e","#a855f7","#f59e0b","#ef4444","#94a3b8"],
             legend: { position: "bottom", fontSize: "12px" },
             dataLabels: { enabled: true },
             plotOptions: { pie: { donut: { size: "60%" } } },
@@ -359,7 +359,7 @@ function prLoadTrend() {
                 { name: "{% trans 'Completed' %}", data: d.completed },
             ],
             chart: { type: "area", height: 220, toolbar: { show: false }, sparkline: { enabled: false } },
-            colors: ["#E54F38", "#22c55e"],
+            colors: ["#3535C8", "#22c55e"],
             xaxis: { categories: d.months, labels: { style: { fontSize: "11px" } } },
             yaxis: { labels: { style: { fontSize: "11px" } } },
             stroke: { curve: "smooth", width: 2 },
@@ -424,7 +424,7 @@ function prLoadTop() {
                     }
                 }},
             },
-            colors: ["#E54F38"],
+            colors: ["#3535C8"],
             xaxis: { categories: d.projects.map(p => p.title.length > 18 ? p.title.slice(0,18)+"…" : p.title), labels: { style: { fontSize: "11px" } } },
             yaxis: { labels: { style: { fontSize: "11px" } } },
             plotOptions: { bar: { borderRadius: 4, horizontal: true } },

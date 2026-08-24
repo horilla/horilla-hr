@@ -2303,7 +2303,7 @@ video {
   border-color: rgb(221 221 221 / var(--tw-border-opacity, 1));
 }
 
-.border-\[\#e54f38\] {
+.border-\[\#3535C8\] {
   --tw-border-opacity: 1;
   border-color: rgb(229 79 56 / var(--tw-border-opacity, 1));
 }
@@ -4341,7 +4341,7 @@ video {
   color: rgb(92 107 192 / var(--tw-text-opacity, 1));
 }
 
-.hover\:text-\[\#ac3b2a\]:hover {
+.hover\:text-\[\#262878\]:hover {
   --tw-text-opacity: 1;
   color: rgb(172 59 42 / var(--tw-text-opacity, 1));
 }

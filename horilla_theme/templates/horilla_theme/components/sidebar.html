@@ -3,9 +3,9 @@
 <style>
     #sidebar,
     #sidebarFlyout {
-        --sidebar-accent: {{ theme_obj.primary_600|default:'#E54F38' }};
+        --sidebar-accent: {{ theme_obj.primary_600|default:'#3535C8' }};
         --sidebar-accent-dark: {{ theme_obj.primary_700|default:'#c73f2a' }};
-        --sidebar-accent-soft: {{ theme_obj.primary_100|default:'#FEF6F5' }};
+        --sidebar-accent-soft: {{ theme_obj.primary_100|default:'#F5F6FE' }};
     }
     /* === Sidebar collapse / expand === */
     #sidebar {
@@ -353,25 +353,25 @@
         transition: background-color 0.12s ease, color 0.12s ease;
     }
     #sidebarFlyout a.sidebar-subnav-link:hover {
-        background-color: color-mix(in srgb, {{ theme_obj.primary_600|default:"#E54F38" }} 8%, transparent) !important;
-        color: {{ theme_obj.primary_600|default:"#E54F38" }} !important;
+        background-color: color-mix(in srgb, {{ theme_obj.primary_600|default:"#3535C8" }} 8%, transparent) !important;
+        color: {{ theme_obj.primary_600|default:"#3535C8" }} !important;
     }
     #sidebarFlyout a.sidebar-subnav-link.oh-sidebar-active-link {
-        background-color: color-mix(in srgb, {{ theme_obj.primary_600|default:"#E54F38" }} 16%, transparent) !important;
-        color: {{ theme_obj.primary_600|default:"#E54F38" }} !important;
+        background-color: color-mix(in srgb, {{ theme_obj.primary_600|default:"#3535C8" }} 16%, transparent) !important;
+        color: {{ theme_obj.primary_600|default:"#3535C8" }} !important;
         font-weight: 600;
-        border-left: 3px solid {{ theme_obj.primary_600|default:"#E54F38" }};
+        border-left: 3px solid {{ theme_obj.primary_600|default:"#3535C8" }};
         padding-left: calc(0.75rem - 3px) !important;
     }
     body.dark #sidebarFlyout a.sidebar-subnav-link {
         color: #d1d5db;
     }
     body.dark #sidebarFlyout a.sidebar-subnav-link:hover {
-        background-color: color-mix(in srgb, {{ theme_obj.primary_600|default:"#E54F38" }} 15%, transparent) !important;
+        background-color: color-mix(in srgb, {{ theme_obj.primary_600|default:"#3535C8" }} 15%, transparent) !important;
         color: {{ theme_obj.primary_400|default:"#F87060" }} !important;
     }
     body.dark #sidebarFlyout a.sidebar-subnav-link.oh-sidebar-active-link {
-        background-color: color-mix(in srgb, {{ theme_obj.primary_600|default:"#E54F38" }} 25%, transparent) !important;
+        background-color: color-mix(in srgb, {{ theme_obj.primary_600|default:"#3535C8" }} 25%, transparent) !important;
         color: {{ theme_obj.primary_400|default:"#F87060" }} !important;
         border-left: 3px solid {{ theme_obj.primary_400|default:"#F87060" }};
         padding-left: calc(0.75rem - 3px) !important;

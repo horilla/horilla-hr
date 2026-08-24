@@ -12744,8 +12744,8 @@ div.ui-tooltip {
   transition: 0s;
 }
 .oh-modal__dialog--custom .oh-general__tab .oh-general__tab-link--active {
-  background-color: #e54f38;
-  border: 1px solid #e54f38;
+  background-color: #3535C8;
+  border: 1px solid #3535C8;
   color: #fff;
   padding: 5px 12px;
   border-radius: 23px;
@@ -12844,7 +12844,7 @@ div.ui-tooltip {
   background: #fff2f0;
 }
 .oh-kanban-card-action .oh-kanban-card-action__checkbox:checked + .oh-kanban-card-action__checkbox-label::before {
-  background: #e54f38;
+  background: #3535C8;
   border-radius: 12px;
 }
 
@@ -13759,7 +13759,7 @@ div.ui-tooltip {
 }
 
 .members-container ul .active {
-  border: 2px solid #e54f38;
+  border: 2px solid #3535C8;
   border-radius: 50%;
 }
 

@@ -15,9 +15,41 @@ from horilla.models import HorillaModel
 
 THEMES_DATA = [
     {
-        "name": "Coral Red Theme (Default)",
-        "description": "Warm coral-red based theme",
+        "name": "Krew Indigo Theme (Default)",
+        "description": "Ventura Workforce Solutions brand indigo",
         "is_default": True,
+        "primary_50": "#f6f7fb",
+        "primary_100": "#F2F3FD",
+        "primary_200": "#F5F6FE",
+        "primary_300": "#EBEDFB",
+        "primary_400": "#DFE2F9",
+        "primary_500": "#C8C8FF",
+        "primary_600": "#3535C8",
+        "primary_700": "#2E3192",
+        "primary_800": "#262878",
+        "primary_900": "#171950",
+        "dark_50": "#E6E6E6",
+        "dark_100": "#A8A8A8",
+        "dark_200": "#515151",
+        "dark_300": "#1B1D52",
+        "dark_400": "#64748B",
+        "dark_500": "#0B0C24",
+        "dark_600": "#000000",
+        "secondary_50": "#f8fafc",
+        "secondary_100": "#f1f5f9",
+        "secondary_200": "#e2e8f0",
+        "secondary_300": "#cbd5e1",
+        "secondary_400": "#DFE2F9",
+        "secondary_500": "#C8C8FF",
+        "secondary_600": "#4B55C4",
+        "secondary_700": "#334155",
+        "secondary_800": "#1e293b",
+        "secondary_900": "#0f172a",
+    },
+    {
+        "name": "Coral Red Theme (Default)",
+        "description": "Warm coral-red based theme (upstream Horilla default)",
+        "is_default": False,
         "primary_50": "#f6f6f6",
         "primary_100": "#FFF5F1",  # f0f0f0
         "primary_200": "#FEF6F5",
@@ -577,7 +609,7 @@ class HorillaColorTheme(HorillaModel):
         default_theme = cls.objects.filter(is_default=True).first()
         if default_theme:
             return default_theme
-        return cls.objects.filter(name="Coral Red Theme (Default)").first()
+        return cls.objects.filter(name="Krew Indigo Theme (Default)").first()
 
 
 class CompanyTheme(HorillaModel):

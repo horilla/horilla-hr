@@ -5,7 +5,7 @@
 <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 <style>
     :root {
-        --pd-indigo: #E54F38;
+        --pd-indigo: #3535C8;
         --pd-green: #22c55e;
         --pd-amber: #f59e0b;
         --pd-red: #ef4444;
@@ -280,7 +280,7 @@
     const textColor = isDark ? '#e2e8f0' : '#334155';
     const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
     const cardBg = isDark ? '#242424' : '#ffffff';
-    const COLORS = ['#E54F38','#22c55e','#f59e0b','#ef4444','#3b82f6','#a855f7','#06b6d4','#ec4899','#14b8a6','#f97316'];
+    const COLORS = ['#3535C8','#22c55e','#f59e0b','#ef4444','#3b82f6','#a855f7','#06b6d4','#ec4899','#14b8a6','#f97316'];
     const emptyHtml = (msg) => `<div class="pd-empty"><img src="/static/images/ui/no_records.svg" alt="">${msg}</div>`;
     const fmt = v => Number(v).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
     const empViewUrl = "{% url 'employee-view-individual' obj_id=0 %}";
@@ -572,7 +572,7 @@
                         }}
                     },
                     labels: data.by_type.map(t => t.type),
-                    colors: ['#E54F38', '#f59e0b', '#22c55e'],
+                    colors: ['#3535C8', '#f59e0b', '#22c55e'],
                     plotOptions: { pie: { donut: { size: '65%', labels: { show: true, total: { show: true, label: '{% trans "Total" %}', color: textColor, fontSize: '12px', fontWeight: 600, formatter: w => w.globals.seriesTotals.reduce((a,b)=>a+b,0) } } } } },
                     stroke: { width: 2, colors: [cardBg] },
                     dataLabels: { enabled: false },
@@ -606,7 +606,7 @@
                         }
                     }}
                 },
-                colors: ['#E54F38'],
+                colors: ['#3535C8'],
                 plotOptions: { bar: { borderRadius: 6, columnWidth: '55%' } },
                 xaxis: { categories: data.bands.map(b => b.label), labels: { style: { colors: textColor, fontSize: '10px' }, rotate: -45 }, axisBorder: { show: false }, axisTicks: { show: false } },
                 yaxis: { labels: { style: { colors: textColor } } },

@@ -72,20 +72,20 @@
                    form, so it degrades gracefully if a page renders through a base
                    layout that doesn't define these tokens. */
                 :root {
-                    --primary-100: {{ theme.primary_100|default:"#FFF5F1" }};
-                    --primary-200: {{ theme.primary_200|default:"#FEF6F5" }};
-                    --primary-300: {{ theme.primary_300|default:"#FCEDEB" }};
-                    --primary-500: {{ theme.primary_500|default:"#F7C8C1" }};
-                    --primary-600: {{ theme.primary_600|default:"#E54F38" }};
-                    --primary-700: {{ theme.primary_700|default:"#ce4732" }};
-                    --primary-800: {{ theme.primary_800|default:"#AC3B2A" }};
+                    --primary-100: {{ theme.primary_100|default:"#F2F3FD" }};
+                    --primary-200: {{ theme.primary_200|default:"#F5F6FE" }};
+                    --primary-300: {{ theme.primary_300|default:"#EBEDFB" }};
+                    --primary-500: {{ theme.primary_500|default:"#C8C8FF" }};
+                    --primary-600: {{ theme.primary_600|default:"#3535C8" }};
+                    --primary-700: {{ theme.primary_700|default:"#2E3192" }};
+                    --primary-800: {{ theme.primary_800|default:"#262878" }};
                     --secondary-100: {{ theme.secondary_100|default:"#F0F0F0" }};
                     /* Shared semantic tokens (previously hardcoded across components) */
                     --status-success: limegreen;
                     --gender-male: rgb(32, 128, 218);
                     --gender-female: pink;
                     --text-muted: #4d4a4a;
-                    --btn-add-another: {{ theme.primary_500|default:"#F7C8C1" }};
+                    --btn-add-another: {{ theme.primary_500|default:"#C8C8FF" }};
                 }
 
                 /* Primary 600 background */
@@ -101,23 +101,23 @@
                 .select2-container--default
                 .select2-selection--multiple
                 .select2-selection__choice {
-                    background-color: {{ theme.primary_600|default:"#E54F38" }};
+                    background-color: {{ theme.primary_600|default:"#3535C8" }};
                 }
 
                 .oh-titlebar__tag--custom{
-                    background-color: {{ theme.primary_600|default:"#E54F38" }} !important;
+                    background-color: {{ theme.primary_600|default:"#3535C8" }} !important;
                     color: {{ theme_obj.secondary_100|default:"#F0F0F0" }} !important;
                 }
 
                 .usertablist li button.active,
                 .usertablist li button:hover{
-                    border: 1px solid {{ theme_obj.primary_600|default:"#E54F38" }};
+                    border: 1px solid {{ theme_obj.primary_600|default:"#3535C8" }};
                 }
 
                 .myform input:focus, .myform select:focus, .myform textarea:focus,
                 .oh-input:focus, .oh-input:focus-visible, .oh-select:focus, .oh-select:focus-visible
                 {
-                    border: 1px solid {{ theme_obj.primary_600|default:"#E54F38" }} !important;
+                    border: 1px solid {{ theme_obj.primary_600|default:"#3535C8" }} !important;
                 }
 
                 {% comment %} .oh-activity-sidebar {
@@ -130,25 +130,25 @@
                 .oh-btn--secondary:focus-visible,
                 .oh-switch .oh-switch__checkbox:checked:hover
                 {
-                    background-color: {{ theme_obj.primary_800 | default:"#AC3B2A" }};
+                    background-color: {{ theme_obj.primary_800 | default:"#262878" }};
                 }
 
                 /* Primary 300 background */
                 .sidebox ul li a:after,
                 .sidebox ul li a:hover,
                 .oh-accordion-header:hover {
-                    background-color: {{ theme.primary_300|default:"#FCEDEB" }};
+                    background-color: {{ theme.primary_300|default:"#EBEDFB" }};
                 }
 
                 /* Accordion base */
                 .oh-accordion-header {
-                    background-color: {{ theme.primary_200|default:"#FEF6F5" }};
-                    color: {{ theme.primary_600|default:"#E54F38" }};
+                    background-color: {{ theme.primary_200|default:"#F5F6FE" }};
+                    color: {{ theme.primary_600|default:"#3535C8" }};
                 }
 
                 .oh-tabs__movable-header,
                 .oh-tabs__movable:hover {
-                    background-color: {{ theme.primary_100|default:"#FEF6F5" }};
+                    background-color: {{ theme.primary_100|default:"#F5F6FE" }};
                 }
 
                 /* Text color */
@@ -156,7 +156,7 @@
                 .sidebox ul li a:hover,
                 .breadcrumb li:last-child,
                 .breadcrumb li a:hover {
-                    color: {{ theme.primary_600|default:"#E54F38" }};
+                    color: {{ theme.primary_600|default:"#3535C8" }};
                 }
 
                 /* ── Theme-aware Tailwind primary-* utilities ─────────────────────
@@ -168,27 +168,27 @@
                    global.css, so it wins by source order at equal specificity —
                    deliberately WITHOUT !important, so state utilities layered on
                    top (e.g. hover:text-white, hover:bg-*) still win on hover. */
-                .border-primary-300 { border-color: {{ theme.primary_300|default:"#FCEDEB" }}; }
-                .border-primary-500 { border-color: {{ theme.primary_500|default:"#F7C8C1" }}; }
-                .border-primary-600 { border-color: {{ theme.primary_600|default:"#E54F38" }}; }
-                .bg-primary-100 { background-color: {{ theme.primary_100|default:"#FFF5F1" }}; }
-                .bg-primary-200 { background-color: {{ theme.primary_200|default:"#FEF6F5" }}; }
-                .bg-primary-300 { background-color: {{ theme.primary_300|default:"#FCEDEB" }}; }
-                .bg-primary-500 { background-color: {{ theme.primary_500|default:"#F7C8C1" }}; }
-                .bg-primary-600 { background-color: {{ theme.primary_600|default:"#E54F38" }}; }
-                .text-primary-600 { color: {{ theme.primary_600|default:"#E54F38" }}; }
-                .hover\:border-primary-600:hover { border-color: {{ theme.primary_600|default:"#E54F38" }}; }
-                .hover\:bg-primary-200:hover { background-color: {{ theme.primary_200|default:"#FEF6F5" }}; }
-                .hover\:bg-primary-600:hover { background-color: {{ theme.primary_600|default:"#E54F38" }}; }
-                .hover\:bg-primary-700:hover { background-color: {{ theme.primary_700|default:"#ce4732" }}; }
-                .hover\:bg-primary-800:hover { background-color: {{ theme.primary_800|default:"#AC3B2A" }}; }
-                .hover\:text-primary-600:hover { color: {{ theme.primary_600|default:"#E54F38" }}; }
-                .focus\:border-primary-600:focus { border-color: {{ theme.primary_600|default:"#E54F38" }}; }
+                .border-primary-300 { border-color: {{ theme.primary_300|default:"#EBEDFB" }}; }
+                .border-primary-500 { border-color: {{ theme.primary_500|default:"#C8C8FF" }}; }
+                .border-primary-600 { border-color: {{ theme.primary_600|default:"#3535C8" }}; }
+                .bg-primary-100 { background-color: {{ theme.primary_100|default:"#F2F3FD" }}; }
+                .bg-primary-200 { background-color: {{ theme.primary_200|default:"#F5F6FE" }}; }
+                .bg-primary-300 { background-color: {{ theme.primary_300|default:"#EBEDFB" }}; }
+                .bg-primary-500 { background-color: {{ theme.primary_500|default:"#C8C8FF" }}; }
+                .bg-primary-600 { background-color: {{ theme.primary_600|default:"#3535C8" }}; }
+                .text-primary-600 { color: {{ theme.primary_600|default:"#3535C8" }}; }
+                .hover\:border-primary-600:hover { border-color: {{ theme.primary_600|default:"#3535C8" }}; }
+                .hover\:bg-primary-200:hover { background-color: {{ theme.primary_200|default:"#F5F6FE" }}; }
+                .hover\:bg-primary-600:hover { background-color: {{ theme.primary_600|default:"#3535C8" }}; }
+                .hover\:bg-primary-700:hover { background-color: {{ theme.primary_700|default:"#2E3192" }}; }
+                .hover\:bg-primary-800:hover { background-color: {{ theme.primary_800|default:"#262878" }}; }
+                .hover\:text-primary-600:hover { color: {{ theme.primary_600|default:"#3535C8" }}; }
+                .focus\:border-primary-600:focus { border-color: {{ theme.primary_600|default:"#3535C8" }}; }
 
                 /* Active list/grid view-toggle button (.oh-view-btn--active) —
                    its border was hardcoded red in v1_styles.css. */
                 .oh-view-btn--active {
-                    border: 1px solid {{ theme.primary_600|default:"#E54F38" }} !important;
+                    border: 1px solid {{ theme.primary_600|default:"#3535C8" }} !important;
                 }
 
                 /* ── List-view row selection follows the theme ────────────────────
@@ -199,14 +199,14 @@
                    rule is ignored and the base highlight still applies. Row-status
                    left borders (validated/rejected/…) are semantic and untouched. */
                 .highlight-selected {
-                    background: color-mix(in srgb, {{ theme.primary_600|default:"#E54F38" }} 12%, transparent) !important;
+                    background: color-mix(in srgb, {{ theme.primary_600|default:"#3535C8" }} 12%, transparent) !important;
                 }
                 input[type="checkbox"].custom-checkbox:checked {
-                    background-color: {{ theme.primary_600|default:"#E54F38" }} !important;
-                    border-color: {{ theme.primary_600|default:"#E54F38" }} !important;
+                    background-color: {{ theme.primary_600|default:"#3535C8" }} !important;
+                    border-color: {{ theme.primary_600|default:"#3535C8" }} !important;
                 }
                 input[type="checkbox"].custom-checkbox:hover {
-                    border-color: {{ theme.primary_600|default:"#E54F38" }} !important;
+                    border-color: {{ theme.primary_600|default:"#3535C8" }} !important;
                 }
                 /* All checkboxes/radios (both list-table variants: .custom-checkbox
                    drawn boxes AND native .oh-input__checkbox / .list-table-row)
@@ -217,7 +217,7 @@
                 input[type="checkbox"].oh-input__checkbox,
                 input[type="checkbox"].list-table-row,
                 input[type="checkbox"].bulk-list-table-row {
-                    accent-color: {{ theme.primary_600|default:"#E54F38" }} !important;
+                    accent-color: {{ theme.primary_600|default:"#3535C8" }} !important;
                 }
             </style>
         {% endwith %}

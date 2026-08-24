@@ -5,7 +5,7 @@
 <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 <style>
   :root {
-    --ess-indigo: #E54F38;
+    --ess-indigo: #3535C8;
     --ess-green:  #22c55e;
     --ess-amber:  #f59e0b;
     --ess-red:    #ef4444;
@@ -180,10 +180,10 @@
     height: 3px;
     border-radius: 16px 16px 0 0;
   }
-  .ess-chart-card[data-section="leave"]::before       { background: linear-gradient(90deg, #E54F38, #a855f7); }
+  .ess-chart-card[data-section="leave"]::before       { background: linear-gradient(90deg, #3535C8, #a855f7); }
   .ess-chart-card[data-section="attendance"]::before  { background: linear-gradient(90deg, #22c55e, #06b6d4); }
   .ess-chart-card[data-section="payroll"]::before     { background: linear-gradient(90deg, #f59e0b, #ef4444); }
-  .ess-chart-card[data-section="goals"]::before       { background: linear-gradient(90deg, #3b82f6, #E54F38); }
+  .ess-chart-card[data-section="goals"]::before       { background: linear-gradient(90deg, #3b82f6, #3535C8); }
   .ess-chart-card[data-section="calendar"]::before    { background: linear-gradient(90deg, #22c55e, #06b6d4); }
 
   .ess-chart-card--wide { margin-bottom: 18px; }
@@ -681,7 +681,7 @@
           ],
           xaxis: { categories: categories, labels: { style: { colors: axisColor(), fontSize: '11px' } } },
           yaxis: { labels: { style: { colors: axisColor(), fontSize: '11px' } } },
-          colors: ['#E54F38', '#22c55e'],
+          colors: ['#3535C8', '#22c55e'],
           dataLabels: { enabled: false },
           legend: { position: 'top', fontSize: '11px' },
           theme: { mode: themeMode() },
@@ -726,7 +726,7 @@
             max: 12,
             labels: { formatter: function (v) { return v + 'h'; }, style: { colors: axisColor(), fontSize: '11px' } }
           },
-          colors: ['#E54F38'],
+          colors: ['#3535C8'],
           plotOptions: { bar: { borderRadius: 5, columnWidth: '55%' } },
           dataLabels: { enabled: false },
           annotations: { yaxis: [{ y: 8, borderColor: '#f59e0b', strokeDashArray: 4,
@@ -780,7 +780,7 @@
         document.getElementById('essCalSummary').innerHTML =
           calSummItem(s.present,  '#22c55e', '{% trans "Present" %}') +
           calSummItem(s.absent,   '#ef4444', '{% trans "Absent" %}')  +
-          calSummItem(s.leave,    '#E54F38', '{% trans "Leave" %}')   +
+          calSummItem(s.leave,    '#3535C8', '{% trans "Leave" %}')   +
           calSummItem(s.late,     '#f59e0b', '{% trans "Late" %}')    +
           calSummItem(s.holiday,  '#a855f7', '{% trans "Holiday" %}');
       })
@@ -825,7 +825,7 @@
             axisBorder: { show: false }, axisTicks: { show: false }
           },
           yaxis: { labels: { formatter: function (v) { return v.toLocaleString(); }, style: { colors: axisColor(), fontSize: '10px' } } },
-          colors: ['#E54F38', '#22c55e'],
+          colors: ['#3535C8', '#22c55e'],
           plotOptions: { bar: { borderRadius: 5, columnWidth: '60%' } },
           dataLabels: { enabled: false },
           legend: { position: 'top', fontSize: '11px' },

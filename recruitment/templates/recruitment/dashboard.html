@@ -5,7 +5,7 @@
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <style>
         :root {
-            --rd-indigo: #E54F38;
+            --rd-indigo: #3535C8;
             --rd-green: #22c55e;
             --rd-amber: #f59e0b;
             --rd-red: #ef4444;
@@ -451,7 +451,7 @@
             padding: 1px 7px;
             border-radius: 10px;
             background: rgba(99, 102, 241, 0.1);
-            color: #E54F38;
+            color: #3535C8;
             font-weight: 600;
             font-size: 10px;
         }
@@ -1103,7 +1103,7 @@
             const isDark = document.documentElement.classList.contains('dark') || document.body.classList.contains('dark');
             const textColor = isDark ? '#e2e8f0' : '#334155';
             const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
-            const COLORS = ['#E54F38','#22c55e','#f59e0b','#ef4444','#3b82f6','#a855f7','#06b6d4','#ec4899','#14b8a6','#f97316'];
+            const COLORS = ['#3535C8','#22c55e','#f59e0b','#ef4444','#3b82f6','#a855f7','#06b6d4','#ec4899','#14b8a6','#f97316'];
 
             const emptyHtml = (msg) => `<div class="rd-empty"><img src="/static/images/ui/no_records.svg" alt="">${msg}</div>`;
 
@@ -1307,7 +1307,7 @@
                     let html = '<div class="rd-funnel">';
                     data.conversions.forEach(c => {
                         const pct = Math.max(20, (c.count / maxCount) * 100);
-                        const color = funnelColors[c.type] || '#E54F38';
+                        const color = funnelColors[c.type] || '#3535C8';
                         const url = "{% url 'candidate-view' %}?stage_id__stage_type=" + encodeURIComponent(c.type);
                         html += `<div class="rd-funnel-step" onclick="window.location.href='${url}'" title="{% trans 'View ${c.stage} candidates' %}">
                     <div class="rd-funnel-step__label">${c.stage}</div>
@@ -1327,7 +1327,7 @@
                 .then(r => r.json())
                 .then(data => {
                     if (!data.sources.length) { document.querySelector("#chart-source-hire").innerHTML = emptyHtml('{% trans "No source data" %}'); return; }
-                    const sourceColors = { 'Application Form': '#3b82f6', 'Inside Software': '#E54F38', 'Referral': '#22c55e', 'Other': '#94a3b8' };
+                    const sourceColors = { 'Application Form': '#3b82f6', 'Inside Software': '#3535C8', 'Referral': '#22c55e', 'Other': '#94a3b8' };
                     renderChart('source-hire', document.querySelector("#chart-source-hire"), {
                         series: data.sources.map(s => s.count),
                         chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit',
@@ -1439,7 +1439,7 @@
                                 window.location.href = "{% url 'candidate-view' %}?stage_id__stage_type=" + stage.type;
                             }}
                         },
-                        colors: data.stages.map(s => stageColors[s.type] || '#E54F38'),
+                        colors: data.stages.map(s => stageColors[s.type] || '#3535C8'),
                         plotOptions: { bar: { borderRadius: 8, columnWidth: '55%', distributed: true } },
                         xaxis: { categories: data.stages.map(s => s.label), labels: { style: { colors: textColor, fontSize: '12px' } }, axisBorder: { show: false }, axisTicks: { show: false } },
                         yaxis: { labels: { style: { colors: textColor } } },
@@ -1459,7 +1459,7 @@
                 .then(data => {
                     const total = data.data.reduce((a, b) => a + b, 0);
                     if (!total) { document.querySelector("#chart-offer-status").innerHTML = emptyHtml('{% trans "No candidates" %}'); return; }
-                    const offerColors = ['#94a3b8', '#f59e0b', '#22c55e', '#ef4444', '#E54F38'];
+                    const offerColors = ['#94a3b8', '#f59e0b', '#22c55e', '#ef4444', '#3535C8'];
                     renderChart('offer-status', document.querySelector("#chart-offer-status"), {
                         series: data.data,
                         chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit',
@@ -1545,7 +1545,7 @@
                                 window.location.href = "{% url 'candidate-view' %}?recruitment=" + encodeURIComponent(rec) + "&hired=true";
                             }}
                         },
-                        colors: ['#E54F38'],
+                        colors: ['#3535C8'],
                         plotOptions: { bar: { borderRadius: 6, columnWidth: '50%' } },
                         xaxis: { categories: data.data.map(d => d.recruitment), labels: { style: { colors: textColor, fontSize: '11px' }, rotate: -45 }, axisBorder: { show: false }, axisTicks: { show: false } },
                         yaxis: { labels: { style: { colors: textColor }, formatter: v => v + 'd' } },

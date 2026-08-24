@@ -170,7 +170,7 @@
      on :root from the active company theme, so this stays in sync with
      it instead of hardcoding a color. */
   .ms-table-wrap .fixed-table tbody tr.highlight-selected td {
-    background-color: color-mix(in srgb, var(--primary-600, #E54F38) 12%, transparent) !important;
+    background-color: color-mix(in srgb, var(--primary-600, #3535C8) 12%, transparent) !important;
   }
   /* The two STICKY columns (checkbox + Employee) must stay fully opaque —
      a semi-transparent background on a `position: sticky` cell lets the
@@ -180,11 +180,11 @@
      of transparent gives the same visible tint, pre-composited and opaque. */
   .ms-table-wrap .fixed-table tbody tr.highlight-selected td:first-child,
   .ms-table-wrap .fixed-table tbody tr.highlight-selected td:nth-child(2) {
-    background-color: color-mix(in srgb, var(--primary-600, #E54F38) 12%, white) !important;
+    background-color: color-mix(in srgb, var(--primary-600, #3535C8) 12%, white) !important;
   }
   body.dark .ms-table-wrap .fixed-table tbody tr.highlight-selected td:first-child,
   body.dark .ms-table-wrap .fixed-table tbody tr.highlight-selected td:nth-child(2) {
-    background-color: color-mix(in srgb, var(--primary-600, #E54F38) 12%, #1a1a1a) !important;
+    background-color: color-mix(in srgb, var(--primary-600, #3535C8) 12%, #1a1a1a) !important;
   }
 
   /* Clickable metric cells */

@@ -9,7 +9,7 @@ body.dark {
    Use the theme's own 300 (light tint) shade instead so it's still the
    theme color, just a shade that stays legible on dark backgrounds. */
 body.dark .text-primary-600 {
-  color: var(--primary-300, #fcedeb) !important;
+  color: var(--primary-300, #EBEDFB) !important;
 }
 /* Label/body text that stays dark-gray in light mode needs a light
    equivalent on dark panels (e.g. profile meta chips, About field labels). */
@@ -23,13 +23,13 @@ body.dark .bg-secondary-50 {
    overrides — reassert theme primary on hover for related-object chips. */
 body.dark .group:hover .group-hover\:text-primary-600,
 body.dark .group:hover .group-hover\:text-primary-700 {
-  color: var(--primary-600, #e54f38) !important;
+  color: var(--primary-600, #3535C8) !important;
 }
 /* .accordion-panel ul li a below is more specific than .text-primary-600
    above, so it wins the cascade and flattens the active Settings sub-menu
    item to gray. Re-assert the theme color with matching specificity. */
 body.dark .accordion-panel ul li a.text-primary-600 {
-  color: var(--primary-300, #fcedeb) !important;
+  color: var(--primary-300, #EBEDFB) !important;
 }
 body.dark .bg-white,
 body.dark .bg-primary-200,
@@ -468,7 +468,7 @@ body.dark .oh-profile-settings__icon {
   background-color: rgba(255, 255, 255, 0.08);
 }
 body.dark .oh-profile-settings__link:hover {
-  color: var(--primary-300, #fcedeb) !important;
+  color: var(--primary-300, #EBEDFB) !important;
 }
 
 /* Gear settings dropdown in the newer Tailwind-based profile card

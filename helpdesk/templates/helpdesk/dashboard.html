@@ -4,7 +4,7 @@
 {% block content %}
 <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 <style>
-    :root { --hd-indigo: #E54F38; --hd-green: #22c55e; --hd-amber: #f59e0b; --hd-red: #ef4444; --hd-blue: #3b82f6; --hd-purple: #a855f7; }
+    :root { --hd-indigo: #3535C8; --hd-green: #22c55e; --hd-amber: #f59e0b; --hd-red: #ef4444; --hd-blue: #3b82f6; --hd-purple: #a855f7; }
     .hd-dashboard { font-family: inherit; background: #ffffff; margin: -24px; padding: 24px; min-height: calc(100vh - 80px); }
     .dark .hd-dashboard { background: #000000; }
     .hd-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
@@ -229,7 +229,7 @@
     const textColor = isDark ? '#e2e8f0' : '#334155';
     const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
     const cardBg = isDark ? '#242424' : '#ffffff';
-    const COLORS = ['#E54F38','#22c55e','#f59e0b','#ef4444','#3b82f6','#a855f7','#06b6d4','#ec4899','#14b8a6','#f97316'];
+    const COLORS = ['#3535C8','#22c55e','#f59e0b','#ef4444','#3b82f6','#a855f7','#06b6d4','#ec4899','#14b8a6','#f97316'];
     const statusColors = { new: '#3b82f6', in_progress: '#f59e0b', on_hold: '#ef4444', resolved: '#22c55e', canceled: '#94a3b8' };
     const priorityColors = { low: '#22c55e', medium: '#f59e0b', high: '#ef4444' };
     const emptyHtml = (msg) => `<div class="hd-empty"><img src="/static/images/ui/no_records.svg" alt="">${msg}</div>`;

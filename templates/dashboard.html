@@ -5,7 +5,7 @@
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <style>
         :root {
-            --md-indigo: #E54F38;
+            --md-indigo: #3535C8;
             --md-green: #22c55e;
             --md-amber: #f59e0b;
             --md-red: #ef4444;
@@ -291,7 +291,7 @@
             content: '';
         }
         .md-chart-card[data-chart-section='overview']::before {
-            background: linear-gradient(90deg, #E54F38, #a855f7);
+            background: linear-gradient(90deg, #3535C8, #a855f7);
         }
         .md-chart-card[data-chart-section='attendance']::before {
             background: linear-gradient(90deg, #22c55e, #06b6d4);
@@ -300,7 +300,7 @@
             background: linear-gradient(90deg, #f59e0b, #ef4444);
         }
         .md-chart-card[data-chart-section='leave']::before {
-            background: linear-gradient(90deg, #3b82f6, #E54F38);
+            background: linear-gradient(90deg, #3b82f6, #3535C8);
         }
 
         .md-chart-card--wide {
@@ -900,7 +900,7 @@
             transition: transform 0.2s;
         }
         .md-cust-item__toggle--on {
-            background-color: {{ theme_obj.primary_600|default:"#E54F38" }};
+            background-color: {{ theme_obj.primary_600|default:"#3535C8" }};
         }
         .dark .md-cust-item__toggle--on {
             background: var(--oh-primary, var(--md-indigo));
@@ -1651,7 +1651,7 @@
             const subTextColor = isDark ? '#64748b' : '#94a3b8';
             const gridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
             const cardBg = isDark ? '#242424' : '#ffffff';
-            const COLORS = ['#E54F38','#22c55e','#f59e0b','#ef4444','#3b82f6','#a855f7','#06b6d4','#ec4899','#14b8a6','#f97316'];
+            const COLORS = ['#3535C8','#22c55e','#f59e0b','#ef4444','#3b82f6','#a855f7','#06b6d4','#ec4899','#14b8a6','#f97316'];
             const ANIM = { enabled: true, easing: 'easeinout', speed: 700, animateGradually: { enabled: true, delay: 80 }, dynamicAnimation: { enabled: true, speed: 500 } };
             const GRID = { borderColor: gridColor, strokeDashArray: 5, padding: { left: 4, right: 4 } };
             const TOOLTIP_STYLE = { theme: isDark ? 'dark' : 'light', style: { fontSize: '12px' } };
@@ -2237,12 +2237,12 @@
                     renderChart('attendance-trend', document.querySelector("#chart-attendance-trend"), {
                         series: [{ name: '{% trans "Attendance Rate" %}', data: data.weeks.map(w => w.rate) }],
                         chart: { type: 'area', height: 280, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', animations: ANIM,
-                            dropShadow: { enabled: true, top: 4, blur: 10, opacity: 0.12, color: '#E54F38' } },
-                        colors: ['#E54F38'],
+                            dropShadow: { enabled: true, top: 4, blur: 10, opacity: 0.12, color: '#3535C8' } },
+                        colors: ['#3535C8'],
                         fill: { type: 'gradient', gradient: { type: 'vertical', shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.02, stops: [0, 90, 100],
-                            colorStops: [{ offset: 0, color: '#E54F38', opacity: 0.4 }, { offset: 100, color: '#a855f7', opacity: 0.02 }] } },
+                            colorStops: [{ offset: 0, color: '#3535C8', opacity: 0.4 }, { offset: 100, color: '#a855f7', opacity: 0.02 }] } },
                         stroke: { curve: 'smooth', width: 3 },
-                        markers: { size: 5, colors: ['#E54F38'], strokeColors: cardBg, strokeWidth: 2, hover: { size: 7 } },
+                        markers: { size: 5, colors: ['#3535C8'], strokeColors: cardBg, strokeWidth: 2, hover: { size: 7 } },
                         dataLabels: { enabled: false },
                         xaxis: { ...XAXIS_STYLE, categories: data.weeks.map(w => w.week) },
                         yaxis: { ...YAXIS_STYLE, min: 0, max: 100, labels: { ...YAXIS_STYLE.labels, formatter: v => v + '%' } },
@@ -2365,7 +2365,7 @@
                             }}
                         },
                         labels: data.labels,
-                        colors: data.labels.map(l => sc[l] || '#E54F38'),
+                        colors: data.labels.map(l => sc[l] || '#3535C8'),
                         plotOptions: { radialBar: {
                             hollow: { size: '40%', background: 'transparent' },
                             track: { background: isDark ? '#242424' : '#f1f5f9', strokeWidth: '90%', margin: 6 },
@@ -2431,7 +2431,7 @@
                         series: data.dataset[0].data,
                         chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit', animations: ANIM },
                         labels: data.labels,
-                        colors: ['#22c55e','#06b6d4','#E54F38','#f59e0b','#a855f7','#ef4444'].slice(0, data.labels.length),
+                        colors: ['#22c55e','#06b6d4','#3535C8','#f59e0b','#a855f7','#ef4444'].slice(0, data.labels.length),
                         plotOptions: { pie: { expandOnClick: true, donut: { size: '68%',
                             labels: { show: true,
                                 name: { fontSize: '13px', fontWeight: 700, color: textColor },
@@ -2501,7 +2501,7 @@
                                     window.location.href = "{% url 'candidate-view' %}?recruitment=" + encodeURIComponent(recruitment) + "&stage_id__stage_type=" + encodeURIComponent(stage.toLowerCase());
                                 }}
                             },
-                            colors: ['#E54F38', '#3b82f6', '#06b6d4', '#22c55e', '#f59e0b'],
+                            colors: ['#3535C8', '#3b82f6', '#06b6d4', '#22c55e', '#f59e0b'],
                             plotOptions: { bar: { borderRadius: 6, columnWidth: '60%' } },
                             xaxis: { ...XAXIS_STYLE, categories: data.labels },
                             yaxis: { ...YAXIS_STYLE },
@@ -2587,7 +2587,7 @@
                             }}
                         },
                         labels: data.labels,
-                        colors: ['#3b82f6','#E54F38','#a855f7','#ec4899','#06b6d4','#14b8a6'].slice(0, data.labels.length),
+                        colors: ['#3b82f6','#3535C8','#a855f7','#ec4899','#06b6d4','#14b8a6'].slice(0, data.labels.length),
                         plotOptions: { pie: { expandOnClick: true, donut: { size: '68%',
                             labels: { show: true,
                                 name: { fontSize: '13px', fontWeight: 700, color: textColor },
@@ -2612,7 +2612,7 @@
                     renderChart('leave-days', document.querySelector("#chart-leave-days"), {
                         series: [{ name: '{% trans "Leave Days" %}', data: data.dataset[0].data }],
                         chart: { type: 'bar', height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', animations: ANIM },
-                        colors: ['#3b82f6','#E54F38','#a855f7','#06b6d4','#14b8a6','#ec4899','#f59e0b','#22c55e','#ef4444','#f97316'],
+                        colors: ['#3b82f6','#3535C8','#a855f7','#06b6d4','#14b8a6','#ec4899','#f59e0b','#22c55e','#ef4444','#f97316'],
                         plotOptions: { bar: { borderRadius: 8, borderRadiusApplication: 'end', horizontal: true, barHeight: '50%', distributed: true } },
                         xaxis: { ...XAXIS_STYLE, categories: data.labels },
                         yaxis: { labels: { style: { colors: textColor, fontSize: '11px', fontWeight: 500 } } },
@@ -2717,7 +2717,7 @@
                         return;
                     }
                     if (!data.stages || !data.stages.length) { document.querySelector("#chart-recruitment-funnel").innerHTML = emptyHtml('{% trans "No active recruitments" %}'); return; }
-                    const stageColors = { initial: '#94a3b8', applied: '#E54F38', test: '#3b82f6', interview: '#f59e0b', hired: '#22c55e', cancelled: '#ef4444' };
+                    const stageColors = { initial: '#94a3b8', applied: '#3535C8', test: '#3b82f6', interview: '#f59e0b', hired: '#22c55e', cancelled: '#ef4444' };
                     try {
                         renderChart('recruitment-funnel', document.querySelector("#chart-recruitment-funnel"), {
                             series: [{ name: '{% trans "Candidates" %}', data: data.stages.map(s => s.count) }],
@@ -2797,7 +2797,7 @@
 
                     el.innerHTML = `
                 <div style="padding:10px 4px 4px;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding:14px 16px;border-radius:12px;background:linear-gradient(135deg,#E54F38 0%,#a855f7 100%);">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding:14px 16px;border-radius:12px;background:linear-gradient(135deg,#3535C8 0%,#a855f7 100%);">
                         <div>
                             <div style="font-size:10px;color:rgba(255,255,255,0.7);text-transform:uppercase;font-weight:700;letter-spacing:0.06em;margin-bottom:2px;">{% trans "Net Pay" %}</div>
                             <div style="font-size:28px;font-weight:800;color:#fff;line-height:1;">${fmt(data.current.net)}</div>

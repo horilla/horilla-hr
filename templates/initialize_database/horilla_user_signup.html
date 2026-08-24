@@ -1,6 +1,6 @@
 {% load i18n %}
 <div class="oh-onboarding-card__header">
-    <span class="oh-onboarding-card__company-name">{% trans "Horilla HRMS" %}</span>
+    <span class="oh-onboarding-card__company-name">{% trans "Krew" %}</span>
     <ul class="oh-onboarding-card__step">
         <li class="oh-onboarding-card__step">
             <div class="oh-onboarding-card__count">1</div>
@@ -28,7 +28,7 @@
     {% trans "Sign Up" %}
 </h1>
 <p class="text-muted text-center">
-    {% trans "Please sign up to access the Horilla HRMS." %}
+    {% trans "Please sign up to access Krew." %}
 </p>
 <form hx-post="{% url 'initialize-database-user' %}" hx-target="#ohAuthCard" class="oh-form-group">
     {% csrf_token %}

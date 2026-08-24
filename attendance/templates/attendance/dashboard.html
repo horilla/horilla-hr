@@ -5,7 +5,7 @@
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <style>
         :root {
-            --am-indigo: #E54F38;
+            --am-indigo: #3535C8;
             --am-green: #22c55e;
             --am-amber: #f59e0b;
             --am-red: #ef4444;
@@ -247,7 +247,7 @@
             content: '';
         }
         .am-chart-card[data-chart-section='overview']::before {
-            background: linear-gradient(90deg, #E54F38, #a855f7);
+            background: linear-gradient(90deg, #3535C8, #a855f7);
         }
         .am-chart-card[data-chart-section='attendance']::before {
             background: linear-gradient(90deg, #22c55e, #06b6d4);
@@ -256,7 +256,7 @@
             background: linear-gradient(90deg, #f59e0b, #ef4444);
         }
         .am-chart-card[data-chart-section='hours']::before {
-            background: linear-gradient(90deg, #3b82f6, #E54F38);
+            background: linear-gradient(90deg, #3b82f6, #3535C8);
         }
 
         .am-chart-card--wide {
@@ -643,7 +643,7 @@
             transition: transform 0.2s;
         }
         .am-cust-item__toggle--on {
-            background-color: {{ theme_obj.primary_600|default:"#E54F38" }};
+            background-color: {{ theme_obj.primary_600|default:"#3535C8" }};
         }
         .dark .am-cust-item__toggle--on {
             background: var(--am-indigo);
@@ -1077,7 +1077,7 @@
             const subTextColor = isDark ? '#64748b' : '#94a3b8';
             const gridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
             const cardBg = isDark ? '#242424' : '#ffffff';
-            const COLORS = ['#E54F38','#22c55e','#f59e0b','#ef4444','#3b82f6','#a855f7','#06b6d4','#ec4899','#14b8a6','#f97316'];
+            const COLORS = ['#3535C8','#22c55e','#f59e0b','#ef4444','#3b82f6','#a855f7','#06b6d4','#ec4899','#14b8a6','#f97316'];
             const ANIM = { enabled: true, easing: 'easeinout', speed: 700, animateGradually: { enabled: true, delay: 80 }, dynamicAnimation: { enabled: true, speed: 500 } };
             const GRID = { borderColor: gridColor, strokeDashArray: 5, padding: { left: 4, right: 4 } };
             const TOOLTIP_STYLE = { theme: isDark ? 'dark' : 'light', style: { fontSize: '12px' } };
@@ -1458,15 +1458,15 @@
                     renderChart('weekly-trend', document.querySelector("#chart-weekly-trend"), {
                         series: [{ name: '{% trans "Present" %}', data: data.days.map(d => d.count) }],
                         chart: { type: 'area', height: 280, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', animations: ANIM,
-                            dropShadow: { enabled: true, top: 4, blur: 10, opacity: 0.12, color: '#E54F38' } },
-                        colors: ['#E54F38'],
+                            dropShadow: { enabled: true, top: 4, blur: 10, opacity: 0.12, color: '#3535C8' } },
+                        colors: ['#3535C8'],
                         fill: { type: 'gradient', gradient: { type: 'vertical', shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.02, stops: [0, 90, 100],
-                            colorStops: [{ offset: 0, color: '#E54F38', opacity: 0.4 }, { offset: 100, color: '#a855f7', opacity: 0.02 }] } },
+                            colorStops: [{ offset: 0, color: '#3535C8', opacity: 0.4 }, { offset: 100, color: '#a855f7', opacity: 0.02 }] } },
                         stroke: { curve: 'smooth', width: 3 },
-                        markers: { size: dense ? 0 : 5, colors: ['#E54F38'], strokeColors: cardBg, strokeWidth: 2, hover: { size: 7 } },
+                        markers: { size: dense ? 0 : 5, colors: ['#3535C8'], strokeColors: cardBg, strokeWidth: 2, hover: { size: 7 } },
                         dataLabels: { enabled: !dense, offsetY: -10,
                             style: { fontSize: '11px', fontWeight: 700, colors: ['#fff'] },
-                            background: { enabled: true, foreColor: '#fff', borderRadius: 4, padding: 4, borderWidth: 0, fillColors: ['#E54F38'] } },
+                            background: { enabled: true, foreColor: '#fff', borderRadius: 4, padding: 4, borderWidth: 0, fillColors: ['#3535C8'] } },
                         xaxis: { ...XAXIS_STYLE, categories: data.days.map(d => d.day),
                             tickAmount: Math.min(data.days.length, 10),
                             labels: { ...XAXIS_STYLE.labels, rotate: dense ? -45 : 0, hideOverlappingLabels: true } },
@@ -1671,9 +1671,9 @@
                                 });
                             }}
                         },
-                        colors: ['#E54F38'],
+                        colors: ['#3535C8'],
                         fill: { type: 'gradient', gradient: { type: 'vertical', shadeIntensity: 0.4, opacityFrom: 1, opacityTo: 0.75,
-                            colorStops: [{ offset: 0, color: '#E54F38', opacity: 1 }, { offset: 100, color: '#a855f7', opacity: 0.8 }] } },
+                            colorStops: [{ offset: 0, color: '#3535C8', opacity: 1 }, { offset: 100, color: '#a855f7', opacity: 0.8 }] } },
                         plotOptions: { bar: { borderRadius: 8, borderRadiusApplication: 'end', columnWidth: '52%' } },
                         xaxis: { ...XAXIS_STYLE, categories: data.hours },
                         yaxis: { ...YAXIS_STYLE },

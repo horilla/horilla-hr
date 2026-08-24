@@ -217,7 +217,7 @@
                                             hx-get='{% url "view-penalties" %}?late_early_id={{late_in_early_out.id}}'
                                             hx-target="#penaltyViewModalBody"
                                             align="center"
-                                            style="--accent: {{ theme_obj.primary_600|default:'#E54F38' }}; background-color: color-mix(in srgb, var(--accent) 4%, transparent); border: 2px solid var(--accent); border-radius: 18px; padding: 10px; font-weight: bold; width: 85%"
+                                            style="--accent: {{ theme_obj.primary_600|default:'#3535C8' }}; background-color: color-mix(in srgb, var(--accent) 4%, transparent); border: 2px solid var(--accent); border-radius: 18px; padding: 10px; font-weight: bold; width: 85%"
                                         >
                                             Penalties :{{ late_in_early_out.get_penalties_count }}
                                         </div>
