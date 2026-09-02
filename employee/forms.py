@@ -281,8 +281,9 @@ class EmployeeForm(ModelForm):
         """
         numeric_ids = [
             int(badge_id)
-            for badge_id in Employee.objects.exclude(badge_id=None)
-            .values_list("badge_id", flat=True)
+            for badge_id in Employee.objects.exclude(badge_id=None).values_list(
+                "badge_id", flat=True
+            )
             if badge_id and str(badge_id).isdigit()
         ]
 
