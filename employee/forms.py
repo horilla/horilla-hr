@@ -276,54 +276,21 @@ class EmployeeForm(ModelForm):
 
     def get_next_badge_id(self):
         """
-        This method is used to generate badge id
+        Generate the next numeric badge ID.
+        Existing badge IDs are not changed.
         """
-        from base.context_processors import get_initial_prefix
-        from employee.methods.methods import get_ordered_badge_ids
+        numeric_ids = [
+            int(badge_id)
+            for badge_id in Employee.objects.exclude(badge_id=None).values_list(
+                "badge_id", flat=True
+            )
+            if badge_id and str(badge_id).isdigit()
+        ]
 
-        prefix = get_initial_prefix(None)["get_initial_prefix"]
-        data = get_ordered_badge_ids()
-        result = []
-        try:
-            for sublist in data:
-                for item in sublist:
-                    if isinstance(item, str) and item.lower().startswith(
-                        prefix.lower()
-                    ):
-                        # Find the index of the item in the sublist
-                        index = sublist.index(item)
-                        # Check if there is a next item in the sublist
-                        if index + 1 < len(sublist):
-                            result = sublist[index + 1]
-                            result = re.findall(r"[a-zA-Z]+|\d+|[^a-zA-Z\d\s]", result)
+        if numeric_ids:
+            return str(max(numeric_ids) + 1)
 
-            if result:
-                prefix = []
-                incremented = False
-                for item in reversed(result):
-                    total_letters = len(item)
-                    total_zero_leads = 0
-                    for letter in item:
-                        if letter == "0":
-                            total_zero_leads = total_zero_leads + 1
-                            continue
-                        break
-
-                    if total_zero_leads:
-                        item = item[total_zero_leads:]
-                    if isinstance(item, list):
-                        item = item[-1]
-                    if not incremented and isinstance(eval_validate(str(item)), int):
-                        item = int(item) + 1
-                        incremented = True
-                    if isinstance(item, int):
-                        item = "{:0{}d}".format(item, total_letters)
-                    prefix.insert(0, str(item))
-                prefix = "".join(prefix)
-        except Exception as e:
-            logger.exception(e)
-            prefix = get_initial_prefix(None)["get_initial_prefix"]
-        return prefix
+        return "1"
 
     def clean_badge_id(self):
         """

@@ -228,9 +228,9 @@ else:
             "PASSWORD": env("DB_PASSWORD", default=""),
             "HOST": env("DB_HOST", default=""),
             "PORT": env("DB_PORT", default=""),
-            "OPTIONS": {
-                "timeout": 30,  # seconds to wait on a locked DB before raising OperationalError
-            },
+            #"OPTIONS": {
+            #    "timeout": 30,  # seconds to wait on a locked DB before raising OperationalError
+            #},
         }
     }
 
