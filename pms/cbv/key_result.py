@@ -83,6 +83,11 @@ class KeyResultNavView(HorillaNavView):
     filter_body_template = "cbv/key_results/key_result_filter.html"
     filter_form_context_name = "form"
     search_swap_target = "#listContainer"
+    # Modern slide-over filter panel (generic/horilla_nav.html's own
+    # {% if modern_filter %} branch) -- same treatment as every other
+    # panel this session. ActualKeyResultFilter.ajax_fields carries the
+    # AJAX-loaded Company combobox this needs.
+    modern_filter = True
 
     # Mirrors KeyResultsListView.nested_group_by_fields
     nested_group_by_fields = [
@@ -204,9 +209,9 @@ class KeyResultCardView(HorillaCardView):
             "attrs": """
                     class="oh-dropdown__link"
                     hx-get='{get_update_url}?instance_ids={ordered_ids}'
-			        hx-target="#genericModalBody"
-			        data-toggle="oh-modal-toggle"
-			        data-target="#genericModal"
+                    hx-target="#genericModalBody"
+                    data-toggle="oh-modal-toggle"
+                    data-target="#genericModal"
             """,
         },
         {

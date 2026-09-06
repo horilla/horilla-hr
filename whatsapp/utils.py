@@ -127,7 +127,7 @@ def create_template_buttons(cred_id):
             {"type": "BUTTONS", "buttons": quick_reply_buttons},
         ],
     }
-    response = requests.post(api_url, headers=headers, json=payload)
+    response = requests.post(api_url, headers=headers, json=payload, timeout=30)
     data = response.json()
     if "error" in data:
         raise Exception(f"error: {data['error'].get('message')}")
@@ -163,7 +163,7 @@ def create_welcome_message(cred_id):
         ],
     }
 
-    response = requests.post(api_url, headers=headers, json=payload)
+    response = requests.post(api_url, headers=headers, json=payload, timeout=30)
     data = response.json()
 
     if "error" in data:
@@ -210,7 +210,7 @@ def create_help_message(cred_id):
         ],
     }
 
-    response = requests.post(api_url, headers=headers, json=payload)
+    response = requests.post(api_url, headers=headers, json=payload, timeout=30)
     data = response.json()
 
     if "error" in data:
@@ -247,7 +247,7 @@ def send_image_message(number, link):
     }
 
     api_url = data.get("url", "")
-    response = requests.post(api_url, headers=headers, json=payload)
+    response = requests.post(api_url, headers=headers, json=payload, timeout=30)
     data = response.json()
 
     if "error" in data:
@@ -285,7 +285,7 @@ def send_document_message(number, link):
         },
     }
 
-    response = requests.post(url, headers=headers, json=payload)
+    response = requests.post(url, headers=headers, json=payload, timeout=30)
     data = response.json()
 
     if "error" in data:
@@ -325,7 +325,7 @@ def send_text_message(number, message, header=None):
         },
     }
 
-    response = requests.post(url, headers=headers, json=payload)
+    response = requests.post(url, headers=headers, json=payload, timeout=30)
     data = response.json()
 
     if "error" in data:
@@ -366,7 +366,7 @@ def send_template_message(number, template_name, ln_code="en_US"):
             "components": [],
         },
     }
-    response = requests.post(url, headers=headers, json=payload)
+    response = requests.post(url, headers=headers, json=payload, timeout=30)
     data = response.json()
 
     if "error" in data:
@@ -433,7 +433,7 @@ def send_flow_message(to, template_name):
         },
     }
 
-    response = requests.post(url, headers=headers, json=payload)
+    response = requests.post(url, headers=headers, json=payload, timeout=30)
     data = response.json()
 
     if "error" in data:
@@ -875,7 +875,7 @@ def get_whatsapp_media_file(media_id, file_name, token):
     url = f"https://graph.facebook.com/v24.0/{media_id}"
     headers = {"Authorization": f"Bearer {token}"}
 
-    response = requests.get(url, headers=headers)
+    response = requests.get(url, headers=headers, timeout=30)
     if response.status_code == 200:
         media_data = response.json()
         media_url = media_data.get("url")
@@ -899,7 +899,7 @@ def download_whatsapp_media(media_url, file_name, token):
     """
 
     headers = {"Authorization": f"Bearer {token}"}
-    response = requests.get(media_url, headers=headers)
+    response = requests.get(media_url, headers=headers, timeout=30)
     if response.status_code == 200:
         content_type = response.headers.get("Content-Type")
         extension = content_type.split("/")[-1]
@@ -932,7 +932,7 @@ def create_flow(flow_name, template_name, cred_id):
     data = {"name": flow_name, "categories": "OTHER"}
     api_url = get_meta_url(credential.meta_business_id, "flows")
 
-    response = requests.post(api_url, json=data, headers=headers)
+    response = requests.post(api_url, json=data, headers=headers, timeout=30)
     data = response.json()
 
     if response.status_code not in (200, 201):
@@ -977,7 +977,7 @@ def update_flow(flow_id, flow_json, token):
             "name": (None, "flow.json"),
             "asset_type": (None, "FLOW_JSON"),
         }
-        response = requests.post(url, headers=headers, files=files)
+        response = requests.post(url, headers=headers, files=files, timeout=30)
 
     data = response.json()
 
@@ -1004,7 +1004,7 @@ def publish_flow(flow_id, token):
     headers = {"Authorization": f"Bearer {token}"}
     api_url = get_meta_url(flow_id, "publish")
 
-    response = requests.post(api_url, headers=headers)
+    response = requests.post(api_url, headers=headers, timeout=30)
     data = response.json()
 
     if response.status_code not in (200, 201):

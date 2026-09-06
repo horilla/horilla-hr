@@ -1327,11 +1327,13 @@
                 refreshDot.classList.add('am-refresh__dot--pulse');
                 refreshToggle.textContent = '⟳';
                 refreshToggle.title = '{% trans "Auto-refresh ON (5 min)" %}';
-                refreshTimer = setInterval(() => {
+                // Wrapped so a hidden tab does not keep fetching; refreshes once on return.
+                const refreshTick = autoRefreshWhenVisible(() => {
                     lastRefresh = Date.now();
                     updateRefreshText();
                     refreshAllData();
-                }, REFRESH_INTERVAL);
+                });
+                refreshTimer = setInterval(refreshTick, REFRESH_INTERVAL);
                 registerAutoRefresh(refreshTimer);
             }
             function stopAutoRefresh() {
@@ -1431,13 +1433,13 @@
                                 ? '<span class="am-badge am-badge--red">' + data.early_out + ' {% trans "early departure" %}</span>'
                                 : '<span style="opacity:0.5">{% trans "No early outs" %}</span>'}</div>
                 </a>
-                <a href="{% url 'attendance-view' %}?open_tab=1&attendance_validated=false&filter_applied=on" class="am-kpi-card">
+                <a href="{% url 'attendance-view' %}?open_tab=1&attendance_validated=False&filter_applied=on" class="am-kpi-card">
                     <div class="am-kpi-card__icon am-kpi-card__icon--red"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M9 14l2 2 4-4"/></svg></div>
                     <div class="am-kpi-card__label">{% trans "Pending" %}</div>
                     <div class="am-kpi-card__value">${data.pending_validation}</div>
                     <div class="am-kpi-card__sub">{% trans "To validate" %}</div>
                 </a>
-                <a href="{% url 'attendance-view' %}?open_tab=2&attendance_overtime_approve=false&attendance_validated=true&filter_applied=on" class="am-kpi-card">
+                <a href="{% url 'attendance-view' %}?open_tab=2&attendance_overtime_approve=False&attendance_validated=True&filter_applied=on" class="am-kpi-card">
                     <div class="am-kpi-card__icon am-kpi-card__icon--amber"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
                     <div class="am-kpi-card__label">{% trans "OT Pending" %}</div>
                     <div class="am-kpi-card__value">${data.pending_overtime}</div>

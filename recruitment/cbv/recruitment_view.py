@@ -172,6 +172,11 @@ class RecruitmentNav(HorillaNavView):
     filter_form_context_name = "form"
     search_swap_target = "#listContainer"
     filter_body_template = "cbv/recruitment/filters.html"
+    # Modern slide-over filter panel (generic/horilla_nav.html's own
+    # {% if modern_filter %} branch) -- same treatment as every other
+    # panel this session. RecruitmentFilter.ajax_fields (Managers,
+    # Company) already exists from the Pipeline panel work.
+    modern_filter = True
 
     # Mirrors RecruitmentList.nested_group_by_fields
     nested_group_by_fields = [
@@ -350,6 +355,15 @@ class AddCandidateFormView(HorillaFormView):
     form_class = AddCandidateForm
     model = Candidate
     new_display_title = _("Add Candidate")
+
+    def dispatch(self, request, *args, **kwargs):
+        # This is a fragment meant to be loaded via htmx into the "Add
+        # Candidate" modal from a specific pipeline stage, always carrying
+        # stage_id. Visited directly/standalone without it, render nothing
+        # rather than the raw, unstyled form fragment.
+        if request.method == "GET" and not request.GET.get("stage_id"):
+            return HttpResponse()
+        return super().dispatch(request, *args, **kwargs)
 
     def get_initial(self) -> dict:
         initial = super().get_initial()

@@ -10,7 +10,6 @@ from datetime import date, datetime
 from urllib.parse import parse_qs
 
 import pandas as pd
-from django.conf import settings
 from django.contrib import messages
 from django.core.files.base import ContentFile
 from django.core.files.storage import FileSystemStorage

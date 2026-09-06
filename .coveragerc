@@ -1,0 +1,36 @@
+# Coverage config for the Horilla HR test suite.
+#
+# The Makefile's COV_FAIL_UNDER used to be 5 while real coverage was 36% -- a
+# gate 31 points below reality cannot fail, which is worse than no gate because
+# it reads as one. The floor now sits just under the measured number so a
+# regression trips it, and is meant to be ratcheted upward as suites land.
+
+[run]
+branch = True
+parallel = False
+omit =
+    */migrations/*
+    */tests/*
+    */test_*.py
+    # Vendored django-notifications, carrying upstream's own tests.
+    notifications/*
+    horilla/settings/*
+    manage.py
+    */apps.py
+    */__init__.py
+    */admin.py
+
+[report]
+# A line whose only purpose is to re-raise or guard an import tells us nothing
+# about whether the logic under it works.
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    def __str__
+    raise AssertionError
+    raise NotImplementedError
+    if TYPE_CHECKING:
+    if __name__ == .__main__.:
+show_missing = True
+skip_covered = False
+precision = 1

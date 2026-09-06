@@ -6,7 +6,7 @@ This module is used to define the method for the path in the urls
 
 import json
 from collections import defaultdict
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from itertools import groupby
 from urllib.parse import parse_qs
 
@@ -1022,7 +1022,7 @@ def payslip_export(request):
                 employer_contribution = sum(
                     item["employer_contribution_amount"] for item in group
                 )
-            except:
+            except (KeyError, TypeError):
                 employer_contribution = 0
             if employer_contribution > 0:
                 table5_data.append(
@@ -1239,7 +1239,6 @@ def payslip_export(request):
     heading_format = workbook.add_format(
         {
             "bold": True,
-            "font_size": 14,
             "align": "center",
             "valign": "vcenter",
             "bg_color": "#eb7968",

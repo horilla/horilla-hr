@@ -1,13 +1,31 @@
 {% load i18n %}
 {% load widget_tweaks %}
 <div class="oh-dropdown__filter-body">
-    <div class="oh-accordion">
-        <div class="oh-accordion-header">
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header"
+            onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
+        >
+            <span class="oh-filter-section-icon"><ion-icon name="document-text-outline"></ion-icon></span>
             {% trans "Asset Request" %}
         </div>
         <div class="oh-accordion-body">
             <div class="row">
-                <div class="col-sm-12 col-md-12 col-lg-6">
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label
+                            class="oh-label"
+                            for="{{form.name_or_badge.id_for_label}}"
+                        >{{ form.name_or_badge.label }}</label>
+                        {{ form.name_or_badge }}
+                    </div>
+                </div>
+                <!-- Full width -- Requesting User and Asset Category are
+                     now AJAX-searched Select2 comboboxes (see
+                     asset/filters.py's AssetRequestFilter.ajax_fields)
+                     and need real room for their selected chips/
+                     placeholder text, same reasoning as every other
+                     modernized panel this session. -->
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label
                             class="oh-label"
@@ -15,6 +33,8 @@
                         >{% trans "Requested Employee" %}</label>
                         {{ form.requested_employee_id }}
                     </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label
                             class="oh-label"
@@ -23,14 +43,7 @@
                         {{ form.asset_category_id }}
                     </div>
                 </div>
-                <div class="col-sm-12 col-md-12 col-lg-6">
-                    <div class="oh-input-group">
-                        <label
-                            class="oh-label"
-                            for="{{form.asset_request_date.id_for_label}}"
-                        >{% trans "Asset Request Date" %}</label>
-                        {{ form.asset_request_date|attr:"type:date" }}
-                    </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label
                             class="oh-label"
@@ -42,4 +55,47 @@
             </div>
         </div>
     </div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header"
+            onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
+        >
+            <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
+            {% trans "Advanced" %}
+        </div>
+        <div class="oh-accordion-body">
+            <div class="row">
+                <!-- Asset Request Date used to have its own permanent,
+                     fixed exact-match input here -- replaced with the
+                     same "+ Add filter" field/lookup/value builder
+                     AttendanceFilters/EmployeeFilter/PMS FeedbackFilter/
+                     AssetFilter use (choose the field, then the lookup,
+                     then the value), which also offers gte/lte/gt/lt
+                     instead of just exact match, and adds Created At as
+                     a second option. Registry: AssetRequestFilter.
+                     _build_custom_filter_fields; applied server-side by
+                     HorillaFilterSet._apply_custom_filters (see
+                     AssetRequestFilter.filter_queryset). Row markup/JS
+                     are generic (initCustomFilterBuilder,
+                     horilla_nav.html). Now that this tab has its own
+                     independent Nav (AssetRequestNav), the generic
+                     "custom_filter_fields"/"custom_filter_rows" context
+                     keys apply directly -- no manual wiring needed. -->
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <div id="customFilterRowsContainer-asset-request" class="oh-custom-filter-rows"></div>
+                        <button
+                            type="button"
+                            class="oh-custom-filter-add"
+                            onclick="addCustomFilterRow('asset-request')"
+                        >+ {% trans "Add filter" %}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+{{ custom_filter_fields|json_script:"customFilterFields-asset-request" }}
+{{ custom_filter_rows|json_script:"customFilterRows-asset-request" }}
+<script>
+    initCustomFilterBuilder('asset-request');
+</script>

@@ -1526,7 +1526,7 @@ def payslip_export(request):
             if column_name == "Status":
                 data = choices_mapping.get(value, "")
 
-            if type(value) == date:
+            if type(value) is date:
                 date_format = request.user.employee_get.get_date_format()
                 start_date = datetime.strptime(str(value), "%Y-%m-%d").date()
 
@@ -2725,7 +2725,7 @@ def payslip_detailed_export(request):
                 cell.font = Font(bold=True)
             cell.border = thin_border
 
-    for col_num, _ in enumerate(header_row, 1):
+    for col_num, _unused in enumerate(header_row, 1):
         max_length = max(
             len(str(cell.value))
             for cell in ws[get_column_letter(col_num)]

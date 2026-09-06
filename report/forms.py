@@ -6,6 +6,7 @@ app instead of a hand-built modal."""
 from __future__ import annotations
 
 from django import forms
+from django.core.validators import validate_email
 from django.utils.translation import gettext_lazy as _
 
 from base.forms import ModelForm
@@ -66,6 +67,30 @@ class ReportSubscriptionForm(ModelForm):
                 choices=[("", _("Select a report…"))] + report_choices,
                 widget=forms.Select(attrs={"class": _SELECT_CLASS}),
             )
+
+    def clean_recipients(self):
+        """Reject malformed addresses up front.
+
+        A subscription is a fire-and-forget scheduled job: a typo here means
+        the report silently never arrives and nothing surfaces the failure,
+        so the address list has to be validated at entry.
+        """
+        raw = self.cleaned_data.get("recipients") or ""
+        emails = [part.strip() for part in raw.split(",") if part.strip()]
+        if not emails:
+            raise forms.ValidationError(_("Enter at least one email address."))
+        invalid = []
+        for email in emails:
+            try:
+                validate_email(email)
+            except forms.ValidationError:
+                invalid.append(email)
+        if invalid:
+            raise forms.ValidationError(
+                _("Not a valid email address: %(bad)s") % {"bad": ", ".join(invalid)}
+            )
+        # Normalize to a de-duplicated comma-separated list, preserving order.
+        return ", ".join(dict.fromkeys(emails))
 
     def save(self, commit=True):
         instance = super().save(commit=False)

@@ -467,21 +467,35 @@ def standard_report_export(request, slug):
                 {"error": _("Your account has no email address for async export.")},
                 status=400,
             )
-        from report.async_export import queue_export_email
+        from report.async_export import ExportQueueFull, queue_export_email
 
         meta = _export_meta(request, definition, filters, slug)
         # Serialize meta dates for the worker thread
         meta_safe = dict(meta)
         if meta_safe.get("generated_at"):
             meta_safe["generated_at"] = meta_safe["generated_at"].isoformat()
-        queue_export_email(
-            user_id=request.user.id,
-            to_email=to_email,
-            slug=slug,
-            fmt=fmt,
-            filters_dict=filters_dict_from_request(request),
-            meta=meta_safe,
-        )
+        try:
+            queue_export_email(
+                user_id=request.user.id,
+                to_email=to_email,
+                slug=slug,
+                fmt=fmt,
+                filters_dict=filters_dict_from_request(request),
+                meta=meta_safe,
+                # The worker has no session, so the selected company has to
+                # travel with the job or the export is not tenant-scoped.
+                company_id=company_id,
+            )
+        except ExportQueueFull:
+            return JsonResponse(
+                {
+                    "error": _(
+                        "Too many exports are running right now. "
+                        "Please try again in a few minutes."
+                    )
+                },
+                status=429,
+            )
         log_report_run(request, slug, "export", log_filters)
         return JsonResponse(
             {

@@ -1,16 +1,38 @@
 {% load i18n %}
 <div class="oh-dropdown__filter-body">
-    <div class="oh-accordion">
-        <div class="oh-accordion-header">{% trans "Leave Balance" %}</div>
+    <!-- Outside any accordion (always visible, not collapsible) -- same
+         placement as every other modernized filter panel this session:
+         primary/most-used search, shouldn't be hidden behind a click.
+         Comma-separated multi-term search (AssignedLeaveFilter.
+         name_or_badge -- see horilla.filters.filter_name_or_badge_terms). -->
+    <div class="row">
+        <div class="col-sm-12 col-md-12 col-lg-12">
+            <div class="oh-input-group">
+                <label class="oh-label" for="{{form.name_or_badge.id_for_label}}">{% trans "Name or Badge ID" %}</label>
+                {{form.name_or_badge}}
+            </div>
+        </div>
+    </div>
+
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header">
+            <span class="oh-filter-section-icon"><ion-icon name="calendar-outline"></ion-icon></span>
+            {% trans "Leave Balance" %}
+        </div>
         <div class="oh-accordion-body">
             <div class="row">
-                <div class="col-sm-12 col-md-12 col-lg-6">
+                <!-- Full width -- Employee and Leave Type are now
+                     AJAX-searched Select2 comboboxes (see leave/filters.py's
+                     AssignedLeaveFilter.ajax_fields) and need real room for
+                     their selected chips/placeholder text, same reasoning
+                     as every other modernized panel. -->
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label class="oh-label">{% trans "Employees" %}</label>
                         {{form.employee_id}}
                     </div>
                 </div>
-                <div class="col-sm-12 col-md-12 col-lg-6">
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label class="oh-label">{% trans "Leave Type" %}</label>
                         {{form.leave_type_id}}
@@ -47,8 +69,11 @@
             </div>
         </div>
     </div>
-    <div class="oh-accordion">
-        <div class="oh-accordion-header">{% trans "Advanced" %}</div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header">
+            <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
+            {% trans "Advanced" %}
+        </div>
         <div class="oh-accordion-body">
             <div class="row">
                 <div class="col-sm-12 col-md-12 col-lg-6">

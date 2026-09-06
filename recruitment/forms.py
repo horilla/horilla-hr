@@ -663,12 +663,12 @@ class AddCandidateForm(ModelForm):
                 recruitment_id=recruitment
             )
             self.fields["job_position_id"].queryset = recruitment.open_positions
+            if recruitment.optional_profile_image:
+                self.fields["profile"].required = False
+            if recruitment.optional_resume:
+                self.fields["resume"].required = False
         self.fields["profile"].widget.attrs["accept"] = ".jpg, .jpeg, .png"
         self.fields["resume"].widget.attrs["accept"] = ".pdf"
-        if recruitment.optional_profile_image:
-            self.fields["profile"].required = False
-        if recruitment.optional_resume:
-            self.fields["resume"].required = False
         self.fields["gender"].empty_label = None
         self.fields["job_position_id"].empty_label = None
         self.fields["stage_id"].empty_label = None
@@ -1362,7 +1362,7 @@ class ScheduleInterviewForm(BaseModelForm):
                 )
 
         if managers and apps.is_installed("leave"):
-            from leave.models import LeaveRequest
+            LeaveRequest = apps.get_model("leave", "LeaveRequest")
 
             leave_employees = LeaveRequest.objects.filter(
                 employee_id__in=managers, status="approved"

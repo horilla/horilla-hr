@@ -44,8 +44,12 @@ def offboarding_accessibility(request, menu, user_perms, *args, **kwargs):
             or any_manager(request.user.employee_get)
             or is_offboarding_employee(request.user.employee_get)
         )
-    finally:
-        return accessible
+    except Exception:
+        # employee_get raises for a user with no Employee row; the menu
+        # should then simply not be shown. `except Exception` instead of a
+        # bare `finally` so KeyboardInterrupt and SystemExit still propagate.
+        pass
+    return accessible
 
 
 def resignation_letter_accessibility(request, menu, user_perms, *args, **kwargs):

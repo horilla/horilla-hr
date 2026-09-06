@@ -14,7 +14,15 @@
 </script>
 <script src="{% static '/index/index.js' %}"></script>
 <script src="{% static '/index/saveFilters.js' %}"></script>
-<script src="{% static 'horilla_theme/assets/js/htmxSelect2.js' %}"></script>
+{% comment %}
+    Cache-busting query string -- WhiteNoise's CompressedStaticFilesStorage
+    (no manifest/content-hash in the URL, see horilla/settings/base.py)
+    means a browser can cache this exact URL indefinitely and never
+    re-fetch it on a normal reload even after the file's content changes
+    on disk. Bump this number by hand whenever this file changes; it's
+    the same pattern already used below for tourController.js.
+{% endcomment %}
+<script src="{% static 'horilla_theme/assets/js/htmxSelect2.js' %}?v=9"></script>
 <script src="{% static 'build/js/summernote-lite.min.js' %}"></script>
 <script src="{% static '/index/country.js' %}"></script>
 

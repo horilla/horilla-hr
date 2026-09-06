@@ -2,11 +2,25 @@
 {% load static %}
 
 <div class="oh-dropdown__filter-body">
-    <div class="oh-accordion">
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
         <div class="oh-accordion-header">
+            <span class="oh-filter-section-icon"><ion-icon name="people-outline"></ion-icon></span>
             {% trans 'Candidates' %}
         </div>
         <div class="oh-accordion-body">
+            <!-- Full width -- Rejection Reason is now an AJAX-searched
+                 Select2 combobox (see recruitment/filters.py's
+                 CandidateFilter.ajax_fields) and needs real room for its
+                 selected chips/placeholder text, same reasoning as every
+                 other modernized panel this session. -->
+            <div class="row">
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label class="oh-label">{% trans "Rejection Reason" %}</label>
+                        {{form.rejected_candidate__reject_reason_id}}
+                    </div>
+                </div>
+            </div>
             <div class="row">
                 <div class="col-sm-12 col-md-12 col-lg-6">
                     <div class="oh-input-group">
@@ -25,12 +39,6 @@
                     <div class="oh-input-group">
                         <label class="oh-label">{% trans 'Is Hired' %}?</label>
                         {{ form.hired }}
-                    </div>
-                    <div class="col-sm-12 col-md-12 col-lg-12 mb-2">
-                        <div class="oh-input-group">
-                            <label class="oh-label">{% trans "Rejection Reason" %}</label>
-                            {{form.rejected_candidate__reject_reason_id}}
-                        </div>
                     </div>
                 </div>
                 <div class="col-sm-12 col-md-12 col-lg-6">
@@ -54,33 +62,82 @@
                         <label class="oh-label">{% trans 'Is Canceled' %}?</label>
                         {{ form.canceled }}
                     </div>
-                    <div class="col-sm-12 col-md-12 col-lg-12 mb-2">
-                        <div class="oh-input-group">
-                            <label class="oh-label">{% trans "Offer Status" %}</label>
-                            {{form.offer_letter_status}}
-                        </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label class="oh-label">{% trans "Offer Status" %}</label>
+                        {{form.offer_letter_status}}
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    <div class="oh-accordion">
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
         <div class="oh-accordion-header">
+            <span class="oh-filter-section-icon"><ion-icon name="briefcase-outline"></ion-icon></span>
             {% trans 'Recruitment' %}
         </div>
         <div class="oh-accordion-body">
+            <!-- Full width -- Recruitment, Job Position, Department,
+                 Company, Recruitment Managers, Stage, Stage Managers,
+                 and Talent Pool are now AJAX-searched Select2 comboboxes
+                 (see recruitment/filters.py's CandidateFilter.ajax_fields)
+                 and need real room for their selected chips/placeholder
+                 text, same reasoning as every other modernized panel. -->
             <div class="row">
-                <div class="col-sm-12 col-md-12 col-lg-6">
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label class="oh-label">{% trans 'Recruitment' %}</label>
                         {{ form.recruitment_id }}
                     </div>
-
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label class="oh-label">{% trans 'Job Position' %}</label>
                         {{ form.job_position_id }}
                     </div>
-
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label class="oh-label">{% trans 'Department' %}</label>
+                        {{ form.job_position_id__department_id }}
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label class="oh-label">{% trans 'Company' %}</label>
+                        {{ form.recruitment_id__company_id }}
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label class="oh-label">{% trans 'Recruitment Managers' %}</label>
+                        {{ form.recruitment_id__recruitment_managers }}
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label class="oh-label">{% trans 'Stage' %}</label>
+                        {{ form.stage_id }}
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label class="oh-label">{% trans 'Stage Managers' %}</label>
+                        {{ form.stage_id__stage_managers }}
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label class="oh-label">{% trans 'Talent Pool' %}</label>
+                        {{ form.skillzonecandidate_set__skill_zone_id }}
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-sm-12 col-md-12 col-lg-6">
                     <div class="oh-input-group">
                         <label class="oh-label">{% trans 'Start Date' %}</label>
                         {{ form.start_date }}
@@ -89,49 +146,23 @@
                         <label class="oh-label">{% trans 'Is Closed' %}?</label>
                         {{ form.recruitment_id__closed }}
                     </div>
-
-                    <div class="oh-input-group">
-                        <label class="oh-label">{% trans 'Stage Type' %}</label>
-                        {{ form.stage_id__stage_type }}
-                    </div>
-                    <div class="oh-input-group">
-                        <label class="oh-label">{% trans 'Stage Managers' %}</label>
-                        {{ form.stage_id__stage_managers }}
-                    </div>
                 </div>
                 <div class="col-sm-12 col-md-12 col-lg-6">
-                    <div class="oh-input-group">
-                        <label class="oh-label">{% trans 'Stage' %}</label>
-                        {{ form.stage_id }}
-                    </div>
-                    <div class="oh-input-group">
-                        <label class="oh-label">{% trans 'Department' %}</label>
-                        {{ form.job_position_id__department_id }}
-                    </div>
-
-                    <div class="oh-input-group">
-                        <label class="oh-label">{% trans 'Company' %}</label>
-                        {{ form.recruitment_id__company_id }}
-                    </div>
-
-                    <div class="oh-input-group">
-                        <label class="oh-label">{% trans 'Recruitment Managers' %}</label>
-                        {{ form.recruitment_id__recruitment_managers }}
-                    </div>
                     <div class="oh-input-group">
                         <label class="oh-label">{% trans 'End Date' %}</label>
                         {{ form.end_date }}
                     </div>
                     <div class="oh-input-group">
-                        <label class="oh-label">{% trans 'Talent Pool' %}</label>
-                        {{ form.skillzonecandidate_set__skill_zone_id }}
+                        <label class="oh-label">{% trans 'Stage Type' %}</label>
+                        {{ form.stage_id__stage_type }}
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    <div class="oh-accordion">
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
         <div class="oh-accordion-header">
+            <span class="oh-filter-section-icon"><ion-icon name="help-circle-outline"></ion-icon></span>
             {% trans 'Survey' %}
         </div>
         <div class="oh-accordion-body">
@@ -152,30 +183,48 @@
         </div>
     </div>
 
-    <div class="oh-accordion">
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
         <div class="oh-accordion-header">
+            <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
             {% trans 'Advanced' %}
         </div>
         <div class="oh-accordion-body">
             <div class="row">
-                <div class="col-sm-12 col-md-12 col-lg-6">
-                    <div class="oh-input-group">
-                        <label class="oh-label">{% trans 'Scheduled From' %}</label>
-                        {{ form.scheduled_from }}
-                    </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label class="oh-label">{% trans 'Is Active' %}?</label>
                         {{ form.is_active }}
                     </div>
                 </div>
-                <div class="col-sm-12 col-md-12 col-lg-6">
+                <!-- Scheduled From/Till used to be the only date filters
+                     here -- replaced with the same "+ Add filter"
+                     field/lookup/value builder AttendanceFilters/
+                     EmployeeFilter/AssetFilter use, which also surfaces
+                     Probation End/Schedule Date/Joining Date/Onboarding
+                     End Date/Created At -- all declared on
+                     CandidateFilter but never previously rendered
+                     anywhere. Registry: CandidateFilter.
+                     _build_custom_filter_fields; applied server-side by
+                     HorillaFilterSet._apply_custom_filters (see
+                     CandidateFilter.filter_queryset). Row markup/JS are
+                     generic (initCustomFilterBuilder, horilla_nav.html). -->
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
-                        <label class="oh-label">{% trans 'Scheduled Till' %}</label>
-                        {{ form.scheduled_till }}
+                        <div id="customFilterRowsContainer-candidate" class="oh-custom-filter-rows"></div>
+                        <button
+                            type="button"
+                            class="oh-custom-filter-add"
+                            onclick="addCustomFilterRow('candidate')"
+                        >+ {% trans "Add filter" %}</button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{{ custom_filter_fields|json_script:"customFilterFields-candidate" }}
+{{ custom_filter_rows|json_script:"customFilterRows-candidate" }}
+<script>
+    initCustomFilterBuilder('candidate');
+</script>
 <script src="{% static '/base/filter.js' %}"></script>

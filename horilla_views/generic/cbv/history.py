@@ -79,6 +79,13 @@ class HorillaHistoryView(DetailView):
             if model_param:
                 app_label, model_name = model_param.split(".")
                 self.model = apps.get_model(app_label, model_name)
+        if not self.model:
+            # No ?model=app.Model on the request and no subclass default --
+            # get_queryset() has nothing to query, and Django's own
+            # fallback raises ImproperlyConfigured (an unhandled 500)
+            # rather than a normal response.
+            messages.error(request, _("Invalid model parameter format."))
+            return HorillaFormView.HttpResponse()
         # Prefer HistoryManager when present; history_set is only the reverse FK.
         if hasattr(self.model, "history") and hasattr(
             getattr(self.model, "history"), "model"

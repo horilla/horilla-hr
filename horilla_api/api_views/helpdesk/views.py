@@ -52,6 +52,16 @@ def object_check(cls, pk):
         return None
 
 
+def can_access_ticket(user, ticket):
+    """Viewer perm, ticket owner, or an assignee."""
+    employee = user.employee_get
+    return (
+        user.has_perm("helpdesk.view_ticket")
+        or ticket.employee_id == employee
+        or ticket.assigned_to.filter(id=employee.id).exists()
+    )
+
+
 # Ticket Type Views
 class TicketTypeGetCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -276,10 +286,8 @@ class TicketGetCreateAPIView(APIView):
     def post(self, request):
         # Set employee_id from request user if not provided
         data = request.data.copy()
-        if (
-            not data.get("employee_id_write")
-            and not data.get("employee_id")
-            and request.user.is_authenticated
+        if not request.user.has_perm("helpdesk.add_ticket") or not (
+            data.get("employee_id_write") or data.get("employee_id")
         ):
             data["employee_id_write"] = request.user.employee_get.id
         serializer = TicketSerializer(data=data)
@@ -387,12 +395,9 @@ class CommentGetCreateAPIView(APIView):
             return Response({"error": _("Ticket not found")}, status=404)
         data = request.data.copy()
         data["ticket_id"] = ticket_id
-        if (
-            not data.get("employee_id_write")
-            and not data.get("employee_id")
-            and request.user.is_authenticated
-        ):
-            data["employee_id_write"] = request.user.employee_get.id
+        if not can_access_ticket(request.user, ticket):
+            return Response({"error": _("Permission denied")}, status=403)
+        data["employee_id_write"] = request.user.employee_get.id
         serializer = CommentSerializer(data=data)
         if serializer.is_valid():
             comment = serializer.save()
@@ -463,6 +468,16 @@ class AttachmentGetCreateAPIView(APIView):
     def post(self, request):
         serializer = AttachmentSerializer(data=request.data)
         if serializer.is_valid():
+            comment = serializer.validated_data.get("comment")
+            ticket = serializer.validated_data.get("ticket") or (
+                comment.ticket if comment else None
+            )
+            if ticket is None:
+                return Response(
+                    {"error": _("ticket_id or comment_id required")}, status=400
+                )
+            if not can_access_ticket(request.user, ticket):
+                return Response({"error": _("Permission denied")}, status=403)
             attachment = serializer.save()
             return Response(
                 AttachmentSerializer(attachment).data, status=status.HTTP_201_CREATED
@@ -484,6 +499,13 @@ class AttachmentGetDeleteAPIView(APIView):
         attachment = object_check(Attachment, pk)
         if attachment is None:
             return Response({"error": _("Attachment not found")}, status=404)
+        ticket = attachment.ticket or (
+            attachment.comment.ticket if attachment.comment else None
+        )
+        if not request.user.has_perm("helpdesk.delete_attachment") and not (
+            ticket and can_access_ticket(request.user, ticket)
+        ):
+            return Response({"error": _("Permission denied")}, status=403)
         try:
             attachment.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
@@ -496,17 +518,20 @@ class ClaimRequestGetCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, ticket_id=None):
+        claim_requests = permission_based_queryset(
+            request.user, "helpdesk.view_claimrequest", ClaimRequest.objects.all()
+        )
         if ticket_id:
-            claim_requests = ClaimRequest.objects.filter(ticket_id=ticket_id)
-        else:
-            claim_requests = ClaimRequest.objects.all()
+            claim_requests = claim_requests.filter(ticket_id=ticket_id)
         paginator = PageNumberPagination()
         page = paginator.paginate_queryset(claim_requests, request)
         serializer = ClaimRequestSerializer(page, many=True)
         return paginator.get_paginated_response(serializer.data)
 
     def post(self, request):
-        serializer = ClaimRequestSerializer(data=request.data)
+        data = request.data.copy()
+        data["employee_id_write"] = request.user.employee_get.id
+        serializer = ClaimRequestSerializer(data=data)
         if serializer.is_valid():
             claim_request = serializer.save()
             return Response(

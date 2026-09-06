@@ -210,6 +210,12 @@ class OnboardingCandidatesNav(HorillaNavView):
     filter_body_template = "cbv/onboarding_candidates/filter.html"
     filter_form_context_name = "form"
     search_swap_target = "#listContainer"
+    # Modern slide-over filter panel (generic/horilla_nav.html's own
+    # {% if modern_filter %} branch) -- same treatment as every other
+    # panel this session. recruitment.filters.CandidateFilter.ajax_fields
+    # already covers Recruitment/Job Position/Rejection Reason from the
+    # recruitment Candidates panel work.
+    modern_filter = True
 
     group_by_fields = [
         ("recruitment_id", _("Recruitment")),

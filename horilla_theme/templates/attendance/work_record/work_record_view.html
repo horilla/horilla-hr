@@ -2,6 +2,13 @@
 {% load i18n static %}
 
 {% block content %}
+    {% comment %}
+        Content outside {% block %} in a template that {% extends %}
+        another is discarded entirely -- this include has to live in
+        here, not above, or toggleModernFilterPanel/filterModernPanelFields
+        never get defined on this page at all.
+    {% endcomment %}
+    {% include 'generic/modern_filter_panel.html' %}
     <div class="">
         <div class="bg-white p-3 rounded-md shadow-card">
             <div class="flex gap-2 md:gap-0 flex-wrap justify-between items-end mb-2 border-b border-dark-50 pb-3">
@@ -24,70 +31,96 @@
                                 onchange="$('#startDate').val('');$('#endDate').val('');$('#employeeFilter').click()"
                             >
 
-                            <div class="relative dropdown-wrapper">
-                                <button
-                                    class="px-5 py-2 h-full bg-[white] rounded-md text-xs border border-primary-500 hover:border-primary-600 transition duration-300"
-                                    onclick="event.preventDefault()"
+                            <button
+                                type="button"
+                                id="modernFilterTrigger"
+                                onclick="toggleModernFilterPanel(true)"
+                                class="px-5 py-2 h-full bg-[white] rounded-md text-xs flex items-center gap-2 border border-primary-500 hover:border-primary-600 transition duration-300 cursor-pointer"
+                            >
+                                <img
+                                    src="{% static 'horilla_theme/assets/img/icons/sort.svg' %}"
+                                    alt="{% trans 'Filter' %}"
+                                    width="15"
+                                    class="mt-[-1px]"
                                 >
-                                    <div class="flex items-center gap-2">
-                                        <img
-                                            src="{% static 'horilla_theme/assets/img/icons/sort.svg' %}"
-                                            alt=""
-                                            width="17"
-                                        >
-                                        {% trans "Filter" %}
-                                    </div>
-                                </button>
-                                <div class="oh-filter-dropdown dropdown-content absolute z-10 bg-white rounded-lg [box-shadow:0px_0px_20px_0px_rgb(0_0_0_/_8%)] min-w-[400px] p-3 right-0">
-                                    <div class="accordion-wrapper space-y-2">
-                                        {% include 'employee_filters.html' %}
-                                        <div class="oh-accordion">
-                                            <div class="oh-accordion-header">{% trans "Date Range" %}</div>
-                                            <div class="oh-accordion-body">
-                                                <div class="row">
-                                                    <div class="col-sm-12 col-md-12 col-lg-6">
-                                                        <div class="input-group">
-                                                            <label
-                                                                class="oh-label"
-                                                                for="startDate"
-                                                            >{% trans "Start Date" %}:</label>
-                                                            <input
-                                                                type="date"
-                                                                name="start_date"
-                                                                id="startDate"
-                                                                class="oh-input"
-                                                                onchange="$('#monthYearField').val('')"
-                                                            >
-                                                        </div>
+                                {% trans "Filter" %}
+                            </button>
+                            <div class="oh-filter-backdrop" id="modernFilterBackdrop" onclick="toggleModernFilterPanel(false)"></div>
+                            <div class="oh-filter-panel oh-filter-modern" id="modernFilterPanel">
+                                <div class="oh-filter-panel__header">
+                                    <h3>{% trans "Filter" %} {% trans "Work Records" %}</h3>
+                                    <button type="button" class="oh-filter-panel__close" onclick="toggleModernFilterPanel(false)" aria-label="{% trans 'Close' %}">
+                                        <ion-icon name="close-outline"></ion-icon>
+                                    </button>
+                                </div>
+                                <div class="oh-filter-panel__search">
+                                    <input
+                                        type="text"
+                                        id="modernFilterFieldSearch"
+                                        placeholder="{% trans 'Find a filter' %}"
+                                        oninput="filterModernPanelFields(this.value)"
+                                        autocomplete="off"
+                                    >
+                                </div>
+                                <div class="oh-filter-panel__body">
+                                    {% comment %}
+                                        employee_filters.html is shared across several classic
+                                        (non-CBV) filter dropdowns app-wide -- left as-is rather
+                                        than modified, its own accordions just get opened by
+                                        default via the small script below instead of the
+                                        server-rendered "oh-accordion--show" class CBV pages use.
+                                    {% endcomment %}
+                                    {% include 'employee_filters.html' %}
+                                    <div class="oh-accordion oh-accordion--show">
+                                        <div class="oh-accordion-header">
+                                            <span class="oh-filter-section-icon"><ion-icon name="calendar-outline"></ion-icon></span>
+                                            {% trans "Date Range" %}
+                                        </div>
+                                        <div class="oh-accordion-body">
+                                            <div class="row">
+                                                <div class="col-sm-12 col-md-12 col-lg-6">
+                                                    <div class="oh-input-group">
+                                                        <label
+                                                            class="oh-label"
+                                                            for="startDate"
+                                                        >{% trans "Start Date" %}</label>
+                                                        <input
+                                                            type="date"
+                                                            name="start_date"
+                                                            id="startDate"
+                                                            class="oh-input"
+                                                            onchange="$('#monthYearField').val('')"
+                                                        >
                                                     </div>
-                                                    <div class="col-sm-12 col-md-12 col-lg-6">
-                                                        <div class="input-group">
-                                                            <label
-                                                                class="oh-label"
-                                                                for="endDate"
-                                                            >{% trans "End Date" %}:</label>
-                                                            <input
-                                                                type="date"
-                                                                name="end_date"
-                                                                id="endDate"
-                                                                class="oh-input"
-                                                                max="{{ today|date:'Y-m-d' }}"
-                                                                onchange="$('#monthYearField').val('')"
-                                                            >
-                                                        </div>
+                                                </div>
+                                                <div class="col-sm-12 col-md-12 col-lg-6">
+                                                    <div class="oh-input-group">
+                                                        <label
+                                                            class="oh-label"
+                                                            for="endDate"
+                                                        >{% trans "End Date" %}</label>
+                                                        <input
+                                                            type="date"
+                                                            name="end_date"
+                                                            id="endDate"
+                                                            class="oh-input"
+                                                            max="{{ today|date:'Y-m-d' }}"
+                                                            onchange="$('#monthYearField').val('')"
+                                                        >
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="oh-dropdown__filter-footer">
-                                            <button
-                                                class="oh-btn oh-btn--secondary oh-btn--small w-100 float-end"
-                                                id="employeeFilter"
-                                            >
-                                                {% trans "Filter" %}
-                                            </button>
-                                        </div>
                                     </div>
+                                </div>
+                                <div class="oh-filter-panel__footer">
+                                    <button
+                                        class="oh-filter-panel__apply filterButton"
+                                        id="employeeFilter"
+                                    >
+                                        <ion-icon name="checkmark-outline"></ion-icon>
+                                        {% trans "Apply" %}
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -118,9 +151,27 @@
     </div>
     <script>
         $(document).ready(function () {
-            $(".row").find("select").select2({
+            // :not(.oh-select-ajax) -- Company/Department/Shift/Employee
+            // Tag/Reporting Manager/Job Position/Groups/Permissions (see
+            // employee_filters.html) are AJAX-loaded comboboxes now
+            // (EmployeeFilter.ajax_fields), handled by htmxSelect2.js's
+            // own dedicated initOhSelectAjax sweep. This blanket call
+            // predates that conversion (written for when these were
+            // plain preloaded multi-selects) -- select2() with no
+            // ajax option auto-reads config from data-ajax-url, racing
+            // that dedicated init and leaving the field half-initialized
+            // (select2 rewrites data-ajax-url to data-ajax--url as part
+            // of that auto-read but never finishes construction, so a
+            // later real .select2({ajax:{...}}) call silently no-ops on
+            // an element it thinks already has an instance).
+            $(".row").find("select:not(.oh-select-ajax)").select2({
                 width: '100%'
             });
+            // employee_filters.html's own accordions don't render with
+            // "oh-accordion--show" server-side (see the comment above its
+            // include) -- opened here instead so the panel doesn't start
+            // fully collapsed.
+            $('#modernFilterPanel .oh-accordion').addClass('oh-accordion--show');
         });
     </script>
 {% endblock %}

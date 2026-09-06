@@ -50,9 +50,6 @@ class CustomModelChoiceWidget(forms.Select):
     from django import forms
 
 
-from django.utils.safestring import mark_safe
-
-
 class CustomTextInputWidget(forms.TextInput):
     """
     A custom Django widget for rendering a text input with an optional delete button.

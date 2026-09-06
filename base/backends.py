@@ -11,6 +11,7 @@ from django.core.cache import cache
 from django.core.mail import EmailMessage
 from django.core.mail.backends.smtp import EmailBackend
 
+from base.email_redaction import get_current_company, redact_credential_body
 from base.models import DynamicEmailConfiguration, EmailLog
 from horilla import settings
 from horilla.horilla_middlewares import _thread_locals
@@ -208,8 +209,9 @@ class ConfiguredEmailBackend(BACKEND_CLASS):
                 subject=message.subject,
                 from_email=from_email,
                 to=message.to,
-                body=message.body,
+                body=redact_credential_body(message.subject, message.body),
                 status="sent" if response else "failed",
+                company_id=get_current_company(),
             )
             email_log.save()
         return response

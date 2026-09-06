@@ -1,87 +1,131 @@
 # Core Django
 Django~=5.2.17  # ~= keeps 5.2.x security patches (CVE-2025-64459 fixed in 5.2.8)
-django-environ
+django-environ==0.14.0
 psycopg2-binary==2.9.10
 
 # Django extensions
-django-apscheduler
-django-auditlog
-django-cors-headers
-django-filter
-django-import-export
-django-mathfilters
-django-model-utils
+django-apscheduler==0.7.0
+django-auditlog==3.4.1
+django-cors-headers==4.9.0
+django-filter==26.1
+django-import-export==4.4.1
+django-mathfilters==1.0.0
+django-model-utils==5.0.0
 django-redis==5.4.0
-django-simple-history
-django-storages
-django-widget-tweaks
+django-simple-history==3.13.0
+django-storages==1.14.6
+django-widget-tweaks==1.5.1
 
 # REST API
-djangorestframework==3.16.0
-djangorestframework-simplejwt==5.5.0
-drf-yasg
+# 3.17.2 clears CVE-2026-73228 (request.data bypasses Django's
+# DATA_UPLOAD_MAX_MEMORY_SIZE for JSON and urlencoded bodies, so an
+# oversized payload is parsed instead of rejected) and CVE-2026-73229
+# (AdminRenderer invokes a view's GET handler while rendering a 400 on an
+# invalid write, disclosing data the caller's permissions deny on GET --
+# not reachable here, since no view sets AdminRenderer, but pinned past it
+# anyway rather than relying on that staying true).
+djangorestframework==3.17.2
+# 5.5.1, not 5.5.0: 5.5.0 caps pyjwt<2.10.0, which pins the JWT library to
+# a version with the advisories below. 5.5.1 drops the cap (pyjwt>=1.7.1).
+djangorestframework-simplejwt==5.5.1
+# Transitive via simplejwt, pinned explicitly because the 2.9.0 that resolves
+# by default carries a verifier-side algorithm allow-list bypass
+# (PYSEC-2026-176) and skips RFC 7515 crit-header validation
+# (PYSEC-2026-120). Both sit directly on the JWT verification path this
+# project authenticates API clients with. 2.13.0 clears all six.
+PyJWT==2.13.0
+drf-yasg==1.21.15
 
 # Data processing
-numpy
-openpyxl
-pandas
-XlsxWriter
+numpy==1.26.4
+openpyxl==3.1.5
+pandas==3.0.5
+XlsxWriter==3.2.9
 
 # PDF handling
-pdfkit
-PyMuPDF
+# PYSEC-2026-2860 (from_string allows script execution and local-file
+# exfiltration) has no upstream fix. Mitigated in base.methods.generate_pdf,
+# which XSS-checks the rendered body before wkhtmltopdf sees it.
+pdfkit==1.0.0
+PyMuPDF==1.28.2
 reportlab==4.0.9
-xhtml2pdf
+xhtml2pdf==0.2.17
 
 # Web scraping & HTML
-beautifulsoup4
-requests
-requests-oauthlib
+beautifulsoup4==4.15.0
+requests==2.34.2
+requests-oauthlib==2.0.0
 
 # Google integration
-google-api-python-client
-google-auth-oauthlib
+google-api-python-client==2.199.0
+google-auth-oauthlib==1.4.1
 google-cloud-storage==3.0.0
 
 # Geolocation
-geopy
+geopy==2.5.0
 
 # Biometric device integration
 pyzk==0.9
 
 # Image handling
-pillow
+pillow==12.3.0
 
 # Security & encryption
-cryptography==44.0.2
+# 50.0.0 clears all five known advisories against 44.0.2; 46.x and 49.x each
+# leave some open (PYSEC-2026-3552 needs 50.0.0).
+cryptography==50.0.0
+# Brute-force protection on login (lockout by username+IP).
+django-axes[ipware]==8.0.0
+# Error tracking. Inert unless SENTRY_DSN is set.
+sentry-sdk[django]==2.20.0
 
 # Notifications
-swapper
+swapper==1.4.0
 
 # Static files
 whitenoise==6.9.0
 
 # Background tasks
-APScheduler
+APScheduler==3.11.3
 
 # Date & time
-python-dateutil
-pytz
+python-dateutil==2.9.0.post0
+pytz==2026.3.post1
 
 # Internationalization & NLP
-arabic-reshaper
-click
+arabic-reshaper==3.0.1
+click==8.5.0
 phonenumbers==9.0.37
 pycountry==24.6.1
-python-bidi
+python-bidi==0.6.11
 rapidfuzz==3.9.6
-spacy==3.7.5
-https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl
+spacy==3.8.16
+https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
 
 # Misc
-bleach==6.2.0
+# 6.4.0 fixes two clean() XSS bypasses (GHSA-gj48-438w-jh9v via formaction,
+# GHSA-8rfp-98v4-mmr6 via href).
+bleach==6.4.0
+# bleach's CSS sanitizer (used by base.templatetags.basefilters.sanitize_html to
+# keep inline colour in rich text) imports tinycss2, which bleach does not
+# require -- it is the `bleach[css]` extra. It currently arrives only as a
+# transitive dependency of svglib, which is itself not pinned here, so without
+# this line the filter breaks at import on a clean install.
+tinycss2==1.5.1
 gunicorn==23.0.0
-packaging
+packaging==26.3
+
+# Transitive, pinned because the release image scan fails on a fixable HIGH
+# and the versions that resolve by default are vulnerable.
+#
+# msgpack arrives via CacheControl. 1.1.2 has an out-of-bounds read that
+# crashes on Unpacker reuse (GHSA-6v7p-g79w-8964); 1.2.1 fixes it.
+msgpack==1.2.2
+# setuptools comes from the base image and is required at runtime by spacy
+# and thinc. 70.3.0 carries a path traversal (CVE-2025-47273), and
+# `pip install --upgrade pip` does not upgrade setuptools, so the image kept
+# the old one. Neither spacy nor thinc caps the version.
+setuptools==84.0.0
 
 # Testing
 coverage>=7.0

@@ -320,9 +320,10 @@ class ReimbursementView(APIView):
         return pagination.get_paginated_response(serializer.data)
 
     def post(self, request):
-        serializer = self.serializer_class(
-            data=request.data, context={"request": request}
-        )
+        data = request.data.copy()
+        if not request.user.has_perm("payroll.add_reimbursement"):
+            data["employee_id"] = request.user.employee_get.id
+        serializer = self.serializer_class(data=data, context={"request": request})
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=200)
@@ -347,24 +348,56 @@ class ReimbursementView(APIView):
 class ReimbusementApproveRejectView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @method_decorator(permission_required("payroll.change_reimbursement"))
     def post(self, request, pk):
-        status = request.data.get("status", None)
-        amount = request.data.get("amount", None)
-        amount = (
-            eval_validate(request.data.get("amount"))
-            if request.data.get("amount")
-            else 0
-        )
-        amount = max(0, amount)
-        reimbursement = Reimbursement.objects.filter(id=pk)
-        if amount:
-            reimbursement.update(amount=amount)
-        reimbursement.update(status=status)
-        return Response({"status": reimbursement.first().status}, status=200)
+        reimbursement = Reimbursement.objects.filter(id=pk).first()
+        if reimbursement is None:
+            return Response({"error": "Not found"}, status=404)
+
+        # Validated against the model's own choices. The previous version wrote
+        # request.data["status"] through queryset.update(), which skips model
+        # validation entirely, so any string could be stored in the status
+        # column -- including one no view knows how to display. Read off the
+        # field rather than a constant so this cannot drift from the model.
+        status = request.data.get("status")
+        valid_statuses = dict(Reimbursement._meta.get_field("status").choices)
+        if status not in valid_statuses:
+            return Response(
+                {"error": f"status must be one of {sorted(valid_statuses)}"},
+                status=400,
+            )
+
+        # The claimed amount is NOT taken from the approval request for an
+        # ordinary reimbursement. It is set when the claim is filed and is what
+        # the approver is reviewing; letting the approve call rewrite it means
+        # an approved claim need not resemble the one submitted, and nothing
+        # records the original figure. Reported alongside GHSA-56x4-6268-vg4f,
+        # whose primary finding -- no permission check here at all -- was fixed
+        # separately.
+        #
+        # Encashments are the deliberate exception: their payout is computed at
+        # approval time rather than claimed up front. This mirrors
+        # payroll.views.component_views.approve_reimbursements, which applies
+        # the same rule to the web flow.
+        if reimbursement.type in ("leave_encashment", "bonus_encashment"):
+            raw_amount = request.data.get("amount")
+            if raw_amount:
+                try:
+                    reimbursement.amount = max(0, eval_validate(raw_amount))
+                except (ValueError, SyntaxError):
+                    return Response({"error": "amount must be a number"}, status=400)
+
+        reimbursement.status = status
+        # save(), not queryset.update(): update() bypasses model validation and
+        # the modified_by bookkeeping in HorillaModel.save().
+        reimbursement.save()
+        return Response({"status": reimbursement.status}, status=200)
 
 
 class TaxBracketView(APIView):
+    permission_classes = [IsAuthenticated]
 
+    @method_decorator(permission_required("payroll.view_taxbracket"))
     def get(self, request, pk=None):
         if pk:
             tax_bracket = TaxBracket.find(pk)
@@ -374,6 +407,7 @@ class TaxBracketView(APIView):
         serializer = TaxBracketSerializer(instance=tax_brackets, many=True)
         return Response(serializer.data, status=200)
 
+    @method_decorator(permission_required("payroll.add_taxbracket"))
     def post(self, request):
         serializer = TaxBracketSerializer(data=request.data)
         if serializer.is_valid():
@@ -381,6 +415,7 @@ class TaxBracketView(APIView):
             return Response(serializer.data, status=200)
         return Response(serializer.errors, status=400)
 
+    @method_decorator(permission_required("payroll.change_taxbracket"))
     def put(self, request, pk):
         tax_bracket = TaxBracket.objects.get(id=pk)
         serializer = TaxBracketSerializer(
@@ -391,6 +426,7 @@ class TaxBracketView(APIView):
             return Response(serializer.data, status=200)
         return Response(serializer.errors, status=400)
 
+    @method_decorator(permission_required("payroll.delete_taxbracket"))
     def delete(self, request, pk):
         tax_bracket = TaxBracket.objects.get(id=pk)
         tax_bracket.delete()
@@ -408,12 +444,12 @@ from rest_framework.authentication import SessionAuthentication
 
 # DRF / Simple JWT imports
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_simplejwt.authentication import JWTAuthentication
+
+from horilla_api.authentication import TenantScopedJWTAuthentication
 
 # Your models / helpers
-from payroll.models.models import Company, EmployeeWorkInformation, Payslip
+from payroll.models.models import Company, EmployeeWorkInformation
 from payroll.models.tax_models import PayrollSettings
 from payroll.views.component_views import filter_payslip
 from payroll.views.views import equalize_lists_length
@@ -434,7 +470,7 @@ class PayslipPDFAPIView(APIView):
       - Also accepts session auth (browser) when available
     """
 
-    authentication_classes = (JWTAuthentication, SessionAuthentication)
+    authentication_classes = (TenantScopedJWTAuthentication, SessionAuthentication)
     permission_classes = (IsAuthenticated,)
 
     def get(self, request, id, format=None):

@@ -2,11 +2,34 @@
 
 from __future__ import annotations
 
+import logging
+
 from django.apps import apps
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.utils.translation import gettext as _
 
 from report.engine import ReportFilters, apply_org_filters, empty_report
+
+logger = logging.getLogger(__name__)
+
+
+def _session_company_id(filters: ReportFilters):
+    """Selected company from the request on ``filters``, when there is one."""
+    request = getattr(filters, "request", None)
+    if request is None:
+        return None
+    try:
+        from report.personalization import session_company_id
+
+        return session_company_id(request)
+    except Exception:
+        return None
+
+
+def _viewer_is_superuser(filters: ReportFilters) -> bool:
+    request = getattr(filters, "request", None)
+    user = getattr(request, "user", None) if request is not None else None
+    return bool(getattr(user, "is_superuser", False))
 
 
 def audit_activity(filters: ReportFilters) -> dict:
@@ -24,6 +47,24 @@ def audit_activity(filters: ReportFilters) -> dict:
         timestamp__date__gte=filters.from_date,
         timestamp__date__lte=filters.to_date,
     )
+
+    # auditlog.LogEntry is third-party: it has no company column and no
+    # HorillaCompanyManager, so unlike every other model this metrics layer
+    # touches it was returning every tenant's activity to anyone who could
+    # view the report. Scope through the acting user's employee record.
+    #
+    # Entries whose actor cannot be resolved to a company (system actions,
+    # deleted users, anonymous) are only shown to superusers: attributing
+    # them to whichever tenant happens to be selected would be worse than
+    # omitting them.
+    company_id = filters.company_id or _session_company_id(filters)
+    if company_id:
+        actor_company = "actor__employee_get__employee_work_info__company_id"
+        scope = Q(**{actor_company: company_id})
+        if _viewer_is_superuser(filters):
+            scope |= Q(**{f"{actor_company}__isnull": True})
+        qs = qs.filter(scope).distinct()
+
     total = qs.count()
     by_action = list(qs.values("action").annotate(count=Count("id")).order_by("-count"))
     action_labels = {0: _("Create"), 1: _("Update"), 2: _("Delete"), 3: _("Access")}
@@ -115,7 +156,9 @@ def document_expiry(filters: ReportFilters) -> dict:
                     }
                 )
         except Exception:
-            pass
+            # A source that fails silently shrinks the report into a
+            # smaller, apparently valid number. Log it.
+            logger.exception("Report metric source unavailable")
 
     if apps.is_installed("asset"):
         try:
@@ -138,7 +181,9 @@ def document_expiry(filters: ReportFilters) -> dict:
                         }
                     )
         except Exception:
-            pass
+            # A source that fails silently shrinks the report into a
+            # smaller, apparently valid number. Log it.
+            logger.exception("Report metric source unavailable")
 
     if not rows and not kpis_docs:
         return empty_report(
@@ -155,7 +200,18 @@ def document_expiry(filters: ReportFilters) -> dict:
                 "value": kpis_docs or len(rows),
                 "hint": _("In period"),
             },
-            {"label": _("Listed"), "value": len(rows), "hint": _("Capped at 200")},
+            {
+                "label": _("Listed below"),
+                "value": len(rows),
+                # The hint used to read "Capped at 200" while the real cap is
+                # 100 per source, so it understated its own limit.
+                "hint": (
+                    _("Sample — %(shown)s of %(total)s")
+                    % {"shown": len(rows), "total": kpis_docs}
+                    if kpis_docs > len(rows)
+                    else _("Complete list")
+                ),
+            },
         ],
         "charts": [],
         "table": {
@@ -166,6 +222,12 @@ def document_expiry(filters: ReportFilters) -> dict:
                 {"key": "expiry", "label": _("Expiry")},
             ],
             "rows": rows,
+            # The KPI counts every match but the list is capped per source,
+            # so the table has to say so -- otherwise the card reads "347
+            # expiring documents" above a table of 100 and the export
+            # inherits the same 100 with no indication.
+            "truncated": kpis_docs > len(rows),
+            "total_rows": kpis_docs,
         },
     }
 
@@ -218,7 +280,9 @@ def visa_contract_expiry(filters: ReportFilters) -> dict:
                 }
             )
     except Exception:
-        pass
+        # A source that fails silently shrinks the report into a
+        # smaller, apparently valid number. Log it.
+        logger.exception("Report metric source unavailable")
 
     # Also surface work_info.contract_end_date when payroll Contract is absent
     try:
@@ -243,7 +307,9 @@ def visa_contract_expiry(filters: ReportFilters) -> dict:
                 }
             )
     except Exception:
-        pass
+        # A source that fails silently shrinks the report into a
+        # smaller, apparently valid number. Log it.
+        logger.exception("Report metric source unavailable")
 
     visa_tokens = (
         "visa",
@@ -290,7 +356,9 @@ def visa_contract_expiry(filters: ReportFilters) -> dict:
                     }
                 )
         except Exception:
-            pass
+            # A source that fails silently shrinks the report into a
+            # smaller, apparently valid number. Log it.
+            logger.exception("Report metric source unavailable")
 
     if not rows:
         return empty_report(

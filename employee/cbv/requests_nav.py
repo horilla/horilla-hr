@@ -18,6 +18,12 @@ class RequestsShiftNav(ShitRequestNav):
 
     nav_title = _("Shift Requests")
     template_name = "generic/inline_nav.html"
+    # Modern slide-over filter panel (generic/inline_nav.html's own
+    # {% if modern_filter %} branch, mirroring horilla_nav.html's
+    # .oh-filter-modern styles) -- same treatment as every other panel
+    # this session. ShiftRequestFilter.ajax_fields carries the AJAX-loaded
+    # comboboxes this needs.
+    modern_filter = True
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -30,6 +36,7 @@ class RequestsShiftInboxNav(ShitRequestNav):
 
     nav_title = _("Shift Allocations")
     template_name = "generic/inline_nav.html"
+    modern_filter = True
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

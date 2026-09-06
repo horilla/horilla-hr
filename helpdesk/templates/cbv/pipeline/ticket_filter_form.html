@@ -1,38 +1,47 @@
 {% load static i18n %}
     <input type="hidden" name="view" id="filterView" value="{{request.GET.view}}">
     <div class="oh-dropdown__filter-body">
-        <div class="oh-accordion">
+        <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
             <div
                 class="oh-accordion-header"
+                onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
             >
+                <span class="oh-filter-section-icon"><ion-icon name="ticket-outline"></ion-icon></span>
                 {% trans "Tickets" %}
             </div>
             <div class="oh-accordion-body">
                 <div class="row">
+                    <!-- Full width -- Ticket Type, Owner, Assigned To,
+                         and Tags are now AJAX-searched Select2
+                         comboboxes (see helpdesk/filter.py's
+                         TicketFilter.ajax_fields) and need real room
+                         for their selected chips/placeholder text,
+                         same reasoning as every other modernized panel
+                         this session. -->
                     <div class="col-sm-12 col-md-12 col-lg-12">
                         <div class="oh-input-group">
                             <label class="oh-label" for="{{form.ticket_type.id_for_label}}">{% trans "Ticket Type" %}</label>
                             {{form.ticket_type}}
                         </div>
                     </div>
-                    <div class="col-sm-12 col-md-12 col-lg-6">
+                    <div class="col-sm-12 col-md-12 col-lg-12">
                         <div class="oh-input-group">
                             <label class="oh-label" for="{{form.employee_id.id_for_label}}">{% trans "Owner" %}</label>
                             {{form.employee_id}}
                         </div>
                     </div>
-                    <div class="col-sm-12 col-md-12 col-lg-6">
+                    <div class="col-sm-12 col-md-12 col-lg-12">
                         <div class="oh-input-group">
                             <label class="oh-label" for="{{form.assigned_to.id_for_label}}">{% trans "Assigned to" %}</label>
                             {{form.assigned_to}}
                         </div>
                     </div>
-                    <div class="col-sm-12 col-md-12 col-lg-6">
+                    <div class="col-sm-12 col-md-12 col-lg-12">
                         <div class="oh-input-group">
-                            <label class="oh-label" for="{{form.to_date.id_for_label}}"
-                                >{% trans "Till date" %}</label
+                            <label class="oh-label" for="{{form.tags.id_for_label}}"
+                                >{% trans "Tags" %}</label
                             >
-                            {{form.to_date}}
+                            {{form.tags}}
                         </div>
                     </div>
                     <div class="col-sm-12 col-md-12 col-lg-6">
@@ -41,14 +50,6 @@
                                 >{% trans "Priority" %}</label
                             >
                             {{form.priority}}
-                        </div>
-                    </div>
-                    <div class="col-sm-12 col-md-12 col-lg-6">
-                        <div class="oh-input-group">
-                            <label class="oh-label" for="{{form.tags.id_for_label}}"
-                                >{% trans "Tags" %}</label
-                            >
-                            {{form.tags}}
                         </div>
                     </div>
                     <div class="col-sm-12 col-md-12 col-lg-6">
@@ -68,4 +69,46 @@
                 </div>
             </div>
         </div>
+        <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+            <div
+                class="oh-accordion-header"
+                onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
+            >
+                <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
+                {% trans "Advanced" %}
+            </div>
+            <div class="oh-accordion-body">
+                <div class="row">
+                    <!-- Deadline used to have a fixed gte-only from_date/
+                         lte-only to_date pair here (from_date was never
+                         actually rendered) -- replaced with the same
+                         "+ Add filter" field/lookup/value builder
+                         AttendanceFilters/EmployeeFilter/PMS
+                         FeedbackFilter/AssetFilter use (choose the
+                         field, then the lookup, then the value), which
+                         also offers gt/lt/exact, and adds Created
+                         Date/Resolved Date as further options. Registry:
+                         TicketFilter._build_custom_filter_fields;
+                         applied server-side by HorillaFilterSet.
+                         _apply_custom_filters (see TicketFilter.
+                         filter_queryset). Row markup/JS are generic
+                         (initCustomFilterBuilder, horilla_nav.html). -->
+                    <div class="col-sm-12 col-md-12 col-lg-12">
+                        <div class="oh-input-group">
+                            <div id="customFilterRowsContainer-ticket" class="oh-custom-filter-rows"></div>
+                            <button
+                                type="button"
+                                class="oh-custom-filter-add"
+                                onclick="addCustomFilterRow('ticket')"
+                            >+ {% trans "Add filter" %}</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
+    {{ custom_filter_fields|json_script:"customFilterFields-ticket" }}
+    {{ custom_filter_rows|json_script:"customFilterRows-ticket" }}
+    <script>
+        initCustomFilterBuilder('ticket');
+    </script>

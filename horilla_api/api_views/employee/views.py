@@ -164,9 +164,10 @@ class EmployeeAPIView(APIView):
         user = request.user
         employee = Employee.objects.get(pk=pk)
         if (
-            employee
-            in [user.employee_get, request.user.employee_get.get_reporting_manager()]
-        ) or user.has_perm("employee.change_employee"):
+            employee == user.employee_get
+            or employee.get_reporting_manager() == user.employee_get
+            or user.has_perm("employee.change_employee")
+        ):
             serializer = EmployeeSerializer(employee, data=request.data, partial=True)
             if serializer.is_valid():
                 serializer.save()

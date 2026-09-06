@@ -19,7 +19,21 @@ class HorillaApiConfig(AppConfig):
 
         from horilla.urls import urlpatterns
 
-        # Add API URLs to main project urlpatterns
+        # Mount the API under an explicit version AND keep the unversioned
+        # path working.
+        #
+        # There was no versioning at all: every endpoint lived at /api/<app>/,
+        # so any breaking change silently broke integrators with no way to pin.
+        # Freezing the current surface as v1 now is cheap; doing it after
+        # customers have built against it is not.
+        #
+        # /api/ is kept as an alias rather than redirected because existing
+        # clients are already using it -- removing it would be exactly the
+        # breaking change this is meant to prevent. New integrations should use
+        # /api/v1/; treat /api/ as deprecated and drop it in a major release.
+        urlpatterns.append(
+            path("api/v1/", include("horilla_api.urls")),
+        )
         urlpatterns.append(
             path("api/", include("horilla_api.urls")),
         )

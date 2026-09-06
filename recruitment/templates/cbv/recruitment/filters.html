@@ -1,14 +1,32 @@
 {% load i18n %}{% load static %}
   <div class="oh-dropdown__filter-body">
-    <div class="oh-accordion">
-    <div class="oh-accordion-header">{% trans "Recruitment" %}</div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+    <div class="oh-accordion-header">
+      <span class="oh-filter-section-icon"><ion-icon name="briefcase-outline"></ion-icon></span>
+      {% trans "Recruitment" %}
+    </div>
     <div class="oh-accordion-body">
+      <!-- Full width -- Managers and Company are now AJAX-searched
+           Select2 comboboxes (see recruitment/filters.py's
+           RecruitmentFilter.ajax_fields) and need real room for their
+           selected chips/placeholder text, same reasoning as every
+           other modernized panel this session. -->
       <div class="row">
-        <div class="col-sm-12 col-md-12 col-lg-6">
+        <div class="col-sm-12 col-md-12 col-lg-12">
           <div class="oh-input-group">
               <label class="oh-label">{% trans "Managers" %}</label>
               {{form.recruitment_managers}}
           </div>
+        </div>
+        <div class="col-sm-12 col-md-12 col-lg-12">
+          <div class="oh-input-group">
+            <label class="oh-label">{% trans "Company" %}</label>
+            {{form.company_id}}
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-sm-12 col-md-12 col-lg-6">
           <div class="oh-input-group">
             <label class="oh-label">{% trans "Is Closed" %}</label>
             {% comment %} {{form.closed}} {% endcomment %}
@@ -21,10 +39,6 @@
         </div>
         <div class="col-sm-12 col-md-12 col-lg-6">
           <div class="oh-input-group">
-            <label class="oh-label">{% trans "Company" %}</label>
-            {{form.company_id}}
-          </div>
-          <div class="oh-input-group">
             <label class="oh-label">{% trans "Is Published" %}</label>
             {{form.is_published}}
           </div>
@@ -34,8 +48,11 @@
   </div>
 
 
-  <div class="oh-accordion">
-    <div class="oh-accordion-header">{% trans "Advanced" %}</div>
+  <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+    <div class="oh-accordion-header">
+      <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
+      {% trans "Advanced" %}
+    </div>
     <div class="oh-accordion-body">
       <div class="row">
         <div class="col-sm-12 col-md-12 col-lg-6">

@@ -10,13 +10,15 @@ from __future__ import annotations
 import os
 from typing import Any, Optional
 
+from django.utils.translation import gettext as _
+
 from base.models import Company
 
 
 def _empty_all() -> dict[str, Any]:
     return {
         "id": None,
-        "name": "All companies",
+        "name": str(_("All companies")),
         "address": "",
         "country": "",
         "state": "",
@@ -26,7 +28,7 @@ def _empty_all() -> dict[str, Any]:
         "logo_url": None,
         "is_all": True,
         "location_line": "",
-        "address_lines": ["All companies"],
+        "address_lines": [str(_("All companies"))],
     }
 
 

@@ -13,6 +13,7 @@ from django.utils.translation import gettext_lazy as _
 from django_filters import CharFilter, DateFilter
 
 from base.models import Tags
+from employee.models import Employee
 from helpdesk.models import FAQ, DepartmentManager, FAQCategory, Ticket, TicketType
 from horilla.filters import FilterSet, HorillaFilterSet
 
@@ -60,7 +61,7 @@ class FAQCategoryFilter(FilterSet):
         ]
 
 
-class TicketFilter(FilterSet):
+class TicketFilter(HorillaFilterSet):
     """
     Filter set class for Ticket model
 
@@ -93,6 +94,95 @@ class TicketFilter(FilterSet):
     department = django_filters.NumberFilter(
         field_name="employee_id__employee_work_info__department_id",
     )
+
+    # HorillaFilterSet.ajax_fields (generic AJAX-loaded combobox mechanism)
+    # -- Owner, Ticket Type, Assigned To, and Tags opt into AJAX-searched
+    # comboboxes instead of pre-rendering their whole queryset as
+    # <option> tags. No dedicated "Name or Badge ID" field is added:
+    # employee_id (Owner) and assigned_to are two separate employee-role
+    # fields with no single clear owner, same reasoning as
+    # AssetAllocationFilter/the Recruitment Pipeline panel.
+    ajax_fields = {
+        "employee_id": {
+            "key": "ticket-owner",
+            "queryset_fn": lambda request: Employee.objects.filter(is_active=True),
+            "display_fn": lambda obj: obj.get_full_name(),
+            "search_fields": ["employee_first_name", "employee_last_name", "badge_id"],
+            "placeholder": _("Search employee..."),
+        },
+        "ticket_type": {
+            "key": "ticket-type",
+            "queryset_fn": lambda request: TicketType.objects.all(),
+            "display_fn": lambda obj: obj.title,
+            "search_fields": ["title"],
+            "placeholder": _("Select ticket type..."),
+        },
+        "assigned_to": {
+            "key": "ticket-assigned-to",
+            "queryset_fn": lambda request: Employee.objects.filter(is_active=True),
+            "display_fn": lambda obj: obj.get_full_name(),
+            "search_fields": ["employee_first_name", "employee_last_name", "badge_id"],
+            "placeholder": _("Search employee..."),
+        },
+        "tags": {
+            "key": "ticket-tags",
+            "queryset_fn": lambda request: Tags.objects.all(),
+            "display_fn": lambda obj: obj.title,
+            "search_fields": ["title"],
+            "placeholder": _("Select tags..."),
+        },
+    }
+
+    def _build_custom_filter_fields(self):
+        """
+        Registry backing the Advanced section's "+ Add filter" builder
+        (see HorillaFilterSet._build_custom_filter_fields's docstring
+        for the two supported entry shapes) -- same "choose field, then
+        lookup, then value" pattern used by AttendanceFilters/
+        EmployeeFilter/PMS FeedbackFilter/AssetFilter. Deadline, Created
+        Date, and Resolved Date are plain DateField columns, so the
+        plain field+lookup shape applies directly (a raw queryset.
+        filter(**{field__lookup: value}) call), offering the full
+        gte/lte/gt/lt/exact set instead of the fixed gte-only from_date/
+        lte-only to_date pair the template used to render (from_date
+        was declared but never actually rendered anywhere).
+        """
+        fields = [
+            {
+                "key": "deadline",
+                "field": "deadline",
+                "label": str(_("Deadline")),
+                "type": "date_range",
+            },
+            {
+                "key": "created_date",
+                "field": "created_date",
+                "label": str(_("Created Date")),
+                "type": "date_range",
+            },
+            {
+                "key": "resolved_date",
+                "field": "resolved_date",
+                "label": str(_("Resolved Date")),
+                "type": "date_range",
+            },
+        ]
+        for entry in fields:
+            entry["lookups"] = [
+                [lk, str(label)]
+                for lk, label in self.CUSTOM_FILTER_LOOKUPS[entry["type"]]
+            ]
+        return fields
+
+    def filter_queryset(self, queryset):
+        """
+        HorillaFilterSet._apply_custom_filters isn't wired into the base
+        filter_queryset automatically -- this is the minimal "call it at
+        the end" hookup, same as AttendanceFilters/FeedbackFilter/
+        AssetFilter.
+        """
+        queryset = super().filter_queryset(queryset)
+        return self._apply_custom_filters(queryset)
 
     def filter_is_open(self, queryset, name, value):
         """

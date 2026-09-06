@@ -1,10 +1,11 @@
+{% load basefilters %}
 
 <div class="description-container">
     <div class="description-text">
-        {{ instance.description|safe|truncatechars_html:30 }}
+        {{ instance.description|sanitize_html|truncatechars_html:30 }}
     </div>
     <div class="full-description">
-        {{ instance.description|safe }}
+        {{ instance.description|sanitize_html }}
     </div>
 </div>
 

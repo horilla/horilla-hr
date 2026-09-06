@@ -10,13 +10,5 @@ class AttendancePermissionCheck(APIView):
 
     @manager_permission_required("attendance.view_attendance")
     def get(self, request):
-        return Response(status=200)
-
-
-class AttendancePermissionCheck(APIView):
-    permission_classes = [IsAuthenticated]
-
-    @manager_permission_required("attendance.view_attendance")
-    def get(self, request):
 
         return Response(status=200)

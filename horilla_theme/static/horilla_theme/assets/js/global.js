@@ -95,6 +95,51 @@ window.registerAutoRefresh = function (intervalId) {
   window._activeAutoRefreshTimers.push(intervalId);
 };
 
+// Skip a periodic refresh while the tab is hidden.
+//
+// Dashboard auto-refresh is on by default and each tick fans out to ~14
+// endpoint calls, so a dashboard left open on a second monitor keeps issuing
+// requests indefinitely with nobody reading them. That is wasted server work
+// everywhere, and on per-second-billed hosting it also keeps the container
+// from ever scaling to zero: the traffic looks like real usage.
+//
+// Callers still tick on their own schedule; this only decides whether the
+// work runs. When the tab becomes visible again we refresh once immediately,
+// so a returning user sees current data instead of waiting out the interval.
+window.autoRefreshWhenVisible = function (fn) {
+  var missedWhileHidden = false;
+
+  if (!window._autoRefreshVisibilityBound) {
+    window._autoRefreshVisibilityBound = true;
+    window._autoRefreshOnVisible = [];
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState !== "visible") return;
+      var pending = window._autoRefreshOnVisible || [];
+      for (var i = 0; i < pending.length; i++) {
+        try {
+          pending[i]();
+        } catch (e) {
+          /* one dashboard's refresh must not break the others */
+        }
+      }
+    });
+  }
+
+  window._autoRefreshOnVisible.push(function () {
+    if (!missedWhileHidden) return;
+    missedWhileHidden = false;
+    fn();
+  });
+
+  return function () {
+    if (document.visibilityState === "hidden") {
+      missedWhileHidden = true;
+      return;
+    }
+    fn();
+  };
+};
+
 $(function () {
   $("#ohMainContent").on("htmx:beforeSwap", function () {
     $.each(window._activeAutoRefreshTimers || [], function (i, id) {

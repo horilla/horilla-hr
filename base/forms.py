@@ -71,7 +71,6 @@ from base.models import (
 )
 from base.widgets import CustomModelChoiceWidget
 from employee.filters import EmployeeFilter
-from employee.forms import MultipleFileField
 from employee.models import Employee, EmployeeTag
 from horilla import horilla_middlewares
 from horilla.horilla_middlewares import _thread_locals

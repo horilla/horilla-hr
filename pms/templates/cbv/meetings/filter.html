@@ -1,130 +1,165 @@
 {% load i18n %}
-<div class="oh-accordion">
-    <div class="oh-accordion-header">{% trans "Meeting" %}</div>
-    <div class="oh-accordion-body">
-        <div class="row">
-            <div class="col-sm-12 col-md-12 col-lg-6">
-                <div class="oh-input-group">
-                    <label
-                        class="oh-label"
-                        for="{{filter_form.employee_id.id_for_label}}"
-                    >{% trans "Employee" %}
-                    </label>
-                    {{ filter_form.employee_id }}
+<div class="oh-dropdown__filter-body">
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header">
+            <span class="oh-filter-section-icon"><ion-icon name="people-circle-outline"></ion-icon></span>
+            {% trans "Meeting" %}
+        </div>
+        <div class="oh-accordion-body">
+            <!-- Full width -- Employee/Manager/Question Template are now
+                 AJAX-searched Select2 comboboxes (see pms/filters.py's
+                 MeetingsFilter.ajax_fields) and need real room for their
+                 selected chips/placeholder text, same reasoning as every
+                 other modernized panel this session. -->
+            <div class="row">
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label
+                            class="oh-label"
+                            for="{{filter_form.employee_id.id_for_label}}"
+                        >{% trans "Employee" %}
+                        </label>
+                        {{ filter_form.employee_id }}
+                    </div>
                 </div>
-                <div class="oh-input-group">
-                    <label
-                        class="oh-label"
-                        for="{{filter_form.manager.id_for_label}}"
-                    >{% trans "Manager" %}
-                    </label>
-                    {{ filter_form.manager }}
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label
+                            class="oh-label"
+                            for="{{filter_form.manager.id_for_label}}"
+                        >{% trans "Manager" %}
+                        </label>
+                        {{ filter_form.manager }}
+                    </div>
                 </div>
-                <div class="oh-input-group">
-                    <label
-                        class="oh-label"
-                        for="{{filter_form.manager.id_for_label}}"
-                    >{% trans "Is active" %}
-                    </label>
-                    {{ filter_form.is_active }}
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label
+                            class="oh-label"
+                            for="{{filter_form.question_template.id_for_label}}"
+                        >{% trans "Question Template" %}
+                        </label>
+                        {{ filter_form.question_template }}
+                    </div>
                 </div>
             </div>
-            <div class="col-sm-12 col-md-12 col-lg-6">
-                <div class="oh-input-group">
-                    <label
-                        class="oh-label"
-                        for="{{filter_form.date.id_for_label}}"
-                    >{% trans "Date" %}</label>
-                    {{ filter_form.date }}
+            <div class="row">
+                <div class="col-sm-12 col-md-12 col-lg-6">
+                    <div class="oh-input-group">
+                        <label
+                            class="oh-label"
+                            for="{{filter_form.date.id_for_label}}"
+                        >{% trans "Date" %}</label>
+                        {{ filter_form.date }}
+                    </div>
                 </div>
-                <div class="oh-input-group">
-                    <label
-                        class="oh-label"
-                        for="{{filter_form.question_template.id_for_label}}"
-                    >{% trans "Question Template" %}
-                    </label>
-                    {{ filter_form.question_template }}
+                <div class="col-sm-12 col-md-12 col-lg-6">
+                    <div class="oh-input-group">
+                        <label
+                            class="oh-label"
+                            for="{{filter_form.is_active.id_for_label}}"
+                        >{% trans "Is active" %}
+                        </label>
+                        {{ filter_form.is_active }}
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
-<div class="oh-accordion">
-    <div class="oh-accordion-header">{% trans "Work Information" %}</div>
-    <div class="oh-accordion-body">
-        <div class="row">
-            <div class="col-sm-12 col-md-12 col-lg-6">
-                <div class="oh-input-group">
-                    <label
-                        class="oh-label"
-                        for="{{filter_form.employee_id__employee_work_info__department_id.id_for_label}}"
-                    >{% trans "Department" %}</label>
-                    {{ filter_form.employee_id__employee_work_info__department_id }}
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header">
+            <span class="oh-filter-section-icon"><ion-icon name="briefcase-outline"></ion-icon></span>
+            {% trans "Work Information" %}
+        </div>
+        <div class="oh-accordion-body">
+            <!-- Full width -- Department/Company/Shift/Reporting
+                 Manager/Job Position/Work Type are now AJAX-searched
+                 Select2 comboboxes (see pms/filters.py's
+                 MeetingsFilter.ajax_fields). -->
+            <div class="row">
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label
+                            class="oh-label"
+                            for="{{filter_form.employee_id__employee_work_info__department_id.id_for_label}}"
+                        >{% trans "Department" %}</label>
+                        {{ filter_form.employee_id__employee_work_info__department_id }}
+                    </div>
                 </div>
-                <div class="oh-input-group">
-                    <label
-                        class="oh-label"
-                        for="{{filter_form.employee_id__employee_work_info__company_id.id_for_label}}"
-                    >{% trans "Company" %}</label>
-                    {{ filter_form.employee_id__employee_work_info__company_id }}
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label
+                            class="oh-label"
+                            for="{{filter_form.employee_id__employee_work_info__company_id.id_for_label}}"
+                        >{% trans "Company" %}</label>
+                        {{ filter_form.employee_id__employee_work_info__company_id }}
+                    </div>
                 </div>
-                <div class="oh-input-group">
-                    <label
-                        class="oh-label"
-                        for="{{filter_form.employee_id__employee_work_info__shift_id.id_for_label}}"
-                    >{% trans "Shift" %}</label>
-                    {{ filter_form.employee_id__employee_work_info__shift_id }}
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label
+                            class="oh-label"
+                            for="{{filter_form.employee_id__employee_work_info__shift_id.id_for_label}}"
+                        >{% trans "Shift" %}</label>
+                        {{ filter_form.employee_id__employee_work_info__shift_id }}
+                    </div>
                 </div>
-            </div>
-
-            <div class="col-sm-12 col-md-12 col-lg-6">
-                <div class="oh-input-group">
-                    <label
-                        class="oh-label"
-                        for="{{filter_form.employee_id__employee_work_info__reporting_manager_id.id_for_label}}"
-                    >{% trans "Reporting Manager" %}</label>
-                    {{ filter_form.employee_id__employee_work_info__reporting_manager_id }}
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label
+                            class="oh-label"
+                            for="{{filter_form.employee_id__employee_work_info__reporting_manager_id.id_for_label}}"
+                        >{% trans "Reporting Manager" %}</label>
+                        {{ filter_form.employee_id__employee_work_info__reporting_manager_id }}
+                    </div>
                 </div>
-                <div class="oh-input-group">
-                    <label
-                        class="oh-label"
-                        for="{{filter_form.employee_id__employee_work_info__job_position_id.id_for_label}}"
-                    >{% trans "Job Position" %}</label>
-                    {{ filter_form.employee_id__employee_work_info__job_position_id }}
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label
+                            class="oh-label"
+                            for="{{filter_form.employee_id__employee_work_info__job_position_id.id_for_label}}"
+                        >{% trans "Job Position" %}</label>
+                        {{ filter_form.employee_id__employee_work_info__job_position_id }}
+                    </div>
                 </div>
-                <div class="oh-input-group">
-                    <label
-                        class="oh-label"
-                        for="{{filter_form.employee_id__employee_work_info__work_type_id.id_for_label}}"
-                    >{% trans "Work Type" %}</label>
-                    {{ filter_form.employee_id__employee_work_info__work_type_id }}
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label
+                            class="oh-label"
+                            for="{{filter_form.employee_id__employee_work_info__work_type_id.id_for_label}}"
+                        >{% trans "Work Type" %}</label>
+                        {{ filter_form.employee_id__employee_work_info__work_type_id }}
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
-<div class="oh-accordion">
-    <div class="oh-accordion-header">{% trans "Advanced" %}</div>
-    <div class="oh-accordion-body">
-        <div class="row">
-            <div class="col-sm-12 col-md-12 col-lg-6">
-                <div class="oh-input-group">
-                    <label
-                        class="oh-label"
-                        for="{{filter_form.date_gte.id_for_label}}"
-                    >{% trans "Date greater than or equal" %}
-                    </label>
-                    {{ filter_form.date_greater }}
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header">
+            <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
+            {% trans "Advanced" %}
+        </div>
+        <div class="oh-accordion-body">
+            <div class="row">
+                <div class="col-sm-12 col-md-12 col-lg-6">
+                    <div class="oh-input-group">
+                        <label
+                            class="oh-label"
+                            for="{{filter_form.date_gte.id_for_label}}"
+                        >{% trans "Date greater than or equal" %}
+                        </label>
+                        {{ filter_form.date_greater }}
+                    </div>
                 </div>
-            </div>
-            <div class="col-sm-12 col-md-12 col-lg-6">
-                <div class="oh-input-group">
-                    <label
-                        class="oh-label"
-                        for="{{filter_form.date_lte.id_for_label}}"
-                    >{% trans "Date less than or equal" %}
-                    </label>
-                    {{ filter_form.date_less }}
+                <div class="col-sm-12 col-md-12 col-lg-6">
+                    <div class="oh-input-group">
+                        <label
+                            class="oh-label"
+                            for="{{filter_form.date_lte.id_for_label}}"
+                        >{% trans "Date less than or equal" %}
+                        </label>
+                        {{ filter_form.date_less }}
+                    </div>
                 </div>
             </div>
         </div>

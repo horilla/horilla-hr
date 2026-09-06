@@ -226,6 +226,12 @@ class RotatingShiftAssignNav(HorillaNavView):
     filter_instance = RotatingShiftAssignFilters()
     filter_form_context_name = "form"
     search_swap_target = "#listContainer"
+    # Modern slide-over filter panel (generic/inline_nav.html's own
+    # {% if modern_filter %} branch, mirroring horilla_nav.html's
+    # .oh-filter-modern styles) -- same treatment as every other panel
+    # this session. RotatingShiftAssignFilters.ajax_fields carries the
+    # AJAX-loaded comboboxes this needs.
+    modern_filter = True
 
     group_by_fields = [
         ("employee_id", _("Employee")),
@@ -272,8 +278,15 @@ class RotatingShiftDetailview(HorillaDetailedView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        instance = context["object"]
-        instance.ordered_ids = context["instance_ids"]
+        instance = context.get("object")
+        if instance is None:
+            # No matching row (e.g. a stale/invalid pk) -- the parent's own
+            # get_context_data already skips setting instance_ids for this
+            # case, and its get() renders empty_template / redirects with
+            # "No record found" once this returns, so there's nothing to
+            # attach ordered_ids to here.
+            return context
+        instance.ordered_ids = context.get("instance_ids", [])
         return context
 
 

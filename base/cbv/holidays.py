@@ -144,6 +144,11 @@ class HolidayNavView(HorillaNavView):
     filter_instance = HolidayFilter()
     search_swap_target = "#listContainer"
     template_name = "generic/inline_nav.html"
+    # Modern slide-over filter panel (generic/inline_nav.html's own
+    # {% if modern_filter %} branch) -- same treatment as every other
+    # panel this session. HolidayFilter has no FK/M2M fields, so no
+    # ajax_fields are needed here.
+    modern_filter = True
 
 
 @method_decorator(login_required, name="dispatch")

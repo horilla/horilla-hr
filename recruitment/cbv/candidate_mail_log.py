@@ -4,6 +4,7 @@ This page is handling the cbv methods of mail log tab in employee individual pag
 
 from typing import Any
 
+from django.http import HttpResponse
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
@@ -42,7 +43,9 @@ class CandidateMailLogTabList(MailLogTabList):
 
         # queryset = super().get_queryset()
         pk = self.kwargs.get("pk")
-        candidate_obj = Candidate.objects.get(id=pk)
+        candidate_obj = Candidate.objects.filter(id=pk).first()
+        if not candidate_obj:
+            return HorillaListView.get_queryset(self).none()
         return (
             HorillaListView.get_queryset(self)
             .filter(to__icontains=candidate_obj.email)
@@ -53,4 +56,6 @@ class CandidateMailLogTabList(MailLogTabList):
         """
         To avoide parent permissions
         """
+        if not Candidate.objects.filter(id=kwargs.get("pk")).exists():
+            return HttpResponse()
         return super(MailLogTabList, self).dispatch(request, *args, **kwargs)

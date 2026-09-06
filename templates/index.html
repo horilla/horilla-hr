@@ -256,6 +256,10 @@
     <script src="{% static 'build/js/pivottable_plot.min.js' %}"></script>
     <script src="{% static 'build/js/pivottable_ploty.min.js' %}"></script>
     <script src="{% static 'build/js/pivottable_excel.min.js' %}"></script>
+    {# Pivot explorer safety: warns when a payload was capped server-side so
+       a partial total is never shown as complete, and guards cells on the
+       browser-side xlsx export against formula injection. #}
+    <script src="{% static 'report/js/pivot_safety.js' %}"></script>
 
     {% if "attendance"|app_installed %}
         <script src="{% static 'attendance/actions.js' %}"></script>

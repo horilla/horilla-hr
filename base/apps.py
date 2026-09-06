@@ -15,7 +15,7 @@ class BaseConfig(AppConfig):
     name = "base"
 
     def ready(self) -> None:
-        from base import sidebar, signals  # noqa: F401
+        from base import checks, sidebar, signals  # noqa: F401
 
         super().ready()
         check_for_no_permissions_models()

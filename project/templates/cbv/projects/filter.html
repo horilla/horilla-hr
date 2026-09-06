@@ -1,23 +1,30 @@
 {% load i18n%}
 <div class="oh-dropdown__filter-body">
-    <div class="oh-accordion">
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
         <div class="oh-accordion-header"
             onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
-        >{% trans "Project" %}</div>
+        >
+            <span class="oh-filter-section-icon"><ion-icon name="folder-open-outline"></ion-icon></span>
+            {% trans "Project" %}
+        </div>
         <div class="oh-accordion-body">
             <div class="row">
-                <div class="col-sm-12 col-md-12 col-lg-6">
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label class="oh-label" for="{{form.name_or_badge.id_for_label}}">{{ form.name_or_badge.label }}</label>
+                        {{form.name_or_badge}}
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label class="oh-label" for="{{form.managers.id_for_label}}">{{form.managers.label}}</label>
                         {{form.managers}}
                     </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-6">
                     <div class="oh-input-group">
                         <label class="oh-label" for="{{form.status.id_for_label}}">{{ form.status.label }} </label>
                         {{form.status}}
-                    </div>
-                    <div class="oh-input-group">
-                        <label class="oh-label" for="{{form.start_from.id_for_label}}">{{ form.start_from.label }}</label>
-                        {{form.start_from}}
                     </div>
                 </div>
                 <div class="col-sm-12 col-md-12 col-lg-6">
@@ -25,6 +32,26 @@
                         <label class="oh-label" for="{{form.is_active.id_for_label}}">{{ form.is_active.label }}</label>
                         {{form.is_active}}
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header"
+            onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
+        >
+            <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
+            {% trans "Advanced" %}
+        </div>
+        <div class="oh-accordion-body">
+            <div class="row">
+                <div class="col-sm-12 col-md-12 col-lg-6">
+                    <div class="oh-input-group">
+                        <label class="oh-label" for="{{form.start_from.id_for_label}}">{{ form.start_from.label }}</label>
+                        {{form.start_from}}
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-6">
                     <div class="oh-input-group">
                         <label class="oh-label" for="{{form.end_till.id_for_label}}">{{ form.end_till.label }}</label>
                         {{form.end_till}}

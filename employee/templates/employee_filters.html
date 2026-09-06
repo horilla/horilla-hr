@@ -3,40 +3,20 @@
 {% load horillafilters %}
 
 <div class="oh-dropdown__filter-body">
-    <div class="oh-accordion">
-        <div class="oh-accordion-header">{% trans "Employee" %}</div>
-        <div class="oh-accordion-body">
-            <div class="row">
-                <div class="col-sm-12 col-md-12 col-lg-6">
-                    <div class="oh-input-group">
-                        <label class="oh-label" for="{{f.form.employee_first_name.id_for_label}}">{% trans "First Name" %}</label>
-                        {{f.form.employee_first_name}}
-                    </div>
-                    <div class="oh-input-group">
-                        <label class="oh-label" for="{{f.form.email.id_for_label}}">{% trans "Email" %}</label>
-                        {{f.form.email}}
-                    </div>
-                    <div class="oh-input-group">
-                        <label class="oh-label">{% trans 'Country' %}</label>
-                        <select name="country" class="oh-select-2 oh-select w-100 country" id="country">
-                        </select>
-                    </div>
-                </div>
-
-                <div class="col-sm-12 col-md-12 col-lg-6">
-                    <div class="oh-input-group">
-                        <label class="oh-label" for="{{f.form.employee_last_name.id_for_label}}">{% trans "Last Name" %}</label>
-                        {{f.form.employee_last_name}}
-                    </div>
-                    <div class="oh-input-group">
-                        <label class="oh-label" for="{{f.form.phone.id_for_label}}">{% trans "Phone" %}</label>
-                        {{f.form.phone}}
-                    </div>
-                    <div class="oh-input-group">
-                        <label class="oh-label" for="{{f.form.gender.id_for_label}}">{% trans "Gender" %}</label>
-                        {{f.form.gender}}
-                    </div>
-                </div>
+    {% comment %}
+        Outside any accordion (always visible, not collapsible) -- same
+        placement as the CBV Employee panel (filter_employee.html) and
+        for the same reason: this is the primary/most-used search, so it
+        shouldn't be hidden behind a click. Dedicated comma-separated
+        search (EmployeeFilter.name_or_badge -- see horilla.filters.
+        filter_name_or_badge_terms) -- e.g. "PEP01, PEP02, jane" matches
+        any employee whose name or badge matches ANY one of those terms.
+    {% endcomment %}
+    <div class="row">
+        <div class="col-sm-12 col-md-12 col-lg-12">
+            <div class="oh-input-group">
+                <label class="oh-label" for="{{f.form.name_or_badge.id_for_label}}">{% trans "Name or Badge ID" %}</label>
+                {{f.form.name_or_badge}}
             </div>
         </div>
     </div>
@@ -45,45 +25,84 @@
         <div class="oh-accordion-header">{% trans "Work Info" %}</div>
         <div class="oh-accordion-body">
             <div class="row">
-                <div class="col-sm-12 col-md-12 col-lg-6">
+                {% comment %}
+                    Full width, not a col-lg-6 half -- Employee/Company/
+                    Department/Shift/Employee Tag/Reporting Manager/Job
+                    Position/Work Type are all AJAX-loaded Select2
+                    comboboxes now (see EmployeeFilter.ajax_fields) and
+                    need real room for their selected chips/placeholder
+                    text, same fix already applied to the CBV filter panel
+                    (employee/templates/cbv/employees_view/
+                    filter_employee.html) -- squeezed into half this row
+                    they collapse to little more than a blank box (Select2
+                    correctly sizes itself to its own parent, the parent
+                    was just too narrow).
+
+                    Employee itself (EmployeeFilter.employee_id) replaces
+                    the separate First Name/Last Name/Email/Phone/
+                    Country/Gender inputs this section used to have --
+                    pick the exact employee(s) directly instead of
+                    narrowing down via several text-contains filters.
+                    Those fields are still fully reachable server-side
+                    (Meta.fields), just not exposed as separate inputs
+                    here anymore.
+                {% endcomment %}
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label class="oh-label" for="{{f.form.employee_id.id_for_label}}">{% trans "Employee" %}</label>
+                        {{f.form.employee_id}}
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label class="oh-label" for="{{f.form.employee_work_info__company_id.id_for_label}}">{% trans "Company" %}</label>
                         {{f.form.employee_work_info__company_id}}
                     </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label class="oh-label" for="{{f.form.employee_work_info__department_id.id_for_label}}">{% trans "Department" %}</label>
                         {{f.form.employee_work_info__department_id}}
                     </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label class="oh-label" for="{{f.form.employee_work_info__shift_id.id_for_label}}">{% trans "Shift" %}</label>
                         {{f.form.employee_work_info__shift_id}}
                     </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label class="oh-label" for="{{f.form.employee_work_info__tags.id_for_label}}">{% trans "Employee tag" %}</label>
                         {{f.form.employee_work_info__tags}}
                     </div>
                 </div>
-
-                <div class="col-sm-12 col-md-12 col-lg-6">
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label class="oh-label" for="{{f.form.employee_work_info__reporting_manager_id.id_for_label}}">{% trans "Reporting Manager" %}</label>
                         {{f.form.employee_work_info__reporting_manager_id}}
                     </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label class="oh-label" for="{{f.form.employee_work_info__job_position_id.id_for_label}}">{% trans "Job Position" %}</label>
                         {{f.form.employee_work_info__job_position_id}}
                     </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label class="oh-label" for="{{f.form.employee_work_info__work_type_id.id_for_label}}">{% trans "Work Type" %}</label>
                         {{f.form.employee_work_info__work_type_id}}
                     </div>
-                    {% if "attendance"|app_installed %}
+                </div>
+                {% if "attendance"|app_installed %}
+                <div class="col-sm-12 col-md-12 col-lg-6">
                     <div class="oh-input-group">
                         <label class="oh-label" for="{{f.form.working_today.id_for_label}}">{% trans "Currently Working" %}</label>
                         {{f.form.working_today}}
                     </div>
-                    {% endif %}
                 </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -92,23 +111,42 @@
         <div class="oh-accordion-header">{% trans "Advanced" %}</div>
         <div class="oh-accordion-body">
             <div class="row">
-                <div class="col-sm-12 col-md-12 col-lg-6">
+                {% comment %}
+                    Full width for the same reason as Company/Reporting
+                    Manager/... above -- Groups and Permissions are both
+                    AJAX-loaded Select2 comboboxes too (see
+                    EmployeeFilter.ajax_fields).
+                {% endcomment %}
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
-                        <div class="oh-input-group">
-                            <label class="oh-label" for="{{f.form.employee_user_id__groups.id_for_label}}">{% trans "Groups" %}?</label>
-                            {{f.form.employee_user_id__groups}}
-                        </div>
-                        <div class="oh-input-group">
-                            <label class="oh-label" for="{{f.form.is_active.id_for_label}}">{% trans "Is Active" %}?</label>
-                            {{f.form.is_active}}
-                        </div>
+                        <label class="oh-label" for="{{f.form.employee_user_id__groups.id_for_label}}">{% trans "Groups" %}?</label>
+                        {{f.form.employee_user_id__groups}}
                     </div>
                 </div>
-
-                <div class="col-sm-12 col-md-12 col-lg-6">
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label class="oh-label" for="{{f.form.employee_user_id__user_permissions.id_for_label}}">{% trans "Permissions" %}</label>
                         {{f.form.employee_user_id__user_permissions}}
+                    </div>
+                </div>
+                {% comment %}
+                    Segmented Any/Yes/No pill toggle, matching the CBV
+                    filter panel (EmployeeFilter.is_active is a RadioSelect
+                    ChoiceField -- rendering it bare via {{f.form.is_active}}
+                    falls back to Django's default one-radio-per-line
+                    markup instead of this wrapper's pill styling).
+                {% endcomment %}
+                <div class="col-sm-12 col-md-12 col-lg-6">
+                    <div class="oh-input-group">
+                        <label class="oh-label">{% trans "Is Active" %}?</label>
+                        <div class="oh-segmented">
+                            {% for radio in f.form.is_active %}
+                                <label class="oh-segmented__item" for="{{radio.id_for_label}}">
+                                    {{radio.tag}}
+                                    <span>{{radio.choice_label}}</span>
+                                </label>
+                            {% endfor %}
+                        </div>
                     </div>
                 </div>
             </div>

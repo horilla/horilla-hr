@@ -113,6 +113,11 @@ class RestrictedDaysNav(HorillaNavView):
     search_swap_target = "#restrictLeavesListContainer"
     filter_form_context_name = "form"
     template_name = "generic/inline_nav.html"
+    # Modern slide-over filter panel (generic/inline_nav.html's own
+    # {% if modern_filter %} branch) -- same treatment as every other
+    # panel this session. RestrictLeaveFilter.ajax_fields carries the
+    # AJAX-loaded comboboxes this needs.
+    modern_filter = True
 
 
 @method_decorator(login_required, name="dispatch")

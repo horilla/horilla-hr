@@ -2321,11 +2321,13 @@
                 refreshDot.classList.add('md-refresh__dot--pulse');
                 refreshToggle.textContent = '⟳';
                 refreshToggle.title = '{% trans "Auto-refresh ON (5 min)" %}';
-                refreshTimer = setInterval(() => {
+                // Wrapped so a hidden tab does not keep fetching; refreshes once on return.
+                const refreshTick = autoRefreshWhenVisible(() => {
                     lastRefresh = Date.now();
                     updateRefreshText();
                     refreshAllData();
-                }, REFRESH_INTERVAL);
+                });
+                refreshTimer = setInterval(refreshTick, REFRESH_INTERVAL);
                 registerAutoRefresh(refreshTimer);
             }
             function stopAutoRefresh() {
@@ -2989,7 +2991,7 @@
                         <div class="md-pending-card__count">${p.leave_requests}</div>
                         <div class="md-pending-card__label">{% trans "Leave" %}</div>
                     </a>
-                    <a href="{% url 'request-attendance-view' %}?open_tab=1&is_validate_request_approved=false&filter_applied=1" class="md-pending-card md-pending-card--blue">
+                    <a href="{% url 'request-attendance-view' %}?open_tab=1&is_validate_request_approved=False&filter_applied=1" class="md-pending-card md-pending-card--blue">
                         <div class="md-pending-card__count">${p.attendance_requests}</div>
                         <div class="md-pending-card__label">{% trans "Attendance" %}</div>
                     </a>

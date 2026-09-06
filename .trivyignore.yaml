@@ -1,0 +1,55 @@
+# Trivy suppressions for the release image scan.
+#
+# Only for findings verified to be false positives. Anything real gets fixed,
+# not listed here. Each entry records how it was verified so the next person
+# can re-check rather than take this file's word for it.
+
+vulnerabilities:
+  # Both of these are reported against pip's OWN vendored dependency
+  # manifest, not against anything installed in the image.
+  #
+  #   $ docker run --rm --entrypoint sh <image> -c \
+  #       'grep -iE "msgpack|setuptools" \
+  #        /usr/local/lib/python3.12/site-packages/pip/_vendor/vendor.txt'
+  #   msgpack==1.1.0
+  #   setuptools==70.3.0
+  #
+  # Trivy parses that file and emits a package entry with no PkgPath, so the
+  # same scan reports each package twice -- once for the real installation
+  # (with a file path) and once for pip's vendored copy (without one):
+  #
+  #   msgpack     1.1.2  FilePath=None                                    <- these
+  #   msgpack     1.2.2  FilePath=opt/venv/.../msgpack-1.2.2.dist-info/METADATA
+  #   msgpack     1.2.2  FilePath=usr/local/lib/.../msgpack-1.2.2.dist-info/METADATA
+  #   setuptools  70.3.0 FilePath=None                                    <- these
+  #   setuptools  84.0.0 FilePath=opt/venv/.../setuptools-84.0.0.dist-info/METADATA
+  #   setuptools  84.0.0 FilePath=usr/local/lib/.../setuptools-84.0.0.dist-info/METADATA
+  #
+  # To re-verify what is actually installed:
+  #
+  #   $ docker run --rm --entrypoint sh <image> -c \
+  #       '/opt/venv/bin/python -c "import importlib.metadata as m; \
+  #        print(m.version(\"setuptools\"), m.version(\"msgpack\"))"'
+  #   84.0.0 1.2.2
+  #
+  # Both are above their fixed versions (78.1.1 and 1.2.1). The application
+  # runs entirely out of /opt/venv; pip's vendored code is used only while
+  # installing packages, and cannot be upgraded independently of pip itself
+  # -- the image already ships pip 26.2.1, which still vendors these.
+  #
+  # These pins cannot be resolved by requirements.txt. Three earlier attempts
+  # to fix them that way all failed for that reason.
+  #
+  # Revisit when pip refreshes its vendored set. If a scan ever reports these
+  # WITH a PkgPath, that is a real finding and this file must not hide it --
+  # the statements below are scoped by the versions pip vendors today.
+  - id: CVE-2025-47273
+    # setuptools 70.3.0, from pip/_vendor/vendor.txt. Path traversal in
+    # PackageIndex; reachable only through package installation, not at runtime.
+    statement: "pip vendored copy; installed setuptools is 84.0.0"
+    expired_at: 2026-12-06
+  - id: GHSA-6v7p-g79w-8964
+    # msgpack 1.1.0, from pip/_vendor/vendor.txt. Out-of-bounds read on
+    # Unpacker reuse; used only by pip's own HTTP cache.
+    statement: "pip vendored copy; installed msgpack is 1.2.2"
+    expired_at: 2026-12-06

@@ -2,7 +2,6 @@
 this page is handling the cbv methods of  attendances page
 """
 
-import datetime
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -298,6 +297,11 @@ class _AttendanceTabNavBase(HorillaNavView):
     filter_body_template = "cbv/attendances/attendances_filter_page.html"
     filter_instance = AttendanceFilters()
     filter_form_context_name = "form"
+    # Opts Attendance into the same modern slide-over filter panel built
+    # for Employee (horilla_nav.html's .oh-filter-modern styles) --
+    # AttendanceFilters.ajax_fields carries the AJAX-loaded comboboxes
+    # this needs.
+    modern_filter = True
 
     group_by_fields = [
         ("employee_id", _("Employee")),

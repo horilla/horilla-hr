@@ -21,6 +21,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
 from django.utils import timezone as django_timezone
+from django.utils.html import format_html
 from django.utils.translation import gettext as __
 from django.utils.translation import gettext_lazy as _
 from zk import ZK
@@ -39,6 +40,7 @@ from horilla.decorators import (
 )
 from horilla.filters import HorillaPaginator
 from horilla.http.response import HorillaRedirect
+from horilla.scheduling import register_job
 from horilla.settings import TIME_ZONE
 
 from .anviz import CrossChexCloudAPI
@@ -1892,7 +1894,9 @@ def add_dahua_biometric_user(request, device_id):
             except Employee.DoesNotExist:
                 messages.error(request, _("Employee not found."))
                 return render(
-                    request, "biometric_users/dahua/add_dahua_user.html", context
+                    request,
+                    "biometric_users/dahua/add_dahua_user.html",
+                    {"form": form, "device_id": device_id},
                 )
 
             dahua = DahuaAPI(
@@ -1967,12 +1971,15 @@ def delete_dahua_user(request, obj_id=None):
             user_ids = request.GET.getlist("ids")
             device_id = request.GET.get("device_id")
             if device_id:
-                script = f"""
-                            <span hx-get="/biometric/biometric-device-employees/{device_id}/"
-                                hx-target="#dahuUsersList" hx-select="#dahuUsersList" hx-trigger="load delay:200ms"
-                                hx-swap="outerHTML" hx-on-htmx-before-request="reloadMessage();">
-                            </span>
-                        """
+                # device_id is request-controlled and interpolated into
+                # hand-built HTML, where autoescaping does not apply.
+                script = format_html(
+                    '<span hx-get="/biometric/biometric-device-employees/{}/" '
+                    'hx-target="#dahuUsersList" hx-select="#dahuUsersList" '
+                    'hx-trigger="load delay:200ms" hx-swap="outerHTML" '
+                    'hx-on-htmx-before-request="reloadMessage();"></span>',
+                    device_id,
+                )
             if user_ids:
                 users = BiometricEmployees.objects.filter(user_id__in=user_ids)
                 if users:
@@ -2012,12 +2019,15 @@ def delete_etimeoffice_user(request, obj_id=None):
         user_ids = request.GET.getlist("ids")
         device_id = request.GET.get("device_id")
         if device_id:
-            script = f"""
-                            <span hx-get="/biometric/biometric-device-employees/{device_id}/"
-                                hx-target="#eTimeOfficeUsersList" hx-select="#eTimeOfficeUsersList" hx-trigger="load delay:200ms"
-                                hx-swap="outerHTML" hx-on-htmx-before-request="reloadMessage();">
-                            </span>
-                        """
+            # device_id is request-controlled and interpolated into
+            # hand-built HTML, where autoescaping does not apply.
+            script = format_html(
+                '<span hx-get="/biometric/biometric-device-employees/{}/" '
+                'hx-target="#eTimeOfficeUsersList" hx-select="#eTimeOfficeUsersList" '
+                'hx-trigger="load delay:200ms" hx-swap="outerHTML" '
+                'hx-on-htmx-before-request="reloadMessage();"></span>',
+                device_id,
+            )
         if user_ids:
             users = BiometricEmployees.objects.filter(user_id__in=user_ids)
             if users:
@@ -2635,55 +2645,65 @@ def etimeoffice_biometric_attendance_scheduler(device_id):
         etimeoffice_biometric_attendance_logs(device)
 
 
-try:
-    devices = BiometricDevices.objects.all().update(is_live=False)
+# Device polling runs as one registered job in the scheduler process rather
+# than a BackgroundScheduler started at import. Import happens once per
+# gunicorn worker, so the old form started a scheduler per worker per device
+# and polled each device N times over. It also queried the database at import
+# time and swallowed every failure with a bare `except: pass`.
+#
+# Devices are read on each tick instead of at registration, so adding or
+# reconfiguring a device takes effect without a restart. Interval is the
+# shortest configured duration; each device is polled only when its own
+# interval has elapsed.
+_BIOMETRIC_SCHEDULERS = {
+    "anviz": anviz_biometric_attendance_scheduler,
+    "zk": zk_biometric_attendance_scheduler,
+    "dahua": dahua_biometric_attendance_scheduler,
+    "cosec": cosec_biometric_attendance_scheduler,
+    "etimeoffice": etimeoffice_biometric_attendance_scheduler,
+}
+
+_biometric_last_run: dict[int, float] = {}
+
+
+def poll_biometric_devices():
+    """Poll each scheduler-enabled device when its interval has elapsed."""
+    import time
+
+    now = time.monotonic()
     for device in BiometricDevices.objects.filter(is_scheduler=True):
-        if device:
-            if str_time_seconds(device.scheduler_duration) > 0:
-                if device.machine_type == "anviz":
-                    scheduler = BackgroundScheduler()
-                    scheduler.add_job(
-                        lambda: anviz_biometric_attendance_scheduler(device.id),
-                        "interval",
-                        seconds=str_time_seconds(device.scheduler_duration),
-                    )
-                    scheduler.start()
-                elif device.machine_type == "zk":
-                    scheduler = BackgroundScheduler()
-                    scheduler.add_job(
-                        lambda: zk_biometric_attendance_scheduler(device.id),
-                        "interval",
-                        seconds=str_time_seconds(device.scheduler_duration),
-                        id=f"biometric_{device.id}",
-                    )
-                    scheduler.start()
-                elif device.machine_type == "dahua":
-                    scheduler = BackgroundScheduler()
-                    scheduler.add_job(
-                        lambda: dahua_biometric_attendance_scheduler(device.id),
-                        "interval",
-                        seconds=str_time_seconds(device.scheduler_duration),
-                    )
-                    scheduler.start()
+        handler = _BIOMETRIC_SCHEDULERS.get(device.machine_type)
+        if handler is None:
+            continue
+        try:
+            interval = str_time_seconds(device.scheduler_duration)
+        except Exception:
+            logger.exception(
+                "Biometric device %s has an unreadable scheduler_duration",
+                device.pk,
+            )
+            continue
+        if interval <= 0:
+            continue
+        last = _biometric_last_run.get(device.pk)
+        if last is not None and (now - last) < interval:
+            continue
+        _biometric_last_run[device.pk] = now
+        try:
+            # Bind the id per iteration: the previous lambdas closed over the
+            # loop variable, so every device could poll the last one's id.
+            handler(device.pk)
+        except Exception:
+            logger.exception(
+                "Biometric polling failed for device %s (%s)",
+                device.pk,
+                device.machine_type,
+            )
 
-                elif device.machine_type == "cosec":
-                    scheduler = BackgroundScheduler()
-                    scheduler.add_job(
-                        lambda: cosec_biometric_attendance_scheduler(device.id),
-                        "interval",
-                        seconds=str_time_seconds(device.scheduler_duration),
-                    )
-                    scheduler.start()
 
-                elif device.machine_type == "etimeoffice":
-                    scheduler = BackgroundScheduler()
-                    scheduler.add_job(
-                        lambda: etimeoffice_biometric_attendance_scheduler(device.id),
-                        "interval",
-                        seconds=str_time_seconds(device.scheduler_duration),
-                    )
-                    scheduler.start()
-                else:
-                    pass
-except:
-    pass
+register_job(
+    poll_biometric_devices,
+    "interval",
+    job_id="biometric.poll_devices",
+    minutes=1,
+)

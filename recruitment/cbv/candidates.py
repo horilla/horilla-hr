@@ -781,6 +781,11 @@ class CandidateNav(HorillaNavView):
     filter_body_template = "cbv/candidates/filter.html"
     filter_form_context_name = "form"
     search_swap_target = "#listContainer"
+    # Modern slide-over filter panel (generic/horilla_nav.html's own
+    # {% if modern_filter %} branch) -- same treatment as every other
+    # panel this session. CandidateFilter.ajax_fields carries the
+    # AJAX-loaded comboboxes this needs.
+    modern_filter = True
     group_by_fields = [
         ("recruitment_id", _("Recruitment")),
         ("job_position_id", _("Job Position")),
@@ -927,6 +932,11 @@ class ToSkillZoneFormView(HorillaFormView):
     model = SkillZoneCandidate
     form_class = ToSkillZoneForm
     new_display_title = _("Add to Talent Pool")
+
+    def dispatch(self, request, *args, **kwargs):
+        if not Candidate.objects.filter(id=kwargs.get("cand_id")).exists():
+            return HttpResponse()
+        return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         """

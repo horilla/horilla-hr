@@ -287,4 +287,4 @@ class OnboardingPortal(HorillaModel):
     objects = HorillaCompanyManager("candidate_id__recruitment_id__company_id")
 
     def __str__(self):
-        return f"{self.candidate_id} | {self.token}"
+        return str(self.candidate_id)

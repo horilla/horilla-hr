@@ -1,7 +1,10 @@
 {% load i18n %}{% load static %}
-<div class="oh-dropdown__filter-body">
+<form hx-get="{% url 'rec-filter-survey' %}" hx-target="#view-container" id="filterForm">
   <div class="oh-accordion oh-accordion--show">
-    <div class="oh-accordion-header">{% trans "Survey Filter" %}</div>
+    <div class="oh-accordion-header">
+      <span class="oh-filter-section-icon"><ion-icon name="help-circle-outline"></ion-icon></span>
+      {% trans "Survey Filter" %}
+    </div>
     <div class="oh-accordion-body">
       <div class="row">
         <div class="col-sm-12 col-md-12 col-lg-12">
@@ -10,13 +13,17 @@
             {{form.question}}
           </div>
         </div>
-        <div class="col-sm-12 col-md-12 col-lg-6">
+        <!-- Full width -- Recruitment is now an AJAX-searched Select2
+             combobox (see recruitment/filters.py's SurveyFilter.
+             ajax_fields) and needs real room for its selected
+             chips/placeholder text, same reasoning as every other
+             modernized panel this session. -->
+        <div class="col-sm-12 col-md-12 col-lg-12">
           <div class="oh-input-group">
             <label class="oh-label">{% trans "Recruitment" %}</label>
             {{form.recruitment_ids}}
           </div>
         </div>
-
         <div class="col-sm-12 col-md-12 col-lg-6">
           <div class="oh-input-group">
             <label class="oh-label">{% trans "Options" %}</label>
@@ -32,5 +39,5 @@
       </div>
     </div>
   </div>
-</div>
+</form>
 <script src="{% static '/base/filter.js' %}"></script>

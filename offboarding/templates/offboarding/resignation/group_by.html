@@ -114,7 +114,7 @@ style="cursor: pointer; display: none"
                                             {{ letter.status }}
                                         </div>
                                         <div data-cell-index="4" class="oh-sticky-table__td">
-                                            {{ letter.description|safe|truncatechars_html:30 }}
+                                            {{ letter.description|sanitize_html|truncatechars_html:30 }}
                                         </div>
                                         <div class="oh-sticky-table__td oh-sticky-table__right">
                                             <form

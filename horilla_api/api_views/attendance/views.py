@@ -24,7 +24,7 @@ from attendance.views.dashboard import (
 )
 from attendance.views.views import *
 from base.backends import ConfiguredEmailBackend
-from base.methods import generate_pdf, is_reportingmanager
+from base.methods import generate_pdf, is_reportingmanager, sanitize_mail_template_body
 from base.models import HorillaMailTemplate
 from employee.filters import EmployeeFilter
 
@@ -358,6 +358,7 @@ class ValidateAttendanceView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @manager_permission_required("attendance.change_attendance")
     def put(self, request, pk):
         attendance = Attendance.objects.filter(id=pk).update(attendance_validated=True)
         attendance = Attendance.objects.filter(id=pk).first()
@@ -389,6 +390,7 @@ class OvertimeApproveView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @manager_permission_required("attendance.change_attendance")
     def put(self, request, pk):
         try:
             attendance = Attendance.objects.filter(id=pk).update(
@@ -719,6 +721,9 @@ class LateComeEarlyOutView(APIView):
         serializer = AttendanceLateComeEarlyOutSerializer(data.qs, many=True)
         return Response(serializer.data, status=200)
 
+    @method_decorator(
+        permission_required("attendance.delete_attendancelatecomeearlyout")
+    )
     def delete(self, request, pk=None):
         attendance = get_object_or_404(AttendanceLateComeEarlyOut, pk=pk)
         attendance.delete()
@@ -973,6 +978,7 @@ class MailTemplateView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @manager_permission_required("employee.change_employee")
     def get(self, request):
         instances = HorillaMailTemplate.objects.all()
         serializer = MailTemplateSerializer(instances, many=True)
@@ -989,12 +995,13 @@ class ConvertedMailTemplateConvert(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @manager_permission_required("employee.change_employee")
     def put(self, request):
         template_id = request.data.get("template_id", None)
         employee_id = request.data.get("employee_id", None)
         employee = Employee.objects.filter(id=employee_id).first()
         bdy = HorillaMailTemplate.objects.filter(id=template_id).first()
-        template_bdy = template.Template(bdy.body)
+        template_bdy = template.Template(sanitize_mail_template_body(bdy.body))
         context = template.Context(
             {"instance": employee, "self": request.user.employee_get}
         )
@@ -1012,6 +1019,7 @@ class OfflineEmployeeMailsend(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @manager_permission_required("employee.change_employee")
     def post(self, request):
         employee_id = request.POST.get("employee_id")
         subject = request.POST.get("subject", "")
@@ -1031,7 +1039,7 @@ class OfflineEmployeeMailsend(APIView):
         )
         for html in bodys:
             # due to not having solid template we first need to pass the context
-            template_bdy = template.Template(html)
+            template_bdy = template.Template(sanitize_mail_template_body(html))
             context = template.Context(
                 {"instance": employee, "self": request.user.employee_get}
             )
@@ -1044,7 +1052,7 @@ class OfflineEmployeeMailsend(APIView):
                 )
             )
 
-        template_bdy = template.Template(bdy)
+        template_bdy = template.Template(sanitize_mail_template_body(bdy))
         context = template.Context(
             {"instance": employee, "self": request.user.employee_get}
         )

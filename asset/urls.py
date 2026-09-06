@@ -2,7 +2,6 @@
 URL configuration for asset-related views.
 """
 
-from django import views
 from django.urls import path
 
 from asset import dashboard as asset_dashboard

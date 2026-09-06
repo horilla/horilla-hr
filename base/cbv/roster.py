@@ -7,6 +7,7 @@ Provides roster grid, cell editing, publish, my roster, and import/export.
 
 import json
 from datetime import date, timedelta
+from urllib.parse import urlencode
 
 import openpyxl
 from django.contrib import messages
@@ -68,7 +69,15 @@ class RosterNavView(HorillaNavView):
     search_url = reverse_lazy("roster-grid")
     search_swap_target = "#rosterGridContainer"
     filter_body_template = "base/roster/roster_filter.html"
+    filter_instance = RosterFilter()
+    filter_form_context_name = "form"
     apply_first_filter = True
+    # Modern slide-over filter panel (generic/inline_nav.html's own
+    # {% if modern_filter %} branch, mirroring horilla_nav.html's
+    # .oh-filter-modern styles) -- same treatment as every other panel
+    # this session. RosterFilter.ajax_fields carries the AJAX-loaded
+    # Employee/Department comboboxes this needs.
+    modern_filter = True
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -94,17 +103,26 @@ class RosterNavView(HorillaNavView):
         ]
 
     def get_context_data(self, **kwargs):
-        from base.models import Department
-
         context = super().get_context_data(**kwargs)
-        context["departments"] = Department.objects.all()
         today = _week_start()
-        context["default_from_date"] = self.request.GET.get(
-            "from_date", today.isoformat()
-        )
-        context["default_to_date"] = self.request.GET.get(
-            "to_date", (today + timedelta(days=6)).isoformat()
-        )
+        default_from_date = today.isoformat()
+        default_to_date = (today + timedelta(days=6)).isoformat()
+        # RosterGridView.get_queryset() already falls back to "this week"
+        # server-side whenever from_date is absent from the request, so
+        # the actual data shown is correct either way -- this is purely
+        # about the filter panel's own From/To fields not rendering
+        # blank on first load (apply_first_filter submits the form empty)
+        # while the grid behind them is in fact showing this week's data.
+        # Set directly on the widget rather than passed as the form's
+        # `initial=` (which HorillaNavView's own filterset construction
+        # doesn't expose a hook for), and only when nothing was actually
+        # submitted -- an explicitly empty From/To after the user clears
+        # it themselves must stay empty, not silently snap back to
+        # "this week".
+        form = context.get("form")
+        if form and not self.request.GET.get("from_date"):
+            form.fields["from_date"].widget.attrs["value"] = default_from_date
+            form.fields["to_date"].widget.attrs["value"] = default_to_date
         return context
 
 
@@ -447,12 +465,18 @@ class RosterEmployeeBulkPublishView(View):
             request,
             _("Roster published for %(count)s employee(s).") % {"count": count},
         )
-        grid_params = f"from_date={from_date}"
+        # These params are interpolated into a <script> block below, where
+        # neither template autoescaping nor HTML escaping applies -- a raw
+        # department value could close the string and inject JS. urlencode
+        # percent-encodes quotes and angle brackets, which both fixes that
+        # and produces a correctly-formed query string.
+        params = {"from_date": from_date}
         if to_date:
-            grid_params += f"&to_date={to_date}"
+            params["to_date"] = to_date
         dept_id = request.POST.get("department")
         if dept_id:
-            grid_params += f"&department={dept_id}"
+            params["department"] = dept_id
+        grid_params = urlencode(params)
         return HttpResponse(
             "<script>"
             "$('#rosterEmployeeInstances').attr('data-ids', JSON.stringify([]));"

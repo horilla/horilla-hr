@@ -31,6 +31,27 @@ services:
     ports: !override
       - "8000:8000"
 
+  # Single replica: see the comment on this service in docker-compose.yml.
+  # Mirrors web's environment so both read the same .env, minus the HTTP-only
+  # settings and with release tasks left to the web container.
+  scheduler:
+    env_file:
+      - .env
+    environment: !override
+      DEBUG: "0"
+      HORILLA_ENV: production
+      DB_HOST: db
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:?Set ALLOWED_HOSTS in .env}
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+      DB_INIT_PASSWORD: ${DB_INIT_PASSWORD:?Set DB_INIT_PASSWORD in .env}
+      REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env}
+      HORILLA_SKIP_RELEASE_TASKS: "1"
+    volumes: !override
+      - media:/app/media
+    deploy:
+      replicas: 1
+
   db:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-horilla_db}

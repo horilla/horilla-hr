@@ -14,7 +14,7 @@ import pandas as pd
 from django.apps import apps
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
-from django.db.models import F, Q
+from django.db.models import F, Q, Sum
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -24,6 +24,7 @@ from attendance.methods.utils import (
     attendance_date_validate,
     format_time,
     get_diff_dict,
+    month_date_range,
     strtime_seconds,
     validate_hh_mm_ss_format,
     validate_time_format,
@@ -368,6 +369,22 @@ class Attendance(HorillaModel):
         """
 
         unique_together = ("employee_id", "attendance_date")
+        # The unique_together above yields a (employee_id, attendance_date)
+        # index, which serves lookups that pin an employee. It cannot serve a
+        # date-range scan that does not -- which is what every dashboard and
+        # report does -- because attendance_date is not the leading column.
+        indexes = [
+            models.Index(
+                fields=["attendance_date"],
+                name="attendance_date_idx",
+            ),
+            # Validation queues and payroll both filter unvalidated rows
+            # within a period; date leads because it is the selective half.
+            models.Index(
+                fields=["attendance_date", "attendance_validated"],
+                name="attendance_date_validated_idx",
+            ),
+        ]
         permissions = [
             ("change_validateattendance", "Validate Attendance"),
             ("change_approveovertime", "Change Approve Overtime"),
@@ -400,15 +417,6 @@ class Attendance(HorillaModel):
     def __str__(self) -> str:
         return f"{self.employee_id.employee_first_name} \
             {self.employee_id.employee_last_name} - {self.attendance_date}"
-
-    def activities(self):
-        """
-        This method is used to return the activites and count of activites comes for an attendance
-        """
-        activities = AttendanceActivity.objects.filter(
-            attendance_date=self.attendance_date, employee_id=self.employee_id
-        )
-        return {"query": activities, "count": activities.count()}
 
     def attendance_actions(self):
         """
@@ -941,8 +949,12 @@ class Attendance(HorillaModel):
         month_attendances = (
             Attendance.objects.filter(
                 employee_id=self.employee_id,
-                attendance_date__month=self.attendance_date.month,
-                attendance_date__year=self.attendance_date.year,
+                # Range rather than __month/__year: those wrap the column in a
+                # database function, which a B-tree index on attendance_date
+                # cannot serve.
+                attendance_date__range=month_date_range(
+                    self.attendance_date.year, self.attendance_date.month
+                ),
                 attendance_validated=True,
             )
             .exclude(exclude_condition)
@@ -1199,15 +1211,18 @@ class AttendanceOverTime(HorillaModel):
         """
         This method will return not validated hours in a month
         """
-        hrs_to_vlaidate = sum(
-            list(
-                Attendance.objects.filter(
-                    attendance_date__month=MONTH_MAPPING[self.month],
-                    attendance_date__year=self.year,
-                    employee_id=self.employee_id,
-                    attendance_validated=False,
-                ).values_list("at_work_second", flat=True)
-            )
+        # Range rather than __month/__year so an index on attendance_date can
+        # be used, and Sum() rather than pulling every row into Python to add
+        # up -- the database can do this without transferring the rows.
+        hrs_to_vlaidate = (
+            Attendance.objects.filter(
+                attendance_date__range=month_date_range(
+                    self.year, MONTH_MAPPING[self.month]
+                ),
+                employee_id=self.employee_id,
+                attendance_validated=False,
+            ).aggregate(total=Sum("at_work_second"))["total"]
+            or 0
         )
         return format_time(hrs_to_vlaidate)
 
@@ -1215,17 +1230,17 @@ class AttendanceOverTime(HorillaModel):
         """
         This method will return the overtime hours to be approved
         """
-        hrs_to_approve = sum(
-            list(
-                Attendance.objects.filter(
-                    attendance_date__month=MONTH_MAPPING[self.month],
-                    attendance_date__year=self.year,
-                    employee_id=self.employee_id,
-                    attendance_validated=True,
-                    attendance_overtime_approve=False,
-                    overtime_second__isnull=False,
-                ).values_list("overtime_second", flat=True)
-            )
+        hrs_to_approve = (
+            Attendance.objects.filter(
+                attendance_date__range=month_date_range(
+                    self.year, MONTH_MAPPING[self.month]
+                ),
+                employee_id=self.employee_id,
+                attendance_validated=True,
+                attendance_overtime_approve=False,
+                overtime_second__isnull=False,
+            ).aggregate(total=Sum("overtime_second"))["total"]
+            or 0
         )
         return format_time(hrs_to_approve)
 

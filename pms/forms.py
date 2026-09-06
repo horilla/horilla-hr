@@ -446,8 +446,8 @@ class EmployeeKeyResultForm(BaseForm):
         request = getattr(horilla_middlewares._thread_locals, "request", None)
         if self.initial.get("employee_objective_id"):
             if (
-                type(self.initial.get("employee_objective_id")) == int
-                or type(self.initial.get("employee_objective_id")) == str
+                type(self.initial.get("employee_objective_id")) is int
+                or type(self.initial.get("employee_objective_id")) is str
             ):
                 self.verbose_name = str(
                     EmployeeObjective.objects.get(

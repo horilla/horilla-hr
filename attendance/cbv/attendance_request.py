@@ -133,6 +133,14 @@ class AttendancesRequestListView(HorillaListView):
         (_("At Work"), "attendance_worked_hour"),
         (_("Overtime"), "attendance_overtime"),
     ]
+    # [name=attendance_validated] is now the Any/Yes/No segmented radio
+    # group (AttendanceFilters.attendance_validated -- see the modern
+    # filter panel work), whose rendered radio values are ""/"True"/
+    # "False" (Python's str(True)/str(False) for the ("", "Any"),
+    # (True, "Yes"), (False, "No") choices), not NullBooleanSelect's own
+    # "unknown"/"true"/"false" -- these .val(...) calls need to match
+    # whichever encoding [name=is_bulk_request] still uses (unchanged, so
+    # still lowercase).
     row_status_indications = [
         (
             "bulk-request--dot",
@@ -140,7 +148,7 @@ class AttendancesRequestListView(HorillaListView):
             """
             onclick="
                 $('#applyFilter').closest('form').find('[name=is_bulk_request]').val('true');
-                $('[name=attendance_validated]').val('unknown').change();
+                $('[name=attendance_validated]').val('').change();
                 $('#applyFilter').click();
             "
             """,
@@ -150,7 +158,7 @@ class AttendancesRequestListView(HorillaListView):
             _("Not Validated"),
             """
             onclick="
-                $('#applyFilter').closest('form').find('[name=attendance_validated]').val('false');
+                $('#applyFilter').closest('form').find('[name=attendance_validated]').val('False');
                 $('[name=is_bulk_request]').val('unknown').change();
                 $('#applyFilter').click();
             "
@@ -161,7 +169,7 @@ class AttendancesRequestListView(HorillaListView):
             _("Validated"),
             """
             onclick="
-                $('#applyFilter').closest('form').find('[name=attendance_validated]').val('true');
+                $('#applyFilter').closest('form').find('[name=attendance_validated]').val('True');
                 $('[name=is_bulk_request]').val('unknown').change();
                 $('#applyFilter').click();
 
@@ -362,6 +370,12 @@ class _AttendanceRequestTabNavBase(HorillaNavView):
     filter_body_template = "cbv/attendances/attendances_filter_page.html"
     filter_instance = AttendanceFilters()
     filter_form_context_name = "form"
+    # This shares attendances_filter_page.html with AttendancesNavView,
+    # which is now built for the modern slide-over panel (accordions,
+    # segmented toggles, AJAX combos) -- without this flag it would still
+    # render that same content, just unstyled/half-broken, since those
+    # rules are scoped under .oh-filter-modern.
+    modern_filter = True
 
     group_by_fields = [
         ("employee_id", _("Employee")),

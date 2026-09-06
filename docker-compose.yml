@@ -35,6 +35,37 @@ services:
       start_period: 60s
       retries: 3
 
+  # Background jobs. Registered via horilla.scheduling.register_job and run by
+  # exactly ONE process -- keep this at a single replica. Jobs used to start
+  # inside every gunicorn worker, so payroll runs and backups fired once per
+  # worker per interval.
+  #
+  # HORILLA_SKIP_RELEASE_TASKS=1 because the web container already runs migrate
+  # and collectstatic on boot; running them here too would race it, and
+  # collectstatic --clear would wipe STATIC_ROOT from under the live web
+  # container.
+  scheduler:
+    build: .
+    command: ["python", "manage.py", "run_scheduler"]
+    volumes:
+      - .:/app
+      - media:/app/media
+    environment:
+      - DEBUG=1
+      - DB_HOST=db
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
+      - DATABASE_URL=postgres://horilla_user:horilla_pass@db:5432/horilla_db
+      - DB_INIT_PASSWORD=dev-init-password-change-in-production
+      - REDIS_URL=redis://:horilla_pass@redis:6379/0
+      - HORILLA_SKIP_RELEASE_TASKS=1
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
   db:
     image: postgres:16-alpine
     environment:

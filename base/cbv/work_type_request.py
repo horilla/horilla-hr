@@ -240,6 +240,12 @@ class WorkRequestNavView(HorillaNavView):
     filter_instance = WorkTypeRequestFilter()
     filter_form_context_name = "form"
     search_swap_target = "#listContainer"
+    # Modern slide-over filter panel (generic/inline_nav.html's own
+    # {% if modern_filter %} branch, mirroring horilla_nav.html's
+    # .oh-filter-modern styles) -- same treatment as every other panel
+    # this session. WorkTypeRequestFilter.ajax_fields carries the
+    # AJAX-loaded comboboxes this needs.
+    modern_filter = True
 
     group_by_fields = [
         ("employee_id", _("Employee")),

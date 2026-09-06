@@ -1,5 +1,6 @@
+{% load basefilters %}
 <div class="descriptionContainer">
-    {{ instance.description|safe }}
+    {{ instance.description|sanitize_html }}
 </div>
 
 <style>

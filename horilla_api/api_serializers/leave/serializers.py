@@ -86,33 +86,6 @@ def leave_Validations(self, data):
 class GetAvailableLeaveTypeSerializer(serializers.ModelSerializer):
     leave_type_id = serializers.SerializerMethodField()
     icon = serializers.SerializerMethodField()
-
-    class Meta:
-        model = AvailableLeave
-        fields = [
-            "id",
-            "leave_type_id",
-            "icon",
-            "available_days",
-            "carryforward_days",
-            "total_leave_days",
-        ]
-
-    def get_leave_type_id(self, obj):
-        if obj.leave_type_id:
-            return LeaveTypeAllGetSerializer(obj.leave_type_id).data
-        return None
-
-    def get_icon(self, obj):
-        try:
-            return obj.leave_type_id.icon.url
-        except:
-            return None
-
-
-class GetAvailableLeaveTypeSerializer(serializers.ModelSerializer):
-    leave_type_id = serializers.SerializerMethodField()
-    icon = serializers.SerializerMethodField()
     total_leave_days = serializers.SerializerMethodField()
 
     class Meta:

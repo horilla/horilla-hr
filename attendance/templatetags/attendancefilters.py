@@ -12,7 +12,6 @@ from itertools import groupby
 from django import template
 from django.forms.widgets import SelectMultiple, Textarea
 from django.template import TemplateSyntaxError
-from django.template.defaultfilters import register
 
 from attendance.models import Attendance, AttendanceValidationCondition
 from attendance.views.views import strtime_seconds

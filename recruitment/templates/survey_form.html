@@ -1,193 +1,191 @@
-{% load i18n %}{% load widget_tweaks %} {% load attendancefilters %}
-{% load static %}
+{% load i18n %}
 <style>
-  .question-container {
-    padding: 0px;
-  }
+    /* .oh-rate (shared v1_styles.css) hides its radios with `top: -9999px`, which
+       makes the browser scroll the page to bring the newly-focused input into
+       view whenever a star label is clicked. Override the positioning so the
+       input stays visually hidden without leaving its normal flow position.
+       `.oh-rate` itself has no `position`, so the absolute child below was
+       resolving against the document root (jumping scroll to the very top) --
+       give it a positioning context so `top/left: 0` stays local to the widget. */
+    .oh-rate {
+        position: relative !important;
+    }
+    .oh-rate:not(:checked) > input {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 1px !important;
+        height: 1px !important;
+        opacity: 0 !important;
+        overflow: hidden !important;
+    }
 </style>
-<div class="oh-general__tab-target" id="personal">
-  <div class="oh-wrapper oh-survey-ques">
-    <div class="row pb-5">
-      <div class="col-12">{{form.non_field_errors}}</div>
+<div class="space-y-4">
+    {{form.non_field_errors}}
 
-      {% for question in questions %}
-
-      {% if question.type == "textarea" %}
-      <div class="d-block oh-card mt-2">
-        {% if question.is_mandatory %}
-          <span class="oh-label oh-label--question">{{ question.question }}<span class='text-danger'> * {% trans "Mandatory Question" %}</span></span>
-        {% else %}
-          <span class="oh-label oh-label--question">{{ question.question }}</span>
-        {% endif %}
-        <textarea
-          type="text"
-          name="{{question.question}}"
-          class="oh-input w-100"
-          id="id_{{question.id}}"
-          {% if question.is_mandatory %}required{% endif %}
-        ></textarea>
-      </div>
-      {% elif question.type == "options" %}
-        <div class="d-block oh-card">
-          {% if question.is_mandatory %}
-            <span class="oh-label oh-label--question">{{ question.question }}<span class='text-danger'> * {% trans "Mandatory Question" %}</span></span>
-          {% else %}
-            <span class="oh-label oh-label--question">{{ question.question }}</span>
-          {% endif %}
-          <select
-            name="{{question.question}}"
-            class="oh-select oh-select-2--large oh-select-2 w-100 select2-hidden-accessible"
-            id="id_{{question.id}}"
-            data-select2-id="select2-data-id_employee_id1"
-            aria-hidden="true"
-            {% if question.is_mandatory %}required{% endif %}
-          >
-            <option value="">-------------------------</option>
-            {% for choice in question.choices %}
-            <option value="{{choice}}">{{choice}}</option>
-            {% endfor %}
-          </select>
-        </div>
-        {% elif question.type == "multiple" %}
-            <div class="d-block oh-card">
-              {% if question.is_mandatory %}
-                <span class="oh-label oh-label--question">{{ question.question }}<span class='text-danger'> * {% trans "Mandatory Question" %}</span></span>
-              {% else %}
-                <span class="oh-label oh-label--question">{{ question.question }}</span>
-              {% endif %}
-              <select
-                  name="multiple_choices_{{ question.question }}"
-                  class="oh-select oh-select-2--large oh-select-2 w-100 select2-hidden-accessible"
-                  style="height: 55px"
-                  id="id_{{ question.id }}"
-                  {% if question.is_mandatory %}required{% endif %}
-                  multiple>
-                  {% for choice in question.choices %}
-                  <option value="{{ choice }}">{{ choice }}</option>
-                  {% endfor %}
-              </select>
+    {% for question in questions %}
+        <div class="bg-white border border-secondary-200 rounded-2xl p-6">
+            <div class="flex items-start justify-between gap-3 mb-4">
+                <label class="text-sm font-semibold text-dark-200">{{ question.question }}</label>
+                {% if question.is_mandatory %}
+                    <span class="shrink-0 bg-danger-light text-danger-dark text-xs font-semibold px-2.5 py-1 rounded-full">
+                        {% trans "Required" %}
+                    </span>
+                {% endif %}
             </div>
+
+            {% if question.type == "textarea" %}
+                <textarea
+                    name="{{question.question}}"
+                    id="id_{{question.id}}"
+                    rows="4"
+                    {% if question.is_mandatory %}required{% endif %}
+                    class="w-full px-4 py-2.5 border border-secondary-200 rounded-lg text-sm focus-visible:outline-0 focus:border-primary-600 [transition:.2s]"
+                ></textarea>
+
+            {% elif question.type == "options" %}
+                <div class="flex flex-wrap gap-2">
+                    {% for choice in question.choices %}
+                        <label class="cursor-pointer inline-flex items-center px-4 py-2 rounded-lg border border-secondary-200 text-sm font-medium text-dark-200 hover:border-primary-600 has-[:checked]:bg-primary-600 has-[:checked]:text-white has-[:checked]:border-primary-600 [transition:.2s]">
+                            <input
+                                type="radio"
+                                name="{{question.question}}"
+                                value="{{ choice }}"
+                                {% if question.is_mandatory %}required{% endif %}
+                                class="sr-only"
+                            >
+                            {{ choice }}
+                        </label>
+                    {% endfor %}
+                </div>
+
+            {% elif question.type == "multiple" %}
+                <div class="js-multiple-group flex flex-wrap gap-2" {% if question.is_mandatory %}data-mandatory="true"{% endif %}>
+                    {% for choice in question.choices %}
+                        <label class="cursor-pointer inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-secondary-200 text-sm font-medium text-dark-200 hover:border-primary-600 has-[:checked]:bg-primary-600 has-[:checked]:text-white has-[:checked]:border-primary-600 [transition:.2s]">
+                            <input
+                                type="checkbox"
+                                name="multiple_choices_{{ question.question }}"
+                                value="{{ choice }}"
+                                class="peer sr-only"
+                            >
+                            <i class="fa-regular fa-square peer-checked:hidden"></i>
+                            <i class="fa-solid fa-square-check hidden peer-checked:inline"></i>
+                            {{ choice }}
+                        </label>
+                    {% endfor %}
+                </div>
+                <p class="mt-2 text-xs text-dark-100">{% trans "Select all that apply." %}</p>
+
             {% elif question.type == "percentage" %}
-              <div class="d-block oh-card">
-                {% if question.is_mandatory %}
-                  <span class="oh-label oh-label--question">{{ question.question }}<span class='text-danger'> * {% trans "Mandatory Question" %}</span></span>
-                {% else %}
-                  <span class="oh-label oh-label--question">{{ question.question }}</span>
-                {% endif %}
-                <div class="oh-container oh-container--outline my-2">
-                  {% comment %} <input class="oh-input oh-input--small oh-input--block px-0" min="0" value="$3.00" > {% endcomment %}
-                  <input
-                  type="number"
-                  class="oh-input oh-input oh-input--small oh-input--block px-0"
-                  style="width: 70px; text-align: center;"
-                  min="0"
-                  value="0"
-                  max="100"
-                  name="percentage_{{question.question}}"
-                  id="id_{{question.id}}"
-                  {% if question.is_mandatory %}required{% endif %}
-                />
-                  <input
-                  type="text"
-                  class="oh-input w-25 oh-input oh-input--small oh-input--block px-0"
-                  value="%"
-                  readonly
-                />
+                <div class="relative w-40">
+                    <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value="0"
+                        name="percentage_{{question.question}}"
+                        id="id_{{question.id}}"
+                        {% if question.is_mandatory %}required{% endif %}
+                        class="w-full pl-4 pr-8 py-2.5 border border-secondary-200 rounded-lg text-sm focus-visible:outline-0 focus:border-primary-600 [transition:.2s]"
+                    >
+                    <span class="absolute right-3 top-0 bottom-0 flex items-center text-dark-100 text-sm pointer-events-none">%</span>
                 </div>
-              </div>
+
             {% elif question.type == "file" %}
-              <div class="d-block oh-card">
-                {% if question.is_mandatory %}
-                  <span class="oh-label oh-label--question">{{ question.question }}<span class='text-danger'> * {% trans "Mandatory Question" %}</span></span>
-                {% else %}
-                  <span class="oh-label oh-label--question">{{ question.question }}</span>
-                {% endif %}
+                <label
+                    for="id_{{question.id}}"
+                    class="flex flex-col items-center justify-center w-full h-24 bg-secondary-50 border-2 border-dashed border-secondary-200 rounded-lg cursor-pointer hover:border-primary-600 [transition:.2s]"
+                >
+                    <i class="fa-solid fa-arrow-up-from-bracket text-lg mb-1 text-dark-100"></i>
+                    <span class="text-sm font-semibold text-dark-200">{% trans "Click to upload" %}</span>
+                </label>
                 <input
-                  type="file"
-                  class="oh-input w-100"
-                  name="file_{{question.question}}"
-                  id="id_{{question.id}}"
-                  {% if question.is_mandatory %}required{% endif %}
-                />
-              </div>
+                    type="file"
+                    name="file_{{question.question}}"
+                    id="id_{{question.id}}"
+                    {% if question.is_mandatory %}required{% endif %}
+                    class="hidden"
+                    onchange="document.getElementById('file_name_{{question.id}}').textContent = this.files[0] ? this.files[0].name : '';"
+                >
+                <p id="file_name_{{question.id}}" class="mt-2 text-xs text-dark-100"></p>
+
             {% elif question.type == "date" %}
-              <div class="d-block oh-card">
-                {% if question.is_mandatory %}
-                  <span class="oh-label oh-label--question">{{ question.question }}<span class='text-danger'> * {% trans "Mandatory Question" %}</span></span>
-                {% else %}
-                  <span class="oh-label oh-label--question">{{ question.question }}</span>
-                {% endif %}
                 <input
-                  type="date"
-                  class="oh-input w-100"
-                  name="date_{{question.question}}"
-                  id="id_{{question.id}}"
-                  {% if question.is_mandatory %}required{% endif %}
-                />
-              </div>
+                    type="date"
+                    name="date_{{question.question}}"
+                    id="id_{{question.id}}"
+                    {% if question.is_mandatory %}required{% endif %}
+                    class="w-full sm:w-64 px-4 py-2.5 border border-secondary-200 rounded-lg text-sm focus-visible:outline-0 focus:border-primary-600 [transition:.2s]"
+                >
+
             {% elif question.type == "rating" %}
-              <div class="d-block oh-card">
-                {% if question.is_mandatory %}
-                  <span class="oh-label oh-label--question">{{ question.question }}<span class='text-danger'> * {% trans "Mandatory Question" %}</span></span>
-                {% else %}
-                  <span class="oh-label oh-label--question">{{ question.question }}</span>
-                {% endif %}
                 {% include "rating_input.html" %}
-              </div>
+
             {% elif question.type == "checkbox" %}
-              <div class="d-block oh-card">
-                {% if question.is_mandatory %}
-                  <span class="oh-label oh-label--question">{{ question.question }}<span class='text-danger'> * {% trans "Mandatory Question" %}</span></span>
-                {% else %}
-                  <span class="oh-label oh-label--question">{{ question.question }}</span>
-                {% endif %}
-                <div class="oh-input-picker-group">
-                  <div class="oh-input-picker oh-input-picker--sm oh-input-picker--selected" style="width: 80px;">
-                    <span>
-                      <ion-icon name="checkmark-circle-outline"></ion-icon>
-                      {% trans "Yes" %}
-                    </span>
-                    <input type="radio" name="{{ question.question }}" value="Yes" selected>
-                  </div>
-                  <div class="oh-input-picker oh-input-picker--sm" style="width: 80px;">
-                    <span>
-                    <ion-icon name="close-circle-outline"></ion-icon>
-                    {% trans "No" %}
-                    </span>
-                    <input type="radio" name="{{ question.question }}" value="No">
-                  </div>
+                <div class="flex gap-2">
+                    <label class="cursor-pointer inline-flex items-center gap-2 px-5 py-2 rounded-lg border border-secondary-200 text-sm font-medium text-dark-200 hover:border-primary-600 has-[:checked]:bg-primary-600 has-[:checked]:text-white has-[:checked]:border-primary-600 [transition:.2s]">
+                        <input type="radio" name="{{ question.question }}" value="Yes" class="sr-only" checked>
+                        <i class="fa-solid fa-check"></i>
+                        {% trans "Yes" %}
+                    </label>
+                    <label class="cursor-pointer inline-flex items-center gap-2 px-5 py-2 rounded-lg border border-secondary-200 text-sm font-medium text-dark-200 hover:border-primary-600 has-[:checked]:bg-primary-600 has-[:checked]:text-white has-[:checked]:border-primary-600 [transition:.2s]">
+                        <input type="radio" name="{{ question.question }}" value="No" class="sr-only">
+                        <i class="fa-solid fa-xmark"></i>
+                        {% trans "No" %}
+                    </label>
                 </div>
 
-              </div>
             {% else %}
-              <div class="d-block oh-card">
-                {% if question.is_mandatory %}
-                  <span class="oh-label oh-label--question">{{ question.question }}<span class='text-danger'> * {% trans "Mandatory Question" %}</span></span>
-                {% else %}
-                  <span class="oh-label oh-label--question">{{ question.question }}</span>
-                {% endif %}
                 <input
-                  type="{{question.type}}"
-                  class="oh-input w-100"
-                  name="{{question.question}}"
-                  id="id_{{question.id}}"
-                  {% if question.is_mandatory %}required{% endif %}
-                />
-
-              </div>
-            {% endif %} {% endfor %}
-          </div>
-          <div class="d-flex justify-content-end align-items-center w-100 mt-4">
-            <button type="submit" class="oh-btn oh-btn--secondary oh-btn--w-100-resp">
-              {% trans "Save" %}
-            </button>
-          </div>
-          <div class="col-sm-12 col-md-12 col-lg-12">
-            <p class="small text-muted text-center">
-              &copy; {% now 'Y' %} {{white_label_company_name}}. All rights resevered.
-            </p>
-          </div>
-      </div>
-    </div>
-  </div>
+                    type="{{question.type}}"
+                    name="{{question.question}}"
+                    id="id_{{question.id}}"
+                    {% if question.is_mandatory %}required{% endif %}
+                    class="w-full sm:w-96 px-4 py-2.5 border border-secondary-200 rounded-lg text-sm focus-visible:outline-0 focus:border-primary-600 [transition:.2s]"
+                >
+            {% endif %}
+        </div>
+    {% endfor %}
 </div>
+
+<div class="sticky bottom-0 bg-secondary-50 pt-4 pb-2 mt-6">
+    <button type="submit" id="surveySubmitBtn" disabled
+        class="w-full flex items-center justify-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-lg text-sm font-semibold hover:bg-primary-800 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-primary-600 [transition:.2s]">
+        <i class="fa-solid fa-check"></i>
+        {% trans "Submit Survey" %}
+    </button>
+    <p id="surveyIncompleteHint" class="text-center text-xs text-dark-100 mt-2">
+        {% trans "Answer every required question to submit." %}
+    </p>
+</div>
+
+<p class="text-xs text-dark-100 text-center mt-6">
+    &copy; {% now 'Y' %} {{white_label_company_name}}. {% trans "All rights reserved." %}
+</p>
+
+<script>
+    (function () {
+        var form = document.getElementById("surveySubmitBtn").closest("form");
+        var submitBtn = document.getElementById("surveySubmitBtn");
+        var hint = document.getElementById("surveyIncompleteHint");
+        var mandatoryMultipleGroups = form.querySelectorAll('.js-multiple-group[data-mandatory="true"]');
+
+        function updateState() {
+            mandatoryMultipleGroups.forEach(function (group) {
+                var boxes = group.querySelectorAll('input[type="checkbox"]');
+                var anyChecked = Array.prototype.some.call(boxes, function (b) { return b.checked; });
+                if (boxes.length) {
+                    boxes[0].setCustomValidity(anyChecked ? "" : "Select at least one option");
+                }
+            });
+            var valid = form.checkValidity();
+            submitBtn.disabled = !valid;
+            hint.classList.toggle("hidden", valid);
+        }
+
+        form.addEventListener("input", updateState);
+        form.addEventListener("change", updateState);
+        updateState();
+    })();
+</script>

@@ -5,7 +5,6 @@ This page is used to write custom template filters.
 """
 
 from django import template
-from django.template.defaultfilters import register
 
 from employee.models import Employee
 from offboarding.models import (

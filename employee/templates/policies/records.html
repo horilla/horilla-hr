@@ -1,4 +1,5 @@
 {% load i18n %}{% load static %}
+{% load basefilters %}
 {% if policies %}
     <div class="oh-faq-cards">
         {% for policy in policies %}
@@ -51,7 +52,7 @@
                         style="max-height: 350px; overflow: hidden; min-height: 100px; overflow-y: auto"
                         class="truncated-text"
                     >
-                        {{ policy.body|safe }}
+                        {{ policy.body|sanitize_html }}
                     </div>
                 </div>
 

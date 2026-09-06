@@ -34,12 +34,9 @@
         id="helperContainer"
         class="hidden"
         data-model = "{{ model_name }}"
-        data-app-label="{{ app_label }}"
-        data-group-key = "{{view.group_key}}"
-        data-instance-order-by = "{{view.instance_order_by}}"
-        data-group-order-by = "{{view.group_order_by}}"
+        data-kanban-url = "{{ request.get_full_path }}"
         data-pre-move-check-url = "{{ view.pre_move_check_url }}"
-    > </div>
+    >{% csrf_token %}</div>
 
     <div class="flex gap-2.5 flex-nowrap overflow-auto groupContainer">
         {% for key, group in grouped_items.items %}
@@ -51,14 +48,6 @@
             data-group-instance = "{{group.label}}"
         >
 
-            <button
-                hidden
-                class="reload-badge"
-                hx-get="{% url 'get-kanban-card-count' %}?model={{app_label}}.{{model_name}}&group_key={{view.group_key}}&group_id={{key}}"
-                hx-target="#groupCount{{key}}"
-                hx-swap="innerHTML"
-            >
-            </button>
             <div class="oh-kanban__section-head sticky top-0 z-[9]">
                 <div
                     class="kanban-head flex items-center justify-between bg-[#e9edf090] backdrop-blur-sm py-2 cursor-move column-drag-handle oh-tabs__movable-header"

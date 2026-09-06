@@ -458,7 +458,7 @@ class MonthSelectField(forms.ChoiceField):
         choices = [
             (month_name[i].lower(), _(month_name[i].capitalize())) for i in range(1, 13)
         ]
-        super().__init__(choices=choices, *args, **kwargs)
+        super().__init__(*args, choices=choices, **kwargs)
 
 
 class AttendanceOverTimeForm(BaseModelForm):

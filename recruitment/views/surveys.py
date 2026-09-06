@@ -212,7 +212,11 @@ def candidate_survey(request):
         answer.answer_json = json.dumps(answer_data)
         answer.save()
         messages.success(request, _("Your answers are submitted."))
-        return render(request, "candidate/success.html")
+        return render(
+            request,
+            "candidate/success.html",
+            {"candidate": candidate, "recruitment": recruitment},
+        )
     return render(
         request,
         "survey/candidate_survey_form.html",
@@ -341,12 +345,6 @@ def create_question_template(request):
             messages.success(request, _("New survey question created."))
             return HorillaRedirect(request)
     return render(request, "survey/template_form.html", {"form": form})
-
-
-# --- Restored: previous Survey Templates page implementation (function
-# views backing recruitment.cbv.recruitment_survey.SurveyTemplateTabView /
-# SurveyTemplateNavView / SurveyQuestionNavView). Kept side-by-side with the
-# newer shell-based list views rather than removed.
 
 
 @login_required
@@ -505,7 +503,17 @@ def application_form(request):
     recruitment = None
     recruitment_id = request.GET.get("recruitmentId")
     resume_id = request.GET.get("resumeId")
-    resume_obj = Resume.objects.filter(id=resume_id).first()
+    # Scoped to the recruitment being applied to. This page is public and
+    # unauthenticated, and the POST branch below reads this file and attaches
+    # it to the submitted application -- so an unscoped lookup let anyone
+    # harvest any CV in the database, in any company, by walking sequential
+    # ids. Resume has no company_id of its own, so the recruitment is what
+    # scopes it.
+    resume_obj = (
+        Resume.objects.filter(id=resume_id, recruitment_id=recruitment_id).first()
+        if resume_id and recruitment_id
+        else None
+    )
 
     if request.method == "GET" and not recruitment_id:
         messages.error(request, _("Recruitment ID is missing"))
@@ -565,7 +573,11 @@ def application_form(request):
                 resume_obj.is_candidate = True
                 resume_obj.save()
 
-            return render(request, "candidate/success.html")
+            return render(
+                request,
+                "candidate/success.html",
+                {"candidate": candidate_obj, "recruitment": recruitment_obj},
+            )
         for field_name, field_errors in form.errors.items():
             if field_name == "__all__":
                 for error in field_errors:

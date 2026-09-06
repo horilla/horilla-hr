@@ -1,13 +1,10 @@
 import datetime
-import sys
 from datetime import timedelta
 
-import pytz
-from apscheduler.schedulers.background import BackgroundScheduler
-from django.conf import settings
 from django.utils import timezone
 
 from base.backends import logger
+from horilla.scheduling import register_job
 
 
 def auto_punch_out():
@@ -92,7 +89,13 @@ def create_work_record():
             )
             records_to_create.append(record)
         except Exception as e:
-            logger.error(f"Error preparing work record for {employee}: {e}")
+            # Employee.__str__ is "Name (BADGE)", so interpolating the
+            # object writes a real name into the log. The id is enough to
+            # find the row, and logger.exception keeps the traceback.
+            logger.exception(
+                "Error preparing work record for employee_id=%s",
+                getattr(employee, "pk", employee),
+            )
 
     if records_to_create:
         try:
@@ -101,34 +104,19 @@ def create_work_record():
             logger.error(f"Failed to bulk create work records: {e}")
 
 
-if not any(
-    cmd in sys.argv
-    for cmd in ["makemigrations", "migrate", "compilemessages", "flush", "shell"]
-):
-    """
-    Initializes and starts background tasks using APScheduler when the server is running.
-    """
-    scheduler = BackgroundScheduler(timezone=pytz.timezone(settings.TIME_ZONE))
-
-    scheduler.add_job(
-        create_work_record, "interval", minutes=30, misfire_grace_time=3600 * 3
-    )
-    scheduler.add_job(
-        create_work_record,
-        "cron",
-        hour=0,
-        minute=30,
-        misfire_grace_time=3600 * 9,
-        id="create_daily_work_record",
-        replace_existing=True,
-    )
-    scheduler.add_job(
-        auto_punch_out,
-        "interval",
-        minutes=5,
-        misfire_grace_time=600,
-        id="auto_punch_out",
-        replace_existing=True,
-    )
-
-    scheduler.start()
+register_job(create_work_record, "interval", minutes=30, misfire_grace_time=3600 * 3)
+register_job(
+    create_work_record,
+    "cron",
+    job_id="create_daily_work_record",
+    hour=0,
+    minute=30,
+    misfire_grace_time=3600 * 9,
+)
+register_job(
+    auto_punch_out,
+    "interval",
+    job_id="auto_punch_out",
+    minutes=5,
+    misfire_grace_time=600,
+)

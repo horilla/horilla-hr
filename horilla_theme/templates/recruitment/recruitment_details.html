@@ -1,23 +1,125 @@
-{% load i18n horillafilters %}
+{% load i18n horillafilters recruitmentfilters %}
+{% load basefilters %}
 {% get_company as theme_obj %}
-<h5 class="oh-job__post">{{ recruitment.title }}</h5>
-<p class="oh-onboarding__content oh-job__post_description">{{ recruitment.description|safe }}</p>
-<span class="fw-bold d-block"> {% trans "Job positions :" %}</span>
-<ul class="oh-job__description-list mt-3">
-    {% for job in recruitment.open_positions.all %}
-        <li class="oh-job__description-list_item">{{ job }}</li>
-    {% endfor %}
-</ul>
 
-<a
-    href='{% url "application-form" %}?recruitmentId={{recruitment.id}}'
-    rel="noopener noreferrer"
-    target="_blank"
-    class="oh-btn mt-4 text-[{{theme_obj.primary_700}}] hover:text-white hover:bg-[{{theme_obj.primary_600}}]"
-    role="button"
-    data-toggle="oh-modal-toggle"
-    data-target="#jobDetailModal"
-    style="border: 1px solid {{ theme_obj.primary_600 }}"
->
-    {% trans "Apply Now" %}
-</a>
+<div class="flex flex-col h-full">
+    <div class="flex-1 overflow-y-auto p-6">
+        <div class="flex items-start justify-between gap-4">
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="w-12 h-12 shrink-0 rounded-full bg-primary-200 text-primary-800 flex items-center justify-center font-bold text-sm">
+                    {{ recruitment.title|title_initials }}
+                </div>
+                <div class="min-w-0">
+                    <h3 class="font-bold text-lg truncate">{{ recruitment.title }}</h3>
+                    <p class="text-sm text-dark-100 truncate">
+                        {% for job_position in recruitment.open_positions.all %}
+                            {{ job_position.job_position }}{% if not forloop.last %}, {% endif %}
+                        {% endfor %}
+                    </p>
+                </div>
+            </div>
+            <div class="shrink-0 flex items-center gap-3">
+                {% if recruitment|is_closing_soon %}
+                    <span class="bg-warning-light text-warning-dark text-xs font-semibold px-3 py-1 rounded-full">
+                        {% trans "Closing soon" %}
+                    </span>
+                {% else %}
+                    <span class="bg-success-light text-success-dark text-xs font-semibold px-3 py-1 rounded-full">
+                        {% trans "Open" %}
+                    </span>
+                {% endif %}
+                <button
+                    type="button"
+                    onclick="sidebarToggle()"
+                    title="{% trans 'Close' %}"
+                    class="w-8 h-8 flex items-center justify-center rounded-full text-dark-100 hover:bg-secondary-100 hover:text-dark-200 [transition:.2s]"
+                >
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        </div>
+
+        <hr class="border-secondary-200 my-4">
+
+        <div class="grid grid-cols-2 gap-x-4 gap-y-4">
+            <div>
+                <p class="flex items-center gap-1.5 text-xs text-dark-100 mb-1">
+                    <i class="fa-solid fa-building"></i>
+                    {% trans "Company" %}
+                </p>
+                <p class="text-sm font-semibold">{{ recruitment.company_id }}</p>
+            </div>
+            {% if recruitment.company_id.city or recruitment.company_id.country %}
+                <div>
+                    <p class="flex items-center gap-1.5 text-xs text-dark-100 mb-1">
+                        <i class="fa-solid fa-location-dot"></i>
+                        {% trans "Location" %}
+                    </p>
+                    <p class="text-sm font-semibold">
+                        {{ recruitment.company_id.city }}{% if recruitment.company_id.city and recruitment.company_id.country %}, {% endif %}{{ recruitment.company_id.country }}
+                    </p>
+                </div>
+            {% endif %}
+            <div>
+                <p class="flex items-center gap-1.5 text-xs text-dark-100 mb-1">
+                    <i class="fa-solid fa-users"></i>
+                    {% trans "Vacancies" %}
+                </p>
+                <p class="text-sm font-semibold">
+                    {% blocktrans with count=recruitment.vacancy %}{{ count }} openings{% endblocktrans %}
+                </p>
+            </div>
+            <div>
+                <p class="flex items-center gap-1.5 text-xs text-dark-100 mb-1">
+                    <i class="fa-regular fa-clock"></i>
+                    {% trans "Posted" %}
+                </p>
+                <p class="text-sm font-semibold">
+                    {% blocktrans with time=recruitment.created_at|timesince %}{{ time }} ago{% endblocktrans %}
+                </p>
+            </div>
+        </div>
+
+        {% if perms.recruitment.view_recruitment %}
+            <div class="bg-primary-100 border border-primary-300 rounded-xl p-4 mt-5">
+                <div class="flex items-center justify-between text-xs text-dark-200 mb-2">
+                    <span>
+                        {% blocktrans with applied=recruitment.candidate.all|length capacity=recruitment.vacancy %}{{ applied }} applied of {{ capacity }} capacity{% endblocktrans %}
+                    </span>
+                    <span class="flex items-center gap-1">
+                        <i class="fa-regular fa-clock"></i>
+                        {{ recruitment.created_at|timesince }}
+                    </span>
+                </div>
+                <div class="w-full bg-white/70 rounded-full h-1.5">
+                    <div
+                        class="bg-primary-600 h-1.5 rounded-full"
+                        style="width: {{ recruitment.candidate.all|length|percentage:recruitment.vacancy }}%"
+                    >
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        <hr class="border-secondary-200 my-5">
+
+        <h4 class="font-bold text-base mb-2">{% trans "About the role" %}</h4>
+        {% if recruitment.description %}
+            <div class="text-sm text-dark-200 leading-relaxed">{{ recruitment.description|sanitize_html }}</div>
+        {% else %}
+            <p class="text-sm text-dark-100 italic">{% trans "No description provided for this role." %}</p>
+        {% endif %}
+    </div>
+
+    <div class="shrink-0 border-t border-secondary-200 p-6">
+        <a
+            href='{% url "application-form" %}?recruitmentId={{ recruitment.id }}'
+            rel="noopener noreferrer"
+            target="_blank"
+            class="flex items-center justify-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-lg text-sm font-semibold hover:bg-primary-800 [transition:.2s]"
+        >
+            {% trans "Apply for this role" %}
+            <i class="fa-solid fa-arrow-right transform -rotate-45"></i>
+        </a>
+    </div>
+</div>

@@ -1,54 +1,49 @@
 {% load static i18n %}
 <div class="oh-dropdown__filter-body">
-    <div class="oh-accordion">
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
       <div class="oh-accordion-header">
+        <span class="oh-filter-section-icon"><ion-icon name="people-outline"></ion-icon></span>
         {% trans 'Employee' %}
       </div>
       <div class="oh-accordion-body">
+        <!-- Full width -- Department/Job Position/Job Role/Employee
+             Type/Shift/Work Type are now AJAX-searched Select2
+             comboboxes (see offboarding/filters.py's
+             PipelineEmployeeFilter.ajax_fields) and need real room for
+             their selected chips/placeholder text, same reasoning as
+             every other modernized panel this session. -->
         <div class="row">
-          <div class="col-sm-12 col-md-12 col-lg-6 mb-1">
-            <div class="oh-input-group">
-              <label class="oh-label">{% trans 'Notice Period Starts' %} (>=)</label>
-              {{employee_filter.form.notice_period_starts}}
-            </div>
-          </div>
-          <div class="col-sm-12 col-md-12 col-lg-6 mb-1">
-            <div class="oh-input-group">
-              <label class="oh-label">{% trans 'Notice Period Ends' %} (<=)</label>
-              {{employee_filter.form.notice_period_ends}}
-            </div>
-          </div>
-          <div class="col-sm-12 col-md-12 col-lg-6 mb-1">
+          <div class="col-sm-12 col-md-12 col-lg-12 mb-1">
             <div class="oh-input-group">
               <label class="oh-label">{% trans 'Department' %}</label>
               {{employee_filter.form.employee_id__employee_work_info__department_id}}
             </div>
           </div>
-          <div class="col-sm-12 col-md-12 col-lg-6 mb-1">
+          <div class="col-sm-12 col-md-12 col-lg-12 mb-1">
             <div class="oh-input-group">
               <label class="oh-label">{% trans 'Job Position' %}</label>
               {{employee_filter.form.employee_id__employee_work_info__job_position_id}}
             </div>
           </div>
-          <div class="col-sm-12 col-md-12 col-lg-6 mb-1">
+          <div class="col-sm-12 col-md-12 col-lg-12 mb-1">
             <div class="oh-input-group">
               <label class="oh-label">{% trans 'Job Role' %}</label>
               {{employee_filter.form.employee_id__employee_work_info__job_role_id}}
             </div>
           </div>
-          <div class="col-sm-12 col-md-12 col-lg-6 mb-1">
+          <div class="col-sm-12 col-md-12 col-lg-12 mb-1">
             <div class="oh-input-group">
               <label class="oh-label">{% trans 'Employee Type' %}</label>
               {{employee_filter.form.employee_id__employee_work_info__employee_type_id}}
             </div>
           </div>
-          <div class="col-sm-12 col-md-12 col-lg-6 mb-1">
+          <div class="col-sm-12 col-md-12 col-lg-12 mb-1">
             <div class="oh-input-group">
               <label class="oh-label">{% trans 'Shift' %}</label>
               {{employee_filter.form.employee_id__employee_work_info__shift_id}}
             </div>
           </div>
-          <div class="col-sm-12 col-md-12 col-lg-6 mb-1">
+          <div class="col-sm-12 col-md-12 col-lg-12 mb-1">
             <div class="oh-input-group">
               <label class="oh-label">{% trans 'Work Type' %}</label>
               {{employee_filter.form.employee_id__employee_work_info__work_type_id}}
@@ -57,19 +52,23 @@
         </div>
       </div>
     </div>
-    <div class="oh-accordion">
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
       <div class="oh-accordion-header">
+        <span class="oh-filter-section-icon"><ion-icon name="exit-outline"></ion-icon></span>
         {% trans 'Offboarding' %}
       </div>
       <div class="oh-accordion-body">
+        <!-- Full width -- Managers is now an AJAX-searched Select2
+             combobox (see offboarding/filters.py's
+             PipelineFilter.ajax_fields). -->
         <div class="row">
-          <div class="col-sm-12 col-md-12 col-lg-6 mb-1">
+          <div class="col-sm-12 col-md-12 col-lg-12 mb-1">
             <div class="oh-input-group">
               <label class="oh-label">{% trans 'Managers' %}</label>
               {{pipeline_filter.form.offboarding_manager}}
             </div>
           </div>
-          <div class="col-sm-12 col-md-12 col-lg-6 mb-1">
+          <div class="col-sm-12 col-md-12 col-lg-12 mb-1">
             <div class="oh-input-group">
               <label class="oh-label">{% trans 'Status' %}</label>
               {{pipeline_filter.form.status}}
@@ -78,19 +77,23 @@
         </div>
       </div>
     </div>
-    <div class="oh-accordion">
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
       <div class="oh-accordion-header">
+        <span class="oh-filter-section-icon"><ion-icon name="layers-outline"></ion-icon></span>
         {% trans 'Stage' %}
       </div>
       <div class="oh-accordion-body">
+        <!-- Full width -- Offboarding is now an AJAX-searched Select2
+             combobox (see offboarding/filters.py's
+             PipelineStageFilter.ajax_fields). -->
         <div class="row">
-          <div class="col-sm-12 col-md-12 col-lg-6 mb-1">
+          <div class="col-sm-12 col-md-12 col-lg-12 mb-1">
             <div class="oh-input-group">
               <label class="oh-label">{% trans 'Offboarding' %}</label>
               {{stage_filter.form.offboarding_id}}
             </div>
           </div>
-          <div class="col-sm-12 col-md-12 col-lg-6 mb-1">
+          <div class="col-sm-12 col-md-12 col-lg-12 mb-1">
             <div class="oh-input-group">
               <label class="oh-label">{% trans 'Status' %}</label>
               {{stage_filter.form.type}}
@@ -99,4 +102,77 @@
         </div>
       </div>
     </div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+      <div class="oh-accordion-header"
+        onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
+      >
+        <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
+        {% trans "Advanced" %}
+      </div>
+      <div class="oh-accordion-body">
+        <!-- One combined Advanced section for all three underlying
+             filtersets in this panel (Employee/Offboarding/Stage),
+             each with its own namespaced "+ Add filter" builder --
+             Notice Period Starts/Ends used to each have their own
+             single-direction fixed input in the Employee section above
+             (now removed) -- the Employee builder replaces them with
+             the full gte/lte/gt/lt/exact set per field, plus Created
+             At; the other two only had Created At available. Registry:
+             PipelineEmployeeFilter/PipelineFilter/PipelineStageFilter.
+             _build_custom_filter_fields (offboarding/filters.py);
+             applied server-side by HorillaFilterSet.
+             _apply_custom_filters (see each class's filter_queryset).
+             Row markup/JS are generic (initCustomFilterBuilder,
+             horilla_nav.html); context wiring in
+             OffboardingPipelineNav.get_context_data
+             (offboarding/cbv/exit_process.py), since this Nav has no
+             single filter_instance of its own. -->
+        <div class="row">
+          <div class="col-sm-12 col-md-12 col-lg-12">
+            <label class="oh-label">{% trans "Employee" %}</label>
+            <div class="oh-input-group">
+              <div id="customFilterRowsContainer-exit-employee" class="oh-custom-filter-rows"></div>
+              <button
+                type="button"
+                class="oh-custom-filter-add"
+                onclick="addCustomFilterRow('exit-employee')"
+              >+ {% trans "Add filter" %}</button>
+            </div>
+          </div>
+          <div class="col-sm-12 col-md-12 col-lg-12 mt-2">
+            <label class="oh-label">{% trans "Offboarding" %}</label>
+            <div class="oh-input-group">
+              <div id="customFilterRowsContainer-exit-offboarding" class="oh-custom-filter-rows"></div>
+              <button
+                type="button"
+                class="oh-custom-filter-add"
+                onclick="addCustomFilterRow('exit-offboarding')"
+              >+ {% trans "Add filter" %}</button>
+            </div>
+          </div>
+          <div class="col-sm-12 col-md-12 col-lg-12 mt-2">
+            <label class="oh-label">{% trans "Stage" %}</label>
+            <div class="oh-input-group">
+              <div id="customFilterRowsContainer-exit-stage" class="oh-custom-filter-rows"></div>
+              <button
+                type="button"
+                class="oh-custom-filter-add"
+                onclick="addCustomFilterRow('exit-stage')"
+              >+ {% trans "Add filter" %}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
+{{ employee_custom_filter_fields|json_script:"customFilterFields-exit-employee" }}
+{{ employee_custom_filter_rows|json_script:"customFilterRows-exit-employee" }}
+{{ pipeline_custom_filter_fields|json_script:"customFilterFields-exit-offboarding" }}
+{{ pipeline_custom_filter_rows|json_script:"customFilterRows-exit-offboarding" }}
+{{ stage_custom_filter_fields|json_script:"customFilterFields-exit-stage" }}
+{{ stage_custom_filter_rows|json_script:"customFilterRows-exit-stage" }}
+<script>
+    initCustomFilterBuilder('exit-employee');
+    initCustomFilterBuilder('exit-offboarding');
+    initCustomFilterBuilder('exit-stage');
+</script>

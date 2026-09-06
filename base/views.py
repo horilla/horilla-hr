@@ -5,6 +5,7 @@ This module is used to map url pattens with django views or methods
 """
 
 import csv
+import hmac
 import json
 import logging
 import mimetypes
@@ -179,6 +180,7 @@ from employee.models import (
 )
 from horilla.decorators import (
     any_permission_required,
+    database_init_required,
     delete_permission,
     duplicate_permission,
     hx_request_required,
@@ -509,12 +511,11 @@ def initialize_database(request):
     Returns:
         HttpResponse: The rendered HTML template or a redirect response.
     """
-    if not settings.DEBUG:
-        raise Http404
     if initialize_database_condition():
         if request.method == "POST":
-            password = request._post.get("password")
+            password = request.POST.get("password")
             if settings.DB_INIT_PASSWORD == password:
+                request.session["db_init_verified"] = True
                 return redirect(initialize_database_user)
             else:
                 messages.warning(
@@ -524,9 +525,10 @@ def initialize_database(request):
                 return HorillaRedirect(request)
         return render(request, "initialize_database/horilla_user.html")
     else:
-        return redirect("/")
+        return redirect("login")
 
 
+@database_init_required
 @hx_request_required
 def initialize_database_user(request):
     """
@@ -539,7 +541,7 @@ def initialize_database_user(request):
         HttpResponse: The rendered HTML template for company creation or user signup.
     """
     if request.method == "POST":
-        form_data = request.__dict__.get("_post")
+        form_data = request.POST
         username = form_data.get("username")
         password = form_data.get("password")
         confirm_password = form_data.get("confirm_password")
@@ -564,6 +566,7 @@ def initialize_database_user(request):
         employee.email = email
         employee.phone = phone
         employee.save()
+        request.session.pop("db_init_verified", None)
         user = authenticate(request, username=username, password=password)
         login(request, user)
         return render(
@@ -574,6 +577,7 @@ def initialize_database_user(request):
     return render(request, "initialize_database/horilla_user_signup.html")
 
 
+@superuser_required
 @hx_request_required
 def initialize_database_company(request):
     """
@@ -594,8 +598,10 @@ def initialize_database_company(request):
                 employee = request.user.employee_get
                 employee.employee_work_info.company_id = company
                 employee.employee_work_info.save()
-            except:
-                pass
+            except Exception:
+                logger.exception(
+                    "initialize database: could not attach creator to company"
+                )
             return render(
                 request,
                 "initialize_database/horilla_department.html",
@@ -604,6 +610,7 @@ def initialize_database_company(request):
     return render(request, "initialize_database/horilla_company.html", {"form": form})
 
 
+@superuser_required
 @hx_request_required
 def initialize_database_department(request):
     """
@@ -630,6 +637,7 @@ def initialize_database_department(request):
     )
 
 
+@superuser_required
 @hx_request_required
 def initialize_department_edit(request, obj_id):
     """
@@ -668,6 +676,7 @@ def initialize_department_edit(request, obj_id):
     )
 
 
+@superuser_required
 @hx_request_required
 def initialize_department_delete(request, obj_id):
     """
@@ -685,6 +694,7 @@ def initialize_department_delete(request, obj_id):
     return redirect(initialize_database_department)
 
 
+@superuser_required
 @hx_request_required
 def initialize_database_job_position(request):
     """
@@ -719,6 +729,7 @@ def initialize_database_job_position(request):
     )
 
 
+@superuser_required
 @hx_request_required
 def initialize_job_position_edit(request, obj_id):
     """
@@ -759,6 +770,7 @@ def initialize_job_position_edit(request, obj_id):
     )
 
 
+@superuser_required
 @hx_request_required
 def initialize_job_position_delete(request, obj_id):
     """
@@ -802,11 +814,12 @@ def login_user(request):
         user = authenticate(request, username=username, password=password)
 
         if not user:
-            user_object = HorillaUser.objects.filter(username=username).first()
-            if user_object and not user_object.is_active:
-                messages.warning(request, _("Access Denied: Your account is blocked."))
-            else:
-                messages.error(request, _("Invalid username or password."))
+            # One message for every failure mode. Distinguishing "blocked" from
+            # "invalid" told an unauthenticated caller which usernames exist,
+            # which is what turns a password-guessing attempt into a targeted
+            # one. Blocked users are told to contact their administrator via
+            # the same text rather than being confirmed as real accounts.
+            messages.error(request, _("Invalid username or password."))
             return redirect("login")
 
         employee = getattr(user, "employee_get", None)
@@ -1030,14 +1043,16 @@ def two_factor_auth(request):
     # request.session["otp_code"] = None
     try:
         otp = get_otp(request)
-    except:
+    except Exception:
+        logger.exception("two_factor_auth: could not read OTP from session")
         otp = None
 
     if request.method == "POST":
-        user_otp = request.POST.get("otp")
-        if user_otp == otp:
+        user_otp = request.POST.get("otp") or ""
+        if otp is not None and hmac.compare_digest(str(user_otp), str(otp)):
             request.session["otp_code"] = None
             request.session["otp_code_timestamp"] = None
+            request.session["otp_attempts"] = 0
             request.session["otp_code_verified"] = True
             request.session.save()
             messages.success(request, _("OTP verified successfully."))
@@ -1046,7 +1061,20 @@ def two_factor_auth(request):
             messages.error(request, _("OTP expired. Please request a new one."))
             return render(request, "base/auth/two_factor_auth.html")
         else:
-            messages.error(request, _("Invalid OTP."))
+            # A six-digit code with a ten-minute life is guessable at network
+            # speed; a handful of misses burns the code and forces a resend.
+            attempts = request.session.get("otp_attempts", 0) + 1
+            request.session["otp_attempts"] = attempts
+            if attempts >= 5:
+                request.session["otp_code"] = None
+                request.session["otp_code_timestamp"] = None
+                request.session["otp_attempts"] = 0
+                request.session.save()
+                messages.error(
+                    request, _("Too many incorrect attempts. Request a new OTP.")
+                )
+            else:
+                messages.error(request, _("Invalid OTP."))
             return render(request, "base/auth/two_factor_auth.html")
 
     if not settings.TWO_FACTORS_AUTHENTICATION:
@@ -2201,7 +2229,10 @@ def view_mail_template(request, obj_id):
     """
     This method is used to display the template/form to edit
     """
-    template = HorillaMailTemplate.objects.get(id=obj_id)
+    template = HorillaMailTemplate.objects.filter(id=obj_id).first()
+    if not template:
+        messages.error(request, _("Template not found."))
+        return HorillaRedirect(request)
     form = MailTemplateForm(instance=template)
     searchWords = form.get_template_language()
     if request.method == "POST":
@@ -2302,7 +2333,10 @@ def company_update(request, id, **kwargs):
         id : company instance id
 
     """
-    company = Company.objects.get(id=id)
+    company = Company.objects.filter(id=id).first()
+    if not company:
+        messages.error(request, _("Company not found."))
+        return HorillaRedirect(request)
     form = CompanyForm(instance=company)
     if request.method == "POST":
         form = CompanyForm(request.POST, request.FILES, instance=company)
@@ -5872,7 +5906,9 @@ def mark_as_read_notification(request, notification_id):
         return HorillaRedirect(
             request, message=_("No notification found matching the query.")
         )
-    notification = Notification.objects.get(id=notification_id)
+    notification = get_object_or_404(
+        Notification, id=notification_id, recipient=request.user
+    )
     notification.mark_as_read()
     if not request.user.notifications.unread():
         script = """<span hx-get='/notifications' hx-target='#notificationContainer' hx-trigger='load'></span>"""
@@ -5884,10 +5920,19 @@ def mark_as_read_notification_json(request):
     try:
         notification_id = request.POST["notification_id"]
         notification_id = int(notification_id)
-        notification = Notification.objects.get(id=notification_id)
+        notification = Notification.objects.get(
+            id=notification_id, recipient=request.user
+        )
         notification.mark_as_read()
         return JsonResponse({"success": True})
-    except:
+    except (KeyError, ValueError, TypeError, Notification.DoesNotExist):
+        # Missing or non-numeric notification_id, or no such notification.
+        # Narrowed from a bare except so a genuine failure in mark_as_read
+        # is no longer reported to the client as "Invalid request".
+        logger.warning(
+            "mark_as_read failed for notification_id=%r",
+            request.POST.get("notification_id"),
+        )
         return JsonResponse({"success": False, "error": "Invalid request"})
 
 
@@ -6221,7 +6266,7 @@ def save_date_format(request):
                 return JsonResponse({"success": True})
 
     # Return a JSON response for unsupported methods
-    return JsonResponse({"error": False, "error": "Unsupported method"}, status=405)
+    return JsonResponse({"error": "Unsupported method"}, status=405)
 
 
 @login_required
@@ -6315,7 +6360,7 @@ def save_time_format(request):
                 return JsonResponse({"success": True})
 
     # Return a JSON response for unsupported methods
-    return JsonResponse({"error": False, "error": "Unsupported method"}, status=405)
+    return JsonResponse({"error": "Unsupported method"}, status=405)
 
 
 @login_required
@@ -6840,7 +6885,10 @@ def tag_update(request, tag_id):
     """
     This method renders form and template to create Ticket type
     """
-    tag = Tags.objects.get(id=tag_id)
+    tag = Tags.objects.filter(id=tag_id).first()
+    if not tag:
+        messages.error(request, _("Tag not found."))
+        return HorillaRedirect(request)
     form = TagsForm(instance=tag)
     if request.method == "POST":
         form = TagsForm(request.POST, instance=tag)
@@ -6887,7 +6935,10 @@ def audit_tag_update(request, tag_id):
     """
     This method renders form and template to create Ticket type
     """
-    tag = AuditTag.objects.get(id=tag_id)
+    tag = AuditTag.objects.filter(id=tag_id).first()
+    if not tag:
+        messages.error(request, _("Tag not found."))
+        return HorillaRedirect(request)
     form = AuditTagForm(instance=tag)
     if request.method == "POST":
         form = AuditTagForm(request.POST, instance=tag)
@@ -6963,8 +7014,15 @@ def get_condition_value_fields(request):
 @permission_required("base.add_multipleapprovalcondition")
 def add_more_approval_managers(request):
     current_hx_target = request.META.get("HTTP_HX_TARGET")
+    if not current_hx_target:
+        return HttpResponse()
     hx_target_split = current_hx_target.split("_")
-    next_hx_target = "_".join([hx_target_split[0], str(int(hx_target_split[-1]) + 1)])
+    try:
+        next_hx_target = "_".join(
+            [hx_target_split[0], str(int(hx_target_split[-1]) + 1)]
+        )
+    except (IndexError, ValueError):
+        return HttpResponse()
 
     form = MultipleApproveConditionForm()
     managers_count = request.GET.get("managers_count")
@@ -7711,7 +7769,10 @@ def action_type_update(request, act_id):
     """
     This method renders form and template to update Action type
     """
-    action = Actiontype.objects.get(id=act_id)
+    action = Actiontype.objects.filter(id=act_id).first()
+    if not action:
+        messages.error(request, _("Action type not found."))
+        return HorillaRedirect(request)
     form = ActiontypeForm(instance=action)
 
     if action.action_type == "warning":
@@ -8694,6 +8755,13 @@ def protected_media(request, path):
         raise Http404("Invalid file path")
 
     if not os.path.exists(media_path) or not os.path.isfile(media_path):
+        raise Http404("File not found")
+
+    # Uploads never produce dot-files or dot-directories, but the Docker
+    # entrypoint persists the generated SECRET_KEY at media/.generated_secret_key
+    # so it survives restarts. Serving it would let any logged-in user forge
+    # sessions and JWTs, so refuse every hidden path outright.
+    if any(part.startswith(".") for part in path.split("/")):
         raise Http404("File not found")
 
     is_public_asset = any(path.startswith(prefix) for prefix in public_media_prefixes)

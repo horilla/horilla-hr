@@ -167,7 +167,7 @@ class CompanyCreateForm(HorillaFormView):
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
 
-        if self.form.instance.pk:
+        if self.form.instance and getattr(self.form.instance, "pk", None):
             self.form_class.verbose_name = _("Update Company")
 
         form.fields["country"].widget = forms.Select(
@@ -185,7 +185,7 @@ class CompanyCreateForm(HorillaFormView):
         Handles and renders form errors or defers to superclass.
         """
 
-        if self.form.instance.pk:
+        if self.form.instance and getattr(self.form.instance, "pk", None):
             self.form_class.verbose_name = _("Update Company")
 
         if not form.is_valid():
@@ -198,7 +198,7 @@ class CompanyCreateForm(HorillaFormView):
     def form_valid(self, form: CompanyForm) -> HttpResponse:
         if form.is_valid():
             form.save()
-            if self.form.instance.pk:
+            if getattr(self.form.instance, "pk", None):
                 messages.success(
                     self.request, _("Company have been successfully updated.")
                 )

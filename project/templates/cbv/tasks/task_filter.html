@@ -1,39 +1,66 @@
 {% load i18n %} {% load basefilters %}
 <div class="oh-dropdown__filter-body">
-    <div class="oh-accordion">
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
         <div class="oh-accordion-header"
             onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');">
+            <span class="oh-filter-section-icon"><ion-icon name="list-outline"></ion-icon></span>
             {% trans "Task" %}
         </div>
         <div class="oh-accordion-body">
             <div class="row">
-                <div class="col-sm-6">
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label class="oh-label" for="{{ form.project.id_for_label }}">{{form.project.label}}</label>
+                        {{form.project}}
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label class="oh-label" for="{{ form.stage.id_for_label }}">{{form.stage.label}}</label>
+                        {{form.stage}}
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label class="oh-label"
                             for="{{ form.task_managers.id_for_label }}">{{form.task_managers.label}}</label>
                         {{form.task_managers}}
                     </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
-                        <label class="oh-label" for="{{ form.stage.id_for_label }}">{{form.stage.label}}</label>
-                        {{form.stage}}
-                    </div>
-                    <div class="oh-input-group">
-                        <label class="oh-label" for="{{ form.end_till.id_for_label }}">{{form.end_till.label}}</label>
-                        {{form.end_till}}
+                        <label class="oh-label"
+                            for="{{ form.task_members.id_for_label }}">{{form.task_members.label}}</label>
+                        {{form.task_members}}
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header"
+            onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');">
+            <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
+            {% trans "Advanced" %}
+        </div>
+        <div class="oh-accordion-body">
+            <div class="row">
                 <div class="col-sm-12 col-md-12 col-lg-6">
-                    <div class="oh-input-group">
-                        <label class="oh-label" for="{{ form.project.id_for_label }}">{{form.project.label}}</label>
-                        {{form.project}}
-                    </div>
                     <div class="oh-input-group">
                         <label class="oh-label" for="{{ form.status.id_for_label }}">{{form.status.label}}</label>
                         {{form.status}}
                     </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-6">
                     <div class="oh-input-group">
                         <label class="oh-label" for="{{ form.is_active.id_for_label }}">{{form.is_active.label}}</label>
                         {{form.is_active}}
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-6">
+                    <div class="oh-input-group">
+                        <label class="oh-label" for="{{ form.end_till.id_for_label }}">{{form.end_till.label}}</label>
+                        {{form.end_till}}
                     </div>
                 </div>
             </div>

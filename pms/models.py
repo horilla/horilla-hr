@@ -1,6 +1,6 @@
 import operator
 import re
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 
 from dateutil.relativedelta import relativedelta
 from django.apps import apps

@@ -1,4 +1,5 @@
 {% load i18n %}
+{% load basefilters %}
 <style>
     #enlargeImageContainer {
         display: none;
@@ -19,7 +20,7 @@
 
 <div class="oh-modal__dialog-body border rounded-md shadow-card m-[20px]">
     <p class="oh-card__footer--border-top"></p>
-    {{ policy.body|safe }}
+    {{ policy.body|sanitize_html }}
     {% include "policies/attachments.html" %}
 
 </div>

@@ -52,12 +52,25 @@ def has_xss(value: str) -> bool:
     # catch double-encoded variants (e.g. "&amp;#x61;").
     decoded = html.unescape(html.unescape(value))
 
+    # Every tag pattern matches the OPENING tag only. Requiring a closing tag,
+    # or even a closing ">", is a bypass: `<script>fetch("file:///etc/passwd")`
+    # with no `</script>` slipped through the previous
+    # `<script.*?>.*?</script>` pattern, while an HTML parser runs an unclosed
+    # script to end-of-document. That mattered most in generate_pdf, where the
+    # body reaches wkhtmltopdf with --enable-local-file-access, turning it into
+    # a local file read and exfiltration (GHSA-cjr4-rrp6-g72j).
+    #
+    # A word boundary after the tag name keeps `<scriptural>` and `<linked>`
+    # from matching, so ordinary prose is unaffected.
     xss_patterns = [
-        r"<\s*script.*?>.*?<\s*/\s*script\s*>",  # <script> ... </script>
+        r"<\s*script\b",  # <script, closed or not
         r"javascript\s*:",  # javascript: pseudo-protocol
         r"on\w+\s*=",  # inline event handlers (onclick, onload, etc.)
-        r"<\s*(embed|object|iframe|svg|math|link|meta).*?>",  # dangerous active content
+        r"<\s*(embed|object|iframe|svg|math|link|meta|base|form)\b",  # active content
         r"on\w+\s*=\s*['\"]?\s*(eval|setTimeout|setInterval|new\s+Function|XMLHttpRequest|fetch|\$\s*\()[^>]*",  # JS API abuse
+        # file:// anywhere is a local-file read once the document reaches
+        # wkhtmltopdf, and has no legitimate use in user-authored content.
+        r"file\s*:\s*/\s*/",
     ]
 
     combined = re.compile("|".join(xss_patterns), re.IGNORECASE | re.DOTALL)
@@ -144,7 +157,23 @@ class HorillaModel(models.Model, metaclass=HorillaModelBase):
         Override the save method to automatically set the created_by and
         modified_by fields based on the current request user.
         """
-        # self.full_clean()
+        # XSS validation runs on EVERY write, not only through a ModelForm.
+        #
+        # clean_fields() below is the only place has_xss() is applied, and it
+        # reaches a save only via full_clean(). full_clean() used to be called
+        # here, but was commented out during an unrelated CBV merge, which
+        # silently reduced the check to ModelForm submissions alone. Every DRF
+        # serializer.save() and every direct .save() then stored raw markup --
+        # reported as GHSA-rf47-2qgf-qq4j, a bypass of CVE-2025-59525 that
+        # re-opened the sink of CVE-2025-59832.
+        #
+        # clean_fields() is called directly rather than restoring full_clean().
+        # full_clean() also runs clean(), validate_unique() and
+        # validate_constraints() over every field, and code written in the
+        # years it was disabled has come to rely on saves that would not pass
+        # it -- turning it back on globally would reject writes that work
+        # today. This is the narrow version: the security check, nothing else.
+        self.clean_fields()
 
         request = getattr(_thread_locals, "request", None)
 

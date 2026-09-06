@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
+from typing import Optional
 
 
 def count_expected_working_days(
@@ -23,15 +24,64 @@ def count_expected_working_days(
 
     weekdays = _scheduled_weekdays(employee)
     holiday_dates = _holiday_dates(from_date, to_date, employee=employee)
+    # Company-leave rules keyed by (week_no, weekday) -- fetched once instead
+    # of one query per calendar day. Over a six-month window that was ~180
+    # queries for a single KPI.
+    company_leave_rules = _company_leave_rules()
 
     count = 0
     day = from_date
     while day <= to_date:
         if day.weekday() in weekdays and day not in holiday_dates:
-            if not _is_company_leave(day):
+            if not _matches_company_leave(day, company_leave_rules):
                 count += 1
         day += timedelta(days=1)
     return count
+
+
+def _company_leave_rules() -> set[tuple[Optional[int], int]]:
+    """All CompanyLeaves rules as (based_on_week, based_on_week_day) pairs.
+
+    ``based_on_week`` of None means "every week". Returns an empty set when
+    the lookup is unavailable, matching the previous per-day fallback.
+    """
+    try:
+        from base.models import CompanyLeaves
+
+        rules: set[tuple[Optional[int], int]] = set()
+        for row in CompanyLeaves.objects.values("based_on_week", "based_on_week_day"):
+            weekday = row["based_on_week_day"]
+            if weekday in (None, ""):
+                continue
+            # Both columns are CharFields holding numeric strings, so they
+            # have to be coerced before comparing against computed ints.
+            week = row["based_on_week"]
+            try:
+                rules.add(
+                    (
+                        None if week in (None, "") else int(week),
+                        int(weekday),
+                    )
+                )
+            except (TypeError, ValueError):
+                continue
+        return rules
+    except Exception:
+        return set()
+
+
+def _matches_company_leave(day: date, rules: set[tuple[Optional[int], int]]) -> bool:
+    """Whether ``day`` falls on a company leave, per the prefetched rules.
+
+    Week number is 0-based within the month and offset by the weekday the
+    month starts on -- the same arithmetic as base.methods.is_company_leave.
+    """
+    if not rules:
+        return False
+    first_of_month = day.replace(day=1)
+    week_no = (day.day + first_of_month.weekday() - 1) // 7
+    weekday = day.weekday()
+    return (None, weekday) in rules or (week_no, weekday) in rules
 
 
 def _scheduled_weekdays(employee) -> set[int]:

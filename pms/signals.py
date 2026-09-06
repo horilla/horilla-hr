@@ -75,7 +75,9 @@ def start_automation():
                     type = relation_type
                     break
 
-            def create_signal_handler(name, bonus_point_setting, type=None, field=None):
+            def create_signal_handler(
+                name, bonus_point_setting, model_class, type=None, field=None
+            ):
                 def signal_handler(sender, instance, *args, **kwargs):
                     """
                     Signal handler for post-save events of the model instances.
@@ -145,8 +147,11 @@ def start_automation():
 
             # Create and connect the signal handler
             handler_name = f"{bonus_point_setting.id}_signal_handler"
+            # model_class is passed in rather than read from the enclosing
+            # loop: the handler outlives the iteration, so a closure over the
+            # loop variable would make every handler use the last model.
             dynamic_signal_handler = create_signal_handler(
-                handler_name, bonus_point_setting, type=type, field=field
+                handler_name, bonus_point_setting, model_class, type=type, field=field
             )
             SIGNAL_HANDLERS.append(dynamic_signal_handler)
             post_save.connect(
@@ -172,8 +177,14 @@ def start_automation():
         for bonus_setting in bonus_point_settings:
             model_class = get_model_class(bonus_setting.model)
 
+            # _model/_setting are bound as defaults rather than read from the
+            # enclosing loop: the handler stays connected after the loop ends,
+            # so a closure would make every handler use the last iteration's
+            # values. Django only ever passes sender/instance/**kwargs.
             @receiver(pre_save, sender=model_class)
-            def instance_handler(sender, instance, **kwargs):
+            def instance_handler(
+                sender, instance, _model=model_class, _setting=bonus_setting, **kwargs
+            ):
                 """
                 Signal handler for pres-save events of the model instances.
                 """
@@ -181,15 +192,14 @@ def start_automation():
                 request = getattr(_thread_locals, "request", None)
                 if instance.pk:
                     # to get the previous instance
-                    instance = model_class.objects.filter(id=instance.pk).first()
+                    instance = _model.objects.filter(id=instance.pk).first()
                 if request:
                     _thread_locals.previous_record = {
-                        "bonus_setting": bonus_setting,
+                        "bonus_setting": _setting,
                         "instance": instance,
                     }
-                instance_handler.__name__ = f"{bonus_setting.id}_instance_handler"
-                return instance_handler
 
+            instance_handler.__name__ = f"{bonus_setting.id}_instance_handler"
             instance_handler.model_class = model_class
             instance_handler.bonus_setting = bonus_setting
 

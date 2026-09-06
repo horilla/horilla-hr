@@ -1,8 +1,11 @@
 import json
+import re
 
+import bleach
+from bleach.css_sanitizer import CSSSanitizer
 from django import template
 from django.core.paginator import Page, Paginator
-from django.template.defaultfilters import register
+from django.utils.safestring import mark_safe
 
 from base.methods import get_pagination
 from base.models import MultipleApprovalManagers
@@ -10,6 +13,133 @@ from employee.models import Employee, EmployeeWorkInformation
 from horilla.menu.settings_menu import get_settings_menu
 
 register = template.Library()
+
+# Tags and attributes the rich-text editors in this app legitimately produce.
+# Deliberately excludes script/style/iframe/object/embed and every event
+# handler, so stored markup cannot execute.
+_ALLOWED_HTML_TAGS = {
+    # "img" is here because these fields are written in a rich-text editor and
+    # people paste screenshots into them -- a helpdesk ticket whose screenshot
+    # silently vanished on upgrade is a support problem, not a security win.
+    # The src protocol allow-list below is what keeps it safe.
+    "a",
+    "b",
+    "blockquote",
+    "br",
+    "code",
+    "div",
+    "em",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "hr",
+    "i",
+    "img",
+    "li",
+    "ol",
+    "p",
+    "pre",
+    "s",
+    "span",
+    "strong",
+    "sub",
+    "sup",
+    "table",
+    "tbody",
+    "td",
+    "tfoot",
+    "th",
+    "thead",
+    "tr",
+    "u",
+    "ul",
+}
+_ALLOWED_HTML_ATTRS = {
+    "a": ["href", "title", "target", "rel"],
+    "img": ["src", "alt", "title", "width", "height"],
+    "td": ["colspan", "rowspan"],
+    "th": ["colspan", "rowspan"],
+    # "style" so that colour and emphasis applied in the editor survive.
+    "*": ["class", "style"],
+}
+
+# Only properties a rich-text editor actually emits, and only ones whose values
+# are plain keywords or literals. Nothing here needs a CSS function, which is
+# what _StrictCSSSanitizer relies on.
+_ALLOWED_CSS_PROPERTIES = [
+    "color",
+    "background-color",
+    "font-size",
+    "font-weight",
+    "font-style",
+    "text-align",
+    "text-decoration",
+]
+
+
+class _StrictCSSSanitizer(CSSSanitizer):
+    """Reject declarations whose value contains a CSS function call.
+
+    bleach validates the property NAME against the allow-list but does not
+    look at the VALUE, so `color: expression(alert(1))` passes its filter
+    untouched -- verified against bleach 6.4.0. That is a legacy IE vector
+    rather than a live one in current browsers, but a sanitiser that emits it
+    is not doing its job, and restricting the property list does not help
+    because the payload rides on whichever property is allowed.
+
+    None of _ALLOWED_CSS_PROPERTIES needs a function value, so dropping any
+    declaration containing one costs nothing and closes the whole class --
+    expression(), url(), image-set() and anything added later.
+    """
+
+    _FUNCTION_CALL = re.compile(r"[a-z-]+\s*\(", re.IGNORECASE)
+
+    def sanitize_css(self, style):
+        declarations = []
+        for declaration in super().sanitize_css(style).split(";"):
+            if not declaration.strip():
+                continue
+            _, _, value = declaration.partition(":")
+            if self._FUNCTION_CALL.search(value):
+                continue
+            declarations.append(declaration.strip())
+        return "; ".join(declarations) + (";" if declarations else "")
+
+
+_CSS_SANITIZER = _StrictCSSSanitizer(allowed_css_properties=_ALLOWED_CSS_PROPERTIES)
+
+
+@register.filter(name="sanitize_html")
+def sanitize_html(value):
+    """
+    Render user-authored rich text without trusting it.
+
+    These fields (ticket descriptions and comments, recruitment
+    descriptions, policy bodies, OKR comments) were previously rendered
+    with ``|safe``. The only thing standing between a user and stored XSS
+    was the ``has_xss`` regex applied at write time, which is a blocklist
+    and not a parser -- anything it fails to match became executable HTML
+    in every viewer's session. This strips to an allow-list instead, so a
+    gap in that regex is no longer exploitable.
+    """
+    if not value:
+        return ""
+    return mark_safe(
+        bleach.clean(
+            str(value),
+            tags=_ALLOWED_HTML_TAGS,
+            attributes=_ALLOWED_HTML_ATTRS,
+            # No "data": a data: URI on an <img> can carry text/html, which is
+            # a script delivery vector. Pasted screenshots that were inlined as
+            # base64 are dropped; hosted ones survive.
+            protocols=["http", "https", "mailto"],
+            css_sanitizer=_CSS_SANITIZER,
+            strip=True,
+        )
+    )
 
 
 @register.filter

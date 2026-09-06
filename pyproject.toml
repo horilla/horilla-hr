@@ -1,0 +1,65 @@
+# Ruff configuration.
+#
+# Scope note: running ruff's full E,F,B rule set over this codebase reports
+# ~4,500 findings, dominated by E501 line-too-long (1,797) and F405
+# star-import usage (1,088). A gate that fails on 4,500 issues gets disabled
+# rather than fixed, which is worse than no gate -- the same reasoning
+# .coveragerc records about the coverage floor.
+#
+# So this starts from the rules that catch *bugs* rather than style, all of
+# which the codebase can pass today. Widen it by moving rules up from the
+# "not yet enabled" list below as they get cleaned, never by loosening it to
+# make a build pass.
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+extend-exclude = [
+    "venv",
+    "staticfiles",
+    "*/migrations/*",
+    # Vendored django-notifications, carrying upstream's own style.
+    "notifications",
+]
+
+[tool.ruff.lint]
+select = [
+    "F502",  # percent-format with a dict where a tuple is expected
+    "F602",  # `in` on a str where a tuple was meant
+    "F632",  # `is` comparison against a literal
+    "F701",  # break outside a loop
+    "F702",  # continue outside a loop
+    "F706",  # return outside a function
+    "F707",  # except: not last
+    "E902",  # I/O or tokenize error
+    # Locked after the 2026-09-03 runtime-defect pass (06087b691a).
+    "F821",  # undefined name
+    "B023",  # closure over loop variable
+    "B012",  # return inside finally
+    "F823",  # referenced before assignment
+]
+
+# Not yet enabled. Genuine defects still present in the tree; enabling them
+# here before they are cleaned would ship a red gate.
+#
+#   F811  redefined-while-unused  49
+#   F601  repeated dict key        7
+#   F402  import shadowed by loop  5
+#   E721  type comparison          4
+#   E101  mixed tabs and spaces    3
+#   B035  static key in dict comp  3
+#   B026  star-arg after keyword   2
+#
+# Then, in rough order of value per effort:
+#   E722  bare except            148  -- swallows KeyboardInterrupt/SystemExit
+#   B006  mutable default arg     80
+#   B904  raise without from      71  -- loses the original traceback
+#   F841  unused variable        167
+#   F401  unused import          494  -- mostly auto-fixable
+#   E712/E711  == True / == None  71
+#   E501  line too long        1,791  -- needs a formatting decision first
+#   F403/F405 star imports     1,138  -- needs real import work
+
+[tool.ruff.lint.per-file-ignores]
+# Settings modules legitimately re-export via star imports.
+"horilla/settings/*.py" = ["F403", "F405"]

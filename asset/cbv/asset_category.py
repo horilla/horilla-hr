@@ -312,6 +312,11 @@ class AssetCategoryNav(HorillaNavView):
     filter_instance = AssetFilter()
     filter_form_context_name = "form"
     search_swap_target = "#assetCategoryList"
+    # Modern slide-over filter panel (generic/horilla_nav.html's own
+    # {% if modern_filter %} branch) -- same treatment as every other
+    # panel this session. AssetFilter.ajax_fields carries the
+    # AJAX-loaded comboboxes this needs.
+    modern_filter = True
     group_by_fields = [
         ("asset_category_id", _("Category")),
         ("asset_status", _("Status")),

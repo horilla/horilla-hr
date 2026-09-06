@@ -1,0 +1,57 @@
+# Code owners for horilla-hr.
+#
+# A path listed here gets its owner requested automatically as a reviewer on
+# any PR that touches it -- a routing hint, so changes to the files that
+# decide how the product is deployed and secured reach someone who knows
+# them.
+#
+# Syntax: last matching pattern wins, so the specific entries below the
+# default are the ones that take effect.
+#
+# This file ENFORCES NOTHING on its own. It requests reviewers; it cannot
+# block a merge. Two separate settings would be needed for that, neither of
+# which is currently enabled on this repository:
+#
+#   1. branch protection on dev/v2.0 and 2.0, and
+#   2. "Require review from Code Owners" within it.
+#
+# So treat a request generated from this file as a prompt, not a gate.
+
+# Default owner for anything not matched below.
+*                               @horilla-opensource
+
+# --- Deployment and runtime configuration ---
+# Settings decide DEBUG, ALLOWED_HOSTS, the security gate, storage backends
+# and the auth stack. A wrong edit here is a production incident, not a bug.
+/horilla/settings/              @horilla-opensource
+/horilla/observability.py       @horilla-opensource
+/horilla/scheduling.py          @horilla-opensource
+
+# Container and process configuration: how many workers run, which process
+# owns the scheduled jobs, what the entrypoint does on boot.
+/Dockerfile                     @horilla-opensource
+/docker-compose.yml             @horilla-opensource
+/docker-compose.prod.yml        @horilla-opensource
+/docker/                        @horilla-opensource
+
+# --- CI and its own gates ---
+# A PR can otherwise edit the checks that are meant to be gating it.
+/.github/                       @horilla-opensource
+
+# --- Dependencies ---
+# Pins carry CVE rationale inline; a bump can silently reintroduce an
+# advisory or break a transitive constraint.
+/requirements.txt               @horilla-opensource
+
+# --- Multi-tenancy and authentication ---
+# Company scoping is enforced in a small number of places. Everything else
+# in the product inherits its correctness from these files.
+/base/horilla_company_manager.py  @horilla-opensource
+/base/middleware.py               @horilla-opensource
+/base/auth_backends.py            @horilla-opensource
+/horilla_api/authentication.py    @horilla-opensource
+/horilla/decorators.py            @horilla-opensource
+
+# --- Payroll ---
+# Money. Changes here have legal consequences for employees.
+/payroll/                       @horilla-opensource

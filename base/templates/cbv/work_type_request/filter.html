@@ -1,27 +1,81 @@
 {% load i18n %}
 {% load basefilters %}
 <div class="oh-dropdown__filter-body">
-    <div class="oh-accordion">
-      <div class="oh-accordion-header">{% trans "Work Info" %}</div>
-      <div class="oh-accordion-body">
-        <div class="row">
-          <div class="col-sm-12 col-md-12 col-lg-6">
+    <!-- Outside any accordion (always visible, not collapsible) -- same
+         placement as every other modernized filter panel this session:
+         primary/most-used search, shouldn't be hidden behind a click.
+         Comma-separated multi-term search (WorkTypeRequestFilter.
+         name_or_badge -- see horilla.filters.filter_name_or_badge_terms). -->
+    <div class="row">
+        <div class="col-sm-12 col-md-12 col-lg-12">
             <div class="oh-input-group">
-              <label class="oh-label">{% trans "Employee" %}</label>
+                <label class="oh-label" for="{{form.name_or_badge.id_for_label}}">{% trans "Name or Badge ID" %}</label>
+                {{form.name_or_badge}}
+            </div>
+        </div>
+    </div>
+
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+      <div class="oh-accordion-header">
+        <span class="oh-filter-section-icon"><ion-icon name="briefcase-outline"></ion-icon></span>
+        {% trans "Work Info" %}
+      </div>
+      <div class="oh-accordion-body">
+        <!-- Full width -- every field here is now an AJAX-searched
+             Select2 combobox (see base/filters.py's
+             WorkTypeRequestFilter.ajax_fields) and needs real room for
+             its selected chips/placeholder text, same reasoning as every
+             other modernized panel. -->
+        <div class="row">
+          <div class="col-sm-12 col-md-12 col-lg-12">
+            <div class="oh-input-group">
+              <label class="oh-label" for="{{form.employee_id.id_for_label}}">{% trans "Employee" %}</label>
               {{form.employee_id}}
             </div>
+          </div>
+          <div class="col-sm-12 col-md-12 col-lg-12">
             <div class="oh-input-group">
-              <label class="oh-label">{% trans "Job Position" %}</label>
+              <label class="oh-label" for="{{form.employee_id__employee_work_info__department_id.id_for_label}}">{% trans "Department" %}</label>
+              {{form.employee_id__employee_work_info__department_id}}
+            </div>
+          </div>
+          <div class="col-sm-12 col-md-12 col-lg-12">
+            <div class="oh-input-group">
+              <label class="oh-label" for="{{form.employee_id__employee_work_info__job_position_id.id_for_label}}">{% trans "Job Position" %}</label>
               {{form.employee_id__employee_work_info__job_position_id}}
             </div>
+          </div>
+          <div class="col-sm-12 col-md-12 col-lg-12">
             <div class="oh-input-group">
-              <label class="oh-label">{% trans "Shift" %}</label>
+              <label class="oh-label" for="{{form.employee_id__employee_work_info__job_role_id.id_for_label}}">{% trans "Job Role" %}</label>
+              {{form.employee_id__employee_work_info__job_role_id}}
+            </div>
+          </div>
+          <div class="col-sm-12 col-md-12 col-lg-12">
+            <div class="oh-input-group">
+              <label class="oh-label" for="{{form.employee_id__employee_work_info__shift_id.id_for_label}}">{% trans "Shift" %}</label>
               {{form.employee_id__employee_work_info__shift_id}}
             </div>
+          </div>
+          <div class="col-sm-12 col-md-12 col-lg-12">
             <div class="oh-input-group">
-              <label class="oh-label">{% trans "Company" %}</label>
+              <label class="oh-label" for="{{form.employee_id__employee_work_info__work_type_id.id_for_label}}">{% trans "Work Type" %}</label>
+              {{form.employee_id__employee_work_info__work_type_id}}
+            </div>
+          </div>
+          <div class="col-sm-12 col-md-12 col-lg-12">
+            <div class="oh-input-group">
+              <label class="oh-label" for="{{form.employee_id__employee_work_info__reporting_manager_id.id_for_label}}">{% trans "Reporting Manager" %}</label>
+              {{form.employee_id__employee_work_info__reporting_manager_id}}
+            </div>
+          </div>
+          <div class="col-sm-12 col-md-12 col-lg-12">
+            <div class="oh-input-group">
+              <label class="oh-label" for="{{form.employee_id__employee_work_info__company_id.id_for_label}}">{% trans "Company" %}</label>
               {{form.employee_id__employee_work_info__company_id}}
             </div>
+          </div>
+          <div class="col-sm-12 col-md-12 col-lg-6">
             <div class="oh-input-group">
               <label class="oh-label">{% trans "Is Active" %}?</label>
               {{form.employee_id__is_active}}
@@ -29,78 +83,75 @@
           </div>
           <div class="col-sm-12 col-md-12 col-lg-6">
             <div class="oh-input-group">
-              <label class="oh-label">{% trans "Department" %}</label>
-              {{form.employee_id__employee_work_info__department_id}}
+              <label class="oh-label">{% trans "Gender" %}</label>
+              {{form.employee_id__gender}}
             </div>
-          <div class="oh-input-group">
-            <label class="oh-label">{% trans "Job Role" %}</label>
-            {{form.employee_id__employee_work_info__job_role_id}}
-          </div>
-          <div class="oh-input-group">
-            <label class="oh-label">{% trans "Work Type" %}</label>
-            {{form.employee_id__employee_work_info__work_type_id}}
-          </div>
-          <div class="oh-input-group">
-            <label class="oh-label">{% trans "Reporting Manager" %}</label>
-            {{form.employee_id__employee_work_info__reporting_manager_id}}
-          </div>
-          <div class="oh-input-group">
-            <label class="oh-label">{% trans "Gender" %}</label>
-            {{form.employee_id__gender}}
           </div>
         </div>
       </div>
     </div>
-  </div>
-  <div class="oh-accordion">
-    <div class="oh-accordion-header">{% trans "Work Type Request" %}</div>
-    <div class="oh-accordion-body">
-      <div class="row">
-        <div class="col-sm-12 col-md-12 col-lg-6">
-          <div class="oh-input-group">
-            <label class="oh-label">{% trans "Requested Work Type" %}</label>
-            {{form.work_type_id}}
-          </div>
 
-          <div class="oh-input-group">
-            <label class="oh-label">{% trans "Requested Date" %}</label>
-            {{form.requested_date}}
-          </div>
-
-        </div>
-        <div class="col-sm-12 col-md-12 col-lg-6">
-          <div class="oh-input-group">
-            <label class="oh-label">{% trans "Previous Work Type" %}</label>
-            {{form.previous_work_type_id}}
-          </div>
-
-          <div class="oh-input-group">
-            <label class="oh-label">{% trans "Status" %}</label>
-            {{form.status}}
-          </div>
-
-        </div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+      <div class="oh-accordion-header">
+        <span class="oh-filter-section-icon"><ion-icon name="swap-horizontal-outline"></ion-icon></span>
+        {% trans "Work Type Request" %}
       </div>
-    </div>
-  </div>
-  <div class="oh-accordion">
-    <div class="oh-accordion-header">{% trans "Advanced" %}</div>
-    <div class="oh-accordion-body">
-      <div class="row">
-        <div class="col-sm-12 col-md-12 col-lg-6">
-          <div class="oh-input-group">
-            <label class="oh-label">{% trans "Requested Date From" %}</label>
-            {{form.requested_date__gte}}
+      <div class="oh-accordion-body">
+        <!-- Requested/Previous Work Type are also now AJAX-searched (see
+             WorkTypeRequestFilter.ajax_fields) -- full width for the
+             same reason as Work Info's own fields above. -->
+        <div class="row">
+          <div class="col-sm-12 col-md-12 col-lg-12">
+            <div class="oh-input-group">
+              <label class="oh-label" for="{{form.work_type_id.id_for_label}}">{% trans "Requested Work Type" %}</label>
+              {{form.work_type_id}}
+            </div>
           </div>
-
+          <div class="col-sm-12 col-md-12 col-lg-12">
+            <div class="oh-input-group">
+              <label class="oh-label" for="{{form.previous_work_type_id.id_for_label}}">{% trans "Previous Work Type" %}</label>
+              {{form.previous_work_type_id}}
+            </div>
+          </div>
         </div>
-        <div class="col-sm-12 col-md-12 col-lg-6">
-          <div class="oh-input-group">
-            <label class="oh-label">{% trans "Requested Date Till" %}</label>
-            {{form.requested_date__lte}}
+
+        <div class="row">
+          <div class="col-sm-12 col-md-12 col-lg-6">
+            <div class="oh-input-group">
+              <label class="oh-label">{% trans "Requested Date" %}</label>
+              {{form.requested_date}}
+            </div>
+          </div>
+          <div class="col-sm-12 col-md-12 col-lg-6">
+            <div class="oh-input-group">
+              <label class="oh-label">{% trans "Status" %}</label>
+              {{form.status}}
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
+
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+      <div class="oh-accordion-header">
+        <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
+        {% trans "Advanced" %}
+      </div>
+      <div class="oh-accordion-body">
+        <div class="row">
+          <div class="col-sm-12 col-md-12 col-lg-6">
+            <div class="oh-input-group">
+              <label class="oh-label">{% trans "Requested Date From" %}</label>
+              {{form.requested_date__gte}}
+            </div>
+          </div>
+          <div class="col-sm-12 col-md-12 col-lg-6">
+            <div class="oh-input-group">
+              <label class="oh-label">{% trans "Requested Date Till" %}</label>
+              {{form.requested_date__lte}}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 </div>

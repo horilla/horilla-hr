@@ -1,54 +1,104 @@
 {% load i18n %}
 {% load static %}
 <div class="oh-dropdown__filter-body">
-    <div class="oh-accordion">
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
         <div class="oh-accordion-header">
+            <span class="oh-filter-section-icon"><ion-icon name="briefcase-outline"></ion-icon></span>
             {% trans 'Recruitment' %}
         </div>
         <div class="oh-accordion-body">
+            <!-- Full width -- Managers and Company are now AJAX-searched
+                 Select2 comboboxes (see recruitment/filters.py's
+                 RecruitmentFilter.ajax_fields, inherited by
+                 onboarding_filters.RecruitmentFilter) and need real room
+                 for their selected chips/placeholder text, same
+                 reasoning as every other modernized panel this
+                 session. -->
             <div class="row">
-                <div class="col-sm-12 col-md-12 col-lg-6">
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label class="oh-label">{% trans 'Managers' %}</label>
                         {{ filter_instance_context_name.form.recruitment_managers }}
                     </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label class="oh-label">{% trans 'Company' %}</label>
+                        {{ filter_instance_context_name.form.company_id }}
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-sm-12 col-md-12 col-lg-6">
                     <div class="oh-input-group">
                         <label class="oh-label">{% trans 'Is Published' %}</label>
                         {{ filter_instance_context_name.form.is_published }}
                     </div>
                 </div>
-
                 <div class="col-sm-12 col-md-12 col-lg-6">
-                    <div class="oh-input-group">
-                        <label class="oh-label">{% trans 'Company' %}</label>
-                        {{ filter_instance_context_name.form.company_id }}
-                    </div>
                     <div class="oh-input-group">
                         <label class="oh-label">{% trans 'Is closed' %}</label>
                         {{ filter_instance_context_name.form.closed }}
-                    </div>
-                </div>
-                <div class="col-sm-12 col-md-12 col-lg-6">
-                    <div class="oh-input-group">
-                        <label class="oh-label">{% trans 'Start Date From' %}</label>
-                        {{ filter_instance_context_name.form.start_from }}
-                    </div>
-                </div>
-                <div class="col-sm-12 col-md-12 col-lg-6">
-                    <div class="oh-input-group">
-                        <label class="oh-label">{% trans 'Till End Date' %}</label>
-                        {{ filter_instance_context_name.form.end_till }}
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="oh-accordion">
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header"
+            onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
+        >
+            <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
+            {% trans "Advanced" %}
+        </div>
+        <div class="oh-accordion-body">
+            <div class="row">
+                <!-- Start Date/End Date used to each have their own
+                     single-direction fixed input here (start_from's gte
+                     on start_date, end_till's lte on end_date) --
+                     replaced with the same "+ Add filter" field/lookup/
+                     value builder AttendanceFilters/EmployeeFilter/
+                     AssetFilter use, which offers the full
+                     gte/lte/gt/lt/exact set per field, and adds Created
+                     At as a third option. Registry: RecruitmentFilter
+                     (recruitment/filters.py, inherited by
+                     onboarding.filters.RecruitmentFilter)._build_custom_filter_fields;
+                     applied server-side by HorillaFilterSet.
+                     _apply_custom_filters (see filter_queryset). Row
+                     markup/JS are generic (initCustomFilterBuilder,
+                     horilla_nav.html). -->
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <div id="customFilterRowsContainer-onboarding-recruitment" class="oh-custom-filter-rows"></div>
+                        <button
+                            type="button"
+                            class="oh-custom-filter-add"
+                            onclick="addCustomFilterRow('onboarding-recruitment')"
+                        >+ {% trans "Add filter" %}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
         <div class="oh-accordion-header">
+            <span class="oh-filter-section-icon"><ion-icon name="people-outline"></ion-icon></span>
             {% trans 'Candidate' %}
         </div>
         <div class="oh-accordion-body">
+            <!-- Full width -- Tasks is now an AJAX-searched Select2
+                 combobox (see onboarding/filters.py's
+                 OnboardingCandidateFilter.ajax_fields). -->
+            <div class="row">
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label class="oh-label">{% trans 'Tasks' %}</label>
+                        {{ candidate_filter_obj.form.tasks }}
+                    </div>
+                </div>
+            </div>
             <div class="row">
                 <div class="col-sm-12 col-md-12 col-lg-6">
                     <div class="oh-input-group">
@@ -62,26 +112,22 @@
                         <select name="state" class="oh-select-2 w-100 country" id="state"></select>
                     </div>
                 </div>
-                <div class="col-sm-12 col-md-12 col-lg-6">
-                    <div class="oh-input-group">
-                        <label class="oh-label">{% trans 'Taks' %}</label>
-                        {{ candidate_filter_obj.form.tasks }}
-                    </div>
-                </div>
             </div>
         </div>
     </div>
-    <div class="oh-accordion">
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
         <div class="oh-accordion-header">
+            <span class="oh-filter-section-icon"><ion-icon name="layers-outline"></ion-icon></span>
             {% trans 'Stage' %}
         </div>
         <div class="oh-accordion-body">
+            <!-- Full width -- Stage Manager is now an AJAX-searched
+                 Select2 combobox (see onboarding/filters.py's
+                 OnboardingStageFilter.ajax_fields). -->
             <div class="row">
-                <div class="col-sm-12 col-md-12">
-                    <div class="col-sm-12 col-md-12 col-lg-12 mb-2" style="width: 100%;">
-                        <div class="oh-input-group">
-                            <label class="oh-label">{% trans 'Stage Managers' %}</label>
-                        </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label class="oh-label">{% trans 'Stage Managers' %}</label>
                         {{ stage_filter_obj.form.employee_id }}
                     </div>
                 </div>
@@ -89,3 +135,8 @@
         </div>
     </div>
 </div>
+{{ custom_filter_fields|json_script:"customFilterFields-onboarding-recruitment" }}
+{{ custom_filter_rows|json_script:"customFilterRows-onboarding-recruitment" }}
+<script>
+    initCustomFilterBuilder('onboarding-recruitment');
+</script>

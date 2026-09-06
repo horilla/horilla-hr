@@ -3,11 +3,22 @@
 {% load mathfilters %}
 {% load widget_tweaks %}
 <div class="oh-dropdown__filter-body">
-    <div class="oh-accordion">
-        <div class="oh-accordion-header">{% trans "Asset History" %}</div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header"
+            onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
+        >
+            <span class="oh-filter-section-icon"><ion-icon name="time-outline"></ion-icon></span>
+            {% trans "Asset History" %}
+        </div>
         <div class="oh-accordion-body">
             <div class="row">
-                <div class="col-sm-12 col-md-12 col-lg-6">
+                <!-- Full width -- Allocated User, Asset, and Allocated
+                     By are now AJAX-searched Select2 comboboxes (see
+                     asset/filters.py's AssetHistoryFilter.ajax_fields)
+                     and need real room for their selected chips/
+                     placeholder text, same reasoning as every other
+                     modernized panel this session. -->
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label
                             class="oh-label"
@@ -15,12 +26,23 @@
                         >{% trans "Allocated User" %}</label>
                         {{ form.assigned_to_employee_id }}
                     </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label
                             class="oh-label"
                             for="{{form.asset_id.id_for_label}}"
                         >{% trans "Asset" %}</label>
                         {{ form.asset_id }}
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label
+                            class="oh-label"
+                            for="{{form.assigned_by_employee_id.id_for_label}}"
+                        >{% trans "Allocated By" %}</label>
+                        {{ form.assigned_by_employee_id }}
                     </div>
                 </div>
                 <div class="col-sm-12 col-md-12 col-lg-6">
@@ -31,6 +53,8 @@
                         >{% trans "Asset Allocated Date" %}</label>
                         {{ form.assigned_date |attr:"type:date" }}
                     </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-6">
                     <div class="oh-input-group">
                         <label
                             class="oh-label"
@@ -48,56 +72,48 @@
                         {{ form.return_date|attr:"type:date" }}
                     </div>
                 </div>
-                <div class="col-sm-12 col-md-12 col-lg-6">
-                    <div class="oh-input-group">
-                        <label
-                            class="oh-label"
-                            for="{{form.assigned_by_employee_id.id_for_label}}"
-                        >{% trans "Allocated By" %}</label>
-                        {{ form.assigned_by_employee_id }}
-                    </div>
-                </div>
             </div>
         </div>
     </div>
-    <div class="oh-accordion">
-        <div class="oh-accordion-header">{% trans "Advanced" %}</div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header"
+            onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
+        >
+            <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
+            {% trans "Advanced" %}
+        </div>
         <div class="oh-accordion-body">
             <div class="row">
-                <div class="col-sm-12 col-md-12 col-lg-6">
+                <!-- Assign Date/Return Date used to each have their own
+                     pair of permanent, fixed gte/lte inputs here --
+                     replaced with the same "+ Add filter" field/lookup/
+                     value builder AttendanceFilters/EmployeeFilter/PMS
+                     FeedbackFilter/AssetFilter/AssetAllocationFilter use
+                     (choose the field, then the lookup, then the
+                     value), which also offers gt/lt/exact instead of
+                     just gte/lte, and adds Created At as a third
+                     option. Registry: AssetHistoryFilter.
+                     _build_custom_filter_fields; applied server-side by
+                     HorillaFilterSet._apply_custom_filters (see
+                     AssetHistoryFilter.filter_queryset). Row markup/JS
+                     are generic (initCustomFilterBuilder,
+                     horilla_nav.html). -->
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
-                        <label
-                            class="oh-label"
-                            for="{{form.return_date_gte.id_for_label}}"
-                        >{% trans "Return Date Greater Or Equal" %}</label>
-                        {{ form.return_date_gte }}
-                    </div>
-                    <div class="oh-input-group">
-                        <label
-                            class="oh-label"
-                            for="{{form.return_date_lte.id_for_label}}"
-                        >{% trans "Assign Date Greater Or Equal" %}</label>
-                        {{ form.assigned_date_gte }}
-                    </div>
-                </div>
-
-                <div class="col-sm-12 col-md-12 col-lg-6">
-                    <div class="oh-input-group">
-                        <label
-                            class="oh-label"
-                            for="{{form.return_date_gte.id_for_label}}"
-                        >{% trans "Return Date lesser Or Equal" %}</label>
-                        {{ form.return_date_lte }}
-                    </div>
-                    <div class="oh-input-group">
-                        <label
-                            class="oh-label"
-                            for="{{form.return_date_lte.id_for_label}}"
-                        >{% trans "Assign Date Lesser Or Equal" %}</label>
-                        {{ form.assigned_date_lte }}
+                        <div id="customFilterRowsContainer-asset-history" class="oh-custom-filter-rows"></div>
+                        <button
+                            type="button"
+                            class="oh-custom-filter-add"
+                            onclick="addCustomFilterRow('asset-history')"
+                        >+ {% trans "Add filter" %}</button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{{ custom_filter_fields|json_script:"customFilterFields-asset-history" }}
+{{ custom_filter_rows|json_script:"customFilterRows-asset-history" }}
+<script>
+    initCustomFilterBuilder('asset-history');
+</script>

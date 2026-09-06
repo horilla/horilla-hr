@@ -381,7 +381,10 @@ class WorkTypeRequestView(APIView):
         return paginater.get_paginated_response(serializer.data)
 
     def post(self, request):
-        serializer = self.serializer_class(data=request.data)
+        data = request.data.copy()
+        if not request.user.has_perm("base.add_worktyperequest"):
+            data["employee_id"] = request.user.employee_get.id
+        serializer = self.serializer_class(data=data)
         if serializer.is_valid():
             instance = serializer.save()
             try:
@@ -972,7 +975,10 @@ class ShiftRequestView(APIView):
         return paginator.get_paginated_response(serializer.data)
 
     def post(self, request):
-        serializer = self.serializer_class(data=request.data)
+        data = request.data.copy()
+        if not request.user.has_perm("base.add_shiftrequest"):
+            data["employee_id"] = request.user.employee_get.id
+        serializer = self.serializer_class(data=data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=201)
@@ -1158,6 +1164,7 @@ class ShiftRequestBulkCancelView(APIView):
 class ShiftRequestDeleteView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @method_decorator(permission_required("base.delete_shiftrequest"))
     def delete(self, request, pk=None):
 
         if pk is None:
@@ -1192,6 +1199,7 @@ class ShiftRequestExportView(APIView):
 class ShiftRequestAllocationView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @method_decorator(permission_required("base.change_shiftrequest"))
     def post(self, request, id):
         shift_request = ShiftRequest.objects.get(id=id)
         if not shift_request.is_any_request_exists():
@@ -1212,6 +1220,7 @@ class RotatingShiftAssignExport(APIView):
 class RotatingShiftAssignBulkArchive(APIView):
     permission_classes = [IsAuthenticated]
 
+    @method_decorator(permission_required("base.change_rotatingshiftassign"))
     def put(self, request, status):
         ids = request.data.get("ids", None)
         try:
@@ -1225,6 +1234,7 @@ class RotatingShiftAssignBulkArchive(APIView):
 class RotatingShiftAssignBulkDelete(APIView):
     permission_classes = [IsAuthenticated]
 
+    @method_decorator(permission_required("base.delete_rotatingshiftassign"))
     def delete(self, request):
         ids = request.data.get("ids", None)
         try:

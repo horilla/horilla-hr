@@ -1,5 +1,4 @@
 from django import template
-from django.template.defaultfilters import register
 
 from helpdesk.models import ClaimRequest, DepartmentManager
 

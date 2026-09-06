@@ -188,6 +188,11 @@ class StageNav(HorillaNavView):
     search_swap_target = "#listContainer"
     filter_body_template = "cbv/stages/filter.html"
     default_group_by = "recruitment_id"
+    # Modern slide-over filter panel (generic/inline_nav.html's own
+    # {% if modern_filter %} branch) -- same treatment as every other
+    # panel this session. StageFilter.ajax_fields carries the
+    # AJAX-loaded comboboxes this needs.
+    modern_filter = True
 
     group_by_fields = [("recruitment_id", _("Recruitment"))]
 

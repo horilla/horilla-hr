@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import logging
+
 from django.db.models import Count, Q
 from django.utils.translation import gettext as _
 
 from report.engine import ReportFilters, apply_org_filters, empty_report
+
+logger = logging.getLogger(__name__)
 
 
 def _candidates_in_period(filters: ReportFilters):
@@ -177,7 +181,7 @@ def time_to_hire(filters: ReportFilters) -> dict:
                         days_list.append(delta)
                         all_days.append(delta)
                 except Exception:
-                    pass
+                    logger.exception("Report metric source unavailable")
         if not days_list:
             continue
         data.append(
@@ -659,7 +663,16 @@ def quality_of_hire(filters: ReportFilters) -> dict:
             date_joining__gte=filters.from_date,
             date_joining__lte=filters.to_date,
         )
-        wi = apply_org_filters(wi, filters, prefix="", employee_prefix="employee_id")
+        # Retention is measured against the whole joiner cohort, leavers
+        # included. apply_org_filters defaults to active-only, which dropped
+        # exactly the people who did not stay and biased the rate upward.
+        wi = apply_org_filters(
+            wi,
+            filters,
+            prefix="",
+            employee_prefix="employee_id",
+            apply_employment_status=False,
+        )
         hired_list = [
             {
                 "id": None,

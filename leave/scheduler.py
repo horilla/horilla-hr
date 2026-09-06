@@ -1,8 +1,6 @@
-import sys
 from datetime import datetime
 
-from apscheduler.schedulers.background import BackgroundScheduler
-
+from horilla.scheduling import register_job
 from horilla.signals import post_scheduler, pre_scheduler
 
 
@@ -54,14 +52,4 @@ def leave_reset():
     )
 
 
-if not any(
-    cmd in sys.argv
-    for cmd in ["makemigrations", "migrate", "compilemessages", "flush", "shell"]
-):
-    """
-    Initializes and starts background tasks using APScheduler when the server is running.
-    """
-    scheduler = BackgroundScheduler()
-    scheduler.add_job(leave_reset, "interval", hours=4)
-
-    scheduler.start()
+register_job(leave_reset, "interval", hours=4)

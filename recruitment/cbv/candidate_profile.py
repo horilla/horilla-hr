@@ -2,6 +2,7 @@
 This page handles the cbv methods for canidate profile page
 """
 
+from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.decorators import method_decorator
@@ -92,6 +93,14 @@ class CandidateProfileTasks(HorillaListView):
         "status",
     ]
 
+    def dispatch(self, request, *args, **kwargs):
+        # No matching candidate (e.g. a stale/invalid pk) -- render nothing
+        # rather than a "None's Onboarding Tasks" page with the raw,
+        # unstyled list+export+column-picker fragment underneath it.
+        if not Candidate.objects.filter(id=kwargs.get("pk")).exists():
+            return HttpResponse()
+        return super().dispatch(request, *args, **kwargs)
+
     def bulk_update_accessibility(self):
         return (
             super().bulk_update_accessibility()
@@ -149,7 +158,9 @@ class CandidateProfileTasks(HorillaListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["candidate"] = Candidate.objects.get(id=self.kwargs.get("pk"))
+        context["candidate"] = Candidate.objects.filter(
+            id=self.kwargs.get("pk")
+        ).first()
         return context
 
 

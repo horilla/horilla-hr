@@ -1,5 +1,6 @@
 # attendance/signals.py
 
+import logging
 from datetime import datetime, timedelta
 
 from django.apps import apps
@@ -12,6 +13,8 @@ from attendance.models import Attendance, AttendanceGeneralSetting, WorkRecords
 from base.models import Company, PenaltyAccounts
 from employee.models import Employee
 from horilla.methods import get_horilla_model_class
+
+logger = logging.getLogger(__name__)
 
 
 @receiver(post_save, sender=Attendance)
@@ -60,7 +63,7 @@ def attendance_post_save(sender, instance, **kwargs):
             WorkRecords._base_manager.filter(id__in=ids).delete()
 
     except Exception as e:
-        print(e)
+        logger.exception("Work record signal failed")
 
     work_record.employee_id = instance.employee_id
     work_record.date = instance.attendance_date
@@ -132,12 +135,13 @@ def add_missing_attendance_to_workrecord(sender, **kwargs):
             WorkRecords.objects.bulk_update(
                 records_to_update, ["attendance_id"], batch_size=500
             )
-            print(
-                f"Successfully updated {len(records_to_update)} work records with attendance information."
+            logger.info(
+                "Updated %s work records with attendance information",
+                len(records_to_update),
             )
 
     except Exception as e:
-        print(f"Error updating work records with attendance: {e}")
+        logger.exception("Error updating work records with attendance")
 
 
 # @receiver(post_migrate)
@@ -167,12 +171,13 @@ def add_missing_shift_to_work_record(sender, **kwargs):
             WorkRecords.objects.bulk_update(
                 records_to_update, ["shift_id"], batch_size=500
             )
-            print(
-                f"Successfully updated {len(records_to_update)} work records with shift information."
+            logger.info(
+                "Updated %s work records with shift information",
+                len(records_to_update),
             )
 
     except Exception as e:
-        print(f"Error updating work records with shift information: {e}")
+        logger.exception("Error updating work records with shift information")
 
 
 @receiver(post_save, sender=Company)
@@ -231,6 +236,7 @@ def create_missing_work_records(sender, **kwargs):
                     )
 
             except Exception as e:
-                print(
-                    f"Error creating missing work records for employee {employee}: {e}"
+                logger.exception(
+                    "Error creating missing work records for employee_id=%s",
+                    getattr(employee, "pk", employee),
                 )

@@ -1,45 +1,38 @@
 {% load i18n %}
 <div class="oh-dropdown__filter-body">
-    <div class="oh-accordion">
-      <div class="oh-accordion-header">{% trans "Candidate Filter" %}</div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+      <div class="oh-accordion-header">
+        <span class="oh-filter-section-icon"><ion-icon name="people-outline"></ion-icon></span>
+        {% trans "Candidate Filter" %}
+      </div>
       <div class="oh-accordion-body">
+        <!-- Full width -- Recruitment, Job Position, and Rejection
+             Reason are now AJAX-searched Select2 comboboxes (see
+             recruitment/filters.py's CandidateFilter.ajax_fields) and
+             need real room for their selected chips/placeholder text,
+             same reasoning as every other modernized panel this
+             session. -->
         <div class="row">
-          <div class="col-sm-12 col-md-12 col-lg-6">
+          <div class="col-sm-12 col-md-12 col-lg-12">
             <div class="oh-input-group">
               <label class="oh-label">{% trans "Recruitment" %}</label>
               {{form.recruitment_id}}
             </div>
           </div>
-          <div class="col-sm-12 col-md-12 col-lg-6">
+          <div class="col-sm-12 col-md-12 col-lg-12">
             <div class="oh-input-group">
               <label class="oh-label">{% trans "Job Position" %}</label>
               {{form.job_position_id}}
             </div>
           </div>
-          <div class="col-sm-12 col-md-12 col-lg-6">
+          <div class="col-sm-12 col-md-12 col-lg-12">
             <div class="oh-input-group">
-              <label class="oh-label">{% trans "Joining From" %}</label>
-              {{form.scheduled_from}}
+              <label class="oh-label">{% trans "Rejection Reason" %}</label>
+              {{form.rejected_candidate__reject_reason_id}}
             </div>
           </div>
-          <div class="col-sm-12 col-md-12 col-lg-6">
-            <div class="oh-input-group">
-              <label class="oh-label">{% trans "Joining Till" %}</label>
-              {{form.scheduled_till}}
-            </div>
-          </div>
-          <div class="col-sm-12 col-md-12 col-lg-6">
-            <div class="oh-input-group">
-              <label class="oh-label">{% trans "Probation From" %}</label>
-              {{form.probation_end_from}}
-            </div>
-          </div>
-          <div class="col-sm-12 col-md-12 col-lg-6">
-            <div class="oh-input-group">
-              <label class="oh-label">{% trans "Probation Till" %}</label>
-              {{form.probation_end_till}}
-            </div>
-          </div>
+        </div>
+        <div class="row">
           <div class="col-sm-12 col-md-12 col-lg-6">
             <div class="oh-input-group">
               <label class="oh-label">{% trans "Portal Sent" %}</label>
@@ -54,12 +47,6 @@
           </div>
           <div class="col-sm-12 col-md-12 col-lg-6 mb-2">
             <div class="oh-input-group">
-              <label class="oh-label">{% trans "Rejection Reason" %}</label>
-              {{form.rejected_candidate__reject_reason_id}}
-            </div>
-          </div>
-          <div class="col-sm-12 col-md-12 col-lg-6 mb-2">
-            <div class="oh-input-group">
               <label class="oh-label">{% trans "Offer Status" %}</label>
               {{form.offer_letter_status}}
             </div>
@@ -67,4 +54,46 @@
         </div>
       </div>
     </div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+      <div class="oh-accordion-header"
+        onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
+      >
+        <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
+        {% trans "Advanced" %}
+      </div>
+      <div class="oh-accordion-body">
+        <div class="row">
+          <!-- Joining From/Till and Probation From/Till used to each
+               have their own fixed inputs here -- "Joining From/Till"
+               was actually mislabeled: scheduled_from/scheduled_till
+               filter candidate_interview__interview_date, not
+               joining_date. Replaced with the same "+ Add filter"
+               field/lookup/value builder AttendanceFilters/
+               EmployeeFilter/AssetFilter use (choose the field, then
+               the lookup, then the value), which correctly offers
+               Interview Date, Probation End, Schedule Date, Joining
+               Date, Onboarding End Date, and Created At. Registry:
+               CandidateFilter (recruitment/filters.py).
+               _build_custom_filter_fields; applied server-side by
+               HorillaFilterSet._apply_custom_filters (see
+               CandidateFilter.filter_queryset). Row markup/JS are
+               generic (initCustomFilterBuilder, horilla_nav.html). -->
+          <div class="col-sm-12 col-md-12 col-lg-12">
+            <div class="oh-input-group">
+              <div id="customFilterRowsContainer-onboarding-candidate" class="oh-custom-filter-rows"></div>
+              <button
+                type="button"
+                class="oh-custom-filter-add"
+                onclick="addCustomFilterRow('onboarding-candidate')"
+              >+ {% trans "Add filter" %}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
+{{ custom_filter_fields|json_script:"customFilterFields-onboarding-candidate" }}
+{{ custom_filter_rows|json_script:"customFilterRows-onboarding-candidate" }}
+<script>
+    initCustomFilterBuilder('onboarding-candidate');
+</script>

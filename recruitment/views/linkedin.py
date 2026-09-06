@@ -69,7 +69,7 @@ def validate_linkedin_token(request, pk):
     access_token = linkedin_account.api_token
     url = "https://api.linkedin.com/v2/userinfo"
     headers = {"Authorization": f"Bearer {access_token}"}
-    response = requests.get(url, headers=headers)
+    response = requests.get(url, headers=headers, timeout=30)
     if response.status_code == 200:
         messages.success(request, _("LinkedIn connection success."))
     else:
@@ -128,7 +128,7 @@ def post_recruitment_in_linkedin(
         "Authorization": f"Bearer {linkedin_acc.api_token}",
         "Content-Type": "application/json",
     }
-    response = requests.post(url, headers=headers, data=payload)
+    response = requests.post(url, headers=headers, data=payload, timeout=30)
     if response.status_code == 201:
         response_data = response.json()
         recruitment.linkedin_post_id = response_data.get("id")  # Store post ID
@@ -150,7 +150,7 @@ def delete_post(recruitment):
         "Content-Type": "application/json",
     }
 
-    response = requests.delete(url, headers=headers)
+    response = requests.delete(url, headers=headers, timeout=30)
     if response.status_code == 204:
         recruitment.linkedin_post_id = None
         recruitment.save()

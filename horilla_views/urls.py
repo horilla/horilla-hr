@@ -60,26 +60,6 @@ urlpatterns = [
         name="generic-history",
     ),
     path(
-        "update-kanban-sequence/",
-        views.update_kanban_sequence,
-        name="update-kanban-sequence",
-    ),
-    path(
-        "update-kanban-item-group/",
-        views.update_kanban_item_group,
-        name="update-kanban-item-group",
-    ),
-    path(
-        "get-kanban-card-count/",
-        views.get_kanban_card_count,
-        name="get-kanban-card-count",
-    ),
-    path(
-        "update-kanban-group-sequence/",
-        views.update_kanban_group_sequence,
-        name="update-kanban-group-sequence",
-    ),
-    path(
         "dynamic-path/<str:field>/<str:session_key>/",
         views.DynamicView.as_view(),
         name="dynamic-path",

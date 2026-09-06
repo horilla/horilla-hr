@@ -54,6 +54,18 @@ def permission_based_queryset(user, perm, queryset, user_obj=None):
         return queryset
 
     employee = user.employee_get
+
+    # Every narrowing branch below filters on employee_id, but 30 of the
+    # models routed through this helper have no such field -- LinkedInAccount,
+    # Recruitment, Objective, Project and the onboarding/offboarding stage
+    # and task models among them. Those filters raise FieldError, so a user
+    # *without* the permission got a 500 instead of a restricted list. There
+    # is no per-employee predicate to apply on such a model, and returning
+    # the unfiltered queryset would hand a permissionless caller everything,
+    # so the correct answer is an empty queryset.
+    if not any(f.name == "employee_id" for f in queryset.model._meta.fields):
+        return queryset.none()
+
     is_manager = EmployeeWorkInformation.objects.filter(
         reporting_manager_id=employee
     ).exists()

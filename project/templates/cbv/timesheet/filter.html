@@ -1,44 +1,55 @@
 {% load i18n %}{% load basefilters%}
 <div class="oh-dropdown__filter-body">
-    <div class="oh-accordion">
-        <div class="oh-accordion-header">{% trans "Timesheet" %}</div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header"
+            onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');">
+            <span class="oh-filter-section-icon"><ion-icon name="time-outline"></ion-icon></span>
+            {% trans "Timesheet" %}
+        </div>
         <div class="oh-accordion-body">
             <div class="row">
-                <div class="col-sm-12 col-md-12 col-lg-6">
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label class="oh-label" for="{{form.project_id.id_for_label}}">{{form.project_id.label}}</label>
                         {{form.project_id}}
                     </div>
-                    <div class="oh-input-group">
-                        <label class="oh-label" for="{{form.status.id_for_label}}">{{form.status.label}}</label>
-                        {{form.status}}
-                    </div>
                 </div>
-
-                <div class="col-sm-12 col-md-12 col-lg-6">
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label class="oh-label" for="{{form.task.id_for_label}}">{{form.task.label}}</label>
                         {{form.task}}
                     </div>
-                    <div class="oh-input-group">
-                        <label class="oh-label" for="{{form.date.id_for_label}}">{{form.date.label}}</label>
-                        {{form.date}}
-                    </div>
                 </div>
                 {% if perms.project.view_timesheet or request.user|is_reportingmanager %}
-                    <div class="col-sm-12 col-md-12 col-lg-6">
+                    <div class="col-sm-12 col-md-12 col-lg-12">
                         <div class="oh-input-group">
                             <label class="oh-label" for="{{form.employee_id.id_for_label}}">{{form.employee_id.label}}</label>
                             {{form.employee_id}}
                         </div>
                     </div>
                 {% endif %}
+                <div class="col-sm-12 col-md-12 col-lg-6">
+                    <div class="oh-input-group">
+                        <label class="oh-label" for="{{form.status.id_for_label}}">{{form.status.label}}</label>
+                        {{form.status}}
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-6">
+                    <div class="oh-input-group">
+                        <label class="oh-label" for="{{form.date.id_for_label}}">{{form.date.label}}</label>
+                        {{form.date}}
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="oh-accordion">
-        <div class="oh-accordion-header">{% trans "Advanced" %}</div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header"
+            onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');">
+            <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
+            {% trans "Advanced" %}
+        </div>
         <div class="oh-accordion-body">
             <div class="row">
                 <div class="col-sm-12 col-md-12 col-lg-6">

@@ -33,6 +33,7 @@ from xhtml2pdf import pisa
 
 from base.methods import eval_validate, has_export_access
 from horilla.decorators import login_required as func_login_required
+from horilla.export_safety import safe_cell
 from horilla.http.response import HorillaRedirect
 from horilla.signals import post_generic_delete, pre_generic_delete
 from horilla_views import models
@@ -42,7 +43,6 @@ from horilla_views.cbv_methods import (
     hx_request_required,
     login_required,
     merge_dicts,
-    set_nested_attr,
 )
 from horilla_views.forms import SavedFilterForm
 from horilla_views.generic.cbv.views import HorillaFormView, HorillaListView
@@ -710,236 +710,11 @@ class HorillaDeleteConfirmationView(View):
         return context
 
 
-@func_login_required
-def update_kanban_sequence(request):
-    """
-    generic method to update the 'sequence' in kanban view.
-
-    GET params:
-    - model: 'app_label.ModelName'
-    - order: list of IDs (in the desired order)
-    - groupKey: optional grouping field (e.g., stage_id)
-    - groupId: optional value of the grouping field
-    """
-
-    model_path = request.GET.get("model", "")
-    order = request.GET.get("order", "[]")
-    group_key = request.GET.get("groupKey")
-    group_id = request.GET.get("groupId")
-    order_by = request.GET.get("orderBy")
-    order_list = json.loads(order)
-
-    if not model_path:
-        return JsonResponse({"error": "Missing 'model'."}, status=400)
-    if not order_list:
-        return JsonResponse({"error": "Missing 'order'."}, status=400)
-    try:
-        app_label, model_name = model_path.split(".")
-        model = apps.get_model(app_label, model_name)
-    except Exception:
-        return JsonResponse({"error": "Invalid model path."}, status=400)
-
-    if not get_nested_field(model, order_by):
-        return JsonResponse({"info": f"Model does not have a {order_by} field."})
-
-    filters = {}
-    if group_key and group_id:
-        if not get_nested_field(model, group_key):
-            return JsonResponse(
-                {"error": f"Model does not have field '{group_key}'."}, status=400
-            )
-
-        field = get_nested_field(model, group_key)
-        if field.is_relation:
-            try:
-                group_instance = field.related_model.objects.get(pk=group_id)
-            except field.related_model.DoesNotExist:
-                return JsonResponse(
-                    {
-                        "error": f"{field.related_model.__name__} with ID {group_id} not found."
-                    },
-                    status=404,
-                )
-            filters[group_key] = group_instance
-        else:
-            filters[group_key] = group_id
-
-    objs = list(model.objects.filter(id__in=order_list, **filters))
-    obj_by_id = {str(obj.id): obj for obj in objs}
-
-    updated_objs = []
-    for index, obj_id in enumerate(order_list):
-        obj = obj_by_id.get(str(obj_id))
-        if obj:
-            set_nested_attr(obj, order_by, index)
-            updated_objs.append(obj)
-
-    if updated_objs and "__" not in order_by:
-        model.objects.bulk_update(updated_objs, [order_by])
-
-    return JsonResponse({"status": "success", "updated": len(updated_objs)})
-
-
-@func_login_required
-def update_kanban_item_group(request):
-    """
-    Generic method to update sequence and group kanban objects.
-
-    GET parameters:
-    - model: 'app_label.ModelName'
-    - groupKey: foreign key field on the model (can be nested: 'stage__stage_id')
-    - groupId: ID of the new group to assign
-    - objectId: ID of the object being moved
-    - order: ordered list of IDs to update sequence
-    """
-
-    model_path = request.GET.get("model")
-    group_key = request.GET.get("groupKey")
-    group_id = request.GET.get("groupId")
-    object_id = request.GET.get("objectId")
-    order = request.GET.get("order", "[]")
-    order_by = request.GET.get("orderBy")
-    try:
-        order_list = json.loads(order)
-    except json.JSONDecodeError:
-        order_list = []
-
-    if not all([model_path, group_key, group_id, object_id, order_list, order_by]):
-        return JsonResponse({"error": "Missing required parameters"}, status=400)
-
-    try:
-        model = apps.get_model(*model_path.split("."))
-
-        # Get the group object from group_key
-        group_field = get_nested_field(model, group_key)
-        if not group_field:
-            return JsonResponse(
-                {"error": f"Invalid group key: {group_key}"}, status=400
-            )
-
-        if hasattr(group_field, "related_model") and group_field.related_model:
-            group_model = group_field.related_model
-            try:
-                group_instance = group_model.objects.get(id=group_id)
-            except group_model.DoesNotExist:
-                return JsonResponse(
-                    {"error": f"{group_model.__name__} with ID {group_id} not found."},
-                    status=404,
-                )
-        else:
-            # Not a ForeignKey → probably a CharField (choices) or something similar
-            group_instance = group_id
-
-        # Fetch all objects in order_list
-        objects = list(model.objects.filter(id__in=order_list))
-        obj_map = {str(obj.id): obj for obj in objects}
-        updated = []
-        fields = set()
-
-        for index, obj_id in enumerate(order_list):
-            obj = obj_map.get(str(obj_id))
-            if not obj:
-                continue
-
-            set_nested_attr(obj, order_by, index)
-
-            # If group_key is nested, set it properly
-            if "__" in group_key:
-                set_nested_attr(obj, group_key, group_instance)
-            else:
-                setattr(obj, group_key, group_instance)
-
-            updated.append(obj)
-
-        if "__" not in group_key:
-            fields.add(group_key)
-
-        if fields and updated:
-            model.objects.bulk_update(updated, list(fields))
-
-        return JsonResponse({"status": "success", "updated": len(updated)})
-
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
-
-
-@func_login_required
-def update_kanban_group_sequence(request):
-    """
-    Generic method to update the sequence of kanban groups.
-    """
-    model_path = request.GET.get("model")
-    group_key = request.GET.get("group_key")
-    sequence_raw = request.GET.get("sequence", "")
-    order_by = request.GET.get("orderBy")
-
-    if not model_path:
-        return HorillaRedirect(
-            request,
-            message=_("No matching query found."),
-        )
-
-    try:
-        sequence = json.loads(sequence_raw)
-    except json.JSONDecodeError:
-        sequence = []
-
-    model = apps.get_model(*model_path.split("."))
-    group_field = get_nested_field(model, group_key)
-
-    group_model = group_field.related_model
-
-    to_update = []
-    for index, group_id in enumerate(sequence):
-        instance = group_model(
-            pk=group_id,
-            sequence=index,
-        )
-        to_update.append(instance)
-
-    group_model.objects.bulk_update(to_update, fields=[order_by])
-
-    return JsonResponse(
-        {"status": "success", "message": "Group sequence updated successfully."}
-    )
-
-
-@func_login_required
-def get_kanban_card_count(request):
-    """
-    Generic method to get the count of kanban cards in each group.
-    """
-    model_path = request.GET.get("model")
-    group_id = request.GET.get("group_id")
-    group_key = request.GET.get("group_key")
-
-    if not model_path:
-        return HorillaRedirect(
-            request,
-            message=_("No matching query found."),
-        )
-
-    model = apps.get_model(*model_path.split("."))
-    count = model.objects.filter(**{group_key: group_id}).count()
-
-    return HttpResponse(f"{count}")
-
-
 _getattibute = getattribute
 
 
 def sanitize_filename(filename):
     return re.sub(r'[<>:"/\\|?*\[\]]+', "_", filename)[:200]  # limit to 200 chars
-
-
-def get_model_class(model_path):
-    """
-    method to return the model class from string 'app.models.Model'
-    """
-    module_name, class_name = model_path.rsplit(".", 1)
-    module = __import__(module_name, fromlist=[class_name])
-    model_class = getattr(module, class_name)
-    return model_class
 
 
 def link_callback(uri, rel):
@@ -1001,6 +776,22 @@ def reshape_text(text):
         return text
 
 
+# Attribute names a client-supplied export column path may never traverse.
+_EXPORT_FORBIDDEN_PARTS = frozenset(
+    {
+        "password",
+        "employee_user_id",
+        "user",
+        "session",
+        "token",
+        "secret",
+        "api_key",
+        "api_secret",
+        "otp",
+    }
+)
+
+
 @func_login_required
 def export_data(request, *args, **kwargs):
 
@@ -1035,7 +826,10 @@ def export_data(request, *args, **kwargs):
         return HorillaRedirect(request, message=_("No matching query found."))
     app_label = model_path.split(".")[0]
     model_name = model_path.split(".")[-1]
-    model = apps.get_model(app_label, model_name)
+    try:
+        model = apps.get_model(app_label, model_name)
+    except LookupError:
+        return HorillaRedirect(request, message=_("No matching query found."))
     base_table = model._meta.db_table
 
     # =====================================================
@@ -1088,7 +882,18 @@ def export_data(request, *args, **kwargs):
     if not ids:
         return HttpResponse("No IDs provided")
 
-    placeholders = ", ".join(["%s"] * len(ids))
+    # Re-derive the id list through the model's own manager instead of
+    # trusting the client-supplied `ids` as-is: `model.objects` applies
+    # this app's company/permission scoping (HorillaCompanyManager), the
+    # same scoping the originating list view relies on, while the raw SQL
+    # below has no access control of its own and would otherwise return
+    # rows for any id an authenticated user cares to submit, including
+    # records outside their company.
+    authorized_ids = list(model.objects.filter(id__in=ids).values_list("id", flat=True))
+    if not authorized_ids:
+        return HttpResponse("No IDs provided")
+
+    placeholders = ", ".join(["%s"] * len(authorized_ids))
 
     query = f"""
         SELECT {", ".join(select_sql)}
@@ -1097,13 +902,13 @@ def export_data(request, *args, **kwargs):
     """
 
     with connection.cursor() as cursor:
-        cursor.execute(query, ids)
+        cursor.execute(query, authorized_ids)
         rows = cursor.fetchall()
 
     # =====================================================
     # ORM CACHE
     # =====================================================
-    objs = {o.id: o for o in model.objects.filter(id__in=ids)}
+    objs = {o.id: o for o in model.objects.filter(id__in=authorized_ids)}
 
     method_maps = {}
     for idx, attr in method_columns.items():
@@ -1113,9 +918,22 @@ def export_data(request, *args, **kwargs):
             for part in attr.split("__"):
                 if value is None:
                     break
+                # The path is client-supplied. Refuse private attributes and
+                # the handful of names that would turn a quick export into a
+                # credential dump (employee_user_id__password, tokens, OTPs).
+                if part.startswith("_") or part in _EXPORT_FORBIDDEN_PARTS:
+                    value = None
+                    break
                 value = getattr(value, part, None)
                 if callable(value):
-                    value = value()
+                    # Client-supplied column paths can name any attribute,
+                    # so only ever invoke this codebase's own read-only
+                    # accessor convention (get_full_name, get_avatar,
+                    # get_<field>_display, ...). Calling anything else
+                    # would let an export column trigger an arbitrary
+                    # zero-arg instance method, including mutating ones
+                    # like delete()/save().
+                    value = value() if part.startswith("get_") else None
             method_maps[idx][obj_id] = str(value) if value is not None else ""
 
     # =====================================================
@@ -1181,7 +999,9 @@ def export_data(request, *args, **kwargs):
 
         for r_idx, row in enumerate(final_rows, start=HEADER_ROW + 1):
             for c_idx, val in enumerate(row, start=1):
-                ws.cell(row=r_idx, column=c_idx).value = val
+                # Text carried through from user-entered data can execute when
+                # the workbook is opened, so guard it on the way in.
+                ws.cell(row=r_idx, column=c_idx).value = safe_cell(val)
 
         buf = BytesIO()
         wb.save(buf)

@@ -15,10 +15,50 @@ from django.db.utils import OperationalError, ProgrammingError
 logger = logging.getLogger(__name__)
 
 
+# What is tracked when an administrator has not configured anything -- which is
+# every install until someone opens the audit settings page.
+#
+# This was the three Employee models only, so "who changed this salary", "who
+# approved this leave" and "who edited this attendance record" -- the first
+# questions asked in any HR audit -- had no answer out of the box.
+#
+# Chosen for auditability per row written, not coverage for its own sake:
+# auditlog writes a LogEntry on every save of a tracked model, so a high-churn
+# table has a real cost. Deliberately excluded:
+#
+# * attendance.WorkRecords -- written by a scheduled job every 30 minutes via
+#   bulk_create. auditlog does not fire on bulk_create at all, so tracking it
+#   would buy an incomplete trail at the highest write volume in the system.
+# * The *Comment and *File side-tables: append-only, and they already carry
+#   their own author and timestamp.
+# * The *GeneralSetting singletons: worth revisiting, but they change rarely
+#   enough that the config UI covers them.
+#
+# Anything an administrator enables via AuditModelConfig replaces this list
+# wholesale (see _load_targets), so this is a floor, not a ceiling.
 DEFAULT_TRACKED_MODELS = [
+    # Identity and pay-affecting employee data.
     ("employee", "Employee"),
     ("employee", "EmployeeWorkInformation"),
     ("employee", "EmployeeBankDetails"),
+    # Money. A payslip or contract edit is the highest-consequence change in
+    # the product, and salary structure drives every future payslip.
+    ("payroll", "Contract"),
+    ("payroll", "Payslip"),
+    ("payroll", "SalaryStructure"),
+    ("payroll", "Allowance"),
+    ("payroll", "Deduction"),
+    ("payroll", "LoanAccount"),
+    ("payroll", "Reimbursement"),
+    # Leave. Balance changes and approvals are the common dispute.
+    ("leave", "LeaveRequest"),
+    ("leave", "AvailableLeave"),
+    ("leave", "LeaveAllocationRequest"),
+    ("leave", "LeaveType"),
+    # Attendance. Edits here feed payroll, so they need the same trail.
+    ("attendance", "Attendance"),
+    ("attendance", "AttendanceOverTime"),
+    ("attendance", "AttendanceActivity"),
 ]
 
 # Models registered by this module so we can safely unregister them later

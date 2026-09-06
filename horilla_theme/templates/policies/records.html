@@ -1,4 +1,5 @@
 {% load i18n %}
+{% load basefilters %}
 {% if policies %}
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 p-2">
         {% for policy in policies %}
@@ -55,7 +56,7 @@
 
                 <div class="h-80 overflow-hidden mb-3 border rounded-md p-4 sha">
                     {% if policy.body %}
-                        <p class="text-sm text-[#565E6C] mb-3">{{ policy.body|safe }}</p>
+                        <p class="text-sm text-[#565E6C] mb-3">{{ policy.body|sanitize_html }}</p>
                     {% endif %}
                     {# a policy can be an attachment with no body, which used to render as a blank card #}
                     {% with attachments=policy.attachments.all %}

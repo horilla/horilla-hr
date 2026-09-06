@@ -10,6 +10,7 @@ objects in the Excel export (see report/export.py).
 
 from __future__ import annotations
 
+import logging
 from io import BytesIO
 from typing import Any, Optional
 
@@ -21,17 +22,25 @@ from reportlab.graphics.charts.piecharts import Pie
 from reportlab.graphics.shapes import Circle, Drawing
 from reportlab.lib import colors
 
+logger = logging.getLogger(__name__)
+
 # Same brand palette as report/export.py's COLOR_PRIMARY, plus a few
 # distinct hues for additional series — kept visually consistent with the
 # in-app charts and the rest of the exported document.
-PALETTE = [
-    colors.HexColor("#E54F38"),  # coral — brand primary
-    colors.HexColor("#2563EB"),  # blue
-    colors.HexColor("#15803D"),  # green
-    colors.HexColor("#7C3AED"),  # violet
-    colors.HexColor("#0D9488"),  # teal
-    colors.HexColor("#F59E0B"),  # amber
+# Single source of truth for chart colours. report/export.py derives the
+# openpyxl (native Excel chart) palette from this list -- the two used to be
+# duplicated literals in separate files linked only by a comment, so drift
+# between the PDF charts and the Excel charts was a matter of time.
+PALETTE_HEX = [
+    "E54F38",  # coral — brand primary
+    "2563EB",  # blue
+    "15803D",  # green
+    "7C3AED",  # violet
+    "0D9488",  # teal
+    "F59E0B",  # amber
 ]
+
+PALETTE = [colors.HexColor(f"#{value}") for value in PALETTE_HEX]
 
 # reportlab defaults to Times for all chart text. The exported document is set
 # in Helvetica, so unset labels made every chart look pasted in from another
@@ -64,12 +73,22 @@ def render_chart_png(
             drawing = _line_drawing(categories, series, width, height)
         else:
             drawing = _bar_drawing(categories, series, width, height)
-    except Exception:
-        return None
 
-    buf = BytesIO()
-    renderPM.drawToFile(drawing, buf, fmt="PNG", dpi=150)
-    return buf.getvalue()
+        buf = BytesIO()
+        renderPM.drawToFile(drawing, buf, fmt="PNG", dpi=150)
+        return buf.getvalue()
+    except Exception:
+        # A chart that fails to render used to return None, which callers
+        # treat as "no data" -- so a genuine rendering failure surfaced on a
+        # board document as "No data for the selected period". Log it so the
+        # two are distinguishable, and still degrade to no image rather than
+        # failing the whole export.
+        logger.exception(
+            "Chart render failed (type=%s, id=%s)",
+            chart_type,
+            chart.get("id") or "?",
+        )
+        return None
 
 
 def _legend(pairs: list[tuple], x: float, y: float) -> Legend:

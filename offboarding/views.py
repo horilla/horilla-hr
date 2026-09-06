@@ -1,10 +1,13 @@
 import json
+import logging
 from datetime import datetime, timedelta
 from urllib.parse import parse_qs, urlparse
 
 from django.apps import apps
 from django.contrib import messages
+from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
+from django.db.utils import IntegrityError
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -62,6 +65,8 @@ from offboarding.models import (
     OffboardingTask,
     ResignationLetter,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def any_manager(employee: Employee):
@@ -819,14 +824,28 @@ def task_assign(request):
     task = OffboardingTask.find(task_id)
     if not task:
         return HorillaRedirect(request, message=_("Task not found"))
+    failed = []
     for employee in employees:
         try:
             assigned_task = EmployeeTask()
             assigned_task.employee_id = employee
             assigned_task.task_id = task
             assigned_task.save()
-        except:
-            pass
+        except (IntegrityError, ValidationError) as error:
+            # The employee already has this task, or the row fails model
+            # validation. Skipping that employee is right, but this was a
+            # bare except inside the loop, so every other failure was also
+            # silent and the caller still saw a success page.
+            failed.append(employee)
+            logger.warning(
+                "task %s not assigned to %s: %s", task.pk, employee.pk, error
+            )
+    if failed:
+        messages.warning(
+            request,
+            _("Task could not be assigned to %(count)s employee(s).")
+            % {"count": len(failed)},
+        )
     offboarding = employees.first().stage_id.offboarding_id
     stage_forms = {}
     stage_forms[str(offboarding.id)] = StageSelectForm(offboarding=offboarding)

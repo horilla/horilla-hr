@@ -5,7 +5,6 @@ This page is used to write custom template filters.
 """
 
 from django import template
-from django.template.defaultfilters import register
 
 from onboarding.models import OnboardingStage
 

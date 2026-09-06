@@ -12,6 +12,12 @@ from .models import *
 from .pgdump import *
 from .zip import *
 
+# ponytail: still a per-process BackgroundScheduler, unlike the jobs moved to
+# horilla.scheduling. This one is reconfigured at runtime from views.py (an
+# admin editing the Google Drive backup config calls start/stop directly), so it
+# needs a mutable live scheduler rather than a static registry. It therefore
+# still runs one copy per gunicorn worker. Fix by moving job control behind the
+# DjangoJobStore -- run_scheduler owns execution, views only write config rows.
 scheduler = BackgroundScheduler()
 
 # def backup_database():

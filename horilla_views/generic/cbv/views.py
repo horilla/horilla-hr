@@ -765,7 +765,9 @@ class HorillaListView(ListView):
 
             serialized = []
             field_column_mapping_values = {}
-            for _, row in df.iterrows():
+            # not `_`: that would make the gettext alias a local for this
+            # whole method, so the _() call above raises UnboundLocalError.
+            for _index, row in df.iterrows():
                 record = {}
                 for model_field, excel_col in field_column_mapping.items():
                     if excel_col in row:
@@ -2405,6 +2407,11 @@ class HorillaNavView(TemplateView):
     create_attrs: str = """"""
     apply_first_filter = True
     default_group_by: str = ""
+    # Opt-in redesign of the Filter dropdown's accordion sections -- see
+    # horilla_nav.html's .oh-filter-modern styles. False by default so every
+    # existing view keeps the classic look; a Nav view sets this to True to
+    # adopt the new design without affecting anyone else.
+    modern_filter: bool = False
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -2492,6 +2499,61 @@ class HorillaNavView(TemplateView):
 
         return updated_fields
 
+    @staticmethod
+    def _get_applied_filter_count(filterset):
+        """
+        "N filters applied" count for the Filter trigger's badge (see
+        applied_filter_count in horilla_nav.html) -- generic across any
+        FilterSet, not just Employee's: every declared field with a
+        genuinely non-empty *submitted* value, plus the Advanced
+        builder's custom_filter_rows (those are raw (field, lookup,
+        value) arrays read straight off request data, not declared form
+        fields -- see HorillaFilterSet._extract_custom_filter_rows in
+        horilla/filters.py -- so they need adding in separately).
+
+        Reads each field's raw submitted value via BoundField.value()
+        rather than filterset.form.cleaned_data/is_valid() -- cleaned_data
+        is all-or-nothing: a stale id in just ONE field (e.g. a
+        company-scoped FK selected before the active company changed)
+        fails validation for the WHOLE form, which would silently drop
+        every other genuinely-applied filter from the count too.
+        value() needs no validation to succeed, so one bad field can't
+        zero out the rest.
+
+        Checks against None/"" plus each field's own neutral choice,
+        rather than just None/""/empty-collection: an "unfiltered" value
+        isn't always the empty string. A single-select field's neutral
+        option carries whatever raw value its FIRST declared choice
+        happens to use (e.g. EmployeeFilter's working_today -- a
+        NullBooleanFilter, patched in by attendance/filters.py -- uses
+        Django's own NullBooleanSelect, whose "Unknown" choice is
+        ("unknown", ...), not ""). apply_first_filter's initial JS
+        auto-submit resubmits the form's current DEFAULT state (not just
+        fields the user actually changed), so without this, a field like
+        that would look "applied" forever after the very first page
+        load. is_active follows the "" convention already (its own
+        widget's first choice IS ("", "Any")) so this is a no-op for it,
+        just a safety net for any field that doesn't.
+
+        Pagination/sort/group-by/search params are never FilterSet fields
+        at all, so they're excluded for free without an explicit denylist.
+        """
+        count = 0
+        if filterset.is_bound:
+            for name, field in filterset.form.fields.items():
+                value = filterset.form[name].value()
+                if value is None or value == "":
+                    continue
+                if hasattr(value, "__len__") and len(value) == 0:
+                    continue
+                if not isinstance(value, (list, tuple)):
+                    choices = list(getattr(field.widget, "choices", []) or [])
+                    if choices and str(value) == str(choices[0][0]):
+                        continue
+                count += 1
+        count += len(getattr(filterset, "custom_filter_rows", []))
+        return count
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["nav_title"] = self.nav_title
@@ -2508,6 +2570,20 @@ class HorillaNavView(TemplateView):
         context["nested_fields_selected"] = nested_selected
         context["actions"] = self.actions
         context["filter_body_template"] = self.filter_body_template
+        context["modern_filter"] = self.modern_filter
+        # Generic hand-off for the "+ Add filter" custom-lookup builder --
+        # any FilterSet can opt in by building a custom_filter_fields list
+        # (see EmployeeFilter._build_custom_filter_fields for the shape)
+        # on itself; views that don't set one just get an empty list, so
+        # the builder renders nothing.
+        context["custom_filter_fields"] = getattr(
+            self.filter_instance, "custom_filter_fields", []
+        )
+        # Populated below, once the request-data-bound `filterset` exists --
+        # custom_filter_fields above is fine off the data-less throwaway
+        # instance (it's just the field/lookup registry), but which rows
+        # are actually applied depends on this request's own GET data.
+        context["custom_filter_rows"] = []
         context["create_attrs"] = self.create_attrs
         context["search_in"] = self.search_in
         context["apply_first_filter"] = self.apply_first_filter
@@ -2521,11 +2597,14 @@ class HorillaNavView(TemplateView):
         )
         context["empty_inputs"] = self.empty_inputs + ["nav_url"]
         context["last_filter"] = dict(last_filter)
+        context["applied_filter_count"] = 0
         if self.filter_instance:
             FilterClass = self.filter_instance.__class__
             filterset = FilterClass(self.request.GET or None)
             context[self.filter_form_context_name] = filterset.form
             context[self.filter_instance_context_name] = filterset
+            context["custom_filter_rows"] = getattr(filterset, "custom_filter_rows", [])
+            context["applied_filter_count"] = self._get_applied_filter_count(filterset)
 
         context["active_view"] = models.ActiveView.objects.filter(
             path=self.request.path
@@ -2794,4 +2873,4 @@ def dispatch_profile_tab(request, tab_key: str, pk: int, *args, **kwargs):
     view_func = HorillaProfileView._tab_view_registry.get(tab_key)
     if view_func is None:
         raise Http404(f"No profile tab registered for '{tab_key}'")
-    return view_func(request, pk=pk, *args, **kwargs)
+    return view_func(request, *args, pk=pk, **kwargs)

@@ -1,90 +1,138 @@
 {% load i18n %}
-<div class="oh-accordion">
-	<div class="oh-accordion-header">{% trans "Rotating Work Type" %}</div>
-	<div class="oh-accordion-body">
-		<div class="row">
-			<div class="col-sm-12 col-md-12 col-lg-6">
-				<div class="oh-input-group">
-					<label class="oh-label">{% trans "Employee" %}</label>
-					{{form.employee_id}}
-				</div>
-				<div class="oh-input-group">
-					<label class="oh-label">{% trans "Based On" %}</label>
-					{{form.based_on}}
-				</div>
-				<div class="oh-input-group">
-					<label class="oh-label">{% trans "Current Shift" %}</label>
-					{{form.current_work_type}}
-				</div>
-			</div>
-			<div class="col-sm-12 col-md-12 col-lg-6">
-				<div class="oh-input-group">
-					<label class="oh-label">{% trans "Rotating Shift" %}</label>
-					{{form.rotating_work_type_id}}
-				</div>
-				<div class="oh-input-group">
-					<label class="oh-label">{% trans "Next Switch" %}</label>
-					{{form.next_change_date}}
-				</div>
-				<div class="oh-input-group">
-					<label class="oh-label">{% trans "Next Shift" %}</label>
-					{{form.next_work_type}}
-				</div>
-			</div>
-		</div>
-	</div>
-</div>
+<div class="oh-dropdown__filter-body">
+  <!-- Outside any accordion (always visible, not collapsible) -- same
+       placement as every other modernized filter panel this session:
+       primary/most-used search, shouldn't be hidden behind a click.
+       Comma-separated multi-term search (RotatingWorkTypeAssignFilter.
+       name_or_badge -- see horilla.filters.filter_name_or_badge_terms). -->
+  <div class="row">
+    <div class="col-sm-12 col-md-12 col-lg-12">
+      <div class="oh-input-group">
+        <label class="oh-label" for="{{form.name_or_badge.id_for_label}}">{% trans "Name or Badge ID" %}</label>
+        {{form.name_or_badge}}
+      </div>
+    </div>
+  </div>
 
-<div class="oh-accordion">
-	<div class="oh-accordion-header">{% trans "Work Info" %}</div>
-	<div class="oh-accordion-body">
-		<div class="row">
-			<div class="col-sm-12 col-md-12 col-lg-6">
-				<div class="oh-input-group">
-					<label class="oh-label">{% trans "Company" %}</label>
-					{{form.employee_id__employee_work_info__company_id}}
-				</div>
-				<div class="oh-input-group">
-					<label class="oh-label">{% trans "Department" %}</label>
-					{{form.employee_id__employee_work_info__department_id}}
-				</div>
-				<div class="oh-input-group">
-					<label class="oh-label">{% trans "Shift" %}</label>
-					{{form.employee_id__employee_work_info__shift_id}}
-				</div>
-			</div>
-			<div class="col-sm-12 col-md-12 col-lg-6">
-				<div class="oh-input-group">
-					<label class="oh-label"
-						>{% trans "Reporting Manager" %}</label
-					>
-					{{form.employee_id__employee_work_info__reporting_manager_id}}
-				</div>
-				<div class="oh-input-group">
-					<label class="oh-label">{% trans "Job Position" %}</label>
-					{{form.employee_id__employee_work_info__job_position_id}}
-				</div>
-				<div class="oh-input-group">
-					<label class="oh-label">{% trans "Work Type" %}</label>
-					{{form.employee_id__employee_work_info__work_type_id}}
-				</div>
-			</div>
-		</div>
-	</div>
-</div>
+  <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+    <div class="oh-accordion-header">
+      <span class="oh-filter-section-icon"><ion-icon name="sync-outline"></ion-icon></span>
+      {% trans "Rotating Work Type" %}
+    </div>
+    <div class="oh-accordion-body">
+      <!-- Full width -- every field here is now an AJAX-searched
+           Select2 combobox (see base/filters.py's
+           RotatingWorkTypeAssignFilter.ajax_fields) and needs real room
+           for its selected chips/placeholder text, same reasoning as
+           every other modernized panel. -->
+      <div class="row">
+        <div class="col-sm-12 col-md-12 col-lg-12">
+          <div class="oh-input-group">
+            <label class="oh-label" for="{{form.employee_id.id_for_label}}">{% trans "Employee" %}</label>
+            {{form.employee_id}}
+          </div>
+        </div>
+        <div class="col-sm-12 col-md-12 col-lg-12">
+          <div class="oh-input-group">
+            <label class="oh-label" for="{{form.rotating_work_type_id.id_for_label}}">{% trans "Rotating Work Type" %}</label>
+            {{form.rotating_work_type_id}}
+          </div>
+        </div>
+        <div class="col-sm-12 col-md-12 col-lg-12">
+          <div class="oh-input-group">
+            <label class="oh-label" for="{{form.current_work_type.id_for_label}}">{% trans "Current Work Type" %}</label>
+            {{form.current_work_type}}
+          </div>
+        </div>
+        <div class="col-sm-12 col-md-12 col-lg-12">
+          <div class="oh-input-group">
+            <label class="oh-label" for="{{form.next_work_type.id_for_label}}">{% trans "Next Work Type" %}</label>
+            {{form.next_work_type}}
+          </div>
+        </div>
+        <div class="col-sm-12 col-md-12 col-lg-6">
+          <div class="oh-input-group">
+            <label class="oh-label">{% trans "Based On" %}</label>
+            {{form.based_on}}
+          </div>
+        </div>
+        <div class="col-sm-12 col-md-12 col-lg-6">
+          <div class="oh-input-group">
+            <label class="oh-label">{% trans "Next Switch" %}</label>
+            {{form.next_change_date}}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-<div class="oh-accordion">
-	<div class="oh-accordion-header">{% trans "Advanced" %}</div>
-	<div class="oh-accordion-body">
-		<div class="row">
-			<div class="col-sm-12 col-md-12 col-lg-6">
-				<div class="oh-input-group">
-					<div class="oh-input-group">
-						<label class="oh-label">{% trans "Is Active" %}?</label>
-						{{form.is_active}}
-					</div>
-				</div>
-			</div>
-		</div>
-	</div>
+  <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+    <div class="oh-accordion-header">
+      <span class="oh-filter-section-icon"><ion-icon name="briefcase-outline"></ion-icon></span>
+      {% trans "Work Info" %}
+    </div>
+    <div class="oh-accordion-body">
+      <div class="row">
+        <div class="col-sm-12 col-md-12 col-lg-12">
+          <div class="oh-input-group">
+            <label class="oh-label" for="{{form.employee_id__employee_work_info__company_id.id_for_label}}">{% trans "Company" %}</label>
+            {{form.employee_id__employee_work_info__company_id}}
+          </div>
+        </div>
+        <div class="col-sm-12 col-md-12 col-lg-12">
+          <div class="oh-input-group">
+            <label class="oh-label" for="{{form.employee_id__employee_work_info__department_id.id_for_label}}">{% trans "Department" %}</label>
+            {{form.employee_id__employee_work_info__department_id}}
+          </div>
+        </div>
+        <div class="col-sm-12 col-md-12 col-lg-12">
+          <div class="oh-input-group">
+            <label class="oh-label" for="{{form.employee_id__employee_work_info__job_position_id.id_for_label}}">{% trans "Job Position" %}</label>
+            {{form.employee_id__employee_work_info__job_position_id}}
+          </div>
+        </div>
+        <div class="col-sm-12 col-md-12 col-lg-12">
+          <div class="oh-input-group">
+            <label class="oh-label" for="{{form.employee_id__employee_work_info__job_role_id.id_for_label}}">{% trans "Job Role" %}</label>
+            {{form.employee_id__employee_work_info__job_role_id}}
+          </div>
+        </div>
+        <div class="col-sm-12 col-md-12 col-lg-12">
+          <div class="oh-input-group">
+            <label class="oh-label" for="{{form.employee_id__employee_work_info__shift_id.id_for_label}}">{% trans "Shift" %}</label>
+            {{form.employee_id__employee_work_info__shift_id}}
+          </div>
+        </div>
+        <div class="col-sm-12 col-md-12 col-lg-12">
+          <div class="oh-input-group">
+            <label class="oh-label" for="{{form.employee_id__employee_work_info__work_type_id.id_for_label}}">{% trans "Work Type" %}</label>
+            {{form.employee_id__employee_work_info__work_type_id}}
+          </div>
+        </div>
+        <div class="col-sm-12 col-md-12 col-lg-12">
+          <div class="oh-input-group">
+            <label class="oh-label" for="{{form.employee_id__employee_work_info__reporting_manager_id.id_for_label}}">{% trans "Reporting Manager" %}</label>
+            {{form.employee_id__employee_work_info__reporting_manager_id}}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+    <div class="oh-accordion-header">
+      <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
+      {% trans "Advanced" %}
+    </div>
+    <div class="oh-accordion-body">
+      <div class="row">
+        <div class="col-sm-12 col-md-12 col-lg-6">
+          <div class="oh-input-group">
+            <label class="oh-label">{% trans "Is Active" %}?</label>
+            {{form.is_active}}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>

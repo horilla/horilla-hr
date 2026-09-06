@@ -1,4 +1,15 @@
-{% load static i18n %}
+﻿{% load static i18n %}
+{% comment %}
+    modern_filter_panel.html carries the .oh-filter-modern/.oh-filter-panel
+    CSS and toggleModernFilterPanel/filterModernPanelFields JS -- shared
+    with any plain FBV page building its own modern-style filter dropdown
+    (e.g. attendance/work_record). filter_count_and_custom_builder.html
+    (included below) carries the applied-filter-count badge and the
+    custom filter builder, shared with inline_nav.html. Everything else
+    below stays specific to HorillaNavView's OWN markup/behavior (nested
+    group-by, ajax field wiring).
+{% endcomment %}
+{% include 'generic/modern_filter_panel.html' %}
 <style>
     /* .dropdown-content is only ever revealed via :hover/:focus-within
        (see global.css) -- it's shown/hidden with opacity+visibility, not
@@ -13,6 +24,14 @@
         transform: translateY(0) !important;
     }
 </style>
+{% comment %}
+    Filter-count badge counter and the custom filter builder ("+ Add
+    filter", Advanced section) -- shared with inline_nav.html (the same
+    two features apply there too, once a page sets modern_filter=True and
+    a FilterSet's own custom_filter_fields), see that partial's own
+    docstring for the full explanation.
+{% endcomment %}
+{% include 'generic/filter_count_and_custom_builder.html' %}
 <script>
     // Grouping can be configured from two independent places: this Filter
     // dropdown's own Group By section, and (once a grouping is active)
@@ -186,25 +205,70 @@
                 </div>
 
                 {% if filter_body_template %}
-                    <div class="relative dropdown-wrapper" id="filterDropdownWrapper">
-                        <span
-                            class="px-5 py-2 h-full bg-[white] rounded-md text-xs flex items-center gap-2 border border-primary-500 hover:border-primary-600 transition duration-300 cursor-pointer"
-                        >
-                            <img
-                                src="{% static 'horilla_theme/assets/img/icons/sort.svg' %}"
-                                alt="{% trans 'Filter' %}"
-                                width="15"
-                                class="mt-[-1px]"
+                    <div class="relative dropdown-wrapper{% if modern_filter %} oh-filter-modern{% endif %}" id="filterDropdownWrapper">
+                        {% if modern_filter %}
+                            <button
+                                type="button"
+                                id="modernFilterTrigger"
+                                onclick="toggleModernFilterPanel(true)"
+                                class="px-5 py-2 h-full bg-[white] rounded-md text-xs flex items-center gap-2 border border-primary-500 hover:border-primary-600 transition duration-300 cursor-pointer"
                             >
-                            {% trans "Filter" %}
-                        </span>
-
-                        <div class="oh-filter-dropdown dropdown-content absolute z-30 bg-white rounded-lg [box-shadow:0px_0px_20px_0px_rgb(0_0_0_/_8%)] min-w-[400px] p-3 right-0">
+                                <img
+                                    src="{% static 'horilla_theme/assets/img/icons/sort.svg' %}"
+                                    alt="{% trans 'Filter' %}"
+                                    width="15"
+                                    class="mt-[-1px]"
+                                >
+                                {% trans "Filter" %}
+                                <span class="oh-filter-count-badge js-filter-count-badge{% if not applied_filter_count %} oh-filter-count-badge--hidden{% endif %}" id="modernFilterCountBadge">{{applied_filter_count|default:0}}</span>
+                            </button>
+                            <div class="oh-filter-backdrop" id="modernFilterBackdrop" onclick="toggleModernFilterPanel(false)"></div>
+                            <div class="oh-filter-panel" id="modernFilterPanel">
+                                <div class="oh-filter-panel__header">
+                                    <h3>
+                                        {% trans "Filter" %} {{nav_title}}
+                                        <span class="oh-filter-count-badge oh-filter-count-badge--header js-filter-count-badge{% if not applied_filter_count %} oh-filter-count-badge--hidden{% endif %}">{{applied_filter_count|default:0}}</span>
+                                    </h3>
+                                    <button type="button" class="oh-filter-panel__close" onclick="toggleModernFilterPanel(false)" aria-label="{% trans 'Close' %}">
+                                        <ion-icon name="close-outline"></ion-icon>
+                                    </button>
+                                </div>
+                                <div class="oh-filter-panel__search">
+                                    <input
+                                        type="text"
+                                        id="modernFilterFieldSearch"
+                                        placeholder="{% trans 'Find a filter' %}"
+                                        oninput="filterModernPanelFields(this.value)"
+                                        autocomplete="off"
+                                    >
+                                </div>
+                                <div class="oh-filter-panel__body">
                             <div class="accordion-wrapper space-y-2">
                                 {% include filter_body_template %}
+                        {% else %}
+                            <span
+                                class="px-5 py-2 h-full bg-[white] rounded-md text-xs flex items-center gap-2 border border-primary-500 hover:border-primary-600 transition duration-300 cursor-pointer"
+                            >
+                                <img
+                                    src="{% static 'horilla_theme/assets/img/icons/sort.svg' %}"
+                                    alt="{% trans 'Filter' %}"
+                                    width="15"
+                                    class="mt-[-1px]"
+                                >
+                                {% trans "Filter" %}
+                                <span class="oh-filter-count-badge js-filter-count-badge{% if not applied_filter_count %} oh-filter-count-badge--hidden{% endif %}">{{applied_filter_count|default:0}}</span>
+                            </span>
+
+                            <div class="oh-filter-dropdown dropdown-content absolute z-30 bg-white rounded-lg [box-shadow:0px_0px_20px_0px_rgb(0_0_0_/_8%)] min-w-[400px] p-3 right-0">
+                            <div class="accordion-wrapper space-y-2">
+                                {% include filter_body_template %}
+                        {% endif %}
                                 {% if group_by_fields and not nested_group_by_fields %}
-                                    <div class="oh-accordion">
-                                        <div class="oh-accordion-header">
+                                    <div class="oh-accordion oh-accordion--top-divider">
+                                        <div class="oh-accordion-header"
+                                            onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
+                                        >
+                                            <span class="oh-filter-section-icon"><ion-icon name="layers-outline"></ion-icon></span>
                                             {% trans 'Group By' %}
                                         </div>
                                         <div class="oh-accordion-body">
@@ -248,8 +312,11 @@
                                         level, and a preview line shows the resulting hierarchy
                                         before Apply.
                                     {% endcomment %}
-                                    <div class="oh-accordion">
-                                        <div class="oh-accordion-header">
+                                    <div class="oh-accordion oh-accordion--top-divider">
+                                        <div class="oh-accordion-header"
+                                            onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
+                                        >
+                                            <span class="oh-filter-section-icon"><ion-icon name="layers-outline"></ion-icon></span>
                                             {% trans 'Group By' %}
                                         </div>
                                         <div class="oh-accordion-body">
@@ -370,6 +437,7 @@
                                     </script>
                                 {% endif %}
 
+                                {% if not modern_filter %}
                                 <div class="flex justify-end">
                                     <button
                                         class="px-4 py-2 bg-primary-600 text-white rounded-md text-xs flex items-center gap-2 hover:bg-primary-800 transition duration-300 filterButton"
@@ -384,8 +452,27 @@
                                         >{% trans "Apply" %}
                                     </button>
                                 </div>
+                                {% endif %}
                             </div>
-                        </div>
+                        {% if modern_filter %}
+                                </div>
+                                <div class="oh-filter-panel__footer">
+                                    <button type="button" class="oh-filter-panel__clear" onclick="clearAllFilter(this)">
+                                        <ion-icon name="close-outline"></ion-icon>
+                                        {% trans "Clear all" %}
+                                    </button>
+                                    <button
+                                        class="oh-filter-panel__apply filterButton"
+                                        id="applyFilter"
+                                    >
+                                        <ion-icon name="checkmark-outline"></ion-icon>
+                                        {% trans "Apply" %}
+                                    </button>
+                                </div>
+                            </div>
+                        {% else %}
+                            </div>
+                        {% endif %}
                     </div>
                 {% else %}
                     <button hidden type="submit" id="applyFilter" class="oh-btn oh-btn--secondary oh-btn--small w-100">

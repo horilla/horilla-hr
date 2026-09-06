@@ -1,6 +1,7 @@
 {% extends 'candidate/application_form_component.html' %}
 {% block content %}
     {% load static %}
+{% load basefilters %}
     {% load i18n %} {{ form.load }}
     <div id="main">
         <div class="oh-wrapper mt-5">
@@ -373,7 +374,7 @@
                 {% else %}
                     <div class="col-12 col-md-6 col-lg-6">
                         <div class="oh-onboarding-preview oh-onboarding-card--top-bar w-100">
-                            {{ recruitment.description|safe }}
+                            {{ recruitment.description|sanitize_html }}
                             <div
                                 class="oh-onboarding-preview__content"
                                 id="recruitmentInfoBody"
@@ -393,9 +394,19 @@
         {% if resume %}
             $("#resume").val(resume)
         {% endif %}
-        var description = `{{form.instance.recruitment_id.description|safe}}`
-        var formattedDescription = description.replace(/\n/g, "<br>");
-        $("#recruitmentInfoBody").html(formattedDescription);
+        {# A backtick literal would still evaluate ${...}; escapejs does not
+           escape it. A double-quoted string has no interpolation at all. #}
+        var description = "{{ form.instance.recruitment_id.description|escapejs }}";
+        // Build the line breaks as nodes rather than markup: .html() on a
+        // recruiter-authored string is a stored-XSS sink, and this page is
+        // public to unauthenticated candidates.
+        var $body = $("#recruitmentInfoBody").empty();
+        description.split("\n").forEach(function (line, index) {
+            if (index) {
+                $body.append(document.createElement("br"));
+            }
+            $body.append(document.createTextNode(line));
+        });
 
         $('form label').each(function () {
             var text = $(this).text();

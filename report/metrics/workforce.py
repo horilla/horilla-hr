@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections import Counter
 from datetime import date
 
@@ -15,6 +16,8 @@ from report.engine import (
     iter_months,
     month_offset,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _work_info(filters: ReportFilters):
@@ -461,37 +464,48 @@ def turnover_attrition(filters: ReportFilters) -> dict:
     )
     rate = formula_turnover(total_hires, total_exits, avg_headcount)
 
+    # One pass for both the first-year count and the department breakdown.
+    # These were two loops over the same list running identical work-info
+    # lookups. Measured: this does not change the query count (iter_exits
+    # already select_relates work_info, so the per-row fallback almost never
+    # fired) -- it is a readability change, plus a bulk fetch instead of a
+    # per-row one on the rare path where the relation really is missing.
+    missing = [
+        row["employee_id"]
+        for row in period_exits
+        if getattr(row.get("employee"), "employee_work_info", None) is None
+    ]
+    fallback_wi = {}
+    if missing:
+        try:
+            fallback_wi = {
+                wi.employee_id_id: wi
+                for wi in EmployeeWorkInformation.objects.filter(
+                    employee_id__in=missing
+                ).select_related("department_id")
+            }
+        except Exception:
+            logger.exception("Could not backfill work info for exit rows")
+
     first_year = 0
-    for row in period_exits:
-        emp = row.get("employee")
-        wi = getattr(emp, "employee_work_info", None) if emp else None
-        if wi is None and emp is not None:
-            try:
-                wi = EmployeeWorkInformation.objects.filter(employee_id=emp).first()
-            except Exception:
-                wi = None
-        joining = getattr(wi, "date_joining", None) if wi else None
-        if joining and row["exit_date"] and (row["exit_date"] - joining).days <= 365:
-            first_year += 1
-
-    # Dept breakdown from exit list
-    from collections import Counter
-
     dept_counter = Counter()
     for row in period_exits:
         emp = row.get("employee")
         wi = getattr(emp, "employee_work_info", None) if emp else None
-        if wi is None and emp is not None:
-            try:
-                wi = EmployeeWorkInformation.objects.filter(employee_id=emp).first()
-            except Exception:
-                wi = None
+        if wi is None:
+            wi = fallback_wi.get(row["employee_id"])
+
+        joining = getattr(wi, "date_joining", None) if wi else None
+        if joining and row["exit_date"] and (row["exit_date"] - joining).days <= 365:
+            first_year += 1
+
         dept = (
             getattr(getattr(wi, "department_id", None), "department", None)
             if wi
             else None
         )
         dept_counter[dept or str(_("Unassigned"))] += 1
+
     by_dept = [{"department": k, "count": v} for k, v in dept_counter.most_common()]
 
     return {
@@ -934,8 +948,16 @@ def new_hire_90_day_attrition(filters: ReportFilters) -> dict:
         date_joining__gte=filters.from_date,
         date_joining__lte=filters.to_date,
     )
+    # This report is *about* people who left, so the cohort must include
+    # inactive employees. apply_org_filters defaults to active-only, which
+    # dropped every leaver from the joiner cohort and made the numerator
+    # structurally zero -- the rate could never be anything but 0%.
     hires_qs = apply_org_filters(
-        hires_qs, filters, prefix="", employee_prefix="employee_id"
+        hires_qs,
+        filters,
+        prefix="",
+        employee_prefix="employee_id",
+        apply_employment_status=False,
     )
     hire_rows = list(
         hires_qs.select_related("employee_id", "department_id").values(
@@ -1115,4 +1137,148 @@ def workforce_composition_drilldown(
         ],
         rows=rows,
         truncated=total > len(rows),
+    )
+
+
+def turnover_attrition_drilldown(
+    filters: ReportFilters, params: dict, request=None
+) -> dict:
+    """Who exited, over the same rolling 6-month window the KPIs use.
+
+    The report deliberately ignores filters.from_date (see
+    turnover_attrition), so the drill-down has to use that same window or the
+    list would not add up to the rate above it.
+    """
+    from report.metrics._exits import exit_drilldown
+
+    return exit_drilldown(
+        filters,
+        params,
+        request,
+        title=_("Exits · Rolling 6 months"),
+        from_date=month_offset(filters.to_date, 5),
+        to_date=filters.to_date,
+    )
+
+
+def exit_analysis_drilldown(filters: ReportFilters, params: dict, request=None) -> dict:
+    from report.metrics._exits import exit_drilldown
+
+    return exit_drilldown(filters, params, request, title=_("Exits in period"))
+
+
+def joiners_leavers_drilldown(
+    filters: ReportFilters, params: dict, request=None
+) -> dict:
+    """Joiners or leavers, depending on the clicked series."""
+    from employee.models import EmployeeWorkInformation
+    from report.drilldown import (
+        apply_subordinate_scope,
+        drilldown_payload,
+        employee_link,
+        empty_drilldown,
+    )
+    from report.metrics._exits import exit_drilldown
+
+    dimension = (params.get("dimension") or "").strip().lower()
+    value = (params.get("value") or "").strip()
+
+    # The chart plots hires and exits side by side, so the series decides
+    # which population to list.
+    if dimension in ("exits", "leavers", "exit"):
+        return exit_drilldown(filters, params, request, title=_("Leavers in period"))
+
+    qs = EmployeeWorkInformation.objects.filter(
+        date_joining__gte=filters.from_date,
+        date_joining__lte=filters.to_date,
+    )
+    qs = apply_org_filters(qs, filters, prefix="", employee_prefix="employee_id")
+    qs = apply_subordinate_scope(
+        request, qs, perm="employee.view_employee", field="employee_id"
+    )
+    if value and dimension in ("department", "dept", "by_dept"):
+        qs = qs.filter(department_id__department=value)
+        dimension = "department"
+    elif value and dimension in ("month",):
+        qs = [
+            r
+            for r in qs.select_related("employee_id", "department_id")
+            if r.date_joining and r.date_joining.strftime("%b %Y") == value
+        ]
+
+    if not isinstance(qs, list):
+        qs = list(qs.select_related("employee_id", "department_id"))
+    if not qs:
+        return empty_drilldown(_("Joiners in period"), dimension or "joiners", value)
+
+    limit = int((params.get("limit") or filters.extra.get("row_limit") or 200))
+    total = len(qs)
+    rows = []
+    for wi in qs[:limit]:
+        emp = wi.employee_id
+        rows.append(
+            {
+                "employee": str(emp) if emp else "",
+                "department": getattr(wi.department_id, "department", "") or "",
+                "date_joining": wi.date_joining.isoformat() if wi.date_joining else "",
+                "url": employee_link(getattr(emp, "id", None)),
+            }
+        )
+    return drilldown_payload(
+        title=_("Joiners in period"),
+        dimension=dimension or "joiners",
+        value=value,
+        columns=[
+            {"key": "employee", "label": _("Employee")},
+            {"key": "department", "label": _("Department")},
+            {"key": "date_joining", "label": _("Joined")},
+        ],
+        rows=rows,
+        truncated=total > len(rows),
+    )
+
+
+def new_hire_90_day_attrition_drilldown(
+    filters: ReportFilters, params: dict, request=None
+) -> dict:
+    """Only the cohort members who left within 90 days of joining.
+
+    Mirrors the report: the exit window looks 90 days past period end so a
+    late joiner's early exit still counts, and the row is kept only when the
+    gap between joining and exit is within 90 days.
+    """
+    from datetime import timedelta
+
+    from employee.models import EmployeeWorkInformation
+    from report.metrics._exits import exit_drilldown
+
+    joining_by_emp = dict(
+        apply_org_filters(
+            EmployeeWorkInformation.objects.filter(
+                date_joining__gte=filters.from_date,
+                date_joining__lte=filters.to_date,
+            ),
+            filters,
+            prefix="",
+            employee_prefix="employee_id",
+            # Leavers are the whole point of this cohort, so active-only
+            # filtering would exclude exactly the rows we are looking for.
+            apply_employment_status=False,
+        ).values_list("employee_id", "date_joining")
+    )
+
+    def _within_90_days(row) -> bool:
+        joined = joining_by_emp.get(row["employee_id"])
+        if not joined or not row.get("exit_date"):
+            return False
+        return 0 <= (row["exit_date"] - joined).days <= 90
+
+    return exit_drilldown(
+        filters,
+        params,
+        request,
+        title=_("New hires who left within 90 days"),
+        from_date=filters.from_date,
+        to_date=filters.to_date + timedelta(days=90),
+        extra_filter=_within_90_days,
     )

@@ -12,6 +12,7 @@ from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
+from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_http_methods
 
@@ -559,7 +560,6 @@ def project_bulk_export(request):
         {
             "bg_color": "#ffd0cc",
             "bold": True,
-            "font_size": 14,
             "align": "center",
             "valign": "vcenter",
             "font_size": 20,
@@ -1393,8 +1393,15 @@ def delete_project_stage(request, stage_id):
     else:
         messages.warning(request, _("Can't Delete. This stage contain some tasks"))
     if request.META.get("HTTP_HX_REQUEST"):
+        # view_type is request-controlled and lands inside a single-quoted
+        # attribute in hand-built HTML; format_html escapes it.
         return HttpResponse(
-            f"<span hx-get='/project/task-filter/{project_id}/?view={view_type}' hx-trigger='load' hx-target='#viewContainer'></span>"
+            format_html(
+                "<span hx-get='/project/task-filter/{}/?view={}' "
+                "hx-trigger='load' hx-target='#viewContainer'></span>",
+                project_id,
+                view_type,
+            )
         )
     task_view_url = reverse("task-view", args=[project_id])
     redirected_url = f"{task_view_url}?view={view_type}"

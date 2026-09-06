@@ -538,13 +538,6 @@ class AssetAssignment(HorillaModel):
     def __str__(self):
         return f"{self.assigned_to_employee_id} --- {self.asset_id} --- {self.return_status}"
 
-    def get_avatar(self):
-        """
-        Method will retun the api to the avatar or path to the profile image
-        """
-        url = f"https://ui-avatars.com/api/?name={self.asset_id}&background=random"
-        return url
-
     def asset_detail_view(self):
         """
         for detail view of page

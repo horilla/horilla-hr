@@ -31,8 +31,20 @@ function clearFilterFromTag(element) {
 	// formButton, so disable it here too so only the real click below runs
 	// (see clearAllFilter's own comment for why this matters).
 	$(formButton).prop("disabled", true);
-	$(`[name=${field_id}]`).val("");
+	// val("") is a no-op on checkboxes/radios (it doesn't touch .checked) --
+	// the modern filter panel's checkbox-list/segmented-toggle fields need
+	// the checked state itself cleared, not just the value attribute.
+	$(`[name=${field_id}]`).filter(':checkbox, :radio').prop('checked', false);
+	$(`[name=${field_id}]`).not(':checkbox, :radio').val("");
 	$(`[name=${field_id}]`).change();
+	// horilla_nav.html's "N filters applied" badge (updateFilterCountBadge)
+	// recomputes on most field-level change events already, but a cleared
+	// text input fires "change" here while that badge listener only binds
+	// "input" for text fields (to debounce the actual filter submit) --
+	// called explicitly so a text-backed filter (Phone, a custom-filter
+	// text row, ...) doesn't leave a stale count after being cleared this
+	// way. Guarded since this file can load on pages without that panel.
+	if (typeof updateFilterCountBadge === "function") updateFilterCountBadge();
 	// Update all elements with the same ID to have null values
 	let elementId = $(`[name=${field_id}]:last`).attr("id");
 	let spanElement = $(
@@ -70,13 +82,22 @@ function clearAllFilter(element) {
 	// based on the form's OWN current values when it's actually submitted,
 	// so a bare reload here left the fields (and the saved filter) unchanged.
 	form.find('[name]').each(function () {
-		$(this).val("");
+		// See clearFilterFromTag's comment: val("") doesn't uncheck
+		// checkboxes/radios, so the checked state has to be reset directly.
+		if ($(this).is(':checkbox, :radio')) {
+			$(this).prop('checked', false);
+		} else {
+			$(this).val("");
+		}
 		$(this).change();
 	});
 	$('.oh-dropdown__filter-body [id^="select2-"][id$="-container"]').each(function () {
 		$(this).attr("title", "---------");
 		$(this).text("---------");
 	});
+	// See clearFilterFromTag's comment above -- cleared text inputs fire
+	// "change" here, which the badge's own listener doesn't cover.
+	if (typeof updateFilterCountBadge === "function") updateFilterCountBadge();
 
 	$(formButton).prop("disabled", false);
 	$(formButton).click();

@@ -1,4 +1,3 @@
-from django import views
 from django.apps import apps
 from django.urls import path
 from django.views.generic import RedirectView
@@ -11,7 +10,6 @@ if apps.is_installed("attendance"):
     from leave.cbv import compensatory_leave_request
 
 from base.views import object_duplicate
-from employee.models import Employee
 from leave.cbv import (
     assigned_leave,
     dashboard,

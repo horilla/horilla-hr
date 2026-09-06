@@ -42,7 +42,35 @@ case "${SECRET_KEY:-}" in
     ;;
 esac
 
+# Compile translation catalogs when they are missing.
+#
+# The image compiles .po -> .mo at build time, but the dev compose stack
+# bind-mounts the source tree over /app and .mo files are not in git -- so the
+# compiled catalogs are hidden and every non-English locale silently falls back
+# to English. Only runs when a .po has no .mo beside it, so in the normal image
+# path (already compiled) this does nothing.
+if command -v msgfmt >/dev/null 2>&1; then
+  if [ -n "$(find . -name '*.po' -not -path './node_modules/*' \
+       -exec sh -c '[ -f "${1%.po}.mo" ] || echo x' _ {} \; 2>/dev/null | head -1)" ]; then
+    echo "Compiling translation catalogs (.po -> .mo)..."
+    find . -name '*.po' -not -path './node_modules/*' \
+      -execdir sh -c '[ -f "${1%.po}.mo" ] || msgfmt "$1" -o "${1%.po}.mo"' _ {} \; 2>/dev/null || true
+  fi
+fi
+
 # Run migrations
+#
+# HORILLA_SKIP_RELEASE_TASKS=1 skips migrate and collectstatic for containers
+# that share this image but must not perform release tasks -- notably the
+# scheduler service, which starts alongside web. Two containers racing `migrate`
+# can deadlock on the same DDL, and `collectstatic --clear` (below) would wipe
+# STATIC_ROOT out from under a web container already serving from it.
+if [ "${HORILLA_SKIP_RELEASE_TASKS:-0}" = "1" ]; then
+  echo "HORILLA_SKIP_RELEASE_TASKS=1 -- skipping migrate and collectstatic."
+  echo "Starting server..."
+  exec "$@"
+fi
+
 python manage.py migrate --noinput
 
 # Collect static files.

@@ -2262,6 +2262,14 @@ class Payslip(HorillaModel):
         ordering = [
             "-end_date",
         ]
+        # Meta.ordering sorts every unqualified Payslip query by -end_date,
+        # and the UniqueConstraint below leads on employee_id so it cannot
+        # serve that sort. Payroll registers also filter by status within a
+        # period.
+        indexes = [
+            models.Index(fields=["-end_date"], name="payslip_end_date_idx"),
+            models.Index(fields=["status", "end_date"], name="payslip_status_date_idx"),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=["employee_id", "start_date", "end_date"],
@@ -2405,7 +2413,7 @@ class LoanAccount(HorillaModel):
 
         installment_date = installment_start_date
         installment_schedule = {}
-        for _ in range(total_installments):
+        for _unused in range(total_installments):
             installment_schedule[str(installment_date)] = installment_amount
             installment_date = get_next_month_same_date(installment_date)
 

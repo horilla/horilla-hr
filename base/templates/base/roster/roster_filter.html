@@ -1,42 +1,103 @@
 {% load i18n %}
 <div class="oh-dropdown__filter-body">
-  <div class="oh-accordion">
-    <div class="oh-accordion-header">{% trans "Department" %}</div>
-    <div class="oh-accordion-body">
+  <!-- Outside any accordion (always visible, not collapsible) -- same
+       placement as every other modernized filter panel this session:
+       primary/most-used search, shouldn't be hidden behind a click.
+       Comma-separated multi-term search (RosterFilter.name_or_badge --
+       see horilla.filters.filter_name_or_badge_terms). -->
+  <div class="row">
+    <div class="col-sm-12 col-md-12 col-lg-12">
       <div class="oh-input-group">
-        <select name="department" class="oh-select w-100"
-                onchange="$(this).closest('form').find('#applyFilter').click()">
-          <option value="">{% trans "All Departments" %}</option>
-          {% for dept in departments %}
-            <option value="{{ dept.pk }}"
-              {% if request.GET.department == dept.pk|stringformat:"s" %}selected{% endif %}>
-              {{ dept.department }}
-            </option>
-          {% endfor %}
-        </select>
+        <label class="oh-label" for="{{form.name_or_badge.id_for_label}}">{% trans "Name or Badge ID" %}</label>
+        {{form.name_or_badge}}
       </div>
     </div>
   </div>
 
-  <div class="oh-accordion mt-2">
-    <div class="oh-accordion-header">{% trans "Date Range" %}</div>
+  <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+    <div class="oh-accordion-header">
+      <span class="oh-filter-section-icon"><ion-icon name="briefcase-outline"></ion-icon></span>
+      {% trans "Work Info" %}
+    </div>
     <div class="oh-accordion-body">
+      <!-- Full width -- Employee/Department are now AJAX-searched Select2
+           comboboxes (see base/filters.py's RosterFilter.ajax_fields) and
+           need real room for their selected chips/placeholder text, same
+           reasoning as every other modernized panel. -->
       <div class="row">
-        <div class="col-6">
+        <div class="col-sm-12 col-md-12 col-lg-12">
           <div class="oh-input-group">
-            <label class="oh-label">{% trans "From" %}</label>
-            <input type="date" name="from_date" class="oh-input w-100"
-                   value="{{ default_from_date }}">
+            <label class="oh-label" for="{{form.employee.id_for_label}}">{% trans "Employee" %}</label>
+            {{form.employee}}
           </div>
         </div>
-        <div class="col-6">
+        <div class="col-sm-12 col-md-12 col-lg-12">
           <div class="oh-input-group">
-            <label class="oh-label">{% trans "To" %}</label>
-            <input type="date" name="to_date" class="oh-input w-100"
-                   value="{{ default_to_date }}">
+            <label class="oh-label" for="{{form.department.id_for_label}}">{% trans "Department" %}</label>
+            {{form.department}}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+    <div class="oh-accordion-header">
+      <span class="oh-filter-section-icon"><ion-icon name="calendar-outline"></ion-icon></span>
+      {% trans "Date Range" %}
+    </div>
+    <div class="oh-accordion-body">
+      <div class="row">
+        <div class="col-sm-12 col-md-12 col-lg-6">
+          <div class="oh-input-group">
+            <label class="oh-label" for="{{form.from_date.id_for_label}}">{% trans "From" %}</label>
+            {{form.from_date}}
+          </div>
+        </div>
+        <div class="col-sm-12 col-md-12 col-lg-6">
+          <div class="oh-input-group">
+            <label class="oh-label" for="{{form.to_date.id_for_label}}">{% trans "To" %}</label>
+            {{form.to_date}}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+    <div class="oh-accordion-header"
+      onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
+    >
+      <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
+      {% trans "Advanced" %}
+    </div>
+    <div class="oh-accordion-body">
+      <div class="row">
+        <!-- Generic "+ Add filter" field/lookup/value builder (same as
+             AttendanceFilters/EmployeeFilter/AssetFilter), offering the
+             full gte/lte/gt/lt/exact set for Date (the quick "Date
+             Range" gte/lte pair above stays for the common case) plus
+             Created At. Registry: RosterFilter.
+             _build_custom_filter_fields; applied server-side by
+             HorillaFilterSet._apply_custom_filters (see RosterFilter.
+             filter_queryset). Row markup/JS are generic
+             (initCustomFilterBuilder, horilla_nav.html). -->
+        <div class="col-sm-12 col-md-12 col-lg-12">
+          <div class="oh-input-group">
+            <div id="customFilterRowsContainer-roster" class="oh-custom-filter-rows"></div>
+            <button
+              type="button"
+              class="oh-custom-filter-add"
+              onclick="addCustomFilterRow('roster')"
+            >+ {% trans "Add filter" %}</button>
           </div>
         </div>
       </div>
     </div>
   </div>
 </div>
+{{ custom_filter_fields|json_script:"customFilterFields-roster" }}
+{{ custom_filter_rows|json_script:"customFilterRows-roster" }}
+<script>
+    initCustomFilterBuilder('roster');
+</script>

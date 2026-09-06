@@ -2,6 +2,7 @@
 {% load static %}
 {% load recruitmentfilters horillafilters %}
 {% get_company as theme_obj %}
+{% get_hq_company as hq_company %}
 
 <!DOCTYPE html>
 <html>
@@ -9,11 +10,11 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link href="{% static 'horilla_theme/assets/css/tailwind.css' %}" rel="stylesheet">
-        <title>{{ white_label_company_name }}{% trans " - Open Recruitments" %}</title>
+        <title>{{ hq_company.company|default:"Horilla" }}{% trans " - Open Recruitments" %}</title>
         <link
             rel="apple-touch-icon"
             sizes="180x180"
-            href="{% if white_label_company.icon %}{{white_label_company.icon.url}} {% else %}{% static 'favicons/apple-touch-icon.png' %}{% endif %}"
+            href="{% if hq_company.icon %}{{hq_company.icon.url}} {% else %}{% static 'favicons/apple-touch-icon.png' %}{% endif %}"
         >
         <link
             rel="stylesheet"
@@ -23,13 +24,13 @@
             rel="icon"
             type="image/png"
             sizes="32x32"
-            href="{% if white_label_company.icon %}{{white_label_company.icon.url}} {% else %}{% static 'favicons/favicon-32x32.png' %}{% endif %}"
+            href="{% if hq_company.icon %}{{hq_company.icon.url}} {% else %}{% static 'favicons/favicon-32x32.png' %}{% endif %}"
         >
         <link
             rel="icon"
             type="image/png"
             sizes="16x16"
-            href="{% if white_label_company.icon %}{{white_label_company.icon.url}} {% else %}{% static 'favicons/favicon-16x16.png' %}{% endif %}"
+            href="{% if hq_company.icon %}{{hq_company.icon.url}} {% else %}{% static 'favicons/favicon-16x16.png' %}{% endif %}"
         >
         <link
             rel="stylesheet"
@@ -42,6 +43,10 @@
         <link
             rel="stylesheet"
             href="/static/horilla_theme/assets/css/v1_styles.css"
+        >
+        <link
+            href="{% static 'cdn/googleapi/css/plus-jakarta-sans-font-style.css' %}"
+            rel="stylesheet"
         >
         <script src='{% static "horilla_theme/assets/js/tailwindcdn.js" %}'></script>
         <script>
@@ -120,7 +125,7 @@
         </script>
     </head>
 
-    <body class="bg-[{{theme_obj.primary_50}}] font-[Inter,_sans-serif]">
+    <body class="bg-white font-['Plus_Jakarta_Sans',_sans-serif]">
         {% if messages %}
             <div class="oh-alert-container">
                 {% for message in messages %}
@@ -131,116 +136,202 @@
             </div>
         {% endif %}
 
-        <div class="p-5 w-[80%] m-auto">
-            <div class="w-full flex justify-between mb-2 py-9 px-5 items-center">
+        <!-- Top bar -->
+        <header class="border-b border-secondary-200">
+            <div class="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 py-5 flex items-center gap-3">
                 {% if request.user.is_authenticated %}
-                    <span class="text-4xl inline">
-                        {% if request.path not in request.META.HTTP_REFERER %}
-                            <a href="{{ request.META.HTTP_REFERER }}">
-                                <ion-icon
-                                    name="arrow-back-outline"
-                                    class='text-[{{theme_obj.primary_800|default:"#E54F38"}}]'
-                                    style="font-size: 28px"
-                                ></ion-icon>
-                            </a>
-                        {% else %}
-                            <a href="/">
-                                <ion-icon
-                                    name="arrow-back-outline"
-                                    class='text-[{{theme_obj.primary_800|default:"#E54F38"}}]'
-                                    style="font-size: 28px"
-                                ></ion-icon>
-                            </a>
-                        {% endif %}
-                    </span>
+                    <a
+                        href="{% if request.path not in request.META.HTTP_REFERER %}{{ request.META.HTTP_REFERER }}{% else %}/{% endif %}"
+                        class="me-1"
+                        title="{% trans 'Back' %}"
+                    >
+                        <ion-icon
+                            name="arrow-back-outline"
+                            class="text-dark-200"
+                            style="font-size: 22px"
+                        ></ion-icon>
+                    </a>
                 {% endif %}
-                <h3 class="text-3xl text-center font-bold mb-2">{% trans "Open Job Listings" %}</h3>
-                <div></div>
+                <div class="w-12 h-12 shrink-0 rounded-full bg-primary-600 text-white flex items-center justify-center font-bold overflow-hidden">
+                    {% if hq_company.icon %}
+                        <img src="{{ hq_company.icon.url }}" alt="" class="w-full h-full object-cover">
+                    {% else %}
+                        <span>{{ hq_company.company|default:"Horilla"|first|upper }}</span>
+                    {% endif %}
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold leading-tight">
+                        {{ hq_company.company|default:"Horilla" }} {% trans "Careers" %}
+                    </h1>
+                    <p class="text-sm text-dark-100 leading-tight">
+                        {% trans "Open positions across our teams" %}
+                    </p>
+                </div>
+            </div>
+        </header>
+
+        <main class="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 py-8">
+            <!-- Page heading + search/filter -->
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
+                <div>
+                    <h2 class="text-3xl font-extrabold">{% trans "Open Job Listings" %}</h2>
+                    <p class="text-sm text-dark-100 mt-1">
+                        <span id="visibleCount">{{ recruitments|length }}</span>
+                        {% trans "of" %}
+                        <span id="totalCount">{{ recruitments|length }}</span>
+                        {% trans "open recruitments" %}
+                    </p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="relative">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-0 bottom-0 m-auto flex items-center text-dark-100 text-sm"></i>
+                        <input
+                            type="text"
+                            id="jobSearchInput"
+                            placeholder="{% trans 'Search by title, role or company' %}"
+                            class="ps-9 pe-4 py-2.5 w-72 max-w-full border border-secondary-200 rounded-lg text-sm placeholder:text-dark-100 focus-visible:outline-0 focus:border-primary-600 [transition:.2s]"
+                        >
+                    </div>
+                    <div class="relative">
+                        <button
+                            type="button"
+                            id="jobFilterBtn"
+                            class="flex items-center gap-2 px-4 py-2.5 border border-secondary-200 rounded-lg text-sm font-medium hover:bg-secondary-50 [transition:.2s]"
+                        >
+                            <i class="fa-solid fa-sliders text-dark-100"></i>
+                            {% trans "Filter" %}
+                        </button>
+                        <div
+                            id="jobFilterPanel"
+                            class="hidden absolute right-0 mt-2 w-44 bg-white border border-secondary-200 rounded-lg shadow-lg py-1 z-10"
+                        >
+                            <button type="button" data-status-option="all" class="job-status-option w-full text-left px-4 py-2 text-sm hover:bg-secondary-50 bg-primary-100">
+                                {% trans "All statuses" %}
+                            </button>
+                            <button type="button" data-status-option="open" class="job-status-option w-full text-left px-4 py-2 text-sm hover:bg-secondary-50">
+                                {% trans "Open" %}
+                            </button>
+                            <button type="button" data-status-option="closing" class="job-status-option w-full text-left px-4 py-2 text-sm hover:bg-secondary-50">
+                                {% trans "Closing soon" %}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <p class="text-m mb-4 text-center">
-                {% trans "We're hiring! Join our team and be part of a vibrant workplace where your talents make a difference. Here are the open Recruitments...." %}
-            </p>
-            {% comment %} <div class="relative mb-5">
-            <input type="text" placeholder="{% trans 'Search for Jobs...' %}"
-                class="text-color-600 ps-10 p-2 placeholder:text-sm w-full border border-dark-50 rounded-md focus-visible:outline-0 placeholder:text-dark-100 text-sm [transition:.3s] focus:border-primary-600">
-            <i class="fas fa-search absolute left-3 top-0 bottom-0 m-auto flex items-center opacity-50 text-sm"></i>
-        </div> {% endcomment %}
-            <div class="h-[80vh] overflow-hidden overflow-y-auto p-5 bg-[{{theme_obj.primary_50}}] rounded-md">
-                {% for recruitment in recruitments %}
-                    <div class="[box-shadow:0px_0px_20px_{{theme_obj.secondary_300}}] p-5 rounded-md mb-3 bg-[{{theme_obj.primary_100}}] min-w-80">
-                        <div class="gap-5 flex flex-col lg:grid grid-cols-4 xl:gap-20 lg:items-center">
-                            <div class="flex items-center gap-4">
-                                <div class="w-12 rounded-md overflow-hidden">
-                                    <img src="{{recruitment.company_id.icon.url}}" alt="">
+            {% if recruitments %}
+                <div id="jobCardGrid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {% for recruitment in recruitments %}
+                        <div
+                            class="job-card border border-secondary-200 rounded-2xl p-6 hover:border-primary-600 hover:shadow-lg [transition:.2s]"
+                            data-search="{{ recruitment.title|lower }} {{ recruitment.company_id|lower }} {% for job_position in recruitment.open_positions.all %}{{ job_position.job_position|lower }} {% endfor %}"
+                            data-status="{% if recruitment|is_closing_soon %}closing{% else %}open{% endif %}"
+                        >
+                            <div class="flex items-start justify-between gap-4 pb-4">
+                                <div class="flex items-center gap-3 min-w-0">
+                                    <div class="w-11 h-11 shrink-0 rounded-full bg-primary-200 text-primary-800 flex items-center justify-center font-bold text-sm">
+                                        {{ recruitment.title|title_initials }}
+                                    </div>
+                                    <div class="min-w-0">
+                                        <h3 class="font-bold text-base truncate">{{ recruitment.title }}</h3>
+                                        <p class="text-sm text-dark-100 truncate">
+                                            {% for job_position in recruitment.open_positions.all %}
+                                                {{ job_position.job_position }}{% if not forloop.last %}, {% endif %}
+                                            {% endfor %}
+                                        </p>
+                                    </div>
                                 </div>
+                                {% if recruitment|is_closing_soon %}
+                                    <span class="shrink-0 bg-warning-light text-warning-dark text-xs font-semibold px-3 py-1 rounded-full">
+                                        {% trans "Closing soon" %}
+                                    </span>
+                                {% else %}
+                                    <span class="shrink-0 bg-success-light text-success-dark text-xs font-semibold px-3 py-1 rounded-full">
+                                        {% trans "Open" %}
+                                    </span>
+                                {% endif %}
+                            </div>
+
+                            <hr class="border-secondary-200">
+
+                            <div class="grid grid-cols-2 gap-x-4 gap-y-3 py-4">
                                 <div>
-                                    <h5 class="text-md font-bold">{{ recruitment.title }}</h5>
-                                    <p class="text-xs text-dark-200 font-medium">
-                                        {{ recruitment.created_at|timesince }}
+                                    <p class="text-xs text-dark-100 mb-1">{% trans "Company" %}</p>
+                                    <p class="text-sm font-semibold">{{ recruitment.company_id }}</p>
+                                </div>
+                                {% if recruitment.company_id.city or recruitment.company_id.country %}
+                                    <div>
+                                        <p class="text-xs text-dark-100 mb-1">{% trans "Location" %}</p>
+                                        <p class="text-sm font-semibold">
+                                            {{ recruitment.company_id.city }}{% if recruitment.company_id.city and recruitment.company_id.country %}, {% endif %}{{ recruitment.company_id.country }}
+                                        </p>
+                                    </div>
+                                {% endif %}
+                                <div>
+                                    <p class="text-xs text-dark-100 mb-1">{% trans "Vacancies" %}</p>
+                                    <p class="text-sm font-semibold">
+                                        {% blocktrans with count=recruitment.vacancy %}{{ count }} openings{% endblocktrans %}
                                     </p>
                                 </div>
                             </div>
-                            <div>
-                                {% for job_position in recruitment.open_positions.all %}
-                                    <h5 class="bg-[{{theme_obj.primary_300}}] text-[{{theme_obj.primary_800}}] text-xs px-2 py-1 rounded-full font-medium w-max mb-2">
-                                        {{ job_position.job_position }}
-                                    </h5>
-                                {% endfor %}
-                                <p class="text-sm ps-2 font-semibold">{{ recruitment.company_id }}</p>
-                            </div>
+
                             {% if perms.recruitment.view_recruitment %}
-                                <div>
-                                    <div class="w-full bg-gray-200 rounded-full h-1.5 mb-2">
-                                        <div
-                                            class="bg-[{{theme_obj.primary_600}}] h-1.5 rounded-full"
-                                            style="width: {{ recruitment.candidate.all|length|percentage:recruitment.vacancy }}%"
-                                        >
-                                        </div>
-                                    </div>
-                                    <div class="text-xs text-dark-200 font-medium">
-                                        {% comment %}
-                                        One phrase rather than three separate words, so a
-                                        translation can order and inflect it naturally.
-                                        {% endcomment %}
+                                <div class="flex items-center justify-between text-xs text-dark-100 mb-2">
+                                    <span>
                                         {% blocktrans with applied=recruitment.candidate.all|length capacity=recruitment.vacancy %}{{ applied }} applied of {{ capacity }} capacity{% endblocktrans %}
+                                    </span>
+                                    <span class="flex items-center gap-1">
+                                        <i class="fa-regular fa-clock"></i>
+                                        {{ recruitment.created_at|timesince }}
+                                    </span>
+                                </div>
+                                <div class="w-full bg-secondary-100 rounded-full h-1.5 mb-4">
+                                    <div
+                                        class="bg-primary-600 h-1.5 rounded-full"
+                                        style="width: {{ recruitment.candidate.all|length|percentage:recruitment.vacancy }}%"
+                                    >
                                     </div>
                                 </div>
                             {% else %}
-                                <div style="color: gray">
-                                    {{ recruitment.start_date }} - {{ recruitment.end_date }} <br>
-                                    {% if recruitment.vacancy %}
-                                        {% trans "Total vacancies" %} {{ recruitment.vacancy }}
-                                    {% endif %}
+                                <div class="text-xs text-dark-100 mb-4">
+                                    {{ recruitment.start_date }}{% if recruitment.end_date %} - {{ recruitment.end_date }}{% endif %}
                                 </div>
                             {% endif %}
-                            <div>
-                                <div class="flex gap-1 lg:justify-end">
-                                    <button
-                                        class="toggleSidemenu w-20 justify-center px-4 py-2 border border-brand-600 text-brand-600 rounded-md text-xs flex items-center gap-2 hover:text-white hover:bg-brand-600 transition duration-300"
-                                        data-target="#activitySidebar"
-                                        hx-get="{% url 'recruitment-details' recruitment.id %}"
-                                        hx-target="#commentContainer"
-                                        onclick="sidebarToggle()"
-                                    >
-                                        {% trans "View" %}
-                                    </button>
-                                    <a
-                                        href="{% url 'application-form' %}?recruitmentId={{ recruitment.id }}"
-                                        target="_blank"
-                                        class="w-20 justify-center px-4 py-2 bg-brand-600 text-white rounded-md text-xs flex items-center gap-2 hover:bg-brand-800 transition duration-300"
-                                    >
-                                        {# context: this is "apply for a job", not "apply a filter" #}
-                                        {% trans "Apply" context "job application" %}
-                                        <i class="fa-solid fa-arrow-right transform -rotate-45"></i>
-                                    </a>
-                                </div>
+
+                            <hr class="border-secondary-200 mb-4">
+
+                            <div class="flex items-center justify-between gap-3">
+                                <button
+                                    class="toggleSidemenu px-6 py-2.5 border border-secondary-300 rounded-lg text-sm font-medium flex items-center justify-center gap-2 hover:bg-secondary-50 [transition:.2s]"
+                                    data-target="#activitySidebar"
+                                    hx-get="{% url 'recruitment-details' recruitment.id %}"
+                                    hx-target="#commentContainer"
+                                    onclick="sidebarToggle()"
+                                >
+                                    {% trans "View details" %}
+                                </button>
+                                <a
+                                    href="{% url 'application-form' %}?recruitmentId={{ recruitment.id }}"
+                                    target="_blank"
+                                    class="px-6 py-2.5 bg-primary-600 text-white rounded-lg text-sm font-semibold flex items-center justify-center gap-2 hover:bg-primary-800 [transition:.2s]"
+                                >
+                                    {# context: this is "apply for a job", not "apply a filter" #}
+                                    {% trans "Apply" context "job application" %}
+                                    <i class="fa-solid fa-arrow-right transform -rotate-45"></i>
+                                </a>
                             </div>
                         </div>
-                    </div>
-                {% endfor %}
-            </div>
-        </div>
+                    {% endfor %}
+                </div>
+                <p id="jobNoResults" class="hidden text-center text-dark-100 text-sm py-16">
+                    {% trans "No open positions match your search." %}
+                </p>
+            {% else %}
+                <p class="text-center text-dark-100 text-sm py-16">
+                    {% trans "There are no open positions right now. Please check back soon." %}
+                </p>
+            {% endif %}
+        </main>
 
         <!-- Job Details1 -->
         <div class="sidebarModal overflow-hidden overflow-y-auto" id="sidebarModal">
@@ -248,19 +339,20 @@
             <!--sidecont-->
         </div>
 
-        <div class="oh-activity-sidebar bg-[{{theme_obj.primary_50}}]" id="activitySidebar" style="z-index: 1000">
-            <div class="oh-activity-sidebar__header">
-                <a style="cursor: pointer" onclick="sidebarToggle()" title="close">
-                    <ion-icon
-                        name="chevron-forward-outline"
-                        class="oh-activity-sidebar__header-icon me-2 oh-activity-sidebar__close md flip-rtl hydrated"
-                        data-target="#activitySidebar"
-                        role="img"
-                    ></ion-icon>
-                </a>
-                <span class="oh-activity-sidebar__title font-bold">{% trans "Recruitment Details" %}</span>
+        <div
+            id="sidebarBackdrop"
+            class="hidden fixed inset-0 bg-dark-600/50 z-[999]"
+            onclick="sidebarToggle()"
+        >
+        </div>
+
+        <div class="oh-activity-sidebar bg-white" id="activitySidebar" style="z-index: 1000">
+            <div
+                class="oh-activity-sidebar__body leading-relaxed"
+                id="commentContainer"
+                style="height: 100%; overflow: hidden;"
+            >
             </div>
-            <div class="oh-activity-sidebar__body p-5 leading-relaxed border rounded-md" id="commentContainer"></div>
         </div>
 
         <script type="module" src="{% static 'images/ionicons/ui_icons/ionicons/ionicons.esm.js' %}"></script>
@@ -270,10 +362,73 @@
             function sidebarToggle() {
                 // Toggle any sidebar based on data-sidebar attribute
                     const sidebar = document.getElementById("activitySidebar");
+                    const backdrop = document.getElementById("sidebarBackdrop");
                     if (sidebar) {
                         sidebar.classList.toggle("oh-activity-sidebar--show");
                     }
+                    if (backdrop) {
+                        backdrop.classList.toggle("hidden");
+                    }
             }
+
+            document.addEventListener("DOMContentLoaded", function () {
+                const searchInput = document.getElementById("jobSearchInput");
+                const filterBtn = document.getElementById("jobFilterBtn");
+                const filterPanel = document.getElementById("jobFilterPanel");
+                const statusOptions = document.querySelectorAll(".job-status-option");
+                const cards = document.querySelectorAll(".job-card");
+                const visibleCountEl = document.getElementById("visibleCount");
+                const noResultsEl = document.getElementById("jobNoResults");
+                let activeStatus = "all";
+
+                function applyFilters() {
+                    const query = (searchInput?.value || "").toLowerCase().trim();
+                    let visible = 0;
+                    cards.forEach(function (card) {
+                        const haystack = card.dataset.search || "";
+                        const status = card.dataset.status || "open";
+                        const matchesQuery = !query || haystack.includes(query);
+                        const matchesStatus = activeStatus === "all" || status === activeStatus;
+                        const show = matchesQuery && matchesStatus;
+                        card.style.display = show ? "" : "none";
+                        if (show) {
+                            visible += 1;
+                        }
+                    });
+                    if (visibleCountEl) {
+                        visibleCountEl.textContent = visible;
+                    }
+                    if (noResultsEl) {
+                        noResultsEl.classList.toggle("hidden", visible !== 0);
+                    }
+                }
+
+                if (searchInput) {
+                    searchInput.addEventListener("input", applyFilters);
+                }
+
+                if (filterBtn && filterPanel) {
+                    filterBtn.addEventListener("click", function (event) {
+                        event.stopPropagation();
+                        filterPanel.classList.toggle("hidden");
+                    });
+                    document.addEventListener("click", function () {
+                        filterPanel.classList.add("hidden");
+                    });
+                }
+
+                statusOptions.forEach(function (option) {
+                    option.addEventListener("click", function () {
+                        activeStatus = option.dataset.statusOption;
+                        statusOptions.forEach(function (opt) {
+                            opt.classList.remove("bg-primary-100");
+                        });
+                        option.classList.add("bg-primary-100");
+                        filterPanel.classList.add("hidden");
+                        applyFilters();
+                    });
+                });
+            });
         </script>
     </body>
 </html>

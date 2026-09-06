@@ -21,6 +21,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.encoding import force_str
+from django.utils.html import format_html
 from django.utils.translation import gettext as __
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_http_methods
@@ -1357,7 +1358,9 @@ def user_leave_cancel(request, id):
     GET :  it returns to the default my leave request view template.
 
     """
-    leave_request = LeaveRequest.objects.get(id=id)
+    leave_request = LeaveRequest.objects.filter(id=id).first()
+    if not leave_request:
+        return HttpResponse()
     employee_id = leave_request.employee_id
     if employee_id.employee_user_id.id == request.user.id:
         current_date = date.today()
@@ -1405,7 +1408,9 @@ def one_request_view(request, id):
     Returns:
     GET : return one leave request view template
     """
-    leave_request = LeaveRequest.objects.get(id=id)
+    leave_request = LeaveRequest.objects.filter(id=id).first()
+    if not leave_request:
+        return HttpResponse()
     context = {
         "leave_request": leave_request,
         "current_date": date.today(),
@@ -1809,7 +1814,9 @@ def available_leave_update(request, id):
     GET : return available leave update form template
     POST : return leave type assigned  view
     """
-    leave_assign = AvailableLeave.objects.get(id=id)
+    leave_assign = AvailableLeave.objects.filter(id=id).first()
+    if not leave_assign:
+        return HttpResponse()
     form = AvailableLeaveUpdateForm(instance=leave_assign)
     previous_data = request.GET.urlencode() or "field=leave_type_id"
     if request.method == "POST":
@@ -2832,6 +2839,25 @@ def user_request_filter(request):
         return redirect("/")
 
 
+def can_view_leave_request(request, leave_request):
+    """Whether the requester may see this leave request.
+
+    `@login_required` alone means a view resolving a request by client-supplied
+    id serves any employee's leave to any other. Leave records carry the reason
+    for absence, so cross-employee reads can expose medical information --
+    special-category data under GDPR Art. 9. Reported as GHSA-mpw3-7c6v-vfjp.
+
+    The rule is the one view_leaverequest_comment already applied inline: the
+    owner, anyone holding the model permission, or a reporting manager. It is a
+    function here so the four sites that need it cannot drift apart.
+    """
+    return (
+        request.user.employee_get == leave_request.employee_id
+        or request.user.has_perm("leave.view_leaverequest")
+        or is_reportingmanager(request)
+    )
+
+
 @login_required
 @hx_request_required
 def user_request_one(request, id):
@@ -2844,7 +2870,12 @@ def user_request_one(request, id):
     Returns:
     GET : return one user leave request view template
     """
-    leave_request = LeaveRequest.objects.get(id=id)
+    leave_request = LeaveRequest.objects.filter(id=id).first()
+    if not leave_request:
+        return HttpResponse()
+    if not can_view_leave_request(request, leave_request):
+        messages.warning(request, _("You don't have permission"))
+        return render(request, "decorator_404.html")
     try:
         requests_ids_json = request.GET.get("instances_ids")
         if requests_ids_json:
@@ -3435,10 +3466,27 @@ def employee_leave_details(request):
         for i in balance:
             balance_count = i.available_days
         if date:
-            try:
-                balance_count += balance.first().forcasted_leaves()[date[:7]]
-            except:
-                pass
+            # forcasted_leaves takes the date being requested and returns the
+            # days that will have been granted by then. This previously called
+            # a no-argument overload that returned a {"YYYY-MM": days} dict and
+            # subscripted it with date[:7]; that definition was shadowed by
+            # this one further down leave/models.py, so the call raised
+            # TypeError and the bare except dropped the forecast from the
+            # reported balance entirely.
+            #
+            # `date` is unvalidated POST input and forcasted_leaves parses it
+            # with strptime, so a malformed value raises ValueError. Caught
+            # narrowly rather than with the previous bare except, which also
+            # hid the TypeError above.
+            first_balance = balance.first()
+            if first_balance:
+                try:
+                    balance_count += first_balance.forcasted_leaves(date)
+                except (ValueError, TypeError):
+                    logger.warning(
+                        "employee_leave_details: ignoring unparseable date %r",
+                        date,
+                    )
     return JsonResponse({"leave_count": balance_count, "employee": employee})
 
 
@@ -3515,10 +3563,13 @@ def leave_allocation_request_single_view(request, req_id):
     if request.GET.get("my_request") == "True":
         my_request = True
     requests_ids_json = request.GET.get("instances_ids")
+    previous_id = next_id = None
     if requests_ids_json:
         requests_ids = json.loads(requests_ids_json)
         previous_id, next_id = closest_numbers(requests_ids, req_id)
     leave_allocation_request = LeaveAllocationRequest.find(req_id)
+    if not leave_allocation_request:
+        return HttpResponse()
     context = {
         "leave_allocation_request": leave_allocation_request,
         "my_request": my_request,
@@ -4130,7 +4181,7 @@ def employee_available_leave_count(request):
         if request.GET.getlist("employee_id")
         else None
     )
-    referer = request.headers.get("Referer")
+    referer = request.headers.get("Referer") or ""
 
     if not employee_id and "user-request-view" in referer:
         employee_id = request.user.employee_get
@@ -4255,7 +4306,9 @@ def cut_available_leave(request, instance_id):
     This method is used to create the penalties
     """
     previous_data = request.GET.urlencode()
-    instance = LeaveRequest.objects.get(id=instance_id)
+    instance = LeaveRequest.objects.filter(id=instance_id).first()
+    if not instance:
+        return HttpResponse()
     form = PenaltyAccountForm(employee=instance.employee_id)
     available = AvailableLeave.objects.filter(employee_id=instance.employee_id)
     if request.method == "POST":
@@ -4295,6 +4348,11 @@ def create_leaverequest_comment(request, leave_id):
     leave = LeaveRequest.objects.filter(id=leave_id).first()
     if not leave:
         return HorillaRedirect(request, message=_("Leave request not found."))
+    # Same visibility rule as reading: commenting on a request you cannot see
+    # both writes to another employee's record and confirms the id exists.
+    if not can_view_leave_request(request, leave):
+        messages.warning(request, _("You don't have permission"))
+        return render(request, "decorator_404.html")
 
     emp = request.user.employee_get
     form = LeaverequestcommentForm(
@@ -4418,6 +4476,8 @@ def view_leaverequest_comment(request, leave_id):
     This method is used to show Leave request comments
     """
     leave_request = LeaveRequest.find(leave_id)
+    if not leave_request:
+        return HttpResponse()
     if not (
         request.user.employee_get == leave_request.employee_id
         or request.user.has_perm("leave.view_leaverequestcomment")
@@ -4585,6 +4645,8 @@ def view_allocationrequest_comment(request, leave_id):
     This method is used to show Allocation request comments
     """
     leave_alloc_request = LeaveAllocationRequest.find(leave_id)
+    if not leave_alloc_request:
+        return HttpResponse()
     if not (
         request.user.employee_get == leave_alloc_request.employee_id
         or request.user.has_perm("leave.view_leaveallocationrequestcomment")
@@ -4631,6 +4693,8 @@ def delete_allocationrequest_comment(request, comment_id):
     """
     script = ""
     comment = LeaveallocationrequestComment.find(comment_id)
+    if not comment:
+        return HttpResponse(script)
     request_id = comment.request_id.id
     if (
         request.user.employee_get == comment.employee_id
@@ -4670,9 +4734,12 @@ def delete_allocation_comment_file(request):
         messages.success(request, _("File deleted successfully"))
     else:
         messages.warning(request, _("You don't have permission"))
-        script = f"""
-                <span hx-get='/leave/allocation-request-view-comment/{leave_id}/' hx-target='#commentContainer' hx-trigger='load'></span>
-                """
+        # Same unescaped-interpolation issue as delete_leave_comment_file.
+        script = format_html(
+            "<span hx-get='/leave/allocation-request-view-comment/{}/' "
+            "hx-target='#commentContainer' hx-trigger='load'></span>",
+            leave_id,
+        )
     return HttpResponse(script)
 
 
@@ -4877,6 +4944,8 @@ def delete_leaverequest_comment(request, comment_id):
     """
     script = ""
     comment = LeaverequestComment.find(comment_id)
+    if not comment:
+        return HttpResponse(script)
     if (
         request.user.employee_get == comment.employee_id
         or request.user.has_perm("leave.delete_leaverequestcomment")
@@ -4913,9 +4982,16 @@ def delete_leave_comment_file(request):
         messages.success(request, _("File deleted successfully"))
     else:
         messages.warning(request, _("You don't have permission"))
-        script = f"""
-            <span hx-get="/leave/leave-request-view-comment/{leave_id}/?&amp;target=leaveRequest" hx-target="#commentContainer" hx-trigger="load"></span>
-        """
+        # leave_id comes straight from the query string and is interpolated
+        # into hand-built HTML, where Django's template autoescaping does not
+        # apply. format_html escapes the value; this branch is reachable by
+        # any authenticated user, since the view is @login_required only.
+        script = format_html(
+            '<span hx-get="/leave/leave-request-view-comment/{}/'
+            '?&amp;target=leaveRequest" hx-target="#commentContainer" '
+            'hx-trigger="load"></span>',
+            leave_id,
+        )
     return HttpResponse(script)
 
 
@@ -5001,6 +5077,8 @@ if apps.is_installed("attendance"):
             if not request.user.has_perm("leave.delete_leaverequestcomment"):
                 comment = comment.filter(employee_id__employee_user_id=request.user)
             redirect_url = "leave-request-view-comment"
+        if not comment.exists():
+            return HttpResponse()
         leave_id = comment.first().request_id.id
         comment.delete()
         messages.success(request, _("Comment deleted successfully!"))

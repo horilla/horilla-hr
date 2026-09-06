@@ -13,7 +13,6 @@ from django import template
 from django.apps import apps
 from django.forms.widgets import SelectMultiple, Textarea
 from django.template import TemplateSyntaxError
-from django.template.defaultfilters import register
 from django.utils.translation import gettext as _
 
 from base.models import Company, EmployeeShiftSchedule, IntegrationApps
@@ -433,6 +432,18 @@ def get_company(context):
     if company_id not in cache:
         cache[company_id] = _resolve_company_theme(company_id)
     return cache[company_id]
+
+
+@register.simple_tag
+def get_hq_company():
+    """
+    Returns the Company flagged as headquarters (Company.hq=True), for
+    public-facing pages (open recruitments, application form, candidate
+    survey) that need to show a real company identity regardless of the
+    WHITE_LABELLING setting or the viewer's session (these pages are reached
+    by anonymous candidates, who have no selected_company/employee context).
+    """
+    return Company.objects.filter(hq=True).order_by("id").first()
 
 
 @register.simple_tag

@@ -116,6 +116,11 @@ class AssetHistoryNavView(HorillaNavView):
     filter_form_context_name = "form"
     filter_instance = AssetHistoryFilter()
     search_swap_target = "#listContainer"
+    # Modern slide-over filter panel (generic/horilla_nav.html's own
+    # {% if modern_filter %} branch) -- same treatment as every other
+    # panel this session. AssetHistoryFilter.ajax_fields carries the
+    # AJAX-loaded comboboxes this needs.
+    modern_filter = True
 
     group_by_fields = [
         ("asset_id__asset_name", _("Asset")),

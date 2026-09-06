@@ -7,6 +7,14 @@ repos:
         exclude: ^.*/migrations/
       - id: trailing-whitespace
         exclude: ^.*/migrations/
+  # Ruff first: it catches defects, and there is no point reformatting code
+  # that has an undefined name in it.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.5
+    hooks:
+      - id: ruff
+        args: [--fix]
+
   - repo: https://github.com/psf/black-pre-commit-mirror
     rev: 24.4.2
     hooks:

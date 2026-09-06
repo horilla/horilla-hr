@@ -138,6 +138,11 @@ class MeetingsNav(HorillaNavView):
     filter_body_template = "cbv/meetings/filter.html"
     filter_form_context_name = "filter_form"
     search_swap_target = "#listContainer"
+    # Modern slide-over filter panel (generic/horilla_nav.html's own
+    # {% if modern_filter %} branch) -- same treatment as every other
+    # panel this session. MeetingsFilter.ajax_fields carries the
+    # AJAX-loaded comboboxes this needs.
+    modern_filter = True
 
     # Mirrors MeetingsList.nested_group_by_fields
     nested_group_by_fields = [

@@ -1,53 +1,86 @@
 {% load i18n %}
 <div class="oh-dropdown__filter-body">
-    <div class="oh-accordion">
-        <div class="oh-accordion-header">{% trans "Work Info" %}</div>
+    <!-- Outside any accordion (always visible, not collapsible) -- same
+         placement as every other modernized filter panel this session:
+         primary/most-used search, shouldn't be hidden behind a click.
+         Comma-separated multi-term search (DocumentRequestFilter.
+         name_or_badge -- see horilla.filters.filter_name_or_badge_terms). -->
+    <div class="row">
+        <div class="col-sm-12 col-md-12 col-lg-12">
+            <div class="oh-input-group">
+                <label class="oh-label" for="{{form.name_or_badge.id_for_label}}">{% trans "Name or Badge ID" %}</label>
+                {{form.name_or_badge}}
+            </div>
+        </div>
+    </div>
+
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header">
+            <span class="oh-filter-section-icon"><ion-icon name="briefcase-outline"></ion-icon></span>
+            {% trans "Work Info" %}
+        </div>
         <div class="oh-accordion-body">
+            <!-- Full width -- every field here is now an AJAX-searched
+                 Select2 combobox (see employee/filters.py's
+                 DocumentRequestFilter.ajax_fields) and needs real room
+                 for its selected chips/placeholder text, same reasoning
+                 as every other modernized panel. -->
             <div class="row">
-                <div class="col-sm-12 col-md-12 col-lg-6">
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label class="oh-label" for="{{form.employee_id.id_for_label}}">{% trans "Employee" %}</label>
                         {{form.employee_id}}
                     </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
-                        <label class="oh-label" for ="{{form.employee_id__employee_work_info__job_position_id.id_for_label}}"
-                            >{% trans "Job Position" %}</label
-                        >
-                        {{form.employee_id__employee_work_info__job_position_id}}
-
+                        <label class="oh-label" for="{{form.employee_id__employee_work_info__department_id.id_for_label}}">{% trans "Department" %}</label>
+                        {{form.employee_id__employee_work_info__department_id}}
                     </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label class="oh-label" for ="{{form.employee_id__employee_work_info__job_position_id.id_for_label}}">{% trans "Job Position" %}</label>
+                        {{form.employee_id__employee_work_info__job_position_id}}
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label class="oh-label" for="{{form.employee_id__employee_work_info__job_role_id.id_for_label}}">{% trans "Job Role" %}</label>
+                        {{form.employee_id__employee_work_info__job_role_id}}
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label class="oh-label" for="{{form.employee_id__employee_work_info__shift_id.id_for_label}}">{% trans "Shift" %}</label>
                         {{form.employee_id__employee_work_info__shift_id}}
                     </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label class="oh-label" for="{{form.employee_id__employee_work_info__work_type_id.id_for_label}}">{% trans "Work Type" %}</label>
+                        {{form.employee_id__employee_work_info__work_type_id}}
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label class="oh-label" for="{{form.employee_id__employee_work_info__reporting_manager_id.id_for_label}}">{% trans "Reporting Manager" %}</label>
+                        {{form.employee_id__employee_work_info__reporting_manager_id}}
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label class="oh-label" for="{{form.employee_id__employee_work_info__company_id.id_for_label}}">{% trans "Company" %}</label>
                         {{form.employee_id__employee_work_info__company_id}}
                     </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-6">
                     <div class="oh-input-group">
                         <label class="oh-label" for="{{form.employee_id__is_active.id_for_label}}">{% trans "Is Active" %}?</label>
                         {{form.employee_id__is_active}}
                     </div>
                 </div>
                 <div class="col-sm-12 col-md-12 col-lg-6">
-                    <div class="oh-input-group">
-                        <label class="oh-label" for="{{form.employee_id__employee_work_info__department_id.id_for_label}}">{% trans "Department" %}</label>
-                        {{form.employee_id__employee_work_info__department_id}}
-                    </div>
-                    <div class="oh-input-group">
-                        <label class="oh-label" for="{{form.employee_id__employee_work_info__job_role_id.id_for_label}}">{% trans "Job Role" %}</label>
-                        {{form.employee_id__employee_work_info__job_role_id}}
-                    </div>
-                    <div class="oh-input-group">
-                        <label class="oh-label" for="{{form.employee_id__employee_work_info__work_type_id.id_for_label}}">{% trans "Work Type" %}</label>
-                        {{form.employee_id__employee_work_info__work_type_id}}
-                    </div>
-                    <div class="oh-input-group">
-                        <label class="oh-label" for="{{form.employee_id__employee_work_info__reporting_manager_id.id_for_label}}"
-                            >{% trans "Reporting Manager" %}</label
-                        >
-                        {{form.employee_id__employee_work_info__reporting_manager_id}}
-                    </div>
                     <div class="oh-input-group">
                         <label class="oh-label" for="{{form.employee_id__gender.id_for_label}}">{% trans "Gender" %}</label>
                         {{form.employee_id__gender}}
@@ -56,19 +89,14 @@
             </div>
         </div>
     </div>
-    <div class="oh-accordion">
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
         <div class="oh-accordion-header">
+            <span class="oh-filter-section-icon"><ion-icon name="document-text-outline"></ion-icon></span>
             {% trans "Document Request" %}
         </div>
         <div class="oh-accordion-body">
             <div class="row">
                 <div class="col-sm-12 col-md-12 col-lg-6">
-                    {% comment %} <div class="oh-input-group">
-                        <label class="oh-label"
-                            >{% trans "title" %}</label
-                        >
-                        {{form.title}}
-                    </div> {% endcomment %}
                     <div class="oh-input-group">
                         <label class="oh-label" for="{{form.status.id_for_label}}">{% trans "Status" %}</label>
                         {{form.status}}
@@ -76,12 +104,6 @@
                 </div>
 
                 <div class="col-sm-12 col-md-12 col-lg-6">
-                    {% comment %} <div class="oh-input-group">
-                        <label class="oh-label"
-                            >{% trans "Employee" %}</label
-                        >
-                        {{form.employee_id}}
-                    </div> {% endcomment %}
                     <div class="oh-input-group">
                         <label class="oh-label" for="{{form.document_request_id.id_for_label}}">{% trans "Document request" %}</label>
                         {{form.document_request_id}}
@@ -91,4 +113,39 @@
             </div>
         </div>
     </div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header"
+            onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
+        >
+            <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
+            {% trans "Advanced" %}
+        </div>
+        <div class="oh-accordion-body">
+            <div class="row">
+                <!-- Generic "+ Add filter" field/lookup/value builder
+                     (same as AttendanceFilters/EmployeeFilter/
+                     AssetFilter). Registry: DocumentRequestFilter.
+                     _build_custom_filter_fields; applied server-side by
+                     HorillaFilterSet._apply_custom_filters (see
+                     DocumentRequestFilter.filter_queryset). Row
+                     markup/JS are generic (initCustomFilterBuilder,
+                     horilla_nav.html). -->
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <div id="customFilterRowsContainer-document-request" class="oh-custom-filter-rows"></div>
+                        <button
+                            type="button"
+                            class="oh-custom-filter-add"
+                            onclick="addCustomFilterRow('document-request')"
+                        >+ {% trans "Add filter" %}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+{{ custom_filter_fields|json_script:"customFilterFields-document-request" }}
+{{ custom_filter_rows|json_script:"customFilterRows-document-request" }}
+<script>
+    initCustomFilterBuilder('document-request');
+</script>

@@ -1,6 +1,6 @@
 from django.contrib.auth.models import Group, Permission
 from django.core.management.base import BaseCommand
-from django.db import transaction
+from django.db import connection, transaction
 from django.utils import timezone
 
 from horilla_auth.models import (
@@ -15,6 +15,29 @@ class Command(BaseCommand):
     help = "Migrate users from LegacyUser (auth_user) to HorillaUser, including groups and permissions."
 
     def handle(self, *args, **options):
+        # LegacyUser and its two join models are unmanaged views onto v1's
+        # auth_user tables. Django never creates or validates them, so their
+        # absence is not noticed until the first query, which then raises
+        # ProgrammingError: relation "auth_user" does not exist.
+        #
+        # They are absent in two ordinary situations:
+        #
+        #   - a fresh v2 install, which never had a v1 database
+        #   - a database already upgraded from v1, where the users have been
+        #     carried over and there is nothing left to copy
+        #
+        # Both are a no-op rather than an error, so report and exit cleanly
+        # rather than surfacing a traceback.
+        if not self._legacy_tables_present():
+            self.stdout.write(
+                self.style.SUCCESS(
+                    "Nothing to migrate: no legacy auth_user table found. This is "
+                    "expected on a fresh install, or where the users have already "
+                    "been carried over."
+                )
+            )
+            return
+
         created_count = 0
         skipped_count = 0
 
@@ -65,3 +88,13 @@ class Command(BaseCommand):
                 f"✅ Migration complete: {created_count} users migrated, {skipped_count} skipped (with groups & permissions)."
             )
         )
+
+    @staticmethod
+    def _legacy_tables_present():
+        """True when v1's auth_user table is still there to read from.
+
+        Checked against the database rather than caught as an exception: a
+        failed query inside an atomic block aborts the transaction, so the
+        command could not go on to do anything useful afterwards anyway.
+        """
+        return LegacyUser._meta.db_table in connection.introspection.table_names()

@@ -1,0 +1,41 @@
+# Static analysis. There was no SAST of any kind: no CodeQL, bandit, semgrep or
+# secret scanning, so dependency CVEs caught by the container image scan were
+# the only automated security signal.
+
+name: CodeQL
+
+on:
+  push:
+    branches: [dev/v2.0, "2.0"]
+  pull_request:
+    branches: [dev/v2.0, "2.0"]
+  schedule:
+    # Rules improve between commits; a weekly run catches findings that did not
+    # exist when the code was merged.
+    - cron: "0 3 * * 1"
+
+jobs:
+  analyze:
+    name: Analyze Python
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      security-events: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python
+          # security-extended adds the lower-severity rules; worth the extra
+          # runtime on an HR codebase holding payroll and bank details.
+          queries: security-extended
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:python"

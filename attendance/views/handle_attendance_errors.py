@@ -46,7 +46,6 @@ def handle_attendance_errors(error_list):
         "Minimum Hour Error": [],
         "Attendance Date Error": [],
         "Check-out Date Error": [],
-        "Check-out Date Error": [],
         "Other Errors": [],
     }
     for item in error_list:

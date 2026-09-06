@@ -1,8 +1,13 @@
 {% load i18n %}
 {% load widget_tweaks %}
 <div class="oh-dropdown__filter-body">
-    <div class="oh-accordion">
-        <div class="oh-accordion-header">{% trans "Asset" %}</div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header"
+            onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
+        >
+            <span class="oh-filter-section-icon"><ion-icon name="cube-outline"></ion-icon></span>
+            {% trans "Asset" %}
+        </div>
         <div class="oh-accordion-body">
             <div class="row">
                 <div class="col-sm-12 col-md-12 col-lg-12">
@@ -26,4 +31,39 @@
             </div>
         </div>
     </div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header"
+            onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
+        >
+            <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
+            {% trans "Advanced" %}
+        </div>
+        <div class="oh-accordion-body">
+            <div class="row">
+                <!-- Generic "+ Add filter" field/lookup/value builder
+                     (same as AttendanceFilters/EmployeeFilter/
+                     AssetFilter/AssetAllocationFilter). Registry:
+                     CustomAssetFilter._build_custom_filter_fields;
+                     applied server-side by HorillaFilterSet.
+                     _apply_custom_filters (see CustomAssetFilter.
+                     filter_queryset). Row markup/JS are generic
+                     (initCustomFilterBuilder, horilla_nav.html). -->
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <div id="customFilterRowsContainer-asset-tab" class="oh-custom-filter-rows"></div>
+                        <button
+                            type="button"
+                            class="oh-custom-filter-add"
+                            onclick="addCustomFilterRow('asset-tab')"
+                        >+ {% trans "Add filter" %}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+{{ custom_filter_fields|json_script:"customFilterFields-asset-tab" }}
+{{ custom_filter_rows|json_script:"customFilterRows-asset-tab" }}
+<script>
+    initCustomFilterBuilder('asset-tab');
+</script>

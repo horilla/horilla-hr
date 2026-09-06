@@ -1,12 +1,33 @@
-var modelName = $("#helperContainer").attr("data-model");
-var appLabel = $("#helperContainer").attr("data-app-label");
-var groupKey = $("#helperContainer").attr("data-group-key");
-var groupOrderBy = $("#helperContainer").attr("data-group-order-by");
-var instanceOrderBy = $("#helperContainer").attr("data-instance-order-by");
-var preMoveCheckUrl = $("#helperContainer").attr("data-pre-move-check-url");
-var model = `${appLabel}.${modelName}`;
 var groupOrder = []
-var stageOrderJson = []
+
+function getBoardConfig($anchor) {
+	var $helper = $anchor.closest(".hlv-container").find("#helperContainer");
+	return {
+		modelName: $helper.attr("data-model"),
+		kanbanUrl: $helper.attr("data-kanban-url"),
+		preMoveCheckUrl: $helper.attr("data-pre-move-check-url"),
+		csrfToken: $helper.find('input[name="csrfmiddlewaretoken"]').val(),
+	};
+}
+
+function getBoardStageOrder($anchor) {
+	return $anchor
+		.closest(".hlv-container")
+		.find(".pipeline_item")
+		.map(function () {
+			return {
+				id: parseInt($(this).attr("data-group-id"), 10),
+				stage: $(this).attr("data-group-instance"),
+			};
+		})
+		.get();
+}
+
+function adjustGroupCount(groupId, delta) {
+	var $badge = $("#groupCount" + groupId);
+	var current = parseInt($badge.text(), 10) || 0;
+	$badge.text(current + delta);
+}
 
 function isNextStage(currentStageId, targetStageId, parsedStageOrder) {
 	var currentStageIndex = parsedStageOrder.findIndex(
@@ -24,20 +45,21 @@ function isNextStage(currentStageId, targetStageId, parsedStageOrder) {
 function groupSequenceGet(groupHead) {
 	var sequence = [];
 	var groupContainers = groupHead.closest('.groupContainer').find(".pipeline_item")
+	var config = getBoardConfig(groupHead);
 
 	$.each(groupContainers, function (index, element) {
 		sequence.push($(element).attr("data-group-id"));
 	});
 
 	$.ajax({
-		type: "GET",
-		url: "/update-kanban-group-sequence/",
+		type: "POST",
+		url: config.kanbanUrl,
+		headers: { "HX-Request": "true" },
 		data: {
-			"sequence": JSON.stringify(sequence),
-			"tab_id": groupHead.attr("data-tab-id"),
-			"model": model,
-			"group_key": groupKey,
-			"orderBy": groupOrderBy,
+			csrfmiddlewaretoken: config.csrfToken,
+			kanban_action: "reorder-groups",
+			sequence: JSON.stringify(sequence),
+			tab_id: groupHead.attr("data-tab-id"),
 		},
 		success: function (response) {
 			message = response.message || "Group sequence updated successfully.";
@@ -55,6 +77,7 @@ function handleValidDrop(groupId, objectId, row) {
 		return;
 	}
 	if (groupId != window.candidateCurrentStage) {
+		var originalGroupId = window.candidateCurrentStage;
 		var container = row.closest(".pipeline_item");
 		var array = container.find(".task-card");
 		if (!array.length) {
@@ -69,20 +92,23 @@ function handleValidDrop(groupId, objectId, row) {
 			return;
 		}
 
+		var config = getBoardConfig(row);
+
 		$.ajax({
-			type: "GET",
-			url: "/update-kanban-item-group/",
+			type: "POST",
+			url: config.kanbanUrl,
+			headers: { "HX-Request": "true" },
 			traditional: true,
 			data: {
-				model: model,
+				csrfmiddlewaretoken: config.csrfToken,
+				kanban_action: "move-item",
 				groupId: groupId,
-				groupKey: groupKey,
-				objectId: objectId,
-				orderBy: instanceOrderBy,
 				order: JSON.stringify(values),
 			},
 			success: function (response) {
 				row.find(`[name="group_id"]`).val(groupId);
+				adjustGroupCount(originalGroupId, -1);
+				adjustGroupCount(groupId, 1);
 
 				Toast.fire({
 					icon: "success",
@@ -127,15 +153,17 @@ function handleSortableUpdate(event, ui, container) {
 		return;
 	}
 
+	var config = getBoardConfig(container);
+
 	$.ajax({
-		type: "get",
-		url: "/update-kanban-sequence/",
+		type: "POST",
+		url: config.kanbanUrl,
+		headers: { "HX-Request": "true" },
 		traditional: true,
 		data: {
-			model: model,
+			csrfmiddlewaretoken: config.csrfToken,
+			kanban_action: "reorder-items",
 			groupId: groupId,
-			groupKey: groupKey,
-			orderBy: instanceOrderBy,
 			order: JSON.stringify(values),
 		},
 		success: function (response) {
@@ -294,14 +322,24 @@ function initializeKanbanSortable(sectionSelector, stageSelector) {
 			}
 
 			var originalStageId = window.candidateCurrentStage;
+			var stageChanged = targetStageId != originalStageId;
+			var config = getBoardConfig(row);
+
+			function applyMove() {
+				if (stageChanged) {
+					handleValidDrop(targetStageId, candidateId, row);
+				} else {
+					handleSortableUpdate(event, ui, $(self));
+				}
+			}
 
 			function proceedWithMove() {
-				var parsedStageOrder = stageOrderJson;
+				var parsedStageOrder = getBoardStageOrder(row);
 				var preStage = parsedStageOrder.find(stage => stage.id == originalStageId);
 				var currentStage = parsedStageOrder.find(stage => stage.id == targetStageId);
 
 				if (!isNextStage(originalStageId, targetStageId, parsedStageOrder)) {
-					if (sessionStorage.getItem(`showKanban${modelName}Confirmation`) !== "false") {
+					if (sessionStorage.getItem(`showKanban${config.modelName}Confirmation`) !== "false") {
 						Swal.fire({
 							title: typeof gettext !== "undefined" ? gettext("Confirm Stage Change") : "Confirm Stage Change",
 							html: `
@@ -324,13 +362,12 @@ function initializeKanbanSortable(sectionSelector, stageSelector) {
 							preConfirm: () => {
 								const doNotShowAgain = Swal.getPopup().querySelector("#doNotShowAgain").checked;
 								if (doNotShowAgain) {
-									sessionStorage.setItem(`showKanban${modelName}Confirmation`, "false");
+									sessionStorage.setItem(`showKanban${config.modelName}Confirmation`, "false");
 								}
 							},
 						}).then((result) => {
 							if (result.isConfirmed) {
-								handleValidDrop(targetStageId, candidateId, row);
-								handleSortableUpdate(event, ui, $(self));
+								applyMove();
 							} else {
 								revertItemPosition(ui);
 							}
@@ -339,14 +376,13 @@ function initializeKanbanSortable(sectionSelector, stageSelector) {
 					}
 				}
 
-				handleValidDrop(targetStageId, candidateId, row);
-				handleSortableUpdate(event, ui, $(self));
+				applyMove();
 			}
 
-			if (preMoveCheckUrl && targetStageId != originalStageId) {
+			if (config.preMoveCheckUrl && targetStageId != originalStageId) {
 				$.ajax({
 					type: "GET",
-					url: preMoveCheckUrl,
+					url: config.preMoveCheckUrl,
 					data: {
 						objectId: candidateId,
 						groupId: targetStageId,
@@ -395,17 +431,5 @@ function revertItemPosition(ui) {
 }
 
 $(document).ready(function () {
-
-	$(".pipeline_item").each(function () {
-		var stageId = parseInt($(this).attr("data-group-id"), 10);
-		var stageName = $(this).attr("data-group-instance"); // group.label from your HTML
-
-		stageOrderJson.push({
-			id: stageId,
-			stage: stageName
-		});
-	});
-
 	initializeKanbanSortable(".oh-kanban__section-body", ".pipeline_item");
-
 });

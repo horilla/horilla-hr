@@ -1,3 +1,5 @@
+import hashlib
+import hmac
 import json
 import logging
 import string
@@ -111,6 +113,42 @@ def clean_string(s):
         return s
 
 
+def _webhook_signature_valid(request, credentials):
+    """
+    Verify Meta's X-Hub-Signature-256 header against the raw request body.
+
+    Every POST to this endpoint is acted on as the employee whose phone
+    number the payload names -- it creates leave, attendance, shift, asset
+    and reimbursement requests, and can mail that employee's files back to
+    the sender's number. Without this check anyone who knows an employee's
+    phone number can forge those requests, so an unverifiable payload is
+    refused rather than trusted.
+
+    Returns False when no app secret is configured: failing open here would
+    leave the endpoint exactly as exposed as it was before the check existed.
+    """
+    secret = (getattr(credentials, "meta_app_secret", "") or "").strip()
+    if not secret:
+        logger.error(
+            "WhatsApp webhook rejected: no meta_app_secret configured. "
+            "Set the App Secret on the WhatsApp credentials to enable delivery."
+        )
+        return False
+
+    header = request.headers.get("X-Hub-Signature-256", "")
+    if not header.startswith("sha256="):
+        logger.warning("WhatsApp webhook rejected: missing X-Hub-Signature-256.")
+        return False
+
+    expected = hmac.new(
+        secret.encode("utf-8"), request.body, hashlib.sha256
+    ).hexdigest()
+    if not hmac.compare_digest(expected, header[len("sha256=") :].strip()):
+        logger.warning("WhatsApp webhook rejected: signature mismatch.")
+        return False
+    return True
+
+
 @csrf_exempt
 @check_integration_enabled(app_name="whatsapp")
 def whatsapp(request):
@@ -133,7 +171,13 @@ def whatsapp(request):
             return HttpResponse(challenge, status=200)
 
     if request.method == "POST":
-        data = json.loads(request.body)
+        credentials = WhatsappCredientials.objects.first()
+        if not credentials or not _webhook_signature_valid(request, credentials):
+            return HttpResponse(status=403)
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return HttpResponse(status=400)
         if "object" in data and "entry" in data:
             if data["object"] == "whatsapp_business_account":
                 for entry in data["entry"]:

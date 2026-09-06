@@ -541,6 +541,11 @@ class LinkedInAccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = LinkedInAccount
         fields = "__all__"
+        # api_token is a credential. `fields = "__all__"` put it in every
+        # response body, where it reaches request logs, proxies and browser
+        # history. write_only keeps it settable through this serializer --
+        # which the create/update routes rely on -- while never emitting it.
+        extra_kwargs = {"api_token": {"write_only": True}}
 
     def get_company_id(self, obj):
         if obj.company_id:

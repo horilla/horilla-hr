@@ -481,11 +481,6 @@ urlpatterns = [
         surveys.survey_form,
         name="recruitment-application-survey",
     ),
-    # path(
-    #     "recruitment-survey-question-template-view/",
-    #     recruitment_survey.SurveyQuestionTemplateView.as_view(),
-    #     name="recruitment-survey-question-template-view",
-    # ),
     path(
         "recruitment-survey-question-template-view/",
         recruitment_survey.SurveyTemplateSettingsView.as_view(),
@@ -506,21 +501,11 @@ urlpatterns = [
         recruitment_survey.SurveyQuestionList.as_view(),
         name="list-survey-questions",
     ),
-    # path(
-    #     "survey-template-nav/",
-    #     recruitment_survey.SurveyTemplateNav.as_view(),
-    #     name="survey-template-nav",
-    # ),
     path(
         "survey-template-nav/",
         recruitment_survey.SurveyTemplateNavView.as_view(),
         name="survey-template-nav",
     ),
-    # path(
-    #     "survey-question-nav/",
-    #     recruitment_survey.SurveyQuestionNav.as_view(),
-    #     name="survey-question-nav",
-    # ),
     path(
         "survey-question-nav/",
         recruitment_survey.SurveyQuestionNavView.as_view(),

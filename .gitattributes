@@ -1,0 +1,65 @@
+# Line-ending policy.
+#
+# The repo previously had no .gitattributes and no core.autocrlf setting, so
+# git stored whatever line endings the committing machine produced: 33 Python
+# files, 163 SVGs, 39 templates, 16 scripts and 6 stylesheets were committed
+# with CRLF and the rest with LF.
+#
+# The cost is not cosmetic. Any edit that rewrites a CRLF file converts it
+# wholesale, so a small change arrives as a whole-file diff. leave/forms.py
+# is the clearest case -- a 13-line fix produced a 2,636-line diff, and the
+# same file generated a 5,058-line phantom diff on every sync between this
+# repo and its forks.
+#
+# `text=auto` makes git normalise to LF in the object store on commit and
+# check out the platform's native endings, so the stored form is stable no
+# matter who commits.
+* text=auto
+
+# Sources are pinned to LF explicitly rather than left to auto-detection.
+*.py text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.js text eol=lf
+*.svg text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.cfg text eol=lf
+*.toml text eol=lf
+
+# Shell scripts must keep LF or they will not execute.
+*.sh text eol=lf
+
+# Windows-native formats keep CRLF, since that is what their consumers
+# expect.
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Third-party assets are excluded: they are vendored verbatim, so rewriting
+# them creates a permanent diff against upstream and would break any
+# integrity check that hashes them.
+horilla_theme/static/cdn/** -text
+
+# Genuinely binary: never let git rewrite these.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.otf binary
+*.xlsx binary
+*.xls binary
+*.docx binary
+*.zip binary
+*.gz binary
+*.sqlite3 binary
+*.mo binary

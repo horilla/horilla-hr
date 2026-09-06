@@ -349,6 +349,12 @@ class DocumentRequestNav(HorillaNavView):
     filter_instance = DocumentRequestFilter()
     filter_form_context_name = "form"
     search_swap_target = "#view-container"
+    # Modern slide-over filter panel (generic/inline_nav.html's own
+    # {% if modern_filter %} branch, mirroring horilla_nav.html's
+    # .oh-filter-modern styles) -- same treatment as every other panel
+    # this session. DocumentRequestFilter.ajax_fields carries the
+    # AJAX-loaded comboboxes this needs.
+    modern_filter = True
 
 
 @method_decorator(hx_request_required, name="dispatch")

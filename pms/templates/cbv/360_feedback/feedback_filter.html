@@ -1,25 +1,54 @@
 {% load i18n %}
 <div class="oh-dropdown__filter-body">
     <style>
+        /* Matches the modern panel's own design tokens (see
+           generic/modern_filter_panel.html) instead of the hardcoded
+           gray/blue this used before -- same accent color as the
+           "N filters applied" badge and Apply button, same
+           border/font/spacing as every other control in this panel. */
+        .filter-pill-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 4px;
+        }
         .filter-pill {
-            display: inline-block;
-            margin: 4px 1px;
-            padding: 2px 8px;
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 12px;
+            border: 1px solid #DEDBD4;
             border-radius: 999px;
-            background-color: #f0f0f0;
+            background: #fff;
+            color: #6F6D66;
+            font-size: 12px;
+            font-weight: 500;
             cursor: pointer;
-            transition: background-color 0.3s ease;
+            transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+        }
+        .filter-pill:hover {
+            border-color: var(--oh-filter-accent, #e54f38);
+            color: #26251F;
         }
         .filter-pill.active {
-            background-color: #007bff;
-            color: white;
+            background: var(--oh-filter-accent, #e54f38);
+            border-color: var(--oh-filter-accent, #e54f38);
+            color: #fff;
         }
     </style>
-    <div class="oh-accordion">
-        <div class="oh-accordion-header">{% trans "Feedback" %}</div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header">
+            <span class="oh-filter-section-icon"><ion-icon name="chatbubble-ellipses-outline"></ion-icon></span>
+            {% trans "Feedback" %}
+        </div>
         <div class="oh-accordion-body">
+            <!-- Full width -- Employee/Manager/Subordinate/Colleague are
+                 now AJAX-searched Select2 comboboxes (see
+                 pms/filters.py's FeedbackFilter.ajax_fields) and need
+                 real room for their selected chips/placeholder text,
+                 same reasoning as every other modernized panel this
+                 session. -->
             <div class="row">
-                <div class="col-sm-12 col-md-12 col-lg-6">
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label
                             class="oh-label"
@@ -29,7 +58,7 @@
                     </div>
                 </div>
 
-                <div class="col-sm-12 col-md-12 col-lg-6">
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label
                             class="oh-label"
@@ -38,7 +67,7 @@
                         {{ feedback_filter_form.manager_id }}
                     </div>
                 </div>
-                <div class="col-sm-12 col-md-12 col-lg-6">
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label
                             class="oh-label"
@@ -47,7 +76,7 @@
                         {{ feedback_filter_form.subordinate_id }}
                     </div>
                 </div>
-                <div class="col-sm-12 col-md-12 col-lg-6">
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label
                             class="oh-label"
@@ -88,42 +117,38 @@
         </div>
     </div>
 
-    <div class="oh-accordion">
-        <div class="oh-accordion-header">{% trans "Advanced" %}</div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header">
+            <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
+            {% trans "Advanced" %}
+        </div>
         <div class="oh-accordion-body">
             <div class="row">
-                <div class="row">
-                    <!-- Start Date Range -->
-                    <div class="col-md-6 col-lg-12">
-                        <label class="oh-label">{% trans "Start Date Range" %}</label>
-                        <div class="d-flex gap-2">
-                            {{ feedback_filter_form.start_date_range.0 }}
-                            {{ feedback_filter_form.start_date_range.1 }}
-                        </div>
-                    </div>
-
-                    <!-- End Date Range -->
-                    <div class="col-md-6 col-lg-12">
-                        <label class="oh-label">{% trans "End Date Range" %}</label>
-                        <div class="d-flex gap-2">
-                            {{ feedback_filter_form.end_date_range.0 }}
-                            {{ feedback_filter_form.end_date_range.1 }}
-                        </div>
-                    </div>
-
-                    <!-- Created At Range (if needed) -->
-                    <div class="col-md-6 col-lg-12">
-                        <label class="oh-label">{% trans "Created At Range" %}</label>
-                        <div class="d-flex gap-2">
-                            {{ feedback_filter_form.created_at_date_range.0 }}
-                            {{ feedback_filter_form.created_at_date_range.1 }}
-                        </div>
+                <!-- Start Date/End Date/Created At used to each have
+                     their own permanent, fixed gte/lte range inputs
+                     here -- replaced with the same "+ Add filter"
+                     field/lookup/value builder AttendanceFilters/
+                     EmployeeFilter use (choose the field, then the
+                     lookup, then the value), which also offers
+                     gt/lt/exact instead of just gte/lte. Registry:
+                     FeedbackFilter._build_custom_filter_fields; applied
+                     server-side by HorillaFilterSet._apply_custom_filters
+                     (see FeedbackFilter.filter_queryset). Row markup/JS
+                     are generic (initCustomFilterBuilder, horilla_nav.html). -->
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <div id="customFilterRowsContainer-feedback" class="oh-custom-filter-rows"></div>
+                        <button
+                            type="button"
+                            class="oh-custom-filter-add"
+                            onclick="addCustomFilterRow('feedback')"
+                        >+ {% trans "Add filter" %}</button>
                     </div>
                 </div>
                 <div class="col-md-6 col-lg-12">
                     <div class="oh-input-group">
                         <label class="oh-label">{% trans "Quick Filters" %}</label>
-                        <div>
+                        <div class="filter-pill-row">
                             <input type="text" name="due_date_quick_filter" hidden>
                             {% for value, label in feedback_filter_form.due_date_quick_filter.field.choices %}
                                 {% if value %}
@@ -165,3 +190,8 @@
         </div>
     </div>
 </div>
+{{ custom_filter_fields|json_script:"customFilterFields-feedback" }}
+{{ custom_filter_rows|json_script:"customFilterRows-feedback" }}
+<script>
+    initCustomFilterBuilder('feedback');
+</script>

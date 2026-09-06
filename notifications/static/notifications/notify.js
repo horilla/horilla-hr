@@ -9,6 +9,10 @@ var notify_refresh_period = 15000;
 var notify_mark_as_read = false;
 var consecutive_misfires = 0;
 var registered_functions = [];
+// Single handle for the poll chain. Every reschedule goes through
+// schedule_next() so an out-of-band call (visibilitychange) replaces the
+// pending timer instead of starting a second, parallel chain.
+var notify_poll_timer = null;
 
 function fill_notification_badge(data) {
     var badges = document.getElementsByClassName(notify_badge_class);
@@ -50,7 +54,24 @@ function register_notifier(func) {
     registered_functions.push(func);
 }
 
+function schedule_next() {
+    if (notify_poll_timer !== null) {
+        clearTimeout(notify_poll_timer);
+    }
+    notify_poll_timer = setTimeout(fetch_api_data, notify_refresh_period);
+}
+
 function fetch_api_data() {
+    // Skip the request while the tab is hidden, but keep the timer running so
+    // polling resumes on its own. An unattended tab otherwise keeps hitting
+    // this endpoint indefinitely: wasted server work everywhere, and on
+    // per-second-billed hosting it reads as real traffic and stops the
+    // container ever scaling to zero. document.hidden is guarded so very old
+    // browsers keep the previous always-poll behaviour.
+    if (typeof document !== "undefined" && document.hidden === true) {
+        schedule_next();
+        return;
+    }
     // only fetch data if a function is setup
     if (registered_functions.length > 0) {
         var r = new XMLHttpRequest();
@@ -77,7 +98,7 @@ function fetch_api_data() {
         r.send();
     }
     if (consecutive_misfires < 10) {
-        setTimeout(fetch_api_data, notify_refresh_period);
+        schedule_next();
     } else {
         var badges = document.getElementsByClassName(notify_badge_class);
         if (badges) {
@@ -89,4 +110,15 @@ function fetch_api_data() {
     }
 }
 
-setTimeout(fetch_api_data, 1000);
+// Refresh as soon as the tab is focused again, so a returning user sees the
+// current count instead of waiting out the remainder of the interval.
+if (typeof document !== "undefined" && document.addEventListener) {
+    document.addEventListener("visibilitychange", function () {
+        if (document.hidden === false && registered_functions.length > 0) {
+            // Replaces the pending timer rather than adding to it.
+            fetch_api_data();
+        }
+    });
+}
+
+notify_poll_timer = setTimeout(fetch_api_data, 1000);

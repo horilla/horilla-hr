@@ -220,6 +220,7 @@ class ReimbursementSerializer(serializers.ModelSerializer):
     class Meta:
         model = Reimbursement
         fields = "__all__"
+        read_only_fields = ("status",)
 
     def get_other_attachements(self, obj):
         attachments = []

@@ -2,6 +2,7 @@
 models.py
 """
 
+import logging
 from collections.abc import Iterable
 
 from django.db import models
@@ -22,6 +23,8 @@ from simple_history.signals import (  # pre_create_historical_m2m_records,; post
 # from employee.models import Employee
 from horilla.models import HorillaModel
 from horilla_audit.methods import remove_duplicate_history
+
+logger = logging.getLogger(__name__)
 
 # Create your models here.
 
@@ -124,8 +127,12 @@ def pre_create_horilla_audit_log(sender, instance, *args, **kwargs):
             else False
         )
         instance.skip_history = True
-    except:
-        pass
+    except (AttributeError, KeyError) as error:
+        # HistoricalRecords.thread.request is absent outside a request cycle
+        # (shell, migrations, the scheduler), so audit metadata simply is not
+        # available there. Narrowed from a bare except so a real failure in
+        # the assignments above is no longer silent.
+        logger.debug("audit metadata not captured: %s", error)
 
 
 @receiver(post_create_historical_record)
@@ -151,8 +158,9 @@ def post_create_horilla_audit_log(sender, instance, *_args, **kwargs):
             if instance.skip_history:
                 instance.history_set.filter(pk=history_instance.pk).delete()
             kwargs["history_instance"] = None
-    except:
-        pass
+    except (AttributeError, KeyError) as error:
+        # Same as above: no request thread means no tags to attach.
+        logger.debug("audit tags not applied: %s", error)
 
 
 class HistoryTrackingFields(HorillaModel):

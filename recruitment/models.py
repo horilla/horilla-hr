@@ -112,9 +112,6 @@ class SurveyTemplate(HorillaModel):
 class Skill(HorillaModel):
     title = models.CharField(max_length=100)
 
-    def __str__(self):
-        return self.title
-
     def save(self, *args, **kwargs):
         title = self.title
         self.title = title.capitalize()
@@ -2069,6 +2066,11 @@ class LinkedInAccount(HorillaModel):
     company_id = models.ForeignKey(
         Company, on_delete=models.CASCADE, null=True, verbose_name=_("Company")
     )
+    # This row holds an api_token, and the detail/delete views fetch it by raw
+    # pk (recruitment/cbvs.py, recruitment/views/linkedin.py) with no company
+    # check of their own -- an IDOR on a credential. Scoping the manager fixes
+    # every one of those call sites at once.
+    objects = HorillaCompanyManager()
 
     class Meta:
         verbose_name = _("LinkedIn Account")
@@ -2082,7 +2084,7 @@ class LinkedInAccount(HorillaModel):
         url = "https://api.linkedin.com/v2/userinfo"
         headers = {"Authorization": f"Bearer {self.api_token}"}
 
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, timeout=30)
 
         if response.status_code == 200:
             data = response.json()

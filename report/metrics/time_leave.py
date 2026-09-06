@@ -795,3 +795,211 @@ def unscheduled_absence(filters: ReportFilters) -> dict:
         },
         "explorer_url_name": "attendance-report",
     }
+
+
+def leave_liability_drilldown(
+    filters: ReportFilters, params: dict, request=None
+) -> dict:
+    """Per-employee open leave balance behind a leave-type total."""
+    from leave.models import AvailableLeave
+    from report.drilldown import (
+        apply_subordinate_scope,
+        drilldown_payload,
+        employee_link,
+        empty_drilldown,
+    )
+
+    dimension = (params.get("dimension") or "leave_type").strip().lower()
+    value = (params.get("value") or "").strip()
+
+    qs = AvailableLeave.objects.filter(employee_id__is_active=True)
+    qs = apply_org_filters(
+        qs,
+        filters,
+        prefix="employee_id__employee_work_info",
+        employee_prefix="employee_id",
+    )
+    qs = apply_subordinate_scope(
+        request, qs, perm="leave.view_leaverequest", field="employee_id"
+    )
+    if filters.leave_type_id:
+        qs = qs.filter(leave_type_id=filters.leave_type_id)
+    if value and dimension in ("leave_type", "type"):
+        qs = qs.filter(leave_type_id__name=value)
+        dimension = "leave_type"
+    elif value and dimension in ("department", "dept"):
+        qs = qs.filter(employee_id__employee_work_info__department_id__department=value)
+        dimension = "department"
+
+    title = (
+        _("Open balance · %(type)s") % {"type": value}
+        if value
+        else _("Open leave balance")
+    )
+    limit = int((params.get("limit") or filters.extra.get("row_limit") or 200))
+    qs = qs.select_related(
+        "employee_id",
+        "leave_type_id",
+        "employee_id__employee_work_info",
+        "employee_id__employee_work_info__department_id",
+    ).order_by("-available_days")
+    total = qs.count()
+    if not total:
+        return empty_drilldown(title, dimension, value)
+
+    rows = []
+    for al in qs[:limit]:
+        emp = al.employee_id
+        wi = getattr(emp, "employee_work_info", None)
+        dept = getattr(wi, "department_id", None) if wi else None
+        available = float(al.available_days or 0)
+        carry = float(al.carryforward_days or 0)
+        rows.append(
+            {
+                "employee": str(emp) if emp else "",
+                "department": getattr(dept, "department", "") or "",
+                "leave_type": getattr(al.leave_type_id, "name", "") or "",
+                "available": round(available, 1),
+                "carryforward": round(carry, 1),
+                # The report's liability figure is available + carryforward,
+                # so show the same total here.
+                "total_days": round(available + carry, 1),
+                "url": employee_link(getattr(emp, "id", None)),
+            }
+        )
+    return drilldown_payload(
+        title=title,
+        dimension=dimension,
+        value=value,
+        columns=[
+            {"key": "employee", "label": _("Employee")},
+            {"key": "department", "label": _("Department")},
+            {"key": "leave_type", "label": _("Leave type")},
+            {"key": "available", "label": _("Available")},
+            {"key": "carryforward", "label": _("Carried forward")},
+            {"key": "total_days", "label": _("Open days")},
+        ],
+        rows=rows,
+        truncated=total > len(rows),
+    )
+
+
+def overtime_analysis_drilldown(
+    filters: ReportFilters, params: dict, request=None
+) -> dict:
+    """Overtime behind a department total.
+
+    Named per-employee rows stay behind the same gate the report uses
+    (report/metrics/_privacy.py): without it, drilling in would be a way to
+    rebuild the named breakdown the report deliberately withholds.
+    """
+    from django.db.models import Sum as _Sum
+
+    from attendance.models import Attendance
+    from report.drilldown import (
+        apply_subordinate_scope,
+        drilldown_payload,
+        employee_link,
+        empty_drilldown,
+    )
+    from report.metrics._privacy import allow_named_ot_rows
+
+    dimension = (params.get("dimension") or "department").strip().lower()
+    value = (params.get("value") or "").strip()
+
+    qs = Attendance.objects.filter(
+        attendance_date__gte=filters.from_date,
+        attendance_date__lte=filters.to_date,
+        overtime_second__gt=0,
+    )
+    qs = apply_org_filters(
+        qs,
+        filters,
+        prefix="employee_id__employee_work_info",
+        employee_prefix="employee_id",
+    )
+    qs = apply_subordinate_scope(
+        request, qs, perm="attendance.view_attendance", field="employee_id"
+    )
+    if value and dimension in ("department", "dept", "by_dept"):
+        qs = qs.filter(employee_id__employee_work_info__department_id__department=value)
+        dimension = "department"
+
+    named = allow_named_ot_rows(filters)
+    title = _("Overtime · %(dept)s") % {"dept": value} if value else _("Overtime")
+
+    if not named:
+        # Aggregate-only view: same shape, no identities.
+        grouped = (
+            qs.values("employee_id__employee_work_info__department_id__department")
+            .annotate(seconds=_Sum("overtime_second"))
+            .order_by("-seconds")
+        )
+        rows = [
+            {
+                "department": g[
+                    "employee_id__employee_work_info__department_id__department"
+                ]
+                or str(_("Unassigned")),
+                "ot_hours": round((g["seconds"] or 0) / 3600, 2),
+            }
+            for g in grouped
+        ]
+        if not rows:
+            return empty_drilldown(title, dimension, value)
+        return drilldown_payload(
+            title=title,
+            dimension=dimension,
+            value=value,
+            columns=[
+                {"key": "department", "label": _("Department")},
+                {"key": "ot_hours", "label": _("OT hours")},
+            ],
+            rows=rows,
+            truncated=False,
+        ) | {
+            "message": _(
+                "Department totals only. Named rows require the overtime "
+                "permission and ?include_names=1."
+            )
+        }
+
+    grouped = (
+        qs.values(
+            "employee_id",
+            "employee_id__employee_first_name",
+            "employee_id__employee_last_name",
+            "employee_id__employee_work_info__department_id__department",
+        )
+        .annotate(seconds=_Sum("overtime_second"))
+        .order_by("-seconds")
+    )
+    limit = int((params.get("limit") or filters.extra.get("row_limit") or 200))
+    grouped = list(grouped)
+    if not grouped:
+        return empty_drilldown(title, dimension, value)
+    rows = [
+        {
+            "employee": f"{g['employee_id__employee_first_name']} "
+            f"{g['employee_id__employee_last_name'] or ''}".strip(),
+            "department": g[
+                "employee_id__employee_work_info__department_id__department"
+            ]
+            or "",
+            "ot_hours": round((g["seconds"] or 0) / 3600, 2),
+            "url": employee_link(g["employee_id"]),
+        }
+        for g in grouped[:limit]
+    ]
+    return drilldown_payload(
+        title=title,
+        dimension=dimension,
+        value=value,
+        columns=[
+            {"key": "employee", "label": _("Employee")},
+            {"key": "department", "label": _("Department")},
+            {"key": "ot_hours", "label": _("OT hours")},
+        ],
+        rows=rows,
+        truncated=len(grouped) > len(rows),
+    )

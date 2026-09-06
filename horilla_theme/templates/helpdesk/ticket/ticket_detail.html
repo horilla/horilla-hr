@@ -1,5 +1,6 @@
 {% extends 'index.html' %}
 {% load i18n %}
+{% load basefilters %}
 {% load static i18n audit_filters basefilters helpdeskfilters i18n %}
 {% block content %}
     <style>
@@ -391,7 +392,7 @@
                             </p>
                         </div>
                         <p class="text-sm text-[#333]">
-                            {{ ticket.description|safe }}
+                            {{ ticket.description|sanitize_html }}
                         </p>
                     </div>
                     <div class="h-[calc(100vh_-_365px)] overflow-hidden overflow-y-auto p-5" id="ticketContainer">
@@ -423,7 +424,7 @@
                                                 hx-trigger="focusout"
                                             >{{item.comment.comment}}</textarea>
                                             <span class="text-sm text-[#333] comment_text">
-                                                {{ item.comment.comment|safe }}
+                                                {{ item.comment.comment|sanitize_html }}
                                             </span>
                                             <div class="oh-btn-group" style="border: none">
                                                 {% if request.user.employee_get|is_department_manager:ticket or perms.helpdesk.change_comment or request.user.employee_get == item.comment.employee_id %}

@@ -159,6 +159,11 @@ class LeaveTypeNavView(HorillaNavView):
     filter_instance = LeaveTypeFilter()
     search_swap_target = "#listContainer"
     template_name = "generic/inline_nav.html"
+    # Modern slide-over filter panel (generic/inline_nav.html's own
+    # {% if modern_filter %} branch) -- same treatment as every other
+    # panel this session. LeaveTypeFilter has no FK/M2M fields, so no
+    # ajax_fields are needed here.
+    modern_filter = True
 
 
 @method_decorator(login_required, name="dispatch")
@@ -192,11 +197,13 @@ class LeaveTypeDetailView(HorillaDetailedView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         instance = self.instance
+        if not instance:
+            return context
         body = list(self.body)
 
         # Function to insert item after a specific key
         def insert_after(target_key, item):
-            for i, (_, key) in enumerate(body):
+            for i, (_label, key) in enumerate(body):
                 if key == target_key:
                     body.insert(i + 1, item)
                     break

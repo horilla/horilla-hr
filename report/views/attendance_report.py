@@ -21,36 +21,38 @@ if apps.is_installed("attendance"):
     )
     from report.pivot_limits import pivot_json_with_meta
 
+    # The pivot sums these columns client-side, so they have to be real
+    # decimal hours. Formatting them as "HH.MM" put the minutes in the
+    # fractional slot of a base-10 number -- 1:45 became 1.45, so two such
+    # rows totalled 2.90 hours instead of 3.50. Returning a float keeps the
+    # widget's aggregation arithmetic correct.
     def convert_time_to_decimal_w(time_str):
+        """Duration ("H:MM" or time) -> decimal hours."""
         try:
             if isinstance(time_str, str):
-                hours, minutes = map(int, time_str.split(":"))
+                hours, minutes = map(int, time_str.split(":")[:2])
             elif isinstance(time_str, time):
                 hours, minutes = time_str.hour, time_str.minute
             else:
-                return "00.00"
+                return 0.0
 
-            # Format as HH.MM
-            formatted_time = f"{hours:02}.{minutes:02}"
-            return formatted_time
+            return round(hours + minutes / 60, 2)
         except (ValueError, TypeError):
-            return "00.00"
+            return 0.0
 
     def convert_time_to_decimal(time_str):
-        """Format time as HH.MM for aggregation."""
+        """Clock time ("H:MM:SS" or time) -> decimal hours."""
         try:
             if isinstance(time_str, str):  # When time comes as string
                 t = datetime.strptime(time_str, "%H:%M:%S").time()
             elif isinstance(time_str, time):
                 t = time_str
             else:
-                return "00.00"
+                return 0.0
 
-            # Format as HH.MM
-            formatted_time = f"{t.hour:02}.{t.minute:02}"
-            return formatted_time
+            return round(t.hour + t.minute / 60, 2)
         except Exception:
-            return "00.00"
+            return 0.0
 
     # Maps the field ids used by the dynamic Filters modal to the ORM path
     # `attendance_pivot` filters on. "employee" is handled separately since it

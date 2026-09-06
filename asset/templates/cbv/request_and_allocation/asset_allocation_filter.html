@@ -1,13 +1,20 @@
 {% load i18n %}
 {% load widget_tweaks %}
 <div class="oh-dropdown__filter-body">
-    <div class="oh-accordion">
-        <div class="oh-accordion-header">
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header"
+            onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
+        >
+            <span class="oh-filter-section-icon"><ion-icon name="swap-horizontal-outline"></ion-icon></span>
             {% trans "Asset Allocation" %}
         </div>
         <div class="oh-accordion-body">
             <div class="row">
-                <div class="col-sm-12 col-md-12 col-lg-6">
+                <!-- Full width -- Allocated User, Asset, and Allocated
+                     By are now AJAX-searched Select2 comboboxes (see
+                     asset/filters.py's AssetAllocationFilter.
+                     ajax_fields). -->
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label
                             class="oh-label"
@@ -15,6 +22,8 @@
                         >{% trans "Allocated User" %}</label>
                         {{ form.assigned_to_employee_id }}
                     </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label
                             class="oh-label"
@@ -23,32 +32,7 @@
                         {{ form.asset_id }}
                     </div>
                 </div>
-                <div class="col-sm-12 col-md-12 col-lg-6">
-                    <div class="oh-input-group">
-                        <label
-                            class="oh-label"
-                            for="{{form.assigned_date.id_for_label}}"
-                        >{% trans "Asset Allocated Date" %}</label>
-                        {{ form.assigned_date |attr:"type:date" }}
-                    </div>
-                    <div class="oh-input-group">
-                        <label
-                            class="oh-label"
-                            for="{{form.return_status.id_for_label}}"
-                        >{% trans "Status" %}</label>
-                        {{ form.return_status }}
-                    </div>
-                </div>
-                <div class="col-sm-12 col-md-12 col-lg-6">
-                    <div class="oh-input-group">
-                        <label
-                            class="oh-label"
-                            for="{{form.return_date.id_for_label}}"
-                        >{% trans "Return Date" %}</label>
-                        {{ form.return_date|attr:"type:date" }}
-                    </div>
-                </div>
-                <div class="col-sm-12 col-md-12 col-lg-6">
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label
                             class="oh-label"
@@ -57,7 +41,60 @@
                         {{ form.assigned_by_employee_id }}
                     </div>
                 </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label
+                            class="oh-label"
+                            for="{{form.return_status.id_for_label}}"
+                        >{% trans "Status" %}</label>
+                        {{ form.return_status }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header"
+            onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
+        >
+            <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
+            {% trans "Advanced" %}
+        </div>
+        <div class="oh-accordion-body">
+            <div class="row">
+                <!-- Asset Allocated Date/Return Date used to each have
+                     their own permanent, fixed exact-match inputs
+                     here -- replaced with the same "+ Add filter"
+                     field/lookup/value builder AttendanceFilters/
+                     EmployeeFilter/PMS FeedbackFilter/AssetFilter use
+                     (choose the field, then the lookup, then the
+                     value), which also offers gte/lte/gt/lt instead
+                     of just exact match, and adds Created At as a
+                     third option. Registry: AssetAllocationFilter.
+                     _build_custom_filter_fields; applied server-side
+                     by HorillaFilterSet._apply_custom_filters (see
+                     AssetAllocationFilter.filter_queryset). Row
+                     markup/JS are generic (initCustomFilterBuilder,
+                     horilla_nav.html). Now that this tab has its own
+                     independent Nav (AssetAllocationNav), the generic
+                     "custom_filter_fields"/"custom_filter_rows"
+                     context keys apply directly. -->
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <div id="customFilterRowsContainer-asset-allocation" class="oh-custom-filter-rows"></div>
+                        <button
+                            type="button"
+                            class="oh-custom-filter-add"
+                            onclick="addCustomFilterRow('asset-allocation')"
+                        >+ {% trans "Add filter" %}</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
+{{ custom_filter_fields|json_script:"customFilterFields-asset-allocation" }}
+{{ custom_filter_rows|json_script:"customFilterRows-asset-allocation" }}
+<script>
+    initCustomFilterBuilder('asset-allocation');
+</script>

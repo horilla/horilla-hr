@@ -230,6 +230,11 @@ class AllowanceNavView(HorillaNavView):
     filter_body_template = "cbv/allowances/allowance_filter.html"
     filter_form_context_name = "form"
     search_swap_target = "#listContainer"
+    # Modern slide-over filter panel (generic/horilla_nav.html's own
+    # {% if modern_filter %} branch) -- same treatment as every other
+    # panel this session. AllowanceFilter has no FK/M2M fields, so no
+    # ajax_fields are needed here.
+    modern_filter = True
     template_name = "generic/inline_nav.html"
 
 

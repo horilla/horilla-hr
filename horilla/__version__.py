@@ -5,4 +5,4 @@ this string matches the git tag being built, so a mismatch fails the release
 rather than shipping an image whose label disagrees with its tag.
 """
 
-__version__ = "2.0.0"
+__version__ = "2.1.1"

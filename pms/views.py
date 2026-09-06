@@ -38,6 +38,7 @@ from base.methods import (
 from base.models import Company
 from employee.models import Employee, EmployeeWorkInformation
 from horilla.decorators import (
+    check_manager,
     hx_request_required,
     login_required,
     manager_can_enter,
@@ -959,6 +960,7 @@ def kr_table_view(request, emp_objective_id):
 
 @login_required
 @hx_request_required
+@owner_can_enter("pms.change_employeeobjective", EmployeeObjective)
 def objective_detailed_view_objective_status(request, id):
     """
     This view is used to  update status of objective in objective detailed view,
@@ -983,6 +985,7 @@ def objective_detailed_view_objective_status(request, id):
 
 @login_required
 @hx_request_required
+@owner_can_enter("pms.change_employeekeyresult", EmployeeObjective)
 def objective_detailed_view_key_result_status(request, obj_id, kr_id):
     """
     This view is used to  update status of key result in objective detailed view,
@@ -1026,6 +1029,14 @@ def objective_detailed_view_current_value(request, kr_id):
     if request.method == "POST":
         current_value = request.POST.get("current_value")
         employee_key_result = EmployeeKeyResult.objects.get(id=kr_id)
+        objective = employee_key_result.employee_objective_id
+        employee = request.user.employee_get
+        if not (
+            request.user.has_perm("pms.change_employeekeyresult")
+            or objective.employee_id == employee
+            or check_manager(employee, objective.employee_id)
+        ):
+            return render(request, "no_perm.html")
         target_value = employee_key_result.target_value
         objective_id = employee_key_result.employee_objective_id.id
         if int(current_value) < target_value:
@@ -1061,6 +1072,7 @@ def objective_detailed_view_current_value(request, kr_id):
 
 
 @login_required
+@owner_can_enter("pms.change_employeeobjective", EmployeeObjective)
 def objective_archive(request, id):
     """
     this function is used to archive the objective
@@ -2297,7 +2309,18 @@ def get_collegues(request):
         context = {"employees": employees}
         employee_html = render_to_string("employee/employees_select.html", context)
         return HttpResponse(employee_html)
-    except:
+    except (ValueError, TypeError, Employee.DoesNotExist):
+        # A non-numeric or unknown employee_id in the query string. Rendering
+        # an empty list is the right response to that, but it was previously
+        # a bare except covering all forty lines above -- so any genuine
+        # error in the colleague/manager/subordinate branches produced the
+        # same empty list with nothing logged, and looked to the user like an
+        # employee with no colleagues.
+        logger.warning(
+            "employee select: no employees for employee_id=%r data=%r",
+            request.GET.get("employee_id"),
+            request.GET.get("data"),
+        )
         context = {"employees": []}
         employee_html = render_to_string("employee/employees_select.html", context)
         return HttpResponse(employee_html)

@@ -28,7 +28,6 @@ import pymupdf  # type: ignore
 import spacy
 from dateutil import parser as dateutil_parser
 from django import template
-from django.conf import settings
 from django.contrib import messages
 from django.core import serializers
 from django.core.cache import cache as CACHE
@@ -49,10 +48,12 @@ from base.context_processors import check_candidate_self_tracking
 from base.countries import country_arr, s_a, states
 from base.forms import MailTemplateForm
 from base.methods import (
+    build_safe_template_request,
     eval_validate,
     export_data,
     generate_pdf,
     get_key_instances,
+    sanitize_mail_template_body,
     sortby,
 )
 from base.models import EmailLog, HorillaMailTemplate, JobPosition, clear_messages
@@ -982,7 +983,10 @@ def view_note(request, cand_id):
     Args:
         id : candidate instance id
     """
-    candidate_obj = Candidate.objects.get(id=cand_id)
+    candidate_obj = Candidate.objects.filter(id=cand_id).first()
+    if not candidate_obj:
+        messages.error(request, _("Candidate not found."))
+        return HorillaRedirect(request)
     notes = candidate_obj.stagenote_set.all().order_by("-id")
     return render(
         request,
@@ -998,6 +1002,11 @@ def add_note(request, pk=None):
     """
     This method renders template component to add candidate remark
     """
+    candidate_obj = Candidate.objects.filter(id=pk).first()
+    if not candidate_obj:
+        messages.error(request, _("Candidate not found."))
+        return HorillaRedirect(request)
+
     form = StageNoteForm(initial={"candidate_id": pk})
     if request.method == "POST":
         form = StageNoteForm(
@@ -1006,14 +1015,12 @@ def add_note(request, pk=None):
         )
         if form.is_valid():
             note, attachment_ids = form.save(commit=False)
-            candidate = Candidate.objects.get(id=pk)
-            note.candidate_id = candidate
-            note.stage_id = candidate.stage_id
+            note.candidate_id = candidate_obj
+            note.stage_id = candidate_obj.stage_id
             note.updated_by = request.user.employee_get
             note.save()
             note.stage_files.set(attachment_ids)
             messages.success(request, _("Note added successfully.."))
-    candidate_obj = Candidate.objects.get(id=pk)
     notes = candidate_obj.stagenote_set.all().order_by("-id")
     notes = paginator_qry(notes, request.GET.get("page"))
     return render(
@@ -1034,20 +1041,23 @@ def create_note(request, cand_id=None):
     """
     This method renders template component to add candidate remark
     """
+    candidate_obj = Candidate.objects.filter(id=cand_id).first()
+    if not candidate_obj:
+        messages.error(request, _("Candidate not found."))
+        return HorillaRedirect(request)
+
     form = StageNoteForm(initial={"candidate_id": cand_id})
     if request.method == "POST":
         form = StageNoteForm(request.POST, request.FILES)
         if form.is_valid():
             note, attachment_ids = form.save(commit=False)
-            candidate = Candidate.objects.get(id=cand_id)
-            note.candidate_id = candidate
-            note.stage_id = candidate.stage_id
+            note.candidate_id = candidate_obj
+            note.stage_id = candidate_obj.stage_id
             note.updated_by = request.user.employee_get
             note.save()
             note.stage_files.set(attachment_ids)
             messages.success(request, _("Note added successfully.."))
             return redirect("view-note", cand_id=cand_id)
-    candidate_obj = Candidate.objects.get(id=cand_id)
     notes = candidate_obj.stagenote_set.all().order_by("-id")
     return render(
         request,
@@ -1122,7 +1132,10 @@ def add_more_files(request, id):
     Args:
         id : stage note instance id
     """
-    note = StageNote.objects.get(id=id)
+    note = StageNote.objects.filter(id=id).first()
+    if not note:
+        messages.error(request, _("Note not found."))
+        return HorillaRedirect(request)
     if request.method == "POST":
         files = request.FILES.getlist("files")
         files_ids = []
@@ -1142,7 +1155,10 @@ def add_more_individual_files(request, id):
     Args:
         id : stage note instance id
     """
-    note = StageNote.objects.get(id=id)
+    note = StageNote.objects.filter(id=id).first()
+    if not note:
+        messages.error(request, _("Note not found."))
+        return HorillaRedirect(request)
     if request.method == "POST":
         files = request.FILES.getlist("files")
         files_ids = []
@@ -1180,10 +1196,10 @@ def delete_individual_note_file(request, id):
         id : stage file instance id
     """
     script = ""
-    file = StageFiles.objects.get(id=id)
-    cand_id = file.stagenote_set.all().first().candidate_id.id
-    file.delete()
-    messages.success(request, _("File deleted successfully"))
+    file = StageFiles.objects.filter(id=id).first()
+    if file:
+        file.delete()
+        messages.success(request, _("File deleted successfully"))
     return HttpResponse(script)
 
 
@@ -2235,7 +2251,9 @@ def form_send_mail(request, cand_id=None):
     if request.GET.get("stage_id"):
         stage_id = eval_validate(request.GET.get("stage_id"))
     if cand_id:
-        candidate_obj = Candidate.objects.get(id=cand_id)
+        candidate_obj = Candidate.objects.filter(id=cand_id).first()
+        if not candidate_obj:
+            return HttpResponse()
     candidates = Candidate.objects.all()
     if stage_id and isinstance(stage_id, int):
         candidates = candidates.filter(stage_id__id=stage_id)
@@ -2529,12 +2547,12 @@ def send_acknowledgement(request):
         )
         for html in bodys:
             # due to not having solid template we first need to pass the context
-            template_bdy = template.Template(html)
+            template_bdy = template.Template(sanitize_mail_template_body(html))
             context = template.Context(
                 {
                     "instance": candidate,
                     "self": request.user.employee_get,
-                    "request": request,
+                    "request": build_safe_template_request(request),
                 }
             )
             render_bdy = template_bdy.render(context)
@@ -2546,12 +2564,12 @@ def send_acknowledgement(request):
                 )
             )
 
-        template_bdy = template.Template(bdy)
+        template_bdy = template.Template(sanitize_mail_template_body(bdy))
         context = template.Context(
             {
                 "instance": candidate,
                 "self": request.user.employee_get,
-                "request": request,
+                "request": build_safe_template_request(request),
             }
         )
         render_bdy = template_bdy.render(context)
@@ -2982,36 +3000,6 @@ def skill_zone_cand_edit(request, sz_cand_id):
     return render(request, template, {"form": form, "sz_cand_id": sz_cand_id})
 
 
-@login_required
-@manager_can_enter(perm="recruitment.delete_skillzonecandidate")
-def skill_zone_cand_delete(request, sz_cand_id):
-    """
-    function used to delete Talent pool candidate.
-
-    Parameters:
-    request (HttpRequest): The HTTP request object.
-    sz_cand_id : Talent pool candidate id
-
-    Returns:
-    GET : return Talent pool view template
-    """
-
-    try:
-        SkillZoneCandidate.objects.get(id=sz_cand_id).delete()
-        messages.success(request, _("Talent pool deleted successfully."))
-    except SkillZoneCandidate.DoesNotExist:
-        messages.error(request, _("Talent pool not found."))
-    except ProtectedError:
-        messages.error(request, _("Related entries exists"))
-    if request.META.get("HTTP_HX_REQUEST") == "true":
-        response = HttpResponse(status=204)
-        response["HX-Trigger"] = "skillZoneContainerReload"
-        return response
-    return redirect(skill_zone_view)
-
-
-@login_required
-@hx_request_required
 @manager_can_enter(perm="recruitment.view_skillzonecandidate")
 def skill_zone_cand_filter(request):
     """
@@ -3177,13 +3165,20 @@ def open_recruitments(request):
     return response
 
 
-@login_required
 @hx_request_required
 def recruitment_details(request, id):
     """
-    This method is used to render the recruitment details page
+    This method is used to render the recruitment details page.
+
+    Public/unauthenticated visitors can view this (it's reached from the
+    public open-recruitments page); recruitment_details.html itself gates
+    the sensitive applied/capacity numbers behind
+    perms.recruitment.view_recruitment.
     """
-    recruitment = Recruitment.default.get(id=id)
+    recruitment = Recruitment.default.filter(id=id).first()
+    if not recruitment:
+        messages.error(request, _("Recruitment not found."))
+        return HorillaRedirect(request)
     context = {
         "recruitment": recruitment,
     }
@@ -3857,7 +3852,15 @@ def view_bulk_resumes(request):
     This function returns the bulk_resume.html page to the modal
     """
     rec_id = eval_validate(str(request.GET.get("rec_id")))
-    resumes = Resume.objects.filter(recruitment_id=rec_id)
+    if not rec_id:
+        return HttpResponse()
+    # Recruitment.objects is company-scoped; Resume is not (it has no
+    # company_id of its own), so resolving the recruitment first is what
+    # keeps another company's resumes out of this list.
+    recruitment = Recruitment.objects.filter(id=rec_id).first()
+    if not recruitment:
+        return HttpResponse()
+    resumes = Resume.objects.filter(recruitment_id=recruitment)
 
     return render(
         request, "pipeline/bulk_resume.html", {"resumes": resumes, "rec_id": rec_id}
@@ -3872,7 +3875,9 @@ def add_bulk_resumes(request):
     This function is used to create bulk resume
     """
     rec_id = eval_validate(str(request.GET.get("rec_id")))
-    recruitment = Recruitment.objects.get(id=rec_id)
+    recruitment = Recruitment.objects.filter(id=rec_id).first()
+    if not recruitment:
+        return HttpResponse()
     if request.method == "POST":
         files = request.FILES.getlist("files")
         for file in files:
@@ -3897,7 +3902,14 @@ def delete_resume_file(request):
     """
     ids = request.GET.getlist("ids")
     rec_id = request.GET.get("rec_id")
-    Resume.objects.filter(id__in=ids).delete()
+    # Scope the delete to a recruitment this user can actually reach.
+    # manager_can_enter admits any reporting manager, and Resume is not
+    # company-scoped, so an unscoped filter let a manager in one company
+    # delete another company's resumes by passing their ids.
+    recruitment = Recruitment.objects.filter(id=rec_id).first()
+    if not recruitment:
+        return HttpResponse(status=404)
+    Resume.objects.filter(id__in=ids, recruitment_id=recruitment).delete()
     CACHE.delete(f"matching_resumes_{rec_id}")
 
     url = reverse("view-bulk-resume")
@@ -3983,6 +3995,8 @@ def matching_resumes(request, rec_id):
     ranked_resumes = CACHE.get(cache_key)
     if ranked_resumes is None:
         recruitment = Recruitment.objects.filter(id=rec_id).first()
+        if not recruitment:
+            return HttpResponse()
         skills = recruitment.skills.values_list("title", flat=True)
         resumes = recruitment.resume.all()
         is_candidate = resumes.filter(is_candidate=True)
@@ -4016,7 +4030,10 @@ def matching_resumes(request, rec_id):
         )
 
         ranked_resumes = non_candidate_resumes + candidate_resumes
-        CACHE.set(cache_key, ranked_resumes, timeout=None)
+        # A finite TTL, not timeout=None: the ranking is derived from resume
+        # files and the recruitment's skill list, both of which change without
+        # every edit path remembering to invalidate this key.
+        CACHE.set(cache_key, ranked_resumes, timeout=900)
 
     return render(
         request,
@@ -4138,7 +4155,9 @@ def document_create(request, id):
 
     Returns: return document_tab template
     """
-    candidate_id = Candidate.objects.get(id=id)
+    candidate_id = Candidate.objects.filter(id=id).first()
+    if not candidate_id:
+        return HttpResponse()
     form = CandidateDocumentForm(initial={"candidate_id": candidate_id})
     form.fields["candidate_id"].queryset = Candidate.objects.filter(id=id)
     if request.method == "POST":
@@ -4218,6 +4237,32 @@ def document_delete(request, id):
         return HorillaRedirect(request)
 
 
+def candidate_documents_visible_to(request):
+    """CandidateDocument rows the current requester is allowed to touch.
+
+    `candidate_login_required` only asserts that *some* candidate is logged in
+    (`"candidate_id" in request.session`), so a view resolving a document by
+    client-supplied id alone serves any candidate's file to any other -- the
+    ids are sequential, so one self-registered account can harvest every
+    applicant's resume and identity documents. Reported as
+    GHSA-p745-9729-g8jw.
+
+    Recruiters keep full access through the model permission; a candidate is
+    scoped to their own session id. Mirrors the scoping employee/views.py
+    already applies to document_delete.
+    """
+    queryset = CandidateDocument.objects.all()
+    if request.user.is_authenticated and request.user.has_perm(
+        "recruitment.view_candidatedocument"
+    ):
+        return queryset
+
+    candidate_id = request.session.get("candidate_id")
+    if candidate_id is None:
+        return queryset.none()
+    return queryset.filter(candidate_id__id=candidate_id)
+
+
 @candidate_login_required
 @hx_request_required
 def file_upload(request, id):
@@ -4230,7 +4275,9 @@ def file_upload(request, id):
 
     Returns: return document_form template
     """
-    document_item = CandidateDocument.objects.get(id=id)
+    document_item = candidate_documents_visible_to(request).filter(id=id).first()
+    if not document_item:
+        return HttpResponse()
     form = CandidateDocumentUpdateForm(instance=document_item)
     if request.method == "POST":
         form = CandidateDocumentUpdateForm(
@@ -4260,7 +4307,9 @@ def view_file(request, id):
 
     Returns: return view_file template
     """
-    document_obj = CandidateDocument.objects.filter(id=id).first()
+    document_obj = candidate_documents_visible_to(request).filter(id=id).first()
+    if not document_obj:
+        return HttpResponse()
     context = {
         "document": document_obj,
     }

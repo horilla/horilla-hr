@@ -1,21 +1,12 @@
 {% load i18n %}
 <div class="oh-dropdown__filter-body">
-    <div class="oh-accordion">
-      <div class="oh-accordion-header">{% trans "Holiday" %}</div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+      <div class="oh-accordion-header">
+        <span class="oh-filter-section-icon"><ion-icon name="calendar-outline"></ion-icon></span>
+        {% trans "Holiday" %}
+      </div>
       <div class="oh-accordion-body">
         <div class="row">
-          <div class="col-sm-12 col-md-12 col-lg-6">
-            <div class="oh-input-group">
-              <label class="oh-label" for="{{ form.from_date.id_for_label }}">{% trans "From Date" %}</label>
-              {{form.from_date}}
-            </div>
-          </div>
-          <div class="col-sm-12 col-md-12 col-lg-6">
-            <div class="oh-input-group">
-              <label class="oh-label" for="{{ form.to_date.id_for_label }}">{% trans "To Date" %}</label>
-                {{form.to_date}}
-            </div>
-          </div>
           <div class="col-sm-12 col-md-12">
             <div class="oh-input-group">
               <label class="oh-label" for="{{ form.recurring.id_for_label }}">{% trans "Recurring" %}</label>
@@ -25,4 +16,42 @@
         </div>
       </div>
     </div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+      <div class="oh-accordion-header"
+        onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
+      >
+        <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
+        {% trans "Advanced" %}
+      </div>
+      <div class="oh-accordion-body">
+        <div class="row">
+          <!-- Start Date/End Date used to each have their own
+               single-direction fixed input here (from_date's gte on
+               start_date, to_date's lte on end_date) -- replaced with
+               the same "+ Add filter" field/lookup/value builder
+               AttendanceFilters/EmployeeFilter/AssetFilter use, which
+               offers the full gte/lte/gt/lt/exact set per field, and
+               adds Created At as a third option. Registry:
+               HolidayFilter._build_custom_filter_fields; applied
+               server-side by HorillaFilterSet._apply_custom_filters
+               (see HolidayFilter.filter_queryset). Row markup/JS are
+               generic (initCustomFilterBuilder, horilla_nav.html). -->
+          <div class="col-sm-12 col-md-12 col-lg-12">
+            <div class="oh-input-group">
+              <div id="customFilterRowsContainer-holiday" class="oh-custom-filter-rows"></div>
+              <button
+                type="button"
+                class="oh-custom-filter-add"
+                onclick="addCustomFilterRow('holiday')"
+              >+ {% trans "Add filter" %}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
+{{ custom_filter_fields|json_script:"customFilterFields-holiday" }}
+{{ custom_filter_rows|json_script:"customFilterRows-holiday" }}
+<script>
+    initCustomFilterBuilder('holiday');
+</script>

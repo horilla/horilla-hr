@@ -4004,7 +4004,7 @@ $(document).ready(function () {
         if ($(this).hasClass("select2-hidden-accessible") && $(this).data("select2")) {
             $(this).select2("destroy");
         }
-        $(this).select2({ width: '100%' });
+        $(this).select2({ width: '100%', placeholder: $(this).data("placeholder") || undefined });
     });
 
     $("select").on("select2:select", function (e) {
@@ -4030,12 +4030,194 @@ $(document).on("click", "[data-toggle='oh-modal-toggle']", function () {
 
 $(document).on("htmx:afterSettle", function (event) {
     var target = $(event.target);
-    target.find(".oh-select").select2({ width: '100%' });
+    // .filter().add(.find()) rather than just .find(): a swap can target
+    // the <select> itself (hx-target="#some-select"), which .find() alone
+    // (descendants only) would miss, leaving it un-reinitialized.
+    target.filter(".oh-select").add(target.find(".oh-select")).each(function () {
+        // Each element wrapped in its own try/catch: multiple
+        // htmx:afterSettle handlers are registered on this same document
+        // (this one, the AJAX-select initializer further down, others
+        // elsewhere) -- they normally all run independently per event,
+        // but an exception thrown partway through THIS handler's own loop
+        // still aborts whatever's left of *this* handler (both the
+        // remaining .oh-select elements here, and this handler's own
+        // select2:select rebinding below). One already-initialized or
+        // mid-swap element failing here must not silently take the rest
+        // down with it.
+        try {
+            var select = $(this);
+            if (select.hasClass("select2-hidden-accessible") && select.data("select2")) {
+                select.select2("destroy");
+            }
+            select.select2({ width: '100%', placeholder: select.data("placeholder") || undefined });
+        } catch (e) {
+            /* leave this one element as-is; continue with the rest */
+        }
+    });
 
     target.find("select").off("select2:select").on("select2:select", function (e) {
         this.dispatchEvent(new Event("change"));
     });
 });
+
+
+// Generic AJAX-backed select (HorillaAjaxSelectWidget, horilla_widgets) --
+// unlike .oh-select above, these ship with only the currently selected
+// option (or none) pre-rendered, so search/pagination is delegated to
+// whatever endpoint the field's data-ajax-url points at instead of ever
+// rendering the full option list server-side. Kept generic: any app can
+// opt a ModelChoiceField into this by using HorillaAjaxSelectWidget --
+// no per-app JS wiring needed.
+function initOhSelectAjax(scope) {
+    var selects = scope.filter(".oh-select-ajax").add(scope.find(".oh-select-ajax"));
+    selects.each(function () {
+        var select = $(this);
+        // Unlike the plain .oh-select re-init above, never destroy an
+        // already-live instance here: htmx:afterSettle fires constantly
+        // for swaps that have nothing to do with this field (notification
+        // polling, online-status pings, ...), and destroy+recreate mid
+        // search wipes out the open dropdown and the user's in-progress
+        // query. A genuinely NEW .oh-select-ajax node from a real content
+        // swap never has this class yet, so it still gets initialized.
+        if (select.hasClass("select2-hidden-accessible")) {
+            return;
+        }
+        // Same per-element isolation as the classic .oh-select handler
+        // above: one element failing to init must not take down the rest
+        // of this loop, or any afterSettle handler registered after this
+        // function's own registration point.
+        //
+        // console.error/warn here (not a silent catch): this init
+        // repeatedly appeared broken for a real user across several
+        // fields, in a way that never reproduced in any of our own
+        // testing -- turned out to be a stale browser-cached copy of
+        // this very file (WhiteNoise doesn't content-hash this URL, see
+        // footer_scripts.html's ?v= cache-busting query string), not an
+        // actual init failure. Left non-silent so any genuine future
+        // failure here is visible instead of requiring that same
+        // dead-end investigation again.
+        var ajaxUrl = select.data("ajax-url");
+        if (!ajaxUrl) {
+            console.error(
+                "initOhSelectAjax: no data-ajax-url on", select.attr("name") || select.attr("id"),
+                "-- select2 will not be initialized for this element.", this
+            );
+            return;
+        }
+        try {
+            select.select2({
+                width: '100%',
+                placeholder: select.data("placeholder") || "",
+                allowClear: true,
+                minimumInputLength: 0,
+                ajax: {
+                    url: ajaxUrl,
+                    dataType: "json",
+                    delay: 250,
+                    cache: true,
+                    data: function (params) {
+                        return { q: params.term || "", page: params.page || 1 };
+                    },
+                    processResults: function (data) {
+                        return {
+                            results: data.results || [],
+                            pagination: { more: !!(data.pagination && data.pagination.more) },
+                        };
+                    },
+                },
+            });
+            if (!select.hasClass("select2-hidden-accessible")) {
+                console.warn(
+                    "initOhSelectAjax: select2() returned without throwing but",
+                    select.attr("name") || select.attr("id"),
+                    "still isn't select2-hidden-accessible.", this
+                );
+            }
+        } catch (e) {
+            console.error(
+                "initOhSelectAjax: select2() threw for",
+                select.attr("name") || select.attr("id"), e
+            );
+        }
+    });
+}
+$(document).ready(function () {
+    initOhSelectAjax($(document));
+});
+$(document).on("htmx:afterSettle", function (event) {
+    initOhSelectAjax($(event.target));
+});
+
+// Self-healing safety net: on some setups a field can be left un-styled
+// even though nothing threw and the element is present with the right
+// classes/attrs -- e.g. document.ready / afterSettle firing before some
+// other script finishes loading, a swap whose target boundary doesn't
+// actually contain the field, or any other timing gap we haven't pinned
+// down. Rather than rely on catching every possible trigger, periodically
+// re-sweep for any classic .oh-select or ajax .oh-select-ajax select that
+// is STILL not select2-hidden-accessible and try again -- both init
+// functions are idempotent (they skip elements that are already live), so
+// repeated calls are harmless. Runs for a short window after page load and
+// after every htmx settle, since a swap can be exactly when this happens.
+function sweepUninitializedSelects(scope) {
+    scope = scope || $(document);
+    scope.filter(".oh-select").add(scope.find(".oh-select")).each(function () {
+        var select = $(this);
+        if (select.hasClass("select2-hidden-accessible")) {
+            return;
+        }
+        try {
+            select.select2({ width: '100%', placeholder: select.data("placeholder") || undefined });
+        } catch (e) {
+            /* try again on the next sweep */
+        }
+    });
+    initOhSelectAjax(scope);
+}
+// Redesigned to not depend on htmx event *timing* at all. The nav (and
+// its filter panel -- Company, Reporting Manager, everything in it) is
+// itself fetched asynchronously (view_employees.html: the nav container
+// is `hx-get`, `hx-trigger="load"`, a real network round trip), not
+// present in the document at $(document).ready() time. Chasing "which
+// event fires when, in what order, relative to which other handler" to
+// catch that arrival (and any later one) turned out to be exactly the
+// kind of thing that can differ by environment/timing in ways neither
+// consistently reproducible nor exhaustively enumerable -- afterSettle
+// ordering, afterSwap vs afterSettle, request latency, etc.
+//
+// A MutationObserver sidesteps all of that: instead of inferring "a new
+// select probably just arrived" from some framework event, it watches
+// the DOM directly and reacts to the actual condition we care about --
+// nodes appearing anywhere in <body> -- regardless of what put them
+// there (htmx swap, plain JS, anything). Debounced, since it can fire
+// often on a busy page; the sweep itself is cheap (a class check per
+// .oh-select/.oh-select-ajax element) and idempotent, so redundant runs
+// are harmless.
+var _selectSweepDebounce = null;
+function scheduleSelectSweep() {
+    if (_selectSweepDebounce) {
+        clearTimeout(_selectSweepDebounce);
+    }
+    _selectSweepDebounce = setTimeout(function () {
+        sweepUninitializedSelects($(document));
+    }, 120);
+}
+$(document).ready(function () {
+    sweepUninitializedSelects($(document));
+});
+$(document).on("htmx:afterSettle", function () {
+    sweepUninitializedSelects($(document));
+});
+if (window.MutationObserver) {
+    new MutationObserver(function (mutations) {
+        for (var i = 0; i < mutations.length; i++) {
+            if (mutations[i].addedNodes && mutations[i].addedNodes.length) {
+                scheduleSelectSweep();
+                return;
+            }
+        }
+    }).observe(document.documentElement, { childList: true, subtree: true });
+}
 
 
 // Helper function to hash data using SHA-256

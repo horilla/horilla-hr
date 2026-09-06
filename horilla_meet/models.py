@@ -1,4 +1,4 @@
-from datetime import timedelta, timezone
+from datetime import timedelta
 from itertools import chain
 
 from django.apps import apps

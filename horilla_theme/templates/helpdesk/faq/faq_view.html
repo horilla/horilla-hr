@@ -41,9 +41,10 @@
         >
         </div>
     </div>
+    {{ questions|json_script:"faq-list" }}
     <script>
         var get_faqs = () => {
-            var FAQList = {{ questions|safe }};
+            var FAQList = JSON.parse(document.getElementById("faq-list").textContent);
             $(function () {
                 $("[name='search']").autocomplete({
                     source: FAQList,

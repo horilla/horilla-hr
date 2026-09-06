@@ -36,13 +36,20 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install "black==24.4.2" "isort==5.13.2"
+          pip install "black==24.4.2" "isort==5.13.2" "ruff==0.16.5"
 
       - name: Ensure local_settings stub exists
         run: |
           if [ ! -f horilla/settings/local_settings.py ]; then
             printf '%s\n' '# Ephemeral for CI' > horilla/settings/local_settings.py
           fi
+
+      # Ruff runs over the whole repo, unlike the Black/isort steps below --
+      # its enabled rule set is scoped to defects that the codebase already
+      # passes (see pyproject.toml), so it gates everything without the
+      # reformat-the-world diff a full style pass would need.
+      - name: Ruff (whole repo)
+        run: ruff check .
 
       - name: Black (settings + urls)
         run: black --check horilla/settings horilla/urls.py
@@ -56,7 +63,95 @@ jobs:
           DEBUG: "True"
           SECRET_KEY: ci-dev-not-for-production
           ALLOWED_HOSTS: localhost,127.0.0.1
-        run: python manage.py check
+        run: |
+          python manage.py check
+          python manage.py check --fail-level WARNING --tag horilla.tenancy
+
+  dependency-audit:
+    # Dependency CVEs were only ever caught by the container image scan, which
+    # is advisory on PRs -- so a vulnerable pin could merge and only surface at
+    # release. This checks requirements.txt directly.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pip-audit
+        run: python -m pip install --upgrade pip pip-audit
+
+      - name: Audit pinned dependencies
+        # Blocking. The 21 pre-existing CVEs are cleared (008386444c); the only
+        # remaining finding is pdfkit PYSEC-2026-2860, which has no upstream fix
+        # and is mitigated in base.methods.generate_pdf instead. It is ignored
+        # by ID rather than by disabling the gate, so a NEW vulnerable pin still
+        # fails the build -- and if pdfkit ever ships a fix, dropping this line
+        # is the reminder to take it.
+        run: >-
+          pip-audit --requirement requirements.txt --desc
+          --ignore-vuln PYSEC-2026-2860
+
+  secret-scan:
+    # AWS and WhatsApp credentials have reached this repo's git history before,
+    # so this is a re-occurrence guard, not a hypothetical.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Need both sides of the range to diff a push or PR against its base.
+          fetch-depth: 0
+
+      # The gitleaks BINARY is MIT-licensed and free; it is the
+      # gitleaks-action wrapper that requires a paid key for organization repos
+      # ("[horilla] is an organization. License key is required."), which is
+      # what failed the first time this job ran. Running the binary directly
+      # keeps the scan, and pinning the version means a new upstream release
+      # cannot change what blocks a PR without us choosing it.
+      - name: Install gitleaks
+        env:
+          GITLEAKS_VERSION: 8.28.0
+        run: |
+          curl -sSfL \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz gitleaks
+          ./gitleaks version
+
+      # Scans only what this push or PR ADDS.
+      #
+      # Scanning full history would fail every run forever: there are 161
+      # findings across 21,741 commits, dominated by high-entropy strings in a
+      # vendored ionicons bundle and a committed SQL dump, and history is
+      # immutable -- no author can clear them from within their own change. A
+      # gate nobody can pass gets disabled, which is worse than no gate.
+      #
+      # --redact so a finding never prints the secret into a public build log.
+      - name: Scan for new secrets
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            RANGE="origin/${{ github.base_ref }}..HEAD"
+          else
+            RANGE="${{ github.event.before }}..HEAD"
+            # A new branch reports an all-zero "before"; fall back to the last
+            # commit rather than scanning from the beginning of time.
+            case "${{ github.event.before }}" in
+              0000000*|"") RANGE="HEAD~1..HEAD" ;;
+            esac
+          fi
+          echo "Scanning $RANGE"
+          ./gitleaks git --redact --no-banner --exit-code 1 \
+            --config .gitleaks.toml --log-opts "$RANGE" . || {
+              echo "::error::gitleaks found a secret in the commits this push adds."
+              exit 1
+            }
 
   production-settings-gate:
     runs-on: ubuntu-latest

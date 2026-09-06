@@ -1,0 +1,367 @@
+{% load i18n %}
+{% comment %}
+    Shared with any HorillaNavView-rendered template that opts into the
+    modern slide-over filter panel (modern_filter=True) -- currently
+    horilla_nav.html and inline_nav.html. Two self-contained pieces:
+
+    1. The "N filters applied" badge counter (updateFilterCountBadge) --
+       recomputed client-side since the Nav is only fetched once
+       (hx-trigger="load") and never re-fetched on filter apply, and the
+       address bar's querystring gets wiped by static/index/saveFilters.js
+       right after load regardless, so a server-rendered count alone would
+       go stale the instant the user touches anything. Requires the
+       template using this include to give its badge <span>s a
+       "js-filter-count-badge" class (horilla_nav.html's own copies do;
+       mirror that in any other consumer).
+    2. The custom filter builder ("+ Add filter", Advanced section) --
+       generic across any FilterSet that sets its own custom_filter_fields
+       (see HorillaFilterSet._build_custom_filter_fields for the registry
+       shape). Each namespace's field list is read once from its own
+       <script type="application/json" id="customFilterFields-{namespace}">
+       (json_script, so it's already safely escaped), then every row is
+       built/edited entirely client-side. Submits as three parallel arrays
+       (custom_field/custom_lookup/custom_value, same name repeated once
+       per row, matched up by position) that the FilterSet's own
+       _apply_custom_filters zips back together and validates server-side
+       -- this builder only ever offers the choices that came from the
+       registry, but the server re-checks field+lookup regardless, since
+       client-side markup is never a trust boundary.
+
+    Labels here (field labels, and especially choice option labels --
+    Shift/Employee Tag/Group names are ordinary user-entered data, not
+    fixed app strings) are attached via .textContent/property assignment
+    throughout, never string-concatenated into innerHTML, so a record
+    whose name contains a literal script tag can't inject markup here.
+{% endcomment %}
+<script>
+    function updateFilterCountBadge() {
+        var $form = $('.navFilterForm').first();
+        if (!$form.length) return;
+        var count = 0;
+
+        // [hidden] excludes housekeeping fields the form itself always
+        // carries a value for (e.g. <input type="text" name="nav_url"
+        // ... hidden> just above, used by htmx/the search box, not a
+        // filter criterion) -- an `input[type="text"]` selector matches
+        // these regardless of the hidden attribute, since that's a
+        // separate boolean attribute from `type`.
+        $form.find('input[type="text"], input[type="email"]')
+            .not('#modernFilterFieldSearch, .oh-custom-filter-value, [hidden]')
+            .each(function () {
+                if ($(this).val()) count++;
+            });
+
+        $form.find('select')
+            .not('.oh-custom-filter-field, .oh-custom-filter-lookup, .oh-custom-filter-value')
+            .not('[name="nested_fields"], [name="field"]')
+            .each(function () {
+                if (this.multiple) {
+                    if (this.selectedOptions.length) count++;
+                    return;
+                }
+                // A single <select> always has SOME option selected --
+                // browsers auto-pick the first one if nothing else is
+                // marked, so `.value` truthiness alone can't tell "user
+                // picked this" from "this is just what index 0 happens to
+                // be". Not every field's neutral/unset choice uses ""
+                // either (Django's own NullBooleanSelect, e.g. Currently
+                // Working, uses "unknown") -- so instead, only count it
+                // once the user has moved OFF whichever option rendered
+                // first (selectedIndex > 0), which is the one convention
+                // every such field in this panel actually follows.
+                if (this.value && this.selectedIndex > 0) count++;
+            });
+
+        var checkedGroups = {};
+        $form.find('.oh-checkbox-list input[type="checkbox"]:checked').each(function () {
+            checkedGroups[this.name] = true;
+        });
+        count += Object.keys(checkedGroups).length;
+
+        var segmentedGroups = {};
+        $form.find('.oh-segmented input[type="radio"]:checked').each(function () {
+            // The "Any"/unset option in a segmented group (e.g. Is
+            // Active's default) carries an empty value -- that's what
+            // makes the group clearable back to "not applied", so an
+            // empty checked value must NOT count as a real selection.
+            if (this.value) segmentedGroups[this.name] = true;
+        });
+        count += Object.keys(segmentedGroups).length;
+
+        $form.find('.oh-custom-filter-row').each(function () {
+            var field = $(this).find('.oh-custom-filter-field').val();
+            var $value = $(this).find('.oh-custom-filter-value');
+            if (field && $value.val()) count++;
+        });
+
+        $('.js-filter-count-badge').text(count).toggleClass('oh-filter-count-badge--hidden', count === 0);
+    }
+    $(document).ready(updateFilterCountBadge);
+    $(document).on('htmx:afterSettle', updateFilterCountBadge);
+
+    // Live filtering: selects/checkboxes/radios already self-submit via
+    // their own onchange="...#applyFilter.click()" (or, for the new
+    // checkbox-list/segmented fields below, this delegated handler --
+    // Django's CheckboxSelectMultiple/RadioSelect rendering doesn't expose
+    // a hook to inject a per-input onchange attribute). Text inputs need a
+    // debounce instead: submitting on every keystroke would fire a request
+    // per character.
+    $(document).on('change', '.oh-filter-modern .oh-checkbox-list input, .oh-filter-modern .oh-segmented input', function () {
+        updateFilterCountBadge();
+        $(this).closest('form').find('#applyFilter').click();
+    });
+    var modernFilterTextDebounce = null;
+    $(document).on('input', '.oh-filter-modern .oh-input-group input[type="text"], .oh-filter-modern .oh-input-group input[type="email"]', function () {
+        var $form = $(this).closest('form');
+        updateFilterCountBadge();
+        clearTimeout(modernFilterTextDebounce);
+        modernFilterTextDebounce = setTimeout(function () {
+            $form.find('#applyFilter').click();
+        }, 400);
+    });
+    $(document).on('change', '.oh-filter-modern .oh-custom-filter-lookup, .oh-filter-modern select.oh-custom-filter-value', function () {
+        updateFilterCountBadge();
+        $(this).closest('form').find('#applyFilter').click();
+    });
+    // Catch-all for every other <select> that isn't covered by a more
+    // specific handler above -- the dedicated AJAX fields (Company,
+    // Department, Shift, ...) and the custom-filter builder's own Field
+    // select, both of which already self-submit via their widget's own
+    // onchange/select2:select wiring, just also need the badge
+    // recomputed. Harmless no-op for #nestedGroupByLevels' nested_fields
+    // selects -- updateFilterCountBadge() itself excludes those (grouping
+    // isn't filtering) via its own `[name="nested_fields"]` exclusion.
+    $(document).on('change', '.oh-filter-modern select', updateFilterCountBadge);
+
+    // ── Custom filter builder ("+ Add filter", Advanced section) ──
+    var customFilterFieldsRegistry = {};
+
+    function initCustomFilterBuilder(namespace) {
+        var dataEl = document.getElementById('customFilterFields-' + namespace);
+        if (!dataEl) return;
+        try {
+            customFilterFieldsRegistry[namespace] = JSON.parse(dataEl.textContent);
+        } catch (e) {
+            customFilterFieldsRegistry[namespace] = [];
+        }
+        // Restore rows for any custom filter already applied, so reopening
+        // the panel shows what's active instead of an empty builder. Reads
+        // server-rendered state (EmployeeFilter._extract_custom_filter_rows,
+        // handed down as context "custom_filter_rows") rather than
+        // window.location.search: static/index/saveFilters.js strips the
+        // URL's query string on every page load (its own, unrelated
+        // "restore saved filters" feature) before this code got a chance
+        // to read it, which was silently dropping every restored row.
+        var rowsEl = document.getElementById('customFilterRows-' + namespace);
+        var rows = [];
+        if (rowsEl) {
+            try {
+                rows = JSON.parse(rowsEl.textContent) || [];
+            } catch (e) {
+                rows = [];
+            }
+        }
+        rows.forEach(function (row) {
+            if (!row.field) return;
+            addCustomFilterRow(namespace, row);
+        });
+    }
+
+    function customFilterFieldConfig(namespace, key) {
+        var fields = customFilterFieldsRegistry[namespace] || [];
+        for (var i = 0; i < fields.length; i++) {
+            if (fields[i].key === key) return fields[i];
+        }
+        return null;
+    }
+
+    function addCustomFilterRow(namespace, prefill) {
+        // Namespaced (not a bare "customFilterRows"): a page with more
+        // than one builder section (e.g. Asset Request & Allocation's
+        // "Asset Request"/"Asset Allocation" accordions each have their
+        // own) would otherwise collide on one shared id -- getElementById
+        // only ever returns the first match, silently routing every
+        // row from every builder into whichever section's container
+        // happens to appear first in the DOM. Deliberately a different
+        // string than "customFilterRows-<namespace>" (the
+        // json_script'd restore-data tag read above) rather than
+        // reusing it: two elements can't share one id, and that one is
+        // usually emitted later in the same template.
+        var container = document.getElementById('customFilterRowsContainer-' + namespace);
+        if (!container) return;
+        var fields = customFilterFieldsRegistry[namespace] || [];
+
+        var row = document.createElement('div');
+        row.className = 'oh-custom-filter-row';
+        row.setAttribute('data-namespace', namespace);
+
+        var fieldSelect = document.createElement('select');
+        fieldSelect.name = 'custom_field';
+        fieldSelect.className = 'oh-input oh-custom-filter-field';
+        var placeholderOpt = document.createElement('option');
+        placeholderOpt.value = '';
+        placeholderOpt.textContent = '{% trans "Field" %}';
+        fieldSelect.appendChild(placeholderOpt);
+        fields.forEach(function (f) {
+            var opt = document.createElement('option');
+            opt.value = f.key;
+            opt.textContent = f.label;
+            fieldSelect.appendChild(opt);
+        });
+        fieldSelect.addEventListener('change', function () { onCustomFilterFieldChange(this); });
+
+        var lookupSelect = document.createElement('select');
+        lookupSelect.name = 'custom_lookup';
+        lookupSelect.className = 'oh-input oh-custom-filter-lookup';
+        lookupSelect.disabled = true;
+        lookupSelect.appendChild(buildLookupPlaceholderOption());
+
+        var valueWrap = document.createElement('span');
+        valueWrap.className = 'oh-custom-filter-value-wrap';
+        valueWrap.appendChild(buildCustomFilterValueInput(null, /* disabled */ true));
+
+        var removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'oh-custom-filter-remove';
+        removeBtn.setAttribute('aria-label', '{% trans "Remove filter" %}');
+        removeBtn.textContent = '×';
+        removeBtn.addEventListener('click', function () { removeCustomFilterRow(this); });
+
+        row.appendChild(fieldSelect);
+        row.appendChild(lookupSelect);
+        row.appendChild(valueWrap);
+        row.appendChild(removeBtn);
+        container.appendChild(row);
+
+        if (prefill && prefill.field) {
+            fieldSelect.value = prefill.field;
+            onCustomFilterFieldChange(fieldSelect, prefill.lookup, prefill.value, prefill.label);
+        }
+    }
+
+    function removeCustomFilterRow(btn) {
+        var row = btn.closest('.oh-custom-filter-row');
+        if (!row) return;
+        var $form = $(row).closest('form');
+        row.remove();
+        updateFilterCountBadge();
+        $form.find('#applyFilter').click();
+    }
+
+    // A field-less lookup <select> renders as an empty, borderless-looking
+    // box before any field is picked -- easy to mistake for broken. A
+    // disabled placeholder option (mirroring the Field select's own
+    // "{% trans "Field" %}" option) makes that pre-selection state read as
+    // "not applicable yet" instead of "empty/broken".
+    function buildLookupPlaceholderOption() {
+        var opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = '{% trans "Lookup" %}';
+        return opt;
+    }
+
+    function buildCustomFilterValueInput(config, disabled, prefillValue, prefillLabel) {
+        // Model-backed "choice" fields (Work Type, Employee Type, Job
+        // Role -- see EmployeeFilter.CUSTOM_FILTER_AJAX_FIELDS) carry an
+        // "ajax" sub-dict instead of a preloaded "choices" list: build a
+        // plain .oh-select-ajax select and let the existing generic
+        // initOhSelectAjax/sweep mechanism (htmxSelect2.js) pick it up --
+        // same as any other AJAX-backed field in this form, no extra init
+        // code needed here. A prior value (row restore) needs its own
+        // <option> pre-seeded since select2 has nothing else to show it
+        // from without a search.
+        if (config && config.ajax) {
+            var ajaxSelect = document.createElement('select');
+            ajaxSelect.name = 'custom_value';
+            ajaxSelect.className = 'oh-input oh-custom-filter-value oh-select-ajax';
+            ajaxSelect.disabled = !!disabled;
+            ajaxSelect.setAttribute('data-ajax-url', config.ajax.url);
+            ajaxSelect.setAttribute('data-placeholder', config.ajax.placeholder || '');
+            if (prefillValue) {
+                var selectedOpt = document.createElement('option');
+                selectedOpt.value = prefillValue;
+                selectedOpt.textContent = prefillLabel || prefillValue;
+                selectedOpt.selected = true;
+                ajaxSelect.appendChild(selectedOpt);
+            }
+            return ajaxSelect;
+        }
+        if (config && config.type === 'choice') {
+            var select = document.createElement('select');
+            select.name = 'custom_value';
+            select.className = 'oh-input oh-custom-filter-value';
+            select.disabled = !!disabled;
+            var placeholderOpt = document.createElement('option');
+            placeholderOpt.value = '';
+            placeholderOpt.textContent = '{% trans "Select" %}';
+            select.appendChild(placeholderOpt);
+            (config.choices || []).forEach(function (pair) {
+                var opt = document.createElement('option');
+                opt.value = pair[0];
+                opt.textContent = pair[1];
+                select.appendChild(opt);
+            });
+            return select;
+        }
+        // Range-style fields moved into this builder (e.g. AttendanceFilters'
+        // Clock In/Out, Pending Hour, OT -- see HorillaFilterSet.
+        // _build_custom_filter_fields's docstring for the two entry
+        // shapes) get a native date/time picker instead of a bare text
+        // box, same as the dedicated widget they used to have would have
+        // rendered. "duration_*" (Pending Hour/OT, both "HH:MM:SS"
+        // seconds-backed fields with no native input type) keeps a text
+        // input but with a format hint.
+        var inputType = 'text';
+        var placeholder = disabled ? '{% trans "Select a field first" %}' : '{% trans "Value" %}';
+        if (config) {
+            if (config.type === 'date_range') {
+                inputType = 'date';
+            } else if (config.type === 'time_range') {
+                inputType = 'time';
+            } else if (config.type === 'datetime_range') {
+                inputType = 'datetime-local';
+            } else if (config.type === 'duration_from' || config.type === 'duration_till') {
+                placeholder = disabled ? placeholder : 'HH:MM:SS';
+            }
+        }
+        var input = document.createElement('input');
+        input.type = inputType;
+        input.name = 'custom_value';
+        input.className = 'oh-input oh-custom-filter-value';
+        input.placeholder = placeholder;
+        input.disabled = !!disabled;
+        return input;
+    }
+
+    function onCustomFilterFieldChange(selectEl, prefillLookup, prefillValue, prefillLabel) {
+        var row = selectEl.closest('.oh-custom-filter-row');
+        var namespace = row.getAttribute('data-namespace');
+        var config = customFilterFieldConfig(namespace, selectEl.value);
+        var lookupSelect = row.querySelector('.oh-custom-filter-lookup');
+        var valueWrap = row.querySelector('.oh-custom-filter-value-wrap');
+
+        lookupSelect.innerHTML = '';
+        lookupSelect.disabled = !config;
+        if (!config) {
+            lookupSelect.appendChild(buildLookupPlaceholderOption());
+        } else {
+            (config.lookups || []).forEach(function (pair) {
+                var opt = document.createElement('option');
+                opt.value = pair[0];
+                opt.textContent = pair[1];
+                lookupSelect.appendChild(opt);
+            });
+        }
+        if (prefillLookup) lookupSelect.value = prefillLookup;
+
+        valueWrap.innerHTML = '';
+        var valueField = buildCustomFilterValueInput(config, !config, prefillValue, prefillLabel);
+        // The ajax branch above already seeds the selected <option> itself
+        // (it needs the label alongside the value) -- setting .value here
+        // too would be a no-op for it, but doing it unconditionally for
+        // every other branch would break nothing either, so keep the
+        // exclusion just for clarity.
+        if (prefillValue && !(config && config.ajax)) valueField.value = prefillValue;
+        valueWrap.appendChild(valueField);
+    }
+</script>

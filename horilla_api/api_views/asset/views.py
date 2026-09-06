@@ -1,6 +1,7 @@
 from datetime import date
 
 from django.http import QueryDict
+from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status
@@ -12,6 +13,7 @@ from rest_framework.views import APIView
 from asset.filters import AssetFilter
 from asset.models import *
 
+from ...api_decorators.base.decorators import permission_required
 from ...api_filters.asset.filters import AssetCategoryFilter
 from ...api_serializers.asset.serializers import *
 
@@ -40,6 +42,7 @@ class AssetAPIView(APIView):
         serializer = AssetGetAllSerializer(page, many=True)
         return paginator.get_paginated_response(serializer.data)
 
+    @method_decorator(permission_required("asset.add_asset"))
     def post(self, request):
         serializer = AssetSerializer(data=request.data)
         if serializer.is_valid():
@@ -47,6 +50,7 @@ class AssetAPIView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @method_decorator(permission_required("asset.change_asset"))
     def put(self, request, pk):
         asset = self.get_asset(pk)
         serializer = AssetSerializer(asset, data=request.data)
@@ -55,6 +59,7 @@ class AssetAPIView(APIView):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @method_decorator(permission_required("asset.delete_asset"))
     def delete(self, request, pk):
         asset = self.get_asset(pk)
         asset.delete()
@@ -85,6 +90,7 @@ class AssetCategoryAPIView(APIView):
         serializer = AssetCategorySerializer(page, many=True)
         return paginator.get_paginated_response(serializer.data)
 
+    @method_decorator(permission_required("asset.add_assetcategory"))
     def post(self, request):
         serializer = AssetCategorySerializer(data=request.data)
         if serializer.is_valid():
@@ -92,6 +98,7 @@ class AssetCategoryAPIView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @method_decorator(permission_required("asset.change_assetcategory"))
     def put(self, request, pk):
         asset_category = self.get_asset_category(pk)
         serializer = AssetCategorySerializer(asset_category, data=request.data)
@@ -100,6 +107,7 @@ class AssetCategoryAPIView(APIView):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @method_decorator(permission_required("asset.delete_assetcategory"))
     def delete(self, request, pk):
         asset_category = self.get_asset_category(pk)
         asset_category.delete()
@@ -126,6 +134,7 @@ class AssetLotAPIView(APIView):
         serializer = AssetLotSerializer(page, many=True)
         return paginator.get_paginated_response(serializer.data)
 
+    @method_decorator(permission_required("asset.add_assetlot"))
     def post(self, request):
         serializer = AssetLotSerializer(data=request.data)
         if serializer.is_valid():
@@ -133,6 +142,7 @@ class AssetLotAPIView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @method_decorator(permission_required("asset.change_assetlot"))
     def put(self, request, pk):
         asset_lot = self.get_asset_lot(pk)
         serializer = AssetLotSerializer(asset_lot, data=request.data)
@@ -141,6 +151,7 @@ class AssetLotAPIView(APIView):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @method_decorator(permission_required("asset.delete_assetlot"))
     def delete(self, request, pk):
         asset_lot = self.get_asset_lot(pk)
         asset_lot.delete()
@@ -167,6 +178,7 @@ class AssetAllocationAPIView(APIView):
         serializer = AssetAssignmentGetSerializer(page, many=True)
         return paginator.get_paginated_response(serializer.data)
 
+    @method_decorator(permission_required("asset.add_assetassignment"))
     def post(self, request):
         serializer = AssetAssignmentSerializer(data=request.data)
         if serializer.is_valid():
@@ -174,6 +186,7 @@ class AssetAllocationAPIView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @method_decorator(permission_required("asset.change_assetassignment"))
     def put(self, request, pk):
         asset_assignment = self.get_asset_assignment(pk)
         serializer = AssetAssignmentSerializer(asset_assignment, data=request.data)
@@ -182,6 +195,7 @@ class AssetAllocationAPIView(APIView):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @method_decorator(permission_required("asset.delete_assetassignment"))
     def delete(self, request, pk):
         asset_assignment = self.get_asset_assignment(pk)
         asset_assignment.delete()
@@ -209,12 +223,18 @@ class AssetRequestAPIView(APIView):
         return paginator.get_paginated_response(serializer.data)
 
     def post(self, request):
-        serializer = AssetRequestSerializer(data=request.data)
+        data = request.data
+        if isinstance(data, QueryDict):
+            data = data.dict()
+        if not request.user.has_perm("asset.add_assetrequest"):
+            data["requested_employee_id"] = request.user.employee_get.id
+        serializer = AssetRequestSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @method_decorator(permission_required("asset.change_assetrequest"))
     def put(self, request, pk):
         asset_request = self.get_asset_request(pk)
         serializer = AssetRequestSerializer(asset_request, data=request.data)
@@ -223,6 +243,7 @@ class AssetRequestAPIView(APIView):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @method_decorator(permission_required("asset.delete_assetrequest"))
     def delete(self, request, pk):
         asset_request = self.get_asset_request(pk)
         asset_request.delete()
@@ -238,6 +259,7 @@ class AssetRejectAPIView(APIView):
         except AssetRequest.DoesNotExist as e:
             raise serializers.ValidationError(e)
 
+    @method_decorator(permission_required("asset.add_assetassignment"))
     def put(self, request, pk):
         asset_request = self.get_asset_request(pk)
         if asset_request.asset_request_status == "Requested":
@@ -256,6 +278,7 @@ class AssetApproveAPIView(APIView):
         except AssetRequest.DoesNotExist as e:
             raise serializers.ValidationError(e)
 
+    @method_decorator(permission_required("asset.add_assetassignment"))
     def put(self, request, pk):
         asset_request = self.get_asset_request(pk)
         if asset_request.asset_request_status == "Requested":
@@ -290,7 +313,7 @@ class AssetReturnAPIView(APIView):
 
     def put(self, request, pk):
         asset_assignment = self.get_asset_assignment(pk)
-        if request.user.has_perm("app_name.change_mymodel"):
+        if request.user.has_perm("asset.change_assetassignment"):
             serializer = AssetReturnSerializer(
                 instance=asset_assignment, data=request.data
             )

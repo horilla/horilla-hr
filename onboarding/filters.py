@@ -5,6 +5,7 @@ Used to register filter for onboarding models
 
 import django_filters
 from django import forms
+from django.utils.translation import gettext_lazy as _
 from django_filters import filters
 
 from base.filters import FilterSet
@@ -335,6 +336,19 @@ class OnboardingStageFilter(HorillaFilterSet):
         label="Candidates",
     )
 
+    # HorillaFilterSet.ajax_fields (generic AJAX-loaded combobox mechanism)
+    # -- Stage Manager opts into an AJAX-searched combobox instead of
+    # pre-rendering its whole queryset as <option> tags.
+    ajax_fields = {
+        "employee_id": {
+            "key": "onboarding-stage-manager",
+            "queryset_fn": lambda request: Employee.objects.filter(is_active=True),
+            "display_fn": lambda obj: obj.get_full_name(),
+            "search_fields": ["employee_first_name", "employee_last_name", "badge_id"],
+            "placeholder": _("Search employee..."),
+        },
+    }
+
     class Meta:
         model = OnboardingStage
         fields = [
@@ -392,7 +406,7 @@ class OnboardingStageFilter(HorillaFilterSet):
         return queryset.distinct()
 
 
-class OnboardingCandidateFilter(FilterSet):
+class OnboardingCandidateFilter(HorillaFilterSet):
     """
     OnboardingStageFilter
     """
@@ -417,6 +431,19 @@ class OnboardingCandidateFilter(FilterSet):
         lookup_expr="lte",
         widget=forms.DateInput(attrs={"type": "date"}),
     )
+
+    # HorillaFilterSet.ajax_fields (generic AJAX-loaded combobox mechanism)
+    # -- Tasks opts into an AJAX-searched combobox instead of
+    # pre-rendering its whole queryset as <option> tags.
+    ajax_fields = {
+        "tasks": {
+            "key": "onboarding-candidate-tasks",
+            "queryset_fn": lambda request: OnboardingTask.objects.all(),
+            "display_fn": lambda obj: obj.task_title,
+            "search_fields": ["task_title"],
+            "placeholder": _("Select task..."),
+        },
+    }
 
     class Meta:
         model = CandidateStage

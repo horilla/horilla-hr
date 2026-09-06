@@ -46,7 +46,24 @@ See [Discussion #1127](https://github.com/horilla/horilla-hr/discussions/1127) f
 
 ## ⚡ Quick Start
 
-### Using Docker (Recommended)
+### Using the official Docker image (Recommended)
+
+Published for `linux/amd64` and `linux/arm64` as
+[`horilla/horilla-hr`](https://hub.docker.com/r/horilla/horilla-hr):
+
+```bash
+docker pull horilla/horilla-hr:2.0.0
+```
+
+Pin an exact version in production rather than `latest`, so a deploy cannot
+pick up a new major release unattended. The
+[repository overview](https://hub.docker.com/r/horilla/horilla-hr) documents
+every environment variable, the volumes to back up, and a working Compose file.
+
+First boot applies the full migration set before the web server binds, which
+takes a few minutes on an empty database.
+
+### Building from source with Docker
 
 ```bash
 # Clone the repository (defaults to the stable 2.0 branch)
@@ -54,11 +71,13 @@ git clone https://github.com/horilla/horilla-hr.git
 cd horilla-hr
 
 # Start with Docker Compose
-docker-compose up -d
+docker compose up -d
 
 # Access the application
 open http://localhost:8000
 ```
+
+Full Docker guide, including production deployment: [docker/README.md](docker/README.md)
 
 ### Manual Installation
 

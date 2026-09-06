@@ -14,6 +14,27 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
+    # Production runs PostgreSQL (psycopg2-binary is pinned in
+    # requirements.txt). A SQLite-only suite never exercises the transaction
+    # semantics, JSONField lookups, constraint deferral or migration DDL we
+    # actually ship on, so the backend under test matches the backend deployed.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: horilla_ci
+          POSTGRES_PASSWORD: horilla_ci
+          POSTGRES_DB: horilla_ci
+        ports:
+          - 5432:5432
+        # Without the healthcheck the job can start before Postgres accepts
+        # connections and fail on a race rather than a real defect.
+        options: >-
+          --health-cmd "pg_isready -U horilla_ci -d horilla_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -43,10 +64,31 @@ jobs:
             printf '%s\n' '# Ephemeral for CI' > horilla/settings/local_settings.py
           fi
 
+      # Catches a model change merged without its migration. `migrate` cannot
+      # detect this -- it succeeds against whatever is committed -- and neither
+      # can `manage.py check`, so without this gate the drift ships silently and
+      # only surfaces as a runtime column error on someone else's database.
+      - name: Check for missing migrations
+        env:
+          DJANGO_SETTINGS_MODULE: horilla.settings
+          DEBUG: "True"
+          SECRET_KEY: ci-dev-not-for-production
+          ALLOWED_HOSTS: localhost,127.0.0.1
+          # Takes the env.db() branch in settings/base.py, which avoids the
+          # sqlite-only OPTIONS.timeout that Postgres rejects.
+          DATABASE_URL: postgres://horilla_ci:horilla_ci@localhost:5432/horilla_ci
+        run: python manage.py makemigrations --check --dry-run
+
       - name: Run smoke unit tests with coverage floor
         env:
           DJANGO_SETTINGS_MODULE: horilla.settings
           DEBUG: "True"
           SECRET_KEY: ci-dev-not-for-production
           ALLOWED_HOSTS: localhost,127.0.0.1
-        run: make test-cov COV_FAIL_UNDER=5
+          # Takes the env.db() branch in settings/base.py, which avoids the
+          # sqlite-only OPTIONS.timeout that Postgres rejects.
+          DATABASE_URL: postgres://horilla_ci:horilla_ci@localhost:5432/horilla_ci
+        # No COV_FAIL_UNDER override: the Makefile's value is the gate, and
+        # its comment explains why a floor below real coverage is worse than
+        # none. Passing 5 here re-created exactly that.
+        run: make test-cov

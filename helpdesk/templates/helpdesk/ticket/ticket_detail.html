@@ -152,7 +152,7 @@
                                 <span class="oh-helpdesk__bubble-timestamp">{{ ticket.created_date }}</span>
                             </div>
                             <div class="oh-helpdesk__bubble-body">
-                                <p>{{ ticket.description|safe }}</p>
+                                <p>{{ ticket.description|sanitize_html }}</p>
                             </div>
                         </div>
 
@@ -184,7 +184,7 @@
                                             </div>
                                             <div class="oh-helpdesk__bubble-body">
                                                 <span class="oh-helpdesk__comment">
-                                                    {{ item.comment.comment|safe }}
+                                                    {{ item.comment.comment|sanitize_html }}
                                                 </span>
                                                 <div class="oh-scrollable-container">
                                                     <div class="oh-layout--grid-3 mt-2 mb-2 horizontal-scroll">
@@ -251,7 +251,7 @@
                                                         class="bg-transparent border-0 w-100 comment_input"
                                                         data-comment-id="{{item.comment.id}}"
                                                     >{{item.comment.comment}}</textarea>
-                                                    {{ item.comment.comment|safe }}
+                                                    {{ item.comment.comment|sanitize_html }}
                                                 </div>
                                                 <div class="oh-btn-group" style="border: none">
                                                     {% if request.user.employee_get|is_department_manager:ticket or perms.helpdesk.change_comment or request.user.employee_get == item.comment.employee_id %}

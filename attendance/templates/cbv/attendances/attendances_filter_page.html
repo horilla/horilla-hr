@@ -1,137 +1,207 @@
 {% load static %}
 {% load i18n %}
 <div class="oh-dropdown__filter-body">
-    <div class="oh-accordion">
-        <div class="oh-accordion-header">{% trans "Work Info" %}</div>
+    {% comment %}
+        Outside any accordion (always visible, not collapsible) -- same
+        placement as Employee's own panel (filter_employee.html) and for
+        the same reason: this is the primary/most-used search, so it
+        shouldn't be hidden behind a click. Dedicated comma-separated
+        search (AttendanceFilters.name_or_badge -- see horilla.filters.
+        filter_name_or_badge_terms) -- e.g. "PEP01, PEP02, jane" matches
+        any attendance whose employee's name or badge matches ANY one of
+        those terms.
+    {% endcomment %}
+    <div class="row">
+        <div class="col-sm-12 col-md-12 col-lg-12">
+            <div class="oh-input-group">
+                <label class="oh-label" for="{{form.name_or_badge.id_for_label}}">{% trans "Name or Badge ID" %}</label>
+                {{ form.name_or_badge }}
+            </div>
+        </div>
+    </div>
+
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header">
+            <span class="oh-filter-section-icon"><ion-icon name="briefcase-outline"></ion-icon></span>
+            {% trans "Work Info" %}
+        </div>
         <div class="oh-accordion-body">
             <div class="row">
-                <div class="col-sm-12 col-md-12 col-lg-6">
+                {% comment %}
+                    Full width, not a col-lg-6 half -- every AJAX-loaded
+                    Select2 combobox here (see AttendanceFilters.
+                    ajax_fields) needs real room for its selected chips/
+                    placeholder text, same reasoning as Employee's own
+                    modern filter panel (employee/templates/cbv/
+                    employees_view/filter_employee.html).
+                {% endcomment %}
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
-                        <label class="oh-label">{% trans "Employee" %}</label>
+                        <label class="oh-label" for="{{form.employee_id.id_for_label}}">{% trans "Employee" %}</label>
                         {{ form.employee_id }}
                     </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
-                        <label class="oh-label">{% trans "Department" %}</label>
+                        <label class="oh-label" for="{{form.employee_id__employee_work_info__department_id.id_for_label}}">{% trans "Department" %}</label>
                         {{ form.employee_id__employee_work_info__department_id }}
                     </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
-                        <label class="oh-label">{% trans "Shift" %}</label>
-                        {{ form.shift_id }}
+                        <label class="oh-label" for="{{form.employee_id__employee_work_info__job_position_id.id_for_label}}">{% trans "Job Position" %}</label>
+                        {{ form.employee_id__employee_work_info__job_position_id }}
                     </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
-                        <label class="oh-label">{% trans "Reporting Manager" %}</label>
+                        <label class="oh-label" for="{{form.employee_id__employee_work_info__reporting_manager_id.id_for_label}}">{% trans "Reporting Manager" %}</label>
                         {{ form.employee_id__employee_work_info__reporting_manager_id }}
                     </div>
                 </div>
-                <div class="col-sm-12 col-md-12 col-lg-6">
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
-                        <label class="oh-label">{% trans "Company" %}</label>
+                        <label class="oh-label" for="{{form.employee_id__employee_work_info__company_id.id_for_label}}">{% trans "Company" %}</label>
                         {{ form.employee_id__employee_work_info__company_id }}
                     </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
-                        <label class="oh-label">{% trans "Job Position" %}</label>
-                        {{ form.employee_id__employee_work_info__job_position_id }}
+                        <label class="oh-label" for="{{form.shift_id.id_for_label}}">{% trans "Shift" %}</label>
+                        {{ form.shift_id }}
                     </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
-                        <label class="oh-label">{% trans "Work Type" %}</label>
+                        <label class="oh-label" for="{{form.work_type_id.id_for_label}}">{% trans "Work Type" %}</label>
                         {{ form.work_type_id }}
                     </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
-                        <label class="oh-label">{% trans "Work Location" %}</label>
+                        <label class="oh-label" for="{{form.employee_id__employee_work_info__location.id_for_label}}">{% trans "Work Location" %}</label>
                         {{ form.employee_id__employee_work_info__location }}
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    {% comment %} {{form.}} {% endcomment %}
-    <div class="oh-accordion">
-        <div class="oh-accordion-header">{% trans "Attendance" %}</div>
+
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header">
+            <span class="oh-filter-section-icon"><ion-icon name="calendar-outline"></ion-icon></span>
+            {% trans "Attendance" %}
+        </div>
         <div class="oh-accordion-body">
             <div class="row">
                 <div class="col-sm-12 col-md-12 col-lg-6">
                     <div class="oh-input-group">
-                        <label class="oh-label">{% trans "Attendance Date" %}</label>
+                        <label class="oh-label" for="{{form.attendance_date.id_for_label}}">{% trans "Attendance Date" %}</label>
                         {{ form.attendance_date }}
-                    </div>
-                    <div class="oh-input-group">
-                        <label class="oh-label">{% trans "Validated?" %}</label>
-                        {{ form.attendance_validated }}
                     </div>
                 </div>
                 <div class="col-sm-12 col-md-12 col-lg-6">
                     <div class="oh-input-group">
-                        <label class="oh-label">{% trans "Min Hour" %}</label>
+                        <label class="oh-label" for="{{form.minimum_hour.id_for_label}}">{% trans "Min Hour" %}</label>
                         {{ form.minimum_hour }}
                     </div>
+                </div>
+                {% comment %}
+                    Any/Yes/No segmented toggles -- see AttendanceFilters.
+                    attendance_validated/attendance_overtime_approve
+                    (both explicitly declared with a leading empty "Any"
+                    choice, same pattern as EmployeeFilter.is_active).
+                {% endcomment %}
+                <div class="col-sm-12 col-md-12 col-lg-6">
                     <div class="oh-input-group">
-                        <label class="oh-label">{% trans "OT Approved?" %}</label>
-                        {{ form.attendance_overtime_approve }}
+                        <label class="oh-label">{% trans "Validated" %}?</label>
+                        <div class="oh-segmented">
+                            {% for radio in form.attendance_validated %}
+                                <label class="oh-segmented__item" for="{{radio.id_for_label}}">
+                                    {{radio.tag}}
+                                    <span>{{radio.choice_label}}</span>
+                                </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-6">
+                    <div class="oh-input-group">
+                        <label class="oh-label">{% trans "OT Approved" %}?</label>
+                        <div class="oh-segmented">
+                            {% for radio in form.attendance_overtime_approve %}
+                                <label class="oh-segmented__item" for="{{radio.id_for_label}}">
+                                    {{radio.tag}}
+                                    <span>{{radio.choice_label}}</span>
+                                </label>
+                            {% endfor %}
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    <div class="oh-accordion">
-        <div class="oh-accordion-header">{% trans "Advanced" %}</div>
+
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header">
+            <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
+            {% trans "Advanced" %}
+        </div>
         <div class="oh-accordion-body">
             <div class="row">
                 <div class="col-sm-12 col-md-12 col-lg-6">
                     <div class="oh-input-group">
-                        <label class="oh-label">{% trans "Attendance From" %}</label>
+                        <label class="oh-label" for="{{form.attendance_date__gte.id_for_label}}">{% trans "Attendance From" %}</label>
                         {{ form.attendance_date__gte }}
                     </div>
                     <div class="oh-input-group">
-                        <label class="oh-label">{% trans "In From" %}</label>
-                        {{ form.attendance_clock_in__gte }}
-                    </div>
-                    <div class="oh-input-group">
-                        <label class="oh-label">{% trans "Out From" %}</label>
-                        {{ form.attendance_clock_out__gte }}
-                    </div>
-                    <div class="oh-input-group">
-                        <label class="oh-label">{% trans "At Work Greater or Equal" %}</label>
+                        <label class="oh-label" for="{{form.at_work_second__gte.id_for_label}}">{% trans "At Work Greater or Equal" %}</label>
                         {{ form.at_work_second__gte }}
-                    </div>
-                    <div class="oh-input-group">
-                        <label class="oh-label">{% trans "Pending Hour Greater or Equal" %}</label>
-                        {{ form.pending_hour_gte }}
-                    </div>
-                    <div class="oh-input-group">
-                        <label class="oh-label">{% trans "OT Greater or Equal" %}</label>
-                        {{ form.overtime_second__gte }}
                     </div>
                 </div>
                 <div class="col-sm-12 col-md-12 col-lg-6">
                     <div class="oh-input-group">
-                        <label class="oh-label">{% trans "Attendance Till" %}</label>
+                        <label class="oh-label" for="{{form.attendance_date__lte.id_for_label}}">{% trans "Attendance Till" %}</label>
                         {{ form.attendance_date__lte }}
                     </div>
                     <div class="oh-input-group">
-                        <label class="oh-label">{% trans "In Till" %}</label>
-                        {{ form.attendance_clock_in__lte }}
-                    </div>
-                    <div class="oh-input-group">
-                        <label class="oh-label">{% trans "Out Till" %}</label>
-                        {{ form.attendance_clock_out__lte }}
-                    </div>
-                    <div class="oh-input-group">
-                        <label class="oh-label">{% trans "At Work Lesser or Equal" %}</label>
+                        <label class="oh-label" for="{{form.at_work_second__lte.id_for_label}}">{% trans "At Work Lesser or Equal" %}</label>
                         {{ form.at_work_second__lte }}
                     </div>
+                </div>
+            </div>
+            {% comment %}
+                In/Out clock time and Pending Hour/OT ranges used to each
+                have a permanent From/Till input pair here -- moved to
+                this picker instead (still fully reachable, just via
+                "+ Add filter" rather than taking up space by default),
+                since Attendance Date and At Work are filtered on far
+                more often. Registry: AttendanceFilters.
+                _build_custom_filter_fields; applied server-side by
+                HorillaFilterSet._apply_custom_filters. Row markup/JS are
+                generic (initCustomFilterBuilder, horilla_nav.html) --
+                same builder EmployeeFilter uses.
+            {% endcomment %}
+            <div class="row">
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
-                        <label class="oh-label">{% trans "Pending Hour Lesser or Equal" %}</label>
-                        {{ form.pending_hour_lte }}
-                    </div>
-                    <div class="oh-input-group">
-                        <label class="oh-label">{% trans "OT Lesser or Equal" %}</label>
-                        {{ form.overtime_second__lte }}
+                        <div id="customFilterRowsContainer-attendance" class="oh-custom-filter-rows"></div>
+                        <button
+                            type="button"
+                            class="oh-custom-filter-add"
+                            onclick="addCustomFilterRow('attendance')"
+                        >+ {% trans "Add filter" %}</button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{{ custom_filter_fields|json_script:"customFilterFields-attendance" }}
+{{ custom_filter_rows|json_script:"customFilterRows-attendance" }}
+<script>
+    initCustomFilterBuilder('attendance');
+</script>
 <div hidden class="oh-input-group">
     <label class="oh-label">{% trans "Bulk Request" %}</label>
     {{ form.is_bulk_request }}

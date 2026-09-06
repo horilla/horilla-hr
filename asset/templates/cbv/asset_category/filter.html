@@ -2,29 +2,19 @@
 {% load assets_custom_filter %}
 {% load widget_tweaks %}
 <div class="oh-dropdown__filter-body">
-    <div class="oh-accordion">
-        <div class="oh-accordion-header">{% trans "Asset" %}</div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header"
+            onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
+        >
+            <span class="oh-filter-section-icon"><ion-icon name="cube-outline"></ion-icon></span>
+            {% trans "Asset" %}
+        </div>
         <div class="oh-accordion-body">
-            {% comment %} <form hx-get="{%url 'asset-category-view-search-filter' %}" name="asset_list" hx-target="#assetCategoryList" hx-swap="innerHTML" id="filterForm2"> {% endcomment %}
             <div class="row">
-                <div class="col-sm-12 col-md-12 col-lg-6">
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label class="oh-label" for="{{form.asset_name.id_for_label}}">{% trans "Asset Name" %}</label>
                         {{ form.asset_name }}
-                    </div>
-                    <div class="oh-input-group">
-                        <label
-                            class="oh-label"
-                            for="{{form.asset_purchase_date_from.id_for_label}}"
-                        >{% trans "Purchase Date From" %}</label>
-                        {{ form.asset_purchase_date_from }}
-                    </div>
-                    <div class="oh-input-group">
-                        <label
-                            class="oh-label"
-                            for="{{form.asset_purchase_date_till.id_for_label}}"
-                        >{% trans "Purchase Date Till" %}</label>
-                        {{ form.asset_purchase_date_till }}
                     </div>
                 </div>
                 <div class="col-sm-12 col-md-12 col-lg-6">
@@ -35,31 +25,20 @@
                         >{% trans "Tracking Id" %}</label>
                         {{ form.asset_tracking_id }}
                     </div>
-                    <div class="oh-input-group">
-                        <label
-                            class="oh-label"
-                            for="{{form.asset_purchase_date.id_for_label}}"
-                        >{% trans "Purchase Date" %}</label>
-                        {{ form.asset_purchase_date |attr:"type:date" }}
-                    </div>
-                    <div class="oh-input-group">
-                        <label
-                            class="oh-label"
-                            for="{{form.asset_purchase_cost.id_for_label}}"
-                        >{% trans "Purchase Cost" %}</label>
-                        {{ form.asset_purchase_cost }}
-                    </div>
                 </div>
                 <div class="col-sm-12 col-md-12 col-lg-6">
                     <div class="oh-input-group">
-                        <label
-                            class="oh-label"
-                            for="{{form.asset_lot_number_id.id_for_label}}"
-                        >{% trans "Asset Batch Number" %}</label>
-                        {{ form.asset_lot_number_id }}
+                        <label class="oh-label" for="{{form.asset_status.id_for_label}}">{% trans "Status" %}</label>
+                        {{ form.asset_status }}
                     </div>
                 </div>
-                <div class="col-sm-12 col-md-12 col-lg-6">
+                <!-- Full width -- Category and Batch Number are now
+                     AJAX-searched Select2 comboboxes (see
+                     asset/filters.py's AssetFilter.ajax_fields) and
+                     need real room for their selected chips/
+                     placeholder text, same reasoning as every other
+                     modernized panel this session. -->
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label
                             class="oh-label"
@@ -70,12 +49,71 @@
                 </div>
                 <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
-                        <label class="oh-label" for="{{form.asset_status.id_for_label}}">{% trans "Status" %}</label>
-                        {{ form.asset_status }}
+                        <label
+                            class="oh-label"
+                            for="{{form.asset_lot_number_id.id_for_label}}"
+                        >{% trans "Asset Batch Number" %}</label>
+                        {{ form.asset_lot_number_id }}
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    {% comment %} </form> {% endcomment %}
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header"
+            onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
+        >
+            <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
+            {% trans "Advanced" %}
+        </div>
+        <div class="oh-accordion-body">
+            <div class="row">
+                <div class="col-sm-12 col-md-12 col-lg-6">
+                    <div class="oh-input-group">
+                        <label
+                            class="oh-label"
+                            for="{{form.asset_purchase_date.id_for_label}}"
+                        >{% trans "Purchase Date" %}</label>
+                        {{ form.asset_purchase_date |attr:"type:date" }}
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-6">
+                    <div class="oh-input-group">
+                        <label
+                            class="oh-label"
+                            for="{{form.asset_purchase_cost.id_for_label}}"
+                        >{% trans "Purchase Cost" %}</label>
+                        {{ form.asset_purchase_cost }}
+                    </div>
+                </div>
+                <!-- Purchase Date From/Till used to each have their own
+                     permanent, fixed gte/lte range inputs here --
+                     replaced with the same "+ Add filter" field/lookup/
+                     value builder AttendanceFilters/EmployeeFilter/PMS
+                     FeedbackFilter use (choose the field, then the
+                     lookup, then the value), which also offers gt/lt/
+                     exact instead of just gte/lte, and adds Created At
+                     as a second option. Registry: AssetFilter.
+                     _build_custom_filter_fields; applied server-side by
+                     HorillaFilterSet._apply_custom_filters (see
+                     AssetFilter.filter_queryset). Row markup/JS are
+                     generic (initCustomFilterBuilder, horilla_nav.html). -->
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <div id="customFilterRowsContainer-asset-category" class="oh-custom-filter-rows"></div>
+                        <button
+                            type="button"
+                            class="oh-custom-filter-add"
+                            onclick="addCustomFilterRow('asset-category')"
+                        >+ {% trans "Add filter" %}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+{{ custom_filter_fields|json_script:"customFilterFields-asset-category" }}
+{{ custom_filter_rows|json_script:"customFilterRows-asset-category" }}
+<script>
+    initCustomFilterBuilder('asset-category');
+</script>

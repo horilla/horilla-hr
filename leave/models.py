@@ -702,26 +702,6 @@ class AvailableLeave(HorillaModel):
         """
         return f"{self.employee_id.get_department()} / {self.employee_id.get_job_position()}"
 
-    def forcasted_leaves(self):
-        forecasted_leave = {}
-        if self.leave_type_id.reset_based == "monthly":
-            today = datetime.now()
-            for i in range(1, 7):  # Calculate for the next 6 months
-                next_month = today + relativedelta(months=i)
-                if self.leave_type_id.carryforward_max:
-                    forecasted_leave[next_month.strftime("%Y-%m")] = (
-                        self.available_days
-                        + min(
-                            self.leave_type_id.carryforward_max,
-                            (self.leave_type_id.total_days * i),
-                        )
-                    )
-                else:
-                    forecasted_leave[next_month.strftime("%Y-%m")] = (
-                        self.available_days + (self.leave_type_id.total_days * i)
-                    )
-        return forecasted_leave
-
     def forcasted_leaves(self, date):
         if isinstance(date, str):
             date = datetime.strptime(date, "%Y-%m-%d").date()
@@ -987,6 +967,19 @@ class LeaveRequest(HorillaModel):
         verbose_name = _("Leave Request")
         verbose_name_plural = _("Leave Requests")
         permissions = (("can_view_on_leave", "Can View On Leave"),)
+        # Leave is queried as "who is off between these dates" and "what is
+        # pending", both across all employees -- neither of which the FK
+        # indexes Django creates can serve.
+        indexes = [
+            models.Index(
+                fields=["start_date", "end_date"],
+                name="leaverequest_dates_idx",
+            ),
+            models.Index(
+                fields=["status", "start_date"],
+                name="leaverequest_status_date_idx",
+            ),
+        ]
 
     def comment_action(self):
         """
@@ -2333,14 +2326,6 @@ if apps.is_installed("attendance"):
                     f"onmouseover=\"this.style.backgroundColor='{hovering}';\" "
                     f"onmouseout=\"this.style.backgroundColor='rgba(255, 166, 0, 0.158)';\""
                 )
-
-        def assign_compensatory_leave_type(self):
-            available_leave, created = AvailableLeave.objects.get_or_create(
-                employee_id=self.employee_id,
-                leave_type_id=self.leave_type_id,
-            )
-            available_leave.available_days += self.requested_days
-            available_leave.save()
 
         def __str__(self):
             return f"{self.employee_id}| {self.leave_type_id}| {self.id}"

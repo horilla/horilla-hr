@@ -15,7 +15,13 @@ from django.http import Http404
 from django.shortcuts import redirect, render
 from django.utils.translation import gettext as _
 
-from base.models import Announcement, AnnouncementExpire, Company, PenaltyAccounts
+from base.models import (
+    Announcement,
+    AnnouncementExpire,
+    Company,
+    DefaultExportPermission,
+    PenaltyAccounts,
+)
 from horilla.methods import get_horilla_model_class
 
 
@@ -29,6 +35,26 @@ def create_announcement_expire_setting(sender, instance, created, raw, **kwargs)
     AnnouncementExpire.objects.get_or_create(company_id=None)
     if created:
         AnnouncementExpire.objects.get_or_create(company_id=instance)
+
+
+@receiver(post_save, sender=Company)
+def create_default_export_permission(sender, instance, created, raw, **kwargs):
+    """
+    Give every new company an explicit "Default Export Access" row.
+
+    Readers treat a missing row as enabled, so without this a company added
+    after migration base.0003 would again have the permissive behaviour
+    implied by absence rather than recorded as a decision. Mirrors the
+    announcement-expire receiver above, including the NULL-company row that
+    the "All companies" session scope reads.
+    """
+    DefaultExportPermission.objects.get_or_create(
+        company_id=None, defaults={"is_enabled": True}
+    )
+    if created:
+        DefaultExportPermission.objects.get_or_create(
+            company_id=instance, defaults={"is_enabled": True}
+        )
 
 
 @receiver(post_save, sender=PenaltyAccounts)

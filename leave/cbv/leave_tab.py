@@ -4,6 +4,7 @@ This page is handling the cbv methods of leave tab in employee profile page.
 
 from typing import Any
 
+from django.http import HttpResponse
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
@@ -18,6 +19,11 @@ class IndividualLeaveTab(MainParentListView):
     """
 
     template_name = "cbv/employee_individual/leave_tab.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if not Employee.objects.filter(id=kwargs.get("pk")).exists():
+            return HttpResponse()
+        return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs: Any):
         """

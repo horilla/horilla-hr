@@ -203,6 +203,11 @@ class LateComeAndEarlyOutListNav(HorillaNavView):
     filter_body_template = "cbv/late_come_and_early_out/late_early_filter.html"
     filter_form_context_name = "form"
     search_swap_target = "#listContainer"
+    # Modern slide-over filter panel (horilla_nav.html's .oh-filter-modern
+    # styles) -- LateComeEarlyOutFilter.ajax_fields carries the
+    # AJAX-loaded comboboxes this needs, same as AttendancesNavView/
+    # AttendanceActivityNavView.
+    modern_filter = True
 
     group_by_fields = [
         ("employee_id", _("Employee")),

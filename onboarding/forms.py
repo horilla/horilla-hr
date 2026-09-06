@@ -55,7 +55,7 @@ class UserCreationFormCustom(UserForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         reload_queryset(self.fields)
-        for _, field in self.fields.items():
+        for _unused, field in self.fields.items():
             widget = field.widget
             if isinstance(
                 widget,

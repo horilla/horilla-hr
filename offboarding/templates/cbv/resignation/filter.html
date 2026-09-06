@@ -1,32 +1,62 @@
 {% load i18n %}
 <div class="oh-dropdown__filter-body">
-    <div class="oh-accordion">
-      <div class="oh-accordion-header">{% trans "Resignation" %}</div>
+    <!-- Outside any accordion (always visible, not collapsible) -- same
+         placement as every other modernized filter panel this session:
+         primary/most-used search, shouldn't be hidden behind a click.
+         Comma-separated multi-term search (LetterFilter.name_or_badge
+         -- see horilla.filters.filter_name_or_badge_terms). -->
+    <div class="row">
+        <div class="col-sm-12 col-md-12 col-lg-12">
+            <div class="oh-input-group">
+                <label class="oh-label" for="{{form.name_or_badge.id_for_label}}">{% trans "Name or Badge ID" %}</label>
+                {{form.name_or_badge}}
+            </div>
+        </div>
+    </div>
+
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+      <div class="oh-accordion-header">
+        <span class="oh-filter-section-icon"><ion-icon name="exit-outline"></ion-icon></span>
+        {% trans "Resignation" %}
+      </div>
       <div class="oh-accordion-body">
+        <!-- Full width -- Employee/Department/Job Position/Reporting
+             Manager are now AJAX-searched Select2 comboboxes (see
+             offboarding/filters.py's LetterFilter.ajax_fields) and need
+             real room for their selected chips/placeholder text, same
+             reasoning as every other modernized panel this session. -->
         <div class="row">
-          <div class="col-sm-12 col-md-12 col-lg-6">
+          <div class="col-sm-12 col-md-12 col-lg-12">
             <div class="oh-input-group">
               <label class="oh-label">{% trans "Employee" %}</label>
               {{form.employee_id}}
             </div>
+          </div>
+          <div class="col-sm-12 col-md-12 col-lg-6">
             <div class="oh-input-group">
               <label class="oh-label">{% trans "Status" %}</label>
               {{form.status}}
             </div>
+          </div>
+          <div class="col-sm-12 col-md-12 col-lg-6">
+            <div class="oh-input-group">
+              <label class="oh-label">{% trans "Planned to resign" %}</label>
+              {{form.planned_to_leave_on}}
+            </div>
+          </div>
+          <div class="col-sm-12 col-md-12 col-lg-12">
             <div class="oh-input-group">
               <label class="oh-label">{% trans "Reporting manager" %}</label>
               {{form.employee_id__employee_work_info__reporting_manager_id}}
             </div>
           </div>
-          <div class="col-sm-12 col-md-12 col-lg-6">
+          <div class="col-sm-12 col-md-12 col-lg-12">
             <div class="oh-input-group">
               <label class="oh-label">{% trans "Department" %}</label>
               {{form.employee_id__employee_work_info__department_id}}
             </div>
-            <div class="oh-input-group">
-              <label class="oh-label">{% trans "Planned to resign" %}</label>
-              {{form.planned_to_leave_on}}
-            </div>
+          </div>
+          <div class="col-sm-12 col-md-12 col-lg-12">
             <div class="oh-input-group">
               <label class="oh-label">{% trans "Job position" %}</label>
               {{form.employee_id__employee_work_info__job_position_id}}
@@ -35,4 +65,40 @@
         </div>
       </div>
     </div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+      <div class="oh-accordion-header"
+        onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
+      >
+        <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
+        {% trans "Advanced" %}
+      </div>
+      <div class="oh-accordion-body">
+        <div class="row">
+          <!-- Generic "+ Add filter" field/lookup/value builder (same
+               as AttendanceFilters/EmployeeFilter/AssetFilter),
+               offering the full gte/lte/gt/lt/exact set for Planned To
+               Leave On (a quick exact-match field for it stays above)
+               plus Created At. Registry: LetterFilter.
+               _build_custom_filter_fields; applied server-side by
+               HorillaFilterSet._apply_custom_filters (see
+               LetterFilter.filter_queryset). Row markup/JS are generic
+               (initCustomFilterBuilder, horilla_nav.html). -->
+          <div class="col-sm-12 col-md-12 col-lg-12">
+            <div class="oh-input-group">
+              <div id="customFilterRowsContainer-resignation" class="oh-custom-filter-rows"></div>
+              <button
+                type="button"
+                class="oh-custom-filter-add"
+                onclick="addCustomFilterRow('resignation')"
+              >+ {% trans "Add filter" %}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
+{{ custom_filter_fields|json_script:"customFilterFields-resignation" }}
+{{ custom_filter_rows|json_script:"customFilterRows-resignation" }}
+<script>
+    initCustomFilterBuilder('resignation');
+</script>

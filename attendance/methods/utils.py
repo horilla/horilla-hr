@@ -166,8 +166,13 @@ def employee_exists(request):
     try:
         employee = request.user.employee_get
         employee_work_info = employee.employee_work_info
-    finally:
-        return (employee, employee_work_info)
+    except Exception:
+        # Either attribute is absent for an AnonymousUser or a user with no
+        # Employee/EmployeeWorkInformation row; callers expect None rather
+        # than an exception. `except Exception` instead of a bare `finally`
+        # so KeyboardInterrupt and SystemExit still propagate.
+        pass
+    return (employee, employee_work_info)
 
 
 def shift_schedule_today(day, shift):
@@ -325,6 +330,24 @@ def get_month_start_end_dates(year_month):
     end_date = datetime(year, month, last_day).date()
 
     return start_date, end_date
+
+
+def month_date_range(year, month):
+    """Return (first_day, last_day) for a month as real dates.
+
+    Exists so queries can say ``attendance_date__range=(...)`` instead of
+    ``attendance_date__month=`` / ``__year=``. Those two wrap the column in a
+    database function, which makes a plain B-tree index on the column
+    unusable -- so the range form is what lets an index be used at all.
+
+    ``get_month_start_end_dates`` above does the same thing from a "YYYY-MM"
+    string; this takes the parts separately, which is what the model methods
+    have to hand.
+    """
+    year = int(year)
+    month = int(month)
+    _, last_day = calendar.monthrange(year, month)
+    return date(year, month, 1), date(year, month, last_day)
 
 
 def worked_hour_data(labels, records):
@@ -602,14 +625,6 @@ def parse_time(time_str):
             except ValueError:
                 continue
     return None
-
-
-def parse_datetime(date_str, time_str):
-    return (
-        datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
-        if date_str and time_str
-        else None
-    )
 
 
 def parse_date(date_str, error_key, activity):

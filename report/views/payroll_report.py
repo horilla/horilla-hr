@@ -330,6 +330,10 @@ if apps.is_installed("payroll"):
 
         if model_type == "payslip":
             qs = Payslip.objects.all()
+            # The sidebar filter form has to be applied here too, not just on
+            # the allowance/deduction branches below -- without it the payslip
+            # pivot silently ignored every filter the user set.
+            qs = PayslipFilter(request.GET, queryset=qs).qs
             qs = apply_dynamic_filters(qs, request, "payslip")
 
             data = list(

@@ -10,6 +10,7 @@ from typing import Any, Optional
 
 from django.db.models import QuerySet
 from django.http import HttpRequest
+from django.utils.translation import gettext as _
 
 EMPLOYMENT_STATUS_ACTIVE = "active"
 EMPLOYMENT_STATUS_INACTIVE = "inactive"
@@ -65,57 +66,86 @@ class ReportFilters:
             return "All time"
         return f"{self.from_date.isoformat()} → {self.to_date.isoformat()}"
 
+    # Marker for the period row. summary_labels() renders that row as a bare
+    # value rather than "Label: value", and it used to detect it by comparing
+    # the label against the literal "Period" -- which silently stopped
+    # matching the moment the label became translatable.
+    PERIOD_LABEL_KEY = "period"
+
     def summary_pairs(self) -> list[tuple[str, str]]:
         """Structured (label, value) pairs for the active filters, with FK ids
         resolved to their display names — the audit-ready form consumed by the
         export cover sheets / PDF header. Resolution is best-effort: a deleted
-        or unresolvable row falls back to ``#<id>`` rather than erroring."""
-        pairs: list[tuple[str, str]] = [("Period", self.period_label)]
+        or unresolvable row falls back to ``#<id>`` rather than erroring.
+
+        Labels are translated: these appear on the cover sheet of every Excel
+        and PDF export, and previously stayed English while the rest of the
+        document rendered in the tenant's language.
+        """
+        pairs: list[tuple[str, str]] = [(str(_("Period")), self.period_label)]
         if self.period_preset and self.period_preset not in ("custom", "all_time"):
             pairs.append(
-                ("Period preset", self.period_preset.replace("_", " ").capitalize())
+                (
+                    str(_("Period preset")),
+                    self.period_preset.replace("_", " ").capitalize(),
+                )
             )
         if self.compare_preset and self.compare_preset not in ("none", "", None):
             pairs.append(
-                ("Compared against", self.compare_preset.replace("_", " ").capitalize())
+                (
+                    str(_("Compared against")),
+                    self.compare_preset.replace("_", " ").capitalize(),
+                )
             )
         if self.employment_status and self.employment_status != EMPLOYMENT_STATUS_ALL:
-            pairs.append(("Employment status", self.employment_status.capitalize()))
+            pairs.append(
+                (str(_("Employment status")), self.employment_status.capitalize())
+            )
         fk_specs = [
-            ("Department", self.department_id, "base", "Department"),
-            ("Job position", self.job_position_id, "base", "JobPosition"),
-            ("Job role", self.job_role_id, "base", "JobRole"),
-            ("Employee type", self.employee_type_id, "base", "EmployeeType"),
-            ("Work type", self.work_type_id, "base", "WorkType"),
-            ("Shift", self.shift_id, "base", "EmployeeShift"),
-            ("Company", self.company_id, "base", "Company"),
-            ("Reporting manager", self.reporting_manager_id, "employee", "Employee"),
-            ("Leave type", self.leave_type_id, "leave", "LeaveType"),
-            ("Recruitment", self.recruitment_id, "recruitment", "Recruitment"),
+            (_("Department"), self.department_id, "base", "Department"),
+            (_("Job position"), self.job_position_id, "base", "JobPosition"),
+            (_("Job role"), self.job_role_id, "base", "JobRole"),
+            (_("Employee type"), self.employee_type_id, "base", "EmployeeType"),
+            (_("Work type"), self.work_type_id, "base", "WorkType"),
+            (_("Shift"), self.shift_id, "base", "EmployeeShift"),
+            (_("Company"), self.company_id, "base", "Company"),
+            (
+                _("Reporting manager"),
+                self.reporting_manager_id,
+                "employee",
+                "Employee",
+            ),
+            (_("Leave type"), self.leave_type_id, "leave", "LeaveType"),
+            (_("Recruitment"), self.recruitment_id, "recruitment", "Recruitment"),
         ]
         for label, pk, app_label, model_name in fk_specs:
             if pk:
-                pairs.append((label, _resolve_display(app_label, model_name, pk)))
+                pairs.append((str(label), _resolve_display(app_label, model_name, pk)))
         if self.location:
-            pairs.append(("Location", self.location))
+            pairs.append((str(_("Location")), self.location))
         if self.gender:
-            pairs.append(("Gender", self.gender.capitalize()))
+            pairs.append((str(_("Gender")), self.gender.capitalize()))
         if self.leave_status:
-            pairs.append(("Leave status", self.leave_status.capitalize()))
+            pairs.append((str(_("Leave status")), self.leave_status.capitalize()))
         if self.source:
-            pairs.append(("Source", self.source))
+            pairs.append((str(_("Source")), self.source))
         if self.offer_letter_status:
-            pairs.append(("Offer letter status", self.offer_letter_status.capitalize()))
+            pairs.append(
+                (str(_("Offer letter status")), self.offer_letter_status.capitalize())
+            )
         if self.payslip_status:
-            pairs.append(("Payslip status", self.payslip_status.capitalize()))
+            pairs.append((str(_("Payslip status")), self.payslip_status.capitalize()))
         return pairs
 
     def summary_labels(self) -> list[str]:
         """Human-readable active filter chips for UI / export — derived from
         ``summary_pairs`` so chips carry resolved names, not raw FK ids."""
         chips = []
+        period_label = str(_("Period"))
         for label, value in self.summary_pairs():
-            chips.append(value if label == "Period" else f"{label}: {value}")
+            # The period row reads as a bare value ("2026-01-01 → 2026-01-31"),
+            # every other row as "Label: value".
+            chips.append(value if label == period_label else f"{label}: {value}")
         return chips
 
 

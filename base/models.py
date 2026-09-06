@@ -10,7 +10,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
-from django.db.models import Case, When
+from django.db.models import Case, Q, When
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.html import format_html
@@ -2631,10 +2631,14 @@ class EmailLog(models.Model):
     to = models.EmailField()
     status = models.CharField(max_length=6, choices=statuses)
     created_at = models.DateTimeField(auto_now_add=True)
-    objects = models.Manager()
     company_id = models.ForeignKey(
         Company, on_delete=models.CASCADE, null=True, editable=False
     )
+    # Was a plain Manager(), so the company_id below was never filtered on and
+    # the mail-log views -- which match only on recipient address -- could show
+    # one tenant's mail to another. Bodies are redacted on write; see
+    # base/email_redaction.py.
+    objects = HorillaCompanyManager()
 
     def __str__(self) -> str:
         return f"{self.subject} {self.to}"
@@ -3220,6 +3224,35 @@ class DefaultExportPermission(HorillaModel):
         verbose_name=_("Company"),
     )
     objects = models.Manager()
+
+    class Meta:
+        # Every reader does .filter(company_id=...).first(), so a second row
+        # for the same company silently decides the setting by insertion
+        # order. One row per company, plus one for the NULL "all companies"
+        # scope.
+        #
+        # Two constraints rather than one with nulls_distinct=False: that
+        # flag needs PostgreSQL 15+, and Django SKIPS the constraint
+        # silently on older servers -- so on Postgres 14 it would enforce
+        # nothing while looking correct. A partial unique index works
+        # everywhere.
+        constraints = [
+            models.UniqueConstraint(
+                fields=["company_id"],
+                condition=Q(company_id__isnull=False),
+                name="unique_default_export_permission_per_company",
+            ),
+            # Postgres treats every NULL as distinct, so a plain unique index
+            # on company_id does NOT stop a second "all companies" row
+            # (verified: two NULL rows insert happily). Indexing the constant
+            # expression company_id IS NULL gives that partial index a single
+            # possible key, which is what makes it a one-row guard.
+            models.UniqueConstraint(
+                Q(company_id__isnull=True),
+                condition=Q(company_id__isnull=True),
+                name="unique_default_export_permission_all_companies",
+            ),
+        ]
 
     def __str__(self):
         return f"Default Export Access for {self.company_id} is {'enabled' if self.is_enabled else 'disabled'}"

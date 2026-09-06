@@ -1,4 +1,5 @@
 {% load static %}
+{% load basefilters %}
 {% load i18n %}{% load helpdeskfilters %}
 
 <div class="oh-modal__dialog-header">
@@ -148,7 +149,7 @@
         <div class="oh-timeoff-modal__stats-container mt-3">
             <div class="oh-timeoff-modal__stat w-100">
                 <span class="oh-timeoff-modal__stat-title">{% trans "Description" %}</span>
-                <span class="oh-timeoff-modal__stat-count">{{ ticket.description|safe }}</span>
+                <span class="oh-timeoff-modal__stat-count">{{ ticket.description|sanitize_html }}</span>
             </div>
         </div>
         <div class="oh-modal__button-container text-center mt-3" onclick="event.stopPropagation()">

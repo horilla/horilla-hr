@@ -1,10 +1,9 @@
 import calendar
-import sys
 from datetime import date, datetime, timedelta
 
-from apscheduler.schedulers.background import BackgroundScheduler
 from django.urls import reverse
 
+from horilla.scheduling import register_job
 from notifications.signals import notify
 
 
@@ -458,68 +457,16 @@ def sync_roster_shifts():
             pass
 
 
-if not any(
-    cmd in sys.argv
-    for cmd in ["makemigrations", "migrate", "compilemessages", "flush", "shell"]
-):
-    scheduler = BackgroundScheduler()
-
-    # Add jobs with next_run_time set to the end of the previous job
-    try:
-        scheduler.add_job(rotate_shift, "interval", hours=4, id="job1")
-    except:
-        pass
-
-    try:
-        scheduler.add_job(
-            rotate_work_type,
-            "interval",
-            hours=4,
-            id="job2",
-        )
-    except:
-        pass
-
-    try:
-        scheduler.add_job(
-            undo_shift,
-            "interval",
-            hours=4,
-            id="job3",
-        )
-    except:
-        pass
-
-    try:
-        scheduler.add_job(
-            switch_shift,
-            "interval",
-            hours=4,
-            id="job4",
-        )
-    except:
-        pass
-
-    try:
-        scheduler.add_job(
-            undo_work_type,
-            "interval",
-            hours=4,
-            id="job6",
-        )
-    except:
-        pass
-
-    try:
-        scheduler.add_job(
-            switch_work_type,
-            "interval",
-            hours=4,
-            id="job5",
-        )
-    except:
-        pass
-
-    scheduler.add_job(recurring_holiday, "interval", hours=4)
-    scheduler.add_job(sync_roster_shifts, "interval", hours=4)
-    scheduler.start()
+# The job1..job6 ids are historical and deliberately preserved so existing
+# jobstore rows are replaced rather than duplicated. Note job5/job6 are swapped
+# relative to declaration order -- that is how they have always been persisted.
+# These registrations were previously wrapped in bare `except: pass`, which made
+# a failed registration indistinguishable from a working one.
+register_job(rotate_shift, "interval", job_id="job1", hours=4)
+register_job(rotate_work_type, "interval", job_id="job2", hours=4)
+register_job(undo_shift, "interval", job_id="job3", hours=4)
+register_job(switch_shift, "interval", job_id="job4", hours=4)
+register_job(undo_work_type, "interval", job_id="job6", hours=4)
+register_job(switch_work_type, "interval", job_id="job5", hours=4)
+register_job(recurring_holiday, "interval", hours=4)
+register_job(sync_roster_shifts, "interval", hours=4)

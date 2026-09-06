@@ -286,6 +286,8 @@ def self_info_update(request):
     )
 
 
+@login_required
+@permission_required("accessibility.change_defaultaccessibility")
 def profile_edit_access(request, emp_id):
     feature = request.GET.get("feature", None)
     accessibility = DefaultAccessibility.objects.filter(feature=feature).first()
@@ -392,11 +394,15 @@ def employee_view_individual(request, obj_id, **kwargs):
 
 @login_required
 @hx_request_required
+@owner_can_enter("employee.view_employee", Employee)
 def about_tab(request, pk, **kwargs):
     """
     This method is used to view profile of an employee.
     """
-    employee = Employee.objects.get(id=pk)
+    employee = Employee.objects.filter(id=pk).first()
+    if not employee:
+        messages.error(request, _("Employee not found."))
+        return HorillaRedirect(request)
     contracts = employee.contract_set.all() if apps.is_installed("payroll") else None
     employee_leaves = (
         employee.available_leave.all() if apps.is_installed("leave") else None
@@ -418,6 +424,7 @@ def about_tab(request, pk, **kwargs):
 
 @login_required
 @hx_request_required
+@owner_can_enter("employee.view_employee", Employee)
 def allowances_deductions_tab(request, pk):
     """
     Retrieve and render the allowances and deductions applicable to an employee.
@@ -428,7 +435,10 @@ def allowances_deductions_tab(request, pk):
     condition-based rules. The results are then rendered in the allowance and
     deduction tab template.
     """
-    employee = Employee.objects.get(id=pk)
+    employee = Employee.objects.filter(id=pk).first()
+    if not employee:
+        messages.error(request, _("Employee not found."))
+        return HorillaRedirect(request)
     active_contracts = (
         employee.contract_set.filter(contract_status="active").first()
         if apps.is_installed("payroll")
@@ -534,7 +544,10 @@ def shift_tab(request, pk):
 
     Returns: return shift-tab template
     """
-    employee = Employee.objects.get(id=pk)
+    employee = Employee.objects.filter(id=pk).first()
+    if not employee:
+        messages.error(request, _("Employee not found."))
+        return HorillaRedirect(request)
     work_type_requests = WorkTypeRequest.objects.filter(employee_id=pk)
     work_type_requests_ids = json.dumps(
         [instance.id for instance in work_type_requests]
@@ -737,7 +750,7 @@ def document_tab(request, pk):
 @login_required
 @hx_request_required
 @owner_can_enter("horilla_documents.add_document", Employee)
-def document_create(request, emp_id):
+def document_create(request, emp_id=None):
     """
     This function is used to create documents from employee individual & profile view.
 
@@ -747,7 +760,10 @@ def document_create(request, emp_id):
 
     Returns: return document_tab template
     """
-    employee_id = Employee.objects.get(id=emp_id)
+    employee_id = Employee.objects.filter(id=emp_id).first() if emp_id else None
+    if not employee_id:
+        messages.error(request, _("Employee not found."))
+        return HorillaRedirect(request)
     form = DocumentForm(initial={"employee_id": employee_id, "expiry_date": None})
     if request.method == "POST":
         form = DocumentForm(request.POST, request.FILES)
@@ -976,7 +992,16 @@ def view_file(request, id):
     Returns: return view_file template
     """
 
-    document_obj = Document.objects.filter(id=id).first()
+    # Scoped to the owner unless the caller may view documents generally.
+    # @login_required alone meant any authenticated employee could read any
+    # colleague's uploads -- resumes, identity documents, certificates -- by
+    # incrementing the id. This is the employee-side twin of the candidate
+    # portal issue reported as GHSA-p745-9729-g8jw, and it mirrors the scoping
+    # document_delete above already applies.
+    document_qs = Document.objects.filter(id=id)
+    if not request.user.has_perm("horilla_documents.view_document"):
+        document_qs = document_qs.filter(employee_id__employee_user_id=request.user)
+    document_obj = document_qs.first()
     if document_obj is None:
         return HorillaRedirect(
             request, message=_("No Document found matching the query.")
@@ -1045,16 +1070,16 @@ def document_approve(request, id):
         return refreshed
 
     if refresh_url:
-        span = f"""
-        <span
-            hx-trigger="load"
-            hx-get="{refresh_url}"
-            hx-target="#requestDocument{id}"
-            hx-select="#requestDocument{id}"
-            hx-swap="outerHTML"
-            ">
-        </span>
-        """
+        # refresh_url comes from the request and is interpolated into
+        # hand-built HTML, so autoescaping does not apply. format_html
+        # escapes it.
+        span = format_html(
+            '<span hx-trigger="load" hx-get="{}" hx-target="#requestDocument{}" '
+            'hx-select="#requestDocument{}" hx-swap="outerHTML"></span>',
+            refresh_url,
+            id,
+            id,
+        )
         return HttpResponse(span)
 
     return HorillaRedirect(request)
@@ -2149,7 +2174,10 @@ def employee_update(request, obj_id):
     args:
         obj_id : employee id
     """
-    employee = Employee.objects.get(id=obj_id)
+    employee = Employee.objects.filter(id=obj_id).first()
+    if not employee:
+        messages.error(request, _("Employee not found."))
+        return HorillaRedirect(request)
     form = EmployeeForm(instance=employee)
     work_info = EmployeeWorkInformation.objects.filter(employee_id=employee).first()
     bank_info = EmployeeBankDetails.objects.filter(employee_id=employee).first()
@@ -2301,7 +2329,10 @@ def employee_archive(request, obj_id):
     Args:
             obj_id : Employee instance id
     """
-    employee = Employee.objects.get(id=obj_id)
+    employee = Employee.objects.filter(id=obj_id).first()
+    if not employee:
+        messages.error(request, _("Employee not found."))
+        return HorillaRedirect(request)
     employee.is_active = not employee.is_active
     employee.employee_user_id.is_active = not employee.is_active
     save = True
@@ -3328,7 +3359,10 @@ def note_tab(request, pk):
     Returns: return note-tab template
 
     """
-    employee_obj = Employee.objects.get(id=pk)
+    employee_obj = Employee.objects.filter(id=pk).first()
+    if not employee_obj:
+        messages.error(request, _("Employee not found."))
+        return HorillaRedirect(request)
     notes = EmployeeNote.objects.filter(employee_id=pk).order_by("-id")
     notes = paginator_qry(notes, request.GET.get("page"))
 
@@ -3363,7 +3397,10 @@ def employee_history_sidebar(request, pk):
     same way HorillaModel-based lists open their auto-added History column
     (see generic/history_col.html / horilla_history_view.html).
     """
-    employee_obj = Employee.objects.get(id=pk)
+    employee_obj = Employee.objects.filter(id=pk).first()
+    if not employee_obj:
+        messages.error(request, _("Employee not found."))
+        return HorillaRedirect(request)
     return render(
         request,
         "employee/history_sidebar.html",
@@ -3380,6 +3417,11 @@ def add_note(request, emp_id=None):
     Saves the note and redirects to the employee's note tab upon successful submission.
     """
 
+    employee_obj = Employee.objects.filter(id=emp_id).first()
+    if not employee_obj:
+        messages.error(request, _("Employee not found."))
+        return HorillaRedirect(request)
+
     form = EmployeeNoteForm(initial={"employee_id": emp_id})
     if request.method == "POST":
         form = EmployeeNoteForm(
@@ -3389,15 +3431,13 @@ def add_note(request, emp_id=None):
 
         if form.is_valid():
             note, attachment_ids = form.save(commit=False)
-            employee = Employee.objects.get(id=emp_id)
-            note.employee_id = employee
+            note.employee_id = employee_obj
             note.updated_by = request.user.employee_get
             note.save()
             note.note_files.set(attachment_ids)
             messages.success(request, _("Note added successfully.."))
             return redirect(f"/employee/note-tab/{emp_id}")
 
-    employee_obj = Employee.objects.get(id=emp_id)
     return render(
         request,
         "tabs/add_note.html",
@@ -3474,7 +3514,10 @@ def add_more_employee_files(request, note_id):
     Args:
         id : stage note instance id
     """
-    note = EmployeeNote.objects.get(id=note_id)
+    note = EmployeeNote.objects.filter(id=note_id).first()
+    if not note:
+        messages.error(request, _("Note not found."))
+        return HorillaRedirect(request)
     employee_id = note.employee_id.id
 
     if request.method == "POST":
@@ -3506,8 +3549,9 @@ def delete_employee_note_file(request, note_file_id):
     Args:
         id : stage file instance id
     """
-    file = NoteFiles.objects.get(id=note_file_id)
-    file.delete()
+    file = NoteFiles.objects.filter(id=note_file_id).first()
+    if file:
+        file.delete()
     return HttpResponse()
 
 
@@ -3584,7 +3628,10 @@ def bonus_points_tab(request, pk):
     Returns: return bonus_points template
 
     """
-    employee_obj = Employee.objects.get(id=pk)
+    employee_obj = Employee.objects.filter(id=pk).first()
+    if not employee_obj:
+        messages.error(request, _("Employee not found."))
+        return HorillaRedirect(request)
     context = {
         "employee": employee_obj,
         **_bonus_points_context(employee_obj, request.GET.get("page")),
@@ -3611,7 +3658,10 @@ def bonus_points_history_tab(request, pk):
     Returns: return bonus_points_history template
 
     """
-    employee_obj = Employee.objects.get(id=pk)
+    employee_obj = Employee.objects.filter(id=pk).first()
+    if not employee_obj:
+        messages.error(request, _("Employee not found."))
+        return HorillaRedirect(request)
     context = {
         "employee": employee_obj,
         **_bonus_points_context(employee_obj, request.GET.get("page")),
@@ -3949,11 +3999,14 @@ def first_last_badge(request):
 @login_required
 @hx_request_required
 @manager_can_enter("employee.view_employee")
-def employee_get_mail_log(request, pk):
+def employee_get_mail_log(request, pk=None):
     """
     This method is used to track mails sent along with the status
     """
-    employee = Employee.objects.get(id=pk)
+    employee = Employee.objects.filter(id=pk).first() if pk else None
+    if not employee:
+        messages.error(request, _("Employee not found."))
+        return HorillaRedirect(request)
     tracked_mails = EmailLog.objects.filter(to__icontains=employee.email)
     try:
         if employee.employee_work_info and employee.employee_work_info.email:
@@ -4157,7 +4210,10 @@ def employee_tag_update(request, tag_id):
     """
     This method renders form and template to create Ticket type
     """
-    tag = EmployeeTag.objects.get(id=tag_id)
+    tag = EmployeeTag.objects.filter(id=tag_id).first()
+    if not tag:
+        messages.error(request, _("Tag not found."))
+        return HorillaRedirect(request)
     form = EmployeeTagForm(instance=tag)
     if request.method == "POST":
         form = EmployeeTagForm(request.POST, instance=tag)

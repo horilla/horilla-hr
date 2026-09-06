@@ -281,6 +281,11 @@ class PayslipNav(HorillaNavView):
     filter_instance = PayslipFilter()
     filter_form_context_name = "form"
     search_swap_target = "#listContainer"
+    # Modern slide-over filter panel (generic/horilla_nav.html's own
+    # {% if modern_filter %} branch) -- same treatment as every other
+    # panel this session. PayslipFilter.ajax_fields carries the
+    # AJAX-loaded Employee combobox this needs.
+    modern_filter = True
 
     group_by_fields = [
         ("employee_id", _("Employee")),

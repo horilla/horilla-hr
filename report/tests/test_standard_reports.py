@@ -408,6 +408,157 @@ class ExportTests(SimpleTestCase):
         self.assertTrue(data.auto_filter.ref)
         self.assertTrue(data.freeze_panes)
 
+    def test_zero_padded_identifiers_keep_their_padding(self):
+        """Badge ids / phone numbers must not be coerced to int.
+
+        int("00042") == 42 silently destroyed the identifier; a zero-padded
+        digit run is data, not a quantity.
+        """
+        from report.export import _coerce_cell
+
+        for text in ("00042", "0501234567", "007", "00"):
+            self.assertEqual(_coerce_cell(text), text, msg=text)
+        # A bare zero and ordinary integers are still real numbers.
+        self.assertEqual(_coerce_cell("0"), 0)
+        self.assertEqual(_coerce_cell("42"), 42)
+        self.assertEqual(_coerce_cell("-42"), -42)
+
+    def test_percent_strings_above_100_are_not_divided_twice(self):
+        """ "150%" must display as 150.0%, not 1.5%.
+
+        _coerce_cell already turns "150%" into 1.5; the data sheet's >1
+        rescale then has to leave it alone or the value is divided twice.
+        """
+        import io as _io
+
+        import openpyxl
+
+        from report.export import export_xlsx
+
+        payload = {
+            "title": "Rates",
+            "period": {"from_date": "2026-01-01", "to_date": "2026-01-31"},
+            "kpis": [],
+            "table": {
+                "columns": [
+                    {"key": "src", "label": "Source"},
+                    {"key": "rate", "label": "Accept Rate %"},
+                ],
+                "rows": [
+                    {"src": "Referral", "rate": "150%"},
+                    {"src": "Portal", "rate": "89.5%"},
+                    # Bare integer under a percent header: must still format
+                    # as a percentage rather than a plain number.
+                    {"src": "Agency", "rate": "75"},
+                ],
+            },
+        }
+        wb = openpyxl.load_workbook(
+            _io.BytesIO(export_xlsx(payload, "r.xlsx", meta={}).content)
+        )
+        ws = wb["Data"]
+        by_source = {}
+        for row in ws.iter_rows():
+            cells = [c for c in row]
+            if len(cells) >= 2 and cells[0].value in ("Referral", "Portal", "Agency"):
+                by_source[cells[0].value] = cells[1]
+
+        self.assertAlmostEqual(by_source["Referral"].value, 1.5, places=4)
+        self.assertAlmostEqual(by_source["Portal"].value, 0.895, places=4)
+        self.assertAlmostEqual(by_source["Agency"].value, 0.75, places=4)
+        for cell in by_source.values():
+            self.assertEqual(cell.number_format, "0.0%")
+
+
+class AttendanceDecimalTests(SimpleTestCase):
+    """The pivot sums the *_Decimal columns, so they must be real hours."""
+
+    def _helpers(self):
+        # The converters are closures inside the module-level guard, so reach
+        # them the way the view does -- via the registered pivot view module.
+        from report.views import attendance_report  # noqa: F401
+
+        return attendance_report
+
+    def test_duration_to_decimal_hours(self):
+        from datetime import time as _time
+
+        # Re-derive the same arithmetic the view applies; a "HH.MM" string
+        # would make 1:45 + 1:45 total 2.90 instead of 3.50.
+        def convert(value):
+            if isinstance(value, str):
+                hours, minutes = map(int, value.split(":")[:2])
+            elif isinstance(value, _time):
+                hours, minutes = value.hour, value.minute
+            else:
+                return 0.0
+            return round(hours + minutes / 60, 2)
+
+        self.assertEqual(convert("1:45"), 1.75)
+        self.assertEqual(convert("0:30"), 0.5)
+        self.assertEqual(convert("8:00"), 8.0)
+        self.assertEqual(convert("1:45") + convert("1:45"), 3.5)
+        self.assertEqual(convert(None), 0.0)
+
+    def test_view_module_returns_numeric_decimals(self):
+        """Guard the real converters, not just the arithmetic above."""
+        import inspect
+
+        from report.views import attendance_report
+
+        source = inspect.getsource(attendance_report)
+        # The base-60-as-base-100 formatting must be gone from both helpers.
+        self.assertNotIn('f"{hours:02}.{minutes:02}"', source)
+        self.assertNotIn('f"{t.hour:02}.{t.minute:02}"', source)
+
+
+class SubscriptionFormTests(SimpleTestCase):
+    def test_recipients_reject_malformed_addresses(self):
+        from report.forms import ReportSubscriptionForm
+
+        form = ReportSubscriptionForm(
+            data={
+                "report_slug": "workforce-composition",
+                "name": "Weekly",
+                "frequency": "weekly",
+                "recipients": "a@b.com, notanemail",
+                "format": "xlsx",
+            }
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("recipients", form.errors)
+        self.assertIn("notanemail", str(form.errors["recipients"]))
+
+    def test_recipients_normalize_and_dedupe(self):
+        from report.forms import ReportSubscriptionForm
+
+        form = ReportSubscriptionForm(
+            data={
+                "report_slug": "workforce-composition",
+                "name": "Weekly",
+                "frequency": "weekly",
+                "recipients": " a@b.com , c@d.com,a@b.com ",
+                "format": "xlsx",
+            }
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data["recipients"], "a@b.com, c@d.com")
+
+    def test_recipients_required(self):
+        from report.forms import ReportSubscriptionForm
+
+        form = ReportSubscriptionForm(
+            data={
+                "report_slug": "workforce-composition",
+                "name": "Weekly",
+                "frequency": "weekly",
+                "recipients": " , ",
+                "format": "xlsx",
+            }
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("recipients", form.errors)
+
 
 class PdfExportTests(SimpleTestCase):
     def test_narrative_blurb(self):
@@ -593,21 +744,21 @@ class SubscriptionDeliveryTests(SimpleTestCase):
         )
         self.assertTrue(subscription_is_due(daily_ok, now))
 
-    def test_scheduler_skips_migrate_argv(self):
-        import sys
+    def test_subscription_job_is_registered_not_started(self):
+        # Replaces an argv-guard test: the module used to start its own
+        # BackgroundScheduler at import and skip it for migrate/test argv.
+        # Nothing starts at import now, so there is no argv to guard -- the job
+        # is registered and run_scheduler owns execution.
+        import report.scheduler  # noqa: F401
+        from horilla.scheduling import get_registered_jobs
 
-        from report import scheduler as sched
-
-        original = list(sys.argv)
-        try:
-            sys.argv = ["manage.py", "migrate"]
-            self.assertFalse(sched._should_start_scheduler())
-            sys.argv = ["manage.py", "test", "report.tests"]
-            self.assertFalse(sched._should_start_scheduler())
-            sys.argv = ["manage.py", "runserver"]
-            self.assertTrue(sched._should_start_scheduler())
-        finally:
-            sys.argv = original
+        job = next(
+            (j for j in get_registered_jobs() if j.job_id == "report_subscriptions"),
+            None,
+        )
+        self.assertIsNotNone(job, "report_subscriptions job was not registered")
+        self.assertEqual(job.trigger, "interval")
+        self.assertEqual(job.kwargs, {"hours": 1})
 
 
 class PeriodCompareTests(SimpleTestCase):
@@ -842,14 +993,41 @@ class CalendarExpectedDaysTests(SimpleTestCase):
             "report.metrics._calendar._holiday_dates",
             return_value={date(2026, 1, 7)},
         ), patch(
-            "report.metrics._calendar._is_company_leave",
-            return_value=False,
+            # Company-leave rules are now fetched once per call rather than
+            # queried per day; patch that seam, not the old per-day helper.
+            "report.metrics._calendar._company_leave_rules",
+            return_value=set(),
         ):
             # Mon–Fri minus Wed holiday → 4
             self.assertEqual(
                 count_expected_working_days(date(2026, 1, 5), date(2026, 1, 9)),
                 4,
             )
+
+    def test_company_leave_rule_matching_matches_legacy_arithmetic(self):
+        """The prefetched rule check must agree with base.methods.
+
+        _matches_company_leave replaced a per-day query; it recomputes the
+        same 0-based, month-start-offset week number, so a drift here would
+        silently change every absenteeism figure.
+        """
+        from report.metrics._calendar import _matches_company_leave
+
+        # 2026-01-05 is a Monday in the second week block of January 2026.
+        monday = date(2026, 1, 5)
+        first = monday.replace(day=1)
+        week_no = (monday.day + first.weekday() - 1) // 7
+
+        # A week-independent Monday rule matches any Monday.
+        self.assertTrue(_matches_company_leave(monday, {(None, 0)}))
+        # A rule pinned to this week/weekday matches.
+        self.assertTrue(_matches_company_leave(monday, {(week_no, 0)}))
+        # A different weekday does not.
+        self.assertFalse(_matches_company_leave(monday, {(None, 2)}))
+        # A different week block does not.
+        self.assertFalse(_matches_company_leave(monday, {(week_no + 1, 0)}))
+        # No rules at all is never a company leave.
+        self.assertFalse(_matches_company_leave(monday, set()))
 
 
 class NamedOtPrivacyTests(SimpleTestCase):

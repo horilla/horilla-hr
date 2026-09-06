@@ -1783,41 +1783,6 @@ def update_worked_hour_field(request):
     specified HTML template.
     """
     clock_in = parse_datetime(
-        request.GET.get("attendance_clock_in_date"),
-        request.GET.get("attendance_clock_in"),
-    )
-    clock_out = parse_datetime(
-        request.GET.get("attendance_clock_out_date"),
-        request.GET.get("attendance_clock_out"),
-    )
-
-    total_seconds = (
-        (clock_out - clock_in).total_seconds() if clock_in and clock_out else -1
-    )
-    hours, minutes = divmod(max(total_seconds, 0), 3600)
-    worked_hours_str = f"{int(hours):02}:{int(minutes // 60):02}"
-    form = AttendanceForm(initial={"attendance_worked_hour": worked_hours_str})
-    return render(
-        request,
-        "attendance/attendance/update_hx_form.html",
-        {"request": request, "form": form},
-    )
-
-
-@login_required
-@hx_request_required
-def update_worked_hour_field(request):
-    """
-    Update the worked hour field based on clock-in and clock-out times.
-
-    This view function calculates the total worked hours for an employee
-    by parsing the clock-in and clock-out dates and times from the request
-    parameters. It computes the duration between the two times and formats
-    the result as a string in the "HH:MM" format. The computed worked hours
-    are then initialized in an AttendanceForm, which is rendered in the
-    specified HTML template.
-    """
-    clock_in = parse_datetime(
         (
             now().strftime("%Y-%m-%d")
             if request.GET.get("create_bulk")
@@ -2555,6 +2520,22 @@ def work_records(request):
 def work_records_change_month(request):
     previous_data = request.GET.urlencode()
     employee_filter_form = EmployeeFilter(request.GET or None)
+    # This same instance renders employee_filters.html a SECOND time here
+    # (inside work_record_list.html's own Export modal) -- work_record_
+    # view.html (the outer page) already renders it once for the browse
+    # filter panel, and Django's default auto_id ("id_%s") has no
+    # per-request salt, so both ended up emitting the exact same field
+    # ids. Company/Department/etc are AJAX-loaded Select2 comboboxes now
+    # (EmployeeFilter.ajax_fields), and select2 keys its own generated
+    # markup off the underlying element's id -- with two elements sharing
+    # one id, the browse panel's copy silently never finished
+    # initializing (confirmed live: it stayed plain .oh-select-ajax while
+    # the modal's copy became select2-hidden-accessible). auto_id (not
+    # `prefix`) only changes the rendered id= attribute, not the field
+    # `name`, so request.GET binding here and in the separate
+    # work-record-export view (which builds its own fresh, unprefixed
+    # EmployeeFilter(request.GET)) are both untouched.
+    employee_filter_form.form.auto_id = "id_wrexport_%s"
 
     employees = filtersubordinatesemployeemodel(
         request, employee_filter_form.qs, "attendance.view_attendance"

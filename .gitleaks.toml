@@ -1,0 +1,44 @@
+# gitleaks configuration.
+#
+# The CI job scans only the commits a push or PR adds (see
+# .github/workflows/quality.yml). This file narrows what counts as a finding in
+# the paths where the default rules produce noise rather than secrets.
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = """
+Vendored third-party bundles and committed database dumps. A full-history scan
+reports 161 findings, dominated by minified JS in static/build/vendor and a SQL
+dump under media/attachments -- high-entropy strings that are not credentials.
+Left unfiltered these drown the real signal.
+"""
+paths = [
+  '''static/build/vendor/.*''',
+  '''media/attachments/.*\.sql''',
+  '''.*/locale/.*\.(po|mo)''',
+  '''.*\.min\.(js|css)''',
+]
+
+[[allowlists]]
+description = """
+Documentation and workflow files that name a credential env var or an advisory
+without carrying a value -- e.g. the secret-scan job explaining the licence
+error it replaced.
+"""
+regexTarget = "line"
+regexes = [
+  '''GITLEAKS_LICENSE''',
+  '''AKIAIOSFODNN7EXAMPLE''',
+  '''wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY''',
+]
+
+[[allowlists]]
+description = """
+The production-settings-gate job in quality.yml feeds deliberately insecure
+values -- the documented default SECRET_KEY and DB_INIT_PASSWORD -- to prove
+settings REFUSE to import with them. Flagging that fixture as a leak would
+report the negative security test as the vulnerability it guards against.
+"""
+paths = ['''\.github/workflows/quality\.yml''']

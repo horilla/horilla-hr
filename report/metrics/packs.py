@@ -4,6 +4,7 @@ Phase 7 pack expansion — org design, talent quality, compliance aging, OT conc
 
 from __future__ import annotations
 
+import logging
 from collections import Counter, defaultdict
 from datetime import date, timedelta
 
@@ -12,6 +13,8 @@ from django.db.models import Count, Sum
 from django.utils.translation import gettext as _
 
 from report.engine import ReportFilters, apply_org_filters, empty_report
+
+logger = logging.getLogger(__name__)
 
 
 def span_of_control(filters: ReportFilters) -> dict:
@@ -348,6 +351,10 @@ def document_expiry_aging(filters: ReportFilters) -> dict:
     horizon = today + timedelta(days=90)
     buckets = {"overdue": 0, "0–30": 0, "31–60": 0, "61–90": 0}
     rows = []
+    # Row list cap. The aging buckets and KPIs are computed over the whole
+    # queryset, so this limits only what the table shows.
+    ROW_CAP = 200
+    matched = 0
 
     def _bucket(exp: date):
         if exp < today:
@@ -372,12 +379,20 @@ def document_expiry_aging(filters: ReportFilters) -> dict:
                 prefix="employee_id__employee_work_info",
                 employee_prefix="employee_id",
             )
-            for obj in qs.select_related("employee_id")[:200]:
+            # Bucket every match, but only list the first ROW_CAP of them.
+            # These loops used to be one: the aging buckets were built inside
+            # the row slice, so past the cap the KPI totals themselves were
+            # wrong -- not merely the table under them.
+            for exp in qs.values_list("expiry_date", flat=True):
+                if exp:
+                    b = _bucket(exp)
+                    buckets[b] = buckets.get(b, 0) + 1
+            matched += qs.count()
+
+            for obj in qs.select_related("employee_id")[:ROW_CAP]:
                 exp = obj.expiry_date
                 if not exp:
                     continue
-                b = _bucket(exp)
-                buckets[b] = buckets.get(b, 0) + 1
                 emp = getattr(obj, "employee_id", None)
                 rows.append(
                     {
@@ -385,11 +400,13 @@ def document_expiry_aging(filters: ReportFilters) -> dict:
                         "title": str(obj),
                         "employee": emp.get_full_name() if emp else "",
                         "expiry": exp.isoformat(),
-                        "bucket": b,
+                        "bucket": _bucket(exp),
                     }
                 )
         except Exception:
-            pass
+            # A source that fails silently shrinks the report into a
+            # smaller, apparently valid number. Log it.
+            logger.exception("Report metric source unavailable")
 
     total = sum(buckets.values())
     if not total:
@@ -415,7 +432,16 @@ def document_expiry_aging(filters: ReportFilters) -> dict:
             },
             {"label": _("Overdue"), "value": buckets["overdue"], "hint": ""},
             {"label": _("Due ≤30 days"), "value": buckets["0–30"], "hint": ""},
-            {"label": _("Listed"), "value": len(rows), "hint": _("Capped")},
+            {
+                "label": _("Listed below"),
+                "value": len(rows),
+                "hint": (
+                    _("Sample — %(shown)s of %(total)s")
+                    % {"shown": len(rows), "total": matched}
+                    if matched > len(rows)
+                    else _("Complete list")
+                ),
+            },
         ],
         "charts": [
             {
@@ -435,6 +461,10 @@ def document_expiry_aging(filters: ReportFilters) -> dict:
                 {"key": "bucket", "label": _("Bucket")},
             ],
             "rows": rows,
+            # KPIs count every match; the list is capped. Say so, or the
+            # export inherits the cap with no indication.
+            "truncated": matched > len(rows),
+            "total_rows": matched,
         },
     }
 

@@ -6,7 +6,7 @@ outlook_auth/scheduler.py
 import logging
 import sys
 
-from apscheduler.schedulers.background import BackgroundScheduler
+from horilla.scheduling import register_job
 
 logger = logging.getLogger(__name__)
 
@@ -28,15 +28,9 @@ def refresh_outlook_auth_token():
             logger.error(e)
 
 
-if not any(
-    cmd in sys.argv
-    for cmd in ["makemigrations", "migrate", "compilemessages", "flush", "shell"]
-):
-    scheduler = BackgroundScheduler()
-    scheduler.add_job(
-        refresh_outlook_auth_token,
-        "interval",
-        minutes=50,
-        id="refresh_outlook_auth_token",
-    )
-    scheduler.start()
+register_job(
+    refresh_outlook_auth_token,
+    "interval",
+    job_id="refresh_outlook_auth_token",
+    minutes=50,
+)

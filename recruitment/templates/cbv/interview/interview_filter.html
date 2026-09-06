@@ -1,44 +1,68 @@
 {%load i18n %}
 {% load static %}
 <div class="oh-dropdown__filter-body">
-    <div class="oh-accordion">
-      <div class="oh-accordion-header">{% trans "Interview" %}</div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+      <div class="oh-accordion-header">
+        <span class="oh-filter-section-icon"><ion-icon name="chatbubbles-outline"></ion-icon></span>
+        {% trans "Interview" %}
+      </div>
       <div class="oh-accordion-body">
+        <!-- Full width -- Candidate and Interviewer are now AJAX-searched
+             Select2 comboboxes (see recruitment/filters.py's
+             InterviewFilter.ajax_fields) and need real room for their
+             selected chips/placeholder text, same reasoning as every
+             other modernized panel this session. -->
         <div class="row">
-          <div class="col-sm-12 col-md-12 col-lg-6">
-
+          <div class="col-sm-12 col-md-12 col-lg-12">
             <div class="oh-input-group">
-              <label class="oh-label" for="{{form.employee_id.id_for_label}}">{% trans "Candidate" %}</label>
+              <label class="oh-label" for="{{form.candidate_id.id_for_label}}">{% trans "Candidate" %}</label>
               {{form.candidate_id}}
             </div>
-
-            <div class="oh-input-group">
-              <label class="oh-label" for="{{form.start_date.id_for_label}}">{% trans "Interview Date From" %}</label>
-              {{form.scheduled_from}}
-            </div>
-
           </div>
-          <div class="col-sm-12 col-md-12 col-lg-6">
-
+          <div class="col-sm-12 col-md-12 col-lg-12">
             <div class="oh-input-group">
-              <label class="oh-label" for ="{{form.action.id_for_label}}">{% trans "Interviewer" %}</label>
+              <label class="oh-label" for="{{form.employee_id.id_for_label}}">{% trans "Interviewer" %}</label>
               {{form.employee_id}}
             </div>
-
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+      <div class="oh-accordion-header"
+        onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
+      >
+        <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
+        {% trans "Advanced" %}
+      </div>
+      <div class="oh-accordion-body">
+        <div class="row">
+          <!-- Interview Date used to have its own permanent, fixed
+               gte/lte pair here (scheduled_from/scheduled_till) --
+               replaced with the same "+ Add filter" field/lookup/value
+               builder AttendanceFilters/EmployeeFilter/AssetFilter use,
+               which also offers gt/lt/exact instead of just gte/lte,
+               and adds Created At as a second option. Registry:
+               InterviewFilter._build_custom_filter_fields; applied
+               server-side by HorillaFilterSet._apply_custom_filters
+               (see InterviewFilter.filter_queryset). Row markup/JS are
+               generic (initCustomFilterBuilder, horilla_nav.html). -->
+          <div class="col-sm-12 col-md-12 col-lg-12">
             <div class="oh-input-group">
-              <label class="oh-label" for="{{form.start_date.id_for_label}}">{% trans "Interview Date Till" %}</label>
-              {{form.scheduled_till}}
+              <div id="customFilterRowsContainer-interview" class="oh-custom-filter-rows"></div>
+              <button
+                type="button"
+                class="oh-custom-filter-add"
+                onclick="addCustomFilterRow('interview')"
+              >+ {% trans "Add filter" %}</button>
             </div>
-
           </div>
         </div>
       </div>
     </div>
   </div>
-  {% comment %} <div class="oh-dropdown__filter-footer">
-    <button
-      class="oh-btn oh-btn--secondary oh-btn--small w-100 filterButton"
-    >
-      {% trans "Apply" %}
-    </button>
-  </div> {% endcomment %}
+{{ custom_filter_fields|json_script:"customFilterFields-interview" }}
+{{ custom_filter_rows|json_script:"customFilterRows-interview" }}
+<script>
+    initCustomFilterBuilder('interview');
+</script>

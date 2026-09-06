@@ -505,6 +505,11 @@ class _FeedbackTabNavBase(HorillaNavView):
     filter_body_template = "cbv/360_feedback/feedback_filter.html"
     filter_instance = FeedbackFilter()
     filter_form_context_name = "feedback_filter_form"
+    # Modern slide-over filter panel (generic/horilla_nav.html's own
+    # {% if modern_filter %} branch) -- same treatment as every other
+    # panel this session. FeedbackFilter.ajax_fields carries the
+    # AJAX-loaded comboboxes this needs.
+    modern_filter = True
 
 
 @method_decorator(login_required, name="dispatch")

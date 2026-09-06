@@ -5,6 +5,7 @@ horilla_automation/recursive_relation.py
 from django.apps import apps
 from django.db.models.fields.related import ForeignKey, ManyToManyField, OneToOneField
 from django.db.models.fields.reverse_related import (
+    ForeignObjectRel,
     ManyToManyRel,
     ManyToOneRel,
     OneToOneRel,
@@ -55,14 +56,6 @@ def get_all_relation_paths(source_model, target_model, max_depth=5):
 
     walk(source_model, "", set(), 0)
     return relation_paths
-
-
-def is_history_model(model):
-    return (
-        model._meta.model_name.endswith("_history")
-        or model._meta.app_label == "simple_history"
-        or model.__name__.lower().endswith("history")
-    )
 
 
 def get_simple_relation_paths(source_model, target_model, max_depth=5):

@@ -134,7 +134,7 @@
                     </span>
                 </div>
                 <div class="card-body">
-                    <p class="card-text">{{ announcement.description|safe }}</p>
+                    <p class="card-text">{{ announcement.description|sanitize_html }}</p>
                 </div>
                 <div class="card-footer">
                     {% for attachment in announcement.attachments.all %}

@@ -16,7 +16,6 @@ from django.conf import settings
 from django.contrib.auth.context_processors import PermWrapper
 from django.db.models import Model, QuerySet
 from django.db.models.utils import AltersData
-from django.template.defaultfilters import register
 from django.utils.html import format_html, format_html_join
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _

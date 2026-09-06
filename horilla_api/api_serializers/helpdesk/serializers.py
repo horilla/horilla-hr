@@ -127,6 +127,7 @@ class ClaimRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClaimRequest
         fields = "__all__"
+        read_only_fields = ("is_approved",)
 
     def get_ticket_id(self, obj):
         if obj.ticket_id:
@@ -185,6 +186,7 @@ class TicketSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             "assigned_to": {"read_only": True},
             "tags": {"read_only": True},
+            "status": {"read_only": True},
         }
 
     def get_employee_id(self, obj):

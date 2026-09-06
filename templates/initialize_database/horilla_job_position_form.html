@@ -58,7 +58,7 @@
             </div>
             {% if job_positions %}
                 <div class="oh-modal__dialog-footer p-0 mt-3">
-                    <a hx-get="{% url 'update-selected-company' %}?company_id={{company.id}}"
+                    <a href = "/"
                         class="oh-btn oh-btn--secondary-outline m-2" role="button">
                         {% trans "Go To Home" %}
                         <ion-icon class="ms-2" name="arrow-forward-outline"></ion-icon>

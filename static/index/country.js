@@ -693,6 +693,15 @@ function countryI18n(text) {
     return typeof gettext === "function" ? gettext(text) : text;
 }
 
+function refreshSelect2(el) {
+    if (typeof $ === "undefined" || !el) return;
+    var $el = $(el);
+    if ($el.hasClass("select2-hidden-accessible") && $el.data("select2")) {
+        $el.select2("destroy");
+        $el.select2({ width: "100%" });
+    }
+}
+
 function populateStates(countryElementId, stateElementId) {
     var countryEl = document.getElementById(countryElementId);
     var stateEl = document.getElementById(stateElementId);

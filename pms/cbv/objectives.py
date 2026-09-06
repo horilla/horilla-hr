@@ -301,6 +301,12 @@ class _ObjectivesTabNavBase(HorillaNavView):
     filter_instance = ActualObjectiveFilter()
     filter_form_context_name = "form"
     filter_body_template = "cbv/objectives/filter.html"
+    # Modern slide-over filter panel (generic/horilla_nav.html's own
+    # {% if modern_filter %} branch, inherited by ObjectiveTemplateNav's
+    # generic/inline_nav.html too) -- same treatment as every other
+    # panel this session. ActualObjectiveFilter.ajax_fields carries the
+    # AJAX-loaded comboboxes this needs.
+    modern_filter = True
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -867,6 +873,7 @@ class EmployeeObjectiveKeyResultDetailListView(HorillaListView):
     ]
     filter_selected = False
     show_filter_tags = False
+    custom_empty_template = "cbv/objectives/compact_empty.html"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

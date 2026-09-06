@@ -5,12 +5,13 @@ This module is used to write custom template filters.
 
 """
 
+import datetime
 import json
+import re
 import uuid
 
 from django import template
 from django.apps import apps
-from django.template.defaultfilters import register
 
 from horilla_auth.models import HorillaUser
 from recruitment.models import CandidateRating
@@ -194,3 +195,29 @@ def to_json(value):
         {"id": val.id, "stage": val.stage, "type": val.stage_type} for val in value
     ]
     return json.dumps(ordered_list)
+
+
+@register.filter(name="title_initials")
+def title_initials(value):
+    """
+    Returns the initials (first letter of the first two words) of a title,
+    used for the open-recruitment card avatar. Leading bracketed tags
+    (e.g. "[Demo] DevOps Engineer Round") are ignored.
+    """
+    if not value:
+        return ""
+    text = re.sub(r"^\[.*?\]\s*", "", str(value))
+    words = text.split() or str(value).split()
+    return "".join(word[0].upper() for word in words[:2] if word[0].isalnum())
+
+
+@register.filter(name="is_closing_soon")
+def is_closing_soon(recruitment):
+    """
+    A recruitment is "closing soon" if it has an end date within the next
+    14 days (and hasn't already passed).
+    """
+    if not recruitment.end_date:
+        return False
+    days_left = (recruitment.end_date - datetime.date.today()).days
+    return 0 <= days_left <= 14

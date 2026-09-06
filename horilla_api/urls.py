@@ -16,8 +16,10 @@ schema_view = get_schema_view(
         contact=openapi.Contact(email="support@horilla.com"),
         license=openapi.License(name="BSD License"),
     ),
-    public=True,
-    permission_classes=(permissions.AllowAny,),
+    public=settings.DEBUG,
+    permission_classes=(
+        (permissions.AllowAny,) if settings.DEBUG else (permissions.IsAdminUser,)
+    ),
     generator_class=OrderedTagSchemaGenerator,
 )
 

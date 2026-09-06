@@ -1,116 +1,128 @@
-{% load static i18n %}
+{% load static i18n horillafilters %}
+{% get_hq_company as hq_company %}
 <!DOCTYPE html>
 <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>{% trans "Registration Success - OpenHRMS Dashboard" %}</title>
-        <link rel="apple-touch-icon" sizes="180x180" href="{% static 'favicons/apple-touch-icon.png' %}">
-        <link rel="icon" type="image/png" sizes="32x32" href="{% static 'favicons/favicon-32x32.png' %}">
-        <link rel="icon" type="image/png" sizes="16x16" href="{% static 'favicons/favicon-16x16.png' %}">
-
-        <link rel="stylesheet" href="{% static '/build/css/style.min.css' %}">
-    </head>
-    <body>
-        <div id="main">
-            {% if messages %}
-                <div class="oh-alert-container">
-                    {% for message in messages %}
-                        <div class="oh-alert oh-alert--animated {{message.tags}}">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-            <main class="oh-onboarding">
-                <div class="oh-onboarding-card oh-onboarding-card--top-bar">
-                    <div class="oh-onboarding-card__container oh-onboarding-card__container--wide">
-                        <div class="oh-onboarding__info-container">
-                            <svg
-                                width="48"
-                                height="48"
-                                fill="none"
-                                stroke="#e54f38"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="1.5"
-                                viewBox="0 0 24 24"
-                                xmlns="http://www.w3.org/2000/svg"
-                            >
-                                <path d="M21 12c0-4.969-4.031-9-9-9s-9 4.031-9 9 4.031 9 9 9 9-4.031 9-9Z" />
-                                <path d="m16.5 8.25-6.3 7.5-2.7-3" />
-                            </svg>
-                            <div class="oh-onboarding__title-container">
-                                <h1 class="oh-onboarding__title">{% trans "Registration Success" %}</h1>
-                                <p class="oh-onboarding__content">
-                                    {% trans "Your details have been registered successfully. Feel free to close this window." %}
-                                </p>
-                                <!-- <a href="#" class="oh-btn oh-btn--secondary">{% trans "Return home" %}</a> -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </main>
-        </div>
-
-        <!-- Upload Photo Modal -->
-        <div
-            class="oh-modal"
-            id="uploadPhotoModal"
-            role="dialog"
-            aria-labelledby="uploadPhotoModal"
-            aria-hidden="true"
+        <title>{% trans "Registration Success" %}</title>
+        <link
+            rel="apple-touch-icon"
+            sizes="180x180"
+            href="{% if hq_company.icon %}{{hq_company.icon.url}} {% else %}{% static 'favicons/apple-touch-icon.png' %}{% endif %}"
         >
-            <div class="oh-modal__dialog">
-                <div class="oh-modal__dialog-header">
-                    <span class="oh-modal__dialog-title" id="uploadPhotoModalLabel">{% trans "Upload Photo" %}</span>
-                    <button class="oh-modal__close" aria-label="{% trans 'Close' %}">
-                        <ion-icon name="close-outline"></ion-icon>
-                    </button>
+        <link
+            rel="icon"
+            type="image/png"
+            sizes="32x32"
+            href="{% if hq_company.icon %}{{hq_company.icon.url}} {% else %}{% static 'favicons/favicon-32x32.png' %}{% endif %}"
+        >
+        <link
+            rel="icon"
+            type="image/png"
+            sizes="16x16"
+            href="{% if hq_company.icon %}{{hq_company.icon.url}} {% else %}{% static 'favicons/favicon-16x16.png' %}{% endif %}"
+        >
+        <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+        >
+        <link href="{% static 'horilla_theme/assets/css/tailwind.css' %}" rel="stylesheet">
+        <link rel="stylesheet" href="/static/horilla_theme/assets/css/global.css">
+        <link rel="stylesheet" href="/static/horilla_theme/assets/css/v1_styles.css">
+        <link
+            href="{% static 'cdn/googleapi/css/plus-jakarta-sans-font-style.css' %}"
+            rel="stylesheet"
+        >
+        {% get_company as theme_obj %}
+        <script src='{% static "horilla_theme/assets/js/tailwindcdn.js" %}'></script>
+        <script>
+            window.tailwind.config = {
+                theme: {
+                    colors: {
+                        white: '#FFFFFF',
+                        primary: {
+                            50:  '{{ theme_obj.primary_50  | default:"#f6f6f6" }}',
+                            100: '{{ theme_obj.primary_100 | default:"#FFF5F1" }}',
+                            200: '{{ theme_obj.primary_200 | default:"#FEF6F5" }}',
+                            600: '{{ theme_obj.primary_600 | default:"#E54F38" }}',
+                            700: '{{ theme_obj.primary_700 | default:"#ce4732" }}',
+                            800: '{{ theme_obj.primary_800 | default:"#AC3B2A" }}',
+                        },
+                        dark: {
+                            100: '{{ theme_obj.dark_100 | default:"#A8A8A8" }}',
+                            200: '{{ theme_obj.dark_200 | default:"#515151" }}',
+                        },
+                        secondary: {
+                            50:  '{{ theme_obj.secondary_50  | default:"#f8fafc" }}',
+                            200: '{{ theme_obj.secondary_200 | default:"#e2e8f0" }}',
+                        },
+                        success: { light: "#86efac", DEFAULT: "#22c55e", dark: "#15803d" },
+                    },
+                },
+            };
+        </script>
+    </head>
+    <body class="bg-secondary-50 font-['Plus_Jakarta_Sans',_sans-serif] min-h-screen flex flex-col">
+
+        <!-- Top bar -->
+        <header class="bg-white border-b border-secondary-200">
+            <div class="max-w-4xl mx-auto px-6 sm:px-10 py-5 flex items-center gap-3">
+                <div class="w-12 h-12 shrink-0 rounded-full bg-primary-600 text-white flex items-center justify-center font-bold overflow-hidden">
+                    {% if hq_company.icon %}
+                        <img src="{{ hq_company.icon.url }}" alt="" class="w-full h-full object-cover">
+                    {% else %}
+                        <span>{{ hq_company.company|default:"Horilla"|first|upper }}</span>
+                    {% endif %}
                 </div>
-                <div class="oh-modal__dialog-body">
-                    <div class="oh-profile-section__image-container">
-                        <div class="oh-profile-section__modal-avatar">
-                            <img
-                                src='{% static "/images/ui/user.jpg" %}'
-                                class="oh-profile-section__modal-image oh-upload-photo"
-                                alt="{% trans 'User Photo' %}"
-                            >
-                        </div>
-                        <input
-                            type="file"
-                            class="oh-input oh-input--file oh-input--file-sm mt-4 oh-upload-input"
-                            data-target=".oh-upload-photo"
-                        >
-                        <div class="d-flex justify-content-between w-100 align-items-center mt-4">
-                            <button
-                                class="oh-btn oh-btn--light-danger mr-1 oh-remove-image"
-                                data-target=".oh-upload-photo"
-                            >
-                                <ion-icon class="me-1" name="trash-outline"></ion-icon>Delete image
-                            </button>
-                            <button
-                                type="submit"
-                                class="oh-btn oh-btn--secondary oh-btn--shadow"
-                            >
-                                {% trans 'Update Image' %}
-                            </button>
-                        </div>
-                    </div>
+                <div>
+                    <h1 class="text-xl font-bold leading-tight">
+                        {{ hq_company.company|default:"Horilla" }} {% trans "Careers" %}
+                    </h1>
+                    <p class="text-sm text-dark-100 leading-tight">
+                        {% trans "Open positions across our teams" %}
+                    </p>
                 </div>
             </div>
-        </div>
+        </header>
 
-        <script src="{% static '/build/js/web.frontend.min.js' %}"></script>
-        <script
-            type="module"
-            src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"
-        ></script>
-        <script
-            nomodule
-            src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"
-        ></script>
-        <script></script>
+        {% if messages %}
+            <div class="oh-alert-container">
+                {% for message in messages %}
+                    <div class="oh-alert oh-alert--animated {{message.tags}}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <main class="flex-1 flex items-center justify-center px-6 py-12">
+            <div class="w-full max-w-md bg-white border border-secondary-200 rounded-2xl p-8 text-center">
+                <div class="w-16 h-16 mx-auto rounded-full bg-success-light flex items-center justify-center mb-5">
+                    <i class="fa-solid fa-check text-2xl text-success-dark"></i>
+                </div>
+                <h2 class="text-2xl font-extrabold mb-2">{% trans "Application Submitted" %}</h2>
+                <p class="text-sm text-dark-100 leading-relaxed">
+                    {% if candidate.name %}
+                        {% blocktrans with name=candidate.name %}Thanks, {{ name }}, your{% endblocktrans %}
+                    {% else %}
+                        {% trans "Your" %}
+                    {% endif %}
+                    {% if recruitment.title %}
+                        {% blocktrans with title=recruitment.title %}application for <span class="font-semibold text-dark-200">{{ title }}</span> has been received.{% endblocktrans %}
+                    {% else %}
+                        {% trans "application has been received." %}
+                    {% endif %}
+                    {% trans "We'll be in touch if there's a match. Feel free to close this window." %}
+                </p>
+                <a
+                    href="{% url 'open-recruitments' %}"
+                    class="mt-6 inline-flex items-center justify-center gap-2 w-full px-6 py-3 bg-primary-600 text-white rounded-lg text-sm font-semibold hover:bg-primary-800 [transition:.2s]"
+                >
+                    {% trans "View more open positions" %}
+                    <i class="fa-solid fa-arrow-right transform -rotate-45"></i>
+                </a>
+            </div>
+        </main>
     </body>
 </html>

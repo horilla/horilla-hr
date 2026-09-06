@@ -169,6 +169,19 @@ class MyLeaveRequestListView(MainParentListView):
     List view of the page
     """
 
+    # Mirrors MyLeaveRequestNavView.nested_group_by_fields below -- List
+    # and Nav are separate classes/templates (see employee/cbv/employees.py's
+    # EmployeesList/EmployeeNav for the same split), so the inline
+    # "add/change field" dropdowns in the "Grouped by" breadcrumb
+    # (nested_group_by_table.html, rendered by the List view) need this
+    # here too. Same three fields as the existing group_by_fields --
+    # self-scoped page, no employee/org-structure fields to add.
+    nested_group_by_fields = [
+        ("leave_type_id", _("Leave Type")),
+        ("status", _("Status")),
+        ("requested_days", _("Requested Days")),
+    ]
+
     def get_queryset(self):
         """
         to filter data
@@ -215,8 +228,29 @@ class MyLeaveRequestNavView(HorillaNavView):
 
     filter_form_context_name = "form"
     search_swap_target = "#listContainer"
+    # Modern slide-over filter panel (horilla_nav.html's .oh-filter-modern
+    # styles) -- same treatment as Attendance/Late Arrival/Check-in Log/
+    # Monthly Summary this session. Safe alongside UserLeaveRequestFilter
+    # staying a plain FilterSet (not HorillaFilterSet): modern_filter only
+    # toggles the panel's own markup/CSS, and every custom_filter_fields/
+    # ajax_fields lookup elsewhere already defaults to [] / {} via getattr
+    # for a FilterSet that doesn't declare them -- no AJAX combobox is
+    # needed here anyway, every field's option list is already small
+    # (Leave Type is scoped to leave types the current user has ever
+    # requested).
+    modern_filter = True
 
     group_by_fields = [
+        ("leave_type_id", _("Leave Type")),
+        ("status", _("Status")),
+        ("requested_days", _("Requested Days")),
+    ]
+    # Takes precedence over group_by_fields above in the filter panel's own
+    # "Group By" section (horilla_nav.html: `{% if nested_group_by_fields %}`
+    # renders the new multi-level picker and suppresses the old single-select
+    # one) -- group_by_fields is left in place regardless, same as every
+    # other page in this session/codebase that has both.
+    nested_group_by_fields = [
         ("leave_type_id", _("Leave Type")),
         ("status", _("Status")),
         ("requested_days", _("Requested Days")),

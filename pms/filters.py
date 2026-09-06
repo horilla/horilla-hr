@@ -18,6 +18,8 @@ from django_filters import DateFilter, DateFromToRangeFilter
 
 from base.filters import FilterSet
 from base.methods import reload_queryset
+from base.models import Company, Department, EmployeeShift, JobPosition, WorkType
+from employee.models import Employee
 from horilla.filters import HorillaFilterSet
 from pms.models import (
     AnonymousFeedback,
@@ -117,6 +119,34 @@ class ActualObjectiveFilter(HorillaFilterSet):
         method="filter_by_emp_obj_status", label=_("Status")
     )
 
+    # HorillaFilterSet.ajax_fields (generic AJAX-loaded combobox mechanism)
+    # -- Managers, Assignees, and Key Result opt into AJAX-searched
+    # comboboxes instead of pre-rendering their whole queryset as
+    # <option> tags.
+    ajax_fields = {
+        "managers": {
+            "key": "objective-managers",
+            "queryset_fn": lambda request: Employee.objects.filter(is_active=True),
+            "display_fn": lambda obj: obj.get_full_name(),
+            "search_fields": ["employee_first_name", "employee_last_name", "badge_id"],
+            "placeholder": _("Search employee..."),
+        },
+        "assignees": {
+            "key": "objective-assignees",
+            "queryset_fn": lambda request: Employee.objects.filter(is_active=True),
+            "display_fn": lambda obj: obj.get_full_name(),
+            "search_fields": ["employee_first_name", "employee_last_name", "badge_id"],
+            "placeholder": _("Search employee..."),
+        },
+        "employee_objective__key_result_id": {
+            "key": "objective-key-result",
+            "queryset_fn": lambda request: KeyResult.objects.all(),
+            "display_fn": lambda obj: obj.title,
+            "search_fields": ["title"],
+            "placeholder": _("Select key result..."),
+        },
+    }
+
     class Meta:
         model = Objective
         fields = [
@@ -149,6 +179,40 @@ class ActualObjectiveFilter(HorillaFilterSet):
                 | queryset.filter(title__icontains=split)
             )
         return empty.distinct()
+
+    def _build_custom_filter_fields(self):
+        """
+        Registry backing the Advanced section's "+ Add filter" builder
+        (see HorillaFilterSet._build_custom_filter_fields's docstring
+        for the two supported entry shapes) -- same "choose field, then
+        lookup, then value" pattern used by AttendanceFilters/
+        EmployeeFilter/AssetFilter. Created At is the only real date
+        column on this model, so it's the sole entry.
+        """
+        fields = [
+            {
+                "key": "created_at",
+                "field": "created_at",
+                "label": str(_("Created At")),
+                "type": "date_range",
+            },
+        ]
+        for entry in fields:
+            entry["lookups"] = [
+                [lk, str(label)]
+                for lk, label in self.CUSTOM_FILTER_LOOKUPS[entry["type"]]
+            ]
+        return fields
+
+    def filter_queryset(self, queryset):
+        """
+        HorillaFilterSet._apply_custom_filters isn't wired into the base
+        filter_queryset automatically -- this is the minimal "call it at
+        the end" hookup, same as AttendanceFilters/FeedbackFilter/
+        AssetFilter.
+        """
+        queryset = super().filter_queryset(queryset)
+        return self._apply_custom_filters(queryset)
 
 
 class ObjectiveFilter(CustomFilterSet):
@@ -269,6 +333,41 @@ class FeedbackFilter(HorillaFilterSet):
         ),
     )
 
+    # HorillaFilterSet.ajax_fields (generic AJAX-loaded combobox mechanism)
+    # -- Employee, Manager, Subordinate, and Colleague opt into
+    # AJAX-searched comboboxes instead of pre-rendering their whole
+    # queryset as <option> tags.
+    ajax_fields = {
+        "employee_id": {
+            "key": "feedback-employee",
+            "queryset_fn": lambda request: Employee.objects.filter(is_active=True),
+            "display_fn": lambda obj: obj.get_full_name(),
+            "search_fields": ["employee_first_name", "employee_last_name", "badge_id"],
+            "placeholder": _("Search employee..."),
+        },
+        "manager_id": {
+            "key": "feedback-manager",
+            "queryset_fn": lambda request: Employee.objects.filter(is_active=True),
+            "display_fn": lambda obj: obj.get_full_name(),
+            "search_fields": ["employee_first_name", "employee_last_name", "badge_id"],
+            "placeholder": _("Search employee..."),
+        },
+        "subordinate_id": {
+            "key": "feedback-subordinate",
+            "queryset_fn": lambda request: Employee.objects.filter(is_active=True),
+            "display_fn": lambda obj: obj.get_full_name(),
+            "search_fields": ["employee_first_name", "employee_last_name", "badge_id"],
+            "placeholder": _("Search employee..."),
+        },
+        "colleague_id": {
+            "key": "feedback-colleague",
+            "queryset_fn": lambda request: Employee.objects.filter(is_active=True),
+            "display_fn": lambda obj: obj.get_full_name(),
+            "search_fields": ["employee_first_name", "employee_last_name", "badge_id"],
+            "placeholder": _("Search employee..."),
+        },
+    }
+
     class Meta:
         """
         A nested class that specifies the model and fields for the filter.
@@ -346,6 +445,55 @@ class FeedbackFilter(HorillaFilterSet):
                 employee_id__employee_last_name__icontains=last_name
             ) | queryset.filter(review_cycle__icontains=value)
         return qrst.distinct()
+
+    def _build_custom_filter_fields(self):
+        """
+        Registry backing the Advanced section's "+ Add filter" builder
+        (see HorillaFilterSet._build_custom_filter_fields's docstring
+        for the two supported entry shapes) -- same "choose field, then
+        lookup, then value" pattern used by AttendanceFilters/
+        EmployeeFilter. Start Date/End Date/Created At are plain
+        DateField/DateTimeField columns, so the plain field+lookup shape
+        applies directly (a raw queryset.filter(**{field__lookup: value})
+        call), offering the full gte/lte/gt/lt/exact set instead of the
+        fixed gte/lte pair the old start_date_range/end_date_range/
+        created_at_date_range inputs were limited to.
+        """
+        fields = [
+            {
+                "key": "start_date",
+                "field": "start_date",
+                "label": str(_("Start Date")),
+                "type": "date_range",
+            },
+            {
+                "key": "end_date",
+                "field": "end_date",
+                "label": str(_("End Date")),
+                "type": "date_range",
+            },
+            {
+                "key": "created_at",
+                "field": "created_at",
+                "label": str(_("Created At")),
+                "type": "date_range",
+            },
+        ]
+        for entry in fields:
+            entry["lookups"] = [
+                [lk, str(label)]
+                for lk, label in self.CUSTOM_FILTER_LOOKUPS[entry["type"]]
+            ]
+        return fields
+
+    def filter_queryset(self, queryset):
+        """
+        HorillaFilterSet._apply_custom_filters isn't wired into the base
+        filter_queryset automatically -- this is the minimal "call it at
+        the end" hookup, same as AttendanceFilters.filter_queryset.
+        """
+        queryset = super().filter_queryset(queryset)
+        return self._apply_custom_filters(queryset)
 
 
 class AnonymousFeedbackFilter(django_filters.FilterSet):
@@ -450,6 +598,19 @@ class ActualKeyResultFilter(HorillaFilterSet):
 
     search = django_filters.CharFilter(method="search_method")
 
+    # HorillaFilterSet.ajax_fields (generic AJAX-loaded combobox mechanism)
+    # -- Company opts into an AJAX-searched combobox instead of
+    # pre-rendering its whole queryset as <option> tags.
+    ajax_fields = {
+        "company_id": {
+            "key": "key-result-company",
+            "queryset_fn": lambda request: Company.objects.all(),
+            "display_fn": lambda obj: obj.company,
+            "search_fields": ["company"],
+            "placeholder": _("Select company..."),
+        },
+    }
+
     class Meta:
         model = KeyResult
         fields = [
@@ -470,6 +631,40 @@ class ActualKeyResultFilter(HorillaFilterSet):
             empty = empty | (queryset.filter(title__icontains=split))
 
         return empty.distinct()
+
+    def _build_custom_filter_fields(self):
+        """
+        Registry backing the Advanced section's "+ Add filter" builder
+        (see HorillaFilterSet._build_custom_filter_fields's docstring
+        for the two supported entry shapes) -- same "choose field, then
+        lookup, then value" pattern used by AttendanceFilters/
+        EmployeeFilter/AssetFilter. Created At is the only real date
+        column on this model, so it's the sole entry.
+        """
+        fields = [
+            {
+                "key": "created_at",
+                "field": "created_at",
+                "label": str(_("Created At")),
+                "type": "date_range",
+            },
+        ]
+        for entry in fields:
+            entry["lookups"] = [
+                [lk, str(label)]
+                for lk, label in self.CUSTOM_FILTER_LOOKUPS[entry["type"]]
+            ]
+        return fields
+
+    def filter_queryset(self, queryset):
+        """
+        HorillaFilterSet._apply_custom_filters isn't wired into the base
+        filter_queryset automatically -- this is the minimal "call it at
+        the end" hookup, same as AttendanceFilters/FeedbackFilter/
+        AssetFilter.
+        """
+        queryset = super().filter_queryset(queryset)
+        return self._apply_custom_filters(queryset)
 
 
 class ObjectiveReGroup:
@@ -657,6 +852,77 @@ class MeetingsFilter(HorillaFilterSet):
         lookup_expr="date__lte",
         widget=forms.DateInput(attrs={"type": "date"}),
     )
+
+    # HorillaFilterSet.ajax_fields (generic AJAX-loaded combobox mechanism)
+    # -- every model/queryset-backed field in the modern filter panel opts
+    # in here instead of pre-rendering its whole queryset as <option> tags.
+    ajax_fields = {
+        "employee_id": {
+            "key": "meeting-employee",
+            "queryset_fn": lambda request: Employee.objects.filter(is_active=True),
+            "display_fn": lambda obj: obj.get_full_name(),
+            "search_fields": ["employee_first_name", "employee_last_name", "badge_id"],
+            "placeholder": _("Search employee..."),
+        },
+        "manager": {
+            "key": "meeting-manager",
+            "queryset_fn": lambda request: Employee.objects.filter(is_active=True),
+            "display_fn": lambda obj: obj.get_full_name(),
+            "search_fields": ["employee_first_name", "employee_last_name", "badge_id"],
+            "placeholder": _("Search employee..."),
+        },
+        "question_template": {
+            "key": "meeting-question-template",
+            "queryset_fn": lambda request: QuestionTemplate.objects.all(),
+            "display_fn": lambda obj: obj.question_template,
+            "search_fields": ["question_template"],
+            "placeholder": _("Select question template..."),
+        },
+        "employee_id__employee_work_info__department_id": {
+            "key": "meeting-department",
+            "queryset_fn": lambda request: Department.objects.all(),
+            "display_fn": lambda obj: obj.department,
+            "search_fields": ["department"],
+            "placeholder": _("Select department..."),
+        },
+        "employee_id__employee_work_info__company_id": {
+            "key": "meeting-company",
+            "queryset_fn": lambda request: Company.objects.all(),
+            "display_fn": lambda obj: obj.company,
+            "search_fields": ["company"],
+            "placeholder": _("Select company..."),
+        },
+        "employee_id__employee_work_info__shift_id": {
+            "key": "meeting-shift",
+            "queryset_fn": lambda request: EmployeeShift.objects.all(),
+            "display_fn": lambda obj: obj.employee_shift,
+            "search_fields": ["employee_shift"],
+            "placeholder": _("Select shift..."),
+        },
+        "employee_id__employee_work_info__reporting_manager_id": {
+            "key": "meeting-reporting-manager",
+            "queryset_fn": lambda request: Employee.objects.filter(is_active=True),
+            "display_fn": lambda obj: obj.get_full_name(),
+            "search_fields": ["employee_first_name", "employee_last_name", "badge_id"],
+            "placeholder": _("Search employee..."),
+        },
+        "employee_id__employee_work_info__job_position_id": {
+            "key": "meeting-job-position",
+            "queryset_fn": lambda request: JobPosition.objects.select_related(
+                "department_id"
+            ).all(),
+            "display_fn": lambda obj: str(obj),
+            "search_fields": ["job_position", "department_id__department"],
+            "placeholder": _("Select job position..."),
+        },
+        "employee_id__employee_work_info__work_type_id": {
+            "key": "meeting-work-type",
+            "queryset_fn": lambda request: WorkType.objects.all(),
+            "display_fn": lambda obj: obj.work_type,
+            "search_fields": ["work_type"],
+            "placeholder": _("Select work type..."),
+        },
+    }
 
     class Meta:
         model = Meetings

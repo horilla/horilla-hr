@@ -15,6 +15,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
+from django.utils.html import escapejs
 from django.utils.translation import gettext_lazy as _
 from django.views import View
 
@@ -79,7 +80,10 @@ def offboarding_pipeline_modal_success_response(request) -> HttpResponse:
     if qs:
         tab_url = f"{tab_url}?{qs}"
 
-    tab_url_lit = json.dumps(tab_url)
+    # json.dumps escapes quotes but NOT "</script>", so a crafted value
+    # could close the script block that this literal is embedded in.
+    # escapejs encodes angle brackets as \u003C/\u003E.
+    tab_url_lit = f'"{escapejs(tab_url)}"'
 
     snippet = rf"""
 <script>
@@ -340,6 +344,12 @@ class OffboardingPipelineNav(HorillaNavView):
     search_url = reverse_lazy("get-offboarding-tab")
     filter_body_template = "cbv/exit_process/pipeline_filter.html"
     apply_first_filter = False
+    # Modern slide-over filter panel (generic/horilla_nav.html's own
+    # {% if modern_filter %} branch) -- same treatment as every other
+    # panel this session. PipelineEmployeeFilter/PipelineFilter/
+    # PipelineStageFilter each carry their own ajax_fields for the FK
+    # pickers this combined panel renders.
+    modern_filter = True
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -380,9 +390,38 @@ class OffboardingPipelineNav(HorillaNavView):
         # field (including "Stage > Status") always renders blank, so that
         # auto-submit silently wipes out any filter (e.g. ?type=archived)
         # that arrived via a deep link before the page ever settles.
-        context["employee_filter"] = PipelineEmployeeFilter(self.request.GET)
-        context["pipeline_filter"] = PipelineFilter(self.request.GET)
-        context["stage_filter"] = PipelineStageFilter(self.request.GET)
+        employee_filter = PipelineEmployeeFilter(self.request.GET)
+        pipeline_filter = PipelineFilter(self.request.GET)
+        stage_filter = PipelineStageFilter(self.request.GET)
+        context["employee_filter"] = employee_filter
+        context["pipeline_filter"] = pipeline_filter
+        context["stage_filter"] = stage_filter
+
+        # This Nav has no single filter_instance of its own (all three
+        # filtersets above are combined into one panel), so the generic
+        # custom_filter_fields/custom_filter_rows context
+        # (HorillaNavView.get_context_data) is never populated -- expose
+        # each filterset's own registry/restore-rows under its own key
+        # instead, matching the namespaced builder each accordion uses
+        # in the template.
+        context["employee_custom_filter_fields"] = getattr(
+            employee_filter, "custom_filter_fields", []
+        )
+        context["employee_custom_filter_rows"] = getattr(
+            employee_filter, "custom_filter_rows", []
+        )
+        context["pipeline_custom_filter_fields"] = getattr(
+            pipeline_filter, "custom_filter_fields", []
+        )
+        context["pipeline_custom_filter_rows"] = getattr(
+            pipeline_filter, "custom_filter_rows", []
+        )
+        context["stage_custom_filter_fields"] = getattr(
+            stage_filter, "custom_filter_fields", []
+        )
+        context["stage_custom_filter_rows"] = getattr(
+            stage_filter, "custom_filter_rows", []
+        )
 
         return context
 

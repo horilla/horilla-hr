@@ -1,25 +1,16 @@
 """
-APScheduler bootstrap for standard report subscriptions.
+Standard report subscription job.
 
-Copy pattern from payroll/scheduler.py — BackgroundScheduler with argv guards.
+Registered with horilla.scheduling; executed by `manage.py run_scheduler`.
 """
 
 from __future__ import annotations
 
 import logging
-import sys
+
+from horilla.scheduling import register_job
 
 logger = logging.getLogger(__name__)
-
-_SKIP_ARGV = (
-    "makemigrations",
-    "migrate",
-    "compilemessages",
-    "flush",
-    "shell",
-    "test",
-    "collectstatic",
-)
 
 
 def run_report_subscriptions():
@@ -41,25 +32,9 @@ def run_report_subscriptions():
         )
 
 
-def _should_start_scheduler() -> bool:
-    return not any(cmd in sys.argv for cmd in _SKIP_ARGV)
-
-
-if _should_start_scheduler():
-    try:
-        from apscheduler.schedulers.background import BackgroundScheduler
-
-        scheduler = BackgroundScheduler()
-        scheduler.add_job(
-            run_report_subscriptions,
-            "interval",
-            hours=1,
-            id="report_subscriptions",
-            replace_existing=True,
-            max_instances=1,
-            coalesce=True,
-        )
-        scheduler.start()
-        logger.info("Report subscription scheduler started (hourly)")
-    except Exception:
-        logger.exception("Could not start report subscription scheduler")
+register_job(
+    run_report_subscriptions,
+    "interval",
+    job_id="report_subscriptions",
+    hours=1,
+)

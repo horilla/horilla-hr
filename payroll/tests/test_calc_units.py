@@ -101,6 +101,19 @@ class SafeTaxCodeTests(TestCase):
         with self.assertRaises(TaxCodeValidationError):
             validate_tax_code(code)
 
+    def test_format_string_dunder_bypass_rejected(self):
+        # "{0.__class__}".format(x) walks attributes at runtime; the AST walk
+        # only sees a string constant, so both the literal and the method
+        # must be refused.
+        for body in (
+            'return "{0.__class__.__base__.__subclasses__}".format(yearly_income)',
+            'return ("{0." + "__cl" + "ass__}").format(yearly_income)',
+            'return "{x}".format_map({"x": yearly_income})',
+        ):
+            code = f"def calculate_federal_tax(yearly_income):\n    {body}\n"
+            with self.assertRaises(TaxCodeValidationError, msg=body):
+                validate_tax_code(code)
+
 
 class PayslipValidationTests(TestCase):
     def setUp(self):

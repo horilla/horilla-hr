@@ -2,8 +2,13 @@
 
 {% load widget_tweaks %}
 <div class="oh-dropdown__filter-body">
-    <div class="oh-accordion">
-        <div class="oh-accordion-header">{% trans "Asset" %}</div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header"
+            onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
+        >
+            <span class="oh-filter-section-icon"><ion-icon name="cube-outline"></ion-icon></span>
+            {% trans "Asset" %}
+        </div>
         <div class="oh-accordion-body">
             <div class="row">
                 <div class="col-sm-12 col-md-12 col-lg-12">
@@ -27,13 +32,31 @@
             </div>
         </div>
     </div>
-    <div class="oh-accordion">
-        <div class="oh-accordion-header">
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header"
+            onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
+        >
+            <span class="oh-filter-section-icon"><ion-icon name="document-text-outline"></ion-icon></span>
             {% trans "Asset Request" %}
         </div>
         <div class="oh-accordion-body">
             <div class="row">
-                <div class="col-sm-12 col-md-12 col-lg-6">
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label
+                            class="oh-label"
+                            for="{{asset_request_filter_form.name_or_badge.id_for_label}}"
+                        >{{ asset_request_filter_form.name_or_badge.label }}</label>
+                        {{ asset_request_filter_form.name_or_badge }}
+                    </div>
+                </div>
+                <!-- Full width -- Requesting User and Asset Category are
+                     now AJAX-searched Select2 comboboxes (see
+                     asset/filters.py's AssetRequestFilter.ajax_fields)
+                     and need real room for their selected chips/
+                     placeholder text, same reasoning as every other
+                     modernized panel this session. -->
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label
                             class="oh-label"
@@ -41,6 +64,8 @@
                         >{% trans "Requested Employee" %}</label>
                         {{ asset_request_filter_form.requested_employee_id }}
                     </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label
                             class="oh-label"
@@ -53,29 +78,59 @@
                     <div class="oh-input-group">
                         <label
                             class="oh-label"
-                            for="{{asset_request_filter_form.asset_request_date.id_for_label}}"
-                        >{% trans "Asset Request Date" %}</label>
-                        {{ asset_request_filter_form.asset_request_date|attr:"type:date" }}
-                    </div>
-                    <div class="oh-input-group">
-                        <label
-                            class="oh-label"
                             for="{{asset_request_filter_form.asset_request_status.id_for_label}}"
                         >{% trans "Status" %}</label>
                         {{ asset_request_filter_form.asset_request_status }}
+                    </div>
+                </div>
+                <!-- Asset Request Date used to have its own permanent,
+                     fixed exact-match input here -- replaced with the
+                     same "+ Add filter" field/lookup/value builder
+                     AttendanceFilters/EmployeeFilter/PMS FeedbackFilter/
+                     AssetFilter use (choose the field, then the lookup,
+                     then the value), which also offers gte/lte/gt/lt
+                     instead of just exact match, and adds Created At as
+                     a second option. Registry: AssetRequestFilter.
+                     _build_custom_filter_fields; applied server-side by
+                     HorillaFilterSet._apply_custom_filters (see
+                     AssetRequestFilter.filter_queryset). Row markup/JS
+                     are generic (initCustomFilterBuilder,
+                     horilla_nav.html). Bound to this request's own GET
+                     data separately from the Nav's own filter_instance
+                     (see RequestAndAllocationNav.get_context_data), so
+                     uses its own "asset_request_custom_filter_fields"/
+                     "asset_request_custom_filter_rows" context keys and
+                     "asset-request" namespace rather than the generic
+                     ones (which belong to the Asset Allocation
+                     accordion below). -->
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <div id="customFilterRowsContainer-asset-request" class="oh-custom-filter-rows"></div>
+                        <button
+                            type="button"
+                            class="oh-custom-filter-add"
+                            onclick="addCustomFilterRow('asset-request')"
+                        >+ {% trans "Add filter" %}</button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
     {% if perms.asset.view_assetassignment %}
-        <div class="oh-accordion">
-            <div class="oh-accordion-header">
+        <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+            <div class="oh-accordion-header"
+                onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
+            >
+                <span class="oh-filter-section-icon"><ion-icon name="swap-horizontal-outline"></ion-icon></span>
                 {% trans "Asset Allocation" %}
             </div>
             <div class="oh-accordion-body">
                 <div class="row">
-                    <div class="col-sm-12 col-md-12 col-lg-6">
+                    <!-- Full width -- Allocated User, Asset, and Allocated
+                         By are now AJAX-searched Select2 comboboxes (see
+                         asset/filters.py's AssetAllocationFilter.
+                         ajax_fields). -->
+                    <div class="col-sm-12 col-md-12 col-lg-12">
                         <div class="oh-input-group">
                             <label
                                 class="oh-label"
@@ -83,6 +138,8 @@
                             >{% trans "Allocated User" %}</label>
                             {{ asset_allocation_filter_form.assigned_to_employee_id }}
                         </div>
+                    </div>
+                    <div class="col-sm-12 col-md-12 col-lg-12">
                         <div class="oh-input-group">
                             <label
                                 class="oh-label"
@@ -91,32 +148,7 @@
                             {{ asset_allocation_filter_form.asset_id }}
                         </div>
                     </div>
-                    <div class="col-sm-12 col-md-12 col-lg-6">
-                        <div class="oh-input-group">
-                            <label
-                                class="oh-label"
-                                for="{{asset_allocation_filter_form.assigned_date.id_for_label}}"
-                            >{% trans "Asset Allocated Date" %}</label>
-                            {{ asset_allocation_filter_form.assigned_date |attr:"type:date" }}
-                        </div>
-                        <div class="oh-input-group">
-                            <label
-                                class="oh-label"
-                                for="{{asset_allocation_filter_form.return_status.id_for_label}}"
-                            >{% trans "Status" %}</label>
-                            {{ asset_allocation_filter_form.return_status }}
-                        </div>
-                    </div>
-                    <div class="col-sm-12 col-md-12 col-lg-6">
-                        <div class="oh-input-group">
-                            <label
-                                class="oh-label"
-                                for="{{asset_allocation_filter_form.return_date.id_for_label}}"
-                            >{% trans "Return Date" %}</label>
-                            {{ asset_allocation_filter_form.return_date|attr:"type:date" }}
-                        </div>
-                    </div>
-                    <div class="col-sm-12 col-md-12 col-lg-6">
+                    <div class="col-sm-12 col-md-12 col-lg-12">
                         <div class="oh-input-group">
                             <label
                                 class="oh-label"
@@ -125,8 +157,56 @@
                             {{ asset_allocation_filter_form.assigned_by_employee_id }}
                         </div>
                     </div>
+                    <div class="col-sm-12 col-md-12 col-lg-12">
+                        <div class="oh-input-group">
+                            <label
+                                class="oh-label"
+                                for="{{asset_allocation_filter_form.return_status.id_for_label}}"
+                            >{% trans "Status" %}</label>
+                            {{ asset_allocation_filter_form.return_status }}
+                        </div>
+                    </div>
+                    <!-- Asset Allocated Date/Return Date used to each have
+                         their own permanent, fixed exact-match inputs
+                         here -- replaced with the same "+ Add filter"
+                         field/lookup/value builder AttendanceFilters/
+                         EmployeeFilter/PMS FeedbackFilter/AssetFilter use
+                         (choose the field, then the lookup, then the
+                         value), which also offers gte/lte/gt/lt instead
+                         of just exact match, and adds Created At as a
+                         third option. Registry: AssetAllocationFilter.
+                         _build_custom_filter_fields; applied server-side
+                         by HorillaFilterSet._apply_custom_filters (see
+                         AssetAllocationFilter.filter_queryset). Row
+                         markup/JS are generic (initCustomFilterBuilder,
+                         horilla_nav.html). Uses the generic
+                         "custom_filter_fields"/"custom_filter_rows"
+                         context keys (this Nav's own filter_instance IS
+                         AssetAllocationFilter) and "asset-allocation"
+                         namespace, distinct from the Asset Request
+                         accordion's own builder above. -->
+                    <div class="col-sm-12 col-md-12 col-lg-12">
+                        <div class="oh-input-group">
+                            <div id="customFilterRowsContainer-asset-allocation" class="oh-custom-filter-rows"></div>
+                            <button
+                                type="button"
+                                class="oh-custom-filter-add"
+                                onclick="addCustomFilterRow('asset-allocation')"
+                            >+ {% trans "Add filter" %}</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
+        {{ custom_filter_fields|json_script:"customFilterFields-asset-allocation" }}
+        {{ custom_filter_rows|json_script:"customFilterRows-asset-allocation" }}
+        <script>
+            initCustomFilterBuilder('asset-allocation');
+        </script>
     {% endif %}
 </div>
+{{ asset_request_custom_filter_fields|json_script:"customFilterFields-asset-request" }}
+{{ asset_request_custom_filter_rows|json_script:"customFilterRows-asset-request" }}
+<script>
+    initCustomFilterBuilder('asset-request');
+</script>

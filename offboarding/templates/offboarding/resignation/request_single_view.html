@@ -1,4 +1,5 @@
 {% load i18n %}
+{% load basefilters %}
 {% if request.GET.requests_ids %}
     <div class="oh-modal__dialog oh-modal__dialog--navigation m-0 p-0">
         <button
@@ -110,7 +111,7 @@
         </div>
     </div>
     <h3 class="oh-faq-card__title">{{ letter.title }}</h3>
-    <div class="oh-faq-card__desc" style="max-height: 200px; overflow: auto">{{ letter.description|safe }}</div>
+    <div class="oh-faq-card__desc" style="max-height: 200px; overflow: auto">{{ letter.description|sanitize_html }}</div>
     <form action="{% url 'update-letter-status' %}">
         {% if perms.offboarding.change_resignationletter %}
             <div class="oh-btn-group">

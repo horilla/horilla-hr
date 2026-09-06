@@ -335,6 +335,7 @@ class WorkTypeRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = WorkTypeRequest
         fields = "__all__"
+        read_only_fields = ("approved", "canceled", "work_type_changed")
 
     def validate(self, attrs):
         request = getattr(horilla_middlewares._thread_locals, "request", None)
@@ -450,3 +451,10 @@ class ShiftRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = ShiftRequest
         fields = "__all__"
+        read_only_fields = (
+            "approved",
+            "canceled",
+            "shift_changed",
+            "reallocate_approved",
+            "reallocate_canceled",
+        )

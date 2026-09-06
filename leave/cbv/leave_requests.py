@@ -296,6 +296,11 @@ class LeaveRequestsNavView(HorillaNavView):
     filter_body_template = "cbv/leave_requests/filter.html"
     filter_form_context_name = "form"
     search_swap_target = "#listContainer"
+    # Modern slide-over filter panel (horilla_nav.html's .oh-filter-modern
+    # styles) -- same treatment as every other panel this session.
+    # LeaveRequestFilter.ajax_fields carries the AJAX-loaded comboboxes
+    # this needs.
+    modern_filter = True
 
     group_by_fields = [
         ("employee_id", _("Employee")),
@@ -400,6 +405,8 @@ class LeaveRequestsDetailView(HorillaDetailedView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        if not self.instance:
+            return context
         body = list(self.body)
 
         if self.instance.multiple_approvals:
@@ -628,10 +635,17 @@ class LeaveClashListView(LeaveRequestsListView):
     list view of leave clash col
     """
 
+    def dispatch(self, request, *args, **kwargs):
+        if not LeaveRequest.objects.filter(id=kwargs.get("pk")).exists():
+            return HttpResponse()
+        return super().dispatch(request, *args, **kwargs)
+
     def get_queryset(self):
         queryset = HorillaListView.get_queryset(self)
         pk = self.kwargs.get("pk")
-        record = LeaveRequest.objects.get(id=pk)
+        record = LeaveRequest.objects.filter(id=pk).first()
+        if not record:
+            return queryset.none()
         if record.status != "rejected" or record.status != "cancelled":
             queryset = (
                 queryset.filter(

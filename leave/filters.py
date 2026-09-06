@@ -16,10 +16,24 @@ from django.db.models.functions import Coalesce, Concat, TruncYear
 from django.utils.timezone import now
 from django.utils.translation import gettext as __
 from django.utils.translation import gettext_lazy as _
-from django_filters import DateFilter, FilterSet, NumberFilter, filters
+from django_filters import DateFilter, NumberFilter, filters
 
+from base.models import (
+    Company,
+    Department,
+    EmployeeShift,
+    EmployeeType,
+    JobPosition,
+    JobRole,
+    WorkType,
+)
 from employee.models import Employee
-from horilla.filters import FilterSet, HorillaFilterSet, filter_by_name
+from horilla.filters import (
+    FilterSet,
+    HorillaFilterSet,
+    filter_by_name,
+    filter_name_or_badge_terms,
+)
 from horilla_views.templatetags.generic_template_filters import getattribute
 
 from .models import (
@@ -31,7 +45,7 @@ from .models import (
 )
 
 
-class LeaveTypeFilter(FilterSet):
+class LeaveTypeFilter(HorillaFilterSet):
     """
     Filter class for LeaveType model.
 
@@ -59,7 +73,7 @@ class LeaveTypeFilter(FilterSet):
         exclude = ["icon"]
 
 
-class AssignedLeaveFilter(FilterSet):
+class AssignedLeaveFilter(HorillaFilterSet):
     """
     Filter class for AvailableLeave model.
 
@@ -80,6 +94,33 @@ class AssignedLeaveFilter(FilterSet):
         lookup_expr="exact",
         widget=forms.DateInput(attrs={"type": "date"}),
     )
+    # Dedicated comma-separated "Name or Badge ID" search, alongside the
+    # AJAX employee_id picker below rather than instead of it -- same
+    # field/behavior as LeaveRequestFilter.name_or_badge; see
+    # horilla.filters.filter_name_or_badge_terms for the shared matching
+    # logic.
+    name_or_badge = django_filters.CharFilter(
+        method="filter_name_or_badge", label=_("Name or Badge ID")
+    )
+
+    # HorillaFilterSet.ajax_fields (generic AJAX-loaded combobox mechanism,
+    # see LeaveRequestFilter.ajax_fields for the full explanation).
+    ajax_fields = {
+        "employee_id": {
+            "key": "assigned-leave-employee",
+            "queryset_fn": lambda request: Employee.objects.filter(is_active=True),
+            "display_fn": lambda obj: obj.get_full_name(),
+            "search_fields": ["employee_first_name", "employee_last_name", "badge_id"],
+            "placeholder": _("Search employee..."),
+        },
+        "leave_type_id": {
+            "key": "assigned-leave-leave-type",
+            "queryset_fn": lambda request: LeaveType.objects.all(),
+            "display_fn": lambda obj: obj.name,
+            "search_fields": ["name"],
+            "placeholder": _("Select leave type..."),
+        },
+    }
     available_days__gte = NumberFilter(field_name="available_days", lookup_expr="gte")
     available_days__lte = NumberFilter(field_name="available_days", lookup_expr="lte")
     carryforward_days__gte = NumberFilter(
@@ -116,10 +157,28 @@ class AssignedLeaveFilter(FilterSet):
             "assigned_date",
         ]
 
+    def filter_name_or_badge(self, queryset, name, value):
+        """
+        Filter panel's dedicated "Name or Badge ID" field (see
+        name_or_badge above) -- see horilla.filters.
+        filter_name_or_badge_terms for the shared comma-separated
+        matching logic.
+        """
+        return filter_name_or_badge_terms(
+            queryset,
+            value,
+            "employee_id__employee_first_name",
+            "employee_id__employee_last_name",
+            "employee_id__badge_id",
+        )
+
     def __init__(self, data=None, queryset=None, *, request=None, prefix=None):
         super().__init__(data=data, queryset=queryset, request=request, prefix=prefix)
         for field in self.form.fields.keys():
             self.form.fields[field].widget.attrs["id"] = f"{uuid.uuid4()}"
+        self.form.fields["name_or_badge"].widget.attrs["placeholder"] = _(
+            "e.g. John, PEP01, PEP02"
+        )
 
 
 class LeaveRequestFilter(HorillaFilterSet):
@@ -163,6 +222,88 @@ class LeaveRequestFilter(HorillaFilterSet):
         field_name="employee_id__employee_work_info__department_id__department",
         lookup_expr="icontains",
     )
+    # Dedicated comma-separated "Name or Badge ID" search, alongside the
+    # AJAX employee_id picker below rather than instead of it -- same
+    # field/behavior as EmployeeFilter.name_or_badge/AttendanceFilters.
+    # name_or_badge; see horilla.filters.filter_name_or_badge_terms for the
+    # shared matching logic.
+    name_or_badge = django_filters.CharFilter(
+        method="filter_name_or_badge", label=_("Name or Badge ID")
+    )
+
+    # HorillaFilterSet.ajax_fields (generic AJAX-loaded combobox mechanism,
+    # see EmployeeFilter.ajax_fields for the full explanation) -- every
+    # model/queryset-backed field in the modern filter panel opts in here
+    # instead of pre-rendering its whole queryset as <option> tags.
+    ajax_fields = {
+        "employee_id": {
+            "key": "leave-request-employee",
+            "queryset_fn": lambda request: Employee.objects.filter(is_active=True),
+            "display_fn": lambda obj: obj.get_full_name(),
+            "search_fields": ["employee_first_name", "employee_last_name", "badge_id"],
+            "placeholder": _("Search employee..."),
+        },
+        "employee_id__employee_work_info__company_id": {
+            "key": "leave-request-company",
+            "queryset_fn": lambda request: Company.objects.all(),
+            "display_fn": lambda obj: obj.company,
+            "search_fields": ["company"],
+            "placeholder": _("Select company..."),
+        },
+        "employee_id__employee_work_info__employee_type_id": {
+            "key": "leave-request-employee-type",
+            "queryset_fn": lambda request: EmployeeType.objects.all(),
+            "display_fn": lambda obj: obj.employee_type,
+            "search_fields": ["employee_type"],
+            "placeholder": _("Select employee type..."),
+        },
+        "employee_id__employee_work_info__job_role_id": {
+            "key": "leave-request-job-role",
+            "queryset_fn": lambda request: JobRole.objects.select_related(
+                "job_position_id"
+            ).all(),
+            "display_fn": lambda obj: str(obj),
+            "search_fields": ["job_role", "job_position_id__job_position"],
+            "placeholder": _("Select job role..."),
+        },
+        "employee_id__employee_work_info__reporting_manager_id": {
+            "key": "leave-request-reporting-manager",
+            "queryset_fn": lambda request: Employee.objects.filter(is_active=True),
+            "display_fn": lambda obj: obj.get_full_name(),
+            "search_fields": ["employee_first_name", "employee_last_name", "badge_id"],
+            "placeholder": _("Search employee..."),
+        },
+        "employee_id__employee_work_info__department_id": {
+            "key": "leave-request-department",
+            "queryset_fn": lambda request: Department.objects.all(),
+            "display_fn": lambda obj: obj.department,
+            "search_fields": ["department"],
+            "placeholder": _("Select department..."),
+        },
+        "employee_id__employee_work_info__job_position_id": {
+            "key": "leave-request-job-position",
+            "queryset_fn": lambda request: JobPosition.objects.select_related(
+                "department_id"
+            ).all(),
+            "display_fn": lambda obj: str(obj),
+            "search_fields": ["job_position", "department_id__department"],
+            "placeholder": _("Select job position..."),
+        },
+        "employee_id__employee_work_info__shift_id": {
+            "key": "leave-request-shift",
+            "queryset_fn": lambda request: EmployeeShift.objects.all(),
+            "display_fn": lambda obj: obj.employee_shift,
+            "search_fields": ["employee_shift"],
+            "placeholder": _("Select shift..."),
+        },
+        "employee_id__employee_work_info__work_type_id": {
+            "key": "leave-request-work-type",
+            "queryset_fn": lambda request: WorkType.objects.all(),
+            "display_fn": lambda obj: obj.work_type,
+            "search_fields": ["work_type"],
+            "placeholder": _("Select work type..."),
+        },
+    }
 
     class Meta:
         """ "
@@ -280,10 +421,67 @@ class LeaveRequestFilter(HorillaFilterSet):
             queryset = queryset.filter(**{filter: value})
         return queryset
 
+    def filter_name_or_badge(self, queryset, name, value):
+        """
+        Filter panel's dedicated "Name or Badge ID" field (see
+        name_or_badge above) -- see horilla.filters.
+        filter_name_or_badge_terms for the shared comma-separated
+        matching logic (also used by EmployeeFilter and AttendanceFilters).
+        """
+        return filter_name_or_badge_terms(
+            queryset,
+            value,
+            "employee_id__employee_first_name",
+            "employee_id__employee_last_name",
+            "employee_id__badge_id",
+        )
+
+    def _build_custom_filter_fields(self):
+        """
+        Registry backing the Advanced section's "+ Add filter" builder
+        (see HorillaFilterSet._build_custom_filter_fields's docstring
+        for the two supported entry shapes) -- same "choose field, then
+        lookup, then value" pattern used by AttendanceFilters/
+        EmployeeFilter/AssetFilter. Start Date/End Date are deliberately
+        NOT duplicated here: from_date/to_date above already cover them
+        with bespoke overlap-aware logic (filter_from_date treats a
+        null end_date as an open-ended single-day leave), which a plain
+        field__lookup builder entry can't reproduce. Created At is a
+        plain DateTimeField column with no such nuance, so it's safe as
+        a straightforward addition.
+        """
+        fields = [
+            {
+                "key": "created_at",
+                "field": "created_at",
+                "label": str(_("Created At")),
+                "type": "date_range",
+            },
+        ]
+        for entry in fields:
+            entry["lookups"] = [
+                [lk, str(label)]
+                for lk, label in self.CUSTOM_FILTER_LOOKUPS[entry["type"]]
+            ]
+        return fields
+
+    def filter_queryset(self, queryset):
+        """
+        HorillaFilterSet._apply_custom_filters isn't wired into the base
+        filter_queryset automatically -- this is the minimal "call it at
+        the end" hookup, same as AttendanceFilters/FeedbackFilter/
+        AssetFilter.
+        """
+        queryset = super().filter_queryset(queryset)
+        return self._apply_custom_filters(queryset)
+
     def __init__(self, data=None, queryset=None, *, request=None, prefix=None):
         super().__init__(data=data, queryset=queryset, request=request, prefix=prefix)
         for field in self.form.fields.keys():
             self.form.fields[field].widget.attrs["id"] = f"{uuid.uuid4()}"
+        self.form.fields["name_or_badge"].widget.attrs["placeholder"] = _(
+            "e.g. John, PEP01, PEP02"
+        )
 
 
 class UserLeaveRequestFilter(FilterSet):
@@ -338,7 +536,7 @@ class UserLeaveRequestFilter(FilterSet):
         self.form.fields["leave_type_id"].queryset = assigned_leave_types
 
 
-class LeaveAllocationRequestFilter(FilterSet):
+class LeaveAllocationRequestFilter(HorillaFilterSet):
     """
     Filter class for LeaveAllocationRequest model specific to user leave requests.
     This filter allows searching user-specific LeaveRequest objects
@@ -357,6 +555,50 @@ class LeaveAllocationRequestFilter(FilterSet):
     number_of_days_more_than = filters.NumberFilter(
         field_name="requested_days", lookup_expr="gte"
     )
+    # Dedicated comma-separated "Name or Badge ID" search, alongside the
+    # AJAX employee_id picker below rather than instead of it -- same
+    # field/behavior as LeaveRequestFilter.name_or_badge; see
+    # horilla.filters.filter_name_or_badge_terms for the shared matching
+    # logic.
+    name_or_badge = django_filters.CharFilter(
+        method="filter_name_or_badge", label=_("Name or Badge ID")
+    )
+    # created_by is a FK to HorillaUser, not Employee -- rendering/
+    # filtering on it directly (Meta.fields's own auto-generated
+    # ModelChoiceFilter) surfaced raw usernames/emails ("admin",
+    # "michael.brown@horilla.com", ...) in the picker instead of the
+    # employee's name, since a HorillaUser has no display-friendly
+    # __str__ of its own. Overrides that auto field with one that goes
+    # through the User -> Employee reverse OneToOne instead
+    # (Employee.employee_user_id's related_name="employee_get", see
+    # employee/models.py) -- picks an Employee, filters via
+    # created_by__employee_get, same UX as employee_id above.
+    created_by = django_filters.ModelMultipleChoiceFilter(
+        field_name="created_by__employee_get",
+        queryset=Employee.objects.filter(employee_user_id__isnull=False),
+        label=_("Created By"),
+    )
+
+    # HorillaFilterSet.ajax_fields (generic AJAX-loaded combobox mechanism,
+    # see EmployeeFilter.ajax_fields for the full explanation).
+    ajax_fields = {
+        "employee_id": {
+            "key": "leave-allocation-employee",
+            "queryset_fn": lambda request: Employee.objects.filter(is_active=True),
+            "display_fn": lambda obj: obj.get_full_name(),
+            "search_fields": ["employee_first_name", "employee_last_name", "badge_id"],
+            "placeholder": _("Search employee..."),
+        },
+        "created_by": {
+            "key": "leave-allocation-created-by",
+            "queryset_fn": lambda request: Employee.objects.filter(
+                employee_user_id__isnull=False
+            ),
+            "display_fn": lambda obj: obj.get_full_name(),
+            "search_fields": ["employee_first_name", "employee_last_name", "badge_id"],
+            "placeholder": _("Search employee..."),
+        },
+    }
 
     class Meta:
         """
@@ -371,6 +613,71 @@ class LeaveAllocationRequestFilter(FilterSet):
             "leave_type_id": ["exact"],
             "employee_id": ["exact"],
         }
+
+    def filter_name_or_badge(self, queryset, name, value):
+        """
+        Filter panel's dedicated "Name or Badge ID" field (see
+        name_or_badge above) -- see horilla.filters.
+        filter_name_or_badge_terms for the shared comma-separated
+        matching logic (also used by EmployeeFilter/AttendanceFilters/
+        LeaveRequestFilter).
+        """
+        return filter_name_or_badge_terms(
+            queryset,
+            value,
+            "employee_id__employee_first_name",
+            "employee_id__employee_last_name",
+            "employee_id__badge_id",
+        )
+
+    def _build_custom_filter_fields(self):
+        """
+        Registry backing the Advanced section's "+ Add filter" builder
+        (see HorillaFilterSet._build_custom_filter_fields's docstring
+        for the two supported entry shapes) -- same "choose field, then
+        lookup, then value" pattern used by AttendanceFilters/
+        EmployeeFilter/AssetFilter. Requested Date and Created At are
+        plain DateField/DateTimeField columns, so the plain
+        field+lookup shape applies directly.
+        """
+        fields = [
+            {
+                "key": "requested_date",
+                "field": "requested_date",
+                "label": str(_("Requested Date")),
+                "type": "date_range",
+            },
+            {
+                "key": "created_at",
+                "field": "created_at",
+                "label": str(_("Created At")),
+                "type": "date_range",
+            },
+        ]
+        for entry in fields:
+            entry["lookups"] = [
+                [lk, str(label)]
+                for lk, label in self.CUSTOM_FILTER_LOOKUPS[entry["type"]]
+            ]
+        return fields
+
+    def filter_queryset(self, queryset):
+        """
+        HorillaFilterSet._apply_custom_filters isn't wired into the base
+        filter_queryset automatically -- this is the minimal "call it at
+        the end" hookup, same as AttendanceFilters/FeedbackFilter/
+        AssetFilter.
+        """
+        queryset = super().filter_queryset(queryset)
+        return self._apply_custom_filters(queryset)
+
+    def __init__(self, data=None, queryset=None, *, request=None, prefix=None):
+        super().__init__(data=data, queryset=queryset, request=request, prefix=prefix)
+        for field in self.form.fields.keys():
+            self.form.fields[field].widget.attrs["id"] = f"{uuid.uuid4()}"
+        self.form.fields["name_or_badge"].widget.attrs["placeholder"] = _(
+            "e.g. John, PEP01, PEP02"
+        )
 
 
 class LeaveRequestReGroup:
@@ -455,7 +762,7 @@ class LeaveAllocationRequestReGroup:
     ]
 
 
-class RestrictLeaveFilter(FilterSet):
+class RestrictLeaveFilter(HorillaFilterSet):
     """
     Filter class for Restrict model.
 
@@ -474,6 +781,29 @@ class RestrictLeaveFilter(FilterSet):
         widget=forms.DateInput(attrs={"type": "date"}),
     )
 
+    # HorillaFilterSet.ajax_fields (generic AJAX-loaded combobox mechanism,
+    # see LeaveRequestFilter.ajax_fields for the full explanation). No
+    # employee field exists on this model, so there's no "Name or Badge
+    # ID" search here -- unlike the other modernized panels this session.
+    ajax_fields = {
+        "department": {
+            "key": "restrict-leave-department",
+            "queryset_fn": lambda request: Department.objects.all(),
+            "display_fn": lambda obj: obj.department,
+            "search_fields": ["department"],
+            "placeholder": _("Select department..."),
+        },
+        "job_position": {
+            "key": "restrict-leave-job-position",
+            "queryset_fn": lambda request: JobPosition.objects.select_related(
+                "department_id"
+            ).all(),
+            "display_fn": lambda obj: str(obj),
+            "search_fields": ["job_position", "department_id__department"],
+            "placeholder": _("Select job position..."),
+        },
+    }
+
     class Meta:
         """
         Meta class defines the model and fields to filter
@@ -481,6 +811,54 @@ class RestrictLeaveFilter(FilterSet):
 
         model = RestrictLeave
         fields = "__all__"
+
+    def _build_custom_filter_fields(self):
+        """
+        Registry backing the Advanced section's "+ Add filter" builder
+        (see HorillaFilterSet._build_custom_filter_fields's docstring
+        for the two supported entry shapes) -- same "choose field, then
+        lookup, then value" pattern used by AttendanceFilters/
+        EmployeeFilter/AssetFilter. Start Date/End Date used to each
+        have their own single-direction fixed input (from_date's gte on
+        start_date, to_date's lte on end_date) -- replaced with the
+        full gte/lte/gt/lt/exact set per field, plus Created At.
+        """
+        fields = [
+            {
+                "key": "start_date",
+                "field": "start_date",
+                "label": str(_("Start Date")),
+                "type": "date_range",
+            },
+            {
+                "key": "end_date",
+                "field": "end_date",
+                "label": str(_("End Date")),
+                "type": "date_range",
+            },
+            {
+                "key": "created_at",
+                "field": "created_at",
+                "label": str(_("Created At")),
+                "type": "date_range",
+            },
+        ]
+        for entry in fields:
+            entry["lookups"] = [
+                [lk, str(label)]
+                for lk, label in self.CUSTOM_FILTER_LOOKUPS[entry["type"]]
+            ]
+        return fields
+
+    def filter_queryset(self, queryset):
+        """
+        HorillaFilterSet._apply_custom_filters isn't wired into the base
+        filter_queryset automatically -- this is the minimal "call it at
+        the end" hookup, same as AttendanceFilters/FeedbackFilter/
+        AssetFilter.
+        """
+        queryset = super().filter_queryset(queryset)
+        return self._apply_custom_filters(queryset)
 
     def __init__(self, data=None, queryset=None, *, request=None, prefix=None):
         super().__init__(data=data, queryset=queryset, request=request, prefix=prefix)

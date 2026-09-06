@@ -41,17 +41,13 @@ from base.methods import (
     generate_pdf,
     get_key_instances,
     get_pagination,
+    sanitize_mail_template_body,
     sortby,
 )
 from base.models import HorillaMailTemplate, JobPosition
 from employee.models import Employee, EmployeeBankDetails, EmployeeWorkInformation
 from horilla import settings
-from horilla.decorators import (
-    hx_request_required,
-    logger,
-    login_required,
-    permission_required,
-)
+from horilla.decorators import hx_request_required, login_required, permission_required
 from horilla.group_by import group_by_queryset as general_group_by
 from horilla.http.response import HorillaRedirect
 from horilla_auth.models import HorillaUser
@@ -792,13 +788,9 @@ def candidate_filter(request):
 
 
 import logging
-import os
-import secrets
 from email.mime.image import MIMEImage
 
-from django.contrib import messages
 from django.core.mail import EmailMultiAlternatives
-from django.template.loader import render_to_string
 
 logger = logging.getLogger(__name__)
 
@@ -849,7 +841,7 @@ def email_send(request):
 
         # Generate PDFs
         for html in bodys:
-            template_bdy = template.Template(html)
+            template_bdy = template.Template(sanitize_mail_template_body(html))
             context = template.Context(
                 {"instance": candidate, "self": request.user.employee_get}
             )
@@ -1133,7 +1125,6 @@ def kanban_view(request):
             "filter_dict": filter_dict,
             "stage_form": stage_form,
             "status": status,
-            "choices": choices,
             "pd": previous_data,
             "card": True,
         },

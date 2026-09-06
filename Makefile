@@ -61,7 +61,12 @@ test-smoke: ## Run CI smoke unit tests (min bar across first-party apps)
 test-unit: ## Run unit-test labels (override UNIT_LABELS=...)
 	python manage.py test $(UNIT_LABELS) --verbosity=1
 
-COV_FAIL_UNDER ?= 5
+# Measured 27.6% on 2026-09-01 with branch coverage on (.coveragerc). It
+# reads lower than statement coverage because untaken branches count, which
+# is the more honest number. The floor was 5 while real coverage was far
+# above it -- a gate that cannot fail is worse than none, because it reads
+# as one. Ratchet this up as suites land; never down to make a build pass.
+COV_FAIL_UNDER ?= 26
 COV_SOURCE ?= leave,attendance,base,payroll,recruitment,report,horilla_auth,employee,accessibility,horilla_api
 
 test-cov: ## Smoke suite under coverage (low fail-under floor)

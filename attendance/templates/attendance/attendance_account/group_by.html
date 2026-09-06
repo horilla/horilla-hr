@@ -64,11 +64,11 @@
                                             <div
                                                 class="oh-sticky-table__tr"
                                                 {% if perms.attendance.view_attendance or request.user|is_reportingmanager %}
-                                                    hx-get="{% url 'attendance-search' %}?employee_id={{ot.employee_id.id}}&attendance_validated=true&attendance_date__gte={{ dates.0|date:"Y-m-d" }}&attendance_date__lte={{ dates.1|date:"Y-m-d" }}"
+                                                    hx-get="{% url 'attendance-search' %}?employee_id={{ot.employee_id.id}}&attendance_validated=True&attendance_date__gte={{ dates.0|date:"Y-m-d" }}&attendance_date__lte={{ dates.1|date:"Y-m-d" }}"
                                                     hx-target="#ot-table"
                                                     onclick="hiding()"
                                                 {% else %}
-                                                    hx-get="{% url 'filter-own-attendance' %}?employee_id={{ot.employee_id.id}}&attendance_validated=true&attendance_date__gte={{ dates.0|date:"Y-m-d" }}&attendance_date__lte={{ dates.1|date:"Y-m-d" }}"
+                                                    hx-get="{% url 'filter-own-attendance' %}?employee_id={{ot.employee_id.id}}&attendance_validated=True&attendance_date__gte={{ dates.0|date:"Y-m-d" }}&attendance_date__lte={{ dates.1|date:"Y-m-d" }}"
                                                     hx-target="#ot-table"
                                                     onclick="hiding()"
                                                 {% endif %}

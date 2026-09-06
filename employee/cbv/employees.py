@@ -575,6 +575,8 @@ class EmployeeNav(HorillaNavView):
     For nav bar
     """
 
+    modern_filter = True
+
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.search_url = reverse("employees-list")

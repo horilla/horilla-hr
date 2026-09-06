@@ -2,8 +2,11 @@
 
 <input type="hidden" name="view" id="filterView" value="">
   <div class="oh-dropdown__filter-body">
-    <div class="oh-accordion">
-      <div class="oh-accordion-header">{% trans "Deduction" %}</div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+      <div class="oh-accordion-header">
+        <span class="oh-filter-section-icon"><ion-icon name="remove-circle-outline"></ion-icon></span>
+        {% trans "Deduction" %}
+      </div>
       <div class="oh-accordion-body">
         <div class="row">
           <div class="col-sm-6">
@@ -35,8 +38,41 @@
         </div>
       </div>
     </div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+      <div class="oh-accordion-header"
+        onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
+      >
+        <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
+        {% trans "Advanced" %}
+      </div>
+      <div class="oh-accordion-body">
+        <div class="row">
+          <!-- Generic "+ Add filter" field/lookup/value builder (same
+               as AttendanceFilters/EmployeeFilter/AssetFilter).
+               Registry: DeductionFilter._build_custom_filter_fields;
+               applied server-side by HorillaFilterSet.
+               _apply_custom_filters (see DeductionFilter.
+               filter_queryset). Row markup/JS are generic
+               (initCustomFilterBuilder, horilla_nav.html). -->
+          <div class="col-sm-12 col-md-12 col-lg-12">
+            <div class="oh-input-group">
+              <div id="customFilterRowsContainer-deduction" class="oh-custom-filter-rows"></div>
+              <button
+                type="button"
+                class="oh-custom-filter-add"
+                onclick="addCustomFilterRow('deduction')"
+              >+ {% trans "Add filter" %}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
-
+{{ custom_filter_fields|json_script:"customFilterFields-deduction" }}
+{{ custom_filter_rows|json_script:"customFilterRows-deduction" }}
+<script>
+    initCustomFilterBuilder('deduction');
+</script>
 
 <script>
   $("#filterForm").submit(function (e) {

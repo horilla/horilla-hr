@@ -1,10 +1,10 @@
 import calendar
 import datetime as dt
-import sys
 from datetime import datetime, timedelta
 
-from apscheduler.schedulers.background import BackgroundScheduler
 from dateutil.relativedelta import relativedelta
+
+from horilla.scheduling import register_job
 
 today = datetime.now()
 
@@ -48,15 +48,5 @@ def candidate_convert():
     ).update(converted=True)
 
 
-if not any(
-    cmd in sys.argv
-    for cmd in ["makemigrations", "migrate", "compilemessages", "flush", "shell"]
-):
-    """
-    Initializes and starts background tasks using APScheduler when the server is running.
-    """
-    scheduler = BackgroundScheduler()
-    scheduler.add_job(candidate_convert, "interval", minutes=5)
-    scheduler.add_job(recruitment_close, "interval", hours=1)
-
-    scheduler.start()
+register_job(candidate_convert, "interval", minutes=5)
+register_job(recruitment_close, "interval", hours=1)

@@ -4,12 +4,11 @@ scheduler.py
 This module is used to register scheduled tasks
 """
 
-import sys
 from datetime import date, timedelta
 
-from apscheduler.schedulers.background import BackgroundScheduler
 from django.urls import reverse
 
+from horilla.scheduling import register_job
 from notifications.signals import notify
 
 
@@ -106,12 +105,6 @@ def notify_expiring_documents():
                 document.is_active = False
 
 
-if not any(
-    cmd in sys.argv
-    for cmd in ["makemigrations", "migrate", "compilemessages", "flush", "shell"]
-):
-    scheduler = BackgroundScheduler()
-    scheduler.add_job(notify_expiring_assets, "interval", days=1)
-    scheduler.add_job(notify_expiring_documents, "interval", hours=4)
-    scheduler.add_job(mark_expired_assets, "interval", days=1)
-    scheduler.start()
+register_job(notify_expiring_assets, "interval", days=1)
+register_job(notify_expiring_documents, "interval", hours=4)
+register_job(mark_expired_assets, "interval", days=1)

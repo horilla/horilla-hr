@@ -1,8 +1,11 @@
 {% load static %}
 {% load i18n %}
 <div class="oh-dropdown__filter-body">
-    <div class="oh-accordion">
-      <div class="oh-accordion-header">{% trans "Allowance" %}</div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+      <div class="oh-accordion-header">
+        <span class="oh-filter-section-icon"><ion-icon name="cash-outline"></ion-icon></span>
+        {% trans "Allowance" %}
+      </div>
       <div class="oh-accordion-body">
         <div class="row">
           <div class="col-sm-6">
@@ -34,4 +37,38 @@
         </div>
       </div>
     </div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+      <div class="oh-accordion-header"
+        onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
+      >
+        <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
+        {% trans "Advanced" %}
+      </div>
+      <div class="oh-accordion-body">
+        <div class="row">
+          <!-- Generic "+ Add filter" field/lookup/value builder (same
+               as AttendanceFilters/EmployeeFilter/AssetFilter).
+               Registry: AllowanceFilter._build_custom_filter_fields;
+               applied server-side by HorillaFilterSet.
+               _apply_custom_filters (see AllowanceFilter.
+               filter_queryset). Row markup/JS are generic
+               (initCustomFilterBuilder, horilla_nav.html). -->
+          <div class="col-sm-12 col-md-12 col-lg-12">
+            <div class="oh-input-group">
+              <div id="customFilterRowsContainer-allowance" class="oh-custom-filter-rows"></div>
+              <button
+                type="button"
+                class="oh-custom-filter-add"
+                onclick="addCustomFilterRow('allowance')"
+              >+ {% trans "Add filter" %}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
+{{ custom_filter_fields|json_script:"customFilterFields-allowance" }}
+{{ custom_filter_rows|json_script:"customFilterRows-allowance" }}
+<script>
+    initCustomFilterBuilder('allowance');
+</script>

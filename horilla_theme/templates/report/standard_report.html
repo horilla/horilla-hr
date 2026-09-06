@@ -40,6 +40,18 @@
     .dark .sr-letterhead__desc { color: hsl(0,0%,68%); }
     .sr-letterhead__period { margin: 0; font-size: 12px; font-weight: 500; color: hsl(0,0%,38%); min-height: 16px; }
     .dark .sr-letterhead__period { color: hsl(0,0%,72%); }
+    /* Methodology caveat for reports that analyse a fixed window rather than
+       the selected period. Reads as a note, not an error. */
+    .sr-letterhead__note {
+        margin: 0; font-size: 11.5px; line-height: 1.45; max-width: 720px;
+        color: #5C4413; background: #FFF8E8; border-left: 3px solid #E8B84B;
+        padding: 6px 10px; border-radius: 0 4px 4px 0;
+    }
+    .dark .sr-letterhead__note {
+        color: #f7e7b8; background: rgba(232,184,75,.12);
+        border-left-color: rgba(232,184,75,.45);
+    }
+    .sr-letterhead__note[hidden] { display: none !important; }
     .sr-page .oh-card { border-radius: 8px; }
 
     .sr-section { margin-bottom: 18px; }
@@ -314,6 +326,11 @@
         </div>
         {% if report_description %}<p class="sr-letterhead__desc">{{ report_description }}</p>{% endif %}
         <p class="sr-letterhead__period" id="sr-period-label"></p>
+        {# Some reports analyse a fixed window rather than the selected one
+           (turnover's rolling 6 months, say) and explain that in
+           period_note. Without this the number looks like it ignored the
+           filter for no reason. #}
+        <p class="sr-letterhead__note" id="sr-period-note" hidden></p>
     </div>
 
     <div class="sr-status" id="sr-status">
@@ -429,6 +446,7 @@
     const tableSection = document.getElementById("sr-table-section");
     const tableMeta = document.getElementById("sr-table-meta");
     const periodLabel = document.getElementById("sr-period-label");
+    const periodNote = document.getElementById("sr-period-note");
     const presetInput = document.getElementById("sr-preset");
     const compareInput = document.getElementById("sr-compare");
     const fromInput = document.getElementById("sr-from");
@@ -527,6 +545,14 @@
         let text = from && to
             ? "{% trans 'Period' %}: " + from + " → " + to
             : "";
+        // A report that overrides its own window ships a label for it
+        // ("Rolling 6 months"); showing the raw dates alone made a fixed
+        // window look like the period the user had picked.
+        if (period.label && period.preset && period.preset !== "custom") {
+            text = text
+                ? period.label + "  ·  " + text
+                : period.label;
+        }
         if (compare && compare.period) {
             const cf = compare.period.from_date || "";
             const ct = compare.period.to_date || "";
@@ -537,6 +563,19 @@
             }
         }
         periodLabel.textContent = text;
+    }
+
+    function setPeriodNote(note) {
+        if (!periodNote) {
+            return;
+        }
+        if (note) {
+            periodNote.textContent = note;
+            periodNote.hidden = false;
+        } else {
+            periodNote.textContent = "";
+            periodNote.hidden = true;
+        }
     }
 
     function renderChips(list) {
@@ -925,9 +964,17 @@
             return;
         }
         tableSection.hidden = false;
-        tableMeta.textContent = rows.length === 1
+        let metaText = rows.length === 1
             ? "1 {% trans 'row' %}"
             : rows.length + " {% trans 'rows' %}";
+        // A metric whose KPI counts every match but whose list is capped has
+        // to say so, or the card reads "347" above a table of 100.
+        if (table && table.truncated) {
+            metaText += table.total_rows
+                ? "  ·  {% trans 'sample of' %} " + table.total_rows
+                : "  ·  {% trans 'partial list' %}";
+        }
+        tableMeta.textContent = metaText;
 
         const numericCols = {};
         columns.forEach((col) => {
@@ -1016,11 +1063,17 @@
                 if (statusDot) statusDot.hidden = true;
                 statusText.textContent = data.message;
             }
-            if (data.period && presetInput.value !== "custom") {
+            // A report that analyses its own fixed window reports that window
+            // back in data.period. Don't copy it into the filter inputs --
+            // that silently rewrites the user's selection to dates they never
+            // chose, and the next report they open inherits it.
+            const usesOwnWindow = Boolean(data.period_note);
+            if (data.period && presetInput.value !== "custom" && !usesOwnWindow) {
                 fromInput.value = data.period.from_date || fromInput.value;
                 toInput.value = data.period.to_date || toInput.value;
             }
             setPeriodLabel(data.period, data.compare);
+            setPeriodNote(data.period_note);
             renderChips(data.filters || []);
             renderKpis(data.kpis);
             renderCharts(data.charts);

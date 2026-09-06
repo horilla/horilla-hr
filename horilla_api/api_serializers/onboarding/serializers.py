@@ -244,6 +244,17 @@ class OnboardingPortalSerializer(serializers.ModelSerializer):
     class Meta:
         model = OnboardingPortal
         fields = "__all__"
+        # token is a credential, not data about the portal: onboarding/urls
+        # routes user-creation, profile-view, employee-creation and
+        # employee-bank-details on <str:token> alone, and those views carry
+        # no authentication decorator -- holding the token is what grants
+        # access. `fields = "__all__"` put it in every response body, where
+        # it reaches request logs, proxies and browser history.
+        #
+        # write_only rather than excluding it: the field is populated
+        # server-side with secrets.token_hex, so nothing needs to read it
+        # back, but keeping it writable leaves the create path working.
+        extra_kwargs = {"token": {"write_only": True}}
 
     def get_candidate_id(self, obj):
         if obj.candidate_id:

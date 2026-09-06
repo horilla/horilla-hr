@@ -1,16 +1,17 @@
 {% extends 'index.html' %}
 {% load i18n %}
 {% block content %}
+{% comment %}
+    Content outside {% block %} in a template that {% extends %} another is
+    discarded entirely -- this include has to live in here, not above, or
+    toggleModernFilterPanel/filterModernPanelFields never get defined on
+    this page at all (same gotcha documented in work_record_view.html,
+    where this same offcanvas panel was first ported to a plain FBV page).
+{% endcomment %}
+{% include 'generic/modern_filter_panel.html' %}
 
 <style>
   body.dark .ms-page-header h3 { color: #dfdfdf !important; }
-  /* Filter dropdown panel — same "Work Info" accordion section used by the
-     real Attendance list's filter (attendances_filter_page.html): reuses
-     Horilla's own .oh-accordion/.oh-accordion-header/.oh-accordion-body
-     classes so the existing global click-toggle handler and chevron CSS
-     (footerScripts.js, v1_styles.css) apply with no extra JS/CSS of our own. */
-  .ms-filter-grid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 12px; }
-  #ms-filter-dropdown .oh-input-group { margin-bottom: 10px; }
   /* Active-filter chip row — same look as generic/filter_tags.html */
   .ms-filter-tag {
     display: inline-flex;
@@ -90,68 +91,203 @@
                  class="text-color-600 p-1.5 pb-2 border border-dark-50 rounded-md focus-visible:outline-0 text-sm [transition:.3s] focus:border-primary-600"
                  style="width:145px;">
 
-          <!-- Filter dropdown — deliberately NOT using the shared ".dropdown-wrapper
-               :hover/.dropdown-content" CSS pattern: that pattern closes the panel the
-               moment the mouse leaves it, which breaks as soon as a Select2 option list
-               (rendered outside this wrapper, appended near <body>) is clicked. Opened/
-               closed via explicit JS click-toggle instead, see script below. -->
-          <div class="relative">
-            <span id="ms-filter-toggle" class="px-5 py-2 h-full bg-[white] rounded-md text-xs flex items-center gap-2 border border-primary-500 hover:border-primary-600 transition duration-300 cursor-pointer">
-              <ion-icon name="filter-outline"></ion-icon> {% trans "Filter" %}
-            </span>
-            <div id="ms-filter-dropdown" class="oh-filter-dropdown absolute z-10 bg-white rounded-lg [box-shadow:0px_0px_20px_0px_rgb(0_0_0_/_8%)] min-w-[480px] p-3 right-0" style="display:none;">
+          <!-- Modern slide-over filter panel (generic/modern_filter_panel.html)
+               -- same offcanvas used by Attendance/Late Arrival/Check-in Log/
+               Employee/Work Records this session, not a bespoke anchored
+               dropdown. Trigger/backdrop/panel ids aren't namespaced (only
+               one panel per page), so this replaces the page's earlier
+               custom #ms-filter-toggle/#ms-filter-dropdown implementation
+               entirely rather than living alongside it. -->
+          <button type="button"
+                  id="modernFilterTrigger"
+                  onclick="toggleModernFilterPanel(true)"
+                  class="px-5 py-2 h-full bg-[white] rounded-md text-xs flex items-center gap-2 border border-primary-500 hover:border-primary-600 transition duration-300 cursor-pointer">
+            <ion-icon name="filter-outline"></ion-icon> {% trans "Filter" %}
+          </button>
+          <div class="oh-filter-backdrop" id="modernFilterBackdrop" onclick="toggleModernFilterPanel(false)"></div>
+          <div class="oh-filter-panel oh-filter-modern" id="modernFilterPanel">
+            <div class="oh-filter-panel__header">
+              <h3>{% trans "Filter" %} {% trans "Monthly Attendance Summary" %}</h3>
+              <button type="button" class="oh-filter-panel__close" onclick="toggleModernFilterPanel(false)" aria-label="{% trans 'Close' %}">
+                <ion-icon name="close-outline"></ion-icon>
+              </button>
+            </div>
+            <div class="oh-filter-panel__search">
+              <input type="text"
+                     id="modernFilterFieldSearch"
+                     placeholder="{% trans 'Find a filter' %}"
+                     oninput="filterModernPanelFields(this.value)"
+                     autocomplete="off">
+            </div>
+            <div class="oh-filter-panel__body">
+              <!-- Outside any accordion (always visible, not collapsible) --
+                   same placement as every other modernized filter panel this
+                   session: primary/most-used search, shouldn't be hidden
+                   behind a click. Comma-separated multi-term search, handled
+                   for free by EmployeeFilter.name_or_badge (see
+                   horilla.filters.filter_name_or_badge_terms) since
+                   attendance_monthly_summary_table/_export already build
+                   EmployeeFilter(request.GET) from this same form. -->
+              <div class="oh-input-group">
+                <label class="oh-label">{% trans "Name or Badge ID" %}</label>
+                <input type="text" name="name_or_badge" id="ms-name-or-badge-input"
+                       placeholder="{% trans 'e.g. John, PEP01, PEP02' %}"
+                       class="oh-input w-100">
+              </div>
               <div class="oh-accordion oh-accordion--show">
-                <div class="oh-accordion-header">{% trans "Work Info" %}</div>
+                <div class="oh-accordion-header">
+                  <span class="oh-filter-section-icon"><ion-icon name="briefcase-outline"></ion-icon></span>
+                  {% trans "Work Info" %}
+                </div>
                 <div class="oh-accordion-body">
-                  <div class="ms-filter-grid">
-                    <div class="oh-input-group">
-                      <label class="oh-label">{% trans "Employee" %}</label>
-                      <select name="employee_id" multiple class="oh-select oh-select-2 w-100">
-                        {% for emp in employees %}
-                          <option value="{{ emp.pk }}">{{ emp.get_full_name }}</option>
-                        {% endfor %}
-                      </select>
-                    </div>
-                    <div class="oh-input-group">
-                      <label class="oh-label">{% trans "Department" %}</label>
-                      <select name="department_id" multiple class="oh-select oh-select-2 w-100">
-                        {% for dept in departments %}
-                          <option value="{{ dept.pk }}">{{ dept.department }}</option>
-                        {% endfor %}
-                      </select>
-                    </div>
-                    <div class="oh-input-group">
-                      <label class="oh-label">{% trans "Job Position" %}</label>
-                      <select name="job_position_id" multiple class="oh-select oh-select-2 w-100">
-                        {% for jp in job_positions %}
-                          <option value="{{ jp.pk }}">{{ jp.job_position }}</option>
-                        {% endfor %}
-                      </select>
-                    </div>
-                    <div class="oh-input-group">
-                      <label class="oh-label">{% trans "Shift" %}</label>
-                      <select name="shift_id" multiple class="oh-select oh-select-2 w-100">
-                        {% for shift in shifts %}
-                          <option value="{{ shift.pk }}">{{ shift.employee_shift }}</option>
-                        {% endfor %}
-                      </select>
-                    </div>
-                    <div class="oh-input-group">
-                      <label class="oh-label">{% trans "Work Type" %}</label>
-                      <select name="work_type_id" multiple class="oh-select oh-select-2 w-100">
-                        {% for wt in work_types %}
-                          <option value="{{ wt.pk }}">{{ wt.work_type }}</option>
-                        {% endfor %}
-                      </select>
+                  <!-- Full width -- every field here is an AJAX-searched
+                       Select2 combobox (see employee/filters.py's
+                       EmployeeFilter.ajax_fields, whose already-registered
+                       "employee-picker"/"employee-department"/etc. keys are
+                       reused directly here rather than re-registering the
+                       same querysets) and needs real room for its selected
+                       chips/placeholder text. -->
+                  <div class="oh-input-group">
+                    <label class="oh-label">{% trans "Employee" %}</label>
+                    <select name="employee_id" multiple class="oh-select-ajax w-100"
+                            data-ajax-url="{% url 'horilla-ajax-choices' 'employee-picker' %}"
+                            data-placeholder="{% trans 'Search employee...' %}">
+                      {% for emp in selected_employees %}
+                        <option value="{{ emp.pk }}" selected>{{ emp.get_full_name }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="oh-input-group">
+                    <label class="oh-label">{% trans "Department" %}</label>
+                    <select name="department_id" multiple class="oh-select-ajax w-100"
+                            data-ajax-url="{% url 'horilla-ajax-choices' 'employee-department' %}"
+                            data-placeholder="{% trans 'Select department...' %}">
+                      {% for dept in selected_departments %}
+                        <option value="{{ dept.pk }}" selected>{{ dept.department }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="oh-input-group">
+                    <label class="oh-label">{% trans "Job Position" %}</label>
+                    <select name="job_position_id" multiple class="oh-select-ajax w-100"
+                            data-ajax-url="{% url 'horilla-ajax-choices' 'employee-job-position' %}"
+                            data-placeholder="{% trans 'Select job position...' %}">
+                      {% for jp in selected_job_positions %}
+                        <option value="{{ jp.pk }}" selected>{{ jp.job_position }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="oh-input-group">
+                    <label class="oh-label">{% trans "Shift" %}</label>
+                    <select name="shift_id" multiple class="oh-select-ajax w-100"
+                            data-ajax-url="{% url 'horilla-ajax-choices' 'employee-shift' %}"
+                            data-placeholder="{% trans 'Select shift...' %}">
+                      {% for shift in selected_shifts %}
+                        <option value="{{ shift.pk }}" selected>{{ shift.employee_shift }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="oh-input-group">
+                    <label class="oh-label">{% trans "Work Type" %}</label>
+                    <select name="work_type_id" multiple class="oh-select-ajax w-100"
+                            data-ajax-url="{% url 'horilla-ajax-choices' 'employee-work-type' %}"
+                            data-placeholder="{% trans 'Select work type...' %}">
+                      {% for wt in selected_work_types %}
+                        <option value="{{ wt.pk }}" selected>{{ wt.work_type }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <!-- Company/Reporting Manager/Employee Tag -- same
+                       accordion as Employee/Department/Job Position/Shift/
+                       Work Type above, matching where EmployeeFilter's own
+                       two panels (employee/templates/employee_filters.html,
+                       employee/templates/cbv/employees_view/
+                       filter_employee.html) both place these three fields:
+                       "Work Info", never "Advanced" -- "Advanced" is
+                       reserved for genuinely secondary things (Is Active
+                       below, Groups & Permissions, the custom-filter
+                       builder on FilterSet-backed panels), not more
+                       Work-Info-shaped fields. -->
+                  <div class="oh-input-group">
+                    <label class="oh-label">{% trans "Company" %}</label>
+                    <select name="employee_work_info__company_id" multiple class="oh-select-ajax w-100"
+                            data-ajax-url="{% url 'horilla-ajax-choices' 'employee-company' %}"
+                            data-placeholder="{% trans 'Select company...' %}">
+                      {% for company in selected_companies %}
+                        <option value="{{ company.pk }}" selected>{{ company.company }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="oh-input-group">
+                    <label class="oh-label">{% trans "Reporting Manager" %}</label>
+                    <select name="employee_work_info__reporting_manager_id" multiple class="oh-select-ajax w-100"
+                            data-ajax-url="{% url 'horilla-ajax-choices' 'employee-reporting-manager' %}"
+                            data-placeholder="{% trans 'Search employee...' %}">
+                      {% for manager in selected_reporting_managers %}
+                        <option value="{{ manager.pk }}" selected>{{ manager.get_full_name }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="oh-input-group">
+                    <label class="oh-label">{% trans "Employee Tag" %}</label>
+                    <select name="employee_work_info__tags" multiple class="oh-select-ajax w-100"
+                            data-ajax-url="{% url 'horilla-ajax-choices' 'employee-tag' %}"
+                            data-placeholder="{% trans 'Select employee tag...' %}">
+                      {% for tag in selected_tags %}
+                        <option value="{{ tag.pk }}" selected>{{ tag.title }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Is Active -- same "Advanced" placement as
+                   employee_filters.html's own Is Active field. Collapsed
+                   by default like every other page's Advanced section
+                   (unlike Work Info above, this field is a plain segmented
+                   radio, not an AJAX Select2 combobox, so it has no
+                   width-computed-while-hidden concern to force it open). -->
+              <div class="oh-accordion">
+                <div class="oh-accordion-header">
+                  <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
+                  {% trans "Advanced" %}
+                </div>
+                <div class="oh-accordion-body">
+                  <div class="oh-input-group">
+                    <label class="oh-label">{% trans "Is Active" %}?</label>
+                    <div class="oh-segmented">
+                      <label class="oh-segmented__item">
+                        <input type="radio" name="is_active" value="" {% if not is_active %}checked{% endif %}>
+                        <span>{% trans "Any" %}</span>
+                      </label>
+                      <label class="oh-segmented__item">
+                        <input type="radio" name="is_active" value="True" {% if is_active == "True" %}checked{% endif %}>
+                        <span>{% trans "Yes" %}</span>
+                      </label>
+                      <label class="oh-segmented__item">
+                        <input type="radio" name="is_active" value="False" {% if is_active == "False" %}checked{% endif %}>
+                        <span>{% trans "No" %}</span>
+                      </label>
                     </div>
                   </div>
                 </div>
               </div>
-              <div class="flex justify-end" style="margin-top:10px;">
-                <button type="submit" id="ms-apply-filter" class="px-4 py-2 bg-primary-600 text-white rounded-md text-xs flex items-center gap-2 hover:bg-primary-800 transition duration-300">
-                  {% trans "Apply" %}
-                </button>
-              </div>
+            </div>
+            <div class="oh-filter-panel__footer">
+              <!-- Full-page reset (not a per-field clear) -- simplest
+                   reliable way to clear every AJAX multi-select's selected
+                   chips, the date range, and search/name_or_badge together,
+                   same behavior the chip row's own "Clear All" already
+                   used (see msRenderFilterTags() below) before this panel
+                   existed. -->
+              <button type="button" class="oh-filter-panel__clear" onclick="window.location.href='{% url 'attendance-monthly-summary' %}'">
+                <ion-icon name="close-outline"></ion-icon>
+                {% trans "Clear all" %}
+              </button>
+              <button type="submit" id="ms-apply-filter" class="oh-filter-panel__apply filterButton">
+                <ion-icon name="checkmark-outline"></ion-icon>
+                {% trans "Apply" %}
+              </button>
             </div>
           </div>
 
@@ -194,43 +330,14 @@
   });
 }());
 
-// ── Filter dropdown open/close — plain click-toggle, not the shared
-// ".dropdown-wrapper:hover/.dropdown-content" CSS pattern. That pattern
-// hides the panel as soon as the mouse leaves it, which fires the instant
-// you move into a Select2 option list (rendered near <body>, outside this
-// panel) — so picking a choice closed the whole dropdown. Clicks inside
-// the panel or inside any Select2 popup no longer close it.
-(function () {
-  var toggle = document.getElementById('ms-filter-toggle');
-  var panel = document.getElementById('ms-filter-dropdown');
-  if (!toggle || !panel) return;
-
-  toggle.addEventListener('click', function (e) {
-    e.stopPropagation();
-    panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
-  });
-
-  document.addEventListener('click', function (e) {
-    if (panel.style.display !== 'block') return;
-    // Select2's own "remove tag" (×) click handler re-renders the choice
-    // list synchronously, detaching the clicked node from the document
-    // before this bubbled listener runs — so by now e.target has no
-    // parentNode and .closest()/.contains() on it always come back empty,
-    // making every tag removal look like an "outside" click. composedPath()
-    // is captured at dispatch time, before that mutation, so it still lists
-    // the panel/select2 ancestors even once the node is detached.
-    var path = typeof e.composedPath === 'function' ? e.composedPath() : [e.target];
-    var insidePanel = path.indexOf(panel) !== -1 || path.indexOf(toggle) !== -1;
-    var insideSelect2 = path.some(function (node) {
-      return node.classList && (
-        node.classList.contains('select2-container') ||
-        node.classList.contains('select2-dropdown')
-      );
-    });
-    if (insidePanel || insideSelect2) return;
-    panel.style.display = 'none';
-  });
-}());
+// Filter panel open/close (toggleModernFilterPanel/backdrop/Escape) is
+// handled entirely by generic/modern_filter_panel.html now -- no
+// page-local open/close JS needed here anymore.
+//
+// Select2 for the AJAX comboboxes inside the panel is likewise handled
+// generically (htmxSelect2.js's initOhSelectAjax sweep, triggered on
+// $(document).ready() and htmx:afterSettle) -- no page-local select2()
+// call needed either.
 
 // ── Active-filter chips (mirrors generic/filter_tags.html's look) ──
 // The filter form never pushes its params to the browser URL
@@ -245,12 +352,19 @@ function msRenderFilterTags() {
   if (searchVal) {
     chips.push({ key: 'search', label: "{% trans 'Search' %}", value: searchVal });
   }
+  var nameOrBadgeVal = (document.getElementById('ms-name-or-badge-input') || {}).value;
+  if (nameOrBadgeVal) {
+    chips.push({ key: 'name_or_badge', label: "{% trans 'Name or Badge ID' %}", value: nameOrBadgeVal });
+  }
   var multiFields = [
     { name: 'employee_id', label: "{% trans 'Employee' %}" },
     { name: 'department_id', label: "{% trans 'Department' %}" },
     { name: 'job_position_id', label: "{% trans 'Job Position' %}" },
     { name: 'shift_id', label: "{% trans 'Shift' %}" },
     { name: 'work_type_id', label: "{% trans 'Work Type' %}" },
+    { name: 'employee_work_info__company_id', label: "{% trans 'Company' %}" },
+    { name: 'employee_work_info__reporting_manager_id', label: "{% trans 'Reporting Manager' %}" },
+    { name: 'employee_work_info__tags', label: "{% trans 'Employee Tag' %}" },
   ];
   multiFields.forEach(function (f) {
     var select = document.querySelector('[name="' + f.name + '"]');
@@ -263,6 +377,14 @@ function msRenderFilterTags() {
       value: selected.map(function (o) { return o.text; }).join(', '),
     });
   });
+  var activeEl = document.querySelector('[name="is_active"]:checked');
+  if (activeEl && activeEl.value) {
+    chips.push({
+      key: 'is_active',
+      label: "{% trans 'Is Active' %}",
+      value: activeEl.value === 'True' ? "{% trans 'Yes' %}" : "{% trans 'No' %}",
+    });
+  }
 
   wrap.innerHTML = '<span class="oh-titlebar__tag oh-titlebar__tag--custom">{% trans "Filters" %}:</span>';
   if (!chips.length) {
@@ -292,6 +414,17 @@ document.getElementById('ms-filter-tags').addEventListener('click', function (e)
   if (key === 'search') {
     document.getElementById('ms-search-input').value = '';
     document.getElementById('ms-search-input').dispatchEvent(new Event('input'));
+    return;
+  }
+  if (key === 'name_or_badge') {
+    document.getElementById('ms-name-or-badge-input').value = '';
+    document.getElementById('ms-apply-filter').click();
+    return;
+  }
+  if (key === 'is_active') {
+    var anyRadio = document.querySelector('[name="is_active"][value=""]');
+    if (anyRadio) anyRadio.checked = true;
+    document.getElementById('ms-apply-filter').click();
     return;
   }
   var field = document.querySelector('[name="' + key + '"]');

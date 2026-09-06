@@ -826,13 +826,15 @@ class LeaveAllocationBulkForm(BaseModelForm):
 
     def clean(self):
         """
-        self.instance.employee_id = Employee.objects.filter(id__in=employee_ids).first()
+        Validate that at least one employee was picked.
+
+        employee_id is a multi-select posted as repeated values, so the
+        ModelForm's own single-value validation for the field is dropped
+        (self.errors.pop) and the list is checked here instead.
         """
         cleaned_data = super().clean()
         employee_ids = self.data.getlist("employee_id")
         self.errors.pop("employee_id", None)
-
-    def save(self, commit=True):
         if not employee_ids:
             raise ValidationError({"employee_id": _("Employee not chosen")})
         return cleaned_data

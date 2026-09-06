@@ -968,13 +968,3 @@ def bulk_create_work_info_import(success_lists):
             args=(new_work_info_list, update_work_info_list),
         )
         contract_creation_thread.start()
-
-
-def get_model_class(model_path):
-    """
-    method to return the model class from string 'app.models.Model'
-    """
-    module_name, class_name = model_path.rsplit(".", 1)
-    module = __import__(module_name, fromlist=[class_name])
-    model_class: Employee = getattr(module, class_name)
-    return model_class

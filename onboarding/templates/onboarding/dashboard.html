@@ -366,11 +366,13 @@
         refreshDot.classList.add('on-refresh__dot--pulse');
         refreshToggle.textContent = '⟳';
         refreshToggle.title = '{% trans "Auto-refresh ON (5 min)" %}';
-        refreshTimer = setInterval(() => {
+        // Wrapped so a hidden tab does not keep fetching; refreshes once on return.
+        const refreshTick = autoRefreshWhenVisible(() => {
             lastRefresh = Date.now();
             updateRefreshText();
             refreshAllData();
-        }, REFRESH_INTERVAL);
+        });
+        refreshTimer = setInterval(refreshTick, REFRESH_INTERVAL);
         registerAutoRefresh(refreshTimer);
     }
     function stopAutoRefresh() {

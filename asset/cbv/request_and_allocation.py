@@ -421,6 +421,10 @@ class AssetNav(_RequestAndAllocationNavBase):
     filter_instance = CustomAssetFilter()
     filter_form_context_name = "form"
     filter_body_template = "cbv/request_and_allocation/asset_filter.html"
+    # Modern slide-over filter panel (generic/horilla_nav.html's own
+    # {% if modern_filter %} branch) -- same treatment as every other
+    # panel this session.
+    modern_filter = True
 
     group_by_fields = [
         ("assigned_to_employee_id", _("Employee")),
@@ -444,6 +448,17 @@ class AssetRequestNav(_RequestAndAllocationNavBase):
     filter_instance = AssetRequestFilter()
     filter_form_context_name = "form"
     filter_body_template = "cbv/request_and_allocation/asset_request_filter.html"
+    # Modern slide-over filter panel (generic/horilla_nav.html's own
+    # {% if modern_filter %} branch) -- same treatment as every other
+    # panel this session. AssetRequestFilter.ajax_fields carries the
+    # AJAX-loaded comboboxes this needs. Since this tab now has its own
+    # independent Nav (this class's own filter_instance IS
+    # AssetRequestFilter), the generic custom_filter_fields/
+    # custom_filter_rows context (HorillaNavView.get_context_data)
+    # covers its "+ Add filter" builder directly -- no more manual
+    # asset_request_custom_filter_fields/rows wiring needed now that
+    # the combined 3-in-1 Nav is gone.
+    modern_filter = True
 
     group_by_fields = [
         ("requested_employee_id", _("Employee")),
@@ -474,6 +489,11 @@ class AssetAllocationNav(_RequestAndAllocationNavBase):
     filter_instance = AssetAllocationFilter()
     filter_form_context_name = "form"
     filter_body_template = "cbv/request_and_allocation/asset_allocation_filter.html"
+    # Modern slide-over filter panel (generic/horilla_nav.html's own
+    # {% if modern_filter %} branch) -- same treatment as every other
+    # panel this session. AssetAllocationFilter.ajax_fields carries the
+    # AJAX-loaded comboboxes this needs.
+    modern_filter = True
 
     group_by_fields = [
         ("assigned_to_employee_id", _("Employee")),

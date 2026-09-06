@@ -1,4 +1,5 @@
 {% load i18n static %}
+{% load basefilters %}
 {% load pmsfilters %}
 
 <style>
@@ -262,7 +263,7 @@
                         </div>
                     </div>
                     <div class="oh-activity-list__comment-container">
-                        <p class="oh-activity-list__comment">{{ activity.comment.comment|safe }}</p>
+                        <p class="oh-activity-list__comment">{{ activity.comment.comment|sanitize_html }}</p>
                     </div>
                 </ul>
             {% else %}

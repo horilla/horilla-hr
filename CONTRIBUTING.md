@@ -64,12 +64,51 @@ Thank you for considering contributing to Horilla! We welcome your input and app
 - Never commit secrets: `.env`, API keys, TLS keys, database dumps, or local SQLite files.
 - Use `.env.dist` as the public template (`cp .env.dist .env`); keep real `.env` files local only.
 
+### Line endings
+
+`.gitattributes` normalises text files to LF in the repository. Git checks
+them out with your platform's native endings, so this needs no change to how
+you edit — it only fixes what gets stored.
+
+**If you have a branch created before the normalisation landed**, merging or
+rebasing the new base will conflict on *every line* of any file whose endings
+changed: one side rewrote the endings, the other changed content. Add
+`-Xrenormalize` and git compares the two sides with endings normalised first,
+so only real differences remain:
+
+```bash
+git fetch origin
+git merge -Xrenormalize origin/dev/v2.0     # or:
+git rebase -Xrenormalize origin/dev/v2.0
+```
+
+A conflict that still appears after that is a genuine content conflict —
+resolve it normally.
+
+**Everyone should run this once**, whether or not they had a branch in
+flight:
+
+```bash
+git add --renormalize .
+git status          # if anything is staged, commit it
+```
+
+Without it, your next commit re-introduces CRLF for the files you touch.
+
+Reviewing a diff that looks far larger than the change: `git diff
+--ignore-cr-at-eol` shows the real content difference.
+
 ## CI Expectations
 
 | Workflow | What it checks |
 |----------|----------------|
 | `Docker CI` | Image build, migrate, collectstatic, `/health/`, `/ready/` |
-| `Quality` | Black/isort on `horilla/settings` + `horilla/urls.py`, `manage.py check`, production settings gate |
+| `Quality` | `ruff check .` over the whole repo, Black/isort on `horilla/settings` + `horilla/urls.py`, `manage.py check`, production settings gate |
+
+`ruff`'s enabled rule set is scoped to what the codebase already passes, so
+the gate is green from day one; `pyproject.toml` records the remaining
+findings as a staged follow-up. Widen it by working through that list, never
+by loosening the gate to make a build pass.
 
 ## Issues
 

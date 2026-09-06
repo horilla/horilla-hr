@@ -263,6 +263,13 @@ def employee_report(request):
 @permission_required(perm="employee.view_employee")
 def employee_pivot(request):
     qs = Employee.objects.all()
+    # EmployeeFilter.is_active carries initial=True, but django-filter's
+    # `initial` only preselects the form widget -- it never reaches the
+    # queryset. Without this the pivot counted terminated employees, so its
+    # headcount disagreed with every standard report (which defaults to
+    # active). An explicit is_active in the query string still wins.
+    if not request.GET.get("is_active"):
+        qs = qs.filter(is_active=True)
     filtered_qs = EmployeeFilter(request.GET, queryset=qs)
     qs = filtered_qs.qs
     qs = apply_dynamic_filters(qs, request)

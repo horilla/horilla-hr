@@ -1,24 +1,39 @@
 {% load i18n %}
 <div class="oh-dropdown__filter-body">
-    <div class="oh-accordion">
-        <div class="oh-accordion-header">{% trans "Objective" %}</div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header">
+            <span class="oh-filter-section-icon"><ion-icon name="flag-outline"></ion-icon></span>
+            {% trans "Objective" %}
+        </div>
         <div class="oh-accordion-body">
+            <!-- Full width -- Managers, Assignees, and Key Result are
+                 now AJAX-searched Select2 comboboxes (see
+                 pms/filters.py's ActualObjectiveFilter.ajax_fields) and
+                 need real room for their selected chips/placeholder
+                 text, same reasoning as every other modernized panel
+                 this session. -->
             <div class="row">
-                <div class="col-sm-12 col-md-12 col-lg-6">
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label class="oh-label" for="">{% trans "Managers" %}</label>
                         {{ form.managers }}
                     </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label class="oh-label" for="">{% trans "Assignees" %}</label>
+                        {{ form.assignees }}
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label class="oh-label" for="">{% trans "Key Result" %}</label>
                         {{ form.employee_objective__key_result_id }}
                     </div>
                 </div>
+            </div>
+            <div class="row">
                 <div class="col-sm-12 col-md-12 col-lg-6">
-                    <div class="oh-input-group">
-                        <label class="oh-label" for="">{% trans "Assignees" %}</label>
-                        {{ form.assignees }}
-                    </div>
                     <div class="oh-input-group">
                         <label class="oh-label" for="">{% trans "Duration" %} </label>
                         {{ form.duration }}
@@ -33,4 +48,39 @@
             </div>
         </div>
     </div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header"
+            onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
+        >
+            <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
+            {% trans "Advanced" %}
+        </div>
+        <div class="oh-accordion-body">
+            <div class="row">
+                <!-- Generic "+ Add filter" field/lookup/value builder
+                     (same as AttendanceFilters/EmployeeFilter/
+                     AssetFilter). Registry: ActualObjectiveFilter.
+                     _build_custom_filter_fields; applied server-side by
+                     HorillaFilterSet._apply_custom_filters (see
+                     ActualObjectiveFilter.filter_queryset). Row
+                     markup/JS are generic (initCustomFilterBuilder,
+                     horilla_nav.html). -->
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <div id="customFilterRowsContainer-objectives" class="oh-custom-filter-rows"></div>
+                        <button
+                            type="button"
+                            class="oh-custom-filter-add"
+                            onclick="addCustomFilterRow('objectives')"
+                        >+ {% trans "Add filter" %}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+{{ custom_filter_fields|json_script:"customFilterFields-objectives" }}
+{{ custom_filter_rows|json_script:"customFilterRows-objectives" }}
+<script>
+    initCustomFilterBuilder('objectives');
+</script>

@@ -91,3 +91,38 @@ class HorillaMultiSelectWidget(forms.Widget):
         ALL_INSTANCES[str(request.user.id)] = self
 
         return context
+
+
+class HorillaAjaxSelectWidget(forms.SelectMultiple):
+    """
+    A plain forms.SelectMultiple that defers option loading to an AJAX
+    search endpoint (see
+    horilla_widgets.generic_ajax.build_ajax_choices_response) instead of
+    pre-rendering the whole queryset as <option> tags -- for
+    ModelMultipleChoiceFields whose option list is large/expensive (e.g.
+    Permissions). SelectMultiple, not Select: FILTER_FOR_DBFIELD_DEFAULTS
+    (horilla/filters.py) makes every FK/M2M filter in this app a
+    ModelMultipleChoiceField, whose value_from_datadict expects a
+    multi-value widget -- pairing it with a single-value Select would
+    silently misparse a submitted id as several single-character ids.
+
+    The caller is responsible for trimming the field's queryset down to
+    just the currently selected instance(s) (or none) before rendering,
+    so the widget still displays correctly without an extra round trip --
+    see horilla.filters.HorillaFilterSet._apply_ajax_fields (the generic
+    ajax_fields mechanism) for the pattern. Everything else is fetched on
+    demand by the .oh-select-ajax initializer
+    (horilla_theme/static/horilla_theme/assets/js/htmxSelect2.js).
+    """
+
+    def __init__(self, *args, ajax_url="", placeholder="", **kwargs):
+        self.ajax_url = ajax_url
+        self.placeholder = placeholder
+        super().__init__(*args, **kwargs)
+
+    def build_attrs(self, base_attrs, extra_attrs=None):
+        attrs = super().build_attrs(base_attrs, extra_attrs)
+        attrs["class"] = (attrs.get("class", "") + " oh-select-ajax").strip()
+        attrs["data-ajax-url"] = self.ajax_url
+        attrs["data-placeholder"] = self.placeholder
+        return attrs

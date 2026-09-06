@@ -2,6 +2,7 @@ import ast
 import calendar
 import contextlib
 import json
+import logging
 import os
 import random
 import re
@@ -24,6 +25,10 @@ from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.utils.translation import gettext as _
 
+from horilla.models import has_xss
+
+logger = logging.getLogger(__name__)
+
 from base.models import (
     Company,
     CompanyLeaves,
@@ -32,6 +37,7 @@ from base.models import (
     Holidays,
 )
 from employee.models import Employee, EmployeeWorkInformation
+from horilla.export_safety import safe_cell
 from horilla.horilla_middlewares import _thread_locals
 
 CHART_CONFIG = {
@@ -136,7 +142,21 @@ CHART_CONFIG = {
 
 # Tokens that must never resolve in a user-supplied mail-template body —
 # they would leak password hashes, session metadata, or full request state.
-_FORBIDDEN_TEMPLATE_ATTRS = ("password", "username", "META", "session", "_state")
+_FORBIDDEN_TEMPLATE_ATTRS = (
+    "password",
+    "username",
+    "META",
+    "COOKIES",
+    "session",
+    "_state",
+    "is_superuser",
+    "is_staff",
+    "user_permissions",
+    "groups",
+    "token",
+    "secret",
+    "api_key",
+)
 _FORBIDDEN_TEMPLATE_TAGS = ("debug", "load")
 
 
@@ -819,8 +839,11 @@ def closest_numbers(numbers: list, input_number: int) -> tuple:
             next_number = numbers[index + 1]
         else:
             next_number = numbers[0]
-    except:
-        pass
+    except (ValueError, TypeError):
+        # A non-numeric id in the list, or input_number not present in it.
+        # Both mean there is no previous/next to report, which the None
+        # defaults already express.
+        logger.debug("neighbour lookup skipped for %r", input_number, exc_info=True)
     return (previous_number, next_number)
 
 
@@ -846,7 +869,7 @@ def format_export_value(value, employee):
             if format_name == time_format:
                 value = check_in_time.strftime(format_string)
 
-    elif type(value) == date:
+    elif type(value) is date:
         # Convert the string to a datetime.date object
         start_date = datetime.strptime(str(value), "%Y-%m-%d").date()
         # Print the formatted date for each format
@@ -860,16 +883,58 @@ def format_export_value(value, employee):
     return value
 
 
+# Apps whose models make up the HR data surface this app is meant to
+# export. Mirrors base.signals._ALL_HRMS_APP_LABELS minus "auth" -- "auth"
+# is kept out on purpose so credential/ACL tables (User, Group, Permission)
+# can never be pulled through a generic export path, even by a superuser
+# or a company-wide "Default Export Access" toggle.
+_EXPORTABLE_APP_LABELS = {
+    "base",
+    "employee",
+    "leave",
+    "attendance",
+    "payroll",
+    "recruitment",
+    "onboarding",
+    "offboarding",
+    "asset",
+    "helpdesk",
+    "project",
+    "pms",
+    "biometric",
+    "horilla_documents",
+    "horilla_automations",
+    "horilla_audit",
+    "accessibility",
+}
+
+
 def has_export_access(request, model):
     """
     Centralized export-access check reused by every export endpoint.
 
-    Superusers always have access. When the "Default Export Access"
-    setting is enabled for the requesting user's current company (or not
-    yet configured for that company), every user of that company may
-    export data. Otherwise access falls back to the per-module
-    ``export_<model>`` permission.
+    A model must first belong to ``_EXPORTABLE_APP_LABELS`` -- this is
+    checked unconditionally, before any role/permission bypass, so an
+    endpoint that resolves ``model`` from client-supplied input can't be
+    pointed at an arbitrary Django model (e.g. ``auth.User``) outside the
+    app's own HR data surface.
+
+    Superusers always have access to whitelisted models. When the
+    "Default Export Access" setting is enabled for the requesting user's
+    current company, every user of that company may export data.
+    Otherwise access falls back to the per-module ``export_<model>``
+    permission.
+
+    A missing row still reads as enabled, for backwards compatibility.
+    That fallback should now be unreachable: migration
+    ``base.0003_seed_default_export_permission`` seeds a row per company
+    and ``create_default_export_permission`` adds one for each new
+    company, so the setting is an explicit, visible value rather than
+    permissive-by-absence.
     """
+    if model._meta.app_label not in _EXPORTABLE_APP_LABELS:
+        return False
+
     user = request.user
     if user.is_superuser:
         return True
@@ -903,7 +968,6 @@ def export_data(request, model, form_class, filter_class, file_name, perm=None):
         "semi_monthly": _("Semi-Monthly"),
         "hourly": _("Hourly"),
         "daily": _("Daily"),
-        "monthly": _("Monthly"),
         "full_day": _("Full Day"),
         "first_half": _("First Half"),
         "second_half": _("Second Half"),
@@ -987,7 +1051,11 @@ def export_data(request, model, form_class, filter_class, file_name, perm=None):
 
                 # Check if the type of 'value' is time
                 value = format_export_value(value, employee)
-                data_export[verbose_name].append(value)
+                # Employee-entered text reaching a spreadsheet cell can
+                # execute when the file is opened (=HYPERLINK(...) will
+                # exfiltrate neighbouring cells), so guard every value at the
+                # one point they all pass through.
+                data_export[verbose_name].append(safe_cell(value))
 
     data_frame = pd.DataFrame(data=data_export)
 
@@ -1163,12 +1231,39 @@ def link_callback(uri, rel):
 
 
 def generate_pdf(template_path, context, path=True, title=None, html=True):
+    """
+    Render HTML to a PDF response.
+
+    The rendered body is XSS-checked before it reaches pdfkit. wkhtmltopdf
+    executes scripts in the document, and every call site here passes
+    `enable-local-file-access` (see template_pdf's pdf_options, where it is
+    needed to load local CSS and images). pdfkit 1.0.0 has a known,
+    currently-unfixed advisory for exactly that combination -- PYSEC-2026-2860:
+    `from_string` allows script execution and local-file exfiltration -- so a
+    template carrying an injected payload could read files off the server and
+    post them out.
+
+    horilla_automations/signals.py already did this check at its own call site.
+    Four other callers (recruitment, attendance API, employee dashboard,
+    onboarding) did not, so the guard belongs here, where all five route
+    through, rather than repeated at each one.
+    """
     title = "Document" if not title else title
 
     if html:
         html = template_path
     else:
         html = render_to_string(template_path, context)
+
+    if has_xss(html):
+        logger.error(
+            "generate_pdf: rendered body failed the XSS check; refusing to "
+            "hand it to wkhtmltopdf (title=%s).",
+            title,
+        )
+        return HttpResponse(
+            _("This document could not be generated safely."), status=400
+        )
 
     response = template_pdf(template=html, html=True, filename=title)
 

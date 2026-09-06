@@ -78,6 +78,7 @@ class AssetRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = AssetRequest
         fields = "__all__"
+        read_only_fields = ("asset_request_status",)
 
 
 class AssetRequestGetSerializer(serializers.ModelSerializer):

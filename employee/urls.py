@@ -355,7 +355,7 @@ urlpatterns = [
         name="employee-note-delete",
     ),
     path(
-        "allowances-deductions-tab/<int:emp_id>/",
+        "allowances-deductions-tab/<int:pk>/",
         views.allowances_deductions_tab,
         name="allowances-deductions-tab",
     ),
@@ -770,6 +770,11 @@ urlpatterns = [
     ),
     path(
         "employee-get-mail-log/",
+        views.employee_get_mail_log,
+        name="employee-get-mail-log",
+    ),
+    path(
+        "employee-get-mail-log/<int:pk>/",
         views.employee_get_mail_log,
         name="employee-get-mail-log",
     ),

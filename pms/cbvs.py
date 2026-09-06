@@ -8,7 +8,11 @@ from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
 
-from base.methods import filter_own_and_subordinate_recordes, is_reportingmanager
+from base.methods import (
+    filter_own_and_subordinate_recordes,
+    is_reportingmanager,
+    sanitize_mail_template_body,
+)
 from employee.models import Employee
 from horilla import horilla_middlewares
 from horilla.decorators import login_required, owner_can_enter, permission_required
@@ -382,7 +386,7 @@ class BulkFeedbackFormView(views.HorillaFormView):
                     reporting_manager if cleaned_data["include_manager"] else None
                 )
                 title_template = cleaned_data["title"]
-                temp = template.Template(title_template)
+                temp = template.Template(sanitize_mail_template_body(title_template))
                 title_context = template.Context({"employee": employee})
                 render_title = temp.render(title_context)
                 data = {

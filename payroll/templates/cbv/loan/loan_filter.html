@@ -1,34 +1,56 @@
 {% load i18n %}
 <div class="oh-dropdown__filter-body">
-  <div class="oh-accordion">
+  <!-- Outside any accordion (always visible, not collapsible) -- same
+       placement as every other modernized filter panel this session:
+       primary/most-used search, shouldn't be hidden behind a click.
+       Comma-separated multi-term search (LoanAccountFilter.
+       name_or_badge -- see horilla.filters.filter_name_or_badge_terms). -->
+  <div class="row">
+    <div class="col-sm-12 col-md-12 col-lg-12">
+      <div class="oh-input-group">
+        <label class="oh-label" for="{{form.name_or_badge.id_for_label}}">{% trans "Name or Badge ID" %}</label>
+        {{form.name_or_badge}}
+      </div>
+    </div>
+  </div>
+
+  <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
     <div class="oh-accordion-header">
+      <span class="oh-filter-section-icon"><ion-icon name="wallet-outline"></ion-icon></span>
       {% trans 'Loan Filter' %}
     </div>
     <div class="oh-accordion-body">
+      <!-- Full width -- Employee/Department/Job Position/Reporting
+           Manager are now AJAX-searched Select2 comboboxes (see
+           payroll/filters.py's LoanAccountFilter.ajax_fields) and need
+           real room for their selected chips/placeholder text, same
+           reasoning as every other modernized panel. -->
       <div class="row">
-        <div class="col-sm-12 col-md-12 col-lg-6">
+        <div class="col-sm-12 col-md-12 col-lg-12">
           <div class="oh-input-group">
             <label class="oh-label">{% trans 'Employee' %}</label>
             {{ form.employee_id }}
           </div>
-          <div class="oh-input-group">
-            <label class="oh-label">{% trans 'Provided date' %}</label>
-            {{ form.provided_date }}
-          </div>
+        </div>
+        <div class="col-sm-12 col-md-12 col-lg-6">
           <div class="oh-input-group">
             <label class="oh-label">{% trans 'Type' %}</label>
             {{ form.type }}
           </div>
         </div>
-        <div class="col-sm-12 col-md-12 col-lg-6">
+        <div class="col-sm-12 col-md-12 col-lg-12">
           <div class="oh-input-group">
             <label class="oh-label">{% trans 'Department' %}</label>
             {{ form.employee_id__employee_work_info__department_id }}
           </div>
+        </div>
+        <div class="col-sm-12 col-md-12 col-lg-6">
           <div class="oh-input-group">
             <label class="oh-label">{% trans 'Is settled' %}</label>
             {{ form.settled }}
           </div>
+        </div>
+        <div class="col-sm-12 col-md-12 col-lg-12">
           <div class="oh-input-group">
             <label class="oh-label">{% trans 'Job position' %}</label>
             {{ form.employee_id__employee_work_info__job_position_id }}
@@ -40,19 +62,47 @@
             {{ form.employee_id__employee_work_info__reporting_manager_id }}
           </div>
         </div>
-        <div class="col-sm-12 col-md-12 col-lg-6">
-          <div class="oh-input-group w-100">
-            <label class="oh-label">{% trans 'From' %}</label>
-            {{ form.from_date }}
-          </div>
-        </div>
-        <div class="col-sm-12 col-md-12 col-lg-6">
-          <div class="oh-input-group w-100">
-            <label class="oh-label">{% trans 'To' %}</label>
-            {{ form.to_date }}
+      </div>
+    </div>
+  </div>
+  <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+    <div class="oh-accordion-header"
+      onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
+    >
+      <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
+      {% trans "Advanced" %}
+    </div>
+    <div class="oh-accordion-body">
+      <div class="row">
+        <!-- Provided Date used to have three separate fixed inputs here
+             (an exact-match provided_date plus a gte-only from_date/
+             lte-only to_date pair, all on the same underlying column) --
+             replaced with the same "+ Add filter" field/lookup/value
+             builder AttendanceFilters/EmployeeFilter/AssetFilter use
+             (choose the field, then the lookup, then the value), which
+             also offers gt/lt instead of just gte/lte/exact, and adds
+             Installment Start Date/Created At as further options.
+             Registry: LoanAccountFilter._build_custom_filter_fields;
+             applied server-side by HorillaFilterSet.
+             _apply_custom_filters (see LoanAccountFilter.
+             filter_queryset). Row markup/JS are generic
+             (initCustomFilterBuilder, horilla_nav.html). -->
+        <div class="col-sm-12 col-md-12 col-lg-12">
+          <div class="oh-input-group">
+            <div id="customFilterRowsContainer-loan" class="oh-custom-filter-rows"></div>
+            <button
+              type="button"
+              class="oh-custom-filter-add"
+              onclick="addCustomFilterRow('loan')"
+            >+ {% trans "Add filter" %}</button>
           </div>
         </div>
       </div>
     </div>
   </div>
 </div>
+{{ custom_filter_fields|json_script:"customFilterFields-loan" }}
+{{ custom_filter_rows|json_script:"customFilterRows-loan" }}
+<script>
+    initCustomFilterBuilder('loan');
+</script>

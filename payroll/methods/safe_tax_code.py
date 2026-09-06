@@ -30,6 +30,7 @@ imports, file access, attribute introspection, or I/O are permitted.
 """
 
 import ast
+import re
 
 __all__ = [
     "TaxCodeValidationError",
@@ -113,6 +114,8 @@ _FORBIDDEN_NAMES = frozenset(
 # The single required entry-point function.
 ENTRY_POINT = "calculate_federal_tax"
 
+_DUNDER_IN_STRING = re.compile(r"__\w+__")
+
 
 class _PolicyVisitor(ast.NodeVisitor):
     """Walks the parsed AST and records any policy violation."""
@@ -141,6 +144,19 @@ class _PolicyVisitor(ast.NodeVisitor):
             self._fail(
                 node, f"access to dunder attribute '{node.attr}' is not allowed."
             )
+        # str.format()/format_map() resolve "{0.attr.attr}" at runtime, which
+        # is a getattr primitive the AST walk cannot see through when the
+        # string is assembled dynamically. Tax formulas have no use for them.
+        if node.attr in ("format", "format_map"):
+            self._fail(node, f"'.{node.attr}()' is not allowed in tax code.")
+        self.generic_visit(node)
+
+    def visit_Constant(self, node):
+        # str.format()/format_map() walk attributes named inside the *string*
+        # ("{0.__class__.__subclasses__}".format(x)), which visit_Attribute
+        # never sees. Refuse any string constant that spells a dunder.
+        if isinstance(node.value, str) and _DUNDER_IN_STRING.search(node.value):
+            self._fail(node, "dunder names are not allowed inside string literals.")
         self.generic_visit(node)
 
     def visit_Name(self, node):

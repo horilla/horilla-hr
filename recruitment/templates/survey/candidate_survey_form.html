@@ -1,26 +1,160 @@
-{% extends 'candidate/application_form_component.html' %}
+{% comment %} {% extends 'candidate/application_form_component.html' %}  {% endcomment %}
 {% block content %}
-{% load i18n %}
-{% if messages %}
-    <div class="oh-alert-container">
-        {% for message in messages %}
-        <div class="oh-alert oh-alert--animated {{message.tags}}">
-              {{ message }}
-        </div>
-        {% endfor %}
-    </div>
-{% endif %}
-<div class="oh-survey_page">
-    <form action="" method="post" enctype="multipart/form-data">
-        {% csrf_token %}
-        <section class="oh-wrapper oh-main__topbar" x-data="{searchShow: false}">
-            <div class="oh-main__titlebar oh-main__titlebar--left">
-                <h1 class="oh-main__titlebar-title fw-bold">
-                    {{candidate.name}}'s {% trans "Survey" %}
-                </h1>
+{% load static %} {% load i18n horillafilters recruitmentfilters %}
+
+{% get_company as theme_obj %}
+{% get_hq_company as hq_company %}
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link href="{% static 'horilla_theme/assets/css/tailwind.css' %}" rel="stylesheet">
+    <title>{% trans "Survey" %}{% if candidate %} - {{ candidate.name }}{% endif %}</title>
+    <link
+        rel="apple-touch-icon"
+        sizes="180x180"
+        href="{% if hq_company.icon %}{{hq_company.icon.url}} {% else %}{% static 'favicons/apple-touch-icon.png' %}{% endif %}"
+    />
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link
+        rel="icon"
+        type="image/png"
+        sizes="32x32"
+        href="{% if hq_company.icon %}{{hq_company.icon.url}} {% else %}{% static 'favicons/favicon-32x32.png' %}{% endif %}"
+    />
+    <link
+        rel="icon"
+        type="image/png"
+        sizes="16x16"
+        href="{% if hq_company.icon %}{{hq_company.icon.url}} {% else %}{% static 'favicons/favicon-16x16.png' %}{% endif %}"
+    />
+    <link
+        rel="stylesheet"
+        href="/static/horilla_theme/assets/css/global.css"
+    />
+    <link
+        rel="stylesheet"
+        href="/static/horilla_theme/assets/css/v1_styles.css"
+    >
+    <link
+        href="{% static 'cdn/googleapi/css/plus-jakarta-sans-font-style.css' %}"
+        rel="stylesheet"
+    >
+    <script src="{% static "horilla_theme/assets/js/tailwindcdn.js" %}"></script>
+    <script>
+        window.tailwind.config = {
+            theme: {
+                colors: {
+                    white: '#FFFFFF',
+                    primary: {
+                        50:  '{{ theme_obj.primary_50  | default:"#f6f6f6" }}',
+                        100: '{{ theme_obj.primary_100 | default:"#FFF5F1" }}',
+                        200: '{{ theme_obj.primary_200 | default:"#FEF6F5" }}',
+                        300: '{{ theme_obj.primary_300 | default:"#FCEDEB" }}',
+                        400: '{{ theme_obj.primary_400 | default:"#FBE5E1" }}',
+                        500: '{{ theme_obj.primary_500 | default:"#F7C8C1" }}',
+                        600: '{{ theme_obj.primary_600 | default:"#E54F38" }}',
+                        700: '{{ theme_obj.primary_700 | default:"#ce4732" }}',
+                        800: '{{ theme_obj.primary_800 | default:"#AC3B2A" }}',
+                        900: '{{ theme_obj.primary_900 | default:"#672419" }}',
+                    },
+                    info: {
+                        50:  '#eaf6fc', 100: '#c9e8f7', 200: '#95d0ec', 300: '#5eb8e2',
+                        400: '#3aa6da', 500: '#2E9BD6', 600: '#2E9BD6', 700: '#2585b8',
+                        800: '#1f6d97', 900: '#184f6f',
+                    },
+                    dark: {
+                        50:  '{{ theme_obj.dark_50  | default:"#E6E6E6" }}',
+                        100: '{{ theme_obj.dark_100 | default:"#A8A8A8" }}',
+                        200: '{{ theme_obj.dark_200 | default:"#515151" }}',
+                        300: '{{ theme_obj.dark_300 | default:"#501C14" }}',
+                        400: '{{ theme_obj.dark_400 | default:"#64748B" }}',
+                        500: '{{ theme_obj.dark_500 | default:"#190906" }}',
+                        600: '{{ theme_obj.dark_600 | default:"#000000" }}',
+                    },
+                    secondary: {
+                        50:  '{{ theme_obj.secondary_50  | default:"#f8fafc" }}',
+                        100: '{{ theme_obj.secondary_100 | default:"#f1f5f9" }}',
+                        200: '{{ theme_obj.secondary_200 | default:"#e2e8f0" }}',
+                        300: '{{ theme_obj.secondary_300 | default:"#cbd5e1" }}',
+                        400: '{{ theme_obj.secondary_400 | default:"#FBE5E1" }}',
+                        500: '{{ theme_obj.secondary_500 | default:"#F7C8C1" }}',
+                        600: '{{ theme_obj.secondary_600 | default:"#E54F38" }}',
+                        700: '{{ theme_obj.secondary_700 | default:"#334155" }}',
+                        800: '{{ theme_obj.secondary_800 | default:"#1e293b" }}',
+                        900: '{{ theme_obj.secondary_900 | default:"#0f172a" }}',
+                    },
+                    success: { light: "#86efac", DEFAULT: "#22c55e", dark: "#15803d" },
+                    warning: { light: "#fde68a", DEFAULT: "#f59e0b", dark: "#b45309" },
+                    danger:  { light: "#fca5a5", DEFAULT: "#ef4444", dark: "#b91c1c" },
+                },
+            },
+        };
+    </script>
+</head>
+
+<script src="{% static '/jquery/jquery.min.js' %}"></script>
+<body class="bg-secondary-50 font-['Plus_Jakarta_Sans',_sans-serif]">
+
+    <!-- Top bar -->
+    <header class="bg-white border-b border-secondary-200">
+        <div class="max-w-4xl mx-auto px-6 sm:px-10 py-5 flex items-center gap-3">
+            <div class="w-12 h-12 shrink-0 rounded-full bg-primary-600 text-white flex items-center justify-center font-bold overflow-hidden">
+                {% if hq_company.icon %}
+                    <img src="{{ hq_company.icon.url }}" alt="" class="w-full h-full object-cover">
+                {% else %}
+                    <span>{{ hq_company.company|default:"Horilla"|first|upper }}</span>
+                {% endif %}
             </div>
-        </section>
-        {{form}}
-    </form>
-</div>
+            <div>
+                <h1 class="text-xl font-bold leading-tight">
+                    {{ hq_company.company|default:"Horilla" }} {% trans "Careers" %}
+                </h1>
+                <p class="text-sm text-dark-100 leading-tight">
+                    {% trans "Open positions across our teams" %}
+                </p>
+            </div>
+        </div>
+    </header>
+
+    {% if messages %}
+        <div class="oh-alert-container">
+            {% for message in messages %}
+                <div class="oh-alert oh-alert--animated {{message.tags}}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <main class="max-w-4xl mx-auto px-6 sm:px-10 py-8">
+        <!-- Page heading -->
+        <div class="mb-8">
+            <h2 class="text-3xl font-extrabold">
+                {% blocktrans with name=candidate.name %}{{ name }}'s Survey{% endblocktrans %}
+            </h2>
+            {% if candidate.recruitment_id %}
+                <div class="flex items-center gap-3 mt-2">
+                    <div class="w-9 h-9 shrink-0 rounded-full bg-primary-200 text-primary-800 flex items-center justify-center font-bold text-xs">
+                        {{ candidate.recruitment_id.title|title_initials }}
+                    </div>
+                    <p class="text-sm text-dark-100">
+                        {% trans "A few extra questions for" %}
+                        <span class="font-semibold text-dark-200">{{ candidate.recruitment_id.title }}</span>
+                        {% trans "at" %}
+                        <span class="font-semibold text-dark-200">{{ candidate.recruitment_id.company_id }}</span>
+                    </p>
+                </div>
+            {% endif %}
+        </div>
+
+        <form action="" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            {{form}}
+        </form>
+    </main>
+
+</body>
 {% endblock content %}

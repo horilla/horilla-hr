@@ -1,8 +1,24 @@
 {% load i18n %}
 <div class="oh-dropdown__filter-body">
-    <div class="oh-accordion">
-        <div class="oh-accordion-header">{% trans "Key Result" %}</div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header">
+            <span class="oh-filter-section-icon"><ion-icon name="ribbon-outline"></ion-icon></span>
+            {% trans "Key Result" %}
+        </div>
         <div class="oh-accordion-body">
+            <!-- Full width -- Company is now an AJAX-searched Select2
+                 combobox (see pms/filters.py's
+                 ActualKeyResultFilter.ajax_fields) and needs real room
+                 for its selected chips/placeholder text, same reasoning
+                 as every other modernized panel this session. -->
+            <div class="row">
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label class="oh-label">{% trans "Company" %}</label>
+                        {{ form.company_id }}
+                    </div>
+                </div>
+            </div>
             <div class="row">
                 <div class="col-sm-6">
                     <div class="oh-input-group">
@@ -26,14 +42,6 @@
                 </div>
                 <div class="col-sm-6">
                     <div class="oh-input-group">
-                        <label class="oh-label">{% trans "Company" %}</label>
-                        {{ form.company_id }}
-                    </div>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-sm-6">
-                    <div class="oh-input-group">
                         <label class="oh-label">{% trans "Is active" %}</label>
                         {{ form.is_active }}
                     </div>
@@ -41,7 +49,42 @@
             </div>
         </div>
     </div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header"
+            onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
+        >
+            <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
+            {% trans "Advanced" %}
+        </div>
+        <div class="oh-accordion-body">
+            <div class="row">
+                <!-- Generic "+ Add filter" field/lookup/value builder
+                     (same as AttendanceFilters/EmployeeFilter/
+                     AssetFilter). Registry: ActualKeyResultFilter.
+                     _build_custom_filter_fields; applied server-side by
+                     HorillaFilterSet._apply_custom_filters (see
+                     ActualKeyResultFilter.filter_queryset). Row
+                     markup/JS are generic (initCustomFilterBuilder,
+                     horilla_nav.html). -->
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <div id="customFilterRowsContainer-key-result" class="oh-custom-filter-rows"></div>
+                        <button
+                            type="button"
+                            class="oh-custom-filter-add"
+                            onclick="addCustomFilterRow('key-result')"
+                        >+ {% trans "Add filter" %}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+{{ custom_filter_fields|json_script:"customFilterFields-key-result" }}
+{{ custom_filter_rows|json_script:"customFilterRows-key-result" }}
+<script>
+    initCustomFilterBuilder('key-result');
+</script>
 
 <script>
     $("#filterForm").submit(function (e) {

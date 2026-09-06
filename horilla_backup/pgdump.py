@@ -1,5 +1,8 @@
+import logging
 import os
 import subprocess
+
+logger = logging.getLogger(__name__)
 
 
 def dump_postgres_db(
@@ -31,7 +34,10 @@ def dump_postgres_db(
             dump_command, check=True, text=True, capture_output=True
         )
     except subprocess.CalledProcessError as e:
-        pass
+        # Swallowing this uploaded whatever stale backupdb.dump was on disk (or
+        # crashed on a missing file) while the job logged success.
+        logger.error("pg_dump failed (exit %s): %s", e.returncode, e.stderr)
+        raise
     finally:
         # Clean up the environment variable
         if password:
