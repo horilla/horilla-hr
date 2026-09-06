@@ -237,7 +237,9 @@
     .oh-filter-modern .oh-accordion--top-divider {
         /* The Group By / nested Group By accordion (appended in
            horilla_nav.html/inline_nav.html, right after
-           {% include filter_body_template %}) is never a true DOM sibling
+           {% if filter_body_template %}
+               {% include filter_body_template %}
+           {% endif %}) is never a true DOM sibling
            of the LAST accordion inside that include -- every filter body
            template wraps its own accordions in a legacy
            .oh-dropdown__filter-body div, so Group By's real previous

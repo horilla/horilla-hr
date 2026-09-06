@@ -438,29 +438,16 @@ class TaskTimeSheetForm(ModelForm):
             "project": forms.HiddenInput(),
         }
 
-    def __init__(self, *args, **kwargs):
-        super(TaskTimeSheetForm, self).__init__(*args, **kwargs)
-        # Add style to the start_date and end_date fields
-        # self.fields["stage"].choices.append(
-        #         ("create_new_project", "Create a new project")
-        #     )
-        self.fields["status"].widget.attrs.update(
-            {
-                "style": "width: 100%; height: 47px;",
-                "class": "oh-select",
-            }
-        )
-        self.fields["description"].widget.attrs.update(
-            {
-                "style": "width: 100%; height: 130px;",
-                "class": "oh-select",
-            }
-        )
-        self.fields["description"].widget.attrs.update(
-            {
-                "style": "width: 100%; height: 130px;",
-                "class": "oh-select",
-            }
-        )
+        def __init__(self, *args, request=None, **kwargs):
+            super(TaskFormCreate, self).__init__(*args, **kwargs)
+            self.fields["stage"].widget.attrs.update({"id": "project_stage"})
 
-        self.fields["stage"].widget.attrs.update({"id": "project_stage"})
+            project = self.initial.get("project")
+            if not isinstance(project, Project):
+                project_value = project or (self.data.get("project") if self.data else None)
+                project = (
+                    Project.objects.filter(pk=project_value).first()
+                    if project_value
+                    else None
+                )
+            self.fields["task_managers"].queryset = employees_for_project(project)
