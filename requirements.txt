@@ -98,7 +98,7 @@ click==8.5.0
 phonenumbers==9.0.37
 pycountry==24.6.1
 python-bidi==0.6.11
-rapidfuzz==3.9.6
+rapidfuzz==3.14.6
 spacy==3.8.16
 https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
 
