@@ -80,7 +80,7 @@ django-axes[ipware]==8.0.0
 sentry-sdk[django]==2.20.0
 
 # Notifications
-swapper==1.4.0
+swapper==1.5.0
 
 # Static files
 whitenoise==6.9.0
