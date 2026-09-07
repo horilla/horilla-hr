@@ -57,7 +57,7 @@ requests==2.34.2
 requests-oauthlib==2.0.0
 
 # Google integration
-google-api-python-client==2.199.0
+google-api-python-client==2.200.0
 google-auth-oauthlib==1.4.1
 google-cloud-storage==3.0.0
 
