@@ -37,7 +37,7 @@ PyJWT==2.13.0
 drf-yasg==1.21.15
 
 # Data processing
-numpy==1.26.4
+numpy==2.5.2
 openpyxl==3.1.5
 pandas==3.0.5
 XlsxWriter==3.2.9
