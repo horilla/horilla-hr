@@ -1,0 +1,66 @@
+{% extends 'index.html' %}
+{% load i18n %}
+{% block content %}
+<div class="oh-wrapper">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3>{{ company.company }} {% include "company_onboarding/partials/status_badge.html" %}</h3>
+        <a href="{% url 'company-onboarding-step1' company_id=company.pk %}" class="oh-btn oh-btn--secondary">
+            {% trans "Edit" %}
+        </a>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="oh-alert oh-alert--{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="oh-card p-3 mb-3">
+        <p><strong>{% trans "Legal Name" %}:</strong> {{ company.legal_name|default:"—" }}</p>
+        <p><strong>{% trans "Tax Country" %}:</strong> {{ company.get_tax_country_display|default:"—" }}</p>
+        <p><strong>{% trans "PAN" %}:</strong> {{ company.pan|default:"—" }}</p>
+        <p><strong>{% trans "Foreign Tax ID" %}:</strong> {{ company.foreign_tax_id|default:"—" }}</p>
+    </div>
+
+    <div class="oh-card p-3 mb-3">
+        {% if perms.base.change_status_company %}
+            {% if company.status == "ACTIVE" %}
+                <form method="post" action="{% url 'company-onboarding-put-on-hold' company_id=company.pk %}" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="oh-btn oh-btn--warning">{% trans "Put On Hold" %}</button>
+                </form>
+                <button
+                    type="button"
+                    class="oh-btn oh-btn--danger"
+                    data-toggle="oh-modal-toggle"
+                    data-target="#deactivateModal"
+                >
+                    {% trans "Deactivate Company" %}
+                </button>
+                {% include "company_onboarding/partials/deactivate_checklist.html" %}
+            {% elif company.status == "ON_HOLD" %}
+                <form method="post" action="{% url 'company-onboarding-resume' company_id=company.pk %}" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="oh-btn oh-btn--success">{% trans "Resume" %}</button>
+                </form>
+            {% elif company.status == "DEACTIVATED" %}
+                <form method="post" action="{% url 'company-onboarding-reinstate' company_id=company.pk %}" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="oh-btn oh-btn--success">{% trans "Reinstate" %}</button>
+                </form>
+            {% endif %}
+        {% endif %}
+    </div>
+
+    {% if deactivation_records %}
+        <div class="oh-card p-3 mb-3">
+            <h5>{% trans "Deactivation History" %}</h5>
+            <ul>
+                {% for record in deactivation_records %}
+                    <li>{{ record.confirmed_at }} — {{ record.reason }} ({{ record.confirmed_by }})</li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+</div>
+{% endblock content %}

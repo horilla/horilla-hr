@@ -1,0 +1,41 @@
+{% extends 'index.html' %}
+{% load i18n %}
+{% block content %}
+<div class="oh-wrapper">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3>{% trans "Client Companies" %}</h3>
+        {% if perms.base.add_company %}
+            <a href="{% url 'company-onboarding-create' %}" class="oh-btn oh-btn--primary">
+                {% trans "+ Add Company" %}
+            </a>
+        {% endif %}
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="oh-alert oh-alert--{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <table class="oh-table w-100">
+        <thead>
+            <tr>
+                <th>{% trans "Company" %}</th>
+                <th>{% trans "Legal Name" %}</th>
+                <th>{% trans "Status" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for company in companies %}
+                <tr>
+                    <td><a href="{% url 'company-onboarding-detail' company_id=company.pk %}">{{ company.company }}</a></td>
+                    <td>{{ company.legal_name|default:"—" }}</td>
+                    <td>{% include "company_onboarding/partials/status_badge.html" %}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="3">{% trans "No client companies yet." %}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock content %}

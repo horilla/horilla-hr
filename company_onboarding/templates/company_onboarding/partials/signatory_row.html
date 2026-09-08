@@ -1,0 +1,30 @@
+{% load i18n %}
+<div class="oh-input__group pt-2 d-flex align-items-start" id="signatory-row-{{ index }}" style="gap: 8px;">
+    {% if form.instance.pk %}<input type="hidden" name="signatory{{ index }}-row_id" value="{{ form.instance.pk }}">{% endif %}
+    {{ form.signatory_type }} {{ form.signatory_type.errors }}
+    {{ form.name }} {{ form.name.errors }}
+    {{ form.designation }} {{ form.designation.errors }}
+    {{ form.email }} {{ form.email.errors }}
+    <label>{{ form.is_enabled }} {% trans "Enabled" %}</label>
+    <a
+        hx-get="{% url 'company-onboarding-remove-signatory-row' %}"
+        class="oh-btn oh-btn--danger"
+        hx-target="#signatory-row-{{ index }}"
+        hx-swap="outerHTML"
+        title="{% trans 'Remove signatory' %}"
+    >
+        <ion-icon name="trash-outline"></ion-icon>
+    </a>
+</div>
+<div id="signatory-row-{{ index|add:1 }}-placeholder" class="pt-2">
+    <a
+        hx-target="#signatory-row-{{ index|add:1 }}-placeholder"
+        hx-swap="outerHTML"
+        hx-get="{% url 'company-onboarding-add-signatory-row' %}?count={{ index }}"
+        role="button"
+        class="oh-btn oh-btn--x-small oh-btn--success-outline"
+    >
+        <ion-icon name="add-outline" class="me-1"></ion-icon>
+        {% trans "Add Signatory" %}
+    </a>
+</div>

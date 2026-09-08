@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     "leave",
     "pms",
     "onboarding",
+    "company_onboarding",
     "asset",
     "attendance",
     "payroll",
@@ -354,6 +355,7 @@ NESTED_SUBORDINATE_VISIBILITY = False
 TWO_FACTORS_AUTHENTICATION = False
 
 SIDEBARS = [
+    "company_onboarding",
     "employee",
     "attendance",
     "leave",

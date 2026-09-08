@@ -1,0 +1,4 @@
+{% load i18n %}
+<span class="oh-badge oh-badge--{{ company.status|lower }}">
+    {{ company.get_status_display }}
+</span>

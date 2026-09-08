@@ -1,0 +1,64 @@
+{% extends 'company_onboarding/wizard_base.html' %}
+{% load i18n %}
+{% block step_content %}
+{% if active_gate_errors %}
+    <div class="oh-alert oh-alert--danger">
+        <p>{% trans "Cannot mark Active — the following are missing:" %}</p>
+        <ul>
+            {% for error in active_gate_errors %}<li>{{ error }}</li>{% endfor %}
+        </ul>
+    </div>
+{% endif %}
+
+<section class="oh-card p-3 mb-3">
+    <h4>{% trans "Client-Branded Templates" %}</h4>
+    <ul>
+        {% for template in branded_templates %}
+            <li>{{ template.get_template_type_display }} — <a href="{{ template.file.url }}">{% trans "view" %}</a></li>
+        {% endfor %}
+    </ul>
+    <div class="oh-input__group d-flex align-items-end" style="gap: 8px;">
+        <select name="template_type" class="oh-select oh-select-2">
+            <option value="OFFER_LETTER">{% trans "Offer Letter" %}</option>
+            <option value="PAYSLIP">{% trans "Payslip" %}</option>
+            <option value="FORM16">{% trans "Form 16" %}</option>
+        </select>
+        <input type="file" name="template_file">
+        <button
+            type="submit"
+            name="action"
+            value="upload_template"
+            class="oh-btn oh-btn--secondary oh-btn--small"
+        >
+            {% trans "Upload Template" %}
+        </button>
+    </div>
+</section>
+
+<section class="oh-card p-3 mb-3">
+    <h4>{% trans "Other Document Upload" %}</h4>
+    <ul>
+        {% for document in documents %}
+            <li>{{ document.tag_name }} — <a href="{{ document.file.url }}">{% trans "view" %}</a></li>
+        {% endfor %}
+    </ul>
+    <div class="oh-input__group d-flex align-items-end" style="gap: 8px;">
+        <input type="text" name="tag_name" class="oh-input" placeholder="{% trans 'Tag Name (e.g. CIN, MSME Certificate)' %}">
+        <input type="file" name="document_file">
+        <button
+            type="submit"
+            name="action"
+            value="upload_document"
+            class="oh-btn oh-btn--secondary oh-btn--small"
+        >
+            {% trans "Add Document" %}
+        </button>
+    </div>
+</section>
+{% endblock step_content %}
+
+{% block primary_action %}
+    <button type="submit" name="action" value="mark_active" class="oh-btn oh-btn--primary">
+        {% trans "Mark as Active" %}
+    </button>
+{% endblock primary_action %}

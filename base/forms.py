@@ -733,7 +733,27 @@ class CompanyForm(ModelForm):
 
         model = Company
         fields = "__all__"
-        exclude = ["date_format", "time_format", "is_active"]
+        # Company Setup's new compliance fields (legal_name, tax_country,
+        # pan, foreign_tax_id, status, invoice_cycle, payment_terms,
+        # overdue, require_payroll_signoff, ldc_applied) are deliberately
+        # excluded here — they're edited through the company_onboarding
+        # wizard's own forms, not this bare quick-create/initialize-database
+        # form, so this form's behavior stays exactly as it was before.
+        exclude = [
+            "date_format",
+            "time_format",
+            "is_active",
+            "legal_name",
+            "tax_country",
+            "ldc_applied",
+            "pan",
+            "foreign_tax_id",
+            "status",
+            "invoice_cycle",
+            "payment_terms",
+            "overdue",
+            "require_payroll_signoff",
+        ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

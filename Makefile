@@ -85,7 +85,7 @@ dev-db-reset: ## Destroy local PostgreSQL + pgAdmin AND all their data
 
 # Unit-test coverage program (feature/unit-test-coverage)
 # Smoke = Phases 0–3 first-party app minimum bar.
-SMOKE_LABELS ?= leave attendance base horilla_auth employee accessibility payroll horilla_api biometric asset recruitment onboarding offboarding pms project helpdesk report whatsapp facedetection geofencing horilla_documents horilla_automations horilla_backup horilla_crumbs horilla_ldap horilla_meet horilla_theme horilla_widgets horilla_views horilla_audit
+SMOKE_LABELS ?= leave attendance base horilla_auth employee accessibility payroll horilla_api biometric asset recruitment onboarding company_onboarding offboarding pms project helpdesk report whatsapp facedetection geofencing horilla_documents horilla_automations horilla_backup horilla_crumbs horilla_ldap horilla_meet horilla_theme horilla_widgets horilla_views horilla_audit
 UNIT_LABELS ?= $(SMOKE_LABELS)
 
 test-smoke: ## Run CI smoke unit tests (min bar across first-party apps)

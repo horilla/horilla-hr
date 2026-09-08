@@ -1,0 +1,49 @@
+{% extends 'company_onboarding/wizard_base.html' %}
+{% load i18n %}
+{% block step_content %}
+<section class="oh-card p-3 mb-3">
+    <h4>{% trans "2.1 Authorized Signatory" %}</h4>
+    <div id="signatory-rows">
+        {% for form in signatory_row_forms %}
+            {% include "company_onboarding/partials/signatory_row.html" with index=forloop.counter form=form %}
+        {% endfor %}
+    </div>
+    {% if not signatory_row_forms %}
+        <div id="signatory-row-1-placeholder" class="pt-2">
+            <a
+                hx-target="#signatory-row-1-placeholder"
+                hx-swap="outerHTML"
+                hx-get="{% url 'company-onboarding-add-signatory-row' %}?count=0"
+                role="button"
+                class="oh-btn oh-btn--x-small oh-btn--success-outline"
+            >
+                <ion-icon name="add-outline" class="me-1"></ion-icon>
+                {% trans "Add Signatory" %}
+            </a>
+        </div>
+    {% endif %}
+</section>
+
+<section class="oh-card p-3 mb-3">
+    <h4>{% trans "2.2 Payroll Sign-off" %}</h4>
+    <label>
+        <input
+            type="checkbox"
+            name="require_payroll_signoff"
+            {% if company.require_payroll_signoff %}checked{% endif %}
+        >
+        {% trans "Require Payroll Sign-off" %}
+    </label>
+    <div class="oh-input__group pt-2">
+        <label>{% trans "Select Approver" %}</label>
+        <select name="payroll_approver" class="oh-select oh-select-2">
+            <option value="">---------</option>
+            {% for contact in poc_contacts %}
+                <option value="{{ contact.pk }}" {% if contact.is_payroll_approver %}selected{% endif %}>
+                    {{ contact.name }} ({{ contact.designation }})
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+</section>
+{% endblock step_content %}

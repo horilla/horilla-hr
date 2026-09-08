@@ -1,0 +1,92 @@
+{% extends 'company_onboarding/wizard_base.html' %}
+{% load i18n %}
+{% block step_content %}
+<section class="oh-card p-3 mb-3">
+    <h4>{% trans "1.1 Identity & Basic Info" %}</h4>
+    {% for field in identity_form %}
+        <div class="oh-input__group">
+            <label>{{ field.label }}</label>
+            {{ field }}
+            {{ field.errors }}
+        </div>
+    {% endfor %}
+</section>
+
+<section class="oh-card p-3 mb-3">
+    <h4>{% trans "1.2 Tax & Registration" %}</h4>
+    {% for field in compliance_form %}
+        <div class="oh-input__group">
+            <label>{{ field.label }}</label>
+            {{ field }}
+            {{ field.errors }}
+        </div>
+    {% endfor %}
+
+    <h5 class="pt-3">{% trans "Place of Work" %}</h5>
+    <div id="state-rows">
+        {% for form in state_row_forms %}
+            {% include "company_onboarding/partials/state_registration_row.html" with index=forloop.counter form=form %}
+        {% endfor %}
+    </div>
+    {% if not state_row_forms %}
+        <div id="state-row-1-placeholder" class="pt-2">
+            <a
+                hx-target="#state-row-1-placeholder"
+                hx-swap="outerHTML"
+                hx-get="{% url 'company-onboarding-add-state-row' %}?count=0"
+                role="button"
+                class="oh-btn oh-btn--x-small oh-btn--success-outline"
+            >
+                <ion-icon name="add-outline" class="me-1"></ion-icon>
+                {% trans "Add State" %}
+            </a>
+        </div>
+    {% endif %}
+</section>
+
+<section class="oh-card p-3 mb-3">
+    <h4>{% trans "1.3 Contacts" %}</h4>
+    <div id="poc-rows">
+        {% for form in poc_row_forms %}
+            {% include "company_onboarding/partials/poc_contact_row.html" with index=forloop.counter form=form %}
+        {% endfor %}
+    </div>
+    {% if not poc_row_forms %}
+        <div id="poc-row-1-placeholder" class="pt-2">
+            <a
+                hx-target="#poc-row-1-placeholder"
+                hx-swap="outerHTML"
+                hx-get="{% url 'company-onboarding-add-poc-row' %}?count=0"
+                role="button"
+                class="oh-btn oh-btn--x-small oh-btn--success-outline"
+            >
+                <ion-icon name="add-outline" class="me-1"></ion-icon>
+                {% trans "Add Contact" %}
+            </a>
+        </div>
+    {% endif %}
+</section>
+
+<section class="oh-card p-3 mb-3">
+    <h4>{% trans "1.4 Banking" %}</h4>
+    {% for field in bank_form %}
+        <div class="oh-input__group">
+            <label>{{ field.label }}</label>
+            {{ field }}
+            {{ field.errors }}
+        </div>
+    {% endfor %}
+    {% include "company_onboarding/partials/bank_verification_panel.html" %}
+</section>
+
+<section class="oh-card p-3 mb-3">
+    <h4>{% trans "1.5 Contract & Billing" %}</h4>
+    {% for field in contract_form %}
+        <div class="oh-input__group">
+            <label>{{ field.label }}</label>
+            {{ field }}
+            {{ field.errors }}
+        </div>
+    {% endfor %}
+</section>
+{% endblock step_content %}

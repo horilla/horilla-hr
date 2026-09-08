@@ -17,6 +17,7 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
 from base.horilla_company_manager import HorillaCompanyManager
+from company_onboarding.validators import pan_validator
 from horilla import horilla_middlewares
 from horilla.horilla_middlewares import _thread_locals
 from horilla.methods import get_horilla_model_class
@@ -94,6 +95,23 @@ class Company(HorillaModel):
     Company model
     """
 
+    STATUS_CHOICES = (
+        ("ONBOARDING", _("Onboarding")),
+        ("ACTIVE", _("Active")),
+        ("ON_HOLD", _("On Hold")),
+        ("DEACTIVATED", _("Deactivated")),
+    )
+    TAX_COUNTRY_CHOICES = (
+        ("INDIA", _("India")),
+        ("FOREIGN", _("Foreign")),
+    )
+    INVOICE_CYCLE_CHOICES = (
+        ("MONTHLY", _("Monthly")),
+        ("QUARTERLY", _("Quarterly")),
+        ("HALF_YEARLY", _("Half-Yearly")),
+        ("YEARLY", _("Yearly")),
+    )
+
     company = models.CharField(max_length=50, verbose_name=_("Name"))
     hq = models.BooleanField(default=False)
     address = models.TextField(max_length=255)
@@ -109,6 +127,62 @@ class Company(HorillaModel):
     date_format = models.CharField(max_length=30, blank=True, null=True)
     time_format = models.CharField(max_length=20, blank=True, null=True)
 
+    # --- Company Setup: client onboarding / compliance fields ---
+    legal_name = models.CharField(
+        max_length=250,
+        null=True,
+        blank=True,
+        verbose_name=_("Legal Name"),
+        help_text=_("Registered entity name, as per PAN/CIN."),
+    )
+    tax_country = models.CharField(
+        max_length=10,
+        choices=TAX_COUNTRY_CHOICES,
+        null=True,
+        blank=True,
+        verbose_name=_("Tax & Registration Country"),
+        help_text=_(
+            "Decides whether PAN or Foreign Tax ID applies. Locks once the "
+            "client becomes Active."
+        ),
+    )
+    ldc_applied = models.BooleanField(
+        default=False, verbose_name=_("Lower Deduction Certificate (LDC) Applied")
+    )
+    pan = models.CharField(
+        max_length=10,
+        null=True,
+        blank=True,
+        validators=[pan_validator],
+        verbose_name=_("PAN"),
+    )
+    foreign_tax_id = models.CharField(
+        max_length=50, null=True, blank=True, verbose_name=_("Foreign Tax ID")
+    )
+    status = models.CharField(
+        max_length=15,
+        choices=STATUS_CHOICES,
+        default="ONBOARDING",
+        verbose_name=_("Status"),
+    )
+    invoice_cycle = models.CharField(
+        max_length=15,
+        choices=INVOICE_CYCLE_CHOICES,
+        default="MONTHLY",
+        verbose_name=_("Invoice Cycle"),
+    )
+    payment_terms = models.CharField(
+        max_length=255, null=True, blank=True, verbose_name=_("Payment Terms")
+    )
+    overdue = models.BooleanField(
+        default=False,
+        editable=False,
+        verbose_name=_("Overdue"),
+    )
+    require_payroll_signoff = models.BooleanField(
+        default=False, verbose_name=_("Require Payroll Sign-off")
+    )
+
     class Meta:
         """
         Meta class to add additional options
@@ -118,6 +192,24 @@ class Company(HorillaModel):
         verbose_name_plural = _("Companies")
         unique_together = ["company", "address"]
         app_label = "base"
+        permissions = [
+            (
+                "change_status_company",
+                "Can change company status (hold/deactivate/reinstate)",
+            ),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["pan"],
+                condition=models.Q(pan__isnull=False),
+                name="unique_company_pan",
+            ),
+            models.UniqueConstraint(
+                fields=["foreign_tax_id"],
+                condition=models.Q(foreign_tax_id__isnull=False),
+                name="unique_company_foreign_tax_id",
+            ),
+        ]
 
     def __str__(self) -> str:
         return str(self.company)
@@ -129,6 +221,33 @@ class Company(HorillaModel):
             self.icon.url,
             self.company,
         )
+
+    def clean(self):
+        super().clean()
+        # Normalize "" -> None BEFORE validate_unique() runs (full_clean()
+        # calls clean_fields() -> clean() -> validate_unique(), in that
+        # order). The UniqueConstraints below only exempt NULL, not "" —
+        # a form-submitted blank CharField saves "" (Django's default
+        # empty_value), so two companies both left blank would otherwise
+        # collide with each other on "" instead of correctly being
+        # treated as "not set yet".
+        if self.pan == "":
+            self.pan = None
+        if self.foreign_tax_id == "":
+            self.foreign_tax_id = None
+        if self.pan and self.foreign_tax_id:
+            raise ValidationError(
+                _("A company cannot have both a PAN and a Foreign Tax ID.")
+            )
+
+    def blocks_operations(self) -> bool:
+        """
+        True when this company's status should block payroll runs and
+        employee-facing access. Not yet wired into CompanyMiddleware or the
+        payroll run flow (see the Company Setup plan's Deferred section) —
+        other apps can consult this once that follow-up lands.
+        """
+        return self.status in ("ON_HOLD", "DEACTIVATED")
 
     def get_update_url(self):
         """

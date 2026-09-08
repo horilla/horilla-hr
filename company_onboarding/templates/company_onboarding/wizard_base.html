@@ -1,0 +1,32 @@
+{% extends 'index.html' %}
+{% load i18n %}
+{% block content %}
+<div class="oh-wrapper">
+    <div class="oh-general__tabs mb-4">
+        <a class="oh-general__tab {% if step == 1 %}oh-general__tab--active{% endif %}">1. {% trans "Company Registration" %}</a>
+        <a class="oh-general__tab {% if step == 2 %}oh-general__tab--active{% endif %}">2. {% trans "Company Policy Setup" %}</a>
+        <a class="oh-general__tab {% if step == 3 %}oh-general__tab--active{% endif %}">3. {% trans "Document Setup" %}</a>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="oh-alert oh-alert--{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data" class="oh-profile-section">
+        {% csrf_token %}
+        {% block step_content %}{% endblock step_content %}
+
+        <div class="oh-general__tab-actions mt-4">
+            {% if step > 1 %}
+                <button type="submit" name="action" value="back" class="oh-btn oh-btn--light-bkg">{% trans "Back" %}</button>
+            {% endif %}
+            <button type="submit" name="action" value="draft" class="oh-btn oh-btn--secondary">{% trans "Save as Draft" %}</button>
+            {% block primary_action %}
+                <button type="submit" name="action" value="next" class="oh-btn oh-btn--primary">{% trans "Next" %}</button>
+            {% endblock primary_action %}
+        </div>
+    </form>
+</div>
+{% endblock content %}

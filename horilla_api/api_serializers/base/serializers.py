@@ -26,7 +26,28 @@ from horilla import horilla_middlewares
 class CompanySerializer(serializers.ModelSerializer):
     class Meta:
         model = Company
-        fields = "__all__"
+        # Explicit list, not "__all__" — Company Setup added compliance
+        # fields (legal_name, tax_country, pan, foreign_tax_id, status,
+        # invoice_cycle, payment_terms, overdue, ldc_applied,
+        # require_payroll_signoff) directly to the Company model. With
+        # "__all__" those would have silently appeared in this generic API
+        # the moment they were added. This freezes the API's public
+        # surface at exactly what it exposed before Company Setup — adding
+        # any of the new fields here later should be a deliberate,
+        # separately-considered change, not an accident of "__all__".
+        fields = [
+            "id",
+            "company",
+            "hq",
+            "address",
+            "country",
+            "state",
+            "city",
+            "zip",
+            "icon",
+            "date_format",
+            "time_format",
+        ]
 
 
 class JobPositionSerializer(serializers.ModelSerializer):
