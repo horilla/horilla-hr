@@ -13,9 +13,11 @@ from base.models import Company
 from horilla.decorators import login_required, permission_required
 
 from company_onboarding.services.bank_verification import (
+    check_penny_drop_status,
     confirm_penny_drop,
     initiate_penny_drop,
 )
+from company_onboarding.services.cashfree_client import CashfreePayoutError
 from company_onboarding.wizard_utils import get_bank_details
 
 
@@ -30,8 +32,44 @@ class InitiatePennyDropView(View):
         ):
             messages.error(request, "Save bank details before initiating a penny drop.")
         else:
-            initiate_penny_drop(bank_details)
-            messages.success(request, "Penny drop initiated.")
+            try:
+                attempt = initiate_penny_drop(bank_details)
+            except CashfreePayoutError as exc:
+                messages.error(request, str(exc))
+            else:
+                if attempt.drop_status == attempt.DropStatus.PENDING:
+                    messages.success(
+                        request,
+                        "Penny drop initiated — Cashfree is still processing it, "
+                        "check status shortly.",
+                    )
+                else:
+                    messages.success(request, "Penny drop initiated.")
+        return redirect("company-onboarding-step1", company_id=company.pk)
+
+
+@method_decorator(login_required, name="dispatch")
+@method_decorator(permission_required("base.change_company"), name="dispatch")
+class CheckPennyDropStatusView(View):
+    def post(self, request, company_id):
+        company = get_object_or_404(Company, pk=company_id)
+        bank_details = get_bank_details(company)
+        attempt = bank_details.verifications.first() if bank_details else None
+        if not attempt:
+            messages.error(request, "Initiate a penny drop first.")
+            return redirect("company-onboarding-step1", company_id=company.pk)
+
+        try:
+            attempt = check_penny_drop_status(attempt)
+        except CashfreePayoutError as exc:
+            messages.error(request, str(exc))
+        else:
+            if attempt.drop_status == attempt.DropStatus.PENDING:
+                messages.info(request, "Still processing — check again in a moment.")
+            elif attempt.drop_status == attempt.DropStatus.SUCCESS:
+                messages.success(request, "Transfer completed — enter the amount received.")
+            else:
+                messages.error(request, "Transfer failed. You can re-initiate.")
         return redirect("company-onboarding-step1", company_id=company.pk)
 
 
@@ -44,6 +82,14 @@ class ConfirmPennyDropView(View):
         attempt = bank_details.verifications.first() if bank_details else None
         if not attempt:
             messages.error(request, "Initiate a penny drop first.")
+            return redirect("company-onboarding-step1", company_id=company.pk)
+
+        if attempt.drop_status != attempt.DropStatus.SUCCESS:
+            messages.error(
+                request,
+                "This transfer hasn't completed yet — check its status before confirming "
+                "the amount.",
+            )
             return redirect("company-onboarding-step1", company_id=company.pk)
 
         try:

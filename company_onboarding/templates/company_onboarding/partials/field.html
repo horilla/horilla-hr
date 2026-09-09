@@ -1,0 +1,22 @@
+{% load i18n generic_template_filters %}
+<div class="col-12 col-md-6 col-lg-{{ cols|get_item:field.name|default:12 }} mb-3">
+    <div class="oh-input-group">
+        {% if field.field.widget.input_type == "checkbox" %}
+            <label class="oh-label d-flex align-items-center" for="{{ field.id_for_label }}">
+                <div class="oh-switch me-2">{{ field }}</div>
+                {{ field.label }}
+            </label>
+        {% else %}
+            <label class="oh-label" for="{{ field.id_for_label }}">
+                {{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}
+            </label>
+            {{ field }}
+        {% endif %}
+        {% if field.help_text %}
+            <small class="text-muted d-block mt-1">{{ field.help_text }}</small>
+        {% endif %}
+        {% for error in field.errors %}
+            <small class="text-danger d-block mt-1">{{ error }}</small>
+        {% endfor %}
+    </div>
+</div>

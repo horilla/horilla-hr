@@ -2,31 +2,106 @@
 {% load i18n %}
 {% block content %}
 <div class="oh-wrapper">
-    <div class="oh-general__tabs mb-4">
-        <a class="oh-general__tab {% if step == 1 %}oh-general__tab--active{% endif %}">1. {% trans "Company Registration" %}</a>
-        <a class="oh-general__tab {% if step == 2 %}oh-general__tab--active{% endif %}">2. {% trans "Company Policy Setup" %}</a>
-        <a class="oh-general__tab {% if step == 3 %}oh-general__tab--active{% endif %}">3. {% trans "Document Setup" %}</a>
+    <section class="oh-main__topbar mb-4">
+        <div class="oh-main__titlebar oh-main__titlebar--left">
+            <h1 class="oh-main__titlebar-title fw-bold mb-0">
+                {% if company %}{{ company.company }}{% else %}{% trans "New Client Company" %}{% endif %}
+            </h1>
+        </div>
+        <div class="oh-main__titlebar oh-main__titlebar--right">
+            {% if company %}
+                {% include "company_onboarding/partials/status_badge.html" %}
+                <a href="{% url 'company-onboarding-detail' company_id=company.pk %}" class="oh-btn oh-btn--light-bkg ms-2">
+                    {% trans "View Profile" %}
+                </a>
+            {% endif %}
+        </div>
+    </section>
+
+    <div class="oh-card p-3 mb-4">
+        <ul class="oh-general__tabs oh-general__tabs--no-grow oh-wizard-steps">
+            <li class="oh-general__tab">
+                {% if company %}
+                    <a href="{% url 'company-onboarding-step1' company_id=company.pk %}" class="oh-general__tab-link {% if step == 1 %}oh-general__tab-link--active{% endif %}">
+                        <span class="oh-wizard-steps__num">1</span> {% trans "Company Registration" %}
+                    </a>
+                {% else %}
+                    <span class="oh-general__tab-link oh-general__tab-link--active">
+                        <span class="oh-wizard-steps__num">1</span> {% trans "Company Registration" %}
+                    </span>
+                {% endif %}
+            </li>
+            <li class="oh-general__tab">
+                {% if company %}
+                    <a href="{% url 'company-onboarding-step2' company_id=company.pk %}" class="oh-general__tab-link {% if step == 2 %}oh-general__tab-link--active{% endif %}">
+                        <span class="oh-wizard-steps__num">2</span> {% trans "Company Policy Setup" %}
+                    </a>
+                {% else %}
+                    <span class="oh-general__tab-link oh-wizard-steps__disabled" title="{% trans 'Save Step 1 first' %}">
+                        <span class="oh-wizard-steps__num">2</span> {% trans "Company Policy Setup" %}
+                    </span>
+                {% endif %}
+            </li>
+            <li class="oh-general__tab">
+                {% if company %}
+                    <a href="{% url 'company-onboarding-step3' company_id=company.pk %}" class="oh-general__tab-link {% if step == 3 %}oh-general__tab-link--active{% endif %}">
+                        <span class="oh-wizard-steps__num">3</span> {% trans "Document Setup" %}
+                    </a>
+                {% else %}
+                    <span class="oh-general__tab-link oh-wizard-steps__disabled" title="{% trans 'Save Step 1 first' %}">
+                        <span class="oh-wizard-steps__num">3</span> {% trans "Document Setup" %}
+                    </span>
+                {% endif %}
+            </li>
+        </ul>
     </div>
 
     {% if messages %}
         {% for message in messages %}
-            <div class="oh-alert oh-alert--{{ message.tags }}">{{ message }}</div>
+            <div class="oh-alert oh-alert--animated {{ message.tags }}">{{ message }}</div>
         {% endfor %}
     {% endif %}
 
-    <form method="post" enctype="multipart/form-data" class="oh-profile-section">
+    <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
         {% block step_content %}{% endblock step_content %}
 
-        <div class="oh-general__tab-actions mt-4">
-            {% if step > 1 %}
-                <button type="submit" name="action" value="back" class="oh-btn oh-btn--light-bkg">{% trans "Back" %}</button>
-            {% endif %}
-            <button type="submit" name="action" value="draft" class="oh-btn oh-btn--secondary">{% trans "Save as Draft" %}</button>
-            {% block primary_action %}
-                <button type="submit" name="action" value="next" class="oh-btn oh-btn--primary">{% trans "Next" %}</button>
-            {% endblock primary_action %}
+        <div class="oh-card p-3 mt-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                {% if step > 1 %}
+                    <button type="submit" name="action" value="back" class="oh-btn oh-btn--light-bkg">
+                        <ion-icon name="arrow-back-outline" class="me-1"></ion-icon>{% trans "Back" %}
+                    </button>
+                {% endif %}
+            </div>
+            <div class="d-flex gap-2">
+                <button type="submit" name="action" value="draft" class="oh-btn oh-btn--secondary">
+                    {% trans "Save as Draft" %}
+                </button>
+                {% block primary_action %}
+                    <button type="submit" name="action" value="next" class="oh-btn oh-btn--primary">
+                        {% trans "Next" %}<ion-icon name="arrow-forward-outline" class="ms-1"></ion-icon>
+                    </button>
+                {% endblock primary_action %}
+            </div>
         </div>
     </form>
 </div>
+<style>
+    .oh-wizard-steps__num {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        border: 1px solid currentColor;
+        font-size: 0.75rem;
+        margin-right: 0.4rem;
+    }
+    .oh-wizard-steps__disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+</style>
 {% endblock content %}

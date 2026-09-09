@@ -11,21 +11,25 @@
         >
             {% csrf_token %}
             <div class="oh-modal__dialog-body">
-                <textarea
-                    name="reason"
-                    class="oh-input w-100"
-                    placeholder="{% trans 'Reason for deactivation (required)' %}"
-                    required
-                ></textarea>
+                <div class="oh-input-group mb-2">
+                    <label class="oh-label">{% trans "Reason" %}</label>
+                    <textarea
+                        name="reason"
+                        class="oh-input w-100"
+                        placeholder="{% trans 'Reason for deactivation (required)' %}"
+                        required
+                    ></textarea>
+                </div>
 
-                <ul class="list-unstyled pt-3">
-                    <li><label><input type="checkbox" class="deactivate-checklist-item" name="invoices_reconciled"> {% trans "All invoices reconciled and outstanding dues collected" %}</label></li>
-                    <li><label><input type="checkbox" class="deactivate-checklist-item" name="advances_collected"> {% trans "Advances collected for salary processing" %}</label></li>
-                    <li><label><input type="checkbox" class="deactivate-checklist-item" name="employees_transferred_or_terminated"> {% trans "Employees processed as Transfer or Termination" %}</label></li>
-                    <li><label><input type="checkbox" class="deactivate-checklist-item" name="compliances_closed"> {% trans "Compliances closed (PF, ESI, PT, LWD, TDS)" %}</label></li>
-                    <li><label><input type="checkbox" class="deactivate-checklist-item" name="employees_removed_from_insurance"> {% trans "Employees removed from insurance" %}</label></li>
-                    <li><label><input type="checkbox" class="deactivate-checklist-item" name="employees_deactivated_from_hrms"> {% trans "Employees deactivated from HRMS" %}</label></li>
-                    <li><label><input type="checkbox" class="deactivate-checklist-item" name="data_handed_over"> {% trans "Data handed over to new employer/client" %}</label></li>
+                <p class="oh-label mt-3 mb-1">{% trans "Confirm the following before deactivating:" %}</p>
+                <ul class="list-unstyled">
+                    <li class="py-1"><label class="d-flex align-items-center gap-2"><input type="checkbox" class="deactivate-checklist-item" name="invoices_reconciled"> {% trans "All invoices reconciled and outstanding dues collected" %}</label></li>
+                    <li class="py-1"><label class="d-flex align-items-center gap-2"><input type="checkbox" class="deactivate-checklist-item" name="advances_collected"> {% trans "Advances collected for salary processing" %}</label></li>
+                    <li class="py-1"><label class="d-flex align-items-center gap-2"><input type="checkbox" class="deactivate-checklist-item" name="employees_transferred_or_terminated"> {% trans "Employees processed as Transfer or Termination" %}</label></li>
+                    <li class="py-1"><label class="d-flex align-items-center gap-2"><input type="checkbox" class="deactivate-checklist-item" name="compliances_closed"> {% trans "Compliances closed (PF, ESI, PT, LWD, TDS)" %}</label></li>
+                    <li class="py-1"><label class="d-flex align-items-center gap-2"><input type="checkbox" class="deactivate-checklist-item" name="employees_removed_from_insurance"> {% trans "Employees removed from insurance" %}</label></li>
+                    <li class="py-1"><label class="d-flex align-items-center gap-2"><input type="checkbox" class="deactivate-checklist-item" name="employees_deactivated_from_hrms"> {% trans "Employees deactivated from HRMS" %}</label></li>
+                    <li class="py-1"><label class="d-flex align-items-center gap-2"><input type="checkbox" class="deactivate-checklist-item" name="data_handed_over"> {% trans "Data handed over to new employer/client" %}</label></li>
                 </ul>
             </div>
             <div class="oh-modal__dialog-footer">

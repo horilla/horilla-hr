@@ -104,6 +104,7 @@ celerybeat.pid
 
 # Environments
 .env
+company_onboarding/keys/*.pem
 .venv
 env/
 venv/

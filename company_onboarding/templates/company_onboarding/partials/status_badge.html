@@ -1,4 +1,13 @@
 {% load i18n %}
-<span class="oh-badge oh-badge--{{ company.status|lower }}">
+<span class="d-inline-flex align-items-center oh-status-badge">
+    {% if company.status == "ACTIVE" %}
+        <span class="oh-dot oh-dot--success me-1"></span>
+    {% elif company.status == "ON_HOLD" %}
+        <span class="oh-dot oh-dot--warning me-1"></span>
+    {% elif company.status == "DEACTIVATED" %}
+        <span class="oh-dot oh-dot--danger me-1"></span>
+    {% else %}
+        <span class="oh-dot oh-dot--info me-1"></span>
+    {% endif %}
     {{ company.get_status_display }}
 </span>

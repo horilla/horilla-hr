@@ -1,11 +1,42 @@
 {% load i18n %}
-<div class="oh-input__group pt-2 d-flex align-items-start" id="signatory-row-{{ index }}" style="gap: 8px;">
+<div class="d-flex align-items-end pt-2" id="signatory-row-{{ index }}" style="gap: 8px;">
     {% if form.instance.pk %}<input type="hidden" name="signatory{{ index }}-row_id" value="{{ form.instance.pk }}">{% endif %}
-    {{ form.signatory_type }} {{ form.signatory_type.errors }}
-    {{ form.name }} {{ form.name.errors }}
-    {{ form.designation }} {{ form.designation.errors }}
-    {{ form.email }} {{ form.email.errors }}
-    <label>{{ form.is_enabled }} {% trans "Enabled" %}</label>
+    <div class="row flex-grow-1 g-2">
+        <div class="col-6 col-lg-3">
+            <div class="oh-input-group">
+                <label class="oh-label">{{ form.signatory_type.label }}</label>
+                {{ form.signatory_type }}
+            </div>
+            {{ form.signatory_type.errors }}
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="oh-input-group">
+                <label class="oh-label">{{ form.name.label }}</label>
+                {{ form.name }}
+            </div>
+            {{ form.name.errors }}
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="oh-input-group">
+                <label class="oh-label">{{ form.designation.label }}</label>
+                {{ form.designation }}
+            </div>
+            {{ form.designation.errors }}
+        </div>
+        <div class="col-6 col-lg-2">
+            <div class="oh-input-group">
+                <label class="oh-label">{{ form.email.label }}</label>
+                {{ form.email }}
+            </div>
+            {{ form.email.errors }}
+        </div>
+        <div class="col-6 col-lg-1 d-flex align-items-center justify-content-center">
+            <label class="oh-label d-flex flex-column align-items-center mb-0">
+                <span class="mb-1">{% trans "Enabled" %}</span>
+                <div class="oh-switch">{{ form.is_enabled }}</div>
+            </label>
+        </div>
+    </div>
     <a
         hx-get="{% url 'company-onboarding-remove-signatory-row' %}"
         class="oh-btn oh-btn--danger"

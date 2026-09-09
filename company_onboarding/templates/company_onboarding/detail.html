@@ -2,65 +2,347 @@
 {% load i18n %}
 {% block content %}
 <div class="oh-wrapper">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h3>{{ company.company }} {% include "company_onboarding/partials/status_badge.html" %}</h3>
-        <a href="{% url 'company-onboarding-step1' company_id=company.pk %}" class="oh-btn oh-btn--secondary">
-            {% trans "Edit" %}
-        </a>
-    </div>
+    <section class="oh-main__topbar mb-3">
+        <div class="oh-main__titlebar oh-main__titlebar--left">
+            <a href="{% url 'company-onboarding-list' %}" class="oh-btn oh-btn--transparent px-0 me-2" title="{% trans 'Back' %}">
+                <ion-icon name="arrow-back-outline"></ion-icon>
+            </a>
+            <h1 class="oh-main__titlebar-title fw-bold mb-0">{{ company.company }}</h1>
+        </div>
+        <div class="oh-main__titlebar oh-main__titlebar--right">
+            {% if perms.base.change_company %}
+                <a href="{% url 'company-onboarding-step1' company_id=company.pk %}" class="oh-btn oh-btn--light-bkg">
+                    <ion-icon name="create-outline" class="me-1"></ion-icon>{% trans "Edit" %}
+                </a>
+            {% endif %}
+        </div>
+    </section>
 
     {% if messages %}
         {% for message in messages %}
-            <div class="oh-alert oh-alert--{{ message.tags }}">{{ message }}</div>
+            <div class="oh-alert oh-alert--animated {{ message.tags }}">{{ message }}</div>
         {% endfor %}
     {% endif %}
 
     <div class="oh-card p-3 mb-3">
-        <p><strong>{% trans "Legal Name" %}:</strong> {{ company.legal_name|default:"—" }}</p>
-        <p><strong>{% trans "Tax Country" %}:</strong> {{ company.get_tax_country_display|default:"—" }}</p>
-        <p><strong>{% trans "PAN" %}:</strong> {{ company.pan|default:"—" }}</p>
-        <p><strong>{% trans "Foreign Tax ID" %}:</strong> {{ company.foreign_tax_id|default:"—" }}</p>
+        <div class="row">
+            <div class="col-12 col-lg-6 d-flex align-items-center mb-3 mb-lg-0">
+                <div class="oh-profile oh-profile--lg me-3">
+                    <div class="oh-profile__avatar">
+                        {% if company.icon %}
+                            <img src="{{ company.icon.url }}" class="oh-profile__image" alt="">
+                        {% else %}
+                            <img src="https://ui-avatars.com/api/?name={{ company.company|urlencode }}&background=random" class="oh-profile__image" alt="">
+                        {% endif %}
+                    </div>
+                </div>
+                <div>
+                    <h1 class="oh-profile__info-name mb-1">{{ company.company }}</h1>
+                    <p class="oh-profile__info-designation mb-1">{{ company.legal_name|default:"—" }}</p>
+                    {% include "company_onboarding/partials/status_badge.html" %}
+                </div>
+            </div>
+            <div class="col-12 col-lg-6 d-flex align-items-center justify-content-lg-end">
+                {% if perms.base.change_status_company %}
+                    {% if company.status == "ACTIVE" %}
+                        <form method="post" action="{% url 'company-onboarding-put-on-hold' company_id=company.pk %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="oh-btn oh-btn--warning me-2">
+                                <ion-icon name="pause-circle-outline" class="me-1"></ion-icon>{% trans "Put On Hold" %}
+                            </button>
+                        </form>
+                        <button
+                            type="button"
+                            class="oh-btn oh-btn--danger"
+                            data-toggle="oh-modal-toggle"
+                            data-target="#deactivateModal"
+                        >
+                            <ion-icon name="power-outline" class="me-1"></ion-icon>{% trans "Deactivate" %}
+                        </button>
+                        {% include "company_onboarding/partials/deactivate_checklist.html" %}
+                    {% elif company.status == "ON_HOLD" %}
+                        <form method="post" action="{% url 'company-onboarding-resume' company_id=company.pk %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="oh-btn oh-btn--success">
+                                <ion-icon name="play-circle-outline" class="me-1"></ion-icon>{% trans "Resume" %}
+                            </button>
+                        </form>
+                    {% elif company.status == "DEACTIVATED" %}
+                        <form method="post" action="{% url 'company-onboarding-reinstate' company_id=company.pk %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="oh-btn oh-btn--success">
+                                <ion-icon name="refresh-outline" class="me-1"></ion-icon>{% trans "Reinstate" %}
+                            </button>
+                        </form>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
     </div>
 
-    <div class="oh-card p-3 mb-3">
-        {% if perms.base.change_status_company %}
-            {% if company.status == "ACTIVE" %}
-                <form method="post" action="{% url 'company-onboarding-put-on-hold' company_id=company.pk %}" style="display:inline;">
-                    {% csrf_token %}
-                    <button type="submit" class="oh-btn oh-btn--warning">{% trans "Put On Hold" %}</button>
-                </form>
-                <button
-                    type="button"
-                    class="oh-btn oh-btn--danger"
-                    data-toggle="oh-modal-toggle"
-                    data-target="#deactivateModal"
-                >
-                    {% trans "Deactivate Company" %}
-                </button>
-                {% include "company_onboarding/partials/deactivate_checklist.html" %}
-            {% elif company.status == "ON_HOLD" %}
-                <form method="post" action="{% url 'company-onboarding-resume' company_id=company.pk %}" style="display:inline;">
-                    {% csrf_token %}
-                    <button type="submit" class="oh-btn oh-btn--success">{% trans "Resume" %}</button>
-                </form>
-            {% elif company.status == "DEACTIVATED" %}
-                <form method="post" action="{% url 'company-onboarding-reinstate' company_id=company.pk %}" style="display:inline;">
-                    {% csrf_token %}
-                    <button type="submit" class="oh-btn oh-btn--success">{% trans "Reinstate" %}</button>
-                </form>
-            {% endif %}
+    <div class="oh-card p-2 mb-3 d-none d-lg-block">
+        <ul class="oh-general__tabs oh-general__tabs--no-grow mb-0">
+            <li class="oh-general__tab"><a href="#secOverview" class="oh-general__tab-link">{% trans "Overview" %}</a></li>
+            <li class="oh-general__tab"><a href="#secPlaceOfWork" class="oh-general__tab-link">{% trans "Place of Work" %}</a></li>
+            <li class="oh-general__tab"><a href="#secContacts" class="oh-general__tab-link">{% trans "Contacts" %}</a></li>
+            <li class="oh-general__tab"><a href="#secBanking" class="oh-general__tab-link">{% trans "Banking" %}</a></li>
+            <li class="oh-general__tab"><a href="#secContract" class="oh-general__tab-link">{% trans "Contract & Billing" %}</a></li>
+            <li class="oh-general__tab"><a href="#secSignatories" class="oh-general__tab-link">{% trans "Signatories" %}</a></li>
+            <li class="oh-general__tab"><a href="#secDocuments" class="oh-general__tab-link">{% trans "Documents" %}</a></li>
+            <li class="oh-general__tab"><a href="#secHistory" class="oh-general__tab-link">{% trans "History" %}</a></li>
+        </ul>
+    </div>
+
+    <section class="oh-card p-3 mb-3" id="secOverview">
+        <div class="oh-card__header d-flex align-items-center mb-3">
+            <ion-icon name="business-outline" class="me-2"></ion-icon>
+            <h5 class="mb-0 fw-bold">{% trans "Overview" %}</h5>
+        </div>
+        <div class="row">
+            <div class="col-12 col-md-6 col-lg-3 mb-3">
+                <p class="oh-label mb-1">{% trans "Tax & Registration Country" %}</p>
+                <p class="fw-bold">{{ company.get_tax_country_display|default:"—" }}</p>
+            </div>
+            <div class="col-12 col-md-6 col-lg-3 mb-3">
+                <p class="oh-label mb-1">{% trans "PAN" %}</p>
+                <p class="fw-bold">{{ company.pan|default:"—" }}</p>
+            </div>
+            <div class="col-12 col-md-6 col-lg-3 mb-3">
+                <p class="oh-label mb-1">{% trans "Foreign Tax ID" %}</p>
+                <p class="fw-bold">{{ company.foreign_tax_id|default:"—" }}</p>
+            </div>
+            <div class="col-12 col-md-6 col-lg-3 mb-3">
+                <p class="oh-label mb-1">{% trans "LDC Applied" %}</p>
+                <p class="fw-bold">{% if company.ldc_applied %}{% trans "Yes" %}{% else %}{% trans "No" %}{% endif %}</p>
+            </div>
+            <div class="col-12 col-md-6 col-lg-3 mb-3">
+                <p class="oh-label mb-1">{% trans "Invoice Cycle" %}</p>
+                <p class="fw-bold">{{ company.get_invoice_cycle_display|default:"—" }}</p>
+            </div>
+            <div class="col-12 col-md-6 col-lg-3 mb-3">
+                <p class="oh-label mb-1">{% trans "Payment Terms" %}</p>
+                <p class="fw-bold">{{ company.payment_terms|default:"—" }}</p>
+            </div>
+            <div class="col-12 col-md-6 col-lg-3 mb-3">
+                <p class="oh-label mb-1">{% trans "Payroll Sign-off Required" %}</p>
+                <p class="fw-bold">{% if company.require_payroll_signoff %}{% trans "Yes" %}{% else %}{% trans "No" %}{% endif %}</p>
+            </div>
+            <div class="col-12 col-md-6 col-lg-3 mb-3">
+                <p class="oh-label mb-1">{% trans "Address" %}</p>
+                <p class="fw-bold">{{ company.address|default:"—" }}, {{ company.city|default:"" }} {{ company.state|default:"" }} {{ company.zip|default:"" }}</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="oh-card p-3 mb-3" id="secPlaceOfWork">
+        <div class="oh-card__header d-flex align-items-center mb-3">
+            <ion-icon name="location-outline" class="me-2"></ion-icon>
+            <h5 class="mb-0 fw-bold">{% trans "Place of Work" %}</h5>
+        </div>
+        {% if state_registrations %}
+            <table class="oh-table w-100">
+                <thead><tr><th>{% trans "State" %}</th><th>{% trans "GSTIN" %}</th></tr></thead>
+                <tbody>
+                    {% for reg in state_registrations %}
+                        <tr><td>{{ reg.get_state_display }}</td><td>{{ reg.gstin|default:"—" }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="text-muted mb-0">{% trans "No Place of Work states registered yet." %}</p>
         {% endif %}
-    </div>
+    </section>
 
-    {% if deactivation_records %}
-        <div class="oh-card p-3 mb-3">
-            <h5>{% trans "Deactivation History" %}</h5>
-            <ul>
-                {% for record in deactivation_records %}
-                    <li>{{ record.confirmed_at }} — {{ record.reason }} ({{ record.confirmed_by }})</li>
+    <section class="oh-card p-3 mb-3" id="secContacts">
+        <div class="oh-card__header d-flex align-items-center mb-3">
+            <ion-icon name="people-outline" class="me-2"></ion-icon>
+            <h5 class="mb-0 fw-bold">{% trans "Contacts" %}</h5>
+        </div>
+        {% if poc_contacts %}
+            <table class="oh-table w-100">
+                <thead><tr><th>{% trans "Name" %}</th><th>{% trans "Designation" %}</th><th>{% trans "Email" %}</th><th>{% trans "Mobile" %}</th><th>{% trans "Payroll Approver" %}</th></tr></thead>
+                <tbody>
+                    {% for contact in poc_contacts %}
+                        <tr>
+                            <td>{{ contact.name }}</td>
+                            <td>{{ contact.designation|default:"—" }}</td>
+                            <td>{{ contact.email|default:"—" }}</td>
+                            <td>{{ contact.mobile|default:"—" }}</td>
+                            <td>{% if contact.is_payroll_approver %}<span class="oh-dot oh-dot--success"></span>{% else %}—{% endif %}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="text-muted mb-0">{% trans "No points of contact added yet." %}</p>
+        {% endif %}
+    </section>
+
+    <section class="oh-card p-3 mb-3" id="secBanking">
+        <div class="oh-card__header d-flex align-items-center mb-3">
+            <ion-icon name="card-outline" class="me-2"></ion-icon>
+            <h5 class="mb-0 fw-bold">{% trans "Banking" %}</h5>
+        </div>
+        {% if bank_details %}
+            <div class="row">
+                <div class="col-12 col-md-6 col-lg-3 mb-3">
+                    <p class="oh-label mb-1">{% trans "Account Number" %}</p>
+                    <p class="fw-bold">{{ bank_details.masked_account_number }}</p>
+                </div>
+                <div class="col-12 col-md-6 col-lg-3 mb-3">
+                    <p class="oh-label mb-1">{% trans "Bank Name" %}</p>
+                    <p class="fw-bold">{{ bank_details.bank_name }}</p>
+                </div>
+                <div class="col-12 col-md-6 col-lg-3 mb-3">
+                    <p class="oh-label mb-1">{% trans "IFSC / SWIFT" %}</p>
+                    <p class="fw-bold">{{ bank_details.ifsc_swift }}</p>
+                </div>
+                <div class="col-12 col-md-6 col-lg-3 mb-3">
+                    <p class="oh-label mb-1">{% trans "Verification Status" %}</p>
+                    <p class="fw-bold d-flex align-items-center">
+                        {% if bank_details.verification_status == "VERIFIED" %}
+                            <span class="oh-dot oh-dot--success me-2"></span>
+                        {% elif bank_details.verification_status == "FAILED" %}
+                            <span class="oh-dot oh-dot--danger me-2"></span>
+                        {% elif bank_details.verification_status == "PAYMENT_INITIATED" %}
+                            <span class="oh-dot oh-dot--warning me-2"></span>
+                        {% else %}
+                            <span class="oh-dot oh-dot--info me-2"></span>
+                        {% endif %}
+                        {{ bank_details.get_verification_status_display }}
+                    </p>
+                </div>
+            </div>
+        {% else %}
+            <p class="text-muted mb-0">{% trans "No bank details added yet." %}</p>
+        {% endif %}
+    </section>
+
+    <section class="oh-card p-3 mb-3" id="secContract">
+        <div class="oh-card__header d-flex align-items-center mb-3">
+            <ion-icon name="document-attach-outline" class="me-2"></ion-icon>
+            <h5 class="mb-0 fw-bold">{% trans "Contract & Billing" %}</h5>
+        </div>
+        {% if contracts %}
+            <table class="oh-table w-100">
+                <thead>
+                    <tr>
+                        <th>{% trans "MSA Reference" %}</th>
+                        <th>{% trans "Start" %}</th>
+                        <th>{% trans "End" %}</th>
+                        <th>{% trans "Billing Model" %}</th>
+                        <th>{% trans "Billing Value" %}</th>
+                        <th>{% trans "Status" %}</th>
+                        <th>{% trans "MSA Document" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for contract in contracts %}
+                        <tr>
+                            <td>{{ contract.msa_reference_number|default:"—" }}</td>
+                            <td>{{ contract.start_date|default:"—" }}</td>
+                            <td>{{ contract.end_date|default:"—" }}</td>
+                            <td>{{ contract.get_billing_model_display|default:"—" }}</td>
+                            <td>{{ contract.billing_value|default:"—" }}</td>
+                            <td>
+                                {% if contract.status == "ACTIVE" %}
+                                    <span class="oh-dot oh-dot--success me-1"></span>
+                                {% else %}
+                                    <span class="oh-dot oh-dot--info me-1"></span>
+                                {% endif %}
+                                {{ contract.get_status_display }}
+                            </td>
+                            <td>
+                                {% if contract.msa_document %}
+                                    <a href="{{ contract.msa_document.url }}" class="oh-link oh-link--secondary">{% trans "view" %}</a>
+                                {% else %}—{% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="text-muted mb-0">{% trans "No contracts added yet." %}</p>
+        {% endif %}
+    </section>
+
+    <section class="oh-card p-3 mb-3" id="secSignatories">
+        <div class="oh-card__header d-flex align-items-center mb-3">
+            <ion-icon name="create-outline" class="me-2"></ion-icon>
+            <h5 class="mb-0 fw-bold">{% trans "Signatories" %}</h5>
+        </div>
+        {% if signatories %}
+            <table class="oh-table w-100">
+                <thead><tr><th>{% trans "Type" %}</th><th>{% trans "Name" %}</th><th>{% trans "Designation" %}</th><th>{% trans "Email" %}</th><th>{% trans "Enabled" %}</th></tr></thead>
+                <tbody>
+                    {% for signatory in signatories %}
+                        <tr>
+                            <td>{{ signatory.get_signatory_type_display }}</td>
+                            <td>{{ signatory.name }}</td>
+                            <td>{{ signatory.designation|default:"—" }}</td>
+                            <td>{{ signatory.email|default:"—" }}</td>
+                            <td>{% if signatory.is_enabled %}<span class="oh-dot oh-dot--success"></span>{% else %}<span class="oh-dot oh-dot--danger"></span>{% endif %}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="text-muted mb-0">{% trans "No signatories added yet." %}</p>
+        {% endif %}
+    </section>
+
+    <section class="oh-card p-3 mb-3" id="secDocuments">
+        <div class="oh-card__header d-flex align-items-center mb-3">
+            <ion-icon name="folder-open-outline" class="me-2"></ion-icon>
+            <h5 class="mb-0 fw-bold">{% trans "Documents" %}</h5>
+        </div>
+        <h6 class="fw-bold mb-2">{% trans "Client-Branded Templates" %}</h6>
+        {% if branded_templates %}
+            <ul class="list-unstyled mb-4">
+                {% for template in branded_templates %}
+                    <li class="d-flex align-items-center py-1">
+                        <ion-icon name="document-outline" class="me-2 text-muted"></ion-icon>
+                        {{ template.get_template_type_display }}
+                        <a href="{{ template.file.url }}" class="oh-link oh-link--secondary ms-2">{% trans "view" %}</a>
+                    </li>
                 {% endfor %}
             </ul>
+        {% else %}
+            <p class="text-muted mb-4">{% trans "No branded templates uploaded yet." %}</p>
+        {% endif %}
+        <h6 class="fw-bold mb-2">{% trans "Other Documents" %}</h6>
+        {% if documents %}
+            <ul class="list-unstyled mb-0">
+                {% for document in documents %}
+                    <li class="d-flex align-items-center py-1">
+                        <ion-icon name="document-outline" class="me-2 text-muted"></ion-icon>
+                        {{ document.tag_name }}
+                        <a href="{{ document.file.url }}" class="oh-link oh-link--secondary ms-2">{% trans "view" %}</a>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="text-muted mb-0">{% trans "No documents uploaded yet." %}</p>
+        {% endif %}
+    </section>
+
+    <section class="oh-card p-3 mb-3" id="secHistory">
+        <div class="oh-card__header d-flex align-items-center mb-3">
+            <ion-icon name="time-outline" class="me-2"></ion-icon>
+            <h5 class="mb-0 fw-bold">{% trans "History" %}</h5>
         </div>
-    {% endif %}
+        {% if deactivation_records %}
+            <ul class="list-unstyled mb-0">
+                {% for record in deactivation_records %}
+                    <li class="oh-card oh-card--no-shadow p-3 mb-2">
+                        <p class="mb-1"><strong>{{ record.confirmed_at }}</strong> — {{ record.reason }}</p>
+                        <p class="text-muted mb-0">{% trans "Confirmed by" %}: {{ record.confirmed_by }}</p>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="text-muted mb-0">{% trans "No deactivation history." %}</p>
+        {% endif %}
+    </section>
 </div>
 {% endblock content %}

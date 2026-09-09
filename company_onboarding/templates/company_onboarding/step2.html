@@ -2,7 +2,10 @@
 {% load i18n %}
 {% block step_content %}
 <section class="oh-card p-3 mb-3">
-    <h4>{% trans "2.1 Authorized Signatory" %}</h4>
+    <div class="oh-card__header d-flex align-items-center mb-3">
+        <ion-icon name="create-outline" class="me-2"></ion-icon>
+        <h5 class="mb-0 fw-bold">{% trans "2.1 Authorized Signatory" %}</h5>
+    </div>
     <div id="signatory-rows">
         {% for form in signatory_row_forms %}
             {% include "company_onboarding/partials/signatory_row.html" with index=forloop.counter form=form %}
@@ -25,25 +28,40 @@
 </section>
 
 <section class="oh-card p-3 mb-3">
-    <h4>{% trans "2.2 Payroll Sign-off" %}</h4>
-    <label>
-        <input
-            type="checkbox"
-            name="require_payroll_signoff"
-            {% if company.require_payroll_signoff %}checked{% endif %}
-        >
-        {% trans "Require Payroll Sign-off" %}
-    </label>
-    <div class="oh-input__group pt-2">
-        <label>{% trans "Select Approver" %}</label>
-        <select name="payroll_approver" class="oh-select oh-select-2">
-            <option value="">---------</option>
-            {% for contact in poc_contacts %}
-                <option value="{{ contact.pk }}" {% if contact.is_payroll_approver %}selected{% endif %}>
-                    {{ contact.name }} ({{ contact.designation }})
-                </option>
-            {% endfor %}
-        </select>
+    <div class="oh-card__header d-flex align-items-center mb-3">
+        <ion-icon name="checkmark-done-outline" class="me-2"></ion-icon>
+        <h5 class="mb-0 fw-bold">{% trans "2.2 Payroll Sign-off" %}</h5>
+    </div>
+    <div class="row">
+        <div class="col-12 col-lg-6 mb-3">
+            <div class="oh-input-group">
+                <label class="oh-label d-flex align-items-center" for="id_require_payroll_signoff">
+                    <div class="oh-switch me-2">
+                        <input
+                            type="checkbox"
+                            id="id_require_payroll_signoff"
+                            class="oh-switch__checkbox"
+                            name="require_payroll_signoff"
+                            {% if company.require_payroll_signoff %}checked{% endif %}
+                        >
+                    </div>
+                    {% trans "Require Payroll Sign-off" %}
+                </label>
+            </div>
+        </div>
+        <div class="col-12 col-lg-6 mb-3">
+            <div class="oh-input-group">
+                <label class="oh-label" for="id_payroll_approver">{% trans "Select Approver" %}</label>
+                <select id="id_payroll_approver" name="payroll_approver" class="oh-select oh-select-2 w-100">
+                    <option value="">---------</option>
+                    {% for contact in poc_contacts %}
+                        <option value="{{ contact.pk }}" {% if contact.is_payroll_approver %}selected{% endif %}>
+                            {{ contact.name }} ({{ contact.designation }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
     </div>
 </section>
 {% endblock step_content %}

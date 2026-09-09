@@ -1,10 +1,36 @@
 {% load i18n %}
-<div class="oh-input__group pt-2 d-flex align-items-start" id="poc-row-{{ index }}" style="gap: 8px;">
+<div class="d-flex align-items-end pt-2" id="poc-row-{{ index }}" style="gap: 8px;">
     {% if form.instance.pk %}<input type="hidden" name="poc{{ index }}-row_id" value="{{ form.instance.pk }}">{% endif %}
-    {{ form.designation }} {{ form.designation.errors }}
-    {{ form.name }} {{ form.name.errors }}
-    {{ form.email }} {{ form.email.errors }}
-    {{ form.mobile }} {{ form.mobile.errors }}
+    <div class="row flex-grow-1 g-2">
+        <div class="col-6 col-lg-3">
+            <div class="oh-input-group">
+                <label class="oh-label">{{ form.designation.label }}</label>
+                {{ form.designation }}
+            </div>
+            {{ form.designation.errors }}
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="oh-input-group">
+                <label class="oh-label">{{ form.name.label }}</label>
+                {{ form.name }}
+            </div>
+            {{ form.name.errors }}
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="oh-input-group">
+                <label class="oh-label">{{ form.email.label }}</label>
+                {{ form.email }}
+            </div>
+            {{ form.email.errors }}
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="oh-input-group">
+                <label class="oh-label">{{ form.mobile.label }}</label>
+                {{ form.mobile }}
+            </div>
+            {{ form.mobile.errors }}
+        </div>
+    </div>
     <a
         hx-get="{% url 'company-onboarding-remove-poc-row' %}"
         class="oh-btn oh-btn--danger"

@@ -15,6 +15,7 @@ from base.models import Company
 from horilla.decorators import login_required, permission_required
 
 from company_onboarding.models import CompanyDeactivationRecord
+from company_onboarding.wizard_utils import get_bank_details
 
 
 @method_decorator(login_required, name="dispatch")
@@ -35,6 +36,13 @@ class ClientDetailView(View):
             self.template_name,
             {
                 "company": company,
+                "state_registrations": company.state_registrations.all(),
+                "poc_contacts": company.poc_contacts.all(),
+                "bank_details": get_bank_details(company),
+                "contracts": company.contracts.order_by("-created_at"),
+                "signatories": company.signatories.all(),
+                "branded_templates": company.branded_templates.all(),
+                "documents": company.documents.all(),
                 "deactivation_records": company.deactivation_records.all(),
             },
         )

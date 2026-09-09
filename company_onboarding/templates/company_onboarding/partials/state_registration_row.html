@@ -1,8 +1,22 @@
 {% load i18n %}
-<div class="oh-input__group pt-2 d-flex align-items-start" id="state-row-{{ index }}" style="gap: 8px;">
+<div class="d-flex align-items-end pt-2" id="state-row-{{ index }}" style="gap: 8px;">
     {% if form.instance.pk %}<input type="hidden" name="state{{ index }}-row_id" value="{{ form.instance.pk }}">{% endif %}
-    {{ form.state }} {{ form.state.errors }}
-    {{ form.gstin }} {{ form.gstin.errors }}
+    <div class="row flex-grow-1 g-2">
+        <div class="col-6">
+            <div class="oh-input-group">
+                <label class="oh-label">{{ form.state.label }}</label>
+                {{ form.state }}
+            </div>
+            {{ form.state.errors }}
+        </div>
+        <div class="col-6">
+            <div class="oh-input-group">
+                <label class="oh-label">{{ form.gstin.label }}</label>
+                {{ form.gstin }}
+            </div>
+            {{ form.gstin.errors }}
+        </div>
+    </div>
     <a
         hx-get="{% url 'company-onboarding-remove-state-row' %}"
         class="oh-btn oh-btn--danger"

@@ -79,4 +79,9 @@ urlpatterns = [
         bank_verification.ConfirmPennyDropView.as_view(),
         name="company-onboarding-bank-verification-confirm",
     ),
+    path(
+        "<int:company_id>/bank-verification/check-status/",
+        bank_verification.CheckPennyDropStatusView.as_view(),
+        name="company-onboarding-bank-verification-check-status",
+    ),
 ]

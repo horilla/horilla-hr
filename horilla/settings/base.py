@@ -222,10 +222,25 @@ if REDIS_URL:
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
+# STATICFILES_STORAGE (legacy, pre-Django-4.2) is no longer read by Django
+# at all as of 5.x -- STORAGES (below) is what actually takes effect. Kept
+# in sync in case any third-party code still reads the legacy attribute.
 STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media/")
+
+# Same story for file storage: DEFAULT_FILE_STORAGE (legacy) is a no-op
+# under Django 5.x. addons.py mutates STORAGES["default"]["BACKEND"]
+# in-place to switch to S3 when AWS credentials are configured.
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": STATICFILES_STORAGE,
+    },
+}
 
 # ========================================
 # AUTHENTICATION & SECURITY

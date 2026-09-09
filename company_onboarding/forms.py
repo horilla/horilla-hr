@@ -23,7 +23,29 @@ from company_onboarding.models import (
 )
 
 
-class _StrictToggleMixin:
+class _WidgetStyleMixin:
+    """
+    Applies the app's standard oh-input/oh-select/oh-switch CSS classes to
+    every field's widget, so plain ModelForms here render consistently with
+    the rest of the app without every template having to know widget types.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            widget = field.widget
+            existing = widget.attrs.get("class", "")
+            if isinstance(widget, forms.CheckboxInput):
+                widget.attrs["class"] = (existing + " oh-switch__checkbox").strip()
+            elif isinstance(widget, (forms.Select, forms.SelectMultiple)):
+                widget.attrs["class"] = (existing + " oh-select oh-select-2 w-100").strip()
+            elif isinstance(widget, forms.Textarea):
+                widget.attrs["class"] = (existing + " oh-input w-100 oh-input--textarea").strip()
+            else:
+                widget.attrs["class"] = (existing + " oh-input w-100").strip()
+
+
+class _StrictToggleMixin(_WidgetStyleMixin):
     """Shared `strict=` handling for every relaxed-on-Draft form below."""
 
     always_required_fields: tuple = ()
@@ -37,13 +59,13 @@ class _StrictToggleMixin:
                     field.required = False
 
 
-class CompanyIdentityForm(ModelForm):
+class CompanyIdentityForm(_WidgetStyleMixin, ModelForm):
     """
     1.1 Identity & Basic Info — the Draft-minimum subset. These fields stay
     required regardless of draft/strict, per the PRD's explicit exception.
     """
 
-    cols = {"company": 12, "address": 12}
+    cols = {"company": 6, "address": 6, "country": 6, "state": 6, "city": 6, "zip": 6, "icon": 12}
 
     class Meta:
         model = Company
@@ -107,11 +129,20 @@ class CompanyBankDetailsForm(_StrictToggleMixin, ModelForm):
         "bank_name": 6,
         "ifsc_swift": 6,
         "currency": 6,
+        "account_holder_name": 6,
+        "contact_number": 6,
     }
 
     class Meta:
         model = CompanyBankDetails
-        fields = ["account_number", "bank_name", "ifsc_swift", "currency"]
+        fields = [
+            "account_number",
+            "bank_name",
+            "ifsc_swift",
+            "currency",
+            "account_holder_name",
+            "contact_number",
+        ]
 
 
 class CompanyContractForm(_StrictToggleMixin, ModelForm):
@@ -149,6 +180,8 @@ class StateRegistrationRowForm(_StrictToggleMixin, ModelForm):
     tier per the PRD, so it's never in always_required_fields.
     """
 
+    cols = {"state": 6, "gstin": 6}
+
     class Meta:
         model = CompanyStateRegistration
         fields = ["state", "gstin"]
@@ -161,12 +194,16 @@ class POCContactRowForm(_StrictToggleMixin, ModelForm):
     not a per-row checkbox during Step 1 entry.
     """
 
+    cols = {"designation": 3, "name": 3, "email": 3, "mobile": 3}
+
     class Meta:
         model = CompanyPOCContact
         fields = ["designation", "name", "email", "mobile"]
 
 
 class SignatoryRowForm(_StrictToggleMixin, ModelForm):
+    cols = {"signatory_type": 3, "name": 3, "designation": 3, "email": 3}
+
     class Meta:
         model = CompanySignatory
         fields = ["signatory_type", "name", "designation", "email", "is_enabled"]

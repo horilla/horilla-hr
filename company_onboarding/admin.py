@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from company_onboarding.models import (
+    CashfreeApiLog,
     CompanyBankDetails,
     CompanyBankVerification,
     CompanyBrandedTemplate,
@@ -16,6 +17,7 @@ admin.site.register(CompanyStateRegistration)
 admin.site.register(CompanyPOCContact)
 admin.site.register(CompanyBankDetails)
 admin.site.register(CompanyBankVerification)
+admin.site.register(CashfreeApiLog)
 admin.site.register(CompanyContract)
 admin.site.register(CompanySignatory)
 admin.site.register(CompanyBrandedTemplate)

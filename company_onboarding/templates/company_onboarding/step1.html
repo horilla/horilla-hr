@@ -2,27 +2,32 @@
 {% load i18n %}
 {% block step_content %}
 <section class="oh-card p-3 mb-3">
-    <h4>{% trans "1.1 Identity & Basic Info" %}</h4>
-    {% for field in identity_form %}
-        <div class="oh-input__group">
-            <label>{{ field.label }}</label>
-            {{ field }}
-            {{ field.errors }}
-        </div>
-    {% endfor %}
+    <div class="oh-card__header d-flex align-items-center mb-3">
+        <ion-icon name="business-outline" class="me-2"></ion-icon>
+        <h5 class="mb-0 fw-bold">{% trans "1.1 Identity & Basic Info" %}</h5>
+    </div>
+    <div class="row">
+        {% for field in identity_form %}
+            {% include "company_onboarding/partials/field.html" with field=field cols=identity_form.cols %}
+        {% endfor %}
+    </div>
 </section>
 
 <section class="oh-card p-3 mb-3">
-    <h4>{% trans "1.2 Tax & Registration" %}</h4>
-    {% for field in compliance_form %}
-        <div class="oh-input__group">
-            <label>{{ field.label }}</label>
-            {{ field }}
-            {{ field.errors }}
-        </div>
-    {% endfor %}
+    <div class="oh-card__header d-flex align-items-center mb-3">
+        <ion-icon name="document-text-outline" class="me-2"></ion-icon>
+        <h5 class="mb-0 fw-bold">{% trans "1.2 Tax & Registration" %}</h5>
+    </div>
+    <div class="row">
+        {% for field in compliance_form %}
+            {% include "company_onboarding/partials/field.html" with field=field cols=compliance_form.cols %}
+        {% endfor %}
+    </div>
 
-    <h5 class="pt-3">{% trans "Place of Work" %}</h5>
+    <hr class="my-3">
+    <div class="d-flex align-items-center justify-content-between mb-2">
+        <h6 class="mb-0 fw-bold">{% trans "Place of Work" %}</h6>
+    </div>
     <div id="state-rows">
         {% for form in state_row_forms %}
             {% include "company_onboarding/partials/state_registration_row.html" with index=forloop.counter form=form %}
@@ -45,7 +50,10 @@
 </section>
 
 <section class="oh-card p-3 mb-3">
-    <h4>{% trans "1.3 Contacts" %}</h4>
+    <div class="oh-card__header d-flex align-items-center mb-3">
+        <ion-icon name="people-outline" class="me-2"></ion-icon>
+        <h5 class="mb-0 fw-bold">{% trans "1.3 Contacts" %}</h5>
+    </div>
     <div id="poc-rows">
         {% for form in poc_row_forms %}
             {% include "company_onboarding/partials/poc_contact_row.html" with index=forloop.counter form=form %}
@@ -68,25 +76,27 @@
 </section>
 
 <section class="oh-card p-3 mb-3">
-    <h4>{% trans "1.4 Banking" %}</h4>
-    {% for field in bank_form %}
-        <div class="oh-input__group">
-            <label>{{ field.label }}</label>
-            {{ field }}
-            {{ field.errors }}
-        </div>
-    {% endfor %}
+    <div class="oh-card__header d-flex align-items-center mb-3">
+        <ion-icon name="card-outline" class="me-2"></ion-icon>
+        <h5 class="mb-0 fw-bold">{% trans "1.4 Banking" %}</h5>
+    </div>
+    <div class="row">
+        {% for field in bank_form %}
+            {% include "company_onboarding/partials/field.html" with field=field cols=bank_form.cols %}
+        {% endfor %}
+    </div>
     {% include "company_onboarding/partials/bank_verification_panel.html" %}
 </section>
 
 <section class="oh-card p-3 mb-3">
-    <h4>{% trans "1.5 Contract & Billing" %}</h4>
-    {% for field in contract_form %}
-        <div class="oh-input__group">
-            <label>{{ field.label }}</label>
-            {{ field }}
-            {{ field.errors }}
-        </div>
-    {% endfor %}
+    <div class="oh-card__header d-flex align-items-center mb-3">
+        <ion-icon name="document-attach-outline" class="me-2"></ion-icon>
+        <h5 class="mb-0 fw-bold">{% trans "1.5 Contract & Billing" %}</h5>
+    </div>
+    <div class="row">
+        {% for field in contract_form %}
+            {% include "company_onboarding/partials/field.html" with field=field cols=contract_form.cols %}
+        {% endfor %}
+    </div>
 </section>
 {% endblock step_content %}

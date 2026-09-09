@@ -36,7 +36,9 @@ from employee.models import phone_validator
 from horilla.models import HorillaModel, upload_path
 from horilla_auth.models import HorillaUser
 
+from company_onboarding.encryption import mask_value
 from company_onboarding.gst_states import STATE_CHOICES
+from company_onboarding.model_fields import EncryptedCharField
 from company_onboarding.validators import gstin_validator
 
 
@@ -148,6 +150,11 @@ class CompanyBankDetails(HorillaModel):
 
     class VerificationStatus(models.TextChoices):
         PENDING = "PENDING", _("Pending")
+        # Set as soon as a penny-drop transfer is actually sent to
+        # Cashfree (see initiate_penny_drop()) -- distinct from PENDING
+        # ("never attempted") so the UI can show "money is on its way,
+        # awaiting confirmation" rather than "nothing has happened yet".
+        PAYMENT_INITIATED = "PAYMENT_INITIATED", _("Payment Initiated")
         VERIFIED = "VERIFIED", _("Verified")
         FAILED = "FAILED", _("Failed")
 
@@ -159,8 +166,21 @@ class CompanyBankDetails(HorillaModel):
         related_name="bank_details",
         verbose_name=_("Company"),
     )
-    account_number = models.CharField(
-        max_length=50, null=True, blank=True, verbose_name=_("Account Number")
+    # Stored encrypted at rest (see company_onboarding/model_fields.py) --
+    # DB column is wide enough for ciphertext; plain_max_length is the
+    # real limit enforced on the form.
+    account_number = EncryptedCharField(
+        plain_max_length=50, null=True, blank=True, verbose_name=_("Account Number")
+    )
+    # Derived from account_number on every save() (below) -- never set
+    # directly. Stored (not just computed on read) so displaying it never
+    # requires decrypting the real number.
+    masked_account_number = models.CharField(
+        max_length=20,
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("Masked Account Number"),
     )
     bank_name = models.CharField(
         max_length=100, null=True, blank=True, verbose_name=_("Bank Name")
@@ -171,8 +191,27 @@ class CompanyBankDetails(HorillaModel):
     currency = models.CharField(
         max_length=10, default="INR", verbose_name=_("Currency")
     )
+    # Captured here (not looked up from a POC contact at verification
+    # time) -- these are specifically who Cashfree should register as the
+    # beneficiary for this account, which may not be any of the company's
+    # points of contact.
+    account_holder_name = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        verbose_name=_("Account Holder Name"),
+        help_text=_("Used as the Cashfree beneficiary name for bank verification."),
+    )
+    contact_number = models.CharField(
+        max_length=20,
+        null=True,
+        blank=True,
+        validators=[phone_validator],
+        verbose_name=_("Contact Number"),
+        help_text=_("Used as the Cashfree beneficiary phone for bank verification."),
+    )
     verification_status = models.CharField(
-        max_length=10,
+        max_length=20,
         choices=VerificationStatus.choices,
         default=VerificationStatus.PENDING,
         verbose_name=_("Verification Status"),
@@ -188,6 +227,7 @@ class CompanyBankDetails(HorillaModel):
         return f"{self.company} — {self.bank_name or _('Bank details')}"
 
     def save(self, *args, **kwargs):
+        self.masked_account_number = mask_value(self.account_number)
         if self.pk:
             previous = CompanyBankDetails.objects.filter(pk=self.pk).first()
             if previous and any(
@@ -203,12 +243,17 @@ class CompanyBankDetails(HorillaModel):
 
 class CompanyBankVerification(HorillaModel):
     """
-    One row per penny-drop verification attempt. See
-    company_onboarding/services/bank_verification.py for the
-    initiate/confirm flow — the real Cashfree integration is stubbed there.
+    One row per penny-drop verification attempt, transferred for real via
+    Cashfree Payouts V2 -- see
+    company_onboarding/services/bank_verification.py /
+    company_onboarding/services/cashfree_client.py.
     """
 
     class DropStatus(models.TextChoices):
+        # Transfers V2 is async: a fresh attempt starts PENDING (Cashfree
+        # has only acknowledged the request, not confirmed it landed) and
+        # is resolved to SUCCESS/FAILED later via a status check.
+        PENDING = "PENDING", _("Pending")
         SUCCESS = "SUCCESS", _("Success")
         FAILED = "FAILED", _("Failed")
 
@@ -244,6 +289,65 @@ class CompanyBankVerification(HorillaModel):
 
     def __str__(self):
         return f"{self.bank_details} — ₹{self.dropped_amount} ({self.drop_status})"
+
+
+class CashfreeApiLog(HorillaModel):
+    """
+    Raw request/response audit trail for every Cashfree API call made
+    during bank verification. CompanyBankVerification only stores the
+    distilled final outcome (amount, SUCCESS/FAILED/PENDING, one
+    reference id) -- this is the full record for debugging a specific
+    call, including ones that never produce a CompanyBankVerification row
+    at all (e.g. an instant verification that fails before any transfer
+    is attempted).
+    """
+
+    class CallType(models.TextChoices):
+        VERIFY_BANK_ACCOUNT = "VERIFY_BANK_ACCOUNT", _("Verify Bank Account")
+        GET_BENEFICIARY = "GET_BENEFICIARY", _("Get Beneficiary")
+        CREATE_BENEFICIARY = "CREATE_BENEFICIARY", _("Create Beneficiary")
+        REQUEST_TRANSFER = "REQUEST_TRANSFER", _("Request Transfer")
+        GET_TRANSFER_STATUS = "GET_TRANSFER_STATUS", _("Get Transfer Status")
+
+    bank_details = models.ForeignKey(
+        CompanyBankDetails,
+        on_delete=models.CASCADE,
+        related_name="cashfree_logs",
+        verbose_name=_("Bank Details"),
+    )
+    verification = models.ForeignKey(
+        CompanyBankVerification,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="cashfree_logs",
+        verbose_name=_("Verification Attempt"),
+    )
+    call_type = models.CharField(
+        max_length=30, choices=CallType.choices, verbose_name=_("Call Type")
+    )
+    transfer_id = models.CharField(
+        max_length=50, null=True, blank=True, verbose_name=_("Transfer ID")
+    )
+    http_status = models.PositiveSmallIntegerField(
+        null=True, blank=True, verbose_name=_("HTTP Status")
+    )
+    request_payload = models.JSONField(
+        null=True, blank=True, verbose_name=_("Request Payload")
+    )
+    response_payload = models.JSONField(
+        null=True, blank=True, verbose_name=_("Response Payload")
+    )
+
+    objects = models.Manager()
+
+    class Meta:
+        verbose_name = _("Cashfree API Log")
+        verbose_name_plural = _("Cashfree API Logs")
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.get_call_type_display()} — {self.bank_details} ({self.created_at})"
 
 
 class CompanyContract(HorillaModel):

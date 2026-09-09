@@ -2,40 +2,93 @@
 {% load i18n %}
 {% block content %}
 <div class="oh-wrapper">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h3>{% trans "Client Companies" %}</h3>
-        {% if perms.base.add_company %}
-            <a href="{% url 'company-onboarding-create' %}" class="oh-btn oh-btn--primary">
-                {% trans "+ Add Company" %}
-            </a>
-        {% endif %}
-    </div>
+    <section class="oh-main__topbar mb-4">
+        <div class="oh-main__titlebar oh-main__titlebar--left">
+            <h1 class="oh-main__titlebar-title fw-bold mb-0">{% trans "Client Companies" %}</h1>
+        </div>
+        <div class="oh-main__titlebar oh-main__titlebar--right">
+            <div class="oh-input-group oh-input__search-group me-2">
+                <ion-icon name="search-outline" class="oh-input-group__icon oh-input-group__icon--left"></ion-icon>
+                <input
+                    type="text"
+                    id="clientSearchInput"
+                    class="oh-input oh-input__icon"
+                    aria-label="{% trans 'Search Input' %}"
+                    placeholder="{% trans 'Search company' %}"
+                >
+            </div>
+            {% if perms.base.add_company %}
+                <a href="{% url 'company-onboarding-create' %}" class="oh-btn oh-btn--secondary">
+                    <ion-icon name="add-outline" class="me-1"></ion-icon>{% trans "Add Company" %}
+                </a>
+            {% endif %}
+        </div>
+    </section>
 
     {% if messages %}
         {% for message in messages %}
-            <div class="oh-alert oh-alert--{{ message.tags }}">{{ message }}</div>
+            <div class="oh-alert oh-alert--animated {{ message.tags }}">{{ message }}</div>
         {% endfor %}
     {% endif %}
 
-    <table class="oh-table w-100">
-        <thead>
-            <tr>
-                <th>{% trans "Company" %}</th>
-                <th>{% trans "Legal Name" %}</th>
-                <th>{% trans "Status" %}</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for company in companies %}
+    <div class="oh-card p-0">
+        <table class="oh-table w-100" id="clientCompanyTable">
+            <thead>
                 <tr>
-                    <td><a href="{% url 'company-onboarding-detail' company_id=company.pk %}">{{ company.company }}</a></td>
-                    <td>{{ company.legal_name|default:"—" }}</td>
-                    <td>{% include "company_onboarding/partials/status_badge.html" %}</td>
+                    <th>{% trans "Company" %}</th>
+                    <th>{% trans "Legal Name" %}</th>
+                    <th>{% trans "Tax Country" %}</th>
+                    <th>{% trans "Status" %}</th>
+                    <th></th>
                 </tr>
-            {% empty %}
-                <tr><td colspan="3">{% trans "No client companies yet." %}</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                {% for company in companies %}
+                    <tr onclick="window.location='{% url 'company-onboarding-detail' company_id=company.pk %}'">
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="oh-profile oh-profile--md me-2">
+                                    <div class="oh-profile__avatar">
+                                        {% if company.icon %}
+                                            <img src="{{ company.icon.url }}" class="oh-profile__image" alt="">
+                                        {% else %}
+                                            <img src="https://ui-avatars.com/api/?name={{ company.company|urlencode }}&background=random" class="oh-profile__image" alt="">
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <span class="fw-bold">{{ company.company }}</span>
+                            </div>
+                        </td>
+                        <td>{{ company.legal_name|default:"—" }}</td>
+                        <td>{{ company.get_tax_country_display|default:"—" }}</td>
+                        <td>{% include "company_onboarding/partials/status_badge.html" %}</td>
+                        <td class="text-end">
+                            <ion-icon name="chevron-forward-outline" class="text-muted"></ion-icon>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">
+                            {% trans "No client companies yet." %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
+<script>
+    (function () {
+        var input = document.getElementById("clientSearchInput");
+        var table = document.getElementById("clientCompanyTable");
+        if (!input || !table) return;
+        input.addEventListener("keyup", function () {
+            var term = input.value.trim().toLowerCase();
+            var rows = table.querySelectorAll("tbody tr");
+            rows.forEach(function (row) {
+                row.style.display = row.textContent.toLowerCase().indexOf(term) !== -1 ? "" : "none";
+            });
+        });
+    })();
+</script>
 {% endblock content %}

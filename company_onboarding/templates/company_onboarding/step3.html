@@ -2,63 +2,99 @@
 {% load i18n %}
 {% block step_content %}
 {% if active_gate_errors %}
-    <div class="oh-alert oh-alert--danger">
-        <p>{% trans "Cannot mark Active — the following are missing:" %}</p>
-        <ul>
+    <div class="oh-alert oh-alert--animated oh-alert--danger">
+        <p class="mb-1 fw-bold">{% trans "Cannot mark Active — the following are missing:" %}</p>
+        <ul class="mb-0 ps-3">
             {% for error in active_gate_errors %}<li>{{ error }}</li>{% endfor %}
         </ul>
     </div>
 {% endif %}
 
 <section class="oh-card p-3 mb-3">
-    <h4>{% trans "Client-Branded Templates" %}</h4>
-    <ul>
-        {% for template in branded_templates %}
-            <li>{{ template.get_template_type_display }} — <a href="{{ template.file.url }}">{% trans "view" %}</a></li>
-        {% endfor %}
-    </ul>
-    <div class="oh-input__group d-flex align-items-end" style="gap: 8px;">
-        <select name="template_type" class="oh-select oh-select-2">
-            <option value="OFFER_LETTER">{% trans "Offer Letter" %}</option>
-            <option value="PAYSLIP">{% trans "Payslip" %}</option>
-            <option value="FORM16">{% trans "Form 16" %}</option>
-        </select>
-        <input type="file" name="template_file">
-        <button
-            type="submit"
-            name="action"
-            value="upload_template"
-            class="oh-btn oh-btn--secondary oh-btn--small"
-        >
-            {% trans "Upload Template" %}
-        </button>
+    <div class="oh-card__header d-flex align-items-center mb-3">
+        <ion-icon name="ribbon-outline" class="me-2"></ion-icon>
+        <h5 class="mb-0 fw-bold">{% trans "Client-Branded Templates" %}</h5>
+    </div>
+    {% if branded_templates %}
+        <ul class="list-unstyled mb-3">
+            {% for template in branded_templates %}
+                <li class="d-flex align-items-center py-1">
+                    <ion-icon name="document-outline" class="me-2 text-muted"></ion-icon>
+                    {{ template.get_template_type_display }}
+                    <a href="{{ template.file.url }}" class="oh-link oh-link--secondary ms-2">{% trans "view" %}</a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="text-muted">{% trans "No branded templates uploaded yet." %}</p>
+    {% endif %}
+    <div class="row align-items-end">
+        <div class="col-12 col-md-4 mb-2">
+            <div class="oh-input-group">
+                <label class="oh-label">{% trans "Template Type" %}</label>
+                <select name="template_type" class="oh-select oh-select-2 w-100">
+                    <option value="OFFER_LETTER">{% trans "Offer Letter" %}</option>
+                    <option value="PAYSLIP">{% trans "Payslip" %}</option>
+                    <option value="FORM16">{% trans "Form 16" %}</option>
+                </select>
+            </div>
+        </div>
+        <div class="col-12 col-md-5 mb-2">
+            <div class="oh-input-group">
+                <label class="oh-label">{% trans "File" %}</label>
+                <input type="file" name="template_file" class="oh-input w-100">
+            </div>
+        </div>
+        <div class="col-12 col-md-3 mb-2">
+            <button type="submit" name="action" value="upload_template" class="oh-btn oh-btn--secondary w-100">
+                {% trans "Upload" %}
+            </button>
+        </div>
     </div>
 </section>
 
 <section class="oh-card p-3 mb-3">
-    <h4>{% trans "Other Document Upload" %}</h4>
-    <ul>
-        {% for document in documents %}
-            <li>{{ document.tag_name }} — <a href="{{ document.file.url }}">{% trans "view" %}</a></li>
-        {% endfor %}
-    </ul>
-    <div class="oh-input__group d-flex align-items-end" style="gap: 8px;">
-        <input type="text" name="tag_name" class="oh-input" placeholder="{% trans 'Tag Name (e.g. CIN, MSME Certificate)' %}">
-        <input type="file" name="document_file">
-        <button
-            type="submit"
-            name="action"
-            value="upload_document"
-            class="oh-btn oh-btn--secondary oh-btn--small"
-        >
-            {% trans "Add Document" %}
-        </button>
+    <div class="oh-card__header d-flex align-items-center mb-3">
+        <ion-icon name="folder-open-outline" class="me-2"></ion-icon>
+        <h5 class="mb-0 fw-bold">{% trans "Other Document Upload" %}</h5>
+    </div>
+    {% if documents %}
+        <ul class="list-unstyled mb-3">
+            {% for document in documents %}
+                <li class="d-flex align-items-center py-1">
+                    <ion-icon name="document-outline" class="me-2 text-muted"></ion-icon>
+                    {{ document.tag_name }}
+                    <a href="{{ document.file.url }}" class="oh-link oh-link--secondary ms-2">{% trans "view" %}</a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="text-muted">{% trans "No documents uploaded yet." %}</p>
+    {% endif %}
+    <div class="row align-items-end">
+        <div class="col-12 col-md-4 mb-2">
+            <div class="oh-input-group">
+                <label class="oh-label">{% trans "Tag Name" %}</label>
+                <input type="text" name="tag_name" class="oh-input w-100" placeholder="{% trans 'e.g. CIN, MSME Certificate' %}">
+            </div>
+        </div>
+        <div class="col-12 col-md-5 mb-2">
+            <div class="oh-input-group">
+                <label class="oh-label">{% trans "File" %}</label>
+                <input type="file" name="document_file" class="oh-input w-100">
+            </div>
+        </div>
+        <div class="col-12 col-md-3 mb-2">
+            <button type="submit" name="action" value="upload_document" class="oh-btn oh-btn--secondary w-100">
+                {% trans "Add Document" %}
+            </button>
+        </div>
     </div>
 </section>
 {% endblock step_content %}
 
 {% block primary_action %}
     <button type="submit" name="action" value="mark_active" class="oh-btn oh-btn--primary">
-        {% trans "Mark as Active" %}
+        <ion-icon name="checkmark-circle-outline" class="me-1"></ion-icon>{% trans "Mark as Active" %}
     </button>
 {% endblock primary_action %}
