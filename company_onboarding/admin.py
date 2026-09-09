@@ -11,7 +11,17 @@ from company_onboarding.models import (
     CompanyPOCContact,
     CompanySignatory,
     CompanyStateRegistration,
+    GSTStateConfig,
 )
+
+
+@admin.register(GSTStateConfig)
+class GSTStateConfigAdmin(admin.ModelAdmin):
+    list_display = ("code", "name", "is_active")
+    list_editable = ("is_active",)
+    search_fields = ("code", "name")
+    ordering = ("code",)
+
 
 admin.site.register(CompanyStateRegistration)
 admin.site.register(CompanyPOCContact)

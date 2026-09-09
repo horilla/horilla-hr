@@ -37,9 +37,33 @@ from horilla.models import HorillaModel, upload_path
 from horilla_auth.models import HorillaUser
 
 from company_onboarding.encryption import mask_value
-from company_onboarding.gst_states import STATE_CHOICES
 from company_onboarding.model_fields import EncryptedCharField
 from company_onboarding.validators import gstin_validator
+
+
+class GSTStateConfig(HorillaModel):
+    """
+    DB-backed config table for India's GST state codes (previously a
+    hardcoded list in gst_states.py) -- lets these be edited via Django
+    admin without a code deploy. Seeded from the CBIC GST state code list
+    by this app's migrations; `is_active` lets a state be retired from
+    new selections without deleting it (and breaking existing
+    CompanyStateRegistration rows that reference it).
+    """
+
+    code = models.CharField(max_length=2, unique=True, verbose_name=_("GST State Code"))
+    name = models.CharField(max_length=100, verbose_name=_("State / UT Name"))
+    is_active = models.BooleanField(default=True, verbose_name=_("Active"))
+
+    objects = models.Manager()
+
+    class Meta:
+        verbose_name = _("GST State")
+        verbose_name_plural = _("GST States")
+        ordering = ["code"]
+
+    def __str__(self):
+        return f"{self.code} — {self.name}"
 
 
 class CompanyStateRegistration(HorillaModel):
@@ -53,11 +77,13 @@ class CompanyStateRegistration(HorillaModel):
         related_name="state_registrations",
         verbose_name=_("Company"),
     )
-    state = models.CharField(
-        max_length=50,
-        choices=STATE_CHOICES,
+    state = models.ForeignKey(
+        GSTStateConfig,
+        on_delete=models.PROTECT,
         null=True,
         blank=True,
+        related_name="state_registrations",
+        limit_choices_to={"is_active": True},
         verbose_name=_("State"),
     )
     gstin = models.CharField(
@@ -76,11 +102,11 @@ class CompanyStateRegistration(HorillaModel):
         unique_together = ("company", "state")
 
     def __str__(self):
-        return f"{self.company} — {self.get_state_display() if self.state else '—'}"
+        return f"{self.company} — {self.state.name if self.state else '—'}"
 
     def clean(self):
         super().clean()
-        if self.gstin and self.state and not self.gstin.startswith(self.state):
+        if self.gstin and self.state and not self.gstin.startswith(self.state.code):
             raise ValidationError(
                 {"gstin": _("GSTIN state code does not match the selected state.")}
             )

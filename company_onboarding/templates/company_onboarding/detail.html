@@ -144,7 +144,7 @@
                 <thead><tr><th>{% trans "State" %}</th><th>{% trans "GSTIN" %}</th></tr></thead>
                 <tbody>
                     {% for reg in state_registrations %}
-                        <tr><td>{{ reg.get_state_display }}</td><td>{{ reg.gstin|default:"—" }}</td></tr>
+                        <tr><td>{{ reg.state.name|default:"—" }}</td><td>{{ reg.gstin|default:"—" }}</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

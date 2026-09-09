@@ -3,6 +3,8 @@ from django.test import TestCase
 from horilla.horilla_middlewares import _thread_locals
 from horilla.testkit import CompanyFilterTestMixin, make_company, make_employee, make_user
 
+from company_onboarding.models import GSTStateConfig
+
 
 class WizardFlowTests(CompanyFilterTestMixin, TestCase):
     def setUp(self):
@@ -18,6 +20,11 @@ class WizardFlowTests(CompanyFilterTestMixin, TestCase):
             user=self.user,
         )
         self.client.force_login(self.user)
+        # state is a ModelChoiceField now (FK to GSTStateConfig) -- the
+        # form posts its pk, not the GST code string.
+        self.maharashtra_state, _ = GSTStateConfig.objects.get_or_create(
+            code="27", defaults={"name": "Maharashtra"}
+        )
         # A logged-in user whose own Employee has a company link otherwise
         # gets CompanyMiddleware's own-company-resolution fallback applied
         # to their session — fine for company-scoped screens, wrong here,
@@ -124,7 +131,7 @@ class WizardFlowTests(CompanyFilterTestMixin, TestCase):
                 "billing_value": "500",
                 "msa_document": pdf,
                 "state1-row_id": "",
-                "state1-state": "27",
+                "state1-state": str(self.maharashtra_state.pk),
                 "state1-gstin": "",
                 "poc1-row_id": "",
                 "poc1-designation": "HR Head",
@@ -192,7 +199,7 @@ class WizardFlowTests(CompanyFilterTestMixin, TestCase):
                 "billing_value": "500",
                 "msa_document": pdf,
                 "state1-row_id": "",
-                "state1-state": "27",
+                "state1-state": str(self.maharashtra_state.pk),
                 "state1-gstin": "",
                 "poc1-row_id": "",
                 "poc1-designation": "HR Head",

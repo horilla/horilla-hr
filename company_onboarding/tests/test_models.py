@@ -9,6 +9,7 @@ from company_onboarding.models import (
     CompanyContract,
     CompanyPOCContact,
     CompanyStateRegistration,
+    GSTStateConfig,
 )
 
 
@@ -98,15 +99,21 @@ class CompanyContractTests(CompanyFilterTestMixin, TestCase):
 class CompanyStateRegistrationTests(CompanyFilterTestMixin, TestCase):
     def setUp(self):
         self.company = make_company()
+        # Seeded by the 0015 migration in the real DB; created directly
+        # here too so this test doesn't depend on migration seed data
+        # still matching exactly.
+        self.maharashtra, _ = GSTStateConfig.objects.get_or_create(
+            code="27", defaults={"name": "Maharashtra"}
+        )
 
     def test_unique_together_company_state(self):
-        CompanyStateRegistration.objects.create(company=self.company, state="27")
+        CompanyStateRegistration.objects.create(company=self.company, state=self.maharashtra)
         with self.assertRaises(Exception):
-            CompanyStateRegistration.objects.create(company=self.company, state="27")
+            CompanyStateRegistration.objects.create(company=self.company, state=self.maharashtra)
 
     def test_mismatched_gstin_state_rejected(self):
         row = CompanyStateRegistration(
-            company=self.company, state="27", gstin="07AAAAA0000A1Z5"
+            company=self.company, state=self.maharashtra, gstin="07AAAAA0000A1Z5"
         )
         with self.assertRaises(ValidationError):
             row.full_clean()
