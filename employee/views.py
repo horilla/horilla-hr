@@ -3226,6 +3226,10 @@ def dashboard_employee(request):
             },
         ],
         "labels": labels,
+        # Stable, untranslated series keys. Consumers used to derive slice
+        # colours and the drill-down filter from the label text, which only
+        # works while the UI is English.
+        "keys": ["active", "inactive"],
     }
     return JsonResponse(response)
 
@@ -3250,10 +3254,6 @@ def dashboard_employee_gender(request):
             },
         ],
         "labels": labels,
-        # Stable, untranslated series keys. Consumers used to derive slice
-        # colours and the drill-down filter from the label text, which only
-        # works while the UI is English.
-        "keys": ["active", "inactive"],
     }
     return JsonResponse(response)
 
