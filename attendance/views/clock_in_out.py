@@ -331,60 +331,111 @@ def clock_in(request):
 
 def clock_out_attendance_and_activity(employee, date_today, now, out_datetime=None):
     """
-    Clock out the attendance and activity
-    args:
-        employee    : employee instance
-        date_today  : today date
-        now         : now
-    """
+    Clock out the correct open attendance activity.
 
+    For normal shifts, an OUT punch can only close an activity belonging
+    to the same attendance date.
+
+    For night shifts, an OUT punch on the following calendar day may
+    close the previous day's attendance activity.
+    """
     attendance_activities = AttendanceActivity.objects.filter(
         employee_id=employee,
+        clock_out__isnull=True,
     ).order_by("attendance_date", "id")
-    attendance_activity = None  # Initialize attendance_activity
 
-    if attendance_activities.filter(clock_out__isnull=True).exists():
-        attendance_activity = attendance_activities.filter(
-            clock_out__isnull=True
-        ).last()
-        attendance_activity.clock_out = out_datetime
-        attendance_activity.clock_out_date = date_today
-        attendance_activity.out_datetime = out_datetime
-        attendance_activity.save()
+    attendance_activity = None
 
-        attendance_activities = attendance_activities.filter(
-            attendance_date=attendance_activity.attendance_date
+    # First, prefer an open activity for today's attendance date.
+    today_activities = attendance_activities.filter(
+        attendance_date=date_today
+    )
+
+    if today_activities.exists():
+        attendance_activity = today_activities.last()
+
+    else:
+        # If there is no activity for today, allow a previous-day
+        # activity only when it belongs to a night shift.
+        previous_date = date_today - timedelta(days=1)
+
+        previous_activities = attendance_activities.filter(
+            attendance_date=previous_date
         )
-        # Here calculate the total durations between the attendance activities
 
-        duration = 0
-        for activity in attendance_activities:
-            in_datetime, out_datetime = activity_datetime(activity)
-            difference = out_datetime - in_datetime
-            days_second = difference.days * 24 * 3600
-            seconds = difference.seconds
-            total_seconds = days_second + seconds
-            duration = duration + total_seconds
-        duration = format_time(duration)
-        # update clock out of attendance
-        attendance = Attendance.objects.filter(employee_id=employee).order_by(
-            "-attendance_date", "-id"
-        )[0]
-        attendance.attendance_clock_out = now + ":00"
-        attendance.attendance_clock_out_date = date_today
-        attendance.attendance_worked_hour = duration
-        # Overtime calculation
-        attendance.attendance_overtime = overtime_calculation(attendance)
+        for activity in reversed(list(previous_activities)):
+            attendance = Attendance.objects.filter(
+                employee_id=employee,
+                attendance_date=activity.attendance_date,
+            ).order_by("-id").first()
 
-        # Validate the attendance as per the condition
-        attendance.attendance_validated = attendance_validate(attendance)
-        attendance.save()
+            if attendance and attendance.is_night_shift():
+                attendance_activity = activity
+                break
 
-        return attendance
+    if not attendance_activity:
+        logger.error(
+            "No attendance clock in activity found that needs clocking out."
+        )
+        return
 
-    logger.error("No attendance clock in activity found that needs clocking out.")
-    return
+    # Close only the activity that belongs to the matching attendance date.
+    attendance_activity.clock_out = out_datetime
+    attendance_activity.clock_out_date = date_today
+    attendance_activity.out_datetime = out_datetime
+    attendance_activity.save()
 
+    # Calculate the worked duration only from activities belonging
+    # to this attendance date.
+    attendance_activities = AttendanceActivity.objects.filter(
+        employee_id=employee,
+        attendance_date=attendance_activity.attendance_date,
+    ).order_by("id")
+
+    duration = 0
+
+    for activity in attendance_activities:
+        if not activity.clock_out:
+            continue
+
+        in_datetime, activity_out_datetime = activity_datetime(activity)
+
+        if not in_datetime or not activity_out_datetime:
+            continue
+
+        difference = activity_out_datetime - in_datetime
+
+        days_second = difference.days * 24 * 3600
+        seconds = difference.seconds
+        total_seconds = days_second + seconds
+
+        duration += total_seconds
+
+    duration = format_time(duration)
+
+    # Update the Attendance record for the SAME attendance date
+    # as the activity that was actually closed.
+    attendance = Attendance.objects.filter(
+        employee_id=employee,
+        attendance_date=attendance_activity.attendance_date,
+    ).order_by("-id").first()
+
+    if not attendance:
+        logger.error(
+            "No attendance record found for employee %s on %s.",
+            employee,
+            attendance_activity.attendance_date,
+        )
+        return
+
+    attendance.attendance_clock_out = now + ":00"
+    attendance.attendance_clock_out_date = date_today
+    attendance.attendance_worked_hour = duration
+    attendance.attendance_overtime = overtime_calculation(attendance)
+    attendance.attendance_validated = attendance_validate(attendance)
+    attendance.save()
+
+    return attendance
 
 def early_out_create(attendance):
     """
