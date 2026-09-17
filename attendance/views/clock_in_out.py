@@ -355,23 +355,19 @@ def clock_out_attendance_and_activity(employee, date_today, now, out_datetime=No
         attendance_activity = today_activities.last()
 
     else:
-        # If there is no activity for today, allow a previous-day
-        # activity only when it belongs to a night shift.
+        # If there is no activity for today, allow an open
+        # previous-day activity to be closed by the current OUT punch.
+        #
+        # This is required for biometric attendance where an employee
+        # checks in on one calendar day and checks out after midnight.
         previous_date = date_today - timedelta(days=1)
 
         previous_activities = attendance_activities.filter(
             attendance_date=previous_date
         )
 
-        for activity in reversed(list(previous_activities)):
-            attendance = Attendance.objects.filter(
-                employee_id=employee,
-                attendance_date=activity.attendance_date,
-            ).order_by("-id").first()
-
-            if attendance and attendance.is_night_shift():
-                attendance_activity = activity
-                break
+        if previous_activities.exists():
+            attendance_activity = previous_activities.last()
 
     if not attendance_activity:
         logger.error(
