@@ -154,9 +154,11 @@ def clock_in_attendance_and_activity(
     ).first()
 
     if activity and not activity.clock_out:
-        activity.clock_out = in_datetime
-        activity.clock_out_date = date_today
-        activity.save()
+        # Duplicate check-in for the same attendance date — ignore it.
+        attendance = Attendance.objects.filter(
+            employee_id=employee, attendance_date=attendance_date
+        ).first()
+        return attendance
 
     new_activity = AttendanceActivity.objects.create(
         employee_id=employee,
