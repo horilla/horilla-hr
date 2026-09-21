@@ -75,7 +75,7 @@ XlsxWriter==3.2.9
 pdfkit==1.0.0
 PyMuPDF>=1.28.2,<2
 reportlab==4.0.9
-xhtml2pdf==0.2.17
+xhtml2pdf==0.2.20
 
 # Web scraping & HTML
 beautifulsoup4==4.15.0
