@@ -165,4 +165,4 @@ msgpack>=1.2.2,<2
 setuptools==84.0.0
 
 # Testing
-coverage>=7.0
+coverage>=7.16.1
