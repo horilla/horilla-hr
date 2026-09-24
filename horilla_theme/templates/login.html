@@ -200,7 +200,7 @@
                             <option value="" disabled selected>{% trans "Select your company" %}</option>
                             {% for company in sso_companies %}
                                 <option value="{% url 'oidc_login' company.oidc_provider.slug %}">
-                                    {{ company.oidc_provider.display_name }} -- {{ company.company }}
+                                    {{ company.oidc_provider.display_name }} ({{ company.company }})
                                 </option>
                             {% endfor %}
                         </select>
@@ -216,7 +216,8 @@
                         document.getElementById("oh-sso-submit").addEventListener("click", function () {
                             const select = document.getElementById("oh-sso-company");
                             if (select.value) {
-                                window.location.href = select.value;
+                                const next = new URLSearchParams(window.location.search).get("next");
+                                window.location.href = select.value + (next ? "?next=" + encodeURIComponent(next) : "");
                             }
                         });
                     </script>

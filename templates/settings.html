@@ -205,16 +205,6 @@
                                                         </div>
                                                     {% endif %}
                                                 {% endif %}
-                                                {% if "horilla_oidc"|app_installed %}
-                                                    {% if perms.horilla_oidc.change_oidcprovider %}
-                                                        <div class="oh-input-group">
-                                                            <a
-                                                                href="{% url 'oidc-settings' %}"
-                                                                class="oh-inner-sidebar__link oh-dropdown__link"
-                                                            >{% trans "Single Sign-On (OIDC)" %}</a>
-                                                        </div>
-                                                    {% endif %}
-                                                {% endif %}
                                             </div>
                                         </div>
                                     </div>

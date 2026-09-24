@@ -96,6 +96,34 @@ class VerifyIdTokenTests(SimpleTestCase):
         with self.assertRaises(OidcClientError):
             verify_id_token(self.provider, self.discovery, token, self.nonce)
 
+    def test_small_clock_skew_is_tolerated(self):
+        # An IdP clock 30s ahead issues an iat in our future.
+        token = self._token(self._claims(iat=int(time.time()) + 30))
+        verify_id_token(self.provider, self.discovery, token, self.nonce)
+
+    def test_multiple_audiences_require_azp_to_be_this_client(self):
+        token = self._token(self._claims(aud=[CLIENT_ID, "other-client"], azp="other-client"))
+        with self.assertRaises(OidcClientError):
+            verify_id_token(self.provider, self.discovery, token, self.nonce)
+        token = self._token(self._claims(aud=[CLIENT_ID, "other-client"], azp=CLIENT_ID))
+        verify_id_token(self.provider, self.discovery, token, self.nonce)
+
+    def test_undecryptable_secret_is_a_client_error_not_a_crash(self):
+        """Found live: a rotated SECRET_KEY made the callback 500."""
+        from cryptography.fernet import InvalidToken
+
+        from horilla_oidc.oidc_client import exchange_code_for_tokens
+
+        class Provider:
+            client_id = CLIENT_ID
+
+            @property
+            def client_secret(self):
+                raise InvalidToken
+
+        with self.assertRaises(OidcClientError):
+            exchange_code_for_tokens(Provider(), {"token_endpoint": "https://idp.test/token"}, "c", "r")
+
     def test_wrong_nonce_is_rejected(self):
         token = self._token(self._claims(nonce="a-different-nonce"))
         with self.assertRaises(OidcClientError):

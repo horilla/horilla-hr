@@ -15,6 +15,7 @@ company, and a config always belongs to exactly one company) with less
 code than replicating a constraint pair built for a different problem.
 """
 
+from django.core.cache import cache
 from django.db import models
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
@@ -22,7 +23,7 @@ from django.utils.translation import gettext_lazy as _
 from base.models import Company
 from horilla.models import HorillaModel
 
-from . import crypto
+from . import crypto, oidc_client
 
 
 class OidcProvider(HorillaModel):
@@ -111,6 +112,9 @@ class OidcProvider(HorillaModel):
                 slug = f"{base_slug}-{suffix}"
             self.slug = slug
         super().save(*args, **kwargs)
+        # Otherwise a changed issuer keeps using the old IdP's endpoints and
+        # signing keys until the 24h discovery cache expires.
+        cache.delete(oidc_client.discovery_cache_key(self))
 
     @property
     def client_secret(self) -> str:

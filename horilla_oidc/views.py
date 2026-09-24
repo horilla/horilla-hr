@@ -7,10 +7,10 @@ written defensively, mirroring base.views.login_user's own posture
 (base/views.py:803-858): one generic error message for every failure mode,
 no confirmation of which part failed, no account created on a miss.
 
-oidc_settings_view: the admin-facing settings screen, and the deliberate
-fix over horilla_ldap's precedent, which guards its equivalent view with
-only @login_required -- any authenticated user can rewrite its LDAP bind
-credentials today. This view requires the real per-model permission.
+oidc_settings_view: the admin-facing settings screen. Superuser-only:
+whoever controls a company's issuer can mint a login for any employee of
+that company, so this setting is equivalent to full admin and must not be
+delegable through an ordinary model permission.
 """
 
 from __future__ import annotations
@@ -22,15 +22,15 @@ import time
 
 from django.contrib import messages
 from django.contrib.auth import login
-from django.core.cache import cache
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.utils.translation import gettext as _
+from django.utils.http import url_has_allowed_host_and_scheme
+from django.utils.translation import gettext_lazy as _
 
 from base.models import Company
 from employee.models import Employee
-from horilla.decorators import login_required, permission_required
+from horilla.decorators import login_required, superuser_required
 
 from . import oidc_client
 from .forms import OidcProviderForm
@@ -38,37 +38,18 @@ from .models import OidcProvider
 
 logger = logging.getLogger(__name__)
 
-# One message for every failure mode on this flow, same reasoning as
-# login_user: telling an unauthenticated caller *which* check failed (no
-# such email vs. wrong company vs. inactive account) confirms account
-# existence, which is exactly what turns a guess into a targeted attempt.
+# One message for every failure mode on this flow: telling the caller
+# *which* check failed (no such email vs. wrong company vs. archived)
+# would let whoever controls an IdP probe which emails exist in other
+# companies. The specific reason goes to the server log instead.
 _GENERIC_ERROR = _("Could not sign you in. Please try again or contact your administrator.")
 
 _STATE_TTL_SECONDS = 600  # 10 minutes -- long enough for a slow IdP redirect, short enough to bound replay.
-_CALLBACK_RATE_LIMIT = 20  # per (ip, provider) per minute
-_CALLBACK_RATE_WINDOW = 60
 
 
-def _client_ip(request) -> str:
-    # Consistent with the rest of the codebase's IP resolution for
-    # rate-limiting/lockout purposes (see AXES_IPWARE_* in settings) --
-    # this endpoint does not sit behind the same proxy-header trust
-    # decision axes makes, so REMOTE_ADDR is used directly rather than
-    # trusting X-Forwarded-For from an unconfigured source.
-    return request.META.get("REMOTE_ADDR", "unknown")
-
-
-def _rate_limited(request, provider: OidcProvider) -> bool:
-    key = f"oidc_callback_rl_{provider.pk}_{_client_ip(request)}"
-    count = cache.get(key, 0)
-    if count >= _CALLBACK_RATE_LIMIT:
-        return True
-    cache.set(key, count + 1, _CALLBACK_RATE_WINDOW)
-    return False
-
-
-def _fail(request, message=None) -> HttpResponse:
-    messages.error(request, message or _GENERIC_ERROR)
+def _fail(request, reason, *args) -> HttpResponse:
+    logger.warning("OIDC login refused: " + reason, *args)
+    messages.error(request, _GENERIC_ERROR)
     return redirect("login")
 
 
@@ -78,9 +59,8 @@ def sso_login(request, slug):
 
     try:
         discovery = oidc_client.get_discovery(provider)
-    except oidc_client.OidcClientError:
-        logger.warning("OIDC discovery failed for provider %s", provider.pk)
-        return _fail(request)
+    except oidc_client.OidcClientError as exc:
+        return _fail(request, "provider %s: %s", provider.pk, exc)
 
     state = secrets.token_urlsafe(32)
     nonce = secrets.token_urlsafe(32)
@@ -88,6 +68,7 @@ def sso_login(request, slug):
     request.session["oidc_nonce"] = nonce
     request.session["oidc_provider_slug"] = slug
     request.session["oidc_state_ts"] = time.time()
+    request.session["oidc_next"] = request.GET.get("next", "/")
 
     redirect_uri = request.build_absolute_uri(reverse("oidc_callback", args=[slug]))
     authorization_url = oidc_client.build_authorization_url(
@@ -105,37 +86,29 @@ def sso_callback(request, slug):
     """
     provider = get_object_or_404(OidcProvider, slug=slug, is_enabled=True)
 
-    if _rate_limited(request, provider):
-        return _fail(request)
-
     if request.GET.get("error"):
-        # IdP-side denial (user cancelled, IdP-side policy block, etc.) --
-        # not a bug in this flow, so no warning log, just the same generic
-        # message everything else here uses.
-        return _fail(request)
+        # IdP-side denial (user cancelled, IdP-side policy block, etc.).
+        return _fail(request, "IdP returned error %r", request.GET.get("error"))
 
     code = request.GET.get("code")
     returned_state = request.GET.get("state")
     if not code or not returned_state:
-        return _fail(request)
+        return _fail(request, "callback without code/state")
 
     saved_state = request.session.pop("oidc_state", None)
     saved_state_ts = request.session.pop("oidc_state_ts", 0)
     saved_slug = request.session.pop("oidc_provider_slug", None)
     saved_nonce = request.session.pop("oidc_nonce", None)
+    next_url = request.session.pop("oidc_next", "/")
 
     if not saved_state or not hmac.compare_digest(saved_state, returned_state):
-        return _fail(request)
+        return _fail(request, "state mismatch")
     if time.time() - saved_state_ts > _STATE_TTL_SECONDS:
-        return _fail(request)
+        return _fail(request, "state expired")
     if saved_slug != slug:
         # A state token minted for one company's login attempt, replayed
         # against a different company's callback URL.
-        logger.warning(
-            "OIDC state/slug mismatch: state minted for %r, presented at %r",
-            saved_slug, slug,
-        )
-        return _fail(request)
+        return _fail(request, "state minted for %r, presented at %r", saved_slug, slug)
 
     try:
         discovery = oidc_client.get_discovery(provider)
@@ -143,27 +116,23 @@ def sso_callback(request, slug):
         tokens = oidc_client.exchange_code_for_tokens(provider, discovery, code, redirect_uri)
         id_token = tokens.get("id_token")
         if not id_token:
-            return _fail(request)
+            return _fail(request, "provider %s: token response had no id_token", provider.pk)
         claims = oidc_client.verify_id_token(provider, discovery, id_token, saved_nonce)
-    except oidc_client.OidcClientError:
-        logger.warning("OIDC callback failed verification for provider %s", provider.pk)
-        return _fail(request)
+    except oidc_client.OidcClientError as exc:
+        return _fail(request, "provider %s: %s", provider.pk, exc)
 
     email = claims.get("email")
     if not email:
-        return _fail(request)
+        return _fail(request, "provider %s: ID token has no email claim", provider.pk)
 
-    employee = (
-        Employee.objects.filter(email__iexact=email, is_active=True)
-        .select_related("employee_work_info")
-        .first()
-    )
-    if employee is None:
-        logger.warning("OIDC login: no matching active employee for an IdP-verified email")
-        return _fail(
-            request,
-            _("An employee related to this user's credentials does not exist."),
-        )
+    # Employee.email is unique case-sensitively, so "Bob@x" and "bob@x" can
+    # both exist: prefer the exact match, and accept a case-insensitive one
+    # only when it is unambiguous.
+    employees = Employee.objects.filter(is_active=True).select_related("employee_work_info")
+    matches = list(employees.filter(email=email)) or list(employees.filter(email__iexact=email)[:2])
+    if len(matches) != 1:
+        return _fail(request, "provider %s: %d active employees match the email", provider.pk, len(matches))
+    employee = matches[0]
 
     # The cross-tenant check: Employee.email is globally unique, not scoped
     # to a company (employee/models.py:97), so a matching email alone does
@@ -173,18 +142,16 @@ def sso_callback(request, slug):
     # into Company B.
     work_info_company_id = getattr(employee.employee_work_info, "company_id_id", None)
     if work_info_company_id != provider.company_id:
-        logger.warning(
-            "OIDC login: employee %s matched by email but belongs to a different company than provider %s",
-            employee.pk, provider.pk,
-        )
-        return _fail(request)
+        return _fail(request, "employee %s is not in provider %s's company", employee.pk, provider.pk)
 
     user = employee.employee_user_id
     if user is None or not user.is_active:
-        return _fail(
-            request,
-            _("This user is archived. Please contact the manager for more information."),
-        )
+        return _fail(request, "employee %s has no active user", employee.pk)
+    if user.is_superuser:
+        # A superuser is global across every company, so letting one
+        # company's IdP vouch for it would let that IdP's admin reach every
+        # other company. Superusers keep password login as the break-glass path.
+        return _fail(request, "employee %s is a superuser; SSO refused", employee.pk)
 
     # An explicit backend is required here: login() never runs authenticate(),
     # so user.backend is never set, and Django's login() raises when more
@@ -198,24 +165,17 @@ def sso_callback(request, slug):
     if provider.skip_2fa_for_sso:
         request.session["otp_code_verified"] = True
     messages.success(request, _("Login successful."))
-    return redirect("/")
+    if not url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        next_url = "/"
+    return redirect(next_url)
 
 
 @login_required
-@permission_required("horilla_oidc.change_oidcprovider")
+@superuser_required
 def oidc_settings_view(request):
     """
-    Per-company OIDC configuration. Scoped by the admin's currently
-    selected company (the ordinary, already-authenticated case where
-    ambient company context is meaningful) -- not to be confused with the
-    pre-login lookups above, which resolve company from the URL slug.
-
-    The deliberate fix over horilla_ldap's precedent: its equivalent view
-    (horilla_ldap/views.py) has only @login_required, so any authenticated
-    user -- not just an admin -- can currently rewrite the org's LDAP bind
-    credentials. horilla.decorators.permission_required is the standard
-    decorator used throughout this codebase for exactly this; there is no
-    reason this app should ship the same gap on day one.
+    Per-company OIDC configuration, scoped by the admin's currently selected
+    company (unlike the pre-login views above, which resolve it from the slug).
     """
     selected_company = request.session.get("selected_company")
     company = None
@@ -239,4 +199,13 @@ def oidc_settings_view(request):
     else:
         form = OidcProviderForm(instance=provider)
 
-    return render(request, "oidc_settings.html", {"form": form, "company": company})
+    callback_url = (
+        request.build_absolute_uri(reverse("oidc_callback", args=[provider.slug]))
+        if provider
+        else None
+    )
+    return render(
+        request,
+        "oidc_settings.html",
+        {"form": form, "company": company, "callback_url": callback_url},
+    )

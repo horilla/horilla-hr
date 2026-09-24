@@ -10,7 +10,7 @@
                 <div class="col-span-12 lg:col-span-6">
                     <div class="mb-4">
                         <p class="text-xs text-gray-500">
-                            {% trans "Configure this company's identity provider so employees can sign in through it instead of a local password. Sign-in matches the provider's verified email to an employee you have already created -- new accounts are not created automatically." %}
+                            {% trans "Configure this company's identity provider so employees can sign in through it instead of a local password. Sign-in matches the provider's verified email to an employee you have already created; new accounts are not created automatically." %}
                         </p>
                     </div>
                 </div>
@@ -24,6 +24,15 @@
             </div>
         {% else %}
             <div class="px-4 pb-4">
+                {% if callback_url %}
+                    <div class="mb-4 p-3 rounded-md bg-[#f8f8f8] border border-[#ebebeb]">
+                        <p class="text-xs font-semibold text-[#333]">{% trans "Redirect URI" %}</p>
+                        <p class="text-xs text-gray-500 mb-1">{% trans "Register this exact URL as an allowed redirect/callback URI in your identity provider." %}</p>
+                        <code class="text-xs select-all break-all">{{ callback_url }}</code>
+                    </div>
+                {% else %}
+                    <p class="text-xs text-gray-500 mb-4">{% trans "Save once to get the redirect URI to register in your identity provider." %}</p>
+                {% endif %}
                 <form method="post">
                     {% csrf_token %}
                     {{ form.as_p }}

@@ -1,5 +1,6 @@
 from django import forms
 from django.template.loader import render_to_string
+from django.utils.translation import gettext_lazy as _
 
 from base.forms import ModelForm
 
@@ -8,9 +9,8 @@ from .models import OidcProvider
 
 class OidcProviderForm(ModelForm):
     """
-    company/slug/is_enabled are handled by the view (company comes from
-    the admin's currently selected company; slug and is_enabled are
-    managed separately), so they are excluded from this form on purpose.
+    company comes from the admin's currently selected company and slug is
+    generated on first save, so both are excluded on purpose.
 
     client_secret is a write-only PasswordInput, matching
     horilla_ldap.LDAPSettingsForm's bind_password convention -- masked in
@@ -21,12 +21,12 @@ class OidcProviderForm(ModelForm):
     client_secret = forms.CharField(
         widget=forms.PasswordInput(attrs={"class": "oh-input w-100"}, render_value=False),
         required=True,
-        help_text="Leave unchanged to keep the current secret.",
     )
 
     class Meta:
         model = OidcProvider
         fields = [
+            "is_enabled",
             "display_name",
             "issuer",
             "client_id",
@@ -44,6 +44,7 @@ class OidcProviderForm(ModelForm):
         # should not force re-entering it. A fresh config has none to keep.
         if self.instance and self.instance.pk:
             self.fields["client_secret"].required = False
+            self.fields["client_secret"].help_text = _("Leave blank to keep the current secret.")
 
     def save(self, commit=True):
         instance = super().save(commit=False)

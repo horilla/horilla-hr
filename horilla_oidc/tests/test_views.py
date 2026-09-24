@@ -177,6 +177,50 @@ class SsoCallbackTests(TestCase):
         )
         self.assertRedirects(response, reverse("login"), fetch_redirect_response=False)
 
+    def test_superuser_is_refused(self):
+        """
+        Found live: a non-superuser holding the settings permission pointed
+        Acme at their own IdP and signed in as the superuser. A superuser is
+        global, so no single company's IdP may vouch for one.
+        """
+        admin = make_user("root", is_superuser=True)
+        make_employee(company=self.company, email=CLAIMS["email"], user=admin)
+        response = self._callback()
+        self.assertRedirects(response, reverse("login"), fetch_redirect_response=False)
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_exact_case_email_wins_over_case_insensitive_match(self):
+        make_employee(company=self.company, email="Person@test.horilla", first_name="Aaa")
+        exact = make_employee(company=self.company, email=CLAIMS["email"], first_name="Zzz")
+        self._callback()
+        self.assertEqual(int(self.client.session["_auth_user_id"]), exact.employee_user_id_id)
+
+    def test_ambiguous_case_insensitive_match_is_refused(self):
+        make_employee(company=self.company, email="Person@test.horilla")
+        make_employee(company=self.company, email="PERSON@test.horilla")
+        self._callback()
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_junk_callbacks_do_not_lock_out_real_logins(self):
+        """Found live: 20 anonymous junk callbacks used to block the company's SSO."""
+        employee = make_employee(company=self.company, email=CLAIMS["email"])
+        for _ in range(25):
+            self.client.get(
+                reverse("oidc_callback", args=[self.provider.slug]), {"code": "x", "state": "y"}
+            )
+        self._callback()
+        self.assertEqual(int(self.client.session["_auth_user_id"]), employee.employee_user_id_id)
+
+    def test_safe_next_is_honoured_and_offsite_next_is_not(self):
+        make_employee(company=self.company, email=CLAIMS["email"])
+        for next_url, expected in [("/leave/user-leave/", "/leave/user-leave/"), ("https://evil.test/", "/")]:
+            session = self.client.session
+            session["oidc_next"] = next_url
+            session.save()
+            response = self._callback()
+            self.assertEqual(response.url, expected)
+            self.client.logout()
+
     def test_successful_login_sets_2fa_skip_when_enabled(self):
         make_employee(company=self.company, email=CLAIMS["email"])
         self.provider.skip_2fa_for_sso = True
@@ -206,25 +250,41 @@ class OidcSettingsViewTests(TestCase):
         session["selected_company"] = self.company.pk
         session.save()
 
-    def test_without_the_permission_the_form_is_not_shown(self):
+    def test_the_model_permission_alone_does_not_show_the_form(self):
+        """
+        Whoever controls the issuer can sign in as anyone in the company, so
+        this is superuser-only; a delegable model permission is not enough.
+        """
+        self.admin_user.user_permissions.add(Permission.objects.get(codename="change_oidcprovider"))
         self._login_with_selected_company(self.admin_user)
         response = self.client.get(reverse("oidc-settings"))
-        # horilla.decorators.permission_required routes to
-        # handle_no_permission rather than a bare 403 -- either way, the
-        # settings form itself must not render.
         self.assertNotContains(response, "client_secret", status_code=response.status_code)
 
-    def test_with_the_permission_the_form_renders(self):
-        perm = Permission.objects.get(codename="change_oidcprovider")
-        self.admin_user.user_permissions.add(perm)
+    def test_superuser_sees_the_form_and_the_redirect_uri(self):
+        self.admin_user.is_superuser = True
+        self.admin_user.save()
+        make_provider(self.company)
         self._login_with_selected_company(self.admin_user)
         response = self.client.get(reverse("oidc-settings"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "client_secret")
+        self.assertContains(response, "/accounts/sso/acme/callback/")
+
+    def test_saving_clears_the_cached_discovery_document(self):
+        """Found live: a changed issuer kept redirecting to the old IdP for 24h."""
+        from django.core.cache import cache
+
+        from horilla_oidc.oidc_client import discovery_cache_key
+
+        provider = make_provider(self.company)
+        cache.set(discovery_cache_key(provider), {"authorization_endpoint": "https://old.test/auth"})
+        provider.issuer = "https://new.test"
+        provider.save()
+        self.assertIsNone(cache.get(discovery_cache_key(provider)))
 
     def test_saving_creates_a_provider_for_the_selected_company(self):
-        perm = Permission.objects.get(codename="change_oidcprovider")
-        self.admin_user.user_permissions.add(perm)
+        self.admin_user.is_superuser = True
+        self.admin_user.save()
         self._login_with_selected_company(self.admin_user)
 
         response = self.client.post(
@@ -233,6 +293,7 @@ class OidcSettingsViewTests(TestCase):
                 "display_name": "Sign in with Okta",
                 "issuer": "https://acme.okta.com",
                 "client_id": "abc123",
+                "is_enabled": "on",
                 "client_secret": "top-secret",
                 "scopes": "openid email profile",
                 "authorization_endpoint": "",

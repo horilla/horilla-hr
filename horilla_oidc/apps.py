@@ -16,4 +16,6 @@ class HorillaOidcConfig(AppConfig):
         urlpatterns.append(
             path("", include("horilla_oidc.urls")),
         )
+        from horilla_oidc import sidebar  # noqa: F401
+
         super().ready()
