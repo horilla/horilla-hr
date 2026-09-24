@@ -47,6 +47,11 @@ EXEMPT = {
     "horilla_theme.CompanyTheme": "Per-company theme singleton.",
     "facedetection.FaceDetection": "Per-company OneToOne settings row.",
     "geofencing.GeoFencing": "Per-company OneToOne settings row.",
+    "horilla_oidc.OidcProvider": (
+        "Per-company OneToOne settings row, looked up pre-login by an "
+        "explicit slug/company argument -- there is no selected-company "
+        "ContextVar yet at that point for a manager filter to read."
+    ),
     "horilla_audit.HistoryTrackingFields": "Per-company audit configuration.",
     # django-simple-history shadow tables. They mirror a scoped model and are
     # only ever read through that model's history manager.

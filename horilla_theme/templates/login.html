@@ -183,6 +183,44 @@
                         <img src='{% static "horilla_theme/assets/icons/sign.svg" %}' alt=""> {% trans "Sign In" %}
                     </button>
                 </form>
+                {% if sso_companies %}
+                    <div class="flex items-center gap-3 my-4">
+                        <div class="flex-1 border-t border-dark-50"></div>
+                        <span class="text-xs text-color-600">{% trans "or" %}</span>
+                        <div class="flex-1 border-t border-dark-50"></div>
+                    </div>
+                    <form method="get" action="" id="oh-sso-form">
+                        <label for="oh-sso-company" class="text-sm text-color-600">
+                            {% trans "Sign in with your company's SSO" %}
+                        </label>
+                        <select
+                            id="oh-sso-company"
+                            class="text-color-600 w-full border border-dark-50 rounded-md p-3 mt-1 text-xs"
+                        >
+                            <option value="" disabled selected>{% trans "Select your company" %}</option>
+                            {% for company in sso_companies %}
+                                <option value="{% url 'oidc_login' company.oidc_provider.slug %}">
+                                    {{ company.oidc_provider.display_name }} -- {{ company.company }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <button
+                            type="button"
+                            id="oh-sso-submit"
+                            class="p-3 mt-3 bg-dark-500 hover:bg-dark-600 w-full flex gap-3 justify-center rounded-md text-[white] [transition:.3s]"
+                        >
+                            {% trans "Continue" %}
+                        </button>
+                    </form>
+                    <script>
+                        document.getElementById("oh-sso-submit").addEventListener("click", function () {
+                            const select = document.getElementById("oh-sso-company");
+                            if (select.value) {
+                                window.location.href = select.value;
+                            }
+                        });
+                    </script>
+                {% endif %}
                 {% if initialize_database %}
                     <div>
                         <div class="d-flex gap-2">

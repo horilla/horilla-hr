@@ -98,6 +98,7 @@ INSTALLED_APPS = [
     "report",
     "whatsapp",
     "horilla_ldap",
+    "horilla_oidc",
     "horilla_dbtemplate",
     "horilla_tour",
 ]
@@ -355,6 +356,7 @@ TEMPLATES = [
                 "base.context_processors.navbar_languages",
                 "horilla_tour.context_processors.pending_tours_flag",
                 "horilla_crumbs.context_processors.breadcrumbs",
+                "horilla_oidc.context_processors.sso_companies",
             ],
             "loaders": (
                 _TEMPLATE_LOADERS
