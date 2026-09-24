@@ -19,7 +19,13 @@ class OidcProviderForm(ModelForm):
     """
 
     client_secret = forms.CharField(
-        widget=forms.PasswordInput(attrs={"class": "oh-input w-100"}, render_value=False),
+        # autocomplete="new-password": otherwise the browser autofills a saved
+        # login password here, and since blank means "keep the current
+        # secret", saving any other field silently replaces the secret.
+        widget=forms.PasswordInput(
+            attrs={"class": "oh-input w-100", "autocomplete": "new-password"},
+            render_value=False,
+        ),
         required=True,
     )
 
