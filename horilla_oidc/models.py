@@ -82,6 +82,18 @@ class OidcProvider(HorillaModel):
 
     objects = models.Manager()
 
+    # HorillaModel.clean_fields() runs has_xss() over every CharField/TextField
+    # on every save. That check is built for user-authored freeform text and
+    # matches on patterns like `on\w+=` (inline event handlers) -- a Fernet
+    # token is long, effectively-random base64, and a coincidental match on
+    # that pattern is a near-certainty over enough saves, not a rare edge
+    # case. Found by the functional test suite hitting a real ValidationError
+    # on an otherwise-correct save. xss_exempt_fields is the sanctioned
+    # escape hatch clean_fields() already supports for exactly this: a field
+    # whose content is never rendered as HTML and was never user-authored
+    # text in the first place.
+    xss_exempt_fields = {"_client_secret"}
+
     class Meta:
         verbose_name = _("OIDC Provider")
         verbose_name_plural = _("OIDC Providers")

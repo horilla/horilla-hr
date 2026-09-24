@@ -186,7 +186,15 @@ def sso_callback(request, slug):
             _("This user is archived. Please contact the manager for more information."),
         )
 
-    login(request, user)
+    # An explicit backend is required here: login() never runs authenticate(),
+    # so user.backend is never set, and Django's login() raises when more
+    # than one AUTHENTICATION_BACKENDS entry is configured and it cannot
+    # infer which one to attribute the session to. CompanyScopedBackend is
+    # the one that actually resolves permissions for any authenticated user
+    # regardless of how they signed in (it replaces ModelBackend, per its own
+    # docstring) -- axes.backends.AxesStandaloneBackend is lockout-only and
+    # is never the right choice to attribute a session to.
+    login(request, user, backend="base.auth_backends.CompanyScopedBackend")
     if provider.skip_2fa_for_sso:
         request.session["otp_code_verified"] = True
     messages.success(request, _("Login successful."))
