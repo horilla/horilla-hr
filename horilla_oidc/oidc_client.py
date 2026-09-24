@@ -26,7 +26,7 @@ benefit.
 
 from __future__ import annotations
 
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 import jwt
 import requests
@@ -36,6 +36,9 @@ from django.core.cache import cache
 DISCOVERY_CACHE_TTL = 60 * 60 * 24  # 24h. IdP endpoints/keys change rarely.
 HTTP_TIMEOUT = 10
 CLOCK_SKEW_LEEWAY = 60  # seconds; IdP and server clocks are never exactly in sync.
+# Asymmetric only. RS256 is the OIDC default; ES256/PS256 cover providers
+# (e.g. Keycloak, Zitadel) configured for EC or RSA-PSS keys.
+SIGNING_ALGORITHMS = ["RS256", "ES256", "PS256"]
 
 
 class OidcClientError(Exception):
@@ -97,15 +100,22 @@ def exchange_code_for_tokens(provider, discovery: dict, code: str, redirect_uri:
             "stored client secret cannot be decrypted (SECRET_KEY changed?); re-enter it in SSO settings"
         ) from exc
     try:
+        # client_secret_basic: the one client-auth method RFC 6749 §2.3.1
+        # requires every provider to support (Okta enforces it by default;
+        # a body-sent secret there is invalid_client). Both parts are
+        # form-urlencoded before going into the header, as that section
+        # specifies, and are not repeated in the body -- using two methods
+        # at once is not allowed.
+        # ponytail: basic only; add client_secret_post fallback if a provider
+        # advertising only that (token_endpoint_auth_methods_supported) turns up.
         response = requests.post(
             discovery["token_endpoint"],
             data={
                 "grant_type": "authorization_code",
                 "code": code,
                 "redirect_uri": redirect_uri,
-                "client_id": provider.client_id,
-                "client_secret": client_secret,
             },
+            auth=(quote(provider.client_id, safe=""), quote(client_secret, safe="")),
             timeout=HTTP_TIMEOUT,
         )
         response.raise_for_status()
@@ -120,18 +130,26 @@ def verify_id_token(provider, discovery: dict, id_token: str, expected_nonce: st
     Verify signature, issuer, audience, expiry, and nonce. Returns the
     claims dict on success; raises OidcClientError on any failure.
 
-    `algorithms=["RS256"]` is asserted explicitly -- never read from the
-    token's own header -- which is what closes the algorithm-confusion
-    attack class (a token whose header claims a different/weaker
-    algorithm than the one actually used to sign it).
+    The accepted algorithms are a fixed, asymmetric-only list -- never read
+    from the token's own header -- which is what closes the
+    algorithm-confusion attack class (`alg: none`, or HS256 using the
+    provider's public key as the HMAC secret). Each token is further pinned
+    to the one algorithm its JWKS key declares.
     """
     try:
         jwks_client = jwt.PyJWKClient(discovery["jwks_uri"], timeout=HTTP_TIMEOUT)
         signing_key = jwks_client.get_signing_key_from_jwt(id_token)
+        # Verify only with the algorithm the provider's key itself declares
+        # (or implies by its type), not every allowed one: a token naming
+        # ES256 against an RSA key otherwise reaches key parsing and raises
+        # a bare TypeError instead of a clean rejection (RFC 8725 §3.1).
+        algorithm = signing_key.algorithm_name
+        if algorithm not in SIGNING_ALGORITHMS:
+            raise OidcClientError(f"ID token signing key uses unsupported algorithm {algorithm}")
         claims = jwt.decode(
             id_token,
             signing_key.key,
-            algorithms=["RS256"],
+            algorithms=[algorithm],
             audience=provider.client_id,
             issuer=provider.issuer,
             options={"require": ["exp", "iat", "aud", "iss"]},

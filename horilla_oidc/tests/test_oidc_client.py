@@ -13,7 +13,7 @@ from unittest import mock
 
 import jwt
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric import ec, rsa
 from django.test import SimpleTestCase
 
 from horilla_oidc.oidc_client import OidcClientError, verify_id_token
@@ -21,6 +21,7 @@ from horilla_oidc.oidc_client import OidcClientError, verify_id_token
 ISSUER = "https://idp.test"
 CLIENT_ID = "test-client"
 KID = "test-key-1"
+EC_KID = "test-ec-key-1"
 
 
 class VerifyIdTokenTests(SimpleTestCase):
@@ -31,7 +32,10 @@ class VerifyIdTokenTests(SimpleTestCase):
         alg = jwt.algorithms.RSAAlgorithm(jwt.algorithms.RSAAlgorithm.SHA256)
         jwk = json.loads(alg.to_jwk(cls.private_key.public_key()))
         jwk.update(kid=KID, use="sig", alg="RS256")
-        cls.jwks = {"keys": [jwk]}
+        cls.ec_key = ec.generate_private_key(ec.SECP256R1())
+        ec_jwk = json.loads(jwt.algorithms.ECAlgorithm.to_jwk(cls.ec_key.public_key()))
+        ec_jwk.update(kid=EC_KID, use="sig", alg="ES256")
+        cls.jwks = {"keys": [jwk, ec_jwk]}
 
         # Same keypair, different RSA instance -- stands in for "an attacker's
         # own key," used by the tampered-signature test.
@@ -96,6 +100,28 @@ class VerifyIdTokenTests(SimpleTestCase):
         with self.assertRaises(OidcClientError):
             verify_id_token(self.provider, self.discovery, token, self.nonce)
 
+    def test_es256_token_is_accepted(self):
+        token = jwt.encode(self._claims(), self.ec_key, algorithm="ES256", headers={"kid": EC_KID})
+        verify_id_token(self.provider, self.discovery, token, self.nonce)
+
+    def test_ps256_token_is_accepted_when_the_key_declares_ps256(self):
+        rsa_jwk = {**self.jwks["keys"][0], "kid": "ps-key", "alg": "PS256"}
+        with mock.patch("jwt.jwks_client.PyJWKClient.fetch_data", return_value={"keys": [rsa_jwk]}):
+            token = jwt.encode(self._claims(), self.private_key, algorithm="PS256", headers={"kid": "ps-key"})
+            verify_id_token(self.provider, self.discovery, token, self.nonce)
+
+    def test_ps256_token_against_a_key_declaring_rs256_is_rejected(self):
+        token = jwt.encode(self._claims(), self.private_key, algorithm="PS256", headers={"kid": KID})
+        with self.assertRaises(OidcClientError):
+            verify_id_token(self.provider, self.discovery, token, self.nonce)
+
+    def test_ec_signed_token_pointing_at_the_rsa_key_is_rejected(self):
+        # Header names the RSA key's kid but the signature is ES256: the key
+        # type must match the algorithm, whatever the header claims.
+        token = jwt.encode(self._claims(), self.ec_key, algorithm="ES256", headers={"kid": KID})
+        with self.assertRaises(OidcClientError):
+            verify_id_token(self.provider, self.discovery, token, self.nonce)
+
     def test_small_clock_skew_is_tolerated(self):
         # An IdP clock 30s ahead issues an iat in our future.
         token = self._token(self._claims(iat=int(time.time()) + 30))
@@ -107,6 +133,27 @@ class VerifyIdTokenTests(SimpleTestCase):
             verify_id_token(self.provider, self.discovery, token, self.nonce)
         token = self._token(self._claims(aud=[CLIENT_ID, "other-client"], azp=CLIENT_ID))
         verify_id_token(self.provider, self.discovery, token, self.nonce)
+
+    def test_secret_goes_in_the_basic_auth_header_urlencoded_and_not_in_the_body(self):
+        """client_secret_basic per RFC 6749 §2.3.1: the method every provider must support."""
+        import base64
+
+        import requests as real_requests
+
+        from horilla_oidc.oidc_client import exchange_code_for_tokens
+
+        provider = SimpleNamespace(client_id=CLIENT_ID, client_secret="s3cr:t/+~x")
+        response = mock.Mock(status_code=200)
+        response.json.return_value = {"id_token": "t"}
+        with mock.patch("horilla_oidc.oidc_client.requests.post", return_value=response) as post:
+            exchange_code_for_tokens(provider, {"token_endpoint": "https://idp.test/token"}, "c", "r")
+
+        kwargs = post.call_args.kwargs
+        self.assertNotIn("client_secret", kwargs["data"])
+        self.assertNotIn("client_id", kwargs["data"])
+        prepared = real_requests.Request("POST", "https://idp.test/token", auth=kwargs["auth"]).prepare()
+        decoded = base64.b64decode(prepared.headers["Authorization"].split()[1]).decode()
+        self.assertEqual(decoded, "test-client:s3cr%3At%2F%2B~x")
 
     def test_undecryptable_secret_is_a_client_error_not_a_crash(self):
         """Found live: a rotated SECRET_KEY made the callback 500."""
