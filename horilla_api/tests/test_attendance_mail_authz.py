@@ -16,11 +16,13 @@ Both are now gated by ``manager_or_owner_permission_required(Employee, ...)``,
 the same instance-scoped decorator GHSA-39gq-9wwx-p8hx introduced for
 EmployeeBankDetails: the owner, someone holding the permission directly, or
 the reporting manager *of the specific employee named in the body*.
-``MailTemplateView.get`` is left on the coarser check deliberately -- it
-lists company-scoped (HorillaCompanyManager) template metadata with no
-per-employee target to scope against.
+
+``MailTemplateView.get`` (advisory item 2: any manager could enumerate every
+company mail template) now requires ``base.view_horillamailtemplate`` -- the
+same permission the web list view uses -- instead of "manages anyone".
 """
 
+from django.contrib.auth.models import Permission
 from django.test import TestCase
 from rest_framework.test import APIClient
 
@@ -28,6 +30,7 @@ from base.models import HorillaMailTemplate
 from horilla.testkit import make_company, make_employee, make_user
 
 CONVERT_URL = "/api/attendance/converted-mail-template"
+MAIL_TEMPLATES_URL = "/api/attendance/mail-templates"
 
 
 class ConvertedMailTemplateAuthorizationTests(TestCase):
@@ -147,3 +150,49 @@ class OfflineEmployeeMailsendAuthorizationTests(TestCase):
             },
         )
         self.assertEqual(response.status_code, 403)
+
+
+class MailTemplateListAuthorizationTests(TestCase):
+    """
+    Advisory item 2: MailTemplateView.get listed every company mail template
+    to any reporting manager. It now requires base.view_horillamailtemplate,
+    matching the web list view -- managing someone is no longer enough.
+    """
+
+    def setUp(self):
+        self.client = APIClient()
+        company = make_company("Mail Co 3")
+
+        # A reporting manager who does NOT hold view_horillamailtemplate.
+        self.manager_user = make_user("mt_manager", password="secret123")
+        self.manager = make_employee(
+            company=company, email="mt_manager@test.horilla", user=self.manager_user
+        )
+        report_user = make_user("mt_report", password="secret123")
+        make_employee(company=company, email="mt_report@test.horilla", user=report_user)
+        from employee.models import EmployeeWorkInformation
+
+        EmployeeWorkInformation.objects.filter(
+            employee_id=report_user.employee_get
+        ).update(reporting_manager_id=self.manager)
+
+        HorillaMailTemplate.objects.create(
+            title="Secret Template", body="internal", company_id=company
+        )
+
+    def _auth(self, user):
+        self.client.force_authenticate(user=type(user).objects.get(pk=user.pk))
+
+    def test_a_manager_without_the_permission_cannot_list_templates(self):
+        self._auth(self.manager_user)
+        response = self.client.get(MAIL_TEMPLATES_URL)
+        # api_decorators.permission_required answers 401 on a missing perm.
+        self.assertEqual(response.status_code, 401)
+
+    def test_the_permission_holder_can_list_templates(self):
+        self.manager_user.user_permissions.add(
+            Permission.objects.get(codename="view_horillamailtemplate")
+        )
+        self._auth(self.manager_user)
+        response = self.client.get(MAIL_TEMPLATES_URL)
+        self.assertEqual(response.status_code, 200)

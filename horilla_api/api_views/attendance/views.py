@@ -1043,7 +1043,13 @@ class MailTemplateView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    @manager_permission_required("employee.change_employee")
+    # Was @manager_permission_required("employee.change_employee") -- "manages
+    # anyone" let any reporting manager enumerate every company mail template.
+    # Gate on the model's own view permission, matching the web list view
+    # (base.views.view_mail_templates), which is what actually governs seeing
+    # these. HorillaMailTemplate.objects is a HorillaCompanyManager, so the
+    # queryset stays company-scoped exactly as the web list is.
+    @method_decorator(permission_required("base.view_horillamailtemplate"))
     def get(self, request):
         instances = HorillaMailTemplate.objects.all()
         serializer = MailTemplateSerializer(instances, many=True)
