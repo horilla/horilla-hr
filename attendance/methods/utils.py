@@ -13,7 +13,6 @@ from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import models
 from django.db.models import Q, Sum
-from django.http import HttpResponse
 from django.utils.translation import gettext_lazy as _
 
 from base.methods import get_pagination
@@ -165,6 +164,67 @@ def get_diff_dict(first_dict, other_dict, model=None):
     return difference
 
 
+def get_client_ip(request):
+    """
+    The caller's IP, honoring only as many proxy hops as this deployment has
+    declared trustworthy (AXES_PROXY_COUNT) -- the same setting django-axes
+    itself uses for lockouts. Trusting X-Forwarded-For unconditionally lets
+    any client claim to be calling from an allowed office network, since
+    that header is attacker-supplied unless a trusted reverse proxy is
+    known to overwrite rather than append to it.
+    """
+    from ipware import get_client_ip as _get_client_ip
+
+    ip, _is_routable = _get_client_ip(
+        request,
+        proxy_count=settings.AXES_IPWARE_PROXY_COUNT,
+        request_header_order=settings.AXES_IPWARE_META_PRECEDENCE_ORDER,
+    )
+    return ip or request.META.get("REMOTE_ADDR")
+
+
+def geofence_denial_web(request, company):
+    """
+    The web clock-in/out views' counterpart to
+    horilla_api...attendance.views.geofence_denial(): that one reads
+    request.data, which only exists on a DRF Request, not the plain
+    HttpRequest these views get. The mobile/API flow enforces a configured
+    geo-fence; the web flow previously didn't check it at all, so an
+    employee outside the fence could still punch in from a browser.
+
+    Fails closed, the same reasoning as the API version: a fence that is
+    enabled but can't be evaluated (no coordinates submitted, or the browser
+    denied location access) should block the punch, not silently allow it.
+
+    Returns an error message to show the employee, or None if the punch may
+    proceed.
+    """
+    from geopy.distance import geodesic
+
+    from geofencing.models import GeoFencing
+
+    if company is None:
+        return None
+    fence = GeoFencing.objects.filter(company_id=company).first()
+    if fence is None or not fence.start:
+        return None
+
+    try:
+        latitude = float(request.GET.get("latitude"))
+        longitude = float(request.GET.get("longitude"))
+    except (TypeError, ValueError):
+        return _(
+            "Could not verify your location. Please allow location access and try again."
+        )
+
+    distance = geodesic(
+        (fence.latitude, fence.longitude), (latitude, longitude)
+    ).meters
+    if distance > fence.radius_in_meters:
+        return _("Check-In Restricted: You are outside the permitted work location.")
+    return None
+
+
 def employee_exists(request):
     """
     This method return the employee instance and work info if not exists return None instead
@@ -233,7 +293,11 @@ def is_reportingmanger(request, instance):
             instance.employee_id.employee_work_info.reporting_manager_id
         )
     except Exception:
-        return HttpResponse("This Employee Dont Have any work information")
+        # An HttpResponse object here used to be returned as-is, and every
+        # caller uses this in a boolean `or` -- any truthy value (which an
+        # HttpResponse is) granted access. An employee with no work info
+        # record yet let ANY authenticated caller act as their manager.
+        return False
     return manager == employee_workinfo_manager
 
 

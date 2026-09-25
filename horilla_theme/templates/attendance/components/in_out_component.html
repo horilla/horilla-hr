@@ -1,7 +1,7 @@
 {% load static horillafilters attendancefilters i18n %}
 
 {% if request.user.employee_get %}
-    {% with get_forecasted_at_work=request.user.employee_get.get_forecasted_at_work %}
+    {% with get_forecasted_at_work=request.user.employee_get.get_forecasted_at_work geo_on=request|is_geofencing_enabled %}
         {% if request.session.selected_company == "all" or request.user.employee_get.employee_work_info.company_id.id == request.session.selected_company|default:"-1"|add:"0" %}
             <!-- "CHEKING WETHER Check in/check out enabled" -->
             {% if request|is_check_in_enabled %}
@@ -14,8 +14,12 @@
                     </button>
                     <span class="at_work_seconds" data-at-work-seconds = "{{ get_forecasted_at_work.forecasted_at_work_seconds|default:0 }}" data-run= "{{run|default:1}}" ></span> {% endcomment %}
                     <button
-                        class="check checkout"
-                        hx-get="{% url 'clock-out' %}"
+                        class="check checkout{% if geo_on %} geo-clock-btn{% endif %}"
+                        {% if geo_on %}
+                            data-clock-url="{% url 'clock-out' %}"
+                        {% else %}
+                            hx-get="{% url 'clock-out' %}"
+                        {% endif %}
                         hx-target="#attendance-activity-container"
                         hx-swap="innerHTML"
                         {% if request|is_timerunner_enabled and get_forecasted_at_work.has_attendance %}
@@ -57,8 +61,12 @@
                     </button>
                     <span class="at_work_seconds" data-at-work-seconds = "{{ get_forecasted_at_work.forecasted_at_work_seconds|default:0 }}" data-run= "{{run|default:0}}" ></span> {% endcomment %}
                     <button
-                        class="check checkin"
-                        hx-get="{% url 'clock-in' %}"
+                        class="check checkin{% if geo_on %} geo-clock-btn{% endif %}"
+                        {% if geo_on %}
+                            data-clock-url="{% url 'clock-in' %}"
+                        {% else %}
+                            hx-get="{% url 'clock-in' %}"
+                        {% endif %}
                         hx-target="#attendance-activity-container"
                         hx-swap="innerHTML"
                         {% if request|is_timerunner_enabled %}
@@ -102,6 +110,47 @@
                     {% endif %}
                 {% endif %}
             {% endif %}
+        {% endif %}
+        {% if geo_on %}
+            <script>
+                // Delegated on document, guarded, so a re-render of this
+                // (htmx-swappable) component never double-binds. The
+                // geo-fence is enforced server-side; a browser that refuses
+                // or lacks geolocation still gets a clean, fail-closed
+                // denial from the server rather than a silent bypass.
+                if (!window.__geoClockBound) {
+                    window.__geoClockBound = true;
+                    document.addEventListener("click", function (ev) {
+                        var btn = ev.target.closest(".geo-clock-btn");
+                        if (!btn) return;
+                        ev.preventDefault();
+                        var url = btn.dataset.clockUrl;
+                        var go = function (finalUrl) {
+                            htmx.ajax("GET", finalUrl, {
+                                target: "#attendance-activity-container",
+                                swap: "innerHTML",
+                            });
+                        };
+                        if (!navigator.geolocation) {
+                            go(url);
+                            return;
+                        }
+                        navigator.geolocation.getCurrentPosition(
+                            function (pos) {
+                                go(
+                                    url +
+                                        "?latitude=" + pos.coords.latitude +
+                                        "&longitude=" + pos.coords.longitude
+                                );
+                            },
+                            function () {
+                                go(url);
+                            },
+                            { enableHighAccuracy: true, timeout: 10000 }
+                        );
+                    });
+                }
+            </script>
         {% endif %}
     {% endwith %}
 {% endif %}

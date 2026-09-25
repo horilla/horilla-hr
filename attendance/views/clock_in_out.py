@@ -24,6 +24,8 @@ from attendance.methods.utils import (
     activity_datetime,
     employee_exists,
     format_time,
+    geofence_denial_web,
+    get_client_ip,
     overtime_calculation,
     shift_schedule_today,
     strtime_seconds,
@@ -232,10 +234,11 @@ def clock_in(request):
             and allowed_attendance_ips
             and allowed_attendance_ips.is_enabled
         ):
-            x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
-            ip = request.META.get("REMOTE_ADDR")
-            if x_forwarded_for:
-                ip = x_forwarded_for.split(",")[0]
+            # get_client_ip() only trusts X-Forwarded-For as far as the
+            # deployment's declared proxy count -- taking the client-supplied
+            # header at face value let anyone claim to be on the office
+            # network.
+            ip = get_client_ip(request)
 
             allowed_ips = (allowed_attendance_ips.additional_data or {}).get(
                 "allowed_ips", []
@@ -256,6 +259,15 @@ def clock_in(request):
                     request,
                     _("Check-In Restricted: Your current network is not authorized "),
                 )
+                return HorillaRedirect(request)
+
+        if not request.__dict__.get("datetime"):
+            # The mobile/API clock-in already enforces a configured
+            # geo-fence; this view didn't, so an employee outside the fence
+            # could still punch in from a browser.
+            geofence_error = geofence_denial_web(request, company)
+            if geofence_error:
+                messages.error(request, geofence_error)
                 return HorillaRedirect(request)
 
         employee, work_info = employee_exists(request)
@@ -489,10 +501,11 @@ def clock_out(request):
             and allowed_attendance_ips
             and allowed_attendance_ips.is_enabled
         ):
-            x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
-            ip = request.META.get("REMOTE_ADDR")
-            if x_forwarded_for:
-                ip = x_forwarded_for.split(",")[0]
+            # get_client_ip() only trusts X-Forwarded-For as far as the
+            # deployment's declared proxy count -- taking the client-supplied
+            # header at face value let anyone claim to be on the office
+            # network.
+            ip = get_client_ip(request)
 
             allowed_ips = (allowed_attendance_ips.additional_data or {}).get(
                 "allowed_ips", []
@@ -513,6 +526,12 @@ def clock_out(request):
                     request,
                     _("Check-Out Restricted: Your current network is not authorized"),
                 )
+                return HorillaRedirect(request)
+
+        if not request.__dict__.get("datetime"):
+            geofence_error = geofence_denial_web(request, company)
+            if geofence_error:
+                messages.error(request, geofence_error)
                 return HorillaRedirect(request)
 
         datetime_now = timezone.localtime()
