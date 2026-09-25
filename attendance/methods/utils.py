@@ -217,9 +217,7 @@ def geofence_denial_web(request, company):
             "Could not verify your location. Please allow location access and try again."
         )
 
-    distance = geodesic(
-        (fence.latitude, fence.longitude), (latitude, longitude)
-    ).meters
+    distance = geodesic((fence.latitude, fence.longitude), (latitude, longitude)).meters
     if distance > fence.radius_in_meters:
         return _("Check-In Restricted: You are outside the permitted work location.")
     return None
