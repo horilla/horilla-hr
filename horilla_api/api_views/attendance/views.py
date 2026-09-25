@@ -1060,7 +1060,11 @@ class ConvertedMailTemplateConvert(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    @manager_permission_required("employee.change_employee")
+    # manager_permission_required only asked whether the caller manages
+    # *anyone*, never whether they manage the employee_id in the body -- any
+    # manager of one person could render this template with any employee's
+    # data (name, personal email, phone, address, ...) and read the result.
+    @manager_or_owner_permission_required(Employee, "employee.change_employee")
     def put(self, request):
         template_id = request.data.get("template_id", None)
         employee_id = request.data.get("employee_id", None)
@@ -1089,7 +1093,10 @@ class OfflineEmployeeMailsend(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    @manager_permission_required("employee.change_employee")
+    # Same BOLA as ConvertedMailTemplateConvert above: any manager of one
+    # person could email arbitrary attacker-controlled HTML, from the
+    # company's own SMTP identity, to any employee in the company.
+    @manager_or_owner_permission_required(Employee, "employee.change_employee")
     def post(self, request):
         employee_id = request.POST.get("employee_id")
         subject = request.POST.get("subject", "")
