@@ -1,4 +1,17 @@
 {% load static i18n %}
+<!-- Dashboard deep-link params (stage_type/stage_type_exclude/employee_id/
+     exit_reason) have no dedicated widget here -- these hidden inputs are
+     what makes them survive past the very first page load: htmx's own
+     request-building (horilla_nav.html's htmx:configRequest handler) only
+     keeps a query param baked into #filterForm's hx-get when it ISN'T also
+     a named form field, so anything without one gets silently dropped the
+     moment the user touches any other filter. Being real [name] fields
+     also makes clearFilterFromTag/clearAllFilter (static/build/js/
+     clearFilter.js) reset them for free. -->
+<input type="hidden" name="stage_type" value="{{ request.GET.stage_type|default:'' }}">
+<input type="hidden" name="stage_type_exclude" value="{{ request.GET.stage_type_exclude|default:'' }}">
+<input type="hidden" name="employee_id" value="{{ request.GET.employee_id|default:'' }}">
+<input type="hidden" name="exit_reason" value="{{ request.GET.exit_reason|default:'' }}">
 <div class="oh-dropdown__filter-body">
     <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
       <div class="oh-accordion-header">

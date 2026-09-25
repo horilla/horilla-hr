@@ -486,6 +486,12 @@ class EmployeeFilter(HorillaFilterSet):
                 "label": str(_("Job Role")),
                 "type": "choice",
             },
+            {
+                "key": "date_joining",
+                "field": "employee_work_info__date_joining",
+                "label": str(_("Date Joining")),
+                "type": "date_range",
+            },
         ]
         for entry in fields:
             entry["lookups"] = [

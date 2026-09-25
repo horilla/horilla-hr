@@ -113,6 +113,7 @@ def offboarding_pipeline_modal_success_response(request) -> HttpResponse:
 
 
 @method_decorator(login_required, name="dispatch")
+@method_decorator(hx_request_required, name="dispatch")
 @method_decorator(
     offboarding_manager_can_enter("offboarding.add_offboardingstage"), name="dispatch"
 )
@@ -624,9 +625,10 @@ class OffboardingPipelineContentShell(TemplateView):
         # explicit toggle click) left every first visit without an active
         # button, so the whole board re-fetched itself a second time right
         # after its first load - doubling load time for large stages.
-        context["nav_url"] = reverse(
-            "offboarding-pipeline-tab-nav", kwargs={"pk": offboarding.pk}
-        ) + (f"?view={view_type}" if view_type else "")
+        nav_url = reverse("offboarding-pipeline-tab-nav", kwargs={"pk": offboarding.pk})
+        nav_params = self.request.GET.copy()
+        nav_params["view"] = view_type
+        context["nav_url"] = f"{nav_url}?{nav_params.urlencode()}"
         return context
 
 
@@ -793,6 +795,27 @@ class OffboardingPipelineStage(Pipeline):
         )
         self.queryset = queryset.order_by("sequence")
         return self.queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Deep links (dashboard cards/charts/notice-tracker rows, or this
+        # tab's own Employee/Advanced filter panel) narrow which employees
+        # match via PipelineEmployeeFilter -- when one of those is active,
+        # only the stage(s) that actually contain a match should render
+        # open, instead of every stage auto-expanding like a plain,
+        # unfiltered visit does.
+        is_filtered = bool(self.request.GET.get("custom_field")) or any(
+            self.request.GET.get(name) for name in PipelineEmployeeFilter.base_filters
+        )
+        for stage in context["groups"]:
+            stage.pipeline_open = (
+                not is_filtered
+                or PipelineEmployeeFilter(
+                    self.request.GET,
+                    queryset=OffboardingEmployee.objects.filter(stage_id=stage.pk),
+                ).qs.exists()
+            )
+        return context
 
 
 @method_decorator(login_required, name="dispatch")

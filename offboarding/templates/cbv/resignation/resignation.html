@@ -28,7 +28,7 @@
 
     <meta name="csrf-token" content="{{ csrf_token }}">
 
-    <div hx-get='{% url "nav-resignation-request" %}' hx-trigger="load"></div>
+    <div hx-get='{% url "nav-resignation-request" %}?{{request.GET.urlencode}}' hx-trigger="load"></div>
     {% comment %} my_app/templates/my_app/generic/index.html {% endcomment %}
 
     {% include "generic/components.html" %}
@@ -44,7 +44,7 @@
 
     <div
         class="oh-wrapper"
-        hx-get='{% url "list-resignation-request"  %}?{{request.GET.urlencode}}&status=requested'
+        hx-get='{% url "list-resignation-request" %}?{{request.GET.urlencode}}{% if not request.GET.status %}&status=requested{% endif %}'
         hx-trigger="load"
         id="listContainer"
     >

@@ -27,8 +27,8 @@
     .ob-kpi-card__value { font-size: 28px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
     .ob-kpi-card__sub { font-size: 12px; opacity: 0.6; }
     .ob-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
-    .ob-badge--green { background: #dcfce7; color: #166534; } .ob-badge--amber { background: #fef3c7; color: #92400e; } .ob-badge--red { background: #fee2e2; color: #991b1b; }
-    .dark .ob-badge--green { background: #166534; color: #bbf7d0; } .dark .ob-badge--amber { background: #92400e; color: #fde68a; } .dark .ob-badge--red { background: #7f1d1d; color: #fca5a5; }
+    .ob-badge--green { background: #dcfce7; color: #166534; } .ob-badge--amber { background: #fef3c7; color: #92400e; } .ob-badge--red { background: #fee2e2; color: #991b1b; } .ob-badge--blue { background: #dbeafe; color: #1e40af; }
+    .dark .ob-badge--green { background: #166534; color: #bbf7d0; } .dark .ob-badge--amber { background: #92400e; color: #fde68a; } .dark .ob-badge--red { background: #7f1d1d; color: #fca5a5; } .dark .ob-badge--blue { background: #1e3a8a; color: #bfdbfe; }
 
     .ob-layout { display: grid; grid-template-columns: 1fr 300px; gap: 20px; align-items: start; }
     .ob-main { min-width: 0; }
@@ -247,6 +247,38 @@
     const resignationUrlFor = id => id ? `${resignationUrl}?employee_id=${id}` : '#';
     const assetAllocationUrl = "{% url 'asset-request-allocation-view' %}";
     const assetAllocationUrlFor = id => id ? `${assetAllocationUrl}?assigned_to_employee_id=${id}&open_tab=2` : '#';
+    // Placeholder-pk trick (only way to get a dynamic-pk Django url tag
+    // into JS): reverse it once with a pk that can never collide with a
+    // real one, then substitute the real id client-side.
+    const offboardingPipelineShellUrlTemplate = "{% url 'offboarding-pipeline-shell' pk=999999999 %}";
+    const offboardingPipelineShellUrl = id => offboardingPipelineShellUrlTemplate.replace('999999999', id);
+    const noticeTrackerUrlFor = row => row.offboarding_id
+        ? `${offboardingPipelineShellUrl(row.offboarding_id)}?employee_id=${row.id}`
+        : resignationUrlFor(row.id);
+
+    // Matches HorillaFilterSet._apply_custom_filters' parallel-array
+    // convention (repeated custom_field/custom_lookup/custom_value keys,
+    // zipped positionally) -- the Advanced filter builder's own format,
+    // reused here so a dashboard-driven date range lands as a real,
+    // durable, chip-visible filter instead of a raw param the target
+    // FilterSet wouldn't recognize.
+    function customRangeParams(field, from, to) {
+        if (!from || !to) return '';
+        return `&custom_field=${field}&custom_lookup=gte&custom_value=${from}` +
+            `&custom_field=${field}&custom_lookup=lte&custom_value=${to}`;
+    }
+    // Dedicated "<field>_from"/"<field>_till" pair (LetterFilter.
+    // created_at_from/_till and friends) instead of the Advanced builder's
+    // custom_field/custom_lookup/custom_value convention above -- that
+    // convention submits gte/lte as two rows sharing the same <select>
+    // names, which the generic filter-tag chip bar can't tell apart and
+    // renders as garbled "Custom field: Created at" / "Custom lookup:
+    // GteLte" tags. A uniquely-named field per direction renders as its
+    // own clean tag instead.
+    function dateRangeParams(field, from, to) {
+        if (!from || !to) return '';
+        return `&${field}_from=${from}&${field}_till=${to}`;
+    }
 
     document.getElementById('ob-date').textContent = new Date().toLocaleDateString('en-US', {
         weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
@@ -400,29 +432,29 @@
         .then(r => r.json())
         .then(data => {
             document.getElementById('ob-kpi-grid').innerHTML = `
-                <a href="{% url 'offboarding-pipeline' %}" class="ob-kpi-card">
+                <a href="{% url 'offboarding-pipeline' %}?stage_type_exclude=archived" class="ob-kpi-card">
                     <div class="ob-kpi-card__icon ob-kpi-card__icon--red"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div>
                     <div class="ob-kpi-card__label">{% trans "Active Offboarding"|escapejs %}</div>
                     <div class="ob-kpi-card__value">${data.active_offboarding}</div>
                     <div class="ob-kpi-card__sub"><span class="ob-badge ob-badge--red">${data.exit_ratio}% {% trans "exit rate"|escapejs %}</span></div>
                 </a>
-                <a href="{% url 'resignation-request-view' %}" class="ob-kpi-card">
+                <a href="{% url 'resignation-request-view' %}?status=requested" class="ob-kpi-card">
                     <div class="ob-kpi-card__icon ob-kpi-card__icon--amber"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>
                     <div class="ob-kpi-card__label">{% trans "Resignations"|escapejs %}</div>
                     <div class="ob-kpi-card__value">${data.pending_resignations}</div>
-                    <div class="ob-kpi-card__sub">${data.approved_resignations > 0 ? '<span class="ob-badge ob-badge--green">' + data.approved_resignations + ' {% trans "approved"|escapejs %}</span>' : '{% trans "Pending review"|escapejs %}'}</div>
+                    <div class="ob-kpi-card__sub">${data.approved_resignations > 0 ? '<span class="ob-badge ob-badge--green">' + data.approved_resignations + ' {% trans "approved"|escapejs %}</span>' : '<span class="ob-badge ob-badge--amber">{% trans "Pending review"|escapejs %}</span>'}</div>
                 </a>
                 <div class="ob-kpi-card ob-kpi-card--static" title="${'Task Completion = Completed Tasks (' + data.completed_tasks + ') / Total Tasks (' + data.total_tasks + ') × 100 = ' + data.task_completion + '%'}">
                     <div class="ob-kpi-card__icon ob-kpi-card__icon--green"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
                     <div class="ob-kpi-card__label">{% trans "Task Completion"|escapejs %}</div>
                     <div class="ob-kpi-card__value">${data.task_completion}%</div>
-                    <div class="ob-kpi-card__sub">${data.completed_tasks}/${data.total_tasks} {% trans "tasks done"|escapejs %}</div>
+                    <div class="ob-kpi-card__sub"><span class="ob-badge ob-badge--blue">${data.completed_tasks}/${data.total_tasks} {% trans "tasks done"|escapejs %}</span></div>
                 </div>
-                <a href="{% url 'offboarding-pipeline' %}?type=archived" class="ob-kpi-card">
+                <a href="{% url 'offboarding-pipeline' %}?stage_type=archived" class="ob-kpi-card">
                     <div class="ob-kpi-card__icon ob-kpi-card__icon--blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
                     <div class="ob-kpi-card__label">{% trans "Archived"|escapejs %}</div>
                     <div class="ob-kpi-card__value">${data.archived}</div>
-                    <div class="ob-kpi-card__sub">${data.notice_ending_soon > 0 ? '<span class="ob-badge ob-badge--amber">' + data.notice_ending_soon + ' {% trans "notice ending"|escapejs %}</span>' : '<span id="ob-avg-duration">{% trans "Completed offboarding"|escapejs %}</span>'}</div>
+                    <div class="ob-kpi-card__sub">${data.notice_ending_soon > 0 ? '<span class="ob-badge ob-badge--amber">' + data.notice_ending_soon + ' {% trans "notice ending"|escapejs %}</span>' : '<span class="ob-badge ob-badge--green" id="ob-avg-duration">{% trans "Completed offboarding"|escapejs %}</span>'}</div>
                 </a>`;
         });
     }
@@ -448,11 +480,12 @@
             if (!data.stages.length) { el.innerHTML = emptyHtml('{% trans "No offboarding stages"|escapejs %}'); return; }
             const stageColors = { notice_period: 'rgba(245,158,11,0.15)', interview: 'rgba(99,102,241,0.15)', handover: 'rgba(59,130,246,0.15)', fnf: 'rgba(168,85,247,0.15)', other: 'rgba(148,163,184,0.15)', archived: 'rgba(34,197,94,0.15)' };
             const stageTextColors = { notice_period: '#d97706', interview: '#4f46e5', handover: '#2563eb', fnf: '#7c3aed', other: '#64748b', archived: '#16a34a' };
+            const pipelineUrl = "{% url 'offboarding-pipeline' %}";
             el.innerHTML = '<div class="ob-pipeline">' + data.stages.map(s =>
-                `<div class="ob-pipeline-step" style="background:${stageColors[s.type] || 'rgba(148,163,184,0.15)'};">
+                `<a href="${pipelineUrl}?stage_type=${encodeURIComponent(s.type)}" class="ob-pipeline-step" style="background:${stageColors[s.type] || 'rgba(148,163,184,0.15)'};text-decoration:none;color:inherit;">
                     <div class="ob-pipeline-step__count" style="color:${stageTextColors[s.type] || '#64748b'};">${s.count}</div>
                     <div class="ob-pipeline-step__label">${s.stage}</div>
-                </div>`
+                </a>`
             ).join('<div style="display:flex;align-items:center;opacity:0.3;font-size:18px;">→</div>') + '</div>';
         });
     }
@@ -470,7 +503,8 @@
                 chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit',
                     events: { dataPointSelection: (e, ctx, config) => {
                         const status = data.statuses[config.dataPointIndex].status;
-                        window.location.href = "{% url 'resignation-request-view' %}?status=" + encodeURIComponent(status);
+                        window.location.href = "{% url 'resignation-request-view' %}?status=" + encodeURIComponent(status) +
+                            dateRangeParams('created_at', fromInput.value, toInput.value);
                     }}
                 },
                 labels: data.statuses.map(s => s.label),
@@ -492,13 +526,14 @@
             const total = data.statuses.reduce((a, s) => a + s.count, 0);
             if (!total) { document.querySelector("#chart-tasks").innerHTML = emptyHtml('{% trans "No tasks"|escapejs %}'); return; }
             const taskColors = { todo: '#94a3b8', in_progress: '#3b82f6', stuck: '#ef4444', completed: '#22c55e' };
+            // No redirect: EmployeeTask has no list view anywhere in
+            // offboarding to send this to (tasks are only ever visible
+            // embedded inside an individual offboarding employee's own
+            // detail modal) -- same reasoning as the Task Completion KPI
+            // card above, which is deliberately non-clickable too.
             renderChart('tasks', document.querySelector("#chart-tasks"), {
                 series: data.statuses.map(s => s.count),
-                chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit',
-                    events: { dataPointSelection: () => {
-                        window.location.href = "{% url 'offboarding-pipeline' %}";
-                    }}
-                },
+                chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit' },
                 labels: data.statuses.map(s => s.label),
                 colors: data.statuses.map(s => taskColors[s.status] || '#94a3b8'),
                 plotOptions: { pie: { donut: { size: '65%', labels: { show: true, total: { show: true, label: '{% trans "Total"|escapejs %}', color: textColor, fontSize: '13px', fontWeight: 600, formatter: w => w.globals.seriesTotals.reduce((a,b)=>a+b,0) } } } } },
@@ -521,9 +556,11 @@
                 chart: { type: 'bar', height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
                     events: { dataPointSelection: (e, ctx, config) => {
                         const d = data.departments[config.dataPointIndex];
-                        const base = "{% url 'offboarding-pipeline' %}";
+                        const base = "{% url 'resignation-request-view' %}";
                         if (d && d.dept_id) {
-                            window.location.href = base + "?employee_id__employee_work_info__department_id=" + d.dept_id;
+                            window.location.href = base + "?employee_id__employee_work_info__department_id=" + d.dept_id +
+                                "&has_offboarding=true" +
+                                dateRangeParams('offboarding_created_at', fromInput.value, toInput.value);
                         } else {
                             window.location.href = base;
                         }
@@ -551,8 +588,11 @@
             renderChart('exit-reasons', document.querySelector("#chart-exit-reasons"), {
                 series: [{ name: '{% trans "Count"|escapejs %}', data: data.reasons.map(r => r.count) }],
                 chart: { type: 'bar', height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
-                    events: { dataPointSelection: () => {
-                        window.location.href = "{% url 'resignation-request-view' %}";
+                    events: { dataPointSelection: (e, ctx, config) => {
+                        const r = data.reasons[config.dataPointIndex];
+                        if (!r) return;
+                        window.location.href = "{% url 'resignation-request-view' %}?exit_reason=" + encodeURIComponent(r.reason) +
+                            dateRangeParams('exit_reason_logged_at', fromInput.value, toInput.value);
                     }}
                 },
                 colors: COLORS,
@@ -584,11 +624,11 @@
                         const m = data.months[config.dataPointIndex];
                         if (!m) return;
                         if (config.seriesIndex === 0) {
-                            window.location.href = "{% url 'employee-view' %}?employee_work_info__date_joining__gte=" + m.from_date +
-                                "&employee_work_info__date_joining__lte=" + m.to_date;
+                            window.location.href = "{% url 'employee-view' %}?" +
+                                customRangeParams('date_joining', m.from_date, m.to_date).slice(1);
                         } else {
-                            window.location.href = "{% url 'resignation-request-view' %}?planned_to_leave_on__gte=" + m.from_date +
-                                "&planned_to_leave_on__lte=" + m.to_date;
+                            window.location.href = "{% url 'resignation-request-view' %}?status_in=requested,approved" +
+                                customRangeParams('planned_to_leave_on', m.from_date, m.to_date);
                         }
                     }}
                 },
@@ -619,7 +659,7 @@
                 if (e.status === 'ended') badge = '<span class="ob-badge ob-badge--red">{% trans "Ended"|escapejs %}</span>';
                 else if (e.status === 'ending') badge = `<span class="ob-badge ob-badge--amber">${e.days_left}d</span>`;
                 else badge = `<span class="ob-badge ob-badge--green">${e.days_left}d</span>`;
-                return `<a href="${resignationUrlFor(e.id)}" class="ob-list-item">
+                return `<a href="${noticeTrackerUrlFor(e)}" class="ob-list-item">
                     <div class="ob-list-item__avatar">${avatarInner}</div>
                     <div class="ob-list-item__info">
                         <div class="ob-list-item__name">${e.name}</div>

@@ -1,4 +1,10 @@
 {% load i18n %}
+<!-- Dashboard deep-link param (multi-status "Exiting" series) has no
+     dedicated widget here -- see the equivalent comment in
+     cbv/exit_process/pipeline_tab_filter.html for why this hidden input
+     (not just the raw querystring) is what makes it survive past the
+     first page load and get cleared correctly. -->
+<input type="hidden" name="status_in" value="{{ request.GET.status_in|default:'' }}">
 <div class="oh-dropdown__filter-body">
     <!-- Outside any accordion (always visible, not collapsible) -- same
          placement as every other modernized filter panel this session:

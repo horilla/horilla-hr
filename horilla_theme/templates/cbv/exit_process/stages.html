@@ -22,11 +22,11 @@
           {# (cbv/exit_process/quick_actions.html), not here - only the  #}
           {# fold chevron stays in the header, mirroring Recruitment's   #}
           {# cbv/pipeline/stages.html.                                   #}
-          <ion-icon name="chevron-down-outline" class="movable-toggle-icon icon text-lg"></ion-icon>
+          <ion-icon name="{% if group.pipeline_open %}chevron-down-outline{% else %}chevron-up-outline{% endif %}" class="movable-toggle-icon icon text-lg"></ion-icon>
         </div>
       </div>
       <div
-      class="oh-tabs__movable-body position-relative"
+      class="oh-tabs__movable-body position-relative{% if not group.pipeline_open %} d-none{% endif %}"
       hx-get="{{url}}?{% for parameter in parameters %}{{parameter|format:group}}&{% endfor %}{{request.GET.urlencode}}"
       hx-trigger="load"
 

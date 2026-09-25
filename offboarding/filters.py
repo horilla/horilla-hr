@@ -47,6 +47,77 @@ class LetterFilter(HorillaFilterSet):
     name_or_badge = django_filters.CharFilter(
         method="filter_name_or_badge", label=_("Name or Badge ID")
     )
+    # Multi-status deep link (e.g. the dashboard's Joining vs Exiting
+    # "Exiting" series, status__in=["approved", "requested"]) -- status
+    # itself is single-value exact, so this can't be expressed there.
+    # Comma-separated, same convention as filter_name_or_badge_terms's
+    # multi-term input.
+    status_in = django_filters.CharFilter(method="filter_status_in")
+
+    # Dedicated Created At range (dashboard deep links: Resignation Status,
+    # Department Attrition, Exit Reasons). The Advanced "+ Add filter"
+    # builder already offers a generic date_range entry for each of these
+    # (see _build_custom_filter_fields below), but that mechanism submits
+    # gte/lte as two rows sharing the same custom_field/custom_lookup/
+    # custom_value <select> names -- fine for the builder's own UI, but the
+    # generic filter-tag chip bar (horilla_views/templates/generic/
+    # filter_tags.html) has no way to tell those rows apart and renders
+    # garbled tags ("Custom field: Created at" / "Custom lookup: GteLte").
+    # A uniquely-named field per direction (same "_from"/"_till" convention
+    # as EmployeeFilter.probation_from/_till, AttendanceFilters.
+    # attendance_date_from/_till, ...) sidesteps that entirely: each shows
+    # up as its own clean, correctly-labelled tag.
+    created_at_from = django_filters.DateFilter(
+        field_name="created_at",
+        lookup_expr="gte",
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+    created_at_till = django_filters.DateFilter(
+        field_name="created_at",
+        lookup_expr="lte",
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+    # Same reasoning, for Department Attrition's OffboardingEmployee.
+    # created_at (see has_offboarding above for why that's a different
+    # column than this letter's own created_at).
+    offboarding_created_at_from = django_filters.DateFilter(
+        field_name="offboarding_employee_id__created_at",
+        lookup_expr="gte",
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+    offboarding_created_at_till = django_filters.DateFilter(
+        field_name="offboarding_employee_id__created_at",
+        lookup_expr="lte",
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+    # Same reasoning, for Exit Reasons' ExitReason.created_at.
+    exit_reason_logged_at_from = django_filters.DateFilter(
+        field_name="offboarding_employee_id__exitreason__created_at",
+        lookup_expr="gte",
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+    exit_reason_logged_at_till = django_filters.DateFilter(
+        field_name="offboarding_employee_id__exitreason__created_at",
+        lookup_expr="lte",
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+
+    # Department Attrition chart deep link -- that chart counts
+    # OffboardingEmployee rows grouped by department, not raw
+    # ResignationLetter rows: a letter that was only ever "requested" or
+    # "rejected" without ever becoming an offboarding employee (
+    # offboarding_employee_id stays null) was never counted there, so the
+    # plain department field alone over-counts the redirect's list versus
+    # what the chart showed. This narrows it back down to the same
+    # population.
+    has_offboarding = django_filters.BooleanFilter(method="filter_has_offboarding")
+
+    # Exit Reasons chart deep link (dashboard -> Resignation Letter view) --
+    # ResignationLetter has no exit_reason field of its own; the reason is
+    # logged against the linked OffboardingEmployee (see
+    # PipelineEmployeeFilter.filter_exit_reason's identical reverse-accessor
+    # note in this same module).
+    exit_reason = django_filters.CharFilter(method="filter_exit_reason")
 
     # HorillaFilterSet.ajax_fields (generic AJAX-loaded combobox mechanism)
     # -- every model/queryset-backed field in the modern filter panel opts
@@ -110,6 +181,16 @@ class LetterFilter(HorillaFilterSet):
             "employee_id__badge_id",
         )
 
+    def filter_status_in(self, queryset, name, value):
+        statuses = [s.strip() for s in value.split(",") if s.strip()]
+        return queryset.filter(status__in=statuses) if statuses else queryset
+
+    def filter_has_offboarding(self, queryset, name, value):
+        return queryset.filter(offboarding_employee_id__isnull=not value)
+
+    def filter_exit_reason(self, queryset, name, value):
+        return queryset.filter(offboarding_employee_id__exitreason__title=value)
+
     def _build_custom_filter_fields(self):
         """
         Registry backing the Advanced section's "+ Add filter" builder
@@ -131,6 +212,25 @@ class LetterFilter(HorillaFilterSet):
                 "key": "created_at",
                 "field": "created_at",
                 "label": str(_("Created At")),
+                "type": "date_range",
+            },
+            # Department Attrition chart deep link -- the dashboard counts
+            # OffboardingEmployee.created_at for that period, not the
+            # letter's own created_at, so the redirect needs this separate
+            # path to reproduce the exact same slice.
+            {
+                "key": "offboarding_created_at",
+                "field": "offboarding_employee_id__created_at",
+                "label": str(_("Offboarding Created At")),
+                "type": "date_range",
+            },
+            # Exit Reasons chart deep link -- same field path as
+            # PipelineEmployeeFilter's identical "exit_reason_logged_at"
+            # entry above, one hop further through offboarding_employee_id.
+            {
+                "key": "exit_reason_logged_at",
+                "field": "offboarding_employee_id__exitreason__created_at",
+                "label": str(_("Exit Reason Logged On")),
                 "type": "date_range",
             },
         ]
@@ -330,6 +430,26 @@ class PipelineEmployeeFilter(HorillaFilterSet):
     stage_type = django_filters.CharFilter(
         field_name="stage_id__type",
     )
+    # Exact-employee deep link (e.g. the dashboard's Notice Period Tracker
+    # rows) -- plain FK-by-pk match, same shape as offboarding_stage_id/
+    # stage_type above.
+    employee_id = django_filters.CharFilter(
+        field_name="employee_id",
+    )
+    # "Active Offboarding" (dashboard KPI) is every non-archived employee --
+    # stage_type above is exact-match only, so it can't express that; a
+    # dedicated exclude method is the only way to reuse the same stage
+    # "type" values without adding a fixed stage_type=!archived convention.
+    stage_type_exclude = django_filters.CharFilter(method="filter_stage_type_exclude")
+    # Exit Reasons chart deep link -- ExitReason.offboarding_employee_id's
+    # default reverse accessor is "exitreason" (no related_name set).
+    exit_reason = django_filters.CharFilter(method="filter_exit_reason")
+
+    def filter_stage_type_exclude(self, queryset, name, value):
+        return queryset.exclude(stage_id__type=value)
+
+    def filter_exit_reason(self, queryset, name, value):
+        return queryset.filter(exitreason__title=value)
 
     # HorillaFilterSet.ajax_fields (generic AJAX-loaded combobox mechanism)
     # -- Department/Job Position/Job Role/Employee Type/Shift/Work Type
@@ -435,6 +555,12 @@ class PipelineEmployeeFilter(HorillaFilterSet):
                 "key": "created_at",
                 "field": "created_at",
                 "label": str(_("Created At")),
+                "type": "date_range",
+            },
+            {
+                "key": "exit_reason_logged_at",
+                "field": "exitreason__created_at",
+                "label": str(_("Exit Reason Logged On")),
                 "type": "date_range",
             },
         ]

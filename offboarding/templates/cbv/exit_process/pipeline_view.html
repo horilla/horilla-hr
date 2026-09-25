@@ -21,7 +21,7 @@
     <div
         class="oh-wrapper"
         id="{{view_container_id}}"
-        hx-get="{{ view_url }}"
+        hx-get="{{ view_url }}?{{request.GET.urlencode}}"
         hx-trigger="load"
     >
     </div>

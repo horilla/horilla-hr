@@ -317,7 +317,7 @@ def offboarding_notice_period_tracker(request):
                 notice_period_ends__gte=from_date,
             )
             .exclude(stage_id__type="archived")
-            .select_related("employee_id", "stage_id")
+            .select_related("employee_id", "stage_id", "stage_id__offboarding_id")
             .order_by("notice_period_ends")[:15]
         )
 
@@ -331,6 +331,9 @@ def offboarding_notice_period_tracker(request):
                     "id": emp.id if emp else None,
                     "name": emp.get_full_name() if emp else "—",
                     "avatar": emp.get_avatar() if emp else None,
+                    "offboarding_id": (
+                        oe.stage_id.offboarding_id_id if oe.stage_id else None
+                    ),
                     "stage": oe.stage_id.title if oe.stage_id else "—",
                     "notice_ends": (
                         oe.notice_period_ends.strftime("%b %d, %Y")
