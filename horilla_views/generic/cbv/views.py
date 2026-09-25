@@ -72,9 +72,8 @@ _dynamic_url_routes_registered: set = set()
 
 def model_has_audit_tracking(model) -> bool:
     """
-    Cheap, in-memory check for whether ``model`` actually has history
-    tracking wired up, as opposed to merely inheriting the unconditional
-    ``horilla_history`` field every ``HorillaModel`` subclass gets.
+    Return whether `model` has real history tracking,
+    not just the field every HorillaModel subclass inherits.
     """
     return (
         hasattr(model, "history_set")
@@ -85,15 +84,8 @@ def model_has_audit_tracking(model) -> bool:
 
 def register_dynamic_url(route: str, view, name: str = None) -> None:
     """
-    Idempotently register a per-session/view dynamic URL route.
-
-    These routes are deterministic strings (keyed by view_id and/or session
-    key), so appending unconditionally on every request re-adds the exact
-    same route again and again. With no dedup, Django's URL resolver's
-    pattern list grows without bound over a server process's lifetime,
-    making every URL resolution progressively slower (a full resolver
-    rebuild is triggered periodically as the list grows). Track what's
-    already been registered and skip re-adding it.
+    Register a dynamic URL route once,
+    skipping duplicates since re-adding them would grow the resolver unbounded.
     """
     if route in _dynamic_url_routes_registered:
         return
@@ -129,11 +121,7 @@ class HorillaListView(ListView):
     columns: list = []
     export_columns = []
     default_columns: list = []
-    # Optional {column_key: plain_text_label} overrides for the "Columns"
-    # show/hide panel, for columns whose column[0] is HTML meant for the
-    # <th> itself (e.g. a per-stage "+ Task" action column) rather than a
-    # usable checkbox label. Empty by default -- every column falls back to
-    # column[0], unchanged from before this existed.
+    # Optional {column_key: label} override for the columns show/hide panel,
     toggle_labels: dict = {}
     search_url: str = ""
     bulk_select_option: bool = True
@@ -152,18 +140,13 @@ class HorillaListView(ListView):
     fk_o2o_field_in_base_model: list = []
     individual_update: bool = False
     o2o_related_name_mapping: dict = {}
-    # Mirrors HorillaNavView.nested_group_by_fields -- List and Nav are
-    # separate classes/templates rendered for the same page, so the list
-    # needs its own copy to populate the "add/change field" dropdowns
-    # inline in the "Grouped by" breadcrumb (nested_group_by_table.html),
-    # not just the currently-*active* fields it already had access to.
+    # Mirrors HorillaNavView.nested_group_by_fields;
+    # List and Nav render separately but share this field for the "Grouped by" breadcrumb dropdowns.
     nested_group_by_fields: list = []
 
     custom_empty_template: str = ""
 
-    # Name of a model method returning {column attribute: extra CSS classes}
-    # for that row, letting a view shade individual cells (e.g. the fields an
-    # attendance request wants changed) without forking this list template.
+    # Model method name returning {column attribute: extra CSS classes} to shade individual row cells.
     cell_class_method: str = ""
 
     action_method: str = """"""
@@ -186,10 +169,8 @@ class HorillaListView(ListView):
     """
     actions: list = []
 
-    # Group-by accordion support: path to a template rendered behind a
-    # three-dot menu in each accordion header (generic/group_by_table.html).
-    # `group` is in scope, so the template can build group-scoped actions.
-    # Leave unset ("") to keep the accordion header as-is.
+    # Path to a template rendered behind each accordion header's three-dot menu (generic/group_by_table.html);
+    # `group` is in scope. Leave "" to keep the header as-is.
     accordian_action: str = ""
 
     option_method: str = ""
@@ -220,7 +201,6 @@ class HorillaListView(ListView):
     @classmethod
     def as_view(cls, **initkwargs):
         def view(request, *args, **kwargs):
-            # Inject URL params into initkwargs
             initkwargs_with_url = {**initkwargs, **kwargs}
             self = cls(**initkwargs_with_url)
             self.request = request
@@ -232,16 +212,7 @@ class HorillaListView(ListView):
 
     def __init__(self, **kwargs: Any) -> None:
         if not self.view_id:
-            # Nested group by's leaf-level pagination (nested_group_by_node.html)
-            # scopes its swap with hx-select="#{{view_id}}-node-...", matched
-            # against the FRESH server response to a follow-up request -- if
-            # that response regenerates a new random view_id (the default
-            # below), the id it's looking for no longer exists there, so
-            # nothing matches and the targeted node's own row silently
-            # disappears instead of advancing to its next page. Carrying the
-            # ORIGINAL render's view_id forward as a GET param (added to
-            # those same hx-get urls) keeps ids stable across that follow-up
-            # request instead.
+            # Nested group-by pagination matches hx-select against a stable view_id; a fresh random id here would break that match, so reuse the incoming one if present.
             request = getattr(_thread_locals, "request", None)
             incoming_view_id = request.GET.get("view_id") if request else None
             self.view_id = incoming_view_id or get_short_uuid(4)
@@ -480,9 +451,7 @@ class HorillaListView(ListView):
             }
             data_dict = get_key_instances(self.model, data_dict)
             remove_keys = set(
-                # nested_fields gets its own "Nested group by: X > Y" line
-                # instead of the generic filter-tag rendering, which joins
-                # multi-value fields with no separator.
+                # nested_fields gets its own "Grouped by: X > Y" line instead of the generic filter-tag rendering.
                 ["filter_applied", "nav_url", "referrer", "nested_fields"]
                 + self.filter_keys_to_remove
             )
@@ -521,8 +490,7 @@ class HorillaListView(ListView):
         except Exception:
             pass
 
-        # Avoid marking the session modified when nothing changed — concurrent
-        # notification polls were failing with SQLite "database is locked".
+        # Only write to the session when changed, to avoid concurrent polls hitting SQLite "database is locked".
         session_key = self.ordered_ids_key
         if self.request.session.get(session_key) != ordered_ids:
             self.request.session[session_key] = ordered_ids
@@ -530,15 +498,7 @@ class HorillaListView(ListView):
         nested_fields = [f for f in self._saved_filters.getlist("nested_fields") if f]
         group_field = self._saved_filters.get("field")
         if isinstance(queryset, list) and (nested_fields or group_field):
-            # sortby() always hands back a plain, already-sorted list (even
-            # for a real DB column, not just a computed/method sort) --
-            # Python's sorted() can't return a queryset. Both the nested and
-            # classic group-by engines need a real QuerySet, since they run
-            # their own .values()/.filter()/.annotate() calls, so rebuild
-            # one here that preserves this exact row order via a Case/When
-            # rank instead of silently losing the requested sort (or
-            # crashing on `queryset.model` and falling back to the flat
-            # list, which is what happened before this rebuild existed).
+            # sortby() returns a plain sorted list, but group-by needs a real QuerySet; rebuild one preserving this row order via Case/When.
             pk_order = [obj.pk for obj in queryset]
             if pk_order:
                 preserve_order = Case(
@@ -552,8 +512,7 @@ class HorillaListView(ListView):
 
         if request and len(nested_fields) >= 1:
             self.template_name = "generic/nested_group_by_table.html"
-            # Skip flat list COUNT/pagination — the nested engine paginates
-            # top-level groupers itself.
+            # Skip flat list pagination; the nested engine paginates top-level groupers itself.
             context["queryset"] = queryset[:1]
             try:
                 context["nested_groups"] = nested_group_by_queryset(
@@ -581,8 +540,7 @@ class HorillaListView(ListView):
         elif request and group_field:
             field = group_field
             self.template_name = "generic/group_by_table.html"
-            # Skip flat list COUNT/pagination — group_by paginates groupers itself.
-            # Keep a tiny queryset so bulk-select chrome (`queryset|length`) still works.
+            # group_by paginates groupers itself; keep a tiny queryset so bulk-select chrome (`queryset|length`) still works.
             context["queryset"] = queryset[:1]
             try:
                 context["groups"] = group_by_queryset(
@@ -738,7 +696,6 @@ class HorillaListView(ListView):
             queryset=self.model.objects.filter(id__in=ids),
         )
 
-        # Create response
         response = HttpResponse(
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
@@ -774,8 +731,6 @@ class HorillaListView(ListView):
 
             serialized = []
             field_column_mapping_values = {}
-            # not `_`: that would make the gettext alias a local for this
-            # whole method, so the _() call above raises UnboundLocalError.
             for _index, row in df.iterrows():
                 record = {}
                 for model_field, excel_col in field_column_mapping.items():
@@ -1653,9 +1608,7 @@ class HorillaDetailedView(DetailView):
     instance = None
     empty_template = None
 
-    # Set these on a subclass to self-register as the related-object-link
-    # target for `model` (see horilla_views/related_link_registry.py), instead
-    # of calling register_detail_view() separately from an app's ready().
+    # Set on a subclass to self-register as the related-object-link target for `model` (see related_link_registry.py).
     detail_view_url_name = None
     detail_view_permission = None
 
@@ -1717,9 +1670,7 @@ class HorillaDetailedView(DetailView):
         pk = obj.pk
         instance_ids = []
         if self.request.GET.get(RELATED_VIEW_PARAM) != "1":
-            # Skip list-driven Previous/Next when this Detail View was opened
-            # through a related-object link (see related_link_registry.py) so
-            # it behaves as a standalone page, per its own session state.
+            # Skip list-driven Previous/Next when opened via a related-object link (related_link_registry.py).
             instance_ids = self.request.session.get(self.ordered_ids_key, [])
         url_info = resolve(self.request.path)
         url_name = url_info.url_name
@@ -1797,29 +1748,15 @@ class HorillaTabView(TemplateView):
             if active_tab:
                 context["active_target"] = active_tab.tab_target
 
-        # Explicit deep-link support: a caller (e.g. a dashboard "pending
-        # approvals" card) can force a specific tab open on first load via
-        # ?open_tab=<1-based index>, overriding whatever tab the user last
-        # had active. Without this there was no way to link directly into a
-        # non-default tab - every tab param below carries the filter, but
-        # the FIRST tab (or whatever was last active) was always the one
-        # actually shown.
-        # No tag name in the selector: the tab element is a <li> in one
-        # horilla_tabs.html and a <button> in the theme's override, and this
-        # needs to match whichever one actually renders.
+        # ?open_tab=<1-based index> forces a tab open on first load, overriding the last-active tab.
+        # No tag name in the selector: the tab is a <li> in horilla_tabs.html but a <button> in the theme override.
         open_tab = self.request.GET.get("open_tab")
         if open_tab and open_tab.isdigit():
             context["active_target"] = f'[data-target="#{self.view_id}{open_tab}"]'
 
-        # Built from self.request.GET.copy() (a QueryDict), not a plain
-        # dict -- a plain dict can only hold one value per key, so a
-        # multi-valued param (e.g. nested_fields, when 2+ group-by levels
-        # are active) silently collapsed to just its last value on every
-        # tab reload, one dropped level at a time.
+        # Must be a QueryDict, not a plain dict, or multi-valued params (e.g. nested_fields) collapse to their last value.
         extra_params = self.request.GET.copy()
-        # Only controls which tab opens above - not a real filter, so it
-        # shouldn't be forwarded onto tab URLs or show up as a "Filters:"
-        # chip on the destination list.
+        # open_tab only controls which tab opens; don't forward it as a filter.
         extra_params.pop("open_tab", None)
         extra_params["referrer"] = self.request.META.get("HTTP_REFERER", "")
 
@@ -1884,9 +1821,7 @@ class HorillaCardView(ListView):
     card_status_indications: list = []
     custom_body_template: str = ""
     custom_empty_template: str = ""
-    # Set True on card views that don't support the grouped-accordion layout —
-    # a shared nav's "field" group-by param is then ignored, so the card
-    # always renders its normal flat layout regardless of Group By selection.
+    # True on card views that don't support the grouped-accordion layout; the shared nav's group-by param is then ignored.
     disable_group_by: bool = False
 
     def __init__(self, **kwargs: Any) -> None:
@@ -1956,9 +1891,7 @@ class HorillaCardView(ListView):
             }
             data_dict = get_key_instances(self.model, data_dict)
             remove_keys = set(
-                # nested_fields gets its own "Nested group by: X > Y" line
-                # instead of the generic filter-tag rendering, which joins
-                # multi-value fields with no separator.
+                # nested_fields gets its own "Grouped by: X > Y" line instead of the generic filter-tag rendering.
                 ["filter_applied", "nav_url", "referrer", "nested_fields"]
                 + self.filter_keys_to_remove
             )
@@ -2137,10 +2070,9 @@ class HorillaFormView(FormView):
 
     restrict_company_field: bool = True
 
-    # NOTE: Dynamic create view's forms save method will be overwritten
+    # NOTE: dynamic create views overwrite the form's save method.
     is_dynamic_create_view: bool = False
-    # [(field_name,DynamicFormView,[other_field1,...])] # other_fields
-    # can be mentioned like this to pass the field selected
+    # [(field_name, DynamicFormView, [other_field1, ...])] - other_fields are passed the selected field's value.
     dynamic_create_fields: list = []
 
     def __init__(self, **kwargs: Any) -> None:
@@ -2159,10 +2091,7 @@ class HorillaFormView(FormView):
         self, request: HttpRequest, *args: str, pk=None, **kwargs: Any
     ) -> HttpResponse:
         _pk = pk
-        # form.instance is never falsy here -- Django's ModelForm always
-        # creates a blank instance when given instance=None -- so the actual
-        # "does this pk exist" check has to happen against the resolved
-        # queryset instance instead, before the form ever wraps it.
+        # form.instance is never falsy (Django always creates a blank one), so check pk existence against the resolved queryset instead.
         if pk and not self.get_queryset():
             messages.error(request, _("Matching query does not exists."))
             return HorillaRedirect(request)
@@ -2202,12 +2131,10 @@ class HorillaFormView(FormView):
         context["hx_confirm"] = self.hx_confirm
         context["hx_target"] = self.request.META.get("HTTP_HX_TARGET", "this")
         pk = None
-        # Some custom form views may temporarily set `self.form` to a form class.
-        # Guard against that so context-building never crashes on `.instance`.
+        # Some custom form views may set `self.form` to a form class, not instance; guard against crashing on `.instance`.
         form_instance = getattr(self.form, "instance", None)
         if form_instance:
             pk = form_instance.pk
-        # next/previous option in the forms
         if pk and self.request.GET.get(self.ids_key):
             instance_ids = self.request.session.get(self.ordered_ids_key, [])
             url = resolve(self.request.path)
@@ -2236,8 +2163,7 @@ class HorillaFormView(FormView):
     def get_form(self, form_class=None):
 
         pk = self.kwargs.get("pk")
-        # Some URL patterns pass `form` as a class in kwargs; that should not
-        # be treated as an initialized form instance.
+        # `form` in kwargs may be a class, not an initialized instance.
         existing_form = getattr(self, "form", None)
         if not isinstance(existing_form, forms.BaseForm):
             instance = self.get_queryset()
@@ -2417,10 +2343,7 @@ class HorillaNavView(TemplateView):
     create_attrs: str = """"""
     apply_first_filter = True
     default_group_by: str = ""
-    # Opt-in redesign of the Filter dropdown's accordion sections -- see
-    # horilla_nav.html's .oh-filter-modern styles. False by default so every
-    # existing view keeps the classic look; a Nav view sets this to True to
-    # adopt the new design without affecting anyone else.
+    # Opt-in redesign of the Filter dropdown's accordion sections (see horilla_nav.html's .oh-filter-modern styles).
     modern_filter: bool = False
 
     def __init__(self, **kwargs: Any) -> None:
@@ -2431,10 +2354,7 @@ class HorillaNavView(TemplateView):
         # update_initial_cache(request, CACHE, HorillaNavView)
 
     def _initialize_model_and_group_fields(self) -> None:
-        """
-        Initialize model_class and reinitialize filter_instance if model exists
-        for updating group_by_fields with verbose names.
-        """
+        """Resolve group_by_fields/nested_group_by_fields to (field, verbose_name) tuples once filter_instance's model is known."""
         if not self.filter_instance:
             return
 
@@ -2461,10 +2381,7 @@ class HorillaNavView(TemplateView):
 
     @staticmethod
     def _resolve_field_labels(fields, model_class_ref, get_field) -> list:
-        """
-        Convert a list of plain field names into (field, verbose_name)
-        tuples. Shared by group_by_fields and nested_group_by_fields.
-        """
+        """Convert plain field names into (field, verbose_name) tuples."""
         updated_fields = []
         append = updated_fields.append
 
@@ -2486,10 +2403,7 @@ class HorillaNavView(TemplateView):
                             continue
                         except Exception as e:
                             pass
-                    # Generic fallback for models without that helper: walk
-                    # each dotted segment's related_model directly to reach
-                    # the final field, same resolution horilla/group_by.py
-                    # uses to find a grouper's related model.
+                    # Fallback: walk each dotted segment's related_model, matching horilla/group_by.py's resolution.
                     if "__" in field:
                         try:
                             current_model = model_class_ref
@@ -2511,58 +2425,40 @@ class HorillaNavView(TemplateView):
 
     @staticmethod
     def _get_applied_filter_count(filterset):
-        """
-        "N filters applied" count for the Filter trigger's badge (see
-        applied_filter_count in horilla_nav.html) -- generic across any
-        FilterSet, not just Employee's: every declared field with a
-        genuinely non-empty *submitted* value, plus the Advanced
-        builder's custom_filter_rows (those are raw (field, lookup,
-        value) arrays read straight off request data, not declared form
-        fields -- see HorillaFilterSet._extract_custom_filter_rows in
-        horilla/filters.py -- so they need adding in separately).
-
-        Reads each field's raw submitted value via BoundField.value()
-        rather than filterset.form.cleaned_data/is_valid() -- cleaned_data
-        is all-or-nothing: a stale id in just ONE field (e.g. a
-        company-scoped FK selected before the active company changed)
-        fails validation for the WHOLE form, which would silently drop
-        every other genuinely-applied filter from the count too.
-        value() needs no validation to succeed, so one bad field can't
-        zero out the rest.
-
-        Checks against None/"" plus each field's own neutral choice,
-        rather than just None/""/empty-collection: an "unfiltered" value
-        isn't always the empty string. A single-select field's neutral
-        option carries whatever raw value its FIRST declared choice
-        happens to use (e.g. EmployeeFilter's working_today -- a
-        NullBooleanFilter, patched in by attendance/filters.py -- uses
-        Django's own NullBooleanSelect, whose "Unknown" choice is
-        ("unknown", ...), not ""). apply_first_filter's initial JS
-        auto-submit resubmits the form's current DEFAULT state (not just
-        fields the user actually changed), so without this, a field like
-        that would look "applied" forever after the very first page
-        load. is_active follows the "" convention already (its own
-        widget's first choice IS ("", "Any")) so this is a no-op for it,
-        just a safety net for any field that doesn't.
-
-        Pagination/sort/group-by/search params are never FilterSet fields
-        at all, so they're excluded for free without an explicit denylist.
-        """
+        """Count genuinely-applied filter fields (plus custom_filter_rows) for the Filter trigger's badge."""
         count = 0
         if filterset.is_bound:
             for name, field in filterset.form.fields.items():
+                # Use raw value(), not cleaned_data: one stale field failing validation shouldn't zero out the whole count.
                 value = filterset.form[name].value()
                 if value is None or value == "":
                     continue
                 if hasattr(value, "__len__") and len(value) == 0:
                     continue
                 if not isinstance(value, (list, tuple)):
+                    # A field's "unfiltered" state may not be "" - compare against its own neutral first choice too (e.g. NullBooleanSelect's "unknown").
                     choices = list(getattr(field.widget, "choices", []) or [])
                     if choices and str(value) == str(choices[0][0]):
                         continue
                 count += 1
         count += len(getattr(filterset, "custom_filter_rows", []))
         return count
+
+    def _effective_get_params(self) -> QueryDict:
+        """Get params for this nav's filter, falling back to HX-Current-Url's query string."""
+        params = QueryDict(mutable=True)
+        hx_current_url = (
+            self.request.META.get("HTTP_HX_CURRENT_URL") if self.request else None
+        )
+        if hx_current_url:
+            query = urlparse(hx_current_url).query
+            if query:
+                for key, values in QueryDict(query).lists():
+                    params.setlist(key, values)
+        if self.request:
+            for key, values in self.request.GET.lists():
+                params.setlist(key, values)
+        return params
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -2572,27 +2468,19 @@ class HorillaNavView(TemplateView):
         context["search_input_attrs"] = self.search_input_attrs
         context["group_by_fields"] = self.group_by_fields
         context["nested_group_by_fields"] = self.nested_group_by_fields
-        nested_selected = (
-            self.request.GET.getlist("nested_fields") if self.request else []
-        )
+        get_params = self._effective_get_params()
+        nested_selected = get_params.getlist("nested_fields")
         if not nested_selected:
             nested_selected = [self.default_group_by] if self.default_group_by else [""]
         context["nested_fields_selected"] = nested_selected
         context["actions"] = self.actions
         context["filter_body_template"] = self.filter_body_template
         context["modern_filter"] = self.modern_filter
-        # Generic hand-off for the "+ Add filter" custom-lookup builder --
-        # any FilterSet can opt in by building a custom_filter_fields list
-        # (see EmployeeFilter._build_custom_filter_fields for the shape)
-        # on itself; views that don't set one just get an empty list, so
-        # the builder renders nothing.
+        # Any FilterSet can opt into the "+ Add filter" custom-lookup builder via its own custom_filter_fields list.
         context["custom_filter_fields"] = getattr(
             self.filter_instance, "custom_filter_fields", []
         )
-        # Populated below, once the request-data-bound `filterset` exists --
-        # custom_filter_fields above is fine off the data-less throwaway
-        # instance (it's just the field/lookup registry), but which rows
-        # are actually applied depends on this request's own GET data.
+        # Filled in below once the request-bound filterset exists; which rows are applied depends on this request's GET data.
         context["custom_filter_rows"] = []
         context["create_attrs"] = self.create_attrs
         context["search_in"] = self.search_in
@@ -2610,19 +2498,14 @@ class HorillaNavView(TemplateView):
         context["applied_filter_count"] = 0
         if self.filter_instance:
             FilterClass = self.filter_instance.__class__
-            filterset = FilterClass(self.request.GET or None)
+            filterset = FilterClass(get_params or None)
             context[self.filter_form_context_name] = filterset.form
             context[self.filter_instance_context_name] = filterset
             context["custom_filter_rows"] = getattr(filterset, "custom_filter_rows", [])
             context["applied_filter_count"] = self._get_applied_filter_count(filterset)
 
         active_view = models.ActiveView.objects.filter(path=self.request.path).first()
-        # An explicit ?view= on the request is a deliberate choice for THIS
-        # render and outranks whatever was last persisted - without this the
-        # toggle highlighted the stored type while the page had been asked
-        # for (and rendered) the requested one, so highlight and content
-        # disagreed. Not saved here; the toggle's own active-hnv-view-type
-        # request still owns persisting a user's choice.
+        # An explicit ?view= outranks the persisted one for this render, so the toggle and rendered content agree; persisting happens elsewhere.
         requested_view = self.request.GET.get("view")
         if requested_view and (not active_view or active_view.type != requested_view):
             active_view = models.ActiveView(path=self.request.path, type=requested_view)
@@ -2630,11 +2513,6 @@ class HorillaNavView(TemplateView):
 
         extra_params = {}
 
-        # .getlist(), not .items() (which -- like .get() -- silently keeps
-        # only the LAST value of a repeated key): a deep link with several
-        # values for the same multi-select filter field (e.g.
-        # ?employee_id=1&employee_id=2) otherwise collapsed to just the
-        # last id by the time it reached the actual list fetch below.
         for key in self.request.GET:
             extra_params[key] = self.request.GET.getlist(key)
 
@@ -2650,10 +2528,6 @@ class HorillaNavView(TemplateView):
             # combined_query.update(self.request.GET)
             combined_query.update(extra_params)
 
-            # doseq=True: combined_query's values can now be lists (see
-            # extra_params above) -- without it, urlencode would str() a
-            # list into one garbled "['1', '2']"-shaped param instead of
-            # repeating the key once per value.
             view["url"] = urlunparse(
                 parsed._replace(query=urlencode(combined_query, doseq=True))
             )
@@ -2708,11 +2582,7 @@ class HorillaProfileView(DetailView):
 
     tabs: list = []
 
-    # Shared across all subclasses; keys are "{subclass-name-lower}-{tab title}".
-    # Populated by _register_tabs() (called from __init_subclass__ and add_tab())
-    # and consumed at request time by the single static "hzp-tab/..." route in
-    # horilla_views/urls.py — see dispatch_profile_tab() below for why this
-    # replaced dynamically appending a fresh URL pattern per tab per request.
+    # Shared across all subclasses; keys are "{subclass-name-lower}-{tab title}", consumed by the static "hzp-tab/..." route (see dispatch_profile_tab below).
     _tab_view_registry: dict = {}
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
@@ -2721,17 +2591,7 @@ class HorillaProfileView(DetailView):
 
     @classmethod
     def _register_tabs(cls) -> None:
-        """
-        Register any of this class's tabs that don't have a url yet into the
-        shared dispatch registry, and compute their url string.
-
-        Tabs reach here two ways: already present on the class body when the
-        subclass is defined (via __init_subclass__), or bolted on afterwards
-        by another app's add_tab() call at import time — both happen before
-        Django finishes loading and starts serving requests, so by the time
-        any HTTP request can reach dispatch_profile_tab(), every tab a
-        subclass will ever have is already in the registry.
-        """
+        """Register this class's tabs without a url yet into the shared dispatch registry, computing each tab's url."""
         prefix = cls.__name__.lower()
         for tab in cls.tabs:
             if not tab.get("url"):
@@ -2750,8 +2610,7 @@ class HorillaProfileView(DetailView):
         self.ordered_ids_key = f"ordered_ids_{self.model.__name__.lower()}"
         # update_initial_cache(request, CACHE, HorillaProfileView)
 
-        # Safety net for tabs added after class-definition time in some
-        # unusual way __init_subclass__/add_tab() didn't already cover.
+        # Safety net for tabs added some other way __init_subclass__/add_tab() didn't already cover.
         self._register_tabs()
 
     @classmethod
@@ -2827,8 +2686,6 @@ class HorillaProfileView(DetailView):
         url = resolve(self.request.path)
         key = list(url.kwargs.keys())[0]
 
-        # hidden columns configuration
-
         existing_instance = models.ToggleColumn.objects.filter(
             user_id=self.request.user, path=self.request.path_info
         ).first()
@@ -2881,24 +2738,7 @@ class HorillaProfileView(DetailView):
 
 
 def dispatch_profile_tab(request, tab_key: str, pk: int, *args, **kwargs):
-    """
-    Single, statically-registered route (see "hzp-tab/..." in
-    horilla_views/urls.py) that every HorillaProfileView tab (candidate
-    profile, employee profile, etc.) resolves through.
-
-    HorillaProfileView used to append a brand new URL pattern to the live
-    urlpatterns list from inside __init__, once per tab, the first time each
-    was ever requested. That was racey — a tab's own AJAX fetch could reach
-    the resolver before its registration did, 404ing and leaving the tab
-    stuck on its loading placeholder — and would not reliably work at all
-    across multiple worker *processes* in production, since each process
-    holds its own separate urlpatterns list in memory. Routing every tab
-    through one real, normally-registered URL and looking the target view up
-    in HorillaProfileView._tab_view_registry at request time removes both
-    problems: the registry is fully populated before Django serves its first
-    request (see HorillaProfileView._register_tabs), the same as it would be
-    in every worker process.
-    """
+    """Resolve any HorillaProfileView tab through one static route, looking the view up in _tab_view_registry (avoids racy per-tab URL registration across worker processes)."""
     if not request.user.is_authenticated:
         return redirect(f"{reverse('login')}?next={request.path}")
     view_func = HorillaProfileView._tab_view_registry.get(tab_key)
