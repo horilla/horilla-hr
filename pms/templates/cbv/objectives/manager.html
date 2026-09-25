@@ -1,36 +1,47 @@
 {% load i18n %}
-<div>
-    {% for manager in instance.managers.all %}
-        <div id="managerContainer{{manager.id}}">
-            <span class="oh-user-panel oh-collapse-panel" data-type="user">
-                <div class="oh-profile oh-profile--md">
-                    <div class="oh-profile__avatar mr-1">
-                        <img
-                            src="https://ui-avatars.com/api/?name={{manager.get_full_name}}&background=random"
-                            class="oh-profile__image"
-                            alt="{% trans 'Employee' %}"
-                        >
-                    </div>
-                    <span
-                        class="oh-profile__name oh-text--dark"
-                        title="{{manager}}"
-                    >{{ manager.employee_first_name|truncatechars:15 }}</span>
-                </div>
-                {% if perms.pms.change_objective %}
-                    <a
-                        hx-confirm="{% trans 'Are you sure want to remove this manager?' %}"
-                        hx-post="{% url 'objective-manager-remove' instance.id manager.id %}"
-                        title='{% trans "Remove" %}'
-                        hx-swap="outerHTML"
-                        hx-target="#managerContainer{{manager.id}}"
-                        class="oh-user-panel__remove"
-                        onclick="event.stopPropagation()"
+{% comment %}
+A stray input tag here is a deliberate no-op: horilla_theme's list table wraps
+every cell in a native title tooltip built from its flattened text, except
+when the cell contains an interactive-widget tag -- this opts our own hover
+popover below out of that, avoiding a garbled duplicate tooltip.
+{% endcomment %}
+<input type="hidden" class="d-none">
+<div class="oh-avatar-stack">
+    <div class="oh-avatar-stack__images">
+        {% for manager in instance.managers.all|slice:":3" %}
+            <div class="oh-avatar-stack__img">
+                <img
+                    src="https://ui-avatars.com/api/?name={{ manager.get_full_name }}&background=random"
+                    alt="{{ manager.get_full_name }}"
+                >
+            </div>
+        {% endfor %}
+        {% with extra=instance.managers.all|length|add:"-3" %}
+            {% if extra > 0 %}
+                <div class="oh-avatar-stack__img oh-avatar-stack__more">+{{ extra }}</div>
+            {% endif %}
+        {% endwith %}
+        {% if not instance.managers.all %}
+            <span class="oh-avatar-stack__empty">{% trans "No managers" %}</span>
+        {% endif %}
+    </div>
+    {% if instance.managers.all %}
+        {% comment %}
+        Hidden template read by the shared floating popover's JS
+        (objectives.html) -- it can't be shown in place because the table
+        cell's ancestor clips overflow.
+        {% endcomment %}
+        <div class="oh-avatar-stack__popover-content">
+            <div class="oh-avatar-stack__popover-title">{% trans "Managers" %}</div>
+            {% for manager in instance.managers.all %}
+                <div class="oh-avatar-stack__popover-row">
+                    <img
+                        src="https://ui-avatars.com/api/?name={{ manager.get_full_name }}&background=random"
+                        alt=""
                     >
-                        <ion-icon name="close-outline"></ion-icon>
-                    </a>
-                {% endif %}
-            </span>
+                    <span>{{ manager.get_full_name }}</span>
+                </div>
+            {% endfor %}
         </div>
-    {% endfor %}
-    <span class="count-span">{{ instance.managers.all|length }} {% trans "Managers" %}</span>
+    {% endif %}
 </div>
