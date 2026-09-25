@@ -31,7 +31,10 @@ def get_to_field(request):
             message=_("No matching query found."),
         )
 
-    to_fields, mail_details_choice, model_class = generate_choices(model_path)
+    try:
+        to_fields, mail_details_choice, model_class = generate_choices(model_path)
+    except LookupError:
+        return JsonResponse({"error": _("No matching query found.")}, status=400)
 
     class InstantModelForm(forms.ModelForm):
         """

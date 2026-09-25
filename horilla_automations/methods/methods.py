@@ -5,6 +5,7 @@ horilla_automations/methods/methods.py
 
 import operator
 
+from django.apps import apps as django_apps
 from django.core.exceptions import FieldDoesNotExist
 from django.db import models as django_models
 from django.http import QueryDict
@@ -34,14 +35,33 @@ from horilla_automations.methods.recursive_relation import (
 )
 
 
+def _resolve_model_class(model_path):
+    """
+    The Django model named by ``model_path`` (the "app.models.Model" string
+    every automation/dynamic-field record, and this request's own ``model``
+    query param, stores it as) -- or raises ``LookupError`` if it isn't one.
+
+    Never __import__() a caller-supplied path directly: __import__ runs the
+    target module's top-level code as a side effect, and model_path can
+    arrive here straight from a request (generate_choices(), via
+    get_to_field(), took it from request.GET). An attacker able to place an
+    arbitrary .py file anywhere on sys.path -- e.g. a public upload endpoint
+    that doesn't restrict extensions -- could get it executed just by
+    pointing this at it. Matching against apps.get_models() instead means
+    only a model Django already loaded at startup can ever be returned,
+    regardless of what else exists on disk.
+    """
+    for model in django_apps.get_models():
+        if f"{model.__module__}.{model.__name__}" == model_path:
+            return model
+    raise LookupError(f"{model_path!r} is not a registered model.")
+
+
 def generate_choices(model_path):
     """
     Generate mail to choice
     """
-    module_name, class_name = model_path.rsplit(".", 1)
-
-    module = __import__(module_name, fromlist=[class_name])
-    model_class: Employee = getattr(module, class_name)
+    model_class: Employee = _resolve_model_class(model_path)
 
     # Get relations to Employee
     employee_fk_paths, employee_m2m_paths = get_forward_relation_paths_separated(
@@ -175,10 +195,7 @@ def get_model_class(model_path):
     """
     method to return the model class from string 'app.models.Model'
     """
-    module_name, class_name = model_path.rsplit(".", 1)
-    module = __import__(module_name, fromlist=[class_name])
-    model_class: Employee = getattr(module, class_name)
-    return model_class
+    return _resolve_model_class(model_path)
 
 
 operator_map = {
