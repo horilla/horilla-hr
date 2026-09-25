@@ -18,7 +18,7 @@ SUBMENUS = [
         "accessibility": "pms.sidebar.dashboard_accessibility",
     },
     {
-        "menu": _("Objectives"),
+        "menu": _("Employee objective"),
         "redirect": reverse_lazy("objective-list-view"),
         # objective-detailed-view/<id>/ is a sibling URL (not a sub-path of
         # objective-list-view/), so it needs an explicit prefix for the sidebar's
