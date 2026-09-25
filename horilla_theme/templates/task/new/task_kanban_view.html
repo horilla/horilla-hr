@@ -191,76 +191,123 @@
                                                 <p class="mb-1">{{ task }}</p>
                                             </div>
 
+                                            <!-- Assignees -->
+                                            <div class="flex items-center gap-2 mb-2">
+                                                <span class="font-medium text-xs text-[#565E6C]">{% trans "Assignees" %}:</span>
+                                                <span style="display: inline-flex; align-items: center;">
+                                                    {% for member in task.task_members.all|slice:":5" %}
+                                                        <img
+                                                            src="https://ui-avatars.com/api/?name={{member.get_full_name}}&background=random"
+                                                            alt="{% trans 'Employee' %}"
+                                                            title="{{ member.get_full_name }}"
+                                                            width="20"
+                                                            height="20"
+                                                            style="
+                                                                border-radius: 50%;
+                                                                object-fit: cover;
+                                                                border: 2px solid #fff;
+                                                                {% if not forloop.first %}margin-left: -6px;{% endif %}
+                                                                position: relative;
+                                                                z-index: {{ forloop.revcounter }};
+                                                            "
+                                                        >
+                                                    {% empty %}
+                                                        <span class="text-xs text-gray-400">{% trans "Unassigned" %}</span>
+                                                    {% endfor %}
+                                                    {% if task.task_members.count > 5 %}
+                                                        <span
+                                                            title="{% for member in task.task_members.all|slice:'5:' %}{{ member.get_full_name }}{% if not forloop.last %}, {% endif %}{% endfor %}"
+                                                            style="
+                                                                display: inline-flex;
+                                                                align-items: center;
+                                                                justify-content: center;
+                                                                width: 20px;
+                                                                height: 20px;
+                                                                border-radius: 50%;
+                                                                background: #eef0f4;
+                                                                font-size: 9px;
+                                                                border: 2px solid #fff;
+                                                                margin-left: -6px;
+                                                                position: relative;
+                                                                z-index: 0;
+                                                            "
+                                                        >+{{ task.task_members.count|add:"-5" }}</span>
+                                                    {% endif %}
+                                                </span>
+                                            </div>
+
                                             <!-- Task Metadata -->
-                                            <div class="flex gap-2 items-center relative">
+                                            <div class="flex gap-2 items-center mb-2 flex-wrap">
                                                 <span
                                                     class="font-medium text-xs text-[#565E6C] w-14"
                                                 >{% trans "End Date" %}</span>
-                                                <p class="text-xs font-semibold flex items-center gap-2">
-                                                    : <span>{{ task.end_date }}</span>
-                                                </p>
-
-                                                <!-- Dropdown Button -->
-                                                <div
-                                                    x-data="{ open: false }"
-                                                    class="absolute right-0 -top-1 z-50"
-                                                    onclick="event.stopPropagation()"
+                                                <p
+                                                    class="text-xs font-semibold flex items-center gap-2"
+                                                    {% if task.is_overdue %}style="color: #c81e1e;"
+                                                    {% elif task.is_due_soon %}style="color: #946200;"{% endif %}
                                                 >
-                                                    <button
-                                                        @click="open = !open"
-                                                        @click.away="open = false"
-                                                        class="text-primary-600 focus:outline-none"
-                                                    >
-                                                        <i class="fa-regular fa-square-caret-down text-primary-600"></i>
-                                                    </button>
+                                                    : <span>{{ task.end_date|default:"-" }}</span>
+                                                </p>
+                                                {% if task.due_status_display %}
+                                                    <span
+                                                        class="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                                                        style="
+                                                            {% if task.is_overdue %}background: #fde8e8; color: #c81e1e;
+                                                            {% elif task.is_due_soon %}background: #fff3cd; color: #946200;
+                                                            {% else %}background: #eef0f4; color: #565E6C;{% endif %}
+                                                        "
+                                                    >{{ task.due_status_display }}</span>
+                                                {% endif %}
+                                            </div>
 
-                                                    <!-- Dropdown Content -->
-                                                    <div
-                                                        x-show="open"
-                                                        x-transition
-                                                        @click.stop
-                                                        class="absolute right-0 p-4 min-w-[200px] bg-white rounded-md shadow-lg z-50"
-                                                        style="display: none"
-                                                    >
-                                                        <ul class="text-sm text-gray-800">
-                                                            <li class="mb-3 hover:bg-gray-100">
-                                                                <strong>{% trans "Managers" %}:</strong>
-                                                                <span
-                                                                    style="display: inline-flex"
-                                                                >•{{ task.task_managers.all|join:"<br />•" }}
-                                                                </span>
-                                                            </li>
-                                                            <li class="hover:bg-gray-100 flex items-center gap-1">
-                                                                <strong>{% trans "Status" %}:</strong>
-                                                                <span
-                                                                    class="bg-gray-100 text-gray-700 block w-full text-xs"
-                                                                >
-                                                                    <select
-                                                                        class="oh-select"
-                                                                        hx-get="{% url 'update-project-task-status' task.id %}?view=list"
-                                                                        hx-trigger="change"
-                                                                        hx-swap="afterend"
-                                                                        tabindex="-1"
-                                                                        aria-hidden="true"
-                                                                        name="status"
-                                                                    >
-                                                                        {% for option in task.TASK_STATUS %}
-                                                                            <option
-                                                                                value="{{option.0}}"
-                                                                                {% if option.0 == task.status %}
-                                                                                    selected
-                                                                                {% endif %}
-                                                                            >
-                                                                                {{ option.1 }}
-                                                                            </option>
-                                                                        {% endfor %}
-                                                                    </select>
-                                                                </span>
-                                                            </li>
-                                                            <!-- Add more details if needed -->
-                                                        </ul>
-                                                    </div>
-                                                </div>
+                                            <!-- Managers -->
+                                            <div class="flex items-center gap-2 mb-2" onclick="event.stopPropagation()">
+                                                <span class="font-medium text-xs text-[#565E6C]">{% trans "Managers" %}:</span>
+                                                <span style="display: inline-flex; align-items: center;">
+                                                    {% for manager in task.task_managers.all|slice:":5" %}
+                                                        <img
+                                                            src="https://ui-avatars.com/api/?name={{manager.get_full_name}}&background=random"
+                                                            alt="{% trans 'Employee' %}"
+                                                            title="{{ manager.get_full_name }}"
+                                                            width="20"
+                                                            height="20"
+                                                            style="
+                                                                border-radius: 50%;
+                                                                object-fit: cover;
+                                                                border: 2px solid #fff;
+                                                                {% if not forloop.first %}margin-left: -6px;{% endif %}
+                                                                position: relative;
+                                                                z-index: {{ forloop.revcounter }};
+                                                            "
+                                                        >
+                                                    {% empty %}
+                                                        <span class="text-xs text-gray-400">{% trans "No manager" %}</span>
+                                                    {% endfor %}
+                                                </span>
+                                            </div>
+
+                                            <!-- Status -->
+                                            <div class="flex items-center gap-2" onclick="event.stopPropagation()">
+                                                <span class="font-medium text-xs text-[#565E6C]">{% trans "Status" %}:</span>
+                                                <select
+                                                    class="text-xs font-medium rounded border-0"
+                                                    style="background: #eef0f4; color: #565e6c; padding: 2px 6px;"
+                                                    hx-get="{% url 'update-project-task-status' task.id %}?view=card"
+                                                    hx-trigger="change"
+                                                    hx-swap="afterend"
+                                                    name="status"
+                                                >
+                                                    {% for option in task.TASK_STATUS %}
+                                                        <option
+                                                            value="{{option.0}}"
+                                                            {% if option.0 == task.status %}
+                                                                selected
+                                                            {% endif %}
+                                                        >
+                                                            {{ option.1 }}
+                                                        </option>
+                                                    {% endfor %}
+                                                </select>
                                             </div>
                                         </div>
                                     </div>

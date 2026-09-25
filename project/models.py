@@ -133,7 +133,7 @@ class Project(HorillaModel):
             or any(employee in task.task_members.all() for task in self.task_set.all())
             or request.user.has_perm("project.view_project")
         ):
-            return f"onclick=\"window.location.href='{url}?view=list'\""
+            return f"onclick=\"window.location.href='{url}?view=card'\""
         return ""
 
     def get_detail_url(self):
@@ -403,6 +403,52 @@ class Task(HorillaModel):
         """
 
         return self.project if self.project else "None"
+
+    @property
+    def is_overdue(self):
+        """
+        Past its end date and not completed -- checked against the date
+        directly rather than trusting self.status == "expired", since that
+        transition only happens when clean() runs (i.e. on an explicit
+        form save), not passively as time passes.
+        """
+        return bool(
+            self.end_date
+            and self.status != "completed"
+            and self.end_date < date.today()
+        )
+
+    @property
+    def is_due_soon(self):
+        """
+        Due within the next 2 days and not already overdue/completed --
+        used for the card view's due-date indicator.
+        """
+        if not self.end_date or self.is_overdue or self.status == "completed":
+            return False
+        return self.end_date <= date.today() + datetime.timedelta(days=2)
+
+    @property
+    def due_status_display(self):
+        """
+        Human-readable due-state label for the card ("Overdue by 3 days",
+        "Due today", "Due in 2 days", ...), empty when there's nothing
+        worth flagging (no end date, or already completed).
+        """
+        if not self.end_date or self.status == "completed":
+            return ""
+        days = (self.end_date - date.today()).days
+        if days < 0:
+            return (
+                _("Overdue by 1 day")
+                if days == -1
+                else _("Overdue by %(days)d days") % {"days": -days}
+            )
+        if days == 0:
+            return _("Due today")
+        if days == 1:
+            return _("Due tomorrow")
+        return _("Due in %(days)d days") % {"days": days}
 
     def task_detail_view(self):
         """

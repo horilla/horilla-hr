@@ -729,7 +729,7 @@ def task_view(request, project_id, **kwargs):
     stages = ProjectStage.objects.filter(project=project).order_by("sequence")
     tasks = Task.objects.filter(project=project)
     form.fields["stage"].queryset = ProjectStage.objects.filter(project=project.id)
-    if request.GET.get("view") == "list" or request.GET.get("view") == None:
+    if request.GET.get("view") == "list":
         view_type = "list"
     context = {
         "view_type": view_type,
@@ -936,11 +936,7 @@ def task_filter(request, project_id):
     For filtering task
     """
     templete = "task/new/task_kanban_view.html"
-    if (
-        request.GET.get("view") == "list"
-        or request.GET.get("view") == None
-        or request.GET.get("view") == ""
-    ):
+    if request.GET.get("view") == "list":
         templete = "task/new/task_list_view.html"
     tasks = TaskFilter(request.GET).qs.filter(project_id=project_id)
     stages = (
