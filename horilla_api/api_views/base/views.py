@@ -2,7 +2,6 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any
 
-from bs4 import BeautifulSoup
 from django.db.models import Q
 from django.http import HttpResponse
 from django.utils.decorators import method_decorator
@@ -22,6 +21,7 @@ from base.filters import (
 from base.models import (
     Announcement,
     AnnouncementExpire,
+    AnnouncementView,
     Company,
     Department,
     EmployeeShift,
@@ -45,6 +45,10 @@ from base.views import (
     work_type_request_export,
 )
 from employee.models import Actiontype, Employee
+from horilla_api.api_methods.base.announcements import (
+    serialize_announcement,
+    visible_announcements,
+)
 from horilla_api.api_methods.base.methods import reject_reason_from
 from horilla_api.api_methods.base.pagination import HorillaPageNumberPagination
 from notifications.signals import notify
@@ -1452,52 +1456,37 @@ class AnnouncementListAPIView(APIView):
         if announcements_to_update:
             Announcement.objects.bulk_update(announcements_to_update, ["expire_date"])
 
-        # Base queryset: non-expired announcements
-        announcements = Announcement.objects.filter(
-            expire_date__gte=datetime.today().date()
-        )
-
-        # Permission filter
-        if not request.user.has_perm("base.view_announcement"):
-            announcements = announcements.filter(
-                Q(employees=request.user.employee_get) | Q(employees__isnull=True)
-            )
-
-        # Prefetch related views for efficiency
-        announcements = announcements.prefetch_related("announcementview_set").order_by(
-            "-created_at"
-        )
-
-        # Build response data
-        data = [
-            {
-                "id": ann.id,
-                "title": ann.title,
-                "content": self._parse_description(ann.description),
-                "created_at": ann.created_at,
-                "expire_date": ann.expire_date,
-                "has_viewed": ann.announcementview_set.filter(
-                    user=request.user, viewed=True
-                ).exists(),
-            }
-            for ann in announcements
-        ]
-
-        # Apply pagination
+        announcements = visible_announcements(request)
         paginator = self.pagination_class()
-        page = paginator.paginate_queryset(data, request)
-        return paginator.get_paginated_response(page)
+        page = paginator.paginate_queryset(announcements, request)
+        return paginator.get_paginated_response(
+            [serialize_announcement(ann, ann.has_viewed) for ann in page]
+        )
 
-    @staticmethod
-    def _parse_description(description: str) -> list[dict]:
-        """
-        Parse HTML description into structured text (headings + paragraphs).
-        """
-        soup = BeautifulSoup(description or "", "html.parser")
-        content = []
 
-        for tag in soup.find_all(["h1", "h2", "h3", "h4", "h5", "h6", "p"]):
-            tag_type = "heading" if tag.name.startswith("h") else "paragraph"
-            content.append({"type": tag_type, "text": tag.get_text(" ", strip=True)})
+class AnnouncementDetailAPIView(APIView):
+    """
+    One announcement with its attachments and author, if the caller is in
+    its audience. Opening it marks it viewed, as opening it on the web does.
+    """
 
-        return content
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        announcement = (
+            visible_announcements(request)
+            .prefetch_related("attachments")
+            .filter(pk=pk)
+            .first()
+        )
+        if announcement is None:
+            return Response({"error": "Announcement not found."}, status=404)
+        view, _ = AnnouncementView.objects.get_or_create(
+            user=request.user, announcement=announcement
+        )
+        if not view.viewed:
+            view.viewed = True
+            view.save()
+        return Response(
+            serialize_announcement(announcement, True, detail=True), status=200
+        )

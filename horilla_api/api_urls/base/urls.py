@@ -261,4 +261,9 @@ urlpatterns = [
         views.AnnouncementListAPIView.as_view(),
         name="announcement-view",
     ),
+    path(
+        "announcement-view/<int:pk>",
+        views.AnnouncementDetailAPIView.as_view(),
+        name="announcement-detail",
+    ),
 ]

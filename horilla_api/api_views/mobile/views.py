@@ -17,13 +17,12 @@ cheap.
 from datetime import date, datetime
 
 from django.apps import apps
-from django.db.models import Q
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from attendance.models import Attendance, AttendanceActivity
-from base.models import Announcement
+from horilla_api.api_methods.base.announcements import announcements_for
 from horilla_api.api_methods.base.capabilities import build_capabilities
 
 
@@ -139,35 +138,8 @@ def _latest_announcement(employee):
     announcement to everyone in the company. The manager scopes by company, so
     this was never cross-tenant -- but "everyone in the company" is not the
     audience the author chose.
-
-    Mirrors the predicate the web self-service dashboard uses
-    (``base/ess_dashboard.py``) so the two surfaces agree on who sees what.
     """
-    today = date.today()
-    not_expired = Q(expire_date__gte=today) | Q(expire_date__isnull=True)
-
-    if Announcement.objects.filter(filtered_employees=employee).exists():
-        qs = Announcement.objects.filter(not_expired, filtered_employees=employee)
-    else:
-        work_info = getattr(employee, "employee_work_info", None)
-        department = getattr(work_info, "department_id", None)
-        job_position = getattr(work_info, "job_position_id", None)
-        targeted = (
-            Q(employees=employee)
-            | (Q(department=department) if department else Q())
-            | (Q(job_position=job_position) if job_position else Q())
-        )
-        # An announcement with no targeting at all is addressed to everyone.
-        broadcast = (
-            Q(employees__isnull=True)
-            & Q(department__isnull=True)
-            & Q(job_position__isnull=True)
-        )
-        qs = Announcement.objects.filter(not_expired).filter(targeted | broadcast)
-
-    # distinct(): the targeting filters join three many-to-many tables, so a
-    # row matching on more than one comes back more than once.
-    announcement = qs.distinct().order_by("-created_at").first()
+    announcement = announcements_for(employee).order_by("-created_at").first()
     if not announcement:
         return None
     return {
