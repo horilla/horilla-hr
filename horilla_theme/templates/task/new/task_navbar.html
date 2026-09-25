@@ -27,7 +27,8 @@
                     ></i>
                 </div>
 
-                <input name="view" id="viewInput" hidden>
+                {# value pinned to the view the server rendered, autocomplete off: otherwise the browser restores the last toggled value on refresh and the filter form re-requests it, so the page first shows kanban and then jumps to the list #}
+                <input name="view" id="viewInput" value="{{ view_type }}" autocomplete="off" hidden>
                 <button
                     type="button"
                     id="listBtn"
