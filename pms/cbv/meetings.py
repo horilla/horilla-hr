@@ -71,6 +71,8 @@ class MeetingsList(HorillaListView):
 
     header_attrs = {
         "title_col": 'style="min-width:280px;width:32%;"',
+        "employees_col": 'style="width:140px;max-width:150px;"',
+        "managers_col": 'style="width:140px;max-width:150px;"',
         "mom_col": 'style="width:90px;max-width:110px;"',
         "get_model_history": 'style="width:70px;max-width:80px;"',
         "action": 'style="width:200px"',
@@ -92,7 +94,6 @@ class MeetingsList(HorillaListView):
 
     row_attrs = """
                 {diff_cell}
-                class="oh-permission-table--collapsed"
                 hx-get='{meeting_detail_view}?instance_ids={ordered_ids}'
                 hx-target="#genericModalBody"
                 data-target="#genericModal"

@@ -1,36 +1,46 @@
 {% load i18n %}
-<div>
-    {% for manager in instance.manager.all %}
-        <div id="meetingManagerContainer{{manager.id}}-{{instance.id}}">
-            <span class="oh-user-panel oh-collapse-panel" data-type="user">
-                <div class="oh-profile oh-profile--md">
-                    <div class="oh-profile__avatar mr-1">
-                        <img
-                            src="https://ui-avatars.com/api/?name={{manager.get_full_name}}&background=random"
-                            class="oh-profile__image"
-                            alt="{% trans 'Employee' %}"
-                        >
-                    </div>
-                    <span
-                        class="oh-profile__name oh-text--dark"
-                        title="{{manager.get_full_name}}"
-                    >{{ manager.get_full_name|truncatechars:15 }}</span>
-                </div>
-                {% if perms.pms.add_meetings %}
-                    <button
-                        hx-confirm="{% trans 'Are you sure to remove this manager?' %}"
-                        hx-post="{% url 'meeting-manager-remove' instance.id manager.id %}"
-                        title='{% trans "Remove" %}'
-                        hx-swap="outerHTML"
-                        hx-target="#meetingManagerContainer{{manager.id}}-{{instance.id}}"
-                        class="oh-user-panel__remove"
-                        onclick="event.stopPropagation()"
-                    >
-                        <ion-icon name="close-outline"></ion-icon>
-                    </button>
-                {% endif %}
-            </span>
-        </div>
+{% comment %}
+    Compact overlapping avatar-stack, same treatment as
+    pms/templates/cbv/objectives/manager.html -- see that template's
+    comment for why the container needs the "oh-manager-cell" marker
+    and an explicit inline-flex style.
+{% endcomment %}
+<div class="oh-manager-cell" style="display: inline-flex; align-items: center;">
+    {% for manager in instance.manager.all|slice:":5" %}
+        <img
+            src="https://ui-avatars.com/api/?name={{manager.get_full_name}}&background=random"
+            alt="{% trans 'Employee' %}"
+            width="26"
+            height="26"
+            title="{{ manager.get_full_name }}"
+            style="
+                border-radius: 50%;
+                object-fit: cover;
+                border: 2px solid var(--card-bg, #fff);
+                {% if not forloop.first %}margin-left: -8px;{% endif %}
+                position: relative;
+                z-index: {{ forloop.revcounter }};
+            "
+        >
     {% endfor %}
-    <span class="count-span">{{ instance.manager.all|length }} {% trans "Managers" %}</span>
+    {% if instance.manager.count > 5 %}
+        <span
+            class="oh-text--dark"
+            title="{% for manager in instance.manager.all|slice:'5:' %}{{ manager.get_full_name }}{% if not forloop.last %}, {% endif %}{% endfor %}"
+            style="
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 26px;
+                height: 26px;
+                border-radius: 50%;
+                background: #eef0f4;
+                font-size: 0.7rem;
+                border: 2px solid var(--card-bg, #fff);
+                margin-left: -8px;
+                position: relative;
+                z-index: 0;
+            "
+        >+{{ instance.manager.count|add:"-5" }}</span>
+    {% endif %}
 </div>

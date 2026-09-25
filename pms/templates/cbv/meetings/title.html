@@ -1,18 +1,2 @@
 {% load i18n %}
-<div onclick="event.stopPropagation()">
-    <div class="oh-sticky-table__tr oh-permission-table--toggle" data-toggle-count onclick="event.stopPropagation()">
-        <div class="d-flex align-items-center">
-            <button class="oh-permission-table__collapse me-2">
-                <span title='{% trans "Reveal" %}'><ion-icon
-                        class="oh-permission-table__collapse-down"
-                        name="chevron-down-outline"
-                    ></ion-icon></span>
-                <span title='{% trans "Collapse" %}'><ion-icon
-                        class="oh-permission-table__collapse-up"
-                        name="chevron-up-outline"
-                    ></ion-icon></span>
-            </button>
-            <span class="oh-permission-table__user">{{ instance }} </span>
-        </div>
-    </div>
-</div>
+<span class="oh-permission-table__user">{{ instance }}</span>

@@ -2,6 +2,30 @@
 {% load i18n static %}
 
 {% block content %}
+    <style>
+        /* The list table wraps every custom column's rendered HTML in a
+           single-line ".truncate" div (overflow:hidden; white-space:nowrap)
+           -- see generic/horilla_list_table.html. The Employees/Managers
+           columns' overlapping avatar stacks (employees.html/managers.html)
+           need to render without being clipped by that ancestor. */
+        .truncate:has(.oh-manager-cell) {
+            overflow: visible;
+            white-space: normal;
+            text-overflow: clip;
+        }
+        /* Meetings.diff_cell() (pms/models.py) tints a manager's own rows
+           with an inline background-color on the <tr> -- but the sticky
+           (frozen) Title/checkbox/Actions cells have their own opaque
+           white background (needed so scrolled-past content doesn't show
+           through them), which was masking that tint on those columns.
+           Match it here whenever that exact highlight is present. */
+        tr[style*="background-color: #fff3cd"] > td.stickyleft,
+        tr[style*="background-color: #fff3cd"] > td.stickyleft-second,
+        tr[style*="background-color: #fff3cd"] > td.stickyright {
+            background-color: #fff3cd;
+        }
+    </style>
+
     <div hx-get="{% url 'meetings-nav' %}" hx-trigger="load"></div>
 
     {% include "generic/components.html" %}
@@ -21,18 +45,4 @@
     <div class="oh-activity-sidebar" id="activitySidebar" style="z-index: 1000">
         <div class="oh-activity-sidebar__body" id="answerContainer"></div>
     </div>
-
-    <script>
-        $(document).on("htmx:afterSwap", function () {
-        	$("[data-toggle-count]")
-        		.off("click")
-        		.on("click", function (e) {
-        			e.stopPropagation();
-        			let recViewContainer = $(this).closest("tr");
-        			span = recViewContainer.find(".count-span").toggle();
-        			var row = $(this).closest("tr");
-        			row.toggleClass("oh-permission-table--collapsed");
-        		});
-        });
-    </script>
 {% endblock content %}
