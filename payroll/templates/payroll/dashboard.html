@@ -42,9 +42,9 @@
     .pd-kpi-card__sub { font-size: 11px; opacity: 0.6; }
     .pd-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 999px; }
     .pd-badge--green { background: #dcfce7; color: #166534; } .pd-badge--amber { background: #fef3c7; color: #92400e; }
-    .pd-badge--red { background: #fee2e2; color: #991b1b; }
+    .pd-badge--red { background: #fee2e2; color: #991b1b; } .pd-badge--blue { background: #dbeafe; color: #1e40af; }
     .dark .pd-badge--green { background: #166534; color: #bbf7d0; } .dark .pd-badge--amber { background: #92400e; color: #fde68a; }
-    .dark .pd-badge--red { background: #7f1d1d; color: #fca5a5; }
+    .dark .pd-badge--red { background: #7f1d1d; color: #fca5a5; } .dark .pd-badge--blue { background: #1e3a8a; color: #bfdbfe; }
 
     /* Layout */
     .pd-layout { display: grid; grid-template-columns: 1fr 300px; gap: 20px; align-items: start; }
@@ -95,7 +95,8 @@
 
     /* Pipeline steps */
     .pd-pipeline { display: flex; gap: 4px; padding: 10px 0; }
-    .pd-pipeline-step { flex: 1; text-align: center; padding: 12px 8px; border-radius: 8px; }
+    .pd-pipeline-step { flex: 1; text-align: center; padding: 12px 8px; border-radius: 8px; text-decoration: none; color: inherit; display: block; transition: all 0.2s; }
+    .pd-pipeline-step:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); transform: translateY(-1px); text-decoration: none; color: inherit; }
     .pd-pipeline-step__count { font-size: 22px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
     .pd-pipeline-step__label { font-size: 10px; font-weight: 600; text-transform: uppercase; opacity: 0.7; }
 
@@ -457,25 +458,25 @@
                     <div class="pd-kpi-card__icon pd-kpi-card__icon--blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></div>
                     <div class="pd-kpi-card__label">{% trans "Gross Pay"|escapejs %}</div>
                     <div class="pd-kpi-card__value">${fmt(data.total_gross)}</div>
-                    <div class="pd-kpi-card__sub">${data.total_payslips} {% trans "payslips"|escapejs %}</div>
+                    <div class="pd-kpi-card__sub"><span class="pd-badge pd-badge--blue">${data.total_payslips} {% trans "payslips"|escapejs %}</span></div>
                 </a>
                 <a href="{% url 'view-payslip' %}?start_date_from=${fromInput.value}&start_date_till=${toInput.value}&filter_applied=1" class="pd-kpi-card">
                     <div class="pd-kpi-card__icon pd-kpi-card__icon--red"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg></div>
                     <div class="pd-kpi-card__label">{% trans "Deductions"|escapejs %}</div>
                     <div class="pd-kpi-card__value">${fmt(data.total_deductions)}</div>
-                    <div class="pd-kpi-card__sub">${data.month}</div>
+                    <div class="pd-kpi-card__sub"><span class="pd-badge pd-badge--blue">${data.month}</span></div>
                 </a>
                 <a href="{% url 'view-loan' %}?open_tab=1&settled=False&filter_applied=1" class="pd-kpi-card">
                     <div class="pd-kpi-card__icon pd-kpi-card__icon--amber"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg></div>
                     <div class="pd-kpi-card__label">{% trans "Active Loans"|escapejs %}</div>
                     <div class="pd-kpi-card__value">${data.active_loans}</div>
-                    <div class="pd-kpi-card__sub">${data.loan_amount > 0 ? fmt(data.loan_amount) + ' {% trans "total"|escapejs %}' : '{% trans "No active loans"|escapejs %}'}</div>
+                    <div class="pd-kpi-card__sub">${data.loan_amount > 0 ? '<span class="pd-badge pd-badge--amber">' + fmt(data.loan_amount) + ' {% trans "total"|escapejs %}</span>' : '<span class="pd-badge pd-badge--green">{% trans "No active loans"|escapejs %}</span>'}</div>
                 </a>
                 <a href="{% url 'view-reimbursement' %}?open_tab=1&status=requested&type=reimbursement&filter_applied=1" class="pd-kpi-card">
                     <div class="pd-kpi-card__icon pd-kpi-card__icon--purple"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
                     <div class="pd-kpi-card__label">{% trans "Reimbursements"|escapejs %}</div>
                     <div class="pd-kpi-card__value">${data.pending_reimbursements}</div>
-                    <div class="pd-kpi-card__sub">{% trans "Pending requests"|escapejs %}</div>
+                    <div class="pd-kpi-card__sub"><span class="pd-badge pd-badge--amber">{% trans "Pending requests"|escapejs %}</span></div>
                 </a>`;
         });
     }
@@ -491,10 +492,10 @@
             const colors = { draft: 'rgba(148,163,184,0.15)', review_ongoing: 'rgba(59,130,246,0.15)', confirmed: 'rgba(245,158,11,0.15)', paid: 'rgba(34,197,94,0.15)' };
             const textColors = { draft: '#64748b', review_ongoing: '#2563eb', confirmed: '#d97706', paid: '#16a34a' };
             el.innerHTML = '<div class="pd-pipeline">' + data.statuses.map(s =>
-                `<div class="pd-pipeline-step" style="background:${colors[s.status]};">
+                `<a href="{% url 'view-payslip' %}?status=${s.status}&start_date_from=${fromInput.value}&start_date_till=${toInput.value}&filter_applied=1" class="pd-pipeline-step" style="background:${colors[s.status]};">
                     <div class="pd-pipeline-step__count" style="color:${textColors[s.status]};">${s.count}</div>
                     <div class="pd-pipeline-step__label">${s.label}</div>
-                </div>`
+                </a>`
             ).join('<div style="display:flex;align-items:center;opacity:0.3;font-size:18px;">→</div>') + '</div>';
         });
     }

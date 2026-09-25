@@ -26,8 +26,8 @@
     .on-kpi-card__value { font-size: 28px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
     .on-kpi-card__sub { font-size: 12px; opacity: 0.6; }
     .on-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
-    .on-badge--green { background: #dcfce7; color: #166534; } .on-badge--amber { background: #fef3c7; color: #92400e; } .on-badge--red { background: #fee2e2; color: #991b1b; }
-    .dark .on-badge--green { background: #166534; color: #bbf7d0; } .dark .on-badge--amber { background: #92400e; color: #fde68a; } .dark .on-badge--red { background: #7f1d1d; color: #fca5a5; }
+    .on-badge--green { background: #dcfce7; color: #166534; } .on-badge--amber { background: #fef3c7; color: #92400e; } .on-badge--red { background: #fee2e2; color: #991b1b; } .on-badge--blue { background: #dbeafe; color: #1e40af; } .on-badge--purple { background: #f3e8ff; color: #6b21a8; }
+    .dark .on-badge--green { background: #166534; color: #bbf7d0; } .dark .on-badge--amber { background: #92400e; color: #fde68a; } .dark .on-badge--red { background: #7f1d1d; color: #fca5a5; } .dark .on-badge--blue { background: #1e3a8a; color: #bfdbfe; } .dark .on-badge--purple { background: #581c87; color: #e9d5ff; }
 
     .on-layout { display: grid; grid-template-columns: 1fr 300px; gap: 20px; align-items: start; }
     .on-main { min-width: 0; } .on-sidebar { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 90px; max-height: calc(100vh - 90px - 24px); overflow-y: auto; }
@@ -398,25 +398,25 @@
                     <div class="on-kpi-card__icon on-kpi-card__icon--blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg></div>
                     <div class="on-kpi-card__label">{% trans "Onboarding"|escapejs %}</div>
                     <div class="on-kpi-card__value">${data.total_candidates}</div>
-                    <div class="on-kpi-card__sub">${data.in_progress} {% trans "in progress"|escapejs %}</div>
+                    <div class="on-kpi-card__sub"><span class="on-badge on-badge--blue">${data.in_progress} {% trans "in progress"|escapejs %}</span></div>
                 </a>
                 <a href="{% url 'cbv-pipeline-onboarding' %}" class="on-kpi-card">
                     <div class="on-kpi-card__icon on-kpi-card__icon--green"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
                     <div class="on-kpi-card__label">{% trans "Completed"|escapejs %}</div>
                     <div class="on-kpi-card__value">${data.completed_onboarding}</div>
-                    <div class="on-kpi-card__sub">{% trans "Finished onboarding"|escapejs %}</div>
+                    <div class="on-kpi-card__sub"><span class="on-badge on-badge--green">{% trans "Finished onboarding"|escapejs %}</span></div>
                 </a>
                 <a href="{% url 'cbv-pipeline-onboarding' %}" class="on-kpi-card">
                     <div class="on-kpi-card__icon on-kpi-card__icon--amber"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M9 14l2 2 4-4"/></svg></div>
                     <div class="on-kpi-card__label">{% trans "Task Completion"|escapejs %}</div>
                     <div class="on-kpi-card__value">${data.task_completion}%</div>
-                    <div class="on-kpi-card__sub">${data.completed_tasks}/${data.total_tasks} {% trans "done"|escapejs %}${data.stuck_tasks > 0 ? ' · <span class="on-badge on-badge--red">' + data.stuck_tasks + ' stuck</span>' : ''}</div>
+                    <div class="on-kpi-card__sub"><span class="on-badge on-badge--amber">${data.completed_tasks}/${data.total_tasks} {% trans "done"|escapejs %}</span>${data.stuck_tasks > 0 ? ' <span class="on-badge on-badge--red">' + data.stuck_tasks + ' stuck</span>' : ''}</div>
                 </a>
                 <a href="{% url 'recruitment-view' %}" class="on-kpi-card">
                     <div class="on-kpi-card__icon on-kpi-card__icon--purple"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></div>
                     <div class="on-kpi-card__label">{% trans "Recruitments"|escapejs %}</div>
                     <div class="on-kpi-card__value">${data.active_recruitments}</div>
-                    <div class="on-kpi-card__sub">{% trans "Active hiring"|escapejs %}</div>
+                    <div class="on-kpi-card__sub"><span class="on-badge on-badge--purple">{% trans "Active hiring"|escapejs %}</span></div>
                 </a>`;
         });
     }

@@ -803,7 +803,7 @@
                             '</div>' +
                             '<div class="ed-kpi-card__label">{% trans "Pending Approval"|escapejs %}</div>' +
                             '<div class="ed-kpi-card__value">' + (data.pending_count  || 0) + '</div>' +
-                            '<div class="ed-kpi-card__sub">{% trans "Awaiting review"|escapejs %}</div>' +
+                            '<div class="ed-kpi-card__sub"><span class="ed-badge ed-badge--amber">{% trans "Awaiting review"|escapejs %}</span></div>' +
                         '</a>' +
                         '<a href="' + aU + '" class="ed-kpi-card">' +
                             '<div class="ed-kpi-card__icon ed-kpi-card__icon--indigo">' +
@@ -811,7 +811,7 @@
                             '</div>' +
                             '<div class="ed-kpi-card__label">{% trans "Upcoming Leaves"|escapejs %}</div>' +
                             '<div class="ed-kpi-card__value">' + (data.upcoming_count || 0) + '</div>' +
-                            '<div class="ed-kpi-card__sub">{% trans "Approved & ahead"|escapejs %}</div>' +
+                            '<div class="ed-kpi-card__sub"><span class="ed-badge ed-badge--indigo">{% trans "Approved & ahead"|escapejs %}</span></div>' +
                         '</a>' +
                         '<a href="' + aU + '" class="ed-kpi-card">' +
                             '<div class="ed-kpi-card__icon ed-kpi-card__icon--green">' +
@@ -819,7 +819,7 @@
                             '</div>' +
                             '<div class="ed-kpi-card__label">{% trans "Approved"|escapejs %}</div>' +
                             '<div class="ed-kpi-card__value">' + (data.approved_count || 0) + '</div>' +
-                            '<div class="ed-kpi-card__sub">' + (data.month || '') + '</div>' +
+                            '<div class="ed-kpi-card__sub"><span class="ed-badge ed-badge--green">' + (data.month || '') + '</span></div>' +
                         '</a>' +
                         '<a href="' + rU + '" class="ed-kpi-card">' +
                             '<div class="ed-kpi-card__icon ed-kpi-card__icon--red">' +
@@ -827,7 +827,7 @@
                             '</div>' +
                             '<div class="ed-kpi-card__label">{% trans "Rejected"|escapejs %}</div>' +
                             '<div class="ed-kpi-card__value">' + (data.rejected_count || 0) + '</div>' +
-                            '<div class="ed-kpi-card__sub">' + (data.month || '') + '</div>' +
+                            '<div class="ed-kpi-card__sub"><span class="ed-badge ed-badge--red">' + (data.month || '') + '</span></div>' +
                         '</a>';
                     // Available balance stays in the Leave Balance chart below — not a hero KPI.
                 })

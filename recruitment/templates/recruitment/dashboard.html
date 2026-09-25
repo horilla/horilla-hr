@@ -172,6 +172,14 @@
             background: #fef3c7;
             color: #92400e;
         }
+        .rd-badge--blue {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .rd-badge--purple {
+            background: #f3e8ff;
+            color: #6b21a8;
+        }
         .dark .rd-badge--green {
             background: #166534;
             color: #bbf7d0;
@@ -179,6 +187,14 @@
         .dark .rd-badge--amber {
             background: #92400e;
             color: #fde68a;
+        }
+        .dark .rd-badge--blue {
+            background: #1e3a8a;
+            color: #bfdbfe;
+        }
+        .dark .rd-badge--purple {
+            background: #581c87;
+            color: #e9d5ff;
         }
 
         /* Chart Grid */
@@ -731,7 +747,7 @@
 
         /* Period Picker */
         .rd-period-picker {
-            display: none !important; /* TEMP: hide period picker */
+            display: flex;
             align-items: center;
             gap: 6px;
             font-size: 12px;
@@ -881,7 +897,7 @@
                 </div>
             </div>
             <div style="display: flex; gap: 8px">
-                <div class="rd-period-picker" hidden>
+                <div class="rd-period-picker">
                     <button class="rd-period-preset" data-preset="this_month">{% trans "This Month" %}</button>
                     <button class="rd-period-preset" data-preset="last_month">{% trans "Last Month" %}</button>
                     <button class="rd-period-preset" data-preset="this_quarter">{% trans "Quarter" %}</button>
@@ -1147,18 +1163,30 @@
             function periodParams() { const f = fromInput.value, t = toInput.value; return (f && t) ? ("from_date=" + encodeURIComponent(f) + "&to_date=" + encodeURIComponent(t)) : ""; }
             function urlWithPeriod(u) { const p = periodParams(); return p ? u + (u.includes('?') ? '&' : '?') + p : u; }
             function fetchP(url) { return fetch(urlWithPeriod(url)); }
+            function presetRange(p) {
+                const t = new Date();
+                if (p === 'this_month') return [new Date(t.getFullYear(), t.getMonth(), 1), new Date(t.getFullYear(), t.getMonth()+1, 0)];
+                if (p === 'last_month') return [new Date(t.getFullYear(), t.getMonth()-1, 1), new Date(t.getFullYear(), t.getMonth(), 0)];
+                if (p === 'this_quarter') return [new Date(t.getFullYear(), Math.floor(t.getMonth()/3)*3, 1), new Date(t.getFullYear(), Math.floor(t.getMonth()/3)*3+3, 0)];
+                return null;
+            }
+            function syncPresetActive() {
+                document.querySelectorAll('.rd-period-preset').forEach(b => {
+                    const r = presetRange(b.dataset.preset);
+                    const matches = r && fromInput.value === r[0].toISOString().split('T')[0] && toInput.value === r[1].toISOString().split('T')[0];
+                    b.classList.toggle('rd-period-preset--active', !!matches);
+                });
+            }
             function setPreset(p) {
-                const t = new Date(); let f, to;
-                if (p === 'this_month') { f = new Date(t.getFullYear(), t.getMonth(), 1); to = new Date(t.getFullYear(), t.getMonth()+1, 0); }
-                else if (p === 'last_month') { f = new Date(t.getFullYear(), t.getMonth()-1, 1); to = new Date(t.getFullYear(), t.getMonth(), 0); }
-                else if (p === 'this_quarter') { f = new Date(t.getFullYear(), Math.floor(t.getMonth()/3)*3, 1); to = new Date(t.getFullYear(), Math.floor(t.getMonth()/3)*3+3, 0); }
+                const [f, to] = presetRange(p);
                 fromInput.value = f.toISOString().split('T')[0]; toInput.value = to.toISOString().split('T')[0];
-                savePeriod(); document.querySelectorAll('.rd-period-preset').forEach(b => b.classList.toggle('rd-period-preset--active', b.dataset.preset === p));
+                savePeriod(); syncPresetActive();
                 location.reload();
             }
             document.querySelectorAll('.rd-period-preset').forEach(b => b.addEventListener('click', () => setPreset(b.dataset.preset)));
-            [fromInput, toInput].forEach(i => i.addEventListener('change', () => { savePeriod(); location.reload(); }));
+            [fromInput, toInput].forEach(i => i.addEventListener('change', () => { savePeriod(); syncPresetActive(); location.reload(); }));
             initPeriod();
+            syncPresetActive();
 
             // ── Chart Customize ──
             const CUST_KEY = 'rd_chart_prefs';
@@ -1287,31 +1315,31 @@
                     <div class="rd-kpi-card__icon rd-kpi-card__icon--amber"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div>
                     <div class="rd-kpi-card__label">{% trans "Total Vacancies"|escapejs %}</div>
                     <div class="rd-kpi-card__value">${data.total_vacancy}</div>
-                    <div class="rd-kpi-card__sub">{% trans "Open positions"|escapejs %}</div>
+                    <div class="rd-kpi-card__sub"><span class="rd-badge rd-badge--blue">{% trans "Open positions"|escapejs %}</span></div>
                 </a>
                 <a href="{% url 'recruitment-view' %}" class="rd-kpi-card">
                     <div class="rd-kpi-card__icon rd-kpi-card__icon--red"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></div>
                     <div class="rd-kpi-card__label">{% trans "Ongoing"|escapejs %}</div>
                     <div class="rd-kpi-card__value">${data.ongoing_recruitments}</div>
-                    <div class="rd-kpi-card__sub">{% trans "Active recruitments"|escapejs %}</div>
+                    <div class="rd-kpi-card__sub"><span class="rd-badge rd-badge--amber">{% trans "Active recruitments"|escapejs %}</span></div>
                 </a>
                 <a href="{% url 'candidate-view' %}?hired=true&created_at_from=${data.period_from_date}&created_at_till=${data.period_to_date}&filter_applied=1" class="rd-kpi-card">
                     <div class="rd-kpi-card__icon rd-kpi-card__icon--green"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg></div>
                     <div class="rd-kpi-card__label">{% trans "Hired"|escapejs %}</div>
                     <div class="rd-kpi-card__value">${data.total_hired}</div>
-                    <div class="rd-kpi-card__sub">{% trans "of"|escapejs %} ${data.total_candidates} {% trans "candidates"|escapejs %}</div>
+                    <div class="rd-kpi-card__sub"><span class="rd-badge rd-badge--green">{% trans "of"|escapejs %} ${data.total_candidates} {% trans "candidates"|escapejs %}</span></div>
                 </a>
                 <div class="rd-kpi-card rd-kpi-card--static" title="{% trans "Conversion Rate"|escapejs %} = {% trans "Hired"|escapejs %} (${data.total_hired}) / {% trans "Total Candidates"|escapejs %} (${data.total_candidates}) × 100 = ${data.conversion_rate}%">
                     <div class="rd-kpi-card__icon rd-kpi-card__icon--blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
                     <div class="rd-kpi-card__label">{% trans "Conversion Rate"|escapejs %}</div>
                     <div class="rd-kpi-card__value">${data.conversion_rate}%</div>
-                    <div class="rd-kpi-card__sub">{% trans "Hired / Total"|escapejs %}</div>
+                    <div class="rd-kpi-card__sub"><span class="rd-badge rd-badge--purple">{% trans "Hired / Total"|escapejs %}</span></div>
                 </div>
                 <div class="rd-kpi-card rd-kpi-card--static" title="{% trans "Acceptance Rate"|escapejs %} = {% trans "Accepted Offers"|escapejs %} (${data.accepted_count}) / {% trans "Hired"|escapejs %} (${data.total_hired}) × 100 = ${data.acceptance_rate}%">
                     <div class="rd-kpi-card__icon rd-kpi-card__icon--purple"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="m9 18 2 2 4-4"/></svg></div>
                     <div class="rd-kpi-card__label">{% trans "Acceptance Rate"|escapejs %}</div>
                     <div class="rd-kpi-card__value">${data.acceptance_rate}%</div>
-                    <div class="rd-kpi-card__sub">{% trans "Offer accepted"|escapejs %}</div>
+                    <div class="rd-kpi-card__sub"><span class="rd-badge rd-badge--green">{% trans "Offer accepted"|escapejs %}</span></div>
                 </div>`;
                 });
             }

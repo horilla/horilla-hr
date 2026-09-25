@@ -25,10 +25,12 @@
     .dark .hd-kpi-card__icon--green { background: #14532d; } .dark .hd-kpi-card__icon--red { background: #7f1d1d; }
     .hd-kpi-card__label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.5; margin-bottom: 6px; }
     .hd-kpi-card__value { font-size: 28px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
-    .hd-kpi-card__sub { font-size: 12px; opacity: 0.6; }
+    .hd-kpi-card__sub { font-size: 12px; opacity: 0.6; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
     .hd-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
     .hd-badge--green { background: #dcfce7; color: #166534; } .hd-badge--amber { background: #fef3c7; color: #92400e; } .hd-badge--red { background: #fee2e2; color: #991b1b; }
+    .hd-badge--blue { background: #dbeafe; color: #1e40af; } .hd-badge--purple { background: #f3e8ff; color: #6b21a8; }
     .dark .hd-badge--green { background: #166534; color: #bbf7d0; } .dark .hd-badge--amber { background: #92400e; color: #fde68a; } .dark .hd-badge--red { background: #7f1d1d; color: #fca5a5; }
+    .dark .hd-badge--blue { background: #1e3a8a; color: #bfdbfe; } .dark .hd-badge--purple { background: #581c87; color: #e9d5ff; }
 
     .hd-layout { display: grid; grid-template-columns: 1fr 300px; gap: 20px; align-items: start; }
     .hd-main { min-width: 0; } .hd-sidebar { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 90px; max-height: calc(100vh - 90px - 24px); overflow-y: auto; }
@@ -398,25 +400,25 @@
                     <div class="hd-kpi-card__icon hd-kpi-card__icon--blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></svg></div>
                     <div class="hd-kpi-card__label">{% trans "Open Tickets"|escapejs %}</div>
                     <div class="hd-kpi-card__value">${data.open_tickets}</div>
-                    <div class="hd-kpi-card__sub"><span class="hd-badge hd-badge--amber">${data.new_tickets} {% trans "new"|escapejs %}</span> ${data.in_progress} {% trans "in progress"|escapejs %}</div>
+                    <div class="hd-kpi-card__sub"><span class="hd-badge hd-badge--amber">${data.new_tickets} {% trans "new"|escapejs %}</span><span class="hd-badge hd-badge--blue">${data.in_progress} {% trans "in progress"|escapejs %}</span></div>
                 </a>
                 <div class="hd-kpi-card hd-kpi-card--static" title="${'Resolution Rate = Resolved (' + data.period_resolved + ') / Total Tickets (' + data.total_tickets + ') × 100 = ' + data.resolution_rate + '%'}">
                     <div class="hd-kpi-card__icon hd-kpi-card__icon--green"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
                     <div class="hd-kpi-card__label">{% trans "Resolution Rate"|escapejs %}</div>
                     <div class="hd-kpi-card__value">${data.resolution_rate}%</div>
-                    <div class="hd-kpi-card__sub">${data.period_resolved} {% trans "resolved of"|escapejs %} ${data.total_tickets}</div>
+                    <div class="hd-kpi-card__sub"><span class="hd-badge hd-badge--green">${data.period_resolved} {% trans "resolved of"|escapejs %} ${data.total_tickets}</span></div>
                 </div>
                 <a href="{% url 'ticket-view' %}?ticket_tab=all_tickets&open_tab=3&is_overdue=true&filter_applied=1" class="hd-kpi-card">
                     <div class="hd-kpi-card__icon hd-kpi-card__icon--red"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
                     <div class="hd-kpi-card__label">{% trans "Overdue"|escapejs %}</div>
                     <div class="hd-kpi-card__value">${data.overdue}</div>
-                    <div class="hd-kpi-card__sub">${data.on_hold > 0 ? '<span class="hd-badge hd-badge--red">' + data.on_hold + ' {% trans "on hold"|escapejs %}</span>' : '{% trans "Past deadline"|escapejs %}'}</div>
+                    <div class="hd-kpi-card__sub">${data.on_hold > 0 ? '<span class="hd-badge hd-badge--red">' + data.on_hold + ' {% trans "on hold"|escapejs %}</span>' : '<span class="hd-badge hd-badge--amber">{% trans "Past deadline"|escapejs %}</span>'}</div>
                 </a>
                 <div class="hd-kpi-card hd-kpi-card--static" title="${data.avg_resolution_days !== null ? ('Avg Resolution = average of (Resolved Date − Created Date) across ' + data.avg_resolution_count + ' ticket(s) resolved this period = ' + data.avg_resolution_days + ' days') : 'No tickets resolved this period yet'}">
                     <div class="hd-kpi-card__icon hd-kpi-card__icon--amber"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
                     <div class="hd-kpi-card__label">{% trans "Avg Resolution"|escapejs %}</div>
                     <div class="hd-kpi-card__value">${data.avg_resolution_days !== null ? data.avg_resolution_days + 'd' : '—'}</div>
-                    <div class="hd-kpi-card__sub">${data.avg_resolution_count} {% trans "ticket(s) resolved this period"|escapejs %}</div>
+                    <div class="hd-kpi-card__sub"><span class="hd-badge hd-badge--purple">${data.avg_resolution_count} {% trans "ticket(s) resolved this period"|escapejs %}</span></div>
                 </div>`;
         });
     }

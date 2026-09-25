@@ -166,6 +166,55 @@
             font-size: 12px;
             opacity: 0.6;
         }
+        .em-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            gap: 3px;
+            border-radius: 999px;
+            font-weight: 600;
+            font-size: 11px;
+        }
+        .em-badge--green {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .em-badge--amber {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .em-badge--red {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .em-badge--blue {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .em-badge--purple {
+            background: #f3e8ff;
+            color: #6b21a8;
+        }
+        .dark .em-badge--green {
+            background: #166534;
+            color: #bbf7d0;
+        }
+        .dark .em-badge--amber {
+            background: #92400e;
+            color: #fde68a;
+        }
+        .dark .em-badge--red {
+            background: #7f1d1d;
+            color: #fca5a5;
+        }
+        .dark .em-badge--blue {
+            background: #1e3a8a;
+            color: #bfdbfe;
+        }
+        .dark .em-badge--purple {
+            background: #581c87;
+            color: #e9d5ff;
+        }
 
         /* Chart Grid */
         .em-chart-grid {
@@ -486,7 +535,7 @@
                 </div>
                 <div class="em-kpi-card__label">{% trans "Total Employees" %}</div>
                 <div class="em-kpi-card__value" id="kpi-total">—</div>
-                <div class="em-kpi-card__sub">{% trans "All records" %}</div>
+                <div class="em-kpi-card__sub"><span class="em-badge em-badge--blue">{% trans "All records" %}</span></div>
             </a>
             <a href="{% url 'employee-view-new' %}?is_active=True" class="em-kpi-card">
                 <div class="em-kpi-card__icon em-kpi-card__icon--green">
@@ -507,7 +556,7 @@
                 </div>
                 <div class="em-kpi-card__label">{% trans "Active" %}</div>
                 <div class="em-kpi-card__value" id="kpi-active">—</div>
-                <div class="em-kpi-card__sub" id="kpi-active-pct">—% of total</div>
+                <div class="em-kpi-card__sub" id="kpi-active-pct"><span class="em-badge em-badge--green">—% {% trans "of total" %}</span></div>
             </a>
             <a href="{% url 'employee-view-new' %}?is_active=False" class="em-kpi-card">
                 <div class="em-kpi-card__icon em-kpi-card__icon--red">
@@ -529,7 +578,7 @@
                 </div>
                 <div class="em-kpi-card__label">{% trans "Inactive" %}</div>
                 <div class="em-kpi-card__value" id="kpi-inactive">—</div>
-                <div class="em-kpi-card__sub">{% trans "Archived employees" %}</div>
+                <div class="em-kpi-card__sub"><span class="em-badge em-badge--red">{% trans "Archived employees" %}</span></div>
             </a>
             <a href="{% url 'employee-view-new' %}" class="em-kpi-card">
                 <div class="em-kpi-card__icon em-kpi-card__icon--amber">
@@ -551,7 +600,7 @@
                 </div>
                 <div class="em-kpi-card__label">{% trans "New This Month" %}</div>
                 <div class="em-kpi-card__value" id="kpi-new">—</div>
-                <div class="em-kpi-card__sub">{% trans "Joined this month" %}</div>
+                <div class="em-kpi-card__sub"><span class="em-badge em-badge--green">{% trans "Joined this month" %}</span></div>
             </a>
             <a href="{% url 'request-view' %}?status=approved&today_leave=true" class="em-kpi-card">
                 <div class="em-kpi-card__icon em-kpi-card__icon--blue">
@@ -573,7 +622,7 @@
                 </div>
                 <div class="em-kpi-card__label">{% trans "On Leave Today" %}</div>
                 <div class="em-kpi-card__value" id="kpi-leave">—</div>
-                <div class="em-kpi-card__sub">{% trans "Approved leaves" %}</div>
+                <div class="em-kpi-card__sub"><span class="em-badge em-badge--purple">{% trans "Approved leaves" %}</span></div>
             </a>
         </div>
 
@@ -699,7 +748,9 @@
                     document.getElementById('kpi-inactive').textContent = data.inactive;
                     document.getElementById('kpi-new').textContent     = data.new_this_month;
                     document.getElementById('kpi-leave').textContent   = data.on_leave;
-                    document.getElementById('kpi-active-pct').textContent = data.active_pct + '% of total';
+                    document.getElementById('kpi-active-pct').innerHTML =
+                        '<span class="em-badge ' + (data.active_pct >= 80 ? 'em-badge--green' : 'em-badge--amber') + '">' +
+                        data.active_pct + '% {% trans "of total"|escapejs %}</span>';
                 });
 
             // ─── BY DEPARTMENT ───

@@ -16,19 +16,32 @@ from django.utils.translation import gettext as _
 from horilla.decorators import permission_required
 
 
+def _current_month_bounds(today=None):
+    """Return (first_day, last_day) of the given date's calendar month."""
+    today = today or date.today()
+    first_day = today.replace(day=1)
+    if first_day.month == 12:
+        last_day = first_day.replace(year=first_day.year + 1, month=1) - timedelta(
+            days=1
+        )
+    else:
+        last_day = first_day.replace(month=first_day.month + 1) - timedelta(days=1)
+    return first_day, last_day
+
+
 def _parse_period(request):
-    """Parse from_date and to_date from GET params. Defaults to current month."""
-    today = date.today()
+    """Parse from_date and to_date from GET params. Defaults to the full current month."""
+    default_from, default_to = _current_month_bounds()
     from_str = request.GET.get("from_date")
     to_str = request.GET.get("to_date")
     try:
-        from_date = date.fromisoformat(from_str) if from_str else today.replace(day=1)
+        from_date = date.fromisoformat(from_str) if from_str else default_from
     except (ValueError, TypeError):
-        from_date = today.replace(day=1)
+        from_date = default_from
     try:
-        to_date = date.fromisoformat(to_str) if to_str else today
+        to_date = date.fromisoformat(to_str) if to_str else default_to
     except (ValueError, TypeError):
-        to_date = today
+        to_date = default_to
     return from_date, to_date
 
 
