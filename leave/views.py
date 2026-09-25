@@ -3264,37 +3264,50 @@ def leave_over_period(request):
         return JsonResponse({"no_permission": True})
 
     today = date.today()
-    start_of_week = today - timedelta(days=today.weekday())
-    week_dates = [start_of_week + timedelta(days=i) for i in range(6)]
+    if request.GET.get("period") == "month":
+        # Full current calendar month -- used by the main analytics
+        # dashboard, which wants the whole month's trend rather than just
+        # the current week.
+        start_of_month = today.replace(day=1)
+        next_month = start_of_month.replace(day=28) + timedelta(days=4)
+        end_of_month = next_month.replace(day=1) - timedelta(days=1)
+        period_dates = [
+            start_of_month + timedelta(days=i)
+            for i in range((end_of_month - start_of_month).days + 1)
+        ]
+    else:
+        start_of_week = today - timedelta(days=today.weekday())
+        period_dates = [start_of_week + timedelta(days=i) for i in range(6)]
+    leave_in_period = []
 
-    leave_in_week = []
-
-    leave_request = LeaveRequest.objects.filter(status="approved")
+    leave_request = LeaveRequest.objects.filter(
+        status="approved",
+        start_date__lte=period_dates[-1],
+    ).filter(
+        Q(end_date__gte=period_dates[0])
+        | Q(end_date__isnull=True, start_date__gte=period_dates[0])
+    )
     leave_dates = []
     for leave in leave_request:
         for leave_date in leave.requested_dates():
             leave_dates.append(leave_date)
 
-    filtered_dates = [
-        day
-        for day in leave_dates
-        if day.month == today.month and day.year == today.year
-    ]
-    for week_date in week_dates:
-        days = []
-        for filtered_date in filtered_dates:
-            if filtered_date == week_date:
-                days.append(filtered_date)
-        leave_in_week.append(len(days))
-
+    filtered_dates = [day for day in leave_dates if day in period_dates]
+    for period_date in period_dates:
+        days = [
+            filtered_date
+            for filtered_date in filtered_dates
+            if filtered_date == period_date
+        ]
+        leave_in_period.append(len(days))
     dataset = (
         {
             "label": _("Leave Trends"),
-            "data": leave_in_week,
+            "data": leave_in_period,
         },
     )
 
-    labels = [week_date.strftime("%d-%m-%Y") for week_date in week_dates]
+    labels = [period_date.strftime("%d-%m-%Y") for period_date in period_dates]
 
     response = {
         "labels": labels,

@@ -207,6 +207,10 @@
             background: #f3e8ff;
             color: var(--md-purple);
         }
+        .md-kpi-card__icon--blue {
+            background: #dbeafe;
+            color: var(--md-blue);
+        }
 
         .dark .md-kpi-card__icon--indigo {
             background: #312e81;
@@ -219,6 +223,9 @@
         }
         .dark .md-kpi-card__icon--purple {
             background: #3b0764;
+        }
+        .dark .md-kpi-card__icon--blue {
+            background: #1e3a8a;
         }
 
         .md-kpi-card__label {
@@ -260,6 +267,18 @@
             background: #fef3c7;
             color: #92400e;
         }
+        .md-badge--red {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .md-badge--blue {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .md-badge--purple {
+            background: #f3e8ff;
+            color: #6b21a8;
+        }
         .dark .md-badge--green {
             background: #166534;
             color: #bbf7d0;
@@ -267,6 +286,18 @@
         .dark .md-badge--amber {
             background: #92400e;
             color: #fde68a;
+        }
+        .dark .md-badge--red {
+            background: #7f1d1d;
+            color: #fca5a5;
+        }
+        .dark .md-badge--blue {
+            background: #1e3a8a;
+            color: #bfdbfe;
+        }
+        .dark .md-badge--purple {
+            background: #581c87;
+            color: #e9d5ff;
         }
 
         /* Chart Grid — flat sortable container */
@@ -1463,7 +1494,7 @@
                             <div class="md-chart-card__header">
                                 <div>
                                     <div class="md-chart-card__title">{% trans "Leave Trends" %}</div>
-                                    <div class="md-chart-card__subtitle">{% trans "Daily leaves — current week" %}</div>
+                                    <div class="md-chart-card__subtitle">{% trans "Leave count vs Date" %}</div>
                                 </div>
                                 <a
                                     class="md-link text-xs"
@@ -2362,12 +2393,12 @@
                         const empSvg   = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
                         const attSvg   = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>';
                         const leaveSvg = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
-                        const recruSvg = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>';
+                        const clockSvg = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
                         document.getElementById('md-kpi-grid').innerHTML =
-                            kpiCard("{% url 'employee-view' %}?is_active=True&filter_applied=on",   PERM.employee,    'md-kpi-card__icon--indigo', empSvg,   '{% trans "Total Employees"|escapejs %}',   data.total_employees,   data.new_joiners > 0 ? '<span class="md-badge md-badge--green">+' + data.new_joiners + ' {% trans "this month"|escapejs %}</span>' : '<span style="opacity:0.5">{% trans "No new joiners"|escapejs %}</span>') +
-                            kpiCard("{% url 'employee-view' %}?present_on={% now 'Y-m-d' %}&is_active=True&filter_applied=on",  PERM.employee,    'md-kpi-card__icon--green',  attSvg,   '{% trans "Present Today"|escapejs %}',     data.present_today,     '<span class="md-badge ' + (data.attendance_rate >= 80 ? 'md-badge--green' : 'md-badge--amber') + '">' + data.attendance_rate + '% {% trans "of expected"|escapejs %}</span>' + (data.not_checked_in > 0 ? ' <span class="md-badge md-badge--amber">' + data.not_checked_in + ' {% trans "not checked in"|escapejs %}</span>' : '')) +
-                            kpiCard(`{% url 'request-view' %}?status=approved&today_leave=true&filter_applied=on`,     PERM.leave,       'md-kpi-card__icon--amber',  leaveSvg, '{% trans "On Leave"|escapejs %}',           data.on_leave,          data.pending_leaves > 0 ? '<a href="{% url "request-view" %}?status=requested&filter_applied=on" class="md-badge md-badge--amber">' + data.pending_leaves + ' {% trans "pending"|escapejs %}</a>' : '<span style="opacity:0.5">{% trans "No pending"|escapejs %}</span>') +
-                            (PERM.recruitment ? kpiCard("{% url 'recruitment-view' %}?closed=false&filter_applied=on", true, 'md-kpi-card__icon--purple', recruSvg, '{% trans "Open Recruitments"|escapejs %}', data.open_recruitments, '<span style="opacity:0.5">{% trans "Active hiring"|escapejs %}</span>') : '');
+                            kpiCard("{% url 'employee-view' %}?is_active=True&filter_applied=on",   PERM.employee,    'md-kpi-card__icon--indigo', empSvg,   '{% trans "Total Employees"|escapejs %}',   data.total_employees,   data.new_joiners > 0 ? '<span class="md-badge md-badge--green">+' + data.new_joiners + ' {% trans "this month"|escapejs %}</span>' : '<span class="md-badge md-badge--blue">{% trans "No new joiners"|escapejs %}</span>') +
+                            kpiCard("{% url 'employee-view' %}?present_on={% now 'Y-m-d' %}&is_active=True&filter_applied=on",  PERM.employee,    'md-kpi-card__icon--green',  attSvg,   '{% trans "Present Today"|escapejs %}',     data.present_today,     '<span class="md-badge ' + (data.attendance_rate >= 80 ? 'md-badge--green' : 'md-badge--amber') + '">' + data.attendance_rate + '% {% trans "of expected"|escapejs %}</span>') +
+                            kpiCard(`{% url 'request-view' %}?status=approved&today_leave=true&filter_applied=on`,     PERM.leave,       'md-kpi-card__icon--amber',  leaveSvg, '{% trans "On Leave"|escapejs %}',           data.on_leave,          (data.pending_leaves > 0 ? '<a href="{% url "request-view" %}?status=requested&filter_applied=on" class="md-badge md-badge--amber">' + data.pending_leaves + ' {% trans "pending"|escapejs %}</a>' : '<span class="md-badge md-badge--green">{% trans "No pending"|escapejs %}</span>') + (data.half_day_today > 0 ? ' <span class="md-badge md-badge--amber">' + data.half_day_today + ' {% trans "half day"|escapejs %}</span>' : '')) +
+                            kpiCard(`{% url 'employee-view' %}?expected_to_check_in={% now 'Y-m-d' %}&is_active=True&filter_applied=on`,     PERM.employee,    'md-kpi-card__icon--blue', clockSvg, '{% trans "Expected to Check In"|escapejs %}', data.expected_to_check_in, '<span class="md-badge md-badge--amber">{% trans "Not present, not on leave"|escapejs %}</span>');
                     });
             }
             loadKpiCards();
@@ -2714,7 +2745,7 @@
                 .then(r => r.json())
                 .then(data => {
                     if (data.no_permission) { hideCard('leave_trends'); return; }
-                    if (!data.labels || !data.labels.length) { document.querySelector("#chart-leave-trend").innerHTML = emptyHtml('{% trans "No data for this week"|escapejs %}'); return; }
+                    if (!data.labels || !data.labels.length) { document.querySelector("#chart-leave-trend").innerHTML = emptyHtml('{% trans "No leave data this month"|escapejs %}'); return; }
                     const seriesArr = Array.isArray(data.dataset) ? data.dataset : [data.dataset];
                     renderChart('leave-trend', document.querySelector("#chart-leave-trend"), {
                         series: seriesArr.map(s => ({ name: s.label || 'Leaves', data: s.data })),
@@ -2730,7 +2761,7 @@
                         grid: GRID,
                         tooltip: { ...TOOLTIP_STYLE, y: { formatter: v => v + ' {% trans "leave(s)"|escapejs %}' } },
                     });
-                }).catch(() => { document.querySelector("#chart-leave-trend").innerHTML = emptyHtml('{% trans "No data for this week"|escapejs %}'); });
+                }).catch(() => { document.querySelector("#chart-leave-trend").innerHTML = emptyHtml('{% trans "No leave data this month"|escapejs %}'); });
             }
             loadLeaveOverPeriod();
             {% endif %}
@@ -2929,7 +2960,7 @@
                     const viewAllLink = document.getElementById('md-holidays-viewall');
                     if (viewAllLink) viewAllLink.href = `{% url 'holiday-view' %}`;
 
-                    if (!data.holidays.length) { el.innerHTML = '<div class="md-info-panel__empty">{% trans "No holidays in the next 7 days"|escapejs %}</div>'; return; }
+                    if (!data.holidays.length) { el.innerHTML = '<div class="md-info-panel__empty">{% trans "No holidays this month"|escapejs %}</div>'; return; }
                     el.innerHTML = data.holidays.map(h => {
                         const badge = h.days_away === 0
                             ? '<span class="md-bday-item__badge md-bday-item__badge--today">{% trans "Today"|escapejs %}</span>'
@@ -2947,7 +2978,7 @@
                     }).join('');
                 }).catch(() => {
                     const el = document.getElementById('md-holidays');
-                    if (el) el.innerHTML = '<div class="md-info-panel__empty">{% trans "No holidays this week"|escapejs %}</div>';
+                    if (el) el.innerHTML = '<div class="md-info-panel__empty">{% trans "No holidays this month"|escapejs %}</div>';
                 });
             }
             loadUpcomingHolidays();
@@ -2980,7 +3011,7 @@
                     });
                     items.sort((a, b) => a.days_away - b.days_away);
                     if (!items.length) {
-                        el.innerHTML = '<div class="md-info-panel__empty">{% trans "None in the next 7 days"|escapejs %}</div>';
+                        el.innerHTML = '<div class="md-info-panel__empty">{% trans "None this month"|escapejs %}</div>';
                         return;
                     }
                     el.innerHTML = items.slice(0, 8).map(item => {
