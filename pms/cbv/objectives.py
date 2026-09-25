@@ -67,8 +67,8 @@ class ObjectivesList(HorillaListView):
 
         qs = super().get_queryset(queryset, filtered, *args, **kwargs)
 
-        if self.template_only:
-            qs = qs.filter(is_template=True)
+        if not self.template_only:
+            qs = qs.exclude(is_template=True)
 
         if archive_param in ["true", "True", "1"]:
             # only archived
@@ -223,13 +223,15 @@ class ObjectivesTab(HorillaTabView):
         self.view_id = "objContainer"
 
     def _assigned_objectives_count(self, employee):
-        queryset = Objective.objects.filter(
-            employee_objective__employee_id=employee
-        ).distinct()
+        queryset = (
+            Objective.objects.filter(employee_objective__employee_id=employee)
+            .exclude(is_template=True)
+            .distinct()
+        )
         return ActualObjectiveFilter(self.request.GET, queryset=queryset).qs.count()
 
     def _all_objectives_count(self, employee):
-        queryset = Objective.objects.all()
+        queryset = Objective.objects.exclude(is_template=True)
         manager = Objective.objects.filter(managers=employee).exists()
         if self.request.user.has_perm("pms.view_employeeobjective"):
             queryset = queryset.distinct()
