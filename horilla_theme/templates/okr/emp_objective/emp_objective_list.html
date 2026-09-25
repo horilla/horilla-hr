@@ -14,32 +14,75 @@
     </div>
 {% endif %}
 
+{% if emp_objectives.object_list %}
+    {% comment %}
+    One column header shared by every employee's key-result table below,
+    instead of each expanded accordion panel repeating its own. The real
+    per-employee tables (EmployeeObjectiveKeyResultDetailListView, loaded
+    into each #krData{{emp_objective.id}} on expand) render with
+    show_header=False and bulk_select_option=False (see that view in
+    pms/cbv/objectives.py) so this is the only copy. Its header_attrs pins
+    the exact same pixel widths used here, and okr_detailed_view.html forces
+    table-layout:fixed on both (scoped to #emp_objective_card) so a column
+    can't drift out of alignment just because one employee's cell content is
+    wider than another's.
+    {% endcomment %}
+    <div class="bg-white border border-[#EAE8E3] rounded-lg mb-1.5 overflow-hidden">
+        <table class="fixed-table w-full border-separate">
+            <thead>
+                <tr class="border-b border-[#ececec]">
+                    <th style="width:220px !important;" class="text-sm font-medium text-left px-1.5 py-1">{% trans "Title" %}</th>
+                    <th style="width:100px !important;" class="text-sm font-medium text-left px-1.5 py-1">{% trans "Start Value" %}</th>
+                    <th style="width:130px !important;" class="text-sm font-medium text-left px-1.5 py-1">{% trans "Current Value" %}</th>
+                    <th style="width:100px !important;" class="text-sm font-medium text-left px-1.5 py-1">{% trans "Target Value" %}</th>
+                    <th style="width:140px !important;" class="text-sm font-medium text-left px-1.5 py-1">{% trans "Progress Percentage" %}</th>
+                    <th style="width:110px !important;" class="text-sm font-medium text-left px-1.5 py-1">{% trans "Start Date" %}</th>
+                    <th style="width:110px !important;" class="text-sm font-medium text-left px-1.5 py-1">{% trans "End Date" %}</th>
+                    <th style="width:160px !important;" class="text-sm font-medium text-left px-1.5 py-1">{% trans "Status" %}</th>
+                    {% comment %}
+                    Matches, field for field, every permission check that can
+                    put at least one action (Edit/Delete/History) into
+                    EmployeeObjectiveKeyResultDetailListView.get_context_data
+                    (pms/cbv/objectives.py) -- that's what decides whether
+                    the real table renders an Actions column at all. Staying
+                    in sync here is what keeps this header's column count
+                    matching the body's.
+                    {% endcomment %}
+                    {% if perms.pms.change_objective or perms.pms.change_employeeobjective or perms.pms.change_employeekeyresult or perms.pms.delete_employeekeyresult or perms.pms.view_employeekeyresult or request.user.employee_get in objective.managers.all %}
+                        <th style="width:140px !important;" class="text-sm font-medium text-center px-1.5 py-1">{% trans "Actions" %}</th>
+                    {% endif %}
+                </tr>
+            </thead>
+        </table>
+    </div>
+{% endif %}
+
 <div class="accordion-wrapper space-y-2">
     {% for emp_objective in emp_objectives.object_list %}
         {% if perms.pms.view_employeeobjective or emp_objective|is_manager_or_owner:request.user %}
             <div id="ekrIds{{emp_objective.pk}}" data-ids="[]"></div>
-            <div class="accordion-item border border-primary-300 rounded-md">
+            <div class="accordion-item bg-white border border-[#EAE8E3] rounded-lg overflow-hidden">
                 <button
-                    class="accordion-btn w-full flex justify-between gap-5 md:gap-0 items-center flex-wrap px-4 py-2 bg-primary-100 text-primary-600 text-sm transition-all"
+                    class="accordion-btn w-full flex justify-between gap-3 md:gap-0 items-center flex-wrap px-3 py-1.5 bg-primary-100 text-primary-600 text-sm transition-colors hover:bg-primary-200"
                     hx-get="{% url 'kr-table-view' emp_objective.id %}?{{request.GET.urlencode}}&employee_objective_id={{emp_objective.id}}"
                     hx-target="#krData{{emp_objective.id}}"
                     hx-trigger="click"
                     onclick="$(this).toggleClass('accordion-btn--show');
-                $('#krBody{{emp_objective.id}}').toggleClass('max-h-0').toggleClass('py-3');
+                $('#krBody{{emp_objective.id}}').toggleClass('max-h-0').toggleClass('py-2');
                 var icon = this.querySelector('.icon');
                 if (icon) { icon.setAttribute('name', icon.getAttribute('name') === 'chevron-down-outline' ? 'chevron-up-outline' : 'chevron-down-outline'); }"
                 >
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2.5">
                         <span
-                            class="w-6 h-6 bg-primary-600 rounded-full text-white flex items-center justify-center text-xs"
+                            class="inline-flex items-center justify-center rounded-full font-semibold min-w-[22px] h-[22px] px-1.5 text-[11px] bg-primary-600 text-white"
                             title="{{ emp_objective.employee_key_result.count }} {% trans 'Key Results' %}"
                         >
                             {{ emp_objective.employee_key_result.count }}
                         </span>
-                        {{ emp_objective.employee_id }}
+                        <span class="text-[13.5px] font-semibold text-[#26251F]">{{ emp_objective.employee_id }}</span>
                     </div>
 
-                    <div class="flex items-center flex-wrap gap-2 md:gap-8">
+                    <div class="flex items-center flex-wrap gap-2 md:gap-4">
                         {% if emp_objective.employee_key_result.first %}
                             <!-- Progress -->
                             <div class="dropdown-toggle flex items-center gap-2">
@@ -190,14 +233,16 @@
                             {% endif %}
                         </div>
 
-                        <ion-icon class="icon text-xl" name="chevron-down-outline"></ion-icon>
+                        <span class="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/50 transition-colors shrink-0">
+                            <ion-icon class="icon text-sm text-[#9C9A92]" name="chevron-down-outline"></ion-icon>
+                        </span>
                     </div>
                 </button>
 
                 <!-- Accordion Panel -->
                 <div
                     id="krBody{{emp_objective.id}}"
-                    class="accordion-panel max-h-0 overflow-hidden transition-all duration-300 bg-white px-4 text-sm text-gray-700"
+                    class="accordion-panel max-h-0 overflow-hidden transition-all duration-300 bg-white px-2 text-sm text-gray-700"
                 >
                     <div id="krData{{emp_objective.id}}"></div>
                 </div>

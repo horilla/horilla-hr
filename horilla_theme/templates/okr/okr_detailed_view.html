@@ -3,19 +3,49 @@
 
 {% block content %}
 <style>
-  /* v1_styles.css clamps `.accordion-panel .heightContainer` to 300px for
-     every accordion in the app. Here each panel holds a full key-result
-     table (30+ rows is normal), so that clamp squeezed ~1400px of rows into
-     a 300px window nested inside #emp_objective_card's own scroller -- two
-     scrollbars, and the sticky header pushed out of view. Drop the inner
-     clamp so the table gets a workable window. It keeps overflow-y:auto, so
-     it stays the sticky header's scroll container -- the header only sticks
-     if this element is the one scrolling. The card above no longer scrolls
-     (see the markup), leaving one scroller per concern instead of two
-     nested. Scoped to this page so other accordions keep the global 300px. */
-  #emp_objective_card .accordion-panel .heightContainer,
-  #emp_objective_card .accordion-panel .hlv-container .heightContainer {
-    max-height: min(60vh, 620px) !important;
+  /* Each expanded panel now holds its own key-result table directly (no more
+     nested .heightContainer scroller). A panel with many rows would
+     otherwise grow the whole page tall with several expanded at once, so
+     clamp the panel itself and let it scroll internally instead. Scoped to
+     this page so other accordions elsewhere keep their own default
+     (unclamped) behavior.
+
+     :not(.max-h-0) matters: the toggle in emp_objective_list.html collapses
+     a panel by re-adding Tailwind's max-h-0 (max-height:0) class. An
+     unconditional max-height here (#id .class, specificity 1-1-0) would
+     beat that single-class utility (0-1-0) every time regardless of which
+     one is actually present, so a panel that had ever been opened could
+     never collapse again -- toggling max-h-0 back on would do nothing,
+     since this rule's max-height kept winning the cascade. */
+  #emp_objective_card .accordion-panel:not(.max-h-0) {
+    overflow-y: auto;
+    max-height: min(60vh, 620px);
+  }
+
+  /* okr/emp_objective/emp_objective_list.html renders ONE column header
+     shared by every employee's key-result table below it, instead of each
+     one repeating its own (that inner table's own header is suppressed via
+     show_header=False on EmployeeObjectiveKeyResultDetailListView -- see
+     pms/cbv/objectives.py). Both the shared header and every inner table
+     declare the exact same per-column pixel widths, but without
+     table-layout:fixed a column still only follows its own <th> width as a
+     *hint* -- a wider cell in any one employee's table would still grow
+     that column past what the shared header (and every other employee's
+     table) uses, breaking alignment between them. Fixed layout makes every
+     table honor its declared widths exactly, so they can't drift apart. */
+  #emp_objective_card table.fixed-table {
+    table-layout: fixed;
+  }
+
+  /* Trims the shared table framework's own default row height/padding
+     (h-[30px], py-1) down further, just on this page -- a page that's
+     mostly this one dense multi-employee table benefits more from fitting
+     rows than from the roomier spacing that suits a page with only one
+     list on it. */
+  #emp_objective_card table.fixed-table td {
+    height: 24px;
+    padding-top: 2px;
+    padding-bottom: 2px;
   }
 </style>
 <!-- Sidebar & Header Loaders -->
@@ -36,17 +66,27 @@
       </div>
 
       <!-- Top Card (Objective Details) -->
-      <div class="bg-white p-3 rounded-md shadow-card mb-5">
-        <div class="flex gap-2 justify-between items-end mb-5 border-b border-dark-50 pb-3">
-          <h3 class="text-md font-semibold">{{ objective }}</h3>
-          <div class="flex items-center flex-wrap gap-1">
+      <div class="bg-white rounded-md shadow-card mb-3 overflow-hidden">
+        <div class="p-3 flex gap-3 justify-between items-start flex-wrap">
+          <div class="flex items-start gap-3 min-w-0">
+            <div class="w-10 h-10 rounded-lg bg-primary-100 text-primary-600 flex items-center justify-center shrink-0">
+              <ion-icon name="flag-outline" class="text-lg"></ion-icon>
+            </div>
+            <div class="min-w-0">
+              <h3 class="text-base font-semibold text-[#26251F] leading-tight">{{ objective }}</h3>
+              {% if objective.description %}
+                <p class="text-sm text-[#8C8A82] mt-1">{{ objective.description }}</p>
+              {% endif %}
+            </div>
+          </div>
+          <div class="flex items-center flex-wrap gap-1.5 shrink-0">
             {% if perms.pms.change_objective %}
             <button
               hx-get="{% url 'objective-update' objective.id %}"
               hx-target="#objectCreateModalTarget"
               data-toggle="oh-modal-toggle"
               data-target="#objectCreateModal"
-              class="oh-btn oh-btn--light-bkg w-24 justify-center px-4 py-2 rounded-md text-xs flex items-center gap-2 transition duration-300">
+              class="oh-btn oh-btn--light-bkg justify-center px-4 py-2 rounded-md text-xs flex items-center gap-2 transition duration-300">
               <ion-icon name="create-outline"></ion-icon>
               {% trans "Edit" %}
             </button>
@@ -57,7 +97,7 @@
               hx-target="#objectDetailsModalTarget"
               data-toggle="oh-modal-toggle"
               data-target="#objectDetailsModal"
-              class="w-24 justify-center px-4 py-2 bg-brand-600 text-white rounded-md text-xs flex items-center gap-2 hover:bg-brand-800 transition duration-300">
+              class="justify-center px-4 py-2 bg-brand-600 text-white rounded-md text-xs flex items-center gap-2 hover:bg-brand-800 transition duration-300">
               <img src="/static/horilla_theme/assets/img/create.svg" alt="" width="13"
                     class="filter brightness-0 invert">
                 {% trans "Create" %}
@@ -66,24 +106,25 @@
           </div>
         </div>
 
-        <!-- Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          <div class="flex items-center gap-5">
-            <span class="font-medium text-sm text-[#565E6C] w-20">{% trans "Managers" %}</span>
-            <p class="text-sm font-semibold">:
-            <ul class="userlist flex gap-1">
-              {% for manager in objective.managers.all %}
-              <li><img src="{{ manager.get_avatar }}" class="w-8 h-8 rounded-full" title="{{ manager }}"></li>
-              {% endfor %}
-            </ul>
+        <!-- Meta row -->
+        <div class="border-t border-[#F0EFEA] bg-[#FAFAF8] px-3 py-2 flex flex-wrap items-center gap-x-6 gap-y-2">
+          <div class="flex items-center gap-1.5 text-sm">
+            <ion-icon name="time-outline" class="text-[15px] text-[#9C9A92]"></ion-icon>
+            <span class="text-[#8C8A82]">{% trans "Duration" %}</span>
+            <span class="font-semibold text-[#26251F]">{{ objective.duration }} {{ objective.get_duration_unit_display }}</span>
           </div>
-          <div class="flex items-center gap-5">
-            <span class="font-medium text-sm text-[#565E6C] w-20">{% trans "Duration" %}</span>
-            <p class="text-sm font-semibold flex items-center gap-5">: <span>{{ objective.duration }} {{ objective.get_duration_unit_display }}</span></p>
-          </div>
-          <div class="flex items-center gap-5">
-            <span class="font-medium text-sm text-[#565E6C] w-20">{% trans "Description" %}</span>
-            <p class="text-sm font-semibold flex items-center gap-5">: <span>{{ objective.description }}</span></p>
+          <div class="flex items-center gap-1.5 text-sm">
+            <ion-icon name="people-outline" class="text-[15px] text-[#9C9A92]"></ion-icon>
+            <span class="text-[#8C8A82]">{% trans "Managers" %}</span>
+            {% if objective.managers.all %}
+              <ul class="flex items-center -space-x-2">
+                {% for manager in objective.managers.all %}
+                <li><img src="{{ manager.get_avatar }}" class="w-6 h-6 rounded-full border-2 border-white" title="{{ manager }}"></li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <span class="text-[#B7B5AC] italic">{% trans "No managers assigned" %}</span>
+            {% endif %}
           </div>
         </div>
       </div>
@@ -93,7 +134,7 @@
         {# No max-height/overflow here: each expanded panel's table scrolls in #}
         {# its own heightContainer (so its sticky header works). A scroller    #}
         {# here too would nest them and push that header out of view.          #}
-        <div class="bg-white p-3 rounded-md shadow-card"
+        <div class="bg-white p-2 rounded-md shadow-card"
             id="emp_objective_card"
             hx-get="{% url 'emp-objective-search' objective.id %}?{{request.GET.urlencode}}"
             hx-trigger="load">
