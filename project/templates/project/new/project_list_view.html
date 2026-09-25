@@ -77,7 +77,7 @@
         </div>
 
          {% for project in projects %}
-          <div class="oh-sticky-table__tr ui-sortable-handle" data-url="{% url 'task-view' project.id %}?view=list">
+          <div class="oh-sticky-table__tr ui-sortable-handle" data-url="{% url 'task-view' project.id %}?view=card">
               <div class="oh-sticky-table__sd {% if project.status == 'new'%} row-status--cyan
                                               {% elif project.status == 'in_progress' %} row-status--blue
                                               {% elif project.status == 'completed' %} row-status--yellow

@@ -1,16 +1,4 @@
 {% load i18n %}
-<div id="stage-container">
+<div >
     {% include "generic/horilla_nav.html" %}
 </div>
-<script>
-    {% comment %}
-        Was `[name=field]` (the classic single-field group-by input) before
-        nested_group_by_fields was added to this page -- adding it hides
-        that classic input entirely (see horilla_nav.html's
-        `{% if group_by_fields and not nested_group_by_fields %}`), so the
-        default auto-group-by-employee needs to go through the nested
-        field name instead.
-    {% endcomment %}
-    $('#applyFilter').closest('form').find('[name=nested_fields]').val('employee_id');
-    $('#applyFilter').click();
-</script>

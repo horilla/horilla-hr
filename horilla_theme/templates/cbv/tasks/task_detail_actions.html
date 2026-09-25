@@ -63,11 +63,7 @@
 {% endif %}
 
 <a
-    hx-get="{% url 'task-timesheet' instance.id %}?employee_id={{request.user.employee_get.id}}"
-    hx-target="#TaskTimesheetTarget"
-    data-target="#TaskTimesheetModal"
-    data-toggle="oh-modal-toggle"
-    data-key=".oh-kanban__section"
+    href="{% url 'view-time-sheet' %}?task={{ instance.id }}"
     class="px-4 py-2 bg-white rounded-md text-xs flex items-center justify-center gap-2 border border-info-500 hover:border-info-600 transition duration-300"
 >
     <img

@@ -18,19 +18,11 @@ from .models import Employee, Project, ProjectStage, Task, TimeSheet
 class ProjectFilter(HorillaFilterSet):
     search = django_filters.CharFilter(method="filter_by_project")
     search_field = django_filters.CharFilter(method="search_in")
-    # Dedicated comma-separated "Name or Badge ID" search, alongside the
-    # AJAX managers picker below rather than instead of it -- same field/
-    # behavior as every other modernized panel this session; see
-    # horilla.filters.filter_name_or_badge_terms for the shared matching
-    # logic. `managers` is the only employee-role field on this filter,
-    # so it has a clear single owner to search against.
     name_or_badge = django_filters.CharFilter(
         method="filter_name_or_badge", label=_("Name or Badge ID")
     )
 
     # HorillaFilterSet.ajax_fields (generic AJAX-loaded combobox mechanism)
-    # -- managers is a ManyToManyField to Employee, so it opts in here
-    # instead of pre-rendering the whole employee queryset as <option> tags.
     ajax_fields = {
         "managers": {
             "key": "project-managers",
@@ -79,10 +71,7 @@ class ProjectFilter(HorillaFilterSet):
 
     def filter_name_or_badge(self, queryset, name, value):
         """
-        Filter panel's dedicated "Name or Badge ID" field (see
-        name_or_badge above) -- see horilla.filters.
-        filter_name_or_badge_terms for the shared comma-separated
-        matching logic.
+        Filter with a comma-separated list of names or badge IDs
         """
         return filter_name_or_badge_terms(
             queryset,
@@ -136,11 +125,6 @@ class TaskAllFilter(HorillaFilterSet):
     )
 
     # HorillaFilterSet.ajax_fields (generic AJAX-loaded combobox mechanism)
-    # -- every model/queryset-backed field in the modern filter panel opts
-    # in here instead of pre-rendering its whole queryset as <option> tags.
-    # No dedicated "Name or Badge ID" field is added: task_managers and
-    # task_members are two separate employee-role fields with no single
-    # clear owner, same reasoning as the Recruitment Pipeline panel.
     ajax_fields = {
         "project": {
             "key": "task-project",
@@ -213,14 +197,12 @@ class TimeSheetFilter(HorillaFilterSet):
         label=_("End Date Till"),
     )
 
-    task = django_filters.ModelChoiceFilter(
+    task = django_filters.ModelMultipleChoiceFilter(
         field_name="task_id", queryset=Task.objects.all()
     )
     search = django_filters.CharFilter(method="filter_by_employee")
 
     # HorillaFilterSet.ajax_fields (generic AJAX-loaded combobox mechanism)
-    # -- every model/queryset-backed field in the modern filter panel opts
-    # in here instead of pre-rendering its whole queryset as <option> tags.
     ajax_fields = {
         "project_id": {
             "key": "timesheet-project",

@@ -28,12 +28,57 @@
         border-radius: 4px 0 0 4px;
 
     }
+
+    .oh-tabs__tab {
+        display: flex;
+        align-items: center;
+        padding: 4px 8px;
+        gap: 0.5rem;
+        border: 1px solid #f6f6f6;
+        border-radius: 6px;
+        color: #1f2937;
+        font-size: 0.75rem;
+        transition-duration: 300ms;
+        transition-property: all;
+    }
+
+    .oh-tabs__tab--active {
+        background-color: #fcedeb;
+        color: #e54f38;
+        border: 1px solid #e54f38;
+    }
+
+    .oh-tabs__tab:not(.oh-tabs__tab--active):hover {
+        background-color: #FFF5F1;
+        border: 1px solid #FCEDEB;
+        cursor: pointer;
+    }
 </style>
 <meta name="csrf-token" content="{{ csrf_token }}">
 
+<div class="bg-white p-3 rounded-md shadow-card oh-tabs mb-3">
+    <div class="flex gap-1 flex-wrap mb-3">
+        <button
+            type="button"
+            class="oh-tabs__tab timesheet-tab-btn"
+            data-tab-id="my"
+            data-url="{% url 'my-time-sheet-tab-shell' %}?{{ request.GET.urlencode }}"
+        >
+            {% trans "My Timesheets" %}
+        </button>
+        {% if can_view_all_timesheets %}
+            <button
+                type="button"
+                class="oh-tabs__tab timesheet-tab-btn"
+                data-tab-id="all"
+                data-url="{% url 'time-sheet-tab-shell' %}?{{ request.GET.urlencode }}"
+            >
+                {% trans "All Timesheets" %}
+            </button>
+        {% endif %}
+    </div>
 
-
-<div hx-get="{% url 'time-sheet-nav' %}" hx-trigger="load">
+    <div id="timesheetTabContent"></div>
 </div>
 
 
@@ -42,9 +87,84 @@
 
 <div class="oh-checkpoint-badge mb-2" id="selectedInstances" data-ids="[]" data-clicked="" style="display: none"></div>
 
-
-<div class="oh-wrapper" id="listContainer">
-</div>
 <script src="{% static 'cbv/deleteFunc.js' %}"></script>
 <script src="{% static 'time_sheet/time_sheet_action.js' %}"></script>
+<script>
+    (function () {
+        var STORAGE_KEY = "activeTimesheetTab";
+
+        function loadTimesheetTab(buttonEl, persist) {
+            if (!buttonEl || typeof htmx === "undefined") return;
+            var url = buttonEl.getAttribute("data-url");
+            if (!url) return;
+            var tabId = buttonEl.getAttribute("data-tab-id");
+            document.querySelectorAll(".timesheet-tab-btn").forEach(function (btn) {
+                btn.classList.remove("oh-tabs__tab--active");
+            });
+            buttonEl.classList.add("oh-tabs__tab--active");
+            if (persist !== false && tabId) {
+                try {
+                    localStorage.setItem(STORAGE_KEY, tabId);
+                } catch (_) {}
+            }
+            htmx.ajax("GET", url, {
+                target: "#timesheetTabContent",
+                swap: "innerHTML",
+            });
+        }
+
+        function restoreTimesheetTab() {
+            if (!document.getElementById("timesheetTabContent")) return;
+
+            // A task's "Time sheet" button deep-links here with ?open_tab=2,
+            // meaning "All Timesheets" -- that explicit ask always wins over
+            // whatever tab was last remembered.
+            var params = new URLSearchParams(window.location.search);
+            var initialTab = null;
+            if (params.get("open_tab") === "2") {
+                initialTab = document.querySelector(
+                    '.timesheet-tab-btn[data-tab-id="all"]'
+                );
+            }
+
+            if (!initialTab) {
+                var savedTabId = null;
+                try {
+                    savedTabId = localStorage.getItem(STORAGE_KEY);
+                } catch (_) {}
+                if (savedTabId) {
+                    initialTab = document.querySelector(
+                        '.timesheet-tab-btn[data-tab-id="' + savedTabId.replace(/"/g, '\\"') + '"]'
+                    );
+                }
+            }
+
+            if (!initialTab) {
+                initialTab = document.querySelector('.timesheet-tab-btn[data-tab-id="my"]');
+            }
+
+            loadTimesheetTab(initialTab, false);
+        }
+
+        function runWhenHtmxReady(fn) {
+            if (typeof htmx !== "undefined") {
+                fn();
+                return;
+            }
+            document.addEventListener("DOMContentLoaded", fn, { once: true });
+        }
+
+        if (!window._timesheetTabsClickBound) {
+            window._timesheetTabsClickBound = true;
+            document.addEventListener("click", function (event) {
+                var buttonEl = event.target.closest(".timesheet-tab-btn");
+                if (!buttonEl) return;
+                event.preventDefault();
+                loadTimesheetTab(buttonEl);
+            });
+        }
+
+        runWhenHtmxReady(restoreTimesheetTab);
+    })();
+</script>
 {% endblock %}

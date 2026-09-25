@@ -30,6 +30,16 @@
             ></ion-icon>
         </button>
     {% endif %}
+    {% if perms.project.view_timesheet or request.user|is_project_manager_or_member:instance %}
+    <a
+        class="oh-btn oh-btn--sq-sm"
+        href="{% url 'view-time-sheet' %}?project_id={{ instance.id }}&open_tab=2"
+        onclick="event.stopPropagation()"
+        title="{% trans 'Timesheets' %}"
+    >
+        <ion-icon name="bar-chart"></ion-icon>
+    </a>
+    {% endif %}
     {% if perms.project.delete_project or request.user|is_project_manager:instance %}
         {% if instance.is_active %}
             <a

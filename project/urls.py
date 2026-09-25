@@ -254,9 +254,29 @@ urlpatterns = [
         name="get-tasks-of-project",
     ),
     path(
+        "time-sheet-tab-shell/",
+        timesheet.TimeSheetTabShell.as_view(),
+        name="time-sheet-tab-shell",
+    ),
+    path(
+        "my-time-sheet-tab-shell/",
+        timesheet.MyTimeSheetTabShell.as_view(),
+        name="my-time-sheet-tab-shell",
+    ),
+    path(
         "time-sheet-nav/", timesheet.TimeSheetNavView.as_view(), name="time-sheet-nav"
     ),
+    path(
+        "my-time-sheet-nav/",
+        timesheet.MyTimeSheetNavView.as_view(),
+        name="my-time-sheet-nav",
+    ),
     path("time-sheet-list/", timesheet.TimeSheetList.as_view(), name="time-sheet-list"),
+    path(
+        "my-time-sheet-list/",
+        timesheet.MyTimeSheetList.as_view(),
+        name="my-time-sheet-list",
+    ),
     path(
         "time-sheet-card/",
         timesheet.TimeSheetCardView.as_view(),

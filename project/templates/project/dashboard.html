@@ -75,10 +75,12 @@
     .pr-badge--blue { background: #dbeafe; color: #1d4ed8; }
     .pr-badge--amber { background: #fef3c7; color: #92400e; }
     .pr-badge--red { background: #fee2e2; color: #991b1b; }
+    .pr-badge--purple { background: #f3e8ff; color: #6b21a8; }
     .dark .pr-badge--green { background: #166534; color: #bbf7d0; }
     .dark .pr-badge--blue { background: #1e3a8a; color: #bfdbfe; }
     .dark .pr-badge--amber { background: #92400e; color: #fde68a; }
     .dark .pr-badge--red { background: #7f1d1d; color: #fca5a5; }
+    .dark .pr-badge--purple { background: #581c87; color: #e9d5ff; }
 
     /* Layout — main + sticky sidebar, ported from pd-layout */
     .pr-layout { display: grid; grid-template-columns: 1fr 300px; gap: 20px; align-items: start; }
@@ -269,7 +271,7 @@
         deadlines:    "{% url 'project-dashboard-task-deadlines' %}",
         projectView:  "{% url 'project-view' %}",
         taskAll:      "{% url 'task-all' %}",
-        projectDetail: "/project/task-view/__ID__/?view=list",
+        projectDetail: "/project/task-view/__ID__/?view=card",
     };
 
     let prFromDate = "", prToDate = "";
@@ -349,7 +351,7 @@
                     <div class="pr-kpi-card__icon pr-kpi-card__icon--red"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
                     <div class="pr-kpi-card__label">{% trans "Overdue"|escapejs %}</div>
                     <div class="pr-kpi-card__value">${d.overdue_projects}</div>
-                    <div class="pr-kpi-card__sub">${d.overdue_new_this_month > 0 ? `<span class="pr-badge pr-badge--red">+${d.overdue_new_this_month} {% trans "this month"|escapejs %}</span>` : '{% trans "Past end date"|escapejs %}'}</div>
+                    <div class="pr-kpi-card__sub">${d.overdue_new_this_month > 0 ? `<span class="pr-badge pr-badge--red">+${d.overdue_new_this_month} {% trans "this month"|escapejs %}</span>` : `<span class="pr-badge pr-badge--red">{% trans "Past end date"|escapejs %}</span>`}</div>
                 </a>`;
             document.getElementById('pr-last-updated').textContent =
                 `{% trans "Last updated"|escapejs %}: ${new Date().toLocaleTimeString()}`;
