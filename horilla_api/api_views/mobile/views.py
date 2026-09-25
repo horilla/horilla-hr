@@ -181,6 +181,84 @@ def _unread_notification_count(user):
     return user.notifications.unread().count()
 
 
+def _pending_approvals(request):
+    """
+    What is waiting on this caller to decide, by kind.
+
+    Built from the same scoping the list endpoints use, so the count matches
+    what a client sees when it opens those lists. The caller's own requests
+    are excluded: every list includes them, and no one approves their own.
+    Kinds with no manager path (reimbursements need the payroll permission)
+    count only for callers who could act on them.
+    """
+    from base.methods import filtersubordinates
+    from base.models import ShiftRequest, WorkTypeRequest
+    from horilla_api.api_methods.base.methods import permission_based_queryset
+
+    employee = request.user.employee_get
+    by_kind = {}
+
+    if apps.is_installed("leave"):
+        from leave.methods import filter_conditional_leave_request
+
+        LeaveRequest = apps.get_model("leave", "LeaveRequest")
+        LeaveAllocationRequest = apps.get_model("leave", "LeaveAllocationRequest")
+        leave = filtersubordinates(
+            request, LeaveRequest.objects.all(), "leave.view_leaverequest"
+        ) | filter_conditional_leave_request(request)
+        by_kind["leave"] = (
+            leave.filter(status="requested")
+            .exclude(employee_id=employee)
+            .distinct()
+            .count()
+        )
+        by_kind["allocation"] = (
+            filtersubordinates(
+                request,
+                LeaveAllocationRequest.objects.all(),
+                "leave.view_leaveallocationrequest",
+            )
+            .filter(status="requested")
+            .exclude(employee_id=employee)
+            .count()
+        )
+
+    by_kind["attendance"] = (
+        filtersubordinates(
+            request=request,
+            perm="attendance.view_attendance",
+            queryset=Attendance.objects.filter(is_validate_request=True),
+        )
+        .exclude(employee_id=employee)
+        .count()
+    )
+
+    for kind, model, perm in (
+        ("shift", ShiftRequest, "base.view_shiftrequest"),
+        ("work_type", WorkTypeRequest, "base.view_worktyperequest"),
+    ):
+        by_kind[kind] = (
+            permission_based_queryset(
+                request.user, perm, model.objects.all(), user_obj=True
+            )
+            .filter(approved=False, canceled=False)
+            .exclude(employee_id=employee)
+            .count()
+        )
+
+    if apps.is_installed("payroll") and request.user.has_perm(
+        "payroll.change_reimbursement"
+    ):
+        Reimbursement = apps.get_model("payroll", "Reimbursement")
+        by_kind["reimbursement"] = (
+            Reimbursement.objects.filter(status="requested")
+            .exclude(employee_id=employee)
+            .count()
+        )
+
+    return {"total": sum(by_kind.values()), "by_kind": by_kind}
+
+
 class MobileHomeAPIView(APIView):
     """Everything the home screen draws, in one request."""
 
@@ -217,6 +295,7 @@ class MobileHomeAPIView(APIView):
                 "on_leave_today": _on_leave_today(employee),
                 "announcement": _latest_announcement(employee),
                 "unread_notifications": _unread_notification_count(request.user),
+                "pending_approvals": _pending_approvals(request),
             },
             status=200,
         )

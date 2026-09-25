@@ -84,3 +84,18 @@ def permission_based_queryset(user, perm, queryset, user_obj=None):
         return merged_queryset
 
     return queryset.filter(employee_id=employee)
+
+
+def reject_reason_from(request):
+    """
+    The optional ``reason`` a reject call carries, trimmed, or None.
+
+    Reject endpoints took no reason at all, so an employee learned only that
+    a request was rejected, never why. Optional, so existing clients that
+    send no body keep working unchanged.
+    """
+    reason = request.data.get("reason") if hasattr(request, "data") else None
+    if not isinstance(reason, str):
+        return None
+    reason = reason.strip()
+    return reason[:1000] or None

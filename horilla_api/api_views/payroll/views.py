@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 
 from base.backends import ConfiguredEmailBackend
 from base.methods import eval_validate
+from horilla_api.api_methods.base.methods import reject_reason_from
 from horilla_api.api_methods.base.pagination import HorillaPageNumberPagination
 from payroll.filters import (
     AllowanceFilter,
@@ -25,6 +26,7 @@ from payroll.models.models import (
     LoanAccount,
     Payslip,
     Reimbursement,
+    ReimbursementrequestComment,
 )
 from payroll.models.tax_models import TaxBracket
 from payroll.threadings.mail import MailSendThread
@@ -314,6 +316,13 @@ class ReimbursementView(APIView):
             reimbursements = Reimbursement.objects.filter(
                 employee_id=request.user.employee_get
             )
+        # "?status=requested" for the pending ones only -- the other request
+        # lists already take a status filter; this one returned everything.
+        status_filter = request.query_params.get("status")
+        valid_statuses = dict(Reimbursement._meta.get_field("status").choices)
+        if status_filter in valid_statuses:
+            reimbursements = reimbursements.filter(status=status_filter)
+        reimbursements = reimbursements.order_by("-id")
         pagination = HorillaPageNumberPagination()
         page = pagination.paginate_queryset(reimbursements, request)
         serializer = self.serializer_class(page, many=True)
@@ -391,6 +400,13 @@ class ReimbusementApproveRejectView(APIView):
         # save(), not queryset.update(): update() bypasses model validation and
         # the modified_by bookkeeping in HorillaModel.save().
         reimbursement.save()
+        reason = reject_reason_from(request)
+        if status == "rejected" and reason:
+            ReimbursementrequestComment.objects.create(
+                request_id=reimbursement,
+                employee_id=request.user.employee_get,
+                comment=reason,
+            )
         return Response({"status": reimbursement.status}, status=200)
 
 

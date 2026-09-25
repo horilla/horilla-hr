@@ -14,6 +14,7 @@ from rest_framework.views import APIView
 
 from base.methods import filtersubordinates
 from horilla.decorators import check_manager
+from horilla_api.api_methods.base.methods import reject_reason_from
 from horilla_api.api_methods.base.pagination import HorillaPageNumberPagination
 from horilla_api.api_serializers.leave.serializers import *
 from leave.filters import *
@@ -831,6 +832,11 @@ class LeaveRequestRejectAPIView(APIView):
         leave_request = self.get_leave_request(pk)
         employee_id = request.user.employee_get
         if leave_request.status != "rejected":
+            reason = reject_reason_from(request)
+            if reason:
+                # The field the web reject form fills; saved by
+                # leave_calculation below.
+                leave_request.reject_reason = reason
             self.leave_calculation(leave_request, employee_id)
             with contextlib.suppress(Exception):
                 notify.send(
@@ -937,6 +943,9 @@ class LeaveAllocationRequestRejectAPIView(APIView):
         if leave_allocation_request.status != "rejected":
             self.reject_calculation(leave_allocation_request)
             leave_allocation_request.status = "rejected"
+            reason = reject_reason_from(request)
+            if reason:
+                leave_allocation_request.reject_reason = reason
             leave_allocation_request.save()
             return Response(status=200)
         raise serializers.ValidationError(_("Access Denied."))
