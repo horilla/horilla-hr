@@ -603,7 +603,7 @@
 
                     // Initialize pivot table with Plotly enabled
                 $("#pivot-container").pivotUI(data, {
-                    rows: ["Asset Name","Category","Tracking ID","Batch Number","Status","Asset Cost","Asset User","Phone"],
+                    rows: ["Asset Name","Category","Serial No.","Batch Number","Status","Asset Cost","Asset User","Phone"],
                     cols: [],
                     aggregatorName: "Count",
                     rendererName: "Table", // Default view as Table
@@ -647,7 +647,7 @@
 
                 // Initialize pivot table with Plotly enabled
                 $("#pivot-container").pivotUI(data, {
-                    rows: ["Asset Name","Category","Tracking ID","Batch Number","Status","Asset Cost","Asset User","Phone"],
+                    rows: ["Asset Name","Category","Serial No.","Batch Number","Status","Asset Cost","Asset User","Phone"],
                     cols: [],
                     aggregatorName: "Count",
                     rendererName: "Table", // Default view as Table
@@ -1170,13 +1170,13 @@
         // ------------------------------------------------------------------
         var FILTER_FIELDS = [
             { value: "asset_name", label: "{% trans 'Asset Name'|escapejs %}", type: "dropdown" },
-            { value: "asset_tracking_id", label: "{% trans 'Tracking Id'|escapejs %}", type: "dropdown" },
+            { value: "asset_tracking_id", label: "{% trans 'Serial No.'|escapejs %}", type: "dropdown" },
             { value: "asset_purchase_date", label: "{% trans 'Purchase Date'|escapejs %}", type: "date" },
             { value: "asset_purchase_cost", label: "{% trans 'Purchase Cost'|escapejs %}", type: "number" },
             { value: "asset_lot_number_id", label: "{% trans 'Batch Number'|escapejs %}", type: "dropdown" },
             { value: "asset_category_id", label: "{% trans 'Category'|escapejs %}", type: "dropdown" },
             { value: "asset_status", label: "{% trans 'Status'|escapejs %}", type: "dropdown" },
-            { value: "expiry_date", label: "{% trans 'Expiry Date'|escapejs %}", type: "date" },
+            { value: "expiry_date", label: "{% trans 'Warranty Expiry Date'|escapejs %}", type: "date" },
             { value: "asset_user", label: "{% trans 'Asset User'|escapejs %}", type: "dropdown" },
             { value: "badge_id", label: "{% trans 'Asset User Badge Id'|escapejs %}", type: "dropdown" },
             { value: "email", label: "{% trans 'Email'|escapejs %}", type: "dropdown" },

@@ -1407,7 +1407,7 @@ def spreadsheetml_asset_import(dataframe):
     for index, row in dataframe.iterrows():
         asset_name = convert_nan(row["Asset name"])
         asset_description = convert_nan(row["Description"])
-        asset_tracking_id = convert_nan(row["Tracking id"])
+        asset_tracking_id = convert_nan(row["Serial No."])
         purchase_date = convert_nan(row["Purchase date"])
         purchase_cost = convert_nan(row["Purchase cost"])
         category_name = convert_nan(row["Category"])
@@ -1482,7 +1482,7 @@ def asset_excel(_request):
         columns = [
             "Asset name",
             "Description",
-            "Tracking id",
+            "Serial No.",
             "Purchase date",
             "Purchase cost",
             "Category",
@@ -1600,7 +1600,7 @@ def asset_export_excel(request):
             columns={
                 "asset_name": "Asset name",
                 "asset_description": "Description",
-                "asset_tracking_id": "Tracking id",
+                "asset_tracking_id": "Serial No.",
                 "asset_purchase_date": "Purchase date",
                 "asset_purchase_cost": "Purchase cost",
                 "asset_category_id": "Category",

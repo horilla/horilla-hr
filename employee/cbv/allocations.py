@@ -684,7 +684,7 @@ if app_installed("asset"):
             onclick="$(this).find('td:first [type=checkbox]').prop('checked',!$(this).find('td:first [type=checkbox]').is(':checked')).change()"
         """
         columns = [
-            (_("Tracking Id"), "asset_tracking_id"),
+            (_("Serial No."), "asset_tracking_id"),
             (_("Asset"), "asset_name", "allocation_asset_get_avatar"),
             (_("Category"), "asset_category_id"),
             (_("Status"), "asset_allocation_status"),

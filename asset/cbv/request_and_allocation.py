@@ -84,7 +84,7 @@ class AllocationList(HorillaListView):
     columns = [
         (_("Asset"), "asset_id", "get_avatar"),
         (_("Category"), "asset_id__asset_category_id"),
-        (_("Expiry Date"), "asset_id__expiry_date"),
+        (_("Warranty Expiry Date"), "asset_id__expiry_date"),
     ]
 
     header_attrs = {
@@ -96,7 +96,7 @@ class AllocationList(HorillaListView):
 
     sortby_mapping = [
         (_("Category"), "asset_id__asset_category_id__asset_category_name"),
-        (_("Expiry Date"), "asset_id__expiry_date"),
+        (_("Warranty Expiry Date"), "asset_id__expiry_date"),
     ]
 
     action_method = "asset_action"
@@ -513,7 +513,7 @@ class AssetDetailView(HorillaDetailedView):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.body = [
-            (_("Tracking Id"), "asset_id__asset_tracking_id"),
+            (_("Serial No."), "asset_id__asset_tracking_id"),
             (_("Batch No"), "asset_id__asset_lot_number_id"),
             (_("Assigned Date"), "assigned_date"),
             (_("Status"), "asset_detail_status"),
@@ -861,7 +861,7 @@ class ExpiringAssignmentList(HorillaListView):
         ),
         (_("Asset"), "asset_id__asset_name_display"),
         (_("Category"), "asset_id__asset_category_id"),
-        (_("Expiry Date"), "asset_id__expiry_date"),
+        (_("Warranty Expiry Date"), "asset_id__expiry_date"),
         (_("Days Left"), "days_left_display"),
     ]
 

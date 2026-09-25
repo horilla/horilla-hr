@@ -363,8 +363,10 @@ if apps.is_installed("asset"):
                 ),
                 "Category": item["asset_category_id__asset_category_name"],
                 "Batch Number": item["asset_lot_number_id__lot_number"],
-                "Tracking ID": item["asset_tracking_id"],
-                "Expiry Date": item["expiry_date"] if item["expiry_date"] else "-",
+                "Serial No.": item["asset_tracking_id"],
+                "Warranty Expiry Date": (
+                    item["expiry_date"] if item["expiry_date"] else "-"
+                ),
             }
             for item in data
         ]

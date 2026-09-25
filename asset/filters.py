@@ -296,7 +296,7 @@ class CustomAssetFilter(CustomFilterSet):
             {
                 "key": "asset_expiry_date",
                 "field": "asset_id__expiry_date",
-                "label": str(_("Asset Expiry Date")),
+                "label": str(_("Asset Warranty Expiry Date")),
                 "type": "date_range",
             },
             {
@@ -842,13 +842,13 @@ class AssetRenewalFilter(HorillaFilterSet):
     expiry_date_gte = django_filters.DateFilter(
         field_name="asset_id__expiry_date",
         lookup_expr="gte",
-        label=_("Expiry Date From"),
+        label=_("Warranty Expiry Date From"),
         widget=forms.DateInput(attrs={"type": "date"}),
     )
     expiry_date_lte = django_filters.DateFilter(
         field_name="asset_id__expiry_date",
         lookup_expr="lte",
-        label=_("Expiry Date To"),
+        label=_("Warranty Expiry Date To"),
         widget=forms.DateInput(attrs={"type": "date"}),
     )
     assigned_date_gte = django_filters.DateFilter(

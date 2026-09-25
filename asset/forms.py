@@ -67,15 +67,15 @@ class AssetForm(ModelForm):
             ),
         }
         labels = {
-            "asset_name": "Asset Name",
-            "asset_description": "Description",
+            "asset_name": _("Asset Name"),
+            "asset_description": _("Description"),
             # "asset_tracking_id": "Tracking ID", #commented for translation
-            "asset_purchase_date": "Purchase Date",
-            "expiry_date": "Expiry Date",
-            "asset_purchase_cost": "Cost",
-            "asset_category_id": "Category",
-            "asset_status": "Status",
-            "asset_lot_number_id": "Batch Number",
+            "asset_purchase_date": _("Purchase Date"),
+            "expiry_date": _("Warranty Expiry Date"),
+            "asset_purchase_cost": _("Cost"),
+            "asset_category_id": _("Category"),
+            "asset_status": _("Status"),
+            "asset_lot_number_id": _("Batch Number"),
         }
 
     def __init__(self, *args, **kwargs):
@@ -131,7 +131,7 @@ class AssetForm(ModelForm):
                 .exists()
             ):
                 raise ValidationError(
-                    {"asset_tracking_id": "Already asset with this tracking id exists."}
+                    {"asset_tracking_id": "Already asset with this serial no. exists."}
                 )
 
 

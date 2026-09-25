@@ -20,7 +20,7 @@ class AssetListView(HorillaListView):
     filter_class = AssetFilter
     template_name = "cbv/asset/asset_list_with_count.html"
     columns = [
-        (_("Tracking Id"), "asset_tracking_id"),
+        (_("Serial No."), "asset_tracking_id"),
         (_("Asset Name"), "asset_name_display"),
         (_("Status"), "asset_status_col"),
         "asset_lot_number_id",

@@ -540,7 +540,7 @@ def asset_register(filters: ReportFilters) -> dict:
         "table": {
             "columns": [
                 {"key": "asset", "label": _("Asset")},
-                {"key": "tracking_id", "label": _("Tracking ID")},
+                {"key": "tracking_id", "label": _("Serial No.")},
                 {"key": "employee", "label": _("Assigned To")},
                 {"key": "assigned", "label": _("Assigned On")},
                 {"key": "days_held", "label": _("Days Held")},
