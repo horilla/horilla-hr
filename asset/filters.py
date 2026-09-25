@@ -140,6 +140,16 @@ class AssetFilter(CustomFilterSet):
     asset_purchase_date__lte = django_filters.DateFilter(
         field_name="asset_purchase_date", lookup_expr="lte"
     )
+    # Same reasoning as asset_purchase_date__gte/__lte above -- gives the
+    # dashboard's "Expiring Soon" KPI tile a plain range link that survives
+    # the nav form intact, so the assets shown here match the count the
+    # tile computed (Asset.objects with expiry_date in [today, today+30]).
+    expiry_date__gte = django_filters.DateFilter(
+        field_name="expiry_date", lookup_expr="gte"
+    )
+    expiry_date__lte = django_filters.DateFilter(
+        field_name="expiry_date", lookup_expr="lte"
+    )
 
     # HorillaFilterSet.ajax_fields (generic AJAX-loaded combobox mechanism)
     # -- Asset Batch Number and Category opt into AJAX-searched comboboxes

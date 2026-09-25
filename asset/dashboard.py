@@ -4,12 +4,13 @@ Modern asset dashboard views — KPI summary + ApexCharts.
 Accessible at /asset/dashboard/modern/ alongside the existing dashboard.
 """
 
-from datetime import date, timedelta
+from datetime import timedelta
 
 from django.db.models import Count, DecimalField, Q, Sum
 from django.db.models.functions import Coalesce
 from django.http import JsonResponse
 from django.shortcuts import render
+from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from horilla.decorators import login_required, permission_required
@@ -17,35 +18,22 @@ from horilla.decorators import login_required, permission_required
 
 def _parse_period(request):
     """Parse from_date and to_date from GET params. Defaults to current month."""
-    today = date.today()
+    today = timezone.now().date()
     from_str = request.GET.get("from_date")
     to_str = request.GET.get("to_date")
     try:
-        from_date = date.fromisoformat(from_str) if from_str else today.replace(day=1)
+        from_date = (
+            timezone.datetime.fromisoformat(from_str).date()
+            if from_str
+            else today.replace(day=1)
+        )
     except (ValueError, TypeError):
         from_date = today.replace(day=1)
     try:
-        to_date = date.fromisoformat(to_str) if to_str else today
+        to_date = timezone.datetime.fromisoformat(to_str).date() if to_str else today
     except (ValueError, TypeError):
         to_date = today
     return from_date, to_date
-
-
-def _expiring_period(request):
-    """Like _parse_period, but defaults to a forward-looking window.
-
-    Assets "expiring soon" are inherently forward-looking -- _parse_period's
-    generic [month-start, today] default (built for the dashboard's other,
-    backward-looking "purchased this period" widgets) can never show an
-    asset expiring in the future, even though expiry dates are naturally
-    ahead of today. Only applies when neither from_date nor to_date was
-    explicitly requested, so an actual date-range-picker selection is still
-    honored exactly as before.
-    """
-    if not request.GET.get("from_date") and not request.GET.get("to_date"):
-        today = date.today()
-        return today, today + timedelta(days=30)
-    return _parse_period(request)
 
 
 def _assets_in_period(request):
@@ -96,10 +84,12 @@ def asset_kpi_data(request):
     )["total"]
 
     # Expiring soon (next 30 days) — forward-looking, independent of picker
-    today = date.today()
+    today = timezone.now().date()
+    expiring_soon_from_date = today
+    expiring_soon_to_date = today + timedelta(days=30)
     expiring_soon = Asset.objects.filter(
-        expiry_date__gte=today,
-        expiry_date__lte=today + timedelta(days=30),
+        expiry_date__gte=expiring_soon_from_date,
+        expiry_date__lte=expiring_soon_to_date,
     ).count()
 
     # Return requests pending — current state
@@ -123,6 +113,12 @@ def asset_kpi_data(request):
             # was computed from, instead of showing every asset.
             "period_from_date": from_date.isoformat(),
             "period_to_date": to_date.isoformat(),
+            # Echoed back so the "Expiring Soon" card's click-through uses
+            # the exact same forward-looking window expiring_soon was
+            # counted from -- this is independent of the picker range above,
+            # so period_from_date/period_to_date would be the wrong bounds.
+            "expiring_soon_from_date": expiring_soon_from_date.isoformat(),
+            "expiring_soon_to_date": expiring_soon_to_date.isoformat(),
         }
     )
 
@@ -201,14 +197,19 @@ def asset_by_category(request):
 
 @login_required
 def asset_request_status(request):
-    """Asset request status breakdown, filtered to requests raised in the picker range."""
+    """Asset request status breakdown, for the current overall request pool.
+
+    Like asset_department_distribution / asset_age_distribution below, this is
+    a snapshot of where every request currently stands, not "requests raised
+    this period" activity. Scoping it to created_at within the picker range
+    (which defaults to the current month) hid every request from earlier
+    months, so e.g. long-pending "Requested" rows disappeared from the chart
+    even though the KPI tile's "Pending Requests" count (unscoped) still
+    included them -- the two numbers disagreed on-screen.
+    """
     from asset.models import AssetRequest
 
-    from_date, to_date = _parse_period(request)
-    requests_qs = AssetRequest.objects.filter(
-        created_at__date__gte=from_date,
-        created_at__date__lte=to_date,
-    )
+    requests_qs = AssetRequest.objects.all()
     statuses = [
         {
             "status": "Requested",
@@ -274,11 +275,18 @@ def asset_value_by_category(request):
 
 @login_required
 def asset_expiring_soon(request):
-    """Assets with expiry date within the selected period."""
+    """Assets expiring in the next 30 days -- forward-looking, independent of picker.
+
+    Same reasoning as the KPI tile's expiring_soon count above: expiry dates
+    are inherently ahead of today, so the picker's [month-start, today]
+    default (built for backward-looking "purchased this period" widgets)
+    could show already-expired assets as "expiring soon" or hide genuinely
+    upcoming expiries, depending on what range happened to be selected.
+    """
     from asset.models import Asset
 
-    from_date, to_date = _expiring_period(request)
-    today = date.today()
+    today = timezone.now().date()
+    from_date, to_date = today, today + timedelta(days=30)
     assets = []
 
     try:
@@ -420,7 +428,7 @@ def asset_age_distribution(request):
     """
     from asset.models import Asset
 
-    today = date.today()
+    today = timezone.now().date()
     brackets = []
     try:
         bracket_map = {

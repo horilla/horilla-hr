@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from base.backends import ConfiguredEmailBackend
-from base.methods import eval_validate
+from base.methods import eval_validate, filtersubordinates
 from horilla_api.api_methods.base.methods import reject_reason_from
 from horilla_api.api_methods.base.pagination import HorillaPageNumberPagination
 from payroll.filters import (
@@ -32,6 +32,7 @@ from payroll.models.tax_models import TaxBracket
 from payroll.threadings.mail import MailSendThread
 from payroll.views.views import payslip_pdf
 
+from ...api_decorators.base.decorators import approver_permission_required
 from ...api_methods.base.methods import groupby_queryset
 from ...api_serializers.payroll.serializers import (
     AllowanceSerializer,
@@ -297,25 +298,24 @@ class ReimbursementView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk=None):
+        # A line manager sees (and, per ReimbusementApproveRejectView below,
+        # can now decide on) their reports' claims too, not only their own --
+        # filtersubordinates already returns everything for a
+        # payroll.view_reimbursement holder, and always includes the
+        # caller's own records alongside any subordinates'.
         if pk:
-            if request.user.has_perm("payroll.view_reimbursement"):
-                reimbursement = Reimbursement.objects.filter(id=pk).first()
-            else:
-                reimbursement = Reimbursement.objects.filter(
-                    id=pk, employee_id=request.user.employee_get
-                ).first()
+            reimbursement = filtersubordinates(
+                request,
+                Reimbursement.objects.filter(id=pk),
+                "payroll.view_reimbursement",
+            ).first()
             if not reimbursement:
                 return Response({"error": _("Reimbursement not found.")}, status=404)
             serializer = self.serializer_class(reimbursement)
             return Response(serializer.data, status=200)
-        reimbursements = Reimbursement.objects.all()
-
-        if request.user.has_perm("payroll.view_reimbursement"):
-            reimbursements = Reimbursement.objects.all()
-        else:
-            reimbursements = Reimbursement.objects.filter(
-                employee_id=request.user.employee_get
-            )
+        reimbursements = filtersubordinates(
+            request, Reimbursement.objects.all(), "payroll.view_reimbursement"
+        )
         # "?status=requested" for the pending ones only -- the other request
         # lists already take a status filter; this one returned everything.
         status_filter = request.query_params.get("status")
@@ -357,7 +357,10 @@ class ReimbursementView(APIView):
 class ReimbusementApproveRejectView(APIView):
     permission_classes = [IsAuthenticated]
 
-    @method_decorator(permission_required("payroll.change_reimbursement"))
+    # A reporting manager may now decide on their own report's claim, same as
+    # leave and attendance already work -- never their own claim, and never a
+    # claim belonging to someone outside their reporting chain.
+    @approver_permission_required(Reimbursement, "payroll.change_reimbursement")
     def post(self, request, pk):
         reimbursement = Reimbursement.objects.filter(id=pk).first()
         if reimbursement is None:

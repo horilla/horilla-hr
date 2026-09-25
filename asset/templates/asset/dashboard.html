@@ -157,6 +157,10 @@
             background: #fee2e2;
             color: #991b1b;
         }
+        .as-badge--blue {
+            background: #dbeafe;
+            color: #1e40af;
+        }
         .dark .as-badge--green {
             background: #166534;
             color: #bbf7d0;
@@ -168,6 +172,10 @@
         .dark .as-badge--red {
             background: #7f1d1d;
             color: #fca5a5;
+        }
+        .dark .as-badge--blue {
+            background: #1e3a8a;
+            color: #bfdbfe;
         }
 
         .as-layout {
@@ -815,7 +823,7 @@
                 <div class="as-info-panel">
                     <div class="as-info-panel__header">
                         <div class="as-info-panel__title">{% trans "Expiring Soon" %}</div>
-                        <span style="font-size: 11px; opacity: 0.5">{% trans "Next 60 days" %}</span>
+                        <span style="font-size: 11px; opacity: 0.5">{% trans "Next 30 days" %}</span>
                     </div>
                     <div class="as-info-panel__body" id="as-expiring">
                         <div class="as-info-panel__empty">{% trans "Loading..." %}</div>
@@ -1021,19 +1029,19 @@
                     <div class="as-kpi-card__icon as-kpi-card__icon--amber"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg></div>
                     <div class="as-kpi-card__label">{% trans "Pending Requests"|escapejs %}</div>
                     <div class="as-kpi-card__value">${data.pending_requests}</div>
-                    <div class="as-kpi-card__sub">${data.return_requests > 0 ? '<span class="as-badge as-badge--red">' + data.return_requests + ' {% trans "return req"|escapejs %}</span>' : '{% trans "Awaiting approval"|escapejs %}'}</div>
+                    <div class="as-kpi-card__sub">${data.return_requests > 0 ? '<span class="as-badge as-badge--red">' + data.return_requests + ' {% trans "return req"|escapejs %}</span>' : '<span class="as-badge as-badge--amber">{% trans "Awaiting approval"|escapejs %}</span>'}</div>
                 </a>
                 <a href="{% url 'asset-category-view' %}?asset_purchase_date__gte=${data.period_from_date}&asset_purchase_date__lte=${data.period_to_date}&filter_applied=1" class="as-kpi-card">
                     <div class="as-kpi-card__icon as-kpi-card__icon--green"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
                     <div class="as-kpi-card__label">{% trans "Total Value"|escapejs %}</div>
                     <div class="as-kpi-card__value">${fmt(data.total_value)}</div>
-                    <div class="as-kpi-card__sub">{% trans "Purchase cost"|escapejs %}</div>
+                    <div class="as-kpi-card__sub"><span class="as-badge as-badge--blue">{% trans "Purchase cost"|escapejs %}</span></div>
                 </a>
-                <a href="{% url 'asset-renewal' %}" class="as-kpi-card">
+                <a href="{% url 'asset-category-view' %}?expiry_date__gte=${data.expiring_soon_from_date}&expiry_date__lte=${data.expiring_soon_to_date}&filter_applied=1" class="as-kpi-card">
                     <div class="as-kpi-card__icon as-kpi-card__icon--red"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
                     <div class="as-kpi-card__label">{% trans "Expiring Soon"|escapejs %}</div>
                     <div class="as-kpi-card__value">${data.expiring_soon}</div>
-                    <div class="as-kpi-card__sub">{% trans "Next 30 days"|escapejs %}</div>
+                    <div class="as-kpi-card__sub"><span class="as-badge as-badge--amber">{% trans "Next 30 days"|escapejs %}</span></div>
                 </a>`;
                 })
                 .catch(() => { document.getElementById('as-kpi-grid').innerHTML = emptyHtml('{% trans "Could not load KPIs"|escapejs %}'); });

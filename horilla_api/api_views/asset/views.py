@@ -11,6 +11,8 @@ from rest_framework.views import APIView
 
 from asset.filters import AssetFilter
 from asset.models import *
+from base.methods import filtersubordinates
+from horilla_api.api_methods.base.methods import reject_reason_from
 from horilla_api.api_methods.base.pagination import HorillaPageNumberPagination
 
 from ...api_decorators.base.decorators import permission_required
@@ -212,12 +214,29 @@ class AssetRequestAPIView(APIView):
             raise serializers.ValidationError(e)
 
     def get(self, request, pk=None):
+        # Every request to any authenticated user, regardless of role, used
+        # to come back here -- a line manager's own team's requests are
+        # exactly as visible as everyone else's. Scoped the same way
+        # reimbursements are: full visibility for an asset.view_assetrequest
+        # holder, own-and-subordinates' requests otherwise.
         if pk:
-            asset_request = self.get_asset_request(pk)
+            asset_request = filtersubordinates(
+                request,
+                AssetRequest.objects.filter(pk=pk),
+                "asset.view_assetrequest",
+                field="requested_employee_id",
+            ).first()
+            if asset_request is None:
+                return Response({"error": _("AssetRequest not found")}, status=404)
             serializer = AssetRequestGetSerializer(asset_request)
             return Response(serializer.data)
         paginator = HorillaPageNumberPagination()
-        assets = AssetRequest.objects.all().order_by("-id")
+        assets = filtersubordinates(
+            request,
+            AssetRequest.objects.all(),
+            "asset.view_assetrequest",
+            field="requested_employee_id",
+        ).order_by("-id")
         page = paginator.paginate_queryset(assets, request)
         serializer = AssetRequestGetSerializer(page, many=True)
         return paginator.get_paginated_response(serializer.data)
@@ -250,6 +269,23 @@ class AssetRequestAPIView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+def _manages_requester(employee, asset_request):
+    """
+    Same idea as ``base.methods.check_manager``, which this codebase already
+    has three same-named copies of -- none of them usable here without
+    changing a widely shared signature, since ``AssetRequest`` names its
+    employee field ``requested_employee_id``, not ``employee_id``. A small
+    local helper is the safer diff than touching a function with 20+ callers.
+    """
+    try:
+        return (
+            asset_request.requested_employee_id.employee_work_info.reporting_manager_id
+            == employee
+        )
+    except Exception:
+        return False
+
+
 class AssetRejectAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -259,12 +295,34 @@ class AssetRejectAPIView(APIView):
         except AssetRequest.DoesNotExist as e:
             raise serializers.ValidationError(e)
 
-    @method_decorator(permission_required("asset.add_assetassignment"))
     def put(self, request, pk):
         asset_request = self.get_asset_request(pk)
+        employee = request.user.employee_get
+
+        # A reporting manager may now reject their own report's asset
+        # request -- but never their own, and picking a specific unit to
+        # hand out stays with asset.add_assetassignment holders (see
+        # AssetApproveAPIView, unchanged).
+        if asset_request.requested_employee_id == employee:
+            return Response(
+                {"error": _("You cannot reject your own request.")}, status=403
+            )
+        if not (
+            request.user.has_perm("asset.add_assetassignment")
+            or _manages_requester(employee, asset_request)
+        ):
+            return Response({"error": _("You don't have permission")}, status=403)
+
         if asset_request.asset_request_status == "Requested":
             asset_request.asset_request_status = "Rejected"
             asset_request.save()
+            reason = reject_reason_from(request)
+            if reason:
+                AssetRequestComment.objects.create(
+                    request_id=asset_request,
+                    employee_id=employee,
+                    comment=reason,
+                )
             return Response(status=204)
         raise serializers.ValidationError({"error": _("Access Denied..")})
 

@@ -883,6 +883,23 @@ class AssetRequest(HorillaModel):
         url = reverse("asset-request-detail-view", kwargs={"pk": self.pk})
         return url
 
+
+class AssetRequestComment(HorillaModel):
+    """
+    A reason left on an asset request, currently only written on reject --
+    the request had no way to record why, unlike leave and shift requests.
+    """
+
+    request_id = models.ForeignKey(AssetRequest, on_delete=models.CASCADE)
+    employee_id = models.ForeignKey(Employee, on_delete=models.CASCADE)
+    comment = models.TextField(null=True, verbose_name=_("Comment"), max_length=255)
+    created_at = models.DateTimeField(
+        auto_now_add=True, verbose_name=_("Created At"), null=True
+    )
+
+    def __str__(self) -> str:
+        return f"{self.comment}"
+
     def status_html_class(self):
         COLOR_CLASS = {
             "Approved": "oh-dot--success",
