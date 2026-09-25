@@ -248,7 +248,12 @@ def is_reportingmanger(request, instance):
             instance.employee_id.employee_work_info.reporting_manager_id
         )
     except Exception:
-        return HttpResponse("This Employee Dont Have any work information")
+        # An HttpResponse object here used to be returned as-is, and every
+        # caller uses this in a boolean `or` -- any truthy value (which an
+        # HttpResponse is) granted access. An employee with no work info
+        # record yet let ANY authenticated caller approve or cancel their
+        # shift/work-type requests.
+        return False
     return manager == employee_work_info_manager
 
 

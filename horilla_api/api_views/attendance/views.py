@@ -31,8 +31,9 @@ from attendance.views.dashboard import (
 )
 from attendance.views.views import *
 from base.backends import ConfiguredEmailBackend
-from base.methods import generate_pdf, is_reportingmanager, sanitize_mail_template_body
+from base.methods import generate_pdf, sanitize_mail_template_body
 from base.models import HorillaMailTemplate
+from base.views import is_reportingmanger
 from employee.filters import EmployeeFilter
 from horilla_api.api_methods.base.pagination import HorillaPageNumberPagination
 
@@ -554,6 +555,15 @@ class AttendanceRequestView(APIView):
         from attendance.forms import AttendanceRequestForm
 
         attendance = Attendance.objects.get(id=pk)
+        # This view carried no permission check at all beyond being signed
+        # in -- any authenticated user could file a correction request
+        # against any other employee's attendance record by guessing its id.
+        if not (
+            attendance.employee_id.employee_user_id == request.user
+            or is_reportingmanger(request, attendance)
+            or request.user.has_perm("attendance.change_attendance")
+        ):
+            return Response({"error": _("You don't have permission")}, status=403)
         form = AttendanceRequestForm(data=request.data, instance=attendance)
         if form.is_valid():
             attendance = Attendance.objects.get(id=form.instance.pk)
@@ -662,7 +672,11 @@ class AttendanceRequestCancelView(APIView):
             attendance = Attendance.objects.get(id=pk)
             if (
                 attendance.employee_id.employee_user_id == request.user
-                or is_reportingmanager(request)
+                # is_reportingmanager(request) checked "is this caller a
+                # reporting manager of anyone", not "of this attendance's
+                # employee" -- any manager anywhere in the company could
+                # cancel any other employee's attendance validation request.
+                or is_reportingmanger(request, attendance)
                 or request.user.has_perm("attendance.change_attendance")
             ):
                 attendance.is_validate_request_approved = False

@@ -115,7 +115,10 @@ def _is_reportingmanger(request, instance):
     try:
         employee_work_info_manager = instance.employee_work_info.reporting_manager_id
     except Exception:
-        return HttpResponse("This Employee Dont Have any work information")
+        # Same bug as base.views.is_reportingmanger: an HttpResponse is
+        # truthy, so every caller of this in an `or` chain treated "no work
+        # info" as "yes, you may".
+        return False
     return manager == employee_work_info_manager
 
 
