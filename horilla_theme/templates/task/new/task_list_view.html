@@ -11,23 +11,75 @@
     </div>
 {% endif %}
 {% include "filter_tags.html" %}
+<style>
+    /* Compact task rows, matching the objective detail page's key-result
+       table. The status/stage selects sit in .oh-sticky-table__td wrappers
+       and .oh-select carries its own padding -- those, not the cells, were
+       what made each row tall. */
+    #projectStages table td {
+        height: 24px;
+        padding-top: 2px;
+        padding-bottom: 2px;
+    }
+    #projectStages table td .oh-sticky-table__td {
+        padding: 0;
+        min-height: 0;
+    }
+    #projectStages table td .oh-select {
+        padding-top: 2px;
+        padding-bottom: 2px;
+        min-height: 0;
+        height: 26px;
+        font-size: 13px;
+    }
+</style>
 <div id="gridView">
+{% if stages %}
+{% with first_stage=stages.0 %}
+{% with can_manage=request.user|is_project_manager:first_stage.project %}
+
+    {% comment %}
+    One column header shared by every stage's task table below, mirroring the
+    objective detail page (okr/emp_objective/emp_objective_list.html): the
+    per-stage tables drop their own <thead> and use the same colgroup, so
+    columns stay aligned across all of them.
+    {% endcomment %}
+    <div class="bg-white border border-[#EAE8E3] rounded-lg mb-1.5 overflow-hidden">
+        <table class="fixed-table w-full table-fixed border-separate">
+            {% include "task/new/_task_colgroup.html" %}
+            <thead>
+                <tr class="border-b border-[#ececec]">
+                    <th class="text-sm font-medium text-left px-1.5 py-1">{% trans "Tasks" %}</th>
+                    <th class="text-sm font-medium text-left px-1.5 py-1">{% trans "Task Managers" %}</th>
+                    <th class="text-sm font-medium text-left px-1.5 py-1">{% trans "End Date" %}</th>
+                    <th class="text-sm font-medium text-left px-1.5 py-1">{% trans "Status" %}</th>
+                    <th class="text-sm font-medium text-left px-1.5 py-1">{% trans "Stage" %}</th>
+                    <th class="text-sm font-medium text-center px-1.5 py-1">{% trans "Document" %}</th>
+                    <th class="text-sm font-medium text-left px-1.5 py-1">{% trans "Description" %}</th>
+                    {% if can_manage %}
+                        <th class="text-sm font-medium text-center px-1.5 py-1">{% trans "Actions" %}</th>
+                    {% endif %}
+                </tr>
+            </thead>
+        </table>
+    </div>
 
     <div class="accordion-wrapper space-y-2" id="projectStages">
         {% for stage in stages %}
-            <div class="accordion-item border border-primary-300 rounded-md">
+            <div class="accordion-item bg-white border border-[#EAE8E3] rounded-lg overflow-hidden">
                 <button
                     id="stageAccordionBtn{{stage.id}}"
-                    class="accordion-btn-pr w-full flex justify-between items-center px-4 py-2 bg-primary-100 text-primary-600 text-sm transition-all"
+                    class="accordion-btn-pr w-full flex justify-between gap-3 md:gap-0 items-center flex-wrap px-3 py-1.5 bg-primary-100 text-primary-600 text-sm transition-colors hover:bg-primary-200"
                 >
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2.5">
                         <span
-                            class="w-6 h-6 bg-primary-600 rounded-full text-white flex items-center justify-center text-xs"
+                            class="inline-flex items-center justify-center rounded-full font-semibold min-w-[22px] h-[22px] px-1.5 text-[11px] bg-primary-600 text-white"
+                            title="{{ stage.tasks.count }} {% trans 'Tasks' %}"
                         >{{ stage.tasks.count }}</span>
-                        {{ stage.title }}
+                        <span class="text-[13.5px] font-semibold text-[#26251F]">{{ stage.title }}</span>
                     </div>
 
-                    <div class="flex items-center gap-5">
+                    <div class="flex items-center gap-3">
                         {% if request.user|is_project_manager:stage.project %}
                             <span
                                 class="ml-2 px-4 py-2 bg-white rounded-md text-xs flex items-center gap-2 border border-brand-500 hover:border-brand-600 transition duration-300"
@@ -72,7 +124,9 @@
                                 </div>
                             </div>
                         {% endif %}
-                        <span class="icon w-4 text-center font-semibold">+</span>
+                        <span class="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/50 transition-colors shrink-0">
+                            <ion-icon class="icon text-sm text-[#9C9A92]" name="chevron-down-outline"></ion-icon>
+                        </span>
                     </div>
                     <div
                         id="taskCreateForm{{stage.id}}"
@@ -82,25 +136,12 @@
                     </div>
                 </button>
 
-                <div class="accordion-panel-pr max-h-0 overflow-hidden transition-all duration-300 bg-white px-4 text-sm text-gray-700">
-                    <div class="py-3">
+                <div class="accordion-panel-pr max-h-0 overflow-hidden transition-all duration-300 bg-white px-2 text-sm text-gray-700">
+                    <div class="py-2">
                         {% if stage.tasks.exists %}
                             <div class="overflow-x-auto">
-                                <table class="w-full table-fixed">
-                                    <thead class="sticky top-0 bg-white text-left text-sm">
-                                        <tr class="border-b border-[#ececec]">
-                                            <th class="p-3">{% trans "Tasks" %}</th>
-                                            <th class="p-3">{% trans "Task Managers" %}</th>
-                                            <th class="p-3">{% trans "End Date" %}</th>
-                                            <th class="p-3">{% trans "Status" %}</th>
-                                            <th class="p-3">{% trans "Stage" %}</th>
-                                            <th class="p-3 text-center">{% trans "Document" %}</th>
-                                            <th class="p-3 w-[320px]">{% trans "Description" %}</th>
-                                            {% if request.user|is_project_manager:stage.project %}
-                                                <th class="p-3">{% trans "Actions" %}</th>
-                                            {% endif %}
-                                        </tr>
-                                    </thead>
+                                <table class="fixed-table w-full table-fixed border-separate">
+                                    {% include "task/new/_task_colgroup.html" %}
                                     <tbody>
                                         {% for task in stage.tasks.all %}
                                             {% if task in tasks %}
@@ -112,15 +153,15 @@
                                                     hx-get="{% url 'task-detail-view' task.id %}?view=list"
                                                     onclick="event.stopPropagation()"
                                                 >
-                                                    <td class="p-3">{{ task.title }}</td>
-                                                    <td class="p-3">{{ task.task_managers.all|join:", " }}</td>
-                                                    <td class="p-3">{{ task.end_date }}</td>
-                                                    {% comment %} <td class="p-3">
+                                                    <td class="text-sm px-1.5 py-1 text-[#666]">{{ task.title }}</td>
+                                                    <td class="text-sm px-1.5 py-1 text-[#666]">{{ task.task_managers.all|join:", " }}</td>
+                                                    <td class="text-sm px-1.5 py-1 text-[#666]">{{ task.end_date }}</td>
+                                                    {% comment %} <td class="text-sm px-1.5 py-1 text-[#666]">
                                                 <span class="oh-btn oh-btn--light cursor-default text-gray-700 hover:text-gray-700">
                                                     {{ task.get_status_display }}
                                                 </span>
                                             </td> {% endcomment %}
-                                                    <td class="p-3 relative" x-data="{ open: false }">
+                                                    <td class="text-sm px-1.5 py-1 text-[#666] relative" x-data="{ open: false }">
                                                         <div
                                                             class="oh-sticky-table__td oh-table-config__td"
                                                             onclick="event.stopPropagation()"
@@ -147,7 +188,7 @@
                                                             </select>
                                                         </div>
                                                     </td>
-                                                    <td class="p-3 relative">
+                                                    <td class="text-sm px-1.5 py-1 text-[#666] relative">
                                                         <div
                                                             class="oh-sticky-table__td oh-table-config__td"
                                                             onclick="event.stopPropagation()"
@@ -176,7 +217,7 @@
                                                             </select>
                                                         </div>
                                                     </td>
-                                                    <td class="p-3 text-center">
+                                                    <td class="text-sm px-1.5 py-1 text-[#666] text-center">
                                                         {% if task.document %}
                                                             <a
                                                                 href="{{ task.document.url }}"
@@ -190,13 +231,13 @@
                                                             {% trans "None" %}
                                                         {% endif %}
                                                     </td>
-                                                    <td class="p-3">
-                                                        <div class="w-[300px] overflow-hidden whitespace-nowrap truncate">
+                                                    <td class="text-sm px-1.5 py-1 text-[#666]">
+                                                        <div class="truncate" title="{{ task.description }}">
                                                             {{ task.description }}
                                                         </div>
                                                     </td>
                                                     {% if request.user|is_project_manager:stage.project %}
-                                                        <td class="p-3" onclick="event.stopPropagation()">
+                                                        <td class="text-sm px-1.5 py-1 text-[#666]" onclick="event.stopPropagation()">
                                                             <div class="flex items-center justify-center gap-1">
                                                                 <button
                                                                     class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
@@ -247,6 +288,9 @@
             </div>
         {% endfor %}
     </div>
+{% endwith %}
+{% endwith %}
+{% endif %}
 </div>
 
 <div class="p-4 bg-white rounded-md mt-2 shadow-card mb-3 d-none">
@@ -273,12 +317,12 @@
             // Toggle current
             if (!isOpen) {
                 panel.style.maxHeight = panel.scrollHeight + 'px';
-                icon.textContent = '-';
+                if (icon) { icon.setAttribute('name', 'chevron-up-outline'); }
                 btn.classList.remove("bg-primary-100", "text-primary-600");
                 btn.classList.add("bg-primary-100", "text-primary-600");
             } else {
                 panel.style.maxHeight = null;
-                icon.textContent = '+';
+                if (icon) { icon.setAttribute('name', 'chevron-down-outline'); }
                 btn.classList.remove("bg-primary-600", "text-white");
                 btn.classList.add("bg-primary-100", "text-primary-600");
             }

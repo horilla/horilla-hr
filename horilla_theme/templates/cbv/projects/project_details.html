@@ -1,15 +1,29 @@
 {% load mathfilters static i18n taskfilters i18n %}
 
-<div class="bg-white p-3 rounded-md shadow-card mb-5">
-    <div class="flex gap-2 md:gap-0 flex-wrap justify-between items-end mb-5 border-b border-dark-50 pb-3">
-        <h3 class="text-lg font-semibold">{{ project }}</h3>
+<div class="bg-white rounded-md shadow-card mb-3 overflow-hidden">
+    <div class="p-3 flex gap-3 justify-between items-start flex-wrap">
+        <div class="flex items-start gap-3 min-w-0">
+            <div class="w-10 h-10 rounded-lg bg-primary-100 text-primary-600 flex items-center justify-center shrink-0">
+                <ion-icon name="briefcase-outline" class="text-lg"></ion-icon>
+            </div>
+            <div class="min-w-0">
+                <h3 class="text-base font-semibold text-[#26251F] leading-tight">{{ project }}</h3>
+                <p class="text-sm text-[#8C8A82] mt-1">
+                    {% if project.description %}
+                        {{ project.description|linebreaksbr }}
+                    {% else %}
+                        {% trans "No Description Available" %}
+                    {% endif %}
+                </p>
+            </div>
+        </div>
 
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 shrink-0">
             {% if perms.pms.change_project or request.user|is_project_manager_or_member:project %}
                 <div class="relative dropdown-wrapper">
                     <select
                         id="status"
-                        class="px-5 py-2 h-full bg-[white] rounded-md text-xs flex items-center gap-2 border border-primary-500 hover:border-primary-600 transition duration-300"
+                        class="px-4 py-2 h-full bg-white rounded-md text-xs flex items-center gap-2 border border-primary-500 hover:border-primary-600 transition duration-300"
                         name="status"
                         title="{% trans 'Status' %}"
                         hx-post="{%url 'change-project-status' project.id %}"
@@ -27,7 +41,7 @@
                     </select>
                 </div>
             {% else %}
-                <div class="text-xs font-medium">
+                <div class="text-xs font-medium px-3 py-2 bg-[#FAFAF8] rounded-md">
                     {{ project.get_status_display }}
                 </div>
             {% endif %}
@@ -48,67 +62,54 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-12 lg:grid-cols-12 gap-3">
-        <div class="mb-2 flex gap-5 items-center col-span-6">
-            <span class="font-medium text-sm text-[#565E6C] w-20">{% trans "Start Date" %}</span>
-            <p class="text-sm font-semibold flex items-center gap-5">
-                : <span>{{ project.start_date }}</span>
-            </p>
+    <!-- Meta row -->
+    <div class="border-t border-[#F0EFEA] bg-[#FAFAF8] px-3 py-2 flex flex-wrap items-center gap-x-6 gap-y-2">
+        <div class="flex items-center gap-1.5 text-sm">
+            <ion-icon name="calendar-outline" class="text-[15px] text-[#9C9A92]"></ion-icon>
+            <span class="text-[#8C8A82]">{% trans "Start Date" %}</span>
+            <span class="font-semibold text-[#26251F]">{{ project.start_date }}</span>
         </div>
 
-        <div class="mb-2 flex gap-5 items-center col-span-6">
-            <span class="font-medium text-sm text-[#565E6C] w-20">{% trans "End Date" %}</span>
-            <p class="text-sm font-semibold flex items-center gap-5">
-                : <span>{{ project.end_date }}
-                    <span
-                        class="ml-1"
-                        title="{% if project.end_date == today %}due today{% else %}due in {{ project.end_date|sub:today }}{% endif %}"
+        <div class="flex items-center gap-1.5 text-sm">
+            <ion-icon name="time-outline" class="text-[15px] text-[#9C9A92]"></ion-icon>
+            <span class="text-[#8C8A82]">{% trans "End Date" %}</span>
+            <span class="font-semibold text-[#26251F] flex items-center gap-1">
+                {{ project.end_date }}
+                <span
+                    title="{% if project.end_date == today %}due today{% else %}due in {{ project.end_date|sub:today }}{% endif %}"
+                >
+                    <ion-icon
+                        class="text-{% if project.end_date < today %}danger {% elif project.end_date == today %}warning {% else %}success{% endif %}"
+                        name="time-sharp"
                     >
-                        <ion-icon
-                            class="text-{% if project.end_date < today %}danger {% elif project.end_date == today %}warning {% else %}success{% endif %}"
-                            name="time-sharp"
-                        >
-                        </ion-icon>
-                    </span>
+                    </ion-icon>
                 </span>
-            </p>
+            </span>
         </div>
 
-        <div class="mb-2 flex gap-5 items-center col-span-6">
-            <span class="font-medium text-sm text-[#565E6C] w-20">{% trans "Managers" %}</span>
-            <div class="text-sm font-semibold flex items-center gap-5">
-                :
-                <ul class="userlist flex flex-wrap gap-1">
+        <div class="flex items-center gap-1.5 text-sm">
+            <ion-icon name="people-outline" class="text-[15px] text-[#9C9A92]"></ion-icon>
+            <span class="text-[#8C8A82]">{% trans "Managers" %}</span>
+            {% if project.managers.all %}
+                <ul class="flex items-center -space-x-2">
                     {% for manager in project.managers.all %}
                         <li>
-                            <span>
-                                <a
-                                    href="{% url 'employee-view-individual' manager.id %}"
-                                    title="{{manager.get_full_name}}"
+                            <a
+                                href="{% url 'employee-view-individual' manager.id %}"
+                                title="{{manager.get_full_name}}"
+                            >
+                                <img
+                                    src="{{ manager.get_avatar }}"
+                                    alt="{{ manager }}"
+                                    class="w-6 h-6 rounded-full border-2 border-white"
                                 >
-                                    <img
-                                        src="{{ manager.get_avatar }}"
-                                        alt="{{ manager }}"
-                                        class="w-6 h-6 rounded-full"
-                                    >
-                                </a>
-                            </span>
+                            </a>
                         </li>
                     {% endfor %}
                 </ul>
-            </div>
-        </div>
-
-        <div class="mb-2 flex gap-5 items-center col-span-12">
-            <span class="font-medium text-sm text-[#565E6C] w-20">{% trans "Description" %}</span>
-            <p class="text-sm font-semibold flex items-center gap-5">
-                :
-                <span>{% if project.description %}
-                        {{ project.description|linebreaksbr }}
-                    {% else %}
-                        {% trans "No Description Available" %}
-                    {% endif %}</span>
-            </p>
+            {% else %}
+                <span class="text-[#B7B5AC] italic">{% trans "No managers assigned" %}</span>
+            {% endif %}
         </div>
     </div>
 </div>

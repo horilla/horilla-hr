@@ -1,0 +1,16 @@
+{% comment %}
+Same fixed column widths for the one shared header (task_list_view.html)
+and every stage's own table, so columns line up across all of them even
+though only the header carries labels. Description takes the leftover width.
+Expects can_manage (whether the Actions column exists) from the includer.
+{% endcomment %}
+<colgroup>
+    <col style="width:200px">
+    <col style="width:180px">
+    <col style="width:120px">
+    <col style="width:150px">
+    <col style="width:150px">
+    <col style="width:100px">
+    <col>
+    {% if can_manage %}<col style="width:100px">{% endif %}
+</colgroup>
