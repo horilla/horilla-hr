@@ -559,6 +559,11 @@ class Request:
         self.time = time
         self.datetime = datetime
         self.META = META()
+        # Empty dict stands in for Django's QueryDict here -- only .get() is
+        # ever called on request.GET (e.g. horilla_crumbs' breadcrumbs context
+        # processor), and dict.get() already returns None for a missing key
+        # exactly like QueryDict.get() does.
+        self.GET = {}
 
     def build_absolute_uri(self, location=None):
         """
@@ -610,6 +615,14 @@ class META:
         Required for Django context processors that call request.META.get().
         """
         return default
+
+    def __contains__(self, key):
+        """
+        Support ``key in request.META`` (e.g. horilla_crumbs' breadcrumbs
+        context processor checks "HTTP_HX_REQUEST" in request.META directly,
+        not just via .keys()).
+        """
+        return key in self.keys()
 
 
 def parse_time(time_str):
