@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -32,8 +33,10 @@ from base.models import (
     RotatingWorkType,
     RotatingWorkTypeAssign,
     ShiftRequest,
+    ShiftRequestComment,
     WorkType,
     WorkTypeRequest,
+    WorkTypeRequestComment,
 )
 from base.views import (
     is_reportingmanger,
@@ -42,6 +45,7 @@ from base.views import (
     work_type_request_export,
 )
 from employee.models import Actiontype, Employee
+from horilla_api.api_methods.base.methods import reject_reason_from
 from horilla_api.api_methods.base.pagination import HorillaPageNumberPagination
 from notifications.signals import notify
 
@@ -109,6 +113,29 @@ def _is_reportingmanger(request, instance):
     except Exception:
         return HttpResponse("This Employee Dont Have any work information")
     return manager == employee_work_info_manager
+
+
+logger = logging.getLogger(__name__)
+
+
+def _revert_work_info(employee, was_approved, **fields):
+    """
+    Put an employee's shift / work type back when a request is cancelled.
+
+    Only a request that had been approved changed anything, so only that
+    one is reverted. Rejecting a still-pending request used to overwrite the
+    employee's current value with the request's "previous" one -- stale if
+    anything changed since the request was made. An employee with no work
+    information has nothing to revert; that used to raise instead.
+    """
+    if not was_approved:
+        return
+    work_info = getattr(employee, "employee_work_info", None)
+    if work_info is None:
+        return
+    for field, value in fields.items():
+        setattr(work_info, field, value)
+    work_info.save()
 
 
 class JobPositionView(APIView):
@@ -394,6 +421,11 @@ class WorkTypeRequestView(APIView):
         serializer = self.serializer_class(data=data)
         if serializer.is_valid():
             instance = serializer.save()
+            # The request is saved at this point. A notification failure --
+            # most often an employee with no reporting manager or no work
+            # information -- must not turn that into a 400, or the client
+            # reports a failure for a request that exists and a retry
+            # creates a duplicate.
             try:
                 notify.send(
                     instance.employee_id,
@@ -406,9 +438,14 @@ class WorkTypeRequestView(APIView):
                     redirect=f"/employee/work-type-request-view?id={instance.id}",
                     api_redirect=f"/api/base/worktype-requests/{instance.id}",
                 )
-                return Response(serializer.data, status=201)
-            except Exception as E:
-                return Response(serializer.errors, status=400)
+            except Exception:
+                logger.warning(
+                    "Work type request %s saved, but notifying the reporting "
+                    "manager failed",
+                    instance.id,
+                    exc_info=True,
+                )
+            return Response(serializer.data, status=201)
         return Response(serializer.errors, status=400)
 
     @check_approval_status(WorkTypeRequest, "base.change_worktyperequest")
@@ -448,13 +485,22 @@ class WorkTypeRequestCancelView(APIView):
             or work_type_request.employee_id == request.user.employee_get
             and work_type_request.approved == False
         ):
+            was_approved = work_type_request.approved
             work_type_request.canceled = True
             work_type_request.approved = False
-            work_type_request.employee_id.employee_work_info.work_type_id = (
-                work_type_request.previous_work_type_id
+            _revert_work_info(
+                work_type_request.employee_id,
+                was_approved,
+                work_type_id=work_type_request.previous_work_type_id,
             )
-            work_type_request.employee_id.employee_work_info.save()
             work_type_request.save()
+            reason = reject_reason_from(request)
+            if reason:
+                WorkTypeRequestComment.objects.create(
+                    request_id=work_type_request,
+                    employee_id=request.user.employee_get,
+                    comment=reason,
+                )
             try:
                 notify.send(
                     request.user.employee_get,
@@ -464,9 +510,17 @@ class WorkTypeRequestCancelView(APIView):
                     icon="close",
                     api_redirect="/api/base/worktype-requests/<int:pk>/",
                 )
-            except:
-                pass
-        return Response(status=200)
+            except Exception:
+                logger.warning(
+                    "Work type request %s rejected, but notifying the "
+                    "employee failed",
+                    work_type_request.id,
+                    exc_info=True,
+                )
+            return Response({"status": "canceled"}, status=200)
+        # Previously answered 200 here too, so a refused rejection looked
+        # identical to a successful one.
+        return Response({"error": _("You don't have permission")}, status=400)
 
 
 class WorkRequestApproveView(APIView):
@@ -482,22 +536,40 @@ class WorkRequestApproveView(APIView):
             """
             Here the request will be approved, can send mail right here
             """
-            if not work_type_request.is_any_work_type_request_exists():
-                work_type_request.approved = True
-                work_type_request.canceled = False
-                work_type_request.save()
-                try:
-                    notify.send(
-                        request.user.employee_get,
-                        recipient=work_type_request.employee_id.employee_user_id,
-                        verb=gettext_noop("Your work type request has been approved."),
-                        redirect=f"/employee/work-type-request-view?id={work_type_request.id}",
-                        icon="checkmark",
-                        api_redirect="/api/base/worktype-requests/<int:pk>/",
-                    )
-                    return Response({"status": "approved"})
-                except Exception as e:
-                    return Response({"error": str(e)}, status=400)
+            # Previously fell through and returned None -- a 500 -- when an
+            # overlapping approved request already existed.
+            if work_type_request.is_any_work_type_request_exists():
+                return Response(
+                    {
+                        "error": _(
+                            "An approved work type request already exists "
+                            "during this time period."
+                        )
+                    },
+                    status=400,
+                )
+            work_type_request.approved = True
+            work_type_request.canceled = False
+            work_type_request.save()
+            # Approved and saved: a notification failure is logged, not
+            # reported as a failed approval.
+            try:
+                notify.send(
+                    request.user.employee_get,
+                    recipient=work_type_request.employee_id.employee_user_id,
+                    verb=gettext_noop("Your work type request has been approved."),
+                    redirect=f"/employee/work-type-request-view?id={work_type_request.id}",
+                    icon="checkmark",
+                    api_redirect="/api/base/worktype-requests/<int:pk>/",
+                )
+            except Exception:
+                logger.warning(
+                    "Work type request %s approved, but notifying the "
+                    "employee failed",
+                    work_type_request.id,
+                    exc_info=True,
+                )
+            return Response({"status": "approved"})
         else:
             return Response({"error": _("You don't have permission")}, status=400)
 
@@ -1109,13 +1181,24 @@ class ShiftRequestCancelView(APIView):
             or shift_request.employee_id == request.user.employee_get
             and shift_request.approved == False
         ):
+            was_approved = shift_request.approved
             shift_request.canceled = True
             shift_request.approved = False
-            shift_request.employee_id.employee_work_info.shift_id = (
-                shift_request.previous_shift_id
+            _revert_work_info(
+                shift_request.employee_id,
+                was_approved,
+                shift_id=shift_request.previous_shift_id,
             )
-            shift_request.employee_id.employee_work_info.save()
             shift_request.save()
+            reason = reject_reason_from(request)
+            if reason:
+                # Stored as a comment -- the request model has no reason
+                # field, and comments are what the web shows on a request.
+                ShiftRequestComment.objects.create(
+                    request_id=shift_request,
+                    employee_id=request.user.employee_get,
+                    comment=reason,
+                )
             return Response({"status": "success"}, status=200)
         return Response({"status": "failed"}, status=400)
 
@@ -1135,12 +1218,14 @@ class ShiftRequestBulkCancelView(APIView):
                 or shift_request.employee_id == request.user.employee_get
                 and shift_request.approved == False
             ):
+                was_approved = shift_request.approved
                 shift_request.canceled = True
                 shift_request.approved = False
-                shift_request.employee_id.employee_work_info.shift_id = (
-                    shift_request.previous_shift_id
+                _revert_work_info(
+                    shift_request.employee_id,
+                    was_approved,
+                    shift_id=shift_request.previous_shift_id,
                 )
-                shift_request.employee_id.employee_work_info.save()
                 shift_request.save()
                 count += 1
         if length == count:
