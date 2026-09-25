@@ -125,6 +125,11 @@ class HorillaListView(ListView):
     toggle_labels: dict = {}
     search_url: str = ""
     bulk_select_option: bool = True
+    # Opt-out for a view instance that's one of several sharing a single
+    # header rendered elsewhere on the page (e.g. one list per accordion
+    # panel) -- defaults on everywhere else, so no existing page is affected
+    # unless it explicitly sets this to False.
+    show_header: bool = True
     filter_selected: bool = True
     quick_export: bool = True
     bulk_update: bool = True
@@ -311,6 +316,7 @@ class HorillaListView(ListView):
 
         context["show_filter_tags"] = self.show_filter_tags
         context["bulk_select_option"] = self.bulk_select_option
+        context["show_header"] = self.show_header
         context["row_status_class"] = self.row_status_class
         context["sortby_key"] = self.sortby_key
         context["sortby_mapping"] = self.sortby_mapping

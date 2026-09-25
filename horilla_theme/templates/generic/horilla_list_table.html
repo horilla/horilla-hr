@@ -46,6 +46,32 @@
                     class="max-h-[calc(100vh_-_260px)] overflow-hidden overflow-y-auto overflow-x-auto heightContainer"
                 >
                     <table class="fixed-table w-full border-separate" data-bulk-select-option = "{{bulk_select_option|yesno:'true,false'}}">
+                        {% if not show_header %}
+                            {% comment %}
+                            A view with show_header=False has no <thead> at
+                            all -- normally the thing establishing column
+                            widths for a page that also opts into
+                            table-layout:fixed (a view rendering alongside
+                            others that share one external header, e.g.
+                            EmployeeObjectiveKeyResultDetailListView on the
+                            objective detail page). Without this, fixed
+                            layout has nothing to size columns from and falls
+                            back to squeezing them from the first body row's
+                            actual content instead -- title and start-value
+                            columns collapsing into each other, that kind of
+                            thing. header_attrs is the same per-column width
+                            already used for the (now absent) <th>s.
+                            {% endcomment %}
+                            <colgroup>
+                                {% if bulk_select_option %}<col style="width:30px">{% endif %}
+                                {% for cell in columns %}
+                                    <col {{ header_attrs|get_item:cell.1|safe }}>
+                                {% endfor %}
+                                {% if options or option_method %}<col {{ header_attrs.option|safe }}>{% endif %}
+                                {% if actions or action_method %}<col {{ header_attrs.action|safe }}>{% endif %}
+                            </colgroup>
+                        {% endif %}
+                        {% if show_header %}
                         <thead class="sticky top-0 bg-[white] z-[1]">
                             <tr class="border-b border-[#ececec]">
                                 {% if bulk_select_option %}
@@ -205,6 +231,7 @@
                                 {% endif %}
                             </tr>
                         </thead>
+                        {% endif %}
                         <tbody>
                             {% for instance in queryset %}
                                 <tr
