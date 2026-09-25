@@ -842,15 +842,18 @@ class AvailableLeave(HorillaModel):
             return []
 
         def as_date(value):
-            # assigned_date is a DateField, but its default (timezone.now)
-            # can leave the in-memory attribute holding a full tz-aware
-            # datetime until the instance round-trips through the DB --
-            # normalize so it never breaks the date-only sort below.
-            return (
-                value.date()
-                if hasattr(value, "date") and callable(value.date)
-                else value
-            )
+            # Datetimes here are tz-aware UTC: history_date always, and
+            # assigned_date until the instance round-trips through the DB
+            # (its default is timezone.now). .date() on those gives the UTC
+            # day -- a day behind the user's calendar for UTC+ zones until
+            # UTC midnight -- so convert to TIME_ZONE first.
+            if isinstance(value, datetime):
+                return (
+                    timezone.localdate(value)
+                    if timezone.is_aware(value)
+                    else value.date()
+                )
+            return value
 
         # For labeling debits only (see docstring). Keyed by the date the
         # request's OWN history shows it actually became "approved" -- not
@@ -872,7 +875,7 @@ class AvailableLeave(HorillaModel):
                 .first()
             )
             approval_date = (
-                approved_snapshot.history_date.date()
+                as_date(approved_snapshot.history_date)
                 if approved_snapshot
                 else request.start_date
             )
@@ -922,7 +925,7 @@ class AvailableLeave(HorillaModel):
             )
             if delta == 0:
                 continue
-            entry_date = current.history_date.date()
+            entry_date = as_date(current.history_date)
             if delta > 0:
                 entries.append(
                     {

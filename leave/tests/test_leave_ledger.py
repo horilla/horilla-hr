@@ -1,8 +1,9 @@
 """Tests for AvailableLeave.build_ledger() and the leave-balance-ledger view."""
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from datetime import timezone as dt_timezone
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 
 class LeaveLedgerBuildTests(TestCase):
@@ -44,6 +45,47 @@ class LeaveLedgerBuildTests(TestCase):
         self.assertEqual(ledger[0]["label"], "Balance updated")
         self.assertEqual(ledger[0]["credit"], 3)
         self.assertEqual(ledger[0]["balance"], 8)
+
+    @override_settings(TIME_ZONE="Asia/Kolkata")
+    def test_entry_is_dated_by_the_local_calendar_not_utc(self):
+        """
+        20:00 UTC on 10 Jan is 01:30 on 11 Jan in India. History timestamps
+        are stored in UTC, so taking .date() directly dated this edit a day
+        early -- and made two ledger tests fail whenever CI ran between
+        18:30 and 24:00 UTC.
+        """
+        from leave.forms import AvailableLeaveUpdateForm
+
+        lt = self.LeaveType.objects.create(
+            name="Ledger TZ Type", total_days=5, carryforward_type="no carryforward"
+        )
+        avail = self.AvailableLeave.objects.create(
+            employee_id=self.employee,
+            leave_type_id=lt,
+            assigned_date=date(2026, 1, 10),
+            available_days=5,
+            carryforward_days=0,
+            total_leave_days=5,
+        )
+        form = AvailableLeaveUpdateForm(
+            {"available_days": 8, "carryforward_days": 0}, instance=avail
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+        created, edited = avail.history.order_by("history_date")
+        # Same UTC day for both, keeping their real order: the edit lands
+        # after local midnight, the creation before it.
+        avail.history.filter(pk=created.pk).update(
+            history_date=datetime(2026, 1, 10, 10, 0, tzinfo=dt_timezone.utc)
+        )
+        avail.history.filter(pk=edited.pk).update(
+            history_date=datetime(2026, 1, 10, 20, 0, tzinfo=dt_timezone.utc)
+        )
+
+        ledger = avail.build_ledger()
+
+        self.assertEqual(ledger[0]["label"], "Balance updated")
+        self.assertEqual(ledger[0]["date"], date(2026, 1, 11))
 
     def test_opening_balance_from_first_history_row(self):
         lt = self.LeaveType.objects.create(
