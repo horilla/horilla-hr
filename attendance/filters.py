@@ -727,6 +727,18 @@ class AttendanceFilters(HorillaFilterSet):
         empty_label=None,
         widget=forms.RadioSelect,
     )
+    # Mirrors the "On Time" dashboard KPI's own definition (attendance/
+    # dashboard.py::attendance_kpi_data): an attendance has no "on time"
+    # column of its own, it's only ever the absence of a "late_come"
+    # AttendanceLateComeEarlyOut record for that day -- so this has to be
+    # a method filter rather than a plain field lookup.
+    attendance_on_time = django_filters.ChoiceFilter(
+        method="filter_on_time",
+        label=_("On Time?"),
+        choices=[("", _("Any")), (True, _("Yes")), (False, _("No"))],
+        empty_label=None,
+        widget=forms.RadioSelect,
+    )
 
     # HorillaFilterSet.ajax_fields (generic AJAX-loaded combobox mechanism,
     # see EmployeeFilter.ajax_fields for the full explanation) -- every
@@ -887,6 +899,17 @@ class AttendanceFilters(HorillaFilterSet):
         return queryset.filter(
             id__in=[attendance.id for attendance in filtered_attendance]
         )
+
+    def filter_on_time(self, queryset, name, value):
+        """
+        Same "on time" definition as attendance_kpi_data's `on_time =
+        present_today - late_come`: an attendance counts as on time as
+        long as it isn't also tagged with a "late_come" record.
+        """
+        is_on_time = str(value) == "True"
+        if is_on_time:
+            return queryset.exclude(late_come_early_out__type="late_come")
+        return queryset.filter(late_come_early_out__type="late_come")
 
     def _build_custom_filter_fields(self):
         """
@@ -1289,6 +1312,28 @@ def get_present_on(queryset, _name, value):
     return queryset.filter(employee_attendances__attendance_date=value).distinct()
 
 
+def get_expected_to_check_in(queryset, _name, value):
+    """
+    Employees still expected to check in on ``value`` -- i.e. those with no
+    attendance record for that date who also aren't on approved leave that
+    date. Mirrors the dashboard's "Expected to Check In" KPI (see
+    base/dashboard.py::dashboard_kpi_data), so the card links here.
+    """
+    from django.db.models import Q
+
+    from leave.models import LeaveRequest
+
+    present_ids = Attendance.objects.filter(attendance_date=value).values_list(
+        "employee_id", flat=True
+    )
+    on_leave_ids = (
+        LeaveRequest.objects.filter(status="approved", start_date__lte=value)
+        .filter(Q(end_date__gte=value) | Q(end_date__isnull=True, start_date=value))
+        .values_list("employee_id", flat=True)
+    )
+    return queryset.exclude(id__in=present_ids).exclude(id__in=on_leave_ids).distinct()
+
+
 ATTENDANCE_STATUS_CHOICES = [
     ("on_time", _("On Time")),
     ("late_come", _("Late Arrival")),
@@ -1362,6 +1407,13 @@ def online_init(self, *args, **kwargs):
     )
     self.filters["present_on"] = present_field
     self.form.fields["present_on"] = present_field.field
+    expected_check_in_field = django_filters.DateFilter(
+        label=_("Expected to Check In"),
+        method=get_expected_to_check_in,
+        widget=forms.DateInput(attrs={"type": "date", "class": "oh-input w-100"}),
+    )
+    self.filters["expected_to_check_in"] = expected_check_in_field
+    self.form.fields["expected_to_check_in"] = expected_check_in_field.field
     status_field = django_filters.ChoiceFilter(
         label=_("Attendance Status"),
         choices=ATTENDANCE_STATUS_CHOICES,

@@ -206,6 +206,14 @@
             background: #fee2e2;
             color: #991b1b;
         }
+        .am-badge--blue {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .am-badge--purple {
+            background: #f3e8ff;
+            color: #6b21a8;
+        }
         .dark .am-badge--green {
             background: #166534;
             color: #bbf7d0;
@@ -217,6 +225,14 @@
         .dark .am-badge--red {
             background: #7f1d1d;
             color: #fca5a5;
+        }
+        .dark .am-badge--blue {
+            background: #1e3a8a;
+            color: #bfdbfe;
+        }
+        .dark .am-badge--purple {
+            background: #581c87;
+            color: #e9d5ff;
         }
 
         /* ── Chart grid ── */
@@ -1742,7 +1758,7 @@
                     .then((r) => r.json())
                     .then((data) => {
                         document.getElementById("am-kpi-grid").innerHTML = `
-                    <a href="{% url 'attendance-view' %}?open_tab=1&attendance_date=${data.date}&filter_applied=on" class="am-kpi-card">
+                    <a href="{% url 'request-attendance-view' %}?open_tab=2&attendance_date=${data.date}&filter_applied=on" class="am-kpi-card">
                         <div class="am-kpi-card__icon am-kpi-card__icon--green"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg></div>
                         <div class="am-kpi-card__label">{% trans "Present Today"|escapejs %}</div>
                         <div class="am-kpi-card__value">${data.present_today}</div>
@@ -1762,11 +1778,11 @@
                                     "</span>"
                         }</div>
                     </a>
-                    <a href="{% url 'attendance-view' %}?open_tab=1&attendance_date=${data.date}&filter_applied=on" class="am-kpi-card">
+                    <a href="{% url 'request-attendance-view' %}?open_tab=2&attendance_date=${data.date}&attendance_on_time=True&filter_applied=on" class="am-kpi-card">
                         <div class="am-kpi-card__icon am-kpi-card__icon--blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
                         <div class="am-kpi-card__label">{% trans "On Time"|escapejs %}</div>
                         <div class="am-kpi-card__value">${data.on_time}</div>
-                        <div class="am-kpi-card__sub">{% trans "of"|escapejs %} ${data.total_employees} {% trans "employees"|escapejs %}</div>
+                        <div class="am-kpi-card__sub"><span class="am-badge am-badge--blue">{% trans "of"|escapejs %} ${data.total_employees} {% trans "employees"|escapejs %}</span></div>
                     </a>
                     <a href="{% url 'late-come-early-out-view' %}?type=late_come&attendance_date=${data.date}&filter_applied=on" class="am-kpi-card">
                         <div class="am-kpi-card__icon am-kpi-card__icon--amber"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
@@ -1779,22 +1795,22 @@
                                     " " +
                                     '{% trans "early departure"|escapejs %}' +
                                     "</span>"
-                                : '<span style="opacity:0.5">' +
+                                : '<span class="am-badge am-badge--green">' +
                                     '{% trans "No early outs"|escapejs %}' +
                                     "</span>"
                         }</div>
                     </a>
-                    <a href="{% url 'attendance-view' %}?open_tab=1&attendance_validated=false&filter_applied=on" class="am-kpi-card">
+                    <a href="{% url 'employee-view' %}?expected_to_check_in=${data.date}&is_active=True&filter_applied=on" class="am-kpi-card">
                         <div class="am-kpi-card__icon am-kpi-card__icon--red"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M9 14l2 2 4-4"/></svg></div>
                         <div class="am-kpi-card__label">{% trans "Pending"|escapejs %}</div>
-                        <div class="am-kpi-card__value">${data.pending_validation}</div>
-                        <div class="am-kpi-card__sub">{% trans "To validate"|escapejs %}</div>
+                        <div class="am-kpi-card__value">${data.expected_to_check_in}</div>
+                        <div class="am-kpi-card__sub"><span class="am-badge am-badge--amber">{% trans "Not present, not on leave"|escapejs %}</span></div>
                     </a>
-                    <a href="{% url 'attendance-view' %}?open_tab=2&attendance_overtime_approve=False&attendance_validated=True&filter_applied=on" class="am-kpi-card">
+                    <a href="{% url 'attendance-view' %}?open_tab=2&attendance_overtime_approve=False&attendance_validated=True&attendance_date=${data.date}&filter_applied=on" class="am-kpi-card">
                         <div class="am-kpi-card__icon am-kpi-card__icon--amber"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
                         <div class="am-kpi-card__label">{% trans "OT Pending"|escapejs %}</div>
                         <div class="am-kpi-card__value">${data.pending_overtime}</div>
-                        <div class="am-kpi-card__sub">{% trans "awaiting approval"|escapejs %}</div>
+                        <div class="am-kpi-card__sub"><span class="am-badge am-badge--purple">{% trans "awaiting approval"|escapejs %}</span></div>
                     </a>`;
                     })
                     .catch(() => {
@@ -2073,10 +2089,11 @@
                             "late-early-subtitle",
                         );
                         if (subEl)
-                            subEl.textContent = asOfLabel(
-                                data.date,
-                                '{% trans "By department"|escapejs %}',
-                            );
+                            subEl.textContent = data.month
+                                ? '{% trans "By department"|escapejs %}' +
+                                    " — " +
+                                    data.month
+                                : '{% trans "By department"|escapejs %}';
                         const allDepts = [
                             ...new Set([
                                 ...data.late_come.map((d) => d.department),
@@ -2129,7 +2146,10 @@
                                                 "{% url 'late-come-early-out-view' %}",
                                                 {
                                                     department: dept,
-                                                    attendance_date: data.date,
+                                                    attendance_date__gte:
+                                                        data.from_date,
+                                                    attendance_date__lte:
+                                                        data.to_date,
                                                 },
                                             );
                                         },
@@ -3115,11 +3135,13 @@
                         const subEl = document.getElementById(
                             "att-overview-subtitle",
                         );
-                        if (subEl)
-                            subEl.textContent = asOfLabel(
-                                data.date,
-                                '{% trans "On-time, late arrivals & early departures by department"|escapejs %}',
-                            );
+                        if (subEl) {
+                            const defaultLabel =
+                                '{% trans "On-time, late arrivals & early departures by department"|escapejs %}';
+                            subEl.textContent = data.month
+                                ? defaultLabel + " — " + data.month
+                                : defaultLabel;
+                        }
                         if (
                             !data.dataSet ||
                             !data.dataSet.length ||
@@ -3158,7 +3180,10 @@
                                                     ?.label || "";
                                             const params = {
                                                 department: dept,
-                                                attendance_date: data.date,
+                                                attendance_date__gte:
+                                                    data.from_date,
+                                                attendance_date__lte:
+                                                    data.to_date,
                                             };
                                             if (
                                                 seriesLabel

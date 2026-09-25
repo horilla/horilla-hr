@@ -14,7 +14,7 @@
         type="button"
         id="attendanceViewReload"
         hidden
-        hx-get="{% url 'attendances-tab-view' %}"
+        hx-get="{% url 'attendances-tab-view' %}?{{ request.GET.urlencode }}"
         hx-target="#listContainer"
         hx-swap="innerHTML"
     >
@@ -24,7 +24,7 @@
     <div
         class="oh-wrapper"
         id="listContainer"
-        hx-get="{% url 'attendances-tab-view' %}"
+        hx-get="{% url 'attendances-tab-view' %}?{{ request.GET.urlencode }}"
         hx-trigger="load"
     >
         <div class="animated-background"></div>

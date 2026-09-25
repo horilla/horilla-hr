@@ -527,6 +527,7 @@ class OTAttendancesList(AttendancesListView):
             self.queryset = self.queryset.filter(
                 overtime_second__gt=0,
                 attendance_validated=True,
+                employee_id__is_active=True,
             )
             self.queryset = filtersubordinates(
                 self.request, self.queryset, "attendance.view_attendance"
