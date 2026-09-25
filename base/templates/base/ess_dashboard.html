@@ -538,6 +538,27 @@
             background: rgba(239, 68, 68, 0.1);
             color: #dc2626;
         }
+        /* ── Generic KPI sub badges ── */
+        .ess-badge--green {
+            background: rgba(34, 197, 94, 0.1);
+            color: #16a34a;
+        }
+        .ess-badge--amber {
+            background: rgba(245, 158, 11, 0.1);
+            color: #d97706;
+        }
+        .ess-badge--red {
+            background: rgba(239, 68, 68, 0.1);
+            color: #dc2626;
+        }
+        .ess-badge--blue {
+            background: rgba(59, 130, 246, 0.1);
+            color: #2563eb;
+        }
+        .ess-badge--purple {
+            background: rgba(168, 85, 247, 0.1);
+            color: #9333ea;
+        }
 
         /* ── Sidebar ── */
         .ess-sidebar {
@@ -793,11 +814,11 @@
                         <div class="ess-chart-card__header">
                             <div>
                                 <div class="ess-chart-card__title">
-                                    {% trans "Work Hours This Week" %}
+                                    {% trans "Work Hours This Month" %}
                                 </div>
                                 <div
                                     class="ess-chart-card__subtitle"
-                                    id="essWeekLabel"
+                                    id="essMonthLabel"
                                 ></div>
                             </div>
                         </div>
@@ -1081,21 +1102,23 @@
                     document.getElementById('essKpiGrid').innerHTML =
                     {% if request|is_check_in_enabled %}
                     kpiCard('green',  iconPresent, '{% trans "Present This Month"|escapejs %}',
-                            d.present_this_month, d.late_this_month + ' ' + '{% trans "late"|escapejs %}',
+                            d.present_this_month,
+                            '<span class="ess-badge ess-badge--blue">' + d.late_this_month + ' ' + '{% trans "late"|escapejs %}' + '</span>',
                             '{% url "view-my-attendance" %}?attendance_date__gte=' + fromInput.value +
                                 '&attendance_date__lte=' + toInput.value + '&filter_applied=1') +
                     {% endif %}
                     kpiCard('amber', iconLeave, '{% trans "Pending Leave"|escapejs %}',
                             d.pending_leave_requests != null ? d.pending_leave_requests : 0,
-                            '{% trans "awaiting approval"|escapejs %}',
+                            '<span class="ess-badge ess-badge--amber">' + '{% trans "awaiting approval"|escapejs %}' + '</span>',
                             '{% url "user-request-view" %}?status=requested&filter_applied=1') +
                     kpiCard('indigo', iconLeave, '{% trans "Upcoming Leave"|escapejs %}',
                             d.upcoming_leave_count != null ? d.upcoming_leave_count : 0,
-                            '{% trans "approved & ahead"|escapejs %}',
+                            '<span class="ess-badge ess-badge--green">' + '{% trans "approved & ahead"|escapejs %}' + '</span>',
                             '{% url "user-request-view" %}?status=approved&start_date_gte=' +
                                 new Date().toISOString().slice(0, 10) + '&filter_applied=1') +
                     kpiCard('purple', iconGoals, '{% trans "Open Goals"|escapejs %}',
-                            d.open_objectives, '{% trans "active objectives"|escapejs %}',
+                            d.open_objectives,
+                            '<span class="ess-badge ess-badge--purple">' + '{% trans "active objectives"|escapejs %}' + '</span>',
                             '{% url "objective-list-view" %}?open_tab=1&archive=false');
                 })
                 .catch(function () {});
@@ -1165,11 +1188,11 @@
             // ── Work Hours Chart ──────────────────────────────────────────────────────────
             function loadWorkHours() {
                 if (!document.getElementById('essWorkHoursChart')) return;
-                fetchP('/ess/api/work-hours-week/')
+                fetchP('/ess/api/work-hours-month/')
                 .then(function (r) { return r.json(); })
                 .then(function (d) {
                     if (workHoursChart) { workHoursChart.destroy(); workHoursChart = null; }
-                    document.getElementById('essWeekLabel').textContent = d.week_label || '';
+                    document.getElementById('essMonthLabel').textContent = d.month_label || '';
                     var el = document.getElementById('essWorkHoursChart');
                     workHoursChart = new ApexCharts(el, {
                     chart: {
@@ -1200,7 +1223,7 @@
                     plotOptions: { bar: { borderRadius: 5, columnWidth: '55%' } },
                     dataLabels: { enabled: false },
                     annotations: { yaxis: [{ y: 8, borderColor: '#f59e0b', strokeDashArray: 4,
-                        label: { text: '{% trans "Target"|escapejs %}', style: { color: '#f59e0b', fontSize: '10px' } } }] },
+                        label: { text: '{% trans "Target"|escapejs %}' + ': 8h', style: { color: '#f59e0b', fontSize: '10px' } } }] },
                     theme: { mode: themeMode() },
                     tooltip: { theme: themeMode(), y: { formatter: function (v) { return v.toFixed(1) + ' ' + '{% trans "hrs"|escapejs %}'; } } },
                     grid: { borderColor: gridColor(), strokeDashArray: 4 },

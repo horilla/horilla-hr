@@ -418,27 +418,17 @@ def ess_attendance_calendar(request):
     )
 
 
-# ─── Work hours this week ──────────────────────────────────────────────────────
+# ─── Work hours this month ──────────────────────────────────────────────────────
 
 
 @login_required
-def ess_work_hours_week(request):
-    """GET /ess/api/work-hours-week/?year=&month= — daily hours for the most recent week within the selected month."""
+def ess_work_hours_month(request):
+    """GET /ess/api/work-hours-month/?from_date=&to_date= — daily hours across the selected month."""
     employee = _get_employee(request)
     if not employee:
         return JsonResponse({"error": "no employee"}, status=403)
 
     from_date, to_date = _parse_period(request)
-    today = date.today()
-
-    # Anchor the week to today if the picker is the current month, otherwise the
-    # last day of the selected month — so prev/next month visibly moves the chart.
-    if from_date <= today <= to_date:
-        anchor = today
-    else:
-        anchor = to_date
-    week_start = anchor - timedelta(days=anchor.weekday())
-    week_end = week_start + timedelta(days=6)
 
     hours_map = {}
     try:
@@ -446,35 +436,35 @@ def ess_work_hours_week(request):
 
         for att in Attendance.objects.filter(
             employee_id=employee,
-            attendance_date__gte=week_start,
-            attendance_date__lte=week_end,
+            attendance_date__gte=from_date,
+            attendance_date__lte=to_date,
         ).values("attendance_date", "at_work_second"):
             seconds = att["at_work_second"] or 0
             hours_map[att["attendance_date"].isoformat()] = round(seconds / 3600, 2)
     except Exception:
         pass
 
-    day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     days = []
     total_hours = 0.0
-    for i in range(7):
-        d = week_start + timedelta(days=i)
-        h = hours_map.get(d.isoformat(), 0.0)
+    cur = from_date
+    while cur <= to_date:
+        h = hours_map.get(cur.isoformat(), 0.0)
         total_hours += h
         days.append(
             {
-                "day": day_names[i],
-                "date": d.strftime("%b %d"),
-                "iso_date": d.isoformat(),
+                "day": cur.day,
+                "date": cur.strftime("%b %d"),
+                "iso_date": cur.isoformat(),
                 "hours": h,
             }
         )
+        cur += timedelta(days=1)
 
     return JsonResponse(
         {
             "days": days,
             "total_hours": round(total_hours, 2),
-            "week_label": f"{week_start.strftime('%b %d')} – {week_end.strftime('%b %d')}",
+            "month_label": from_date.strftime("%B %Y"),
         }
     )
 

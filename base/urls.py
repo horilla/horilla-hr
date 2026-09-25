@@ -216,9 +216,9 @@ urlpatterns = [
         name="ess-attendance-calendar",
     ),
     path(
-        "ess/api/work-hours-week/",
-        ess_dashboard.ess_work_hours_week,
-        name="ess-work-hours-week",
+        "ess/api/work-hours-month/",
+        ess_dashboard.ess_work_hours_month,
+        name="ess-work-hours-month",
     ),
     path("ess/api/payslips/", ess_dashboard.ess_payslips, name="ess-payslips"),
     path("ess/api/objectives/", ess_dashboard.ess_objectives, name="ess-objectives"),

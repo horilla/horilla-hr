@@ -164,6 +164,10 @@ class ModernDashboardFetchInventoryTests(SimpleTestCase):
         self.assertIn(
             "present_on={% now 'Y-m-d' %}&is_active=True&filter_applied=on", text
         )
+        self.assertIn(
+            "expected_to_check_in={% now 'Y-m-d' %}&is_active=True&filter_applied=on",
+            text,
+        )
         self.assertIn("is_active=True&filter_applied=on", text)
         self.assertIn("closed=false&filter_applied=on", text)
         self.assertIn("asset_request_status=Requested&filter_applied=1", text)
