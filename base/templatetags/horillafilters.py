@@ -360,6 +360,25 @@ def is_check_in_enabled(request):
     return bool(attendance_settings and attendance_settings.enable_check_in)
 
 
+@register.filter(name="is_geofencing_enabled")
+def is_geofencing_enabled(request):
+    """
+    Whether the selected company has an active geo-fence -- the web
+    check-in/out buttons only need to capture the browser's location (and
+    the backend only needs to enforce it) when this is true.
+    """
+    from geofencing.models import GeoFencing
+
+    selected_company = request.session.get("selected_company")
+    if not selected_company or selected_company == "all":
+        return False
+    company = Company.objects.filter(id=selected_company).first()
+    if not company:
+        return False
+    fence = GeoFencing.objects.filter(company_id=company).first()
+    return bool(fence and fence.start)
+
+
 @register.filter(name="is_asset_fine_enabled")
 def is_asset_fine_enabled(request):
     """
