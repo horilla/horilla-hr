@@ -50,6 +50,35 @@ from recruitment.models import (
 from recruitment.pipeline_grouper import group_by_queryset
 from recruitment.views.paginator_qry import paginator_qry
 
+# candidate_survey() writes uploads under MEDIA_ROOT with the extension the
+# uploader chose, on a public, unauthenticated endpoint. MEDIA_ROOT sits
+# under the app's own working directory (a namespace package with no
+# __init__.py), so a saved .py file is importable by anything that later
+# does a dotted-path import against it -- reject server-executable
+# extensions outright rather than trust what gets done with the file later.
+DISALLOWED_ATTACHMENT_EXTENSIONS = {
+    ".py",
+    ".pyc",
+    ".pyo",
+    ".pyw",
+    ".php",
+    ".php3",
+    ".php4",
+    ".php5",
+    ".phtml",
+    ".cgi",
+    ".pl",
+    ".sh",
+    ".bash",
+    ".exe",
+    ".dll",
+    ".so",
+    ".jsp",
+    ".jspx",
+    ".asp",
+    ".aspx",
+}
+
 
 @login_required
 @is_recruitment_manager(perm="recruitment.add_recruitmentsurvey")
@@ -201,6 +230,16 @@ def candidate_survey(request):
                 messages.error(
                     request, _("File size exceeds the limit. Maximum size is 5 MB")
                 )
+                return render(
+                    request,
+                    "survey/candidate_survey_form.html",
+                    {"form": form, "candidate": candidate},
+                )
+            if (
+                os.path.splitext(attachment.name)[1].lower()
+                in DISALLOWED_ATTACHMENT_EXTENSIONS
+            ):
+                messages.error(request, _("That file type isn't allowed."))
                 return render(
                     request,
                     "survey/candidate_survey_form.html",
