@@ -52,9 +52,11 @@ def leave_Validations(self, data):
     )
     errors = {}
     # checking if there is any requested days is overlapping with the existing leave request
+    # Cancelled and rejected requests don't hold the dates -- the same rule
+    # LeaveRequest.clean() applies on the web.
     leave_requests = employee.leaverequest_set.filter(
         start_date__lte=end_date, end_date__gte=start_date
-    )
+    ).exclude(status__in=["cancelled", "rejected"])
     if self.instance:
         leave_requests = leave_requests.exclude(id=self.instance.id)
     if leave_requests:
