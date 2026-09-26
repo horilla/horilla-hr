@@ -439,6 +439,18 @@ class LeaveRequestFormView(HorillaFormView):
     template_name = "cbv/leave_requests/form/inherit.html"
     new_display_title = _("Leave Request")
 
+    def get_queryset(self):
+        # The base class loads any pk; manager_can_enter above only checks
+        # that the user manages *someone*. None makes it answer "not found".
+        from leave.views import _may_act_on_leave_request
+
+        instance = super().get_queryset()
+        if instance and not _may_act_on_leave_request(
+            self.request, instance, "leave.change_leaverequest", owner_allowed=True
+        ):
+            return None
+        return instance
+
     def get_initial(self) -> dict:
         initial = super().get_initial()
         leave_type_id = self.kwargs.get("type_id")

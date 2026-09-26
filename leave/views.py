@@ -31,6 +31,7 @@ from xhtml2pdf import pisa
 from base.filters import PenaltyFilter
 from base.forms import PenaltyAccountForm
 from base.methods import (
+    check_manager,
     choosesubordinates,
     closest_numbers,
     eval_validate,
@@ -40,7 +41,6 @@ from base.methods import (
     get_key_instances,
     get_pagination,
     is_holiday,
-    is_reportingmanager,
     sortby,
 )
 from base.models import CompanyLeaves, Holidays, PenaltyAccounts
@@ -55,7 +55,11 @@ from horilla.decorators import (
 )
 from horilla.group_by import group_by_queryset
 from horilla.http.response import HorillaRedirect
-from horilla.methods import get_horilla_model_class, remove_dynamic_url
+from horilla.methods import (
+    get_horilla_model_class,
+    handle_no_permission,
+    remove_dynamic_url,
+)
 from leave.decorators import *
 from leave.filters import *
 from leave.forms import *
@@ -961,6 +965,46 @@ def leave_request_update(request, id):
     )
 
 
+def _may_act_on_leave_request(request, leave_request, perm, owner_allowed=False):
+    """
+    Whether this user may act on this particular leave (or allocation) request.
+
+    ``manager_can_enter`` only asks whether the user manages *anyone* (or is
+    in *any* approval chain), so on its own it let every line manager act on
+    every employee's request by id. The API had the same hole, fixed in
+    GHSA-97wm-28fj-g4pj; this is the same rule for the web views: the
+    permission, the employee's reporting manager, or a manager a
+    multiple-approval condition nominated for this request.
+    """
+    if request.user.has_perm(perm):
+        return True
+    employee = request.user.employee_get
+    if owner_allowed and leave_request.employee_id == employee:
+        return True
+    if check_manager(employee, leave_request):
+        return True
+    multiple_approvals = getattr(leave_request, "multiple_approvals", None)
+    conditional = multiple_approvals() if multiple_approvals else None
+    return bool(conditional) and employee in conditional["managers"]
+
+
+def _leave_decision_denied(request):
+    """Denial in the shape the approve/reject callers read: the leave list
+    and the calendar take the outcome from HX-Trigger's horillaMessage."""
+    if not request.headers.get("HX-Request"):
+        return handle_no_permission(request)
+    response = HttpResponse("", status=200)
+    response["HX-Trigger"] = json.dumps(
+        {
+            "horillaMessage": {
+                "level": "error",
+                "text": str(_("You don't have permission.")),
+            }
+        }
+    )
+    return response
+
+
 @login_required
 @hx_request_required
 @manager_can_enter("leave.delete_leaverequest")
@@ -978,6 +1022,10 @@ def leave_request_delete(request, id):
     previous_data = request.GET.urlencode()
     try:
         leave_request = LeaveRequest.objects.get(id=id)
+        if not _may_act_on_leave_request(
+            request, leave_request, "leave.delete_leaverequest", owner_allowed=True
+        ):
+            return handle_no_permission(request)
         messages.success(request, _("Leave request deleted successfully.."))
         leave_request.delete()
     except (LeaveRequest.DoesNotExist, OverflowError, ValueError):
@@ -1015,6 +1063,10 @@ def leave_request_approve(request, id, emp_id=None):
         return HorillaRedirect(
             request, message=_("No leave request found matching the query.")
         )
+    if not _may_act_on_leave_request(
+        request, leave_request, "leave.change_leaverequest"
+    ):
+        return _leave_decision_denied(request)
     employee_id = leave_request.employee_id
     if not request.user.is_superuser:
         if employee_id == request.user.employee_get:
@@ -1253,11 +1305,15 @@ def leave_request_cancel(request, id, emp_id=None):
           Otherwise, it returns to the default leave request view template.
 
     """
+    leave_request = LeaveRequest.objects.filter(id=id).first()
+    if leave_request is None or not _may_act_on_leave_request(
+        request, leave_request, "leave.change_leaverequest"
+    ):
+        return _leave_decision_denied(request)
     form = RejectForm()
     if request.method == "POST":
         form = RejectForm(request.POST)
         if form.is_valid():
-            leave_request = LeaveRequest.objects.get(id=id)
             employee_id = leave_request.employee_id
             leave_type_id = leave_request.leave_type_id
             available_leave = AvailableLeave.objects.get(
@@ -2821,14 +2877,13 @@ def can_view_leave_request(request, leave_request):
     for absence, so cross-employee reads can expose medical information --
     special-category data under GDPR Art. 9. Reported as GHSA-mpw3-7c6v-vfjp.
 
-    The rule is the one view_leaverequest_comment already applied inline: the
-    owner, anyone holding the model permission, or a reporting manager. It is a
-    function here so the four sites that need it cannot drift apart.
+    The rule: the owner, anyone holding the model permission, or a manager of
+    *this* employee (see _may_act_on_leave_request). It first used
+    is_reportingmanager(), which is true for anyone who manages anybody, so
+    every line manager could still read every employee's request.
     """
-    return (
-        request.user.employee_get == leave_request.employee_id
-        or request.user.has_perm("leave.view_leaverequest")
-        or is_reportingmanager(request)
+    return _may_act_on_leave_request(
+        request, leave_request, "leave.view_leaverequest", owner_allowed=True
     )
 
 
@@ -4448,10 +4503,8 @@ def view_leaverequest_comment(request, leave_id):
     leave_request = LeaveRequest.find(leave_id)
     if not leave_request:
         return HttpResponse()
-    if not (
-        request.user.employee_get == leave_request.employee_id
-        or request.user.has_perm("leave.view_leaverequestcomment")
-        or is_reportingmanager(request)
+    if not _may_act_on_leave_request(
+        request, leave_request, "leave.view_leaverequestcomment", owner_allowed=True
     ):
         messages.warning(request, _("You don't have permission"))
         return render(request, "decorator_404.html")
@@ -4611,10 +4664,11 @@ def view_allocationrequest_comment(request, leave_id):
     leave_alloc_request = LeaveAllocationRequest.find(leave_id)
     if not leave_alloc_request:
         return HttpResponse()
-    if not (
-        request.user.employee_get == leave_alloc_request.employee_id
-        or request.user.has_perm("leave.view_leaveallocationrequestcomment")
-        or is_reportingmanager(request)
+    if not _may_act_on_leave_request(
+        request,
+        leave_alloc_request,
+        "leave.view_leaveallocationrequestcomment",
+        owner_allowed=True,
     ):
         messages.warning(request, _("You don't have permission"))
         return render(request, "decorator_404.html")
@@ -4660,10 +4714,8 @@ def delete_allocationrequest_comment(request, comment_id):
     if not comment:
         return HttpResponse(script)
     request_id = comment.request_id.id
-    if (
-        request.user.employee_get == comment.employee_id
-        or request.user.has_perm("leave.delete_leaveallocationrequestcomment")
-        or is_reportingmanager(request)
+    if request.user.employee_get == comment.employee_id or _may_act_on_leave_request(
+        request, comment.request_id, "leave.delete_leaveallocationrequestcomment"
     ):
         comment.delete()
         messages.success(request, _("Comment deleted successfully!"))
@@ -4689,12 +4741,12 @@ def delete_allocation_comment_file(request):
         return HorillaRedirect(
             request, message=_("No comment found matching the query.")
         )
-    if (
-        request.user.employee_get == comment.employee_id
-        or request.user.has_perm("leave.delete_leaverequestfile")
-        or is_reportingmanager(request)
+    if request.user.employee_get == comment.employee_id or _may_act_on_leave_request(
+        request, comment.request_id, "leave.delete_leaverequestfile"
     ):
-        LeaverequestFile.objects.filter(id__in=ids).delete()
+        # Only this comment's own files: ids come from the query string, and
+        # filtering LeaverequestFile by them alone deleted any attachment.
+        comment.files.filter(id__in=ids).delete()
         messages.success(request, _("File deleted successfully"))
     else:
         messages.warning(request, _("You don't have permission"))
@@ -4924,10 +4976,8 @@ def delete_leaverequest_comment(request, comment_id):
     comment = LeaverequestComment.find(comment_id)
     if not comment:
         return HttpResponse(script)
-    if (
-        request.user.employee_get == comment.employee_id
-        or request.user.has_perm("leave.delete_leaverequestcomment")
-        or is_reportingmanager(request)
+    if request.user.employee_get == comment.employee_id or _may_act_on_leave_request(
+        request, comment.request_id, "leave.delete_leaverequestcomment"
     ):
         comment.delete()
         messages.success(request, _("Comment deleted successfully!"))
@@ -4949,14 +4999,18 @@ def delete_leave_comment_file(request):
     leave_id = request.GET.get("leave_id")
     if not leave_id:
         return HorillaRedirect(request, message=_("No leave found matching the query."))
-    comment_id = request.GET["comment_id"]
+    comment_id = request.GET.get("comment_id")
     comment = LeaverequestComment.find(comment_id)
-    if (
-        request.user.employee_get == comment.employee_id
-        or request.user.has_perm("leave.delete_leaverequestfile")
-        or is_reportingmanager(request)
+    if not comment:
+        return HorillaRedirect(
+            request, message=_("No comment found matching the query.")
+        )
+    if request.user.employee_get == comment.employee_id or _may_act_on_leave_request(
+        request, comment.request_id, "leave.delete_leaverequestfile"
     ):
-        LeaverequestFile.objects.filter(id__in=ids).delete()
+        # Only this comment's own files: ids come from the query string, and
+        # filtering LeaverequestFile by them alone deleted any attachment.
+        comment.files.filter(id__in=ids).delete()
         messages.success(request, _("File deleted successfully"))
     else:
         messages.warning(request, _("You don't have permission"))
@@ -5013,7 +5067,6 @@ if apps.is_installed("attendance"):
         Used to delete attachment
         """
         ids = request.GET.getlist("ids")
-        LeaverequestFile.objects.filter(id__in=ids).delete()
         leave_id = request.GET.get("leave_id")
         if not leave_id:
             return HorillaRedirect(
@@ -5022,6 +5075,11 @@ if apps.is_installed("attendance"):
         comments = CompensatoryLeaverequestComment.objects.all()
         if not request.user.has_perm("leave.delete_compensatoryleaverequestcomment"):
             comments = comments.filter(employee_id__employee_user_id=request.user)
+        # Only files attached to comments this user may delete: it deleted any
+        # LeaverequestFile by id before, for any logged-in user.
+        LeaverequestFile.objects.filter(
+            id__in=ids, compensatoryleaverequestcomment__in=comments
+        ).delete()
         if request.GET.get("compensatory"):
             comments = comments.filter(request_id=leave_id).order_by("-created_at")
             template = "leave/compensatory_leave/compensatory_leave_comment.html"
