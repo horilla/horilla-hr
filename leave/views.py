@@ -5080,15 +5080,15 @@ if apps.is_installed("attendance"):
         LeaverequestFile.objects.filter(
             id__in=ids, compensatoryleaverequestcomment__in=comments
         ).delete()
-        if request.GET.get("compensatory"):
-            comments = comments.filter(request_id=leave_id).order_by("-created_at")
-            template = "leave/compensatory_leave/compensatory_leave_comment.html"
-        else:
-            comments = comments.filter(request_id=leave_id).order_by("-created_at")
-            template = "leave/leave_request/leave_comment.html"
+        # These are CompensatoryLeaverequestComment rows, so the compensatory
+        # template is the only one that can render them: the other branch fed
+        # them to leave/leave_request/leave_comment.html, which reads
+        # `leave_request` out of a context that never had it and 500s on
+        # {% url %}. The single caller always sends ?compensatory=True.
+        comments = comments.filter(request_id=leave_id).order_by("-created_at")
         return render(
             request,
-            template,
+            "leave/compensatory_leave/compensatory_leave_comment.html",
             {
                 "comments": comments,
                 "request_id": leave_id,
