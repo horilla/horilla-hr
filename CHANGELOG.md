@@ -32,6 +32,73 @@ date and open a fresh Unreleased above it.
 ### Security      — vulnerabilities fixed; link the advisory and credit the reporter
 -->
 
+## [2.1.8] — 2026-09-26
+
+Security release. **Upgrade from any 2.x — this closes an unauthenticated
+remote code execution flaw.** All five issues below are reachable without
+administrative privileges; the RCE needs no account at all.
+
+### Security
+
+| Advisory | Severity | Issue |
+|---|---|---|
+| [GHSA-x567-v324-7mr2](https://github.com/horilla/horilla-hr/security/advisories/GHSA-x567-v324-7mr2) | High | Unauthenticated remote code execution: the public recruitment application/survey flow let an anonymous visitor upload a `.py` file into an importable path, and the automation `get-to-mail-field` endpoint `__import__()`-ed a request-supplied module path, so a stored `<img>` auto-fetched by any recruiter's browser executed it as the server process |
+| [GHSA-23vp-5g5x-mh2x](https://github.com/horilla/horilla-hr/security/advisories/GHSA-23vp-5g5x-mh2x) | High | Three `/api/attendance/` mail endpoints took the target `employee_id` from the request body under an unscoped "manages anyone" check, letting any reporting manager read any employee's PII, list every mail template, and send attacker-controlled HTML from the company SMTP identity to any employee |
+| [GHSA-j3hc-6v4r-j658](https://github.com/horilla/horilla-hr/security/advisories/GHSA-j3hc-6v4r-j658) | Medium | The web check-in/out views did not enforce the configured geofence that the mobile/API flow already applied, so an employee outside the permitted area could punch in from a browser |
+| [GHSA-r59f-4xh4-58cf](https://github.com/horilla/horilla-hr/security/advisories/GHSA-r59f-4xh4-58cf) | Medium | The web attendance office-IP restriction trusted the first `X-Forwarded-For` value, which the client controls, so an employee off the office network could spoof an allowed address |
+
+With thanks to **@AlbertoFDR**, **@Ntn10** (with **@CARLOS1994ROMERO**), and
+**@nanuzn** for reporting these responsibly.
+
+**The RCE chain is cut at two independent points.** The candidate-survey upload
+now rejects executable Python extensions (`.py`/`.pyc`/…), and the automation
+model resolver no longer imports a caller-supplied path — it matches only
+against Django's already-registered models, so a file placed on disk can never
+be imported or executed through it.
+
+**The attendance mail endpoints now name their target.**
+`converted-mail-template` and `offline-employee-mail-send` use the
+instance-scoped `manager_or_owner_permission_required` (the decorator the
+pk-routed attendance endpoints already use), and `mail-templates` requires
+`base.view_horillamailtemplate` — the same permission its web list view uses —
+instead of "manages anyone".
+
+**Web attendance enforces the same controls as the API.** Check-in/out now
+apply the configured geofence (failing closed when the fence is enabled but the
+location cannot be verified) and resolve the client IP with the trusted-proxy
+bound `django-axes` already uses, honoring `X-Forwarded-For` only up to the
+configured proxy count.
+
+Also hardened: manager-only leave views (approve/reject/edit/delete/read) are
+now scoped to the employee the caller actually manages rather than to any
+reporting manager.
+
+### Added
+
+- REST: a `pending_approvals` count in the mobile home aggregate, reject-reason
+  storage on request rejections, and a reimbursement `status` filter.
+- REST: line managers can approve/reject reimbursements and reject asset
+  requests for their own reports.
+- REST: announcement list now respects its audience and gained a detail endpoint.
+- Attendance dashboard: a tile for employees who missed a punch, and an
+  "On Time" KPI filter.
+
+### Fixed
+
+- Work-type request create/approve no longer return `400` after saving the record.
+- Leave ledger entries are dated by the local calendar rather than UTC.
+- `Reimbursement.delete()` no longer raises `UnboundLocalError` on a pending claim.
+- `EmployeeWorkInformationAPIView` no longer `500`s on its own list route.
+- Leave overlap check ignores cancelled and rejected requests.
+- Asset return-fine action is gated by configuration and permission.
+
+### Changed
+
+- Modern dashboard styling refresh (badge colors, KPI cards); the Open
+  Recruitments KPI card was removed.
+- PMS objective, meeting and task views restyled; objective templates excluded
+  from the Assigned/All Objectives lists.
+
 ## [2.1.7] — 2026-09-16
 
 Bug-fix release, and the first to carry a **security fix**: archiving an
@@ -466,7 +533,8 @@ Secret — message delivery stops until it is set.
 docker pull horilla/horilla-hr:2.1.1
 ```
 
-[Unreleased]: https://github.com/horilla/horilla-hr/compare/2.1.7...HEAD
+[Unreleased]: https://github.com/horilla/horilla-hr/compare/2.1.8...HEAD
+[2.1.8]: https://github.com/horilla/horilla-hr/compare/2.1.7...2.1.8
 [2.1.7]: https://github.com/horilla/horilla-hr/compare/2.1.6...2.1.7
 [2.1.6]: https://github.com/horilla/horilla-hr/compare/2.1.5...2.1.6
 [2.1.5]: https://github.com/horilla/horilla-hr/compare/2.1.4...2.1.5

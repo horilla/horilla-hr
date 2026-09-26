@@ -5,7 +5,7 @@ this string matches the git tag being built, so a mismatch fails the release
 rather than shipping an image whose label disagrees with its tag.
 """
 
-__version__ = "2.1.7"
+__version__ = "2.1.8"
 
 # Contract version for unauthenticated clients. ``/health/`` advertises this
 # instead of ``__version__``: a client needs to know "is this Horilla, and does
