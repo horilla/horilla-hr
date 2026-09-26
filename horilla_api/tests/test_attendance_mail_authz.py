@@ -186,8 +186,9 @@ class MailTemplateListAuthorizationTests(TestCase):
     def test_a_manager_without_the_permission_cannot_list_templates(self):
         self._auth(self.manager_user)
         response = self.client.get(MAIL_TEMPLATES_URL)
-        # api_decorators.permission_required answers 401 on a missing perm.
-        self.assertEqual(response.status_code, 401)
+        # 403: authenticated, but lacks base.view_horillamailtemplate. (Being
+        # a reporting manager is no longer sufficient -- that was the bug.)
+        self.assertEqual(response.status_code, 403)
 
     def test_the_permission_holder_can_list_templates(self):
         self.manager_user.user_permissions.add(

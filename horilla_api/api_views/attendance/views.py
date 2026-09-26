@@ -1043,14 +1043,20 @@ class MailTemplateView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    # Was @manager_permission_required("employee.change_employee") -- "manages
-    # anyone" let any reporting manager enumerate every company mail template.
-    # Gate on the model's own view permission, matching the web list view
-    # (base.views.view_mail_templates), which is what actually governs seeing
-    # these. HorillaMailTemplate.objects is a HorillaCompanyManager, so the
-    # queryset stays company-scoped exactly as the web list is.
-    @method_decorator(permission_required("base.view_horillamailtemplate"))
     def get(self, request):
+        # Was @manager_permission_required("employee.change_employee") --
+        # "manages anyone" let any reporting manager enumerate every company
+        # mail template. Gate on the model's own view permission, matching the
+        # web list view (base.views.view_mail_templates), which is what
+        # actually governs seeing these. Checked inline rather than via
+        # api_decorators.permission_required so a permitted-but-forbidden
+        # caller gets 403 (authenticated, lacks the right), not that
+        # decorator's 401 -- 403 is the correct code and the behaviour the
+        # pre-existing test_write_permissions coverage already expects.
+        if not request.user.has_perm("base.view_horillamailtemplate"):
+            return Response({"error": _("No permission")}, status=403)
+        # HorillaMailTemplate.objects is a HorillaCompanyManager, so the
+        # queryset stays company-scoped exactly as the web list is.
         instances = HorillaMailTemplate.objects.all()
         serializer = MailTemplateSerializer(instances, many=True)
         return Response(serializer.data, status=200)
