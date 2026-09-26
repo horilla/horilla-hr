@@ -44,8 +44,14 @@ class TestCompanyLeaveAndRange(HolidayFixtureMixin, TestCase):
 
     def test_multi_day_holiday_zeroes_middle_day(self):
         start = date.today() - timedelta(days=120)
-        # Avoid colliding with fixture holiday dates
-        while start in {self.global_date, self.specific_date, self.normal_date}:
+        # Avoid colliding with fixture holiday dates. The old check shifted
+        # only `start`, but the test also asserts on `outside` (start + 3) --
+        # on run dates where that landed on a fixture holiday (e.g. today-120+3
+        # == global_date, seen 2026-09-26 with outside 2026-06-01), the
+        # "outside a holiday stays 08:00" assertion saw the fixture holiday and
+        # got 00:00. Shift until the whole window start..start+3 is clear.
+        fixture_dates = {self.global_date, self.specific_date, self.normal_date}
+        while fixture_dates & {start + timedelta(days=n) for n in range(4)}:
             start -= timedelta(days=1)
         end = start + timedelta(days=2)
         Holidays.objects.create(
