@@ -256,8 +256,10 @@
         localStorage.setItem("activeMenu", id);
     }
 
-    var message;
-    var languageCode = "en";
+    // The page already knows its language. It used to be fetched from
+    // /employee/get-language-code/, whose view was removed, so every page
+    // logged a 404. languageCode stays a global: other legacy templates read it.
+    var languageCode = "{{ LANGUAGE_CODE|default:'en'|escapejs }}";
     var emptyMessages = {
         ar: "...لم يتم العثور على بيانات",
         de: "Keine Daten gefunden...",
@@ -265,15 +267,7 @@
         en: "No records available at the moment.",
         fr: "Aucune donnée trouvée...",
     };
-
-    $.ajax({
-        type: "GET",
-        url: "/employee/get-language-code/",
-        success: function (response) {
-            languageCode = response.language_code;
-            message = emptyMessages[languageCode];
-        },
-    });
+    var message = emptyMessages[languageCode] || emptyMessages.en;
 
     function emptyChart(chart, args, options) {
         // Guard: chart/canvas from HTMX swap / destroy / rerender
@@ -316,7 +310,7 @@
 
         const message = chart?.data?.message
             ? chart.data.message
-            : emptyMessages[languageCode];
+            : emptyMessages[languageCode] || emptyMessages.en;
 
         noDataImage.onload = () => {
             // Guard
