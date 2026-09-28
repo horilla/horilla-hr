@@ -59,7 +59,7 @@ djangorestframework-simplejwt==5.5.1
 # (PYSEC-2026-176) and skips RFC 7515 crit-header validation
 # (PYSEC-2026-120). Both sit directly on the JWT verification path this
 # project authenticates API clients with. 2.13.0 clears all six.
-PyJWT==2.13.0
+PyJWT==2.15.0
 drf-yasg==1.21.15
 
 # Data processing
