@@ -1872,6 +1872,115 @@ class AttendanceSummaryHours(HorillaModel):
         return f"{self.employee_id} {self.from_date}–{self.to_date}: {h}h{m:02d}m"
 
 
+class AttendanceSummaryOverride(HorillaModel):
+    """
+    A month's attendance totals, stated by HR instead of counted.
+
+    Regularising day by day is the right tool for a handful of conflicts. It is
+    the wrong one at month end, where what HR actually knows is "this person
+    worked nineteen days, not three" -- a statement about the month, not about
+    any particular date. Reconstructing that into per-day decisions is work
+    nobody wants to do, and the per-day record it produces would be invented.
+
+    So this stores the month as given. Each count is nullable, and null means
+    "leave that one computed": correcting only ``absent`` is a normal thing to
+    want, and blanking the rest would silently zero them.
+
+    Separate from ``AttendanceSummaryHours`` rather than columns added to it.
+    That row is written on every summary load, for every employee, whether or
+    not anybody edited anything -- so its presence means nothing. Here the
+    presence of a row IS the override, and its absence is the absence of one.
+
+    An override also settles that employee's conflicts for the period: having
+    stated the totals, there is nothing left to decide about the individual
+    days, and payroll would otherwise stay blocked on conflicts the override
+    was written to answer.
+    """
+
+    employee_id = models.ForeignKey(
+        Employee,
+        on_delete=models.CASCADE,
+        related_name="summary_overrides",
+        verbose_name=_("Employee"),
+    )
+    from_date = models.DateField(verbose_name=_("From Date"))
+    to_date = models.DateField(verbose_name=_("To Date"))
+
+    present = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name=_("Present"),
+        help_text=_("Days present. Half days count as 0.5."),
+    )
+    paid_leave = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name=_("Paid Leave"),
+    )
+    unpaid_leave = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name=_("Unpaid Leave"),
+    )
+    absent = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name=_("Absent"),
+    )
+
+    note = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name=_("Reason"),
+        help_text=_("Why the counted figures were replaced."),
+    )
+
+    objects = HorillaCompanyManager("employee_id__employee_work_info__company_id")
+
+    class Meta:
+        unique_together = [["employee_id", "from_date", "to_date"]]
+        verbose_name = _("Attendance Summary Override")
+        verbose_name_plural = _("Attendance Summary Overrides")
+
+    def __str__(self):
+        return f"{self.employee_id} {self.from_date}–{self.to_date} (stated)"
+
+    def applied_to(self, row):
+        """
+        Overlay this override on a computed summary row, in place.
+
+        Only the counts that were given are replaced; the rest stay as counted.
+        """
+        for field in ("present", "paid_leave", "unpaid_leave", "absent"):
+            value = getattr(self, field)
+            if value is not None:
+                row[field] = value
+
+        # Stating the month answers the individual days it was written about.
+        # Without this, payroll stays blocked on conflicts the override exists
+        # precisely to settle.
+        row["unresolved_conflicts"] = 0
+        row["unresolved_conflict_dates"] = []
+        row["summary_overridden"] = True
+
+        # paid_days/unpaid_days are derived, so they have to follow.
+        row["paid_days"] = (
+            row.get("present", 0)
+            + row.get("paid_leave", 0)
+            + row.get("holiday", 0)
+            + row.get("week_off", 0)
+        )
+        row["unpaid_days"] = row.get("absent", 0) + row.get("unpaid_leave", 0)
+        row["working_days"] = (
+            row.get("present", 0)
+            + row.get("paid_leave", 0)
+            + row.get("unpaid_leave", 0)
+            + row.get("absent", 0)
+        )
+        return row
+
+
 class AttendanceDailyHours(HorillaModel):
     """
     Per-employee per-date worked hours, editable inside the calendar modal.

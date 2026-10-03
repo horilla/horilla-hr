@@ -1,0 +1,116 @@
+{% load i18n %}
+{% comment %}
+What the uploaded months are about to settle.
+
+Stating a month's totals answers the individual days it was written about --
+that is the point, and it is also a quiet thing to do to somebody's attendance
+record. So the upload stops here and shows which conflicts it would settle.
+
+Nothing has been written at this point. Cancelling leaves the attendance record
+exactly as it was, and the upload is thrown away rather than half-applied.
+{% endcomment %}
+
+<div class="oh-modal__dialog-header">
+  <span class="text-lg font-semibold text-gray-900">
+    <ion-icon name="alert-circle-outline" class="me-1"></ion-icon>
+    {% trans "Regularise these conflicts?" %}
+  </span>
+  <button class="oh-modal__close--custom" type="button"
+          aria-label="{% trans 'Close' %}"
+          onclick="$(this).closest('.oh-modal--show').removeClass('oh-modal--show')">
+    <ion-icon name="close-outline"></ion-icon>
+  </button>
+</div>
+
+<div class="oh-modal__dialog-body">
+  <style>
+    .rc__intro { font-size: .86rem; color: #374151; margin-bottom: 1rem; }
+    .rc__table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+    .rc__table th {
+      text-align: left; font-size: .7rem; text-transform: uppercase;
+      letter-spacing: .04em; color: #6b7280; font-weight: 600;
+      padding: .5rem .6rem; border-bottom: 1px solid #e5e7eb; background: #f9fafb;
+    }
+    .rc__table td {
+      padding: .55rem .6rem; border-bottom: 1px solid #f1f2f4;
+      vertical-align: top;
+    }
+    .rc__dates { color: #6b7280; font-size: .78rem; }
+    .rc__count {
+      display: inline-block; min-width: 1.6rem; text-align: center;
+      background: #fef3c7; color: #92400e; border-radius: 999px;
+      font-weight: 600; padding: 1px 7px; font-size: .75rem;
+    }
+    .rc__scroll { max-height: 46vh; overflow-y: auto; }
+    .rc__scroll::-webkit-scrollbar { width: 6px; }
+    .rc__scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+    .rc__foot {
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 1rem; margin-top: 1rem; flex-wrap: wrap;
+    }
+    .rc__note { font-size: .78rem; color: #6b7280; }
+  </style>
+
+  <div class="rc__intro">
+    {% blocktrans count n=rows|length with start=period_from|date:"j M Y" end=period_to|date:"j M Y" %}
+      One employee in this upload has a day with both attendance and leave on it,
+      still unresolved for {{ start }} – {{ end }}. Stating their totals settles it.
+    {% plural %}
+      {{ n }} employees in this upload have days with both attendance and leave on
+      them, still unresolved for {{ start }} – {{ end }}. Stating their totals
+      settles them.
+    {% endblocktrans %}
+  </div>
+
+  <div class="rc__scroll">
+    <table class="rc__table">
+      <thead>
+        <tr>
+          <th>{% trans "Employee" %}</th>
+          <th style="width:4.5rem;">{% trans "Days" %}</th>
+          <th>{% trans "Dates" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td>{{ row.employee }}</td>
+          <td><span class="rc__count">{{ row.unresolved_conflicts }}</span></td>
+          <td class="rc__dates">
+            {% for day in row.unresolved_conflict_dates %}
+              {{ day|date:"j M" }}{% if not forloop.last %}, {% endif %}
+            {% empty %}
+              &mdash;
+            {% endfor %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <form method="post" action="{% url 'attendance-regularisation-confirm' %}"
+        hx-post="{% url 'attendance-regularisation-confirm' %}"
+        hx-swap="none">
+    {% csrf_token %}
+    <div class="rc__foot">
+      <span class="rc__note">
+        {% blocktrans count n=total %}
+          Applies to {{ n }} employee in the upload.
+        {% plural %}
+          Applies to all {{ n }} employees in the upload.
+        {% endblocktrans %}
+        {% trans "Nothing has been saved yet." %}
+      </span>
+      <span>
+        <button type="submit" name="cancel" value="1" class="oh-btn oh-btn--light">
+          {% trans "Cancel" %}
+        </button>
+        <button type="submit" class="oh-btn oh-btn--secondary">
+          <ion-icon name="checkmark-outline" class="me-1"></ion-icon>
+          {% trans "Regularise and save" %}
+        </button>
+      </span>
+    </div>
+  </form>
+</div>

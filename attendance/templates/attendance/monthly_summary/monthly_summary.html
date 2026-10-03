@@ -4,7 +4,7 @@
 {% include 'generic/modern_filter_panel.html' %}
 
 <style>
-  body.dark .ms-page-header h3 { color: #dfdfdf !important; }
+  body.dark .ms-toolbar-row .oh-main__titlebar-title { color: #dfdfdf !important; }
   /* Active-filter chip row -- colors/sizing copied from the computed
      styles of .oh-titlebar__tag.filter-field / .oh-titlebar__tag-close
      (generic/filter_tags.html) so this hand-built row matches exactly
@@ -38,6 +38,119 @@
     flex-shrink: 0;
   }
   .ms-filter-tag .ms-filter-tag-close ion-icon { font-size: 11px; }
+
+  /* Filter / Export / Actions, styled explicitly rather than left to
+     .oh-btn / .oh-btn-group -- two rounds of matching those classes
+     against the Employees page's own markup each looked right in the
+     rendered HTML but still didn't match live, so this no longer leans on
+     shared, ambiently-inherited rules whose actual computed result here
+     cannot be confirmed without a browser. Every property below is set on
+     one page-local class, so nothing about how it looks depends on what
+     else does or doesn't apply above it in the cascade. */
+  .ms-toolbar-row .oh-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    height: 2.375rem !important;
+    padding: 0 1rem !important;
+    font-size: .8rem !important;
+    font-weight: 500 !important;
+    color: hsl(219, 9%, 29%) !important;
+    background-color: #fff !important;
+    border: 1px solid hsl(213, 22%, 84%) !important;
+    border-radius: 0.375rem !important;
+    box-shadow: none !important;
+  }
+  .ms-toolbar-row .oh-btn:hover { background-color: hsl(210, 20%, 98%) !important; }
+  .ms-toolbar-row .oh-btn.oh-btn--secondary {
+    background-color: hsl(8, 77%, 56%) !important;
+    border-color: hsl(8, 77%, 56%) !important;
+    color: #fff !important;
+  }
+  .ms-toolbar-row .oh-btn.oh-btn--secondary:hover { background-color: hsl(8, 61%, 50%) !important; }
+  body.dark .ms-toolbar-row .oh-btn {
+    background-color: #242424 !important;
+    border-color: #3a3a3a !important;
+    color: #e5e7eb !important;
+  }
+  body.dark .ms-toolbar-row .oh-btn:hover { background-color: #1a1a1a !important; }
+
+  /* Filter, once something is actually filtered -- the accent border and
+     the count badge the standard toolbar shows on its own Filter button
+     when it isn't sitting at its default, unfiltered state. Toggled by
+     msRenderFilterTags() below, which already works out whether anything
+     is active to build the filter-chip row; this reads the same count
+     rather than re-deriving it. */
+  .ms-toolbar-row .oh-btn.ms-filter-active {
+    border-color: hsl(8, 77%, 56%) !important;
+    color: hsl(8, 77%, 56%) !important;
+  }
+  .ms-filter-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 16px; height: 16px; padding: 0 4px; margin-left: 4px;
+    border-radius: 999px; background: hsl(8, 77%, 56%); color: #fff;
+    font-size: .65rem; font-weight: 700; line-height: 1;
+  }
+
+  /* A small link, sized to its own text -- not .oh-dropdown__link's
+     display:block;width:100%;height:100%, correct for a menu row inside a
+     constraining <li> but not for a link standing on its own in a modal
+     body, where it stretched to the full width and whatever height its
+     siblings gave the row. */
+  .ms-download-template {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: .85rem; color: hsl(219, 9%, 29%);
+    text-decoration: none; cursor: pointer;
+  }
+  .ms-download-template:hover { color: hsl(8, 77%, 56%); }
+  .ms-download-template ion-icon { font-size: 18px; }
+
+  /* Same fixed height as the buttons above, so the row's four controls --
+     two date inputs, the search box, the buttons -- share one edge instead
+     of each control supplying its own idea of how tall it is. */
+  .ms-toolbar-row .oh-input { height: 2.375rem !important; margin-bottom: 0 !important; }
+
+  /* The dropdown menu, made explicit for the same reason as the buttons
+     above: Actions is the row's last/rightmost control, and whatever was
+     deciding where its menu opens and whether it sits above the KPI cards
+     below it was not something reading .oh-dropdown__menu--right's
+     "right: 0" alone could confirm without a browser. Right-anchored and
+     given its own background/shadow/z-index here rather than assumed. */
+  .ms-toolbar-row .oh-dropdown { position: relative !important; }
+  .ms-toolbar-row .oh-dropdown__menu {
+    position: absolute !important;
+    top: calc(100% + 4px) !important;
+    right: 0 !important;
+    left: auto !important;
+    min-width: 200px !important;
+    background: #fff !important;
+    border: 1px solid hsl(213, 22%, 84%) !important;
+    border-radius: 0.375rem !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .12) !important;
+    z-index: 50 !important;
+  }
+  body.dark .ms-toolbar-row .oh-dropdown__menu {
+    background: #242424 !important; border-color: #3a3a3a !important;
+  }
+
+  /* A small gap, not the 1.5rem tried earlier -- that read as the title
+     having drifted away from the toolbar row above it rather than sitting
+     with it as one header block. */
+  /* Title now sits in the toolbar row itself (left side, toolbar controls
+     grouped on the right) rather than on a row of its own underneath, so
+     it only needs its own size fixed, not a margin separating it from
+     anything -- gap on .ms-toolbar-row already spaces it from its
+     siblings the same as every other item in that row. */
+  .ms-toolbar-row .oh-main__titlebar-title {
+    margin: 0 !important;
+    padding: 0 !important;
+    font-weight: 700 !important;
+    /* v1_styles.css defines this class twice -- 1.5rem earlier in the
+       file, 1rem later, unconditionally -- and the later, unconditional
+       rule is what actually wins the cascade site-wide. Matched to that
+       real value instead of the first (overridden) one this was matched
+       against before. */
+    font-size: 1rem !important;
+  }
 </style>
 
 <div class="oh-wrapper">
@@ -49,73 +162,94 @@
           hx-target="#summary-table-container"
           hx-push-url="false">
 
-      <div class="ms-page-header flex flex-wrap justify-between items-center mb-2">
-        <h3 class="text-lg font-semibold" style="margin:0;">{% trans "Monthly Attendance Summary" %}</h3>
-
-        <div class="flex flex-wrap gap-1">
-          <!-- Search -->
-          <div class="relative">
-            <input type="text"
-                   name="search"
-                   id="ms-search-input"
-                   placeholder="{% trans 'Employee name…' %}"
-                   autocomplete="off"
-                   hx-get="{% url 'attendance-monthly-summary-table' %}"
-                   hx-target="#summary-table-container"
-                   hx-trigger="input changed delay:400ms"
-                   hx-include="#summary-filter-form"
-                   class="text-color-600 ps-8 p-1.5 pb-2 placeholder:text-xs w-full border border-dark-50 rounded-md focus-visible:outline-0 placeholder:text-dark-100 text-sm [transition:.3s] focus:border-primary-600"
-                   style="width:200px;">
-            <i class="fas fa-search absolute left-3 top-[1px] bottom-0 m-auto flex items-center opacity-50 text-xs"></i>
-            <button type="button" id="ms-search-clear"
-                    onclick="document.getElementById('ms-search-input').value='';
-                             document.getElementById('ms-search-input').dispatchEvent(new Event('input'));"
-                    style="position:absolute;top:50%;right:8px;transform:translateY(-50%);
-                           background:none;border:none;cursor:pointer;color:#9ca3af;
-                           padding:0;display:none;line-height:1;"
-                    title="{% trans 'Clear' %}">
-              <ion-icon name="close-circle-outline" style="font-size:.9rem;"></ion-icon>
-            </button>
-          </div>
-
-          <!-- Date range -->
-          <input type="date"
-                 name="from_date"
-                 id="ms-from-date"
-                 value="{{ from_date }}"
-                 title="{% trans 'From' %}"
+      {% comment %}
+      Title and toolbar on one row -- title left, search/date/Filter/
+      Actions grouped right -- not the title on its own row underneath.
+      Every control below keeps its existing hx-get/hx-trigger/id; only
+      this wrapper and the title's position changed.
+      {% endcomment %}
+      <div class="ms-toolbar-row flex flex-wrap justify-between items-center gap-2 mb-3">
+        <h3 class="oh-main__titlebar-title fw-bold mb-0">
+          {% trans "Monthly Attendance Summary" %}
+        </h3>
+        <div class="flex flex-wrap items-center gap-2">
+        <!-- Search -->
+        <div class="oh-input-group" style="position:relative;width:200px;">
+          <ion-icon name="search-outline" class="oh-input-group__icon oh-input-group__icon--left"
+                    style="position:absolute;top:50%;left:10px;transform:translateY(-50%);font-size:.85rem;color:#9ca3af;"></ion-icon>
+          <input type="text"
+                 name="search"
+                 id="ms-search-input"
+                 placeholder="{% trans 'Employee name…' %}"
+                 value="{{ search }}"
+                 autocomplete="off"
                  hx-get="{% url 'attendance-monthly-summary-table' %}"
                  hx-target="#summary-table-container"
-                 hx-trigger="change"
+                 hx-trigger="input changed delay:400ms"
                  hx-include="#summary-filter-form"
-                 class="text-color-600 p-1.5 pb-2 border border-dark-50 rounded-md focus-visible:outline-0 text-sm [transition:.3s] focus:border-primary-600"
-                 style="width:145px;">
-          <input type="date"
-                 name="to_date"
-                 id="ms-to-date"
-                 value="{{ to_date }}"
-                 title="{% trans 'To' %}"
-                 hx-get="{% url 'attendance-monthly-summary-table' %}"
-                 hx-target="#summary-table-container"
-                 hx-trigger="change"
-                 hx-include="#summary-filter-form"
-                 class="text-color-600 p-1.5 pb-2 border border-dark-50 rounded-md focus-visible:outline-0 text-sm [transition:.3s] focus:border-primary-600"
-                 style="width:145px;">
+                 class="oh-input"
+                 style="padding-left:28px;padding-right:26px;height:2.375rem;margin-bottom:0;">
+          <button type="button" id="ms-search-clear"
+                  onclick="document.getElementById('ms-search-input').value='';
+                           document.getElementById('ms-search-input').dispatchEvent(new Event('input'));"
+                  style="position:absolute;top:50%;right:8px;transform:translateY(-50%);
+                         background:none;border:none;cursor:pointer;color:#9ca3af;
+                         padding:0;display:none;line-height:1;"
+                  title="{% trans 'Clear' %}">
+            <ion-icon name="close-circle-outline" style="font-size:.9rem;"></ion-icon>
+          </button>
+        </div>
 
-          <!-- Modern slide-over filter panel (generic/modern_filter_panel.html)
-               -- same offcanvas used by Attendance/Late Arrival/Check-in Log/
-               Employee/Work Records this session, not a bespoke anchored
-               dropdown. Trigger/backdrop/panel ids aren't namespaced (only
-               one panel per page), so this replaces the page's earlier
-               custom #ms-filter-toggle/#ms-filter-dropdown implementation
-               entirely rather than living alongside it. -->
+        <!-- Date range -->
+        <input type="date"
+               name="from_date"
+               id="ms-from-date"
+               value="{{ from_date }}"
+               title="{% trans 'From' %}"
+               hx-get="{% url 'attendance-monthly-summary-table' %}"
+               hx-target="#summary-table-container"
+               hx-trigger="change"
+               hx-include="#summary-filter-form"
+               class="oh-input"
+               style="width:145px;height:2.375rem;margin-bottom:0;">
+        <input type="date"
+               name="to_date"
+               id="ms-to-date"
+               value="{{ to_date }}"
+               title="{% trans 'To' %}"
+               hx-get="{% url 'attendance-monthly-summary-table' %}"
+               hx-target="#summary-table-container"
+               hx-trigger="change"
+               hx-include="#summary-filter-form"
+               class="oh-input"
+               style="width:145px;height:2.375rem;margin-bottom:0;">
+
+        <!-- Modern slide-over filter panel (generic/modern_filter_panel.html)
+             -- same offcanvas used by Attendance/Late Arrival/Check-in Log/
+             Employee/Work Records this session, not a bespoke anchored
+             dropdown. Trigger/backdrop/panel ids aren't namespaced (only
+             one panel per page), so this replaces the page's earlier
+             custom #ms-filter-toggle/#ms-filter-dropdown implementation
+             entirely rather than living alongside it. -->
+        {% comment %}
+        .oh-btn on its own has no border or fill (v1_styles.css: border:none;
+        background-color:transparent) -- what gives Filter/Actions their
+        white-boxed look on every other toolbar is the wrapping .oh-btn-group
+        (main.css: border:1px solid ...), not the button class itself. Only
+        Actions was wrapped in one; Filter is now too, matched to how it
+        looks everywhere else rather than left relying on .oh-btn alone.
+        {% endcomment %}
+        <div class="oh-btn-group">
           <button type="button"
                   id="modernFilterTrigger"
                   onclick="toggleModernFilterPanel(true)"
-                  class="px-5 py-2 h-full bg-[white] rounded-md text-xs flex items-center gap-2 border border-primary-500 hover:border-primary-600 transition duration-300 cursor-pointer">
-            <ion-icon name="filter-outline"></ion-icon> {% trans "Filter" %}
+                  class="oh-btn{% if active_filter_count %} ms-filter-active{% endif %}">
+            <ion-icon name="filter" class="me-1"></ion-icon>{% trans "Filter" %}
+            <span id="ms-filter-badge" class="ms-filter-badge"
+                  {% if not active_filter_count %}style="display:none;"{% endif %}>{{ active_filter_count|default:"" }}</span>
           </button>
-          <div class="oh-filter-backdrop" id="modernFilterBackdrop" onclick="toggleModernFilterPanel(false)"></div>
+        </div>
+        <div class="oh-filter-backdrop" id="modernFilterBackdrop" onclick="toggleModernFilterPanel(false)"></div>
           <div class="oh-filter-panel oh-filter-modern" id="modernFilterPanel">
             <div class="oh-filter-panel__header">
               <h3>{% trans "Filter" %} {% trans "Monthly Attendance Summary" %}</h3>
@@ -143,6 +277,7 @@
                 <label class="oh-label">{% trans "Name or Badge ID" %}</label>
                 <input type="text" name="name_or_badge" id="ms-name-or-badge-input"
                        placeholder="{% trans 'e.g. John, PEP01, PEP02' %}"
+                       value="{{ name_or_badge }}" autocomplete="off"
                        class="oh-input w-100">
               </div>
               <div class="oh-accordion oh-accordion--show">
@@ -285,13 +420,17 @@
               </div>
             </div>
             <div class="oh-filter-panel__footer">
-              <!-- Full-page reset (not a per-field clear) -- simplest
-                   reliable way to clear every AJAX multi-select's selected
-                   chips, the date range, and search/name_or_badge together,
-                   same behavior the chip row's own "Clear All" already
-                   used (see msRenderFilterTags() below) before this panel
-                   existed. -->
-              <button type="button" class="oh-filter-panel__clear" onclick="window.location.href='{% url 'attendance-monthly-summary' %}'">
+              {% comment %}
+              msClearAllFilters() -- every field emptied directly and one
+              htmx refresh, not a page reload or a navigation to this same
+              bare URL (hx-push-url="false" means the address bar is
+              always this bare URL regardless of which filters are
+              applied, so href-to-self was a no-op in most browsers; and a
+              plain reload still left the browser free to silently refill
+              a text input with whatever was last typed into it,
+              independently of what the server actually rendered).
+              {% endcomment %}
+              <button type="button" class="oh-filter-panel__clear" onclick="msClearAllFilters()">
                 <ion-icon name="close-outline"></ion-icon>
                 {% trans "Clear all" %}
               </button>
@@ -302,18 +441,73 @@
             </div>
           </div>
 
-          <!-- Export — msSyncExportLink() switches this to exporting only
-               the checked rows whenever the table's own selection
-               (#selectedInstances) is non-empty, same idea as the
-               Select/Unselect/Update toolbar already reacting to it. -->
-          <a id="export-btn"
-             href="{% url 'attendance-monthly-summary-export' %}?{{ pd }}"
-             class="px-4 py-2 bg-brand-600 text-white rounded-md text-xs flex items-center gap-2 hover:bg-brand-800 transition duration-300 cursor-pointer">
-            <ion-icon name="download-outline"></ion-icon>
-            <span id="export-btn-label">{% trans "Export XLSX" %}</span>
-          </a>
+        {% comment %}
+        Export and the regularisation actions, both tucked behind one
+        oh-btn-group / oh-dropdown "Actions" trigger (matched class-for-
+        class against employee_nav.html's own Actions button) rather than
+        Export standing alone -- Export has no permission of its own, so it
+        is always the first item here; Summary sheet / Upload filled sheet
+        stay gated behind change_attendance underneath it, same as before.
+
+        msSyncExportLink() still switches #export-btn-label between
+        "Export XLSX" and "Export Selected (N)" from the table's own
+        selection -- only where the link sits changed, not its id or what
+        drives its label.
+
+        Upload filled sheet opens a real modal instead of auto-clicking a
+        hidden file input: the hidden-input approach left a raw, unstyled
+        "Choose file" control rendered in the toolbar in practice, and a
+        modal is also where every other page's import lives (compare
+        attendance_nav.html's own #attendanceImport).
+
+        The calendar resolves one day at a time, which does not scale to a
+        month end -- and what is actually known is "this person worked
+        nineteen days", a statement about the month rather than about any
+        date. The sheet comes pre-filled with what was counted, so only the
+        wrong figures need touching.
+        {% endcomment %}
+        {% comment %}
+        x-data lives on .oh-dropdown (the hover target), not the button:
+        @mouseenter/@mouseleave open and close it on hover rather than
+        click, and .oh-btn--dropdown is dropped entirely rather than kept
+        and hidden -- it draws its caret through a CSS content: url(...)
+        on ::after, which cannot be turned off with a color or display
+        override the way an real icon element could.
+        {% endcomment %}
+        <div class="oh-btn-group ml-2">
+          <div class="oh-dropdown" x-data="{open: false}"
+               @mouseenter="open = true" @mouseleave="open = false">
+            <button type="button" class="oh-btn">
+              <ion-icon name="settings-outline" class="me-1"></ion-icon>
+              {% trans "Actions" %}
+            </button>
+            <div class="oh-dropdown__menu oh-dropdown__menu--right" x-show="open" style="display:none;">
+              <ul class="oh-dropdown__items">
+                <li class="oh-dropdown__item">
+                  <a id="export-btn" class="oh-dropdown__link"
+                     href="{% url 'attendance-monthly-summary-export' %}?{{ pd }}">
+                    <ion-icon name="download-outline" class="me-1"></ion-icon>
+                    <span id="export-btn-label">{% trans "Export XLSX" %}</span>
+                  </a>
+                </li>
+                {% if perms.attendance.change_attendance %}
+                <li class="oh-dropdown__item">
+                  <a href="#" class="oh-dropdown__link"
+                     data-toggle="oh-modal-toggle" data-target="#msRegImportModal"
+                     @click="open=false">
+                    <ion-icon name="cloud-upload-outline" class="me-1"></ion-icon>
+                    {% trans "Upload filled sheet" %}
+                  </a>
+                </li>
+                {% endif %}
+              </ul>
+            </div>
+          </div>
+        </div>
+        <!-- /toolbar controls -->
         </div>
       </div>
+      <!-- /.ms-toolbar-row -->
 
       <!-- Active-filter chips — display toggled purely inline (no d-flex class:
            Horilla's .d-flex is display:flex !important, which would beat this
@@ -322,6 +516,64 @@
         <span class="oh-titlebar__tag oh-titlebar__tag--custom">{% trans 'Filters' %}:</span>
       </div>
     </form>
+
+    {% comment %}
+    Outside #summary-filter-form on purpose: this modal holds its own
+    <form>, and a <form> nested inside another <form> is invalid HTML (and
+    would submit the wrong one). Matches attendance_nav.html's own
+    #attendanceImport, likewise a sibling of the page's main filter form.
+    {% endcomment %}
+    {% if perms.attendance.change_attendance %}
+    <div class="oh-modal" id="msRegImportModal" role="dialog" aria-labelledby="msRegImportModal" aria-hidden="true">
+      <div class="oh-modal__dialog" style="max-width:480px;">
+        <div class="oh-modal__dialog-header">
+          <h2 class="oh-modal__dialog-title">{% trans "Upload filled sheet" %}</h2>
+          <button class="oh-modal__close" aria-label="{% trans 'Close' %}">
+            <ion-icon name="close-outline"></ion-icon>
+          </button>
+        </div>
+        <div class="oh-modal__dialog-body">
+          <form method="post" action="{% url 'attendance-regularisation-import' %}"
+                enctype="multipart/form-data">
+            {% csrf_token %}
+            {# The period the stated totals belong to, not read from the sheet. #}
+            <input type="hidden" name="from_date" value="{{ from_date|date:'Y-m-d' }}">
+            <input type="hidden" name="to_date" value="{{ to_date|date:'Y-m-d' }}">
+            <label class="oh-dropdown__import-label" for="ms-reg-file">
+              <ion-icon name="cloud-upload" class="oh-dropdown__import-form-icon"></ion-icon>
+              <span class="oh-dropdown__import-form-title">{% trans "Upload a File" %}</span>
+              <span class="oh-dropdown__import-form-text">{% trans "Drag and drop files here" %}</span>
+            </label>
+            <input type="file" name="regularisation_file" id="ms-reg-file"
+                   accept=".xlsx,.xls,.csv" required>
+            {% comment %}
+            The pre-filled sheet to fill in, not a generic blank template --
+            same "download what this upload expects, from right beside the
+            upload control" placement as import_block.html /
+            attendance_nav.html's own #attendanceImport, moved here from a
+            separate "Summary sheet" entry in the Actions menu since the two
+            were really one download-then-upload step split across two
+            different places.
+
+            Not .oh-dropdown__link here: that class is display:block;
+            width:100%;height:100% (main.css), sized for a menu row whose
+            surrounding <li> already constrains it -- outside that context
+            it stretched to the full width of the modal body instead of
+            reading as a small link. Styled directly instead.
+            {% endcomment %}
+            <a href="{% url 'attendance-regularisation-template' %}?{{ pd }}"
+               class="ms-download-template mt-2">
+              <ion-icon name="cloud-download-outline"></ion-icon>
+              {% trans "Download the summary sheet" %}
+            </a>
+            <button type="submit" class="oh-btn oh-btn--secondary w-100 mt-3">
+              {% trans "Upload" %}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endif %}
 
     {% comment %}
     This page builds its own filter-tag row (msRenderFilterTags below)
@@ -361,6 +613,49 @@
 // $(document).ready() and htmx:afterSettle) -- no page-local select2()
 // call needed either.
 
+// Every multi-select field the "Filters:" chip row and Clear All both need
+// to know about -- one list, so adding a field to the filter panel means
+// updating it in exactly one place instead of two that could drift apart.
+var MS_MULTI_FIELDS = [
+  { name: 'employee_id', label: "{% trans 'Employee'|escapejs %}" },
+  { name: 'department_id', label: "{% trans 'Department'|escapejs %}" },
+  { name: 'job_position_id', label: "{% trans 'Job Position'|escapejs %}" },
+  { name: 'shift_id', label: "{% trans 'Shift'|escapejs %}" },
+  { name: 'work_type_id', label: "{% trans 'Work Type'|escapejs %}" },
+  { name: 'employee_work_info__company_id', label: "{% trans 'Company'|escapejs %}" },
+  { name: 'employee_work_info__reporting_manager_id', label: "{% trans 'Reporting Manager'|escapejs %}" },
+  { name: 'employee_work_info__tags', label: "{% trans 'Employee Tag'|escapejs %}" },
+];
+
+// Clear All: every field the chip row can show emptied directly, then one
+// direct refresh -- not a page reload (Chrome/Firefox restore a text
+// input's last-typed value across a plain reload independently of
+// whatever the server actually renders for it, which is exactly what kept
+// "Clear all" looking like it had done nothing: the server-side state was
+// genuinely reset, but the browser quietly refilled the input anyway).
+function msClearAllFilters() {
+  var search = document.getElementById('ms-search-input');
+  if (search) search.value = '';
+  var nameOrBadge = document.getElementById('ms-name-or-badge-input');
+  if (nameOrBadge) nameOrBadge.value = '';
+  var anyRadio = document.querySelector('[name="is_active"][value=""]');
+  if (anyRadio) anyRadio.checked = true;
+  MS_MULTI_FIELDS.forEach(function (f) {
+    var field = document.querySelector('[name="' + f.name + '"]');
+    if (!field) return;
+    Array.from(field.options || []).forEach(function (o) { o.selected = false; });
+    if (window.jQuery) jQuery(field).trigger('change');
+  });
+
+  var form = document.getElementById('summary-filter-form');
+  var params = new URLSearchParams(new FormData(form)).toString();
+  htmx.ajax('GET', "{% url 'attendance-monthly-summary-table' %}" + (params ? '?' + params : ''), {
+    target: '#summary-table-container',
+    swap: 'innerHTML',
+  });
+  msRenderFilterTags();
+}
+
 // ── Active-filter chips (mirrors generic/filter_tags.html's look) ──
 // The filter form never pushes its params to the browser URL
 // (hx-push-url="false"), so the chips are built from the form's own
@@ -378,17 +673,7 @@ function msRenderFilterTags() {
   if (nameOrBadgeVal) {
     chips.push({ key: 'name_or_badge', label: "{% trans 'Name or Badge ID'|escapejs %}", value: nameOrBadgeVal });
   }
-  var multiFields = [
-    { name: 'employee_id', label: "{% trans 'Employee'|escapejs %}" },
-    { name: 'department_id', label: "{% trans 'Department'|escapejs %}" },
-    { name: 'job_position_id', label: "{% trans 'Job Position'|escapejs %}" },
-    { name: 'shift_id', label: "{% trans 'Shift'|escapejs %}" },
-    { name: 'work_type_id', label: "{% trans 'Work Type'|escapejs %}" },
-    { name: 'employee_work_info__company_id', label: "{% trans 'Company'|escapejs %}" },
-    { name: 'employee_work_info__reporting_manager_id', label: "{% trans 'Reporting Manager'|escapejs %}" },
-    { name: 'employee_work_info__tags', label: "{% trans 'Employee Tag'|escapejs %}" },
-  ];
-  multiFields.forEach(function (f) {
+  MS_MULTI_FIELDS.forEach(function (f) {
     var select = document.querySelector('[name="' + f.name + '"]');
     if (!select) return;
     var selected = Array.from(select.selectedOptions || []);
@@ -406,6 +691,16 @@ function msRenderFilterTags() {
       label: "{% trans 'Is Active'|escapejs %}",
       value: activeEl.value === 'True' ? "{% trans 'Yes'|escapejs %}" : "{% trans 'No'|escapejs %}",
     });
+  }
+
+  // Filter button: the same red accent + count badge the standard toolbar
+  // shows once its own filter panel is no longer at the unfiltered default.
+  var filterBtn = document.getElementById('modernFilterTrigger');
+  var filterBadge = document.getElementById('ms-filter-badge');
+  if (filterBtn && filterBadge) {
+    filterBtn.classList.toggle('ms-filter-active', chips.length > 0);
+    filterBadge.textContent = String(chips.length);
+    filterBadge.style.display = chips.length ? 'inline-flex' : 'none';
   }
 
   wrap.innerHTML = '<span class="oh-titlebar__tag oh-titlebar__tag--custom">{% trans "Filters"|escapejs %}:</span>';
@@ -434,7 +729,7 @@ function msRenderFilterTags() {
   clearAll.className = 'oh-titlebar__tag oh-titlebar__tag--custom';
   clearAll.style.cursor = 'pointer';
   clearAll.title = "{% trans 'Clear All'|escapejs %}";
-  clearAll.onclick = function () { window.location.href = "{% url 'attendance-monthly-summary' %}"; };
+  clearAll.onclick = msClearAllFilters;
   clearAll.innerHTML = '<ion-icon name="close-outline"></ion-icon>';
   wrap.appendChild(clearAll);
 }
@@ -464,28 +759,45 @@ document.getElementById('ms-filter-tags').addEventListener('click', function (e)
   var closeEl = e.target.closest && e.target.closest('[data-clear-key]');
   var key = closeEl && closeEl.getAttribute('data-clear-key');
   if (!key) return;
+
   if (key === 'search') {
     document.getElementById('ms-search-input').value = '';
-    document.getElementById('ms-search-input').dispatchEvent(new Event('input'));
-    return;
-  }
-  if (key === 'name_or_badge') {
+  } else if (key === 'name_or_badge') {
     document.getElementById('ms-name-or-badge-input').value = '';
-    document.getElementById('ms-apply-filter').click();
-    return;
-  }
-  if (key === 'is_active') {
+  } else if (key === 'is_active') {
     var anyRadio = document.querySelector('[name="is_active"][value=""]');
     if (anyRadio) anyRadio.checked = true;
-    document.getElementById('ms-apply-filter').click();
-    return;
+  } else {
+    var field = document.querySelector('[name="' + key + '"]');
+    if (field) {
+      Array.from(field.options || []).forEach(function (o) { o.selected = false; });
+      // Select2 renders its own chips from the <select>'s state at the
+      // time it last saw a change event -- clearing .selected above
+      // doesn't reach it on its own, so its widget kept showing the
+      // cleared option as still picked until told to re-read the field.
+      if (window.jQuery) jQuery(field).trigger('change');
+    }
   }
-  var field = document.querySelector('[name="' + key + '"]');
-  if (field) {
-    Array.from(field.options || []).forEach(function (o) { o.selected = false; });
-    if (window.jQuery) jQuery(field).trigger('change');
-  }
-  document.getElementById('ms-apply-filter').click();
+
+  // The table refresh no longer goes through .click() on the Apply submit
+  // button -- for every key except "search" that meant relying on htmx's
+  // own interception of the form's native "submit" event correctly
+  // reaching completion before anything else read the form's state, which
+  // is more machinery than this needs. htmx.ajax() with the form's current
+  // (already-cleared) values is the same direct call msSaveCurrentFilter()
+  // above already uses for its own htmx request, applied here instead of
+  // trusting a simulated click through a different code path per field.
+  var form = document.getElementById('summary-filter-form');
+  var params = new URLSearchParams(new FormData(form)).toString();
+  htmx.ajax('GET', "{% url 'attendance-monthly-summary-table' %}" + (params ? '?' + params : ''), {
+    target: '#summary-table-container',
+    swap: 'innerHTML',
+  });
+
+  // Called directly rather than left to arrive via some other element's
+  // own event -- the field this chip belongs to has already been cleared
+  // above, so rebuilding the row now is always correct.
+  msRenderFilterTags();
 });
 
 document.getElementById('summary-filter-form').addEventListener('submit', msRenderFilterTags);
@@ -652,4 +964,11 @@ window.msCalHoursCancel = function (empPk, dateStr, fromDate, toDate, computedSe
 };
 </script>
 
+{% comment %}
+#relatedObjectModal, which the regularisation confirmation is loaded into. It
+lives in a per-page include rather than the base template, so a page that opens
+one has to bring it.
+{% endcomment %}
+{% include "generic/components.html" %}
+{% include "attendance/monthly_summary/_regularise_opener.html" %}
 {% endblock content %}

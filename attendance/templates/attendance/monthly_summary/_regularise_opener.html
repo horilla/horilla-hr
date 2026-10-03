@@ -1,0 +1,18 @@
+{% comment %}
+Reopens the confirmation after the upload's redirect.
+
+The upload is an ordinary form post, not HTMX -- it has to stay that way so the
+rejected-rows workbook can still come back as a download, which an HTMX swap
+cannot do. So when the upload has something to ask about it redirects back with
+?regularise=1, and this fetches the question.
+
+Include it on any page that hosts the upload. It needs #relatedObjectModal on
+the page, which generic/components.html provides.
+{% endcomment %}
+{% if request.GET.regularise %}
+<div hx-get="{% url 'attendance-regularisation-confirm' %}"
+     hx-trigger="load"
+     hx-target="#relatedObjectModalBody"
+     hx-on::after-request="document.getElementById('relatedObjectModal').classList.add('oh-modal--show')">
+</div>
+{% endif %}
