@@ -1,0 +1,178 @@
+{% extends 'index.html' %}
+{% load i18n %}
+{% load static %}
+{% load horillafilters %}
+
+{% block content %}
+<main :class="sidebarOpen ? 'oh-main__sidebar-visible' : ''">
+  {% comment %}
+  The payroll page styling, shared with the run pages -- same panels, same
+  figure strip, same table treatment.
+  {% endcomment %}
+  {% include "payroll/batch/_batch.css.html" %}
+
+  <section class="oh-wrapper pb">
+
+    <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+      <div>
+        <h1 class="oh-main__titlebar-title fw-bold mb-0">{% trans "Contributions" %}</h1>
+        <div style="font-size:.8rem;color:#6b7280;">
+          {% blocktrans count n=payslip_count with start=period_start|date:"j M Y" end=period_end|date:"j M Y" %}
+            From {{ n }} payslip for {{ start }} – {{ end }}
+          {% plural %}
+            From {{ n }} payslips for {{ start }} – {{ end }}
+          {% endblocktrans %}
+        </div>
+      </div>
+      <a href="{% url 'payroll-contribution-export' %}?{{ request.GET.urlencode }}"
+         class="oh-btn oh-btn--light">
+        <ion-icon name="download-outline" class="me-1"></ion-icon>
+        {% trans "Export" %}
+      </a>
+    </div>
+
+    <style>
+      /* Four different controls in one row -- a native date input, a
+         select2 box, and a plain button -- each with its own idea of height
+         and bottom margin from the shared theme CSS (select2 fixes itself to
+         35px app-wide and drops .oh-select's margin entirely; .oh-btn's
+         padding makes it taller than either). align-items:flex-end then
+         aligns them by mismatched margin boxes, not by their visible edges,
+         which is what made first the status field and then the Show button
+         look like outliers next to the dates. Given one height and no
+         bottom margin here, all four end at the same visible line. Scoped to
+         this form only -- the shared sizing is untouched everywhere else
+         that already relies on it. */
+      #contribution-filters .oh-input,
+      #contribution-filters button.oh-btn {
+        height: 2.375rem;
+        margin-bottom: 0;
+      }
+      #contribution-filters .select2-container .select2-selection--single {
+        height: 2.375rem !important;
+        margin-bottom: 0;
+      }
+      #contribution-filters .select2-container .select2-selection__rendered {
+        line-height: 2.375rem !important;
+      }
+      /* 50%/translateY rather than a fixed top: self-centers against the
+         taller box above regardless of the arrow icon's own height, instead
+         of guessing a pixel offset for it. */
+      #contribution-filters .select2-container .select2-selection__arrow {
+        top: 50% !important;
+        transform: translateY(-50%);
+      }
+    </style>
+
+    <form method="get" class="pb__panel mb-3" id="contribution-filters">
+      <div style="padding:.85rem 1rem;display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap;">
+        <div>
+          <label class="oh-label" for="from_date">{% trans "From" %}</label>
+          <input type="date" name="from_date" id="from_date" class="oh-input"
+                 value="{{ period_start|date:'Y-m-d' }}">
+        </div>
+        <div>
+          <label class="oh-label" for="to_date">{% trans "To" %}</label>
+          <input type="date" name="to_date" id="to_date" class="oh-input"
+                 value="{{ period_end|date:'Y-m-d' }}">
+        </div>
+        <div>
+          <label class="oh-label" for="status">{% trans "Payslip status" %}</label>
+          <select name="status" id="status" class="oh-select oh-select-2">
+            {% for value, label in statuses %}
+              <option value="{{ value }}" {% if value == status %}selected{% endif %}>
+                {{ label }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="oh-btn oh-btn--secondary">{% trans "Show" %}</button>
+      </div>
+    </form>
+
+    <div class="pb__kpis">
+      <div class="pb__kpi">
+        <div class="pb__kpi-label">{% trans "Withheld from employees" %}</div>
+        <div class="pb__kpi-value">{{ totals.employee_amount|floatformat:2|currency_symbol_position }}</div>
+      </div>
+      <div class="pb__kpi">
+        <div class="pb__kpi-label">{% trans "Employer share" %}</div>
+        <div class="pb__kpi-value">{{ totals.employer_amount|floatformat:2|currency_symbol_position }}</div>
+      </div>
+      <div class="pb__kpi">
+        <div class="pb__kpi-label">{% trans "To remit" %}</div>
+        <div class="pb__kpi-value" style="font-weight:700;">{{ totals.total|floatformat:2|currency_symbol_position }}</div>
+        <div class="pb__kpi-note">{% trans "both shares together" %}</div>
+      </div>
+      <div class="pb__kpi">
+        <div class="pb__kpi-label">{% trans "Components" %}</div>
+        <div class="pb__kpi-value">{{ totals.components }}</div>
+      </div>
+      <div class="pb__kpi">
+        <div class="pb__kpi-label">{% trans "Employees" %}</div>
+        <div class="pb__kpi-value">{{ totals.employees }}</div>
+      </div>
+    </div>
+
+    <div class="pb__panel">
+      <div class="pb__panel-head">
+        <span>{% trans "By component" %}</span>
+        <span style="text-transform:none;font-weight:400;">
+          {% trans "Read from the payslips as issued, not recomputed." %}
+        </span>
+      </div>
+      {% if rows %}
+      <div class="pb__scroll">
+        <table class="pb__table">
+          <thead>
+            <tr>
+              <th>{% trans "Component" %}</th>
+              <th>{% trans "Basis" %}</th>
+              <th class="pb__num">{% trans "Employees" %}</th>
+              <th class="pb__num">{% trans "Employee share" %}</th>
+              <th class="pb__num">{% trans "Employer share" %}</th>
+              <th class="pb__num">{% trans "To remit" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+            <tr style="cursor:pointer;"
+                onclick="window.location.href='{% url 'payroll-contribution-detail' row.id %}?{{ request.GET.urlencode }}'">
+              <td>
+                <div style="font-weight:600;">{{ row.title }}</div>
+                {% if row.dormant %}
+                  <span class="pb__problem pb__problem--warning">
+                    {% trans "Configured to contribute, but nothing this period." %}
+                  </span>
+                {% endif %}
+              </td>
+              <td>
+                {{ row.basis|default:"—" }}
+                {% if row.by_formula %}
+                  <span class="pb__problem">{% trans "employer share by formula" %}</span>
+                {% elif row.employer_rate %}
+                  <span class="pb__problem">{{ row.employer_rate }}% {% trans "employer" %}</span>
+                {% endif %}
+              </td>
+              <td class="pb__num">{{ row.employees }}</td>
+              <td class="pb__num">{{ row.employee_amount|floatformat:2|currency_symbol_position }}</td>
+              <td class="pb__num">{{ row.employer_amount|floatformat:2|currency_symbol_position }}</td>
+              <td class="pb__num" style="font-weight:600;">{{ row.total|floatformat:2|currency_symbol_position }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="pb__empty">
+        {% trans "No contribution components in this period." %}
+        <div class="pb__problem mt-1">
+          {% trans "A component contributes when its Employer contribution is a percentage above zero, or a formula." %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+  </section>
+</main>
+{% endblock content %}

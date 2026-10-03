@@ -1,0 +1,100 @@
+{% load static i18n horillafilters %}
+{% comment %}
+The Loss of Pay info icon + its popover, on its own so both
+_loss_of_pay_row.html (the Deductions-column row, when the deduction is
+genuinely separate) and the Salary Adjustments table (the Earnings-side
+case, when it's already folded into Basic Pay) can include it without a
+second copy of the equation logic drifting out of sync.
+{% endcomment %}
+<span class="ps__info" x-data="{open:false}" @mouseenter="open=true" @mouseleave="open=false">
+  <img src="{% static 'horilla_theme/assets/img/icons/info.svg' %}"
+       alt="{% trans 'Info' %}" class="cursor-pointer"
+       style="display:inline;vertical-align:-2px;">
+  <div class="ps__pop" x-show="open" x-cloak>
+    <div class="ps__pop-title">{% trans "How this was worked out" %}</div>
+    {% if lop_flat_amount %}
+      <div class="ps__pop-row">
+        <span class="lbl">{% trans "Unpaid days" %}</span>
+        <span class="val">{{ unpaid_days }}</span>
+      </div>
+      <div class="ps__pop-row">
+        <span class="lbl">{% trans "Flat amount per day" %}</span>
+        <span class="val">{{ lop_flat_amount|floatformat:2|currency_symbol_position }}</span>
+      </div>
+      <div class="ps__pop-rule"></div>
+      <div class="ps__pop-eqn">{% trans "loss of pay = unpaid days × flat amount" %}</div>
+      <div class="ps__pop-sub">
+        {{ unpaid_days }} &times; {{ lop_flat_amount|floatformat:2 }}
+      </div>
+      <div class="ps__pop-result">
+        <span>{% trans "Loss of pay" %}</span>
+        <span>{{ loss_of_pay|floatformat:2|currency_symbol_position }}</span>
+      </div>
+    {% elif lop_base_amount is not None %}
+      <div class="ps__pop-row">
+        <span class="lbl">{% trans "Unpaid days" %}</span>
+        <span class="val">{{ unpaid_days }}</span>
+      </div>
+      <div class="ps__pop-row">
+        <span class="lbl">
+          {% comment %}
+          Only "wage" reads as Basic pay: under Gross Up the
+          contract wage IS basic pay (this is the pre-deduction
+          figure it is worked out FROM, before the Earnings row
+          above subtracts it). monthly_ctc/gross_pay are their
+          own, separate figures and keep their own names.
+          {% endcomment %}
+          {% if lop_base_code == "monthly_ctc" %}{% trans "Monthly CTC" %}
+          {% elif lop_base_code == "gross_pay" %}{% trans "Gross pay" %}
+          {% else %}{% trans "Basic pay" %}{% endif %}
+        </span>
+        <span class="val">{{ lop_base_amount|floatformat:2|currency_symbol_position }}</span>
+      </div>
+      <div class="ps__pop-row">
+        <span class="lbl">{% trans "Total days" %} ({{ lop_divisor|lower }})</span>
+        <span class="val">{{ lop_divisor_days }} {% trans "days" %}</span>
+      </div>
+      <div class="ps__pop-rule"></div>
+      <div class="ps__pop-eqn">{% trans "per-day amount = wage ÷ total days" %}</div>
+      <div class="ps__pop-sub">
+        {{ lop_base_amount|floatformat:2 }} &divide; {{ lop_divisor_days }}
+        &asymp; {{ lop_daily_rate|floatformat:2|currency_symbol_position }}
+        <span class="ps__pop-eqn" style="display:block;">{% trans "(rounded for display)" %}</span>
+      </div>
+      <div class="ps__pop-eqn">{% trans "loss of pay = unpaid days × per-day amount" %}</div>
+      <div class="ps__pop-sub">
+        {{ unpaid_days }} &times; {{ lop_daily_rate|floatformat:2 }}
+        &asymp; {{ loss_of_pay|floatformat:2|currency_symbol_position }}
+      </div>
+      <div class="ps__pop-result">
+        <span>{% trans "Loss of pay" %}</span>
+        <span>{{ loss_of_pay|floatformat:2|currency_symbol_position }}</span>
+      </div>
+    {% else %}
+      <div class="ps__pop-row">
+        <span class="lbl">{{ lop_base }} &divide; {{ lop_divisor }}</span>
+      </div>
+      <div class="ps__pop-row">
+        <span class="lbl">{% trans "Unpaid days" %}</span>
+        <span class="val">{{ unpaid_days }}</span>
+      </div>
+      <div class="ps__pop-rule"></div>
+      <div class="ps__pop-result">
+        <span>{% trans "Loss of pay" %}</span>
+        <span>{{ loss_of_pay|floatformat:2|currency_symbol_position }}</span>
+      </div>
+      <p class="ps__pop-note">
+        {% trans "The exact daily rate isn't tracked for this contract's wage type." %}
+      </p>
+    {% endif %}
+    <p class="ps__pop-note">
+      {% if lop_from_gross %}
+        {% trans "Deferred until gross pay is known, so it comes off net pay rather than basic pay." %}
+      {% elif lop_reflected_in_basic %}
+        {% trans "Comes off Basic Pay above by default; if the contract has that switched off, it shows only here instead." %}
+      {% else %}
+        {% trans "Basic Pay above comes from a structure component, not a wage figure to subtract from, so this is taken separately instead." %}
+      {% endif %}
+    </p>
+  </div>
+</span>

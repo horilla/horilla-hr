@@ -1,0 +1,93 @@
+{% extends 'index.html' %}
+{% load i18n %}
+{% load static %}
+{% load horillafilters %}
+
+{% block content %}
+<main :class="sidebarOpen ? 'oh-main__sidebar-visible' : ''">
+  {% include "payroll/batch/_batch.css.html" %}
+
+  <section class="oh-wrapper pb">
+
+    <div class="mb-3">
+      <div style="font-size:.78rem;">
+        <a href="{% url 'payroll-contribution-list' %}?{{ request.GET.urlencode }}">
+          {% trans "Contributions" %}
+        </a>
+      </div>
+      <h1 class="oh-main__titlebar-title fw-bold mb-0">{{ component.title }}</h1>
+      <div style="font-size:.8rem;color:#6b7280;">
+        {{ period_start|date:"j M Y" }} &ndash; {{ period_end|date:"j M Y" }}
+        {% if component.based_on %}
+          &middot; {% blocktrans with basis=component.get_based_on_display %}on {{ basis }}{% endblocktrans %}
+        {% endif %}
+        {% if component.employer_basis == "formula" %}
+          &middot; <code>{{ component.employer_formula }}</code>
+        {% elif component.employer_rate %}
+          &middot; {% blocktrans with rate=component.employer_rate %}{{ rate }}% employer{% endblocktrans %}
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="pb__kpis">
+      <div class="pb__kpi">
+        <div class="pb__kpi-label">{% trans "Withheld from employees" %}</div>
+        <div class="pb__kpi-value">{{ totals.employee_amount|floatformat:2|currency_symbol_position }}</div>
+      </div>
+      <div class="pb__kpi">
+        <div class="pb__kpi-label">{% trans "Employer share" %}</div>
+        <div class="pb__kpi-value">{{ totals.employer_amount|floatformat:2|currency_symbol_position }}</div>
+      </div>
+      <div class="pb__kpi">
+        <div class="pb__kpi-label">{% trans "To remit" %}</div>
+        <div class="pb__kpi-value" style="font-weight:700;">{{ totals.total|floatformat:2|currency_symbol_position }}</div>
+      </div>
+      <div class="pb__kpi">
+        <div class="pb__kpi-label">{% trans "Payslips" %}</div>
+        <div class="pb__kpi-value">{{ lines|length }}</div>
+      </div>
+    </div>
+
+    <div class="pb__panel">
+      <div class="pb__panel-head">
+        <span>{% trans "Per employee" %}</span>
+        <span style="text-transform:none;font-weight:400;">
+          {% trans "What the figure above is a sum of." %}
+        </span>
+      </div>
+      {% if lines %}
+      <div class="pb__scroll">
+        <table class="pb__table">
+          <thead>
+            <tr>
+              <th>{% trans "Employee" %}</th>
+              <th>{% trans "Period" %}</th>
+              <th>{% trans "Payslip" %}</th>
+              <th class="pb__num">{% trans "Employee share" %}</th>
+              <th class="pb__num">{% trans "Employer share" %}</th>
+              <th class="pb__num">{% trans "Total" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for line in lines %}
+            <tr style="cursor:pointer;"
+                onclick="window.location.href='{% url 'view-created-payslip' line.payslip.pk %}'">
+              <td>{{ line.employee }}</td>
+              <td>{{ line.start_date|date:"j M" }} &ndash; {{ line.end_date|date:"j M Y" }}</td>
+              <td>{{ line.status }}</td>
+              <td class="pb__num">{{ line.employee_amount|floatformat:2|currency_symbol_position }}</td>
+              <td class="pb__num">{{ line.employer_amount|floatformat:2|currency_symbol_position }}</td>
+              <td class="pb__num" style="font-weight:600;">{{ line.total|floatformat:2|currency_symbol_position }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="pb__empty">{% trans "Nothing for this component in this period." %}</div>
+      {% endif %}
+    </div>
+
+  </section>
+</main>
+{% endblock content %}

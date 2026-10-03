@@ -40,6 +40,24 @@
                     <img src="{% static 'horilla_theme/assets/img/icons/download.svg' %}" alt="{% trans 'Download' %}"
                         width="18" class="filter brightness-0 invert">
                 </a>
+                {% if perms.payroll.change_payslip and instance.status != "paid" %}
+                    {% comment %}
+                    Into the same #objectCreateModal every other in-place edit
+                    on this page uses, and #objectCreateModalTarget is what the
+                    modal renders whatever was fetched into. Saving swaps
+                    #payslipBody -- the same target the status dropdown beside
+                    it already uses -- so an edit updates the totals on screen
+                    exactly the way changing status already does.
+                    {% endcomment %}
+                    <a title="{% trans 'Edit or add components' %}"
+                       hx-get="{% url 'edit-payslip-components' instance.id %}"
+                       hx-target="#objectCreateModalTarget"
+                       data-toggle="oh-modal-toggle"
+                       data-target="#objectCreateModal"
+                       class="w-8 h-8 justify-center bg-[white] rounded-md text-xs flex items-center gap-2 border border-brand-500 hover:border-brand-600 transition duration-300 cursor-pointer">
+                        <ion-icon name="create-outline"></ion-icon>
+                    </a>
+                {% endif %}
                 {% if perms.payroll.change_payslip %}
                     <div class="relative dropdown-wrapper" style="width:120px;">
                         <select name="status" class="oh-select" id="id_status" hx-trigger="change" hx-post="{% url 'payslip-status-update' instance.id %}" hx-target="#payslipBody" >
@@ -54,6 +72,21 @@
     </div>
 
 
+
+    <style>
+      /* A slimmer scrollbar for the payslip. The browser default is a wide
+         grey slab down the side of a document whose whole job is to be read,
+         and it sat right against the figures' right-hand edge. Both syntaxes
+         because Firefox takes scrollbar-width and Chrome and Safari take the
+         pseudo-element; each ignores the other. */
+      #payslipBody { scrollbar-width: thin; scrollbar-color: #cdd1d9 transparent; }
+      #payslipBody::-webkit-scrollbar { width: 6px; height: 6px; }
+      #payslipBody::-webkit-scrollbar-track { background: transparent; }
+      #payslipBody::-webkit-scrollbar-thumb {
+        background: #cdd1d9; border-radius: 3px;
+      }
+      #payslipBody::-webkit-scrollbar-thumb:hover { background: #b6bac4; }
+    </style>
 
     <div class="h-[calc(100vh_-_290px)] overflow-hidden overflow-y-auto overflow-x-auto" id="payslipBody">
         <!--Start of Payslip Summary -->

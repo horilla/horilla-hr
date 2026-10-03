@@ -1,0 +1,18 @@
+{% load static i18n horillafilters %}
+{% comment %}
+The Loss of Pay row, for the Deductions column -- only when the deduction
+is genuinely separate (lop_from_gross, or basic pay is component-sourced
+under CTC Down). When it's reflected in Basic Pay instead, it appears in
+the Salary Adjustments table above Earnings/Deductions instead of here;
+see individual_payslip_summery.html. Included only under
+{% verbatim %}{% if not lop_reflected_in_basic %}{% endverbatim %}.
+{% endcomment %}
+<div class="ps__row">
+  <span class="ps__label">
+    {% trans "Loss of Pay" %}
+    {% include "payroll/payslip/_loss_of_pay_popover.html" %}
+  </span>
+  <span class="ps__amount{% if not loss_of_pay %} ps__zero{% endif %}">
+    {{ loss_of_pay|floatformat:2|currency_symbol_position }}
+  </span>
+</div>

@@ -42,9 +42,21 @@
             <span class="oh-payslip__netpay-title">{% trans "Employee Net Pay" %}</span>
         </div>
         <div class="payslip__netpay__summary">
+            {% if regular_hours_label %}
+            {% comment %}
+            An hourly contract stores its RATE in contract_wage, so calling it
+            "Actual Basic Pay" told an employee paid 10/hour that their basic
+            pay was 10. Basic pay for them is rate x regular hours, and it is
+            the "Updated Basic Pay" line further down.
+            {% endcomment %}
+            <span class="oh-payslip__netpay-title">{% trans "Hourly Rate" %}
+                <small style="margin-left:60px; font-weight:bold;">: {{contract_wage|currency_symbol_position}}</small>
+            </span>
+            {% else %}
             <span class="oh-payslip__netpay-title">{% trans "Actual Basic Pay" %}
                 <small style="margin-left:36px; font-weight:bold;">: {{instance.contract_wage|currency_symbol_position}}</small>
             </span>
+            {% endif %}
             <span class="oh-payslip__netpay-title">{% trans "Paid Days" %}
                 <small style="margin-left:86px;font-weight:bold;">: {{paid_days}}</small>
             </span>
@@ -78,6 +90,82 @@
     </div>
 </div>
 <!-- End of Payslip Table -->
+
+{% if regular_hours_label or ot_hours_label %}
+{% comment %}
+The attendance the pay was worked out from. Shown only when there are hours to
+show -- a monthly employee's payslip already says paid and LOP days above, and
+repeating "0h 0m" for them would be noise.
+
+Basic pay for an hourly contract is rate x REGULAR hours: the overtime rows
+are worked out separately by the Regular / Week Off / Holiday Overtime
+earnings, and are listed here so the hours add up to what was actually worked.
+{% endcomment %}
+<div class="oh-payslip__table-container" style="margin-top:0.5rem">
+    <table class="oh-payslip__table">
+        <thead class="oh-payslip__table-thead">
+            <tr class="oh-payslip__table-row">
+                <th class="oh-payslip__table-th" colspan="2">{% trans "Attendance Summary" %}</th>
+            </tr>
+        </thead>
+        <tbody class="oh-payslip__table-tbody">
+            {% if regular_hours_label %}
+            <tr class="oh-payslip__table-row">
+                <td class="oh-payslip__table-td">
+                    {% trans "Regular hours" %}
+                    <i style="font-style: italic; font-weight: normal; color:#8b90a0;">
+                        — {% trans "basic pay is the rate times these" %}
+                    </i>
+                </td>
+                <td class="oh-payslip__table-td">{{ regular_hours_label }}</td>
+            </tr>
+            {% endif %}
+            {% if ot_regular_hours_label %}
+            <tr class="oh-payslip__table-row">
+                <td class="oh-payslip__table-td">{% trans "Overtime on working days" %}</td>
+                <td class="oh-payslip__table-td">{{ ot_regular_hours_label }}</td>
+            </tr>
+            {% endif %}
+            {% if ot_week_off_hours_label %}
+            <tr class="oh-payslip__table-row">
+                <td class="oh-payslip__table-td">{% trans "Worked on week offs" %}</td>
+                <td class="oh-payslip__table-td">{{ ot_week_off_hours_label }}</td>
+            </tr>
+            {% endif %}
+            {% if ot_holiday_hours_label %}
+            <tr class="oh-payslip__table-row">
+                <td class="oh-payslip__table-td">{% trans "Worked on holidays" %}</td>
+                <td class="oh-payslip__table-td">{{ ot_holiday_hours_label }}</td>
+            </tr>
+            {% endif %}
+            {% if ot_hours_label %}
+            <tr class="oh-payslip__table-row">
+                <td class="oh-payslip__table-td"><b>{% trans "Total overtime" %}</b></td>
+                <td class="oh-payslip__table-td"><b>{{ ot_hours_label }}</b></td>
+            </tr>
+            {% endif %}
+            <tr class="oh-payslip__table-row">
+                <td class="oh-payslip__table-td">{% trans "Paid days" %}</td>
+                <td class="oh-payslip__table-td">{{ paid_days }}</td>
+            </tr>
+            <tr class="oh-payslip__table-row">
+                <td class="oh-payslip__table-td">{% trans "Loss of pay days" %}</td>
+                <td class="oh-payslip__table-td">{{ unpaid_days }}</td>
+            </tr>
+        </tbody>
+    </table>
+    {% comment %}
+    Said plainly: overtime hours are recorded here whether or not anything
+    pays for them. They are paid by the Regular / Week Off / Holiday Overtime
+    earnings, and a structure without those shows the hours and pays nothing.
+    {% endcomment %}
+    {% if ot_hours_label %}
+    <p style="font-size:12px; color:#8b90a0; margin:6px 2px 0;">
+        {% trans "Overtime is paid by the overtime earnings on the salary structure. Hours are recorded here whether or not the structure includes them." %}
+    </p>
+    {% endif %}
+</div>
+{% endif %}
 
 {% if custom_leave_breakdown %}
 <!-- Custom Payment Leave Details -->
@@ -117,15 +205,6 @@
                 <th class="oh-payslip__table-th">{% trans "Allowances" %}</th>
                 <th class="oh-payslip__table-th">{% trans "Amount" %}</th>
                 <th class="oh-payslip__table-th">
-                    {% if perms.payroll.add_allowance and instance.status != "paid" %}
-                        <button title="{% trans 'Add Allowance' %}"
-                            class="oh-btn oh-btn--secondary-outline oh-stop-prop oh-accordion-meta__btn p-2"
-                            hx-get="{% url 'add-bonus' %}?employee_id={{employee.id}}&payslip_id={{instance.id}}"
-                            hx-target="#objectCreateModalTarget" data-target="#objectCreateModal"
-                            data-toggle="oh-modal-toggle">
-                            <ion-icon class="md hydrated" name="add-outline" role="img" aria-label="{% trans 'add outline' %}"></ion-icon>
-                        </button>
-                    {% endif %}
                 </th>
             </tr>
         </thead>
@@ -168,14 +247,6 @@
                 <th class="oh-payslip__table-th">{% trans "Deductions" %}</th>
                 <th class="oh-payslip__table-th">{% trans "Amount" %}</th>
                 <th class="oh-payslip__table-th">
-                    {% if perms.payroll.add_deduction and instance.status != "paid" %}
-                        <button title="{% trans 'Add Deduction' %}"
-                            class="oh-btn oh-btn--secondary-outline oh-stop-prop oh-accordion-meta__btn p-2"
-                            hx-get="{% url 'add-payslip-deduction' %}?employee_id={{employee.id}}&payslip_id={{instance.id}}" hx-target="#objectCreateModalTarget"
-                            data-target="#objectCreateModal" data-toggle="oh-modal-toggle">
-                            <ion-icon class="md hydrated" name="add-outline" role="img" aria-label="{% trans 'add outline' %}"></ion-icon>
-                        </button>
-                    {% endif %}
                 </th>
             </tr>
         </thead>

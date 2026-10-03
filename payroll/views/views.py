@@ -53,7 +53,7 @@ from payroll.forms.component_forms import (
     PayrollSettingsForm,
     PayslipAutoGenerateForm,
 )
-from payroll.methods.methods import paginator_qry, save_payslip
+from payroll.methods.methods import get_total_calendar_days, paginator_qry, save_payslip
 from payroll.models.models import (
     Contract,
     FilingStatus,
@@ -147,9 +147,19 @@ def contract_update(request, contract_id, **kwargs):
                 )
                 return response
             return redirect(reverse("view-contract"))
-    template_name = (
-        "payroll/common/form_fragment.html" if is_htmx else "payroll/common/form.html"
-    )
+    # ?modal=1 asks for the same form in the app's standard modal chrome --
+    # header, close button, and a post that lands back in the modal instead of
+    # in #listContainer, which on another page belongs to something else
+    # entirely. Opt-in so the contracts page keeps its full-width card.
+    in_modal = bool(request.GET.get("modal"))
+    if in_modal:
+        template_name = "payroll/common/form_modal.html"
+    else:
+        template_name = (
+            "payroll/common/form_fragment.html"
+            if is_htmx
+            else "payroll/common/form.html"
+        )
     return render(
         request,
         template_name,
@@ -157,6 +167,9 @@ def contract_update(request, contract_id, **kwargs):
             "form": contract_form,
             "post_url": request.get_full_path(),
             "back_url": reverse("contract-filter"),
+            "in_modal": in_modal,
+            "form_target": "#relatedObjectModalBody" if in_modal else "#listContainer",
+            "modal_title": _("Contract") if in_modal else "",
         },
     )
 
@@ -509,6 +522,7 @@ def update_payslip_status(request, payslip_id):
     data["json_data"]["employee"] = payslip.employee_id.id
     data["json_data"]["payslip"] = payslip.id
     data["instance"] = payslip
+    data["total_calendar_days"] = get_total_calendar_days(data)
     return render(request, "payroll/payslip/individual_payslip_summery.html", data)
 
 
@@ -586,6 +600,10 @@ def view_payslip_pdf(request, payslip_id):
             data["month_end_name"] = month_end_name
             data["formatted_start_date"] = formatted_start_date
             data["formatted_end_date"] = formatted_end_date
+            # Every day in the period, week offs and holidays included --
+            # "working_days" excludes those, which reads as though paid days
+            # are being counted against a smaller month than the one shown.
+            data["total_calendar_days"] = (end_date - start_date).days + 1
             data["employee"] = payslip.employee_id
             data["payslip"] = payslip
             data["json_data"] = data.copy()
@@ -635,6 +653,7 @@ def view_created_payslip(request, payslip_id, **kwargs):
         data["json_data"]["employee"] = payslip.employee_id.id
         data["json_data"]["payslip"] = payslip.id
         data["instance"] = payslip
+        data["total_calendar_days"] = get_total_calendar_days(data)
         return render(request, "payroll/payslip/individual_payslip.html", data)
     return render(request, "404.html")
 
@@ -1489,7 +1508,10 @@ def generate_payslip_pdf(template_path, context, html=False):
             "encoding": "UTF-8",
             "enable-local-file-access": None,  # Required to load local CSS/images
             "dpi": 300,
-            "zoom": 1.3,
+            # 1.0, not the 1.3 the old, taller design needed: this layout is
+            # already compact (12.5px base, tight table rows), and the extra
+            # scale was pushing a near-empty second page past the A4 break.
+            "zoom": 1.0,
             "footer-center": "[page]/[topage]",  # Required to load local CSS/images
         }
 
@@ -1577,6 +1599,9 @@ def payslip_pdf(request, id):
                     "month_end_name": end_date.strftime("%B %d, %Y"),
                     "formatted_start_date": formatted_start_date,
                     "formatted_end_date": formatted_end_date,
+                    # Every day in the period, week offs and holidays
+                    # included -- "working_days" excludes those.
+                    "total_calendar_days": (end_date - start_date).days + 1,
                     "employee": payslip.employee_id,
                     "payslip": payslip,
                     "json_data": data.copy(),
