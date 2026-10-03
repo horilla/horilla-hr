@@ -1,0 +1,67 @@
+{% extends 'index.html' %}
+{% load i18n %}
+{% load static %}
+
+{% block content %}
+<main :class="sidebarOpen ? 'oh-main__sidebar-visible' : ''">
+  {% include "payroll/batch/_batch.css.html" %}
+
+  <section class="oh-wrapper pb" style="max-width:720px;">
+
+    <div class="oh-main__titlebar oh-main__titlebar--left mb-3">
+      <div style="font-size:.78rem;">
+        <a href="{% url 'payroll-batch-home' %}">{% trans "Payroll runs" %}</a>
+      </div>
+      <h1 class="oh-main__titlebar-title fw-bold mb-0">{% trans "Pay period" %}</h1>
+    </div>
+
+    {% if messages %}
+      {% for message in messages %}
+      <div class="oh-alert oh-alert--animated {{ message.tags }}">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="pb__panel mb-3">
+        <div class="pb__panel-head">{% trans "When a pay month begins and ends" %}</div>
+        <div style="padding:1rem;">
+          {% for field in form %}
+          <div class="mb-3">
+            <label class="oh-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}
+              <div class="pb__problem">{{ field.help_text }}</div>
+            {% endif %}
+            {% for error in field.errors %}
+              <div class="pb__problem pb__problem--blocking">{{ error }}</div>
+            {% endfor %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="pb__panel mb-3">
+        <div class="pb__panel-head">{% trans "This month, with these settings" %}</div>
+        <table class="pb__table">
+          <tbody>
+            <tr>
+              <td style="width:40%;">{% trans "Period" %}</td>
+              <td>{{ example_start|date:"j M Y" }} &ndash; {{ example_end|date:"j M Y" }}</td>
+            </tr>
+            <tr>
+              <td>{% trans "Pay date" %}</td>
+              <td>{{ example_pay_date|date:"j M Y" }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="d-flex justify-content-end">
+        <button type="submit" class="oh-btn oh-btn--secondary">{% trans "Save" %}</button>
+      </div>
+    </form>
+
+  </section>
+</main>
+{% endblock content %}

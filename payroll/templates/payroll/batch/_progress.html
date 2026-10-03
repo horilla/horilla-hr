@@ -1,0 +1,69 @@
+{% load i18n %}
+{% comment %}
+The progress bar, and the thing that drives the run.
+
+While the run is unfinished this fragment carries its own `hx-trigger="load"`,
+so each response asks for the next slice. That is the whole loop: no polling
+timer, no background worker, and no request that has to stay open for the
+length of a 500-person run.
+{% endcomment %}
+<div id="pb-progress"
+     {% if not batch.is_finished %}
+     hx-get="{% url 'payroll-batch-generate' batch.pk %}"
+     hx-trigger="load delay:100ms"
+     hx-target="#pb-progress"
+     hx-swap="outerHTML"
+     {% endif %}>
+
+  <div class="d-flex justify-content-between align-items-baseline mb-2">
+    <span style="font-weight:600;">
+      {% if batch.progress_state == "failed" %}
+        {% trans "The run stopped" %}
+      {% elif batch.is_finished %}
+        {% trans "Finished" %}
+      {% else %}
+        {% trans "Generating payslips…" %}
+      {% endif %}
+    </span>
+    <span style="font-variant-numeric:tabular-nums;color:#6b7280;font-size:.85rem;">
+      {{ batch.processed_count }} / {{ batch.employee_count }}
+    </span>
+  </div>
+
+  <div class="pb__bar">
+    <div class="pb__bar-fill {% if batch.progress_state == 'done' %}pb__bar-fill--done{% elif batch.progress_state == 'failed' %}pb__bar-fill--failed{% endif %}"
+         style="width: {{ batch.percent_complete }}%;"></div>
+  </div>
+
+  {% if batch.is_finished %}
+  <div class="pb__kpis mt-3">
+    <div class="pb__kpi">
+      <div class="pb__kpi-label">{% trans "Generated" %}</div>
+      <div class="pb__kpi-value">{{ batch.generated_count }}</div>
+    </div>
+    <div class="pb__kpi">
+      <div class="pb__kpi-label">{% trans "Failed" %}</div>
+      <div class="pb__kpi-value {% if batch.failed_count %}pb__kpi-value--bad{% endif %}">{{ batch.failed_count }}</div>
+    </div>
+    <div class="pb__kpi">
+      <div class="pb__kpi-label">{% trans "Needs a look" %}</div>
+      <div class="pb__kpi-value {% if batch.flagged_count %}pb__kpi-value--warn{% endif %}">{{ batch.flagged_count }}</div>
+      <div class="pb__kpi-note">{% trans "net pay zero or below" %}</div>
+    </div>
+  </div>
+
+  {% if batch.last_error %}
+  <div class="pb__alert pb__alert--danger mt-3">
+    <ion-icon name="alert-circle-outline"></ion-icon>
+    <span>{{ batch.last_error }}</span>
+  </div>
+  {% endif %}
+
+  <div class="mt-3 text-end">
+    <a href="{% url 'payroll-batch-detail' batch.pk %}" class="oh-btn oh-btn--secondary">
+      {% trans "See the run" %}
+      <ion-icon name="arrow-forward-outline" class="ms-1"></ion-icon>
+    </a>
+  </div>
+  {% endif %}
+</div>

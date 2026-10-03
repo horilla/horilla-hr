@@ -1,0 +1,478 @@
+{% comment %}
+Styles shared by the run list, the run detail and the three wizard steps.
+
+One file included by each, rather than a copy per template: the wizard and the
+detail page show the same status pills and the same figures, and they drifted
+apart the moment they were written twice.
+{% endcomment %}
+<style>
+  .pb {
+    --pb-line: #e5e7eb;
+    /* A line inside a bordered box. The same weight as the box's own edge
+       makes a small table read as a grid of equal parts rather than as rows
+       within something. */
+    --pb-line-soft: #f1f2f4;
+    --pb-muted: #6b7280;
+    --pb-ink: #111827;
+    --pb-bg: #ffffff;
+    --pb-soft: #f9fafb;
+    --pb-accent: #ef4444;
+  }
+
+  /* ---- figures across the top ---- */
+  .pb__kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1px;
+    background: var(--pb-line);
+    border: 1px solid var(--pb-line);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 1.25rem;
+  }
+  .pb__kpi {
+    background: var(--pb-bg);
+    padding: 0.85rem 1rem;
+  }
+  .pb__kpi-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--pb-muted);
+    margin-bottom: 0.3rem;
+  }
+  .pb__kpi-value {
+    font-size: 1.35rem;
+    font-weight: 600;
+    color: var(--pb-ink);
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+  }
+  .pb__kpi-value--warn { color: #b45309; }
+  .pb__kpi-value--bad { color: #b91c1c; }
+  .pb__kpi-note {
+    font-size: 0.72rem;
+    color: var(--pb-muted);
+    margin-top: 0.15rem;
+  }
+
+  /* ---- status pills ---- */
+  .pb__pill {
+    display: inline-block;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .pb__pill--draft { background: #f3f4f6; color: #374151; }
+  .pb__pill--review { background: #fef3c7; color: #92400e; }
+  .pb__pill--approved { background: #dbeafe; color: #1e40af; }
+  .pb__pill--paid { background: #d1fae5; color: #065f46; }
+  .pb__pill--cancelled { background: #fee2e2; color: #991b1b; }
+
+  /* ---- tables ---- */
+  .pb__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+  .pb__table th {
+    text-align: left;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--pb-muted);
+    font-weight: 600;
+    padding: 0.55rem 0.75rem;
+    border-bottom: 1px solid var(--pb-line);
+    background: var(--pb-soft);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+  .pb__table td {
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid var(--pb-line);
+    vertical-align: middle;
+  }
+  .pb__table tbody tr:hover { background: var(--pb-soft); }
+
+  /* Figures size to their own content and the label column takes whatever is
+     left. Without this the browser handed the text-heavy first column most of
+     the width and squeezed the rest until every two-word header wrapped --
+     which is what pushed the sort arrows onto a line of their own.
+     width:1% is the usual way to say "as narrow as the content allows". */
+  .pb__num {
+    text-align: right; font-variant-numeric: tabular-nums;
+    width: 1%; white-space: nowrap;
+  }
+
+  /* Top, not middle: a row whose label cell runs to three lines of problems
+     would otherwise float its figures halfway down, level with nothing. This
+     lines them up with the name they belong to. */
+  .pb__table--top td { vertical-align: top; }
+  .pb__table--top thead th { vertical-align: bottom; }
+  .pb__row--blocked { background: #fef2f2; }
+  .pb__row--blocked:hover { background: #fee2e2; }
+
+  /* ---- wizard chrome ---- */
+  .pb__steps {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+  }
+  .pb__step {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.82rem;
+    color: var(--pb-muted);
+  }
+  .pb__step-num {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 0.72rem;
+    font-weight: 600;
+    background: #e5e7eb;
+    color: #6b7280;
+  }
+  .pb__step--on { color: var(--pb-ink); font-weight: 600; }
+  .pb__step--on .pb__step-num { background: var(--pb-accent); color: #fff; }
+  .pb__step--done .pb__step-num { background: #d1fae5; color: #065f46; }
+  .pb__step-sep { color: #d1d5db; }
+
+  /* ---- problems ---- */
+  .pb__problem {
+    display: block;
+    font-size: 0.75rem;
+    line-height: 1.35;
+    margin-top: 0.15rem;
+  }
+  .pb__problem--blocking { color: #b91c1c; }
+  .pb__problem--warning { color: #92400e; }
+
+  /* ---- progress ---- */
+  .pb__bar {
+    height: 10px;
+    background: #e5e7eb;
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .pb__bar-fill {
+    height: 100%;
+    background: var(--pb-accent);
+    border-radius: 999px;
+    transition: width 0.4s ease;
+  }
+  .pb__bar-fill--done { background: #10b981; }
+  .pb__bar-fill--failed { background: #b91c1c; }
+
+  .pb__panel {
+    border: 1px solid var(--pb-line);
+    border-radius: 8px;
+    background: var(--pb-bg);
+    overflow: hidden;
+  }
+  .pb__panel-head {
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid var(--pb-line);
+    background: var(--pb-soft);
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--pb-muted);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+  }
+  .pb__scroll { max-height: 55vh; overflow-y: auto; }
+  .pb__scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+  .pb__scroll::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 3px;
+  }
+
+  /* The delete on a run row. Quiet until the row is hovered: it is destructive
+     and should not be the thing the eye lands on in a list. */
+  .pb__rowbtn {
+    border: 0; background: none; cursor: pointer; padding: 4px 6px;
+    color: #9ca3af; line-height: 0; border-radius: 6px;
+    opacity: 0; transition: opacity .12s ease, color .12s ease;
+  }
+  .pb__table tbody tr:hover .pb__rowbtn { opacity: 1; }
+  .pb__rowbtn:focus-visible { opacity: 1; outline: 2px solid var(--pb-accent); }
+  .pb__rowbtn:hover { color: var(--pb-accent); background: #fef2f2; }
+
+  /* Opens the attendance calendar for that employee and period. Sits with the
+     problems it fixes rather than in an actions column, because it is the
+     answer to the line above it. */
+  /* Several fixes can apply to one row, so they wrap rather than stretching
+     the cell. */
+  .pb__fixes { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .35rem; }
+
+  .pb__fix {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px;
+    border: 1px solid var(--pb-line); border-radius: 999px;
+    background: var(--pb-bg); color: var(--pb-muted);
+    font-size: .72rem; cursor: pointer;
+    transition: border-color .12s ease, color .12s ease;
+  }
+  .pb__fix:hover { border-color: var(--pb-accent); color: var(--pb-accent); }
+  .pb__row--blocked .pb__fix {
+    border-color: #fca5a5; color: #b91c1c; background: #fff;
+  }
+  .pb__row--blocked .pb__fix:hover { background: var(--pb-accent); color: #fff; }
+
+  /* ---- panel-head tools: count, sort reset, search ---- */
+  .pb__tools {
+    display: flex; align-items: center; gap: .5rem;
+    text-transform: none; letter-spacing: normal; font-weight: 400;
+  }
+  .pb__count { font-size: .72rem; color: var(--pb-muted); white-space: nowrap; }
+  .pb__reset {
+    display: inline-flex; align-items: center; gap: 4px;
+    border: 1px solid var(--pb-line); border-radius: 999px;
+    background: var(--pb-bg); color: var(--pb-muted);
+    font-size: .72rem; padding: 2px 8px; cursor: pointer;
+  }
+  .pb__reset:hover { border-color: var(--pb-accent); color: var(--pb-accent); }
+  .pb__reset[hidden] { display: none; }
+  .pb__search {
+    display: inline-flex; align-items: center; gap: 5px;
+    border: 1px solid var(--pb-line); border-radius: 6px;
+    background: var(--pb-bg); padding: 3px 8px;
+    color: var(--pb-muted);
+  }
+  .pb__search:focus-within { border-color: var(--pb-accent); }
+  .pb__search input {
+    border: 0; outline: 0; background: none; font-size: .78rem;
+    color: var(--pb-ink); width: 190px;
+  }
+
+  /* ---- sortable headers ---- */
+  /* Not the [hidden] attribute: a `tr { display: table-row }` rule in any
+     reset outranks it and the row stays on screen. */
+  .pb__row--hidden { display: none !important; }
+
+  .pb__sortable { cursor: pointer; user-select: none; }
+  .pb__sortable:hover { color: var(--pb-ink); }
+
+  /* A faint pair of arrows on every sortable column, one of them solid on the
+     column actually sorted -- the same convention the attendance summary
+     header uses. Shown from the start rather than on hover, because a control
+     that only appears once you are already pointing at it does not tell you
+     the column is sortable in the first place.
+     Both arrows are always drawn, so the header never shifts width. */
+  .pb__arrow {
+    display: inline-flex; flex-direction: column;
+    gap: 2px; margin-left: 5px; vertical-align: middle;
+  }
+  .pb__arrow::before,
+  .pb__arrow::after {
+    content: ""; width: 0; height: 0;
+    border-left: 3.5px solid transparent;
+    border-right: 3.5px solid transparent;
+    opacity: .3;
+  }
+  .pb__arrow::before { border-bottom: 4px solid currentColor; }
+  .pb__arrow::after { border-top: 4px solid currentColor; }
+  .pb__sortable:hover .pb__arrow::before,
+  .pb__sortable:hover .pb__arrow::after { opacity: .55; }
+
+  /* Sorted: the direction in force is solid, the other stays faint so the
+     pair still reads as a toggle rather than a fixed marker. */
+  .pb__sortable--on { color: var(--pb-accent); }
+  .pb__sortable--on .pb__arrow::before { opacity: 1; }
+  .pb__sortable--on .pb__arrow::after { opacity: .25; }
+  .pb__sortable--desc .pb__arrow::before { opacity: .25; }
+  .pb__sortable--desc .pb__arrow::after { opacity: 1; }
+
+  /* Not .oh-alert: that is opacity:0 in the app stylesheet and only
+     .oh-alert--animated reveals it -- with a keyframe that ends hidden again.
+     Fine for a transient toast, invisible for a message that has to stay on
+     screen. */
+  .pb__alert {
+    display: flex; align-items: flex-start; gap: .6rem;
+    padding: .75rem 1rem; border-radius: 8px;
+    font-size: .85rem; margin-bottom: 1rem;
+  }
+  .pb__alert ion-icon { flex: 0 0 auto; font-size: 1.1rem; margin-top: 1px; }
+  .pb__alert--danger {
+    background: #fef2f2; border: 1px solid #fecaca;
+    border-left: 4px solid #dc2626; color: #991b1b;
+  }
+  .pb__alert--warning {
+    background: #fffbeb; border: 1px solid #fde68a;
+    border-left: 4px solid #d97706; color: #92400e;
+  }
+  body.dark .pb__alert--danger {
+    background: #2a1414; border-color: #7f1d1d; color: #fca5a5;
+  }
+  body.dark .pb__alert--warning {
+    background: #2a2210; border-color: #78350f; color: #fcd34d;
+  }
+
+  /* A figure worth a second look, without making the whole row look wrong --
+     few paid days is often legitimate (a mid-month joiner, a long sickness). */
+  .pb__low { color: #b45309; font-weight: 600; }
+  body.dark .pb__low { color: #fbbf24; }
+
+  .pb__empty {
+    padding: 2.5rem 1rem;
+    text-align: center;
+    color: var(--pb-muted);
+    font-size: 0.85rem;
+  }
+
+  /* .oh-btn is display:flex app-wide, which sizes it to its content only
+     where something else on the row constrains it -- a lone button in this
+     centered empty state has nothing to, so it stretched to the panel's full
+     width. inline-flex keeps the same icon/label centering the class already
+     does and sizes it to its content instead, without touching .oh-btn
+     itself for every other place it's used. */
+  .pb__empty .oh-btn {
+    display: inline-flex;
+  }
+
+  /* A radio group presented as a row per choice rather than a bare list --
+     the browser's own radio dot plus a plain label reads as unfinished next
+     to every bordered, padded control around it on this page. One state
+     (--on) is enough: there are only ever two or three of these on a form,
+     never a long list a hover state would help someone scan. */
+  .pb__options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .pb__option {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.75rem 0.9rem;
+    border: 1px solid var(--pb-line);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color .12s, background-color .12s;
+  }
+  .pb__option:hover { border-color: var(--pb-accent); }
+  .pb__option input {
+    /* Recolours the browser's own radio dot to the app's accent instead of
+       its default blue, so the checked state agrees with the border it
+       sits inside rather than clashing with it. */
+    accent-color: var(--pb-accent);
+    width: 1rem;
+    height: 1rem;
+    flex: 0 0 auto;
+  }
+  .pb__option span { color: var(--pb-ink); font-size: 0.88rem; }
+  .pb__option--on {
+    border-color: var(--pb-accent);
+    /* --pb-soft rather than a hardcoded tint: it already flips for dark
+       mode, so a browser without color-mix still gets a theme-correct
+       background instead of a fixed light colour glowing on a dark panel. */
+    background: var(--pb-soft);
+  }
+  @supports (color: color-mix(in srgb, red 10%, white)) {
+    .pb__option--on {
+      background: color-mix(in srgb, var(--pb-accent) 6%, var(--pb-bg));
+    }
+  }
+
+  /* The app's dark mode is `body.dark`, set from request.session.theme --
+     NOT the OS preference. A prefers-color-scheme block here turned these
+     panels dark inside an otherwise light page for anyone whose machine is
+     set to dark, which is exactly what it looked like. */
+  body.dark .pb {
+    --pb-line: #3a3a3a;
+    --pb-line-soft: #2c2c2c;
+    --pb-muted: #bbbbbb;
+    --pb-ink: #ffffff;
+    --pb-bg: #242424;
+    --pb-soft: #1a1a1a;
+  }
+  body.dark .pb__pill--draft { background: #3a3a3a; color: #e5e7eb; }
+  body.dark .pb__pill--review { background: #4a3a15; color: #fcd34d; }
+  body.dark .pb__pill--approved { background: #1e3a5f; color: #93c5fd; }
+  body.dark .pb__pill--paid { background: #14432f; color: #6ee7b7; }
+  body.dark .pb__pill--cancelled { background: #4a1d1d; color: #fca5a5; }
+  body.dark .pb__row--blocked { background: #3a1f1f; }
+  body.dark .pb__row--blocked:hover { background: #4a2525; }
+  body.dark .pb__kpi-value--warn { color: #fbbf24; }
+  body.dark .pb__kpi-value--bad { color: #f87171; }
+  body.dark .pb__problem--blocking { color: #f87171; }
+  body.dark .pb__problem--warning { color: #fbbf24; }
+  body.dark .pb__bar { background: #3a3a3a; }
+  body.dark .pb__scroll::-webkit-scrollbar-thumb { background: #4b5563; }
+  body.dark .pb__rowbtn:hover { background: #3a1f1f; }
+  /* currentColor here is the muted header grey, which at .3 all but vanishes
+     against a dark panel. */
+  body.dark .pb__arrow::before,
+  body.dark .pb__arrow::after { opacity: .45; }
+  body.dark .pb__sortable--on .pb__arrow::after,
+  body.dark .pb__sortable--desc .pb__arrow::before { opacity: .35; }
+
+  body.dark .pb__row--blocked .pb__fix {
+    border-color: #7f1d1d; color: #fca5a5; background: transparent;
+  }
+
+  /* ---- pagination ----
+     _pagination.html already renders the app's standard .oh-pagination
+     markup, but that class family is only defined in the legacy stylesheet
+     (static/src/css/main.css) that the plain, un-themed base template
+     loads -- the actual base template this page extends resolves to
+     horilla_theme/templates/index.html (which shadows it), and that one
+     never includes that stylesheet at all. Ported here, scoped under .pb,
+     rather than added to the theme's own global CSS, which risks
+     side-effects on every other page that already renders this markup
+     unstyled today and so is not expecting it to suddenly look different. */
+  .pb .oh-pagination {
+    margin-top: 1.25rem;
+    display: -webkit-box; display: -ms-flexbox; display: flex;
+    -webkit-box-align: center; -ms-flex-align: center; align-items: center;
+    -webkit-box-pack: justify; -ms-flex-pack: justify; justify-content: space-between;
+  }
+  @media (max-width: 575.98px) {
+    .pb .oh-pagination {
+      -webkit-box-orient: vertical; -webkit-box-direction: normal;
+      -ms-flex-direction: column; flex-direction: column;
+      -webkit-box-align: start; -ms-flex-align: start; align-items: flex-start;
+    }
+  }
+  .pb .oh-pagination__page { color: hsl(0, 0%, 11%); font-size: 0.9rem; }
+  .pb .oh-pagination__items {
+    display: -webkit-box; display: -ms-flexbox; display: flex;
+    -webkit-box-align: center; -ms-flex-align: center; align-items: center;
+    list-style-type: none; padding-left: 0;
+  }
+  .pb .oh-pagination__item {
+    display: -webkit-box; display: -ms-flexbox; display: flex;
+    -webkit-box-align: center; -ms-flex-align: center; align-items: center;
+    -webkit-box-pack: center; -ms-flex-pack: center; justify-content: center;
+    width: 40px; height: 40px; padding: 10px;
+    background-color: hsl(0, 0%, 100%);
+    border: 1px solid hsl(213, 22%, 84%); border-right: 0;
+    font-size: 0.9rem; cursor: pointer;
+  }
+  .pb .oh-pagination__item:first-child { border-radius: 0; }
+  .pb .oh-pagination__item:last-child { border-right: 1px solid hsl(213, 22%, 84%); border-radius: 0; }
+  .pb .oh-pagination__item:hover { background-color: hsl(0, 0%, 95%); }
+  .pb .oh-pagination__item--wide { width: -webkit-fit-content; width: -moz-fit-content; width: fit-content; }
+  .pb .oh-pagination__link:hover { text-decoration: none; }
+  .pb .oh-pagination__nav { display: -webkit-box; display: -ms-flexbox; display: flex; }
+
+  body.dark .pb .oh-pagination__page,
+  body.dark .pb .oh-pagination__link { color: #e5e7eb; }
+  body.dark .pb .oh-pagination__item {
+    background-color: #2a2a2a; border-color: #4b5563;
+  }
+  body.dark .pb .oh-pagination__item:hover { background-color: #3a3a3a; }
+</style>

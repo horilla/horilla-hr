@@ -1,0 +1,118 @@
+{% load i18n %}
+{% comment %} ---------------------------------------------------------------------------
+   Built-in tax formula editor controls.
+
+   Replaces a hard-coded https://onecompiler.com iframe that was the ONLY way
+   to enter a formula. That arrangement had three problems beyond the obvious
+   dependency on a third party being reachable:
+
+     * the employer's tax formula was sent to another company to be edited;
+     * the code reached the form only through a postMessage callback, so if the
+       iframe was slow, blocked by CSP, or the admin saved first, python_code
+       was stored EMPTY while use_py stayed on — and every payslip on that
+       filing status then silently taxed at 0;
+     * "Run" executed in onecompiler's sandbox against unrelated data, which
+       said nothing about what this system would compute.
+
+   This partial deliberately does NOT render {{ form.python_code }}. The
+   surrounding form already renders it; rendering it again would put two
+   inputs named python_code in the same form and let the browser decide which
+   one is submitted. Instead this styles the existing textarea in place and
+   adds the Test controls beneath it.
+   --------------------------------------------------------------------------- {% endcomment %}
+<div id="pyEditorWrap" style="display:none;">
+  <div class="text-sm mb-1" style="color:#858585;">
+    {% trans "Define" %} <code>calculate_federal_tax(yearly_income)</code>
+    {% trans "returning the tax for that yearly income. Imports, file access and attribute introspection are not permitted." %}
+  </div>
+
+  <div class="flex items-center gap-2 mt-2 flex-wrap">
+    <label class="oh-label mb-0" for="pyEditorSampleIncome">{% trans "Sample yearly income" %}</label>
+    <input type="number" step="any" id="pyEditorSampleIncome" class="oh-input" style="max-width:180px;" value="120000">
+    <button type="button" class="oh-btn oh-btn--secondary" id="pyEditorTestBtn">
+      <ion-icon name="play-outline" class="me-1"></ion-icon>{% trans "Test" %}
+    </button>
+  </div>
+
+  <div id="pyEditorResult" class="mt-2 p-2 text-sm" style="display:none;border-radius:6px;"></div>
+</div>
+
+<script>
+(function () {
+  // The textarea, the use_py checkbox and this block can all be swapped in by
+  // HTMX into a modal, so bind lazily off document rather than on load.
+  function wrap()      { return document.getElementById("pyEditorWrap"); }
+  function usePyBox()  { return document.querySelector("[name=use_py]"); }
+  function codeField() { return document.querySelector("[name=python_code]"); }
+
+  function codeContainer() {
+    var f = codeField();
+    if (!f) return null;
+    return f.closest(".oh-input-group") || f.parentElement;
+  }
+
+  function syncVisibility() {
+    var box = usePyBox(), el = wrap(), container = codeContainer();
+    // No use_py field on the form at all -> show, since the only reason to
+    // include this partial is to edit the formula.
+    var on = !box || box.checked;
+    if (el) el.style.display = on ? "" : "none";
+    if (container) container.style.display = on ? "" : "none";
+  }
+
+  function show(message, ok) {
+    var out = document.getElementById("pyEditorResult");
+    if (!out) return;
+    out.style.display = "";
+    out.style.background = ok ? "#e8f5ec" : "#fdecea";
+    out.style.color = ok ? "#1a7f37" : "#b00020";
+    out.textContent = message;
+  }
+
+  document.addEventListener("change", function (e) {
+    if (e.target && e.target.name === "use_py") syncVisibility();
+  });
+
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest && e.target.closest("#pyEditorTestBtn");
+    if (!btn) return;
+    e.preventDefault();
+
+    var field = codeField();
+    if (!field) return;
+    var income = document.getElementById("pyEditorSampleIncome");
+    var body = new FormData();
+    body.append("code", field.value);
+    body.append("sample_income", income ? income.value : "0");
+
+    show("{% trans 'Running…' %}", true);
+    fetch("{% url 'test-py-code' %}", {
+      method: "POST",
+      body: body,
+      headers: {
+        "X-CSRFToken": (document.querySelector("[name=csrfmiddlewaretoken]") || {}).value || "",
+        "HX-Request": "true",
+      },
+    })
+      .then(function (r) { return r.json().then(function (d) { return {ok: r.ok, data: d}; }); })
+      .then(function (res) {
+        if (res.ok && res.data.ok) {
+          show("{% trans 'Tax on' %} " + res.data.sample_income + " = " + res.data.result, true);
+        } else {
+          show(res.data.error || "{% trans 'Could not run the formula.' %}", false);
+        }
+      })
+      .catch(function () {
+        show("{% trans 'Could not reach the server.' %}", false);
+      });
+  });
+
+  var field = codeField();
+  if (field) {
+    field.setAttribute("rows", "16");
+    field.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+    field.style.whiteSpace = "pre";
+  }
+  syncVisibility();
+})();
+</script>

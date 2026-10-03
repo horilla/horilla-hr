@@ -1,0 +1,110 @@
+{% load i18n %}
+{% comment %}
+Ready-made tax configurations.
+
+Shares its design with the component chooser (payroll/_picker_modal.html):
+same interaction, so the same row shape, header and footer.
+
+It used to be a five-column table. Country, Slabs and Top rate each took a
+column, which left the Configuration column carrying the name, the description
+and the adjustments in whatever width remained — so the headings wrapped and
+the descriptions ran to five lines. Country is the group heading now, and the
+two figures sit in a right-hand rail, which gives the description the width it
+needed.
+{% endcomment %}
+
+{% include "payroll/_picker_modal.html" %}
+
+<div class="oh-modal__dialog-header mb-3">
+  <span class="text-lg font-semibold text-gray-900">
+    <ion-icon name="globe-outline" class="me-1"></ion-icon>
+    {% trans "Load a ready-made tax configuration" %}
+  </span>
+  <button class="oh-modal__close--custom" type="button"
+          aria-label="{% trans 'Close' %}"
+          onclick="$(this).closest('.oh-modal--show').removeClass('oh-modal--show')">
+    <ion-icon name="close-outline"></ion-icon>
+  </button>
+</div>
+
+<div class="oh-modal__dialog-body">
+  <p class="pick__lead">
+    {% trans "Each one creates a filing status with its slabs and adjustments already filled in — no formula, no code. Edit them afterwards like any other." %}
+  </p>
+
+  <form method="post" action="{% url 'load-tax-pack' %}">
+    {% csrf_token %}
+
+    <div class="pick__body">
+      {% regroup rows by country as grouped %}
+      {% for group in grouped %}
+        <div class="pick__group">{{ group.grouper }}</div>
+        {% for row in group.list %}
+          <label class="pick__row{% if row.already_loaded %} is-loaded{% endif %}">
+            {% comment %}
+            A disabled box rather than the checkmark that used to replace it:
+            the column stays aligned down the list, and "already loaded" is
+            said in words on the right instead of only as an icon tooltip.
+            Offering it again would imply a second copy, which get_or_create
+            would never create.
+            {% endcomment %}
+            <input type="checkbox" class="pick__check" name="packs"
+                   value="{{ row.key }}"
+                   {% if row.already_loaded %}disabled{% endif %}>
+            <span class="pick__main">
+              <span class="pick__name">{{ row.name }}</span>
+              <span class="pick__summary">{{ row.description }}</span>
+              {% if row.standard_deduction or row.has_rebate or row.cess_percent %}
+                <span class="pick__meta">
+                  {% if row.standard_deduction %}
+                    <span>{% trans "Standard deduction" %}
+                      <b>{{ row.standard_deduction|floatformat:0 }}</b></span>
+                  {% endif %}
+                  {% if row.has_rebate %}<span><b>{% trans "Rebate" %}</b></span>{% endif %}
+                  {% if row.cess_percent %}
+                    <span>{% trans "Cess" %}
+                      <b>{{ row.cess_percent|floatformat:"-2" }}%</b></span>
+                  {% endif %}
+                </span>
+              {% endif %}
+            </span>
+            {% if row.already_loaded %}
+              <span class="pick__loaded">
+                <ion-icon name="checkmark-circle"></ion-icon>{% trans "Already loaded" %}
+              </span>
+            {% else %}
+              <span class="pick__stats">
+                <span class="pick__stat">
+                  <b>{{ row.slab_count }}</b>{% trans "slabs" %}
+                </span>
+                <span class="pick__stat">
+                  <b>{{ row.top_rate|floatformat:"-2" }}%</b>{% trans "top rate" %}
+                </span>
+              </span>
+            {% endif %}
+          </label>
+        {% endfor %}
+      {% endfor %}
+    </div>
+
+    <div class="pick__caveat">
+      <ion-icon name="alert-circle-outline"></ion-icon>
+      <span>{% trans "Rates and thresholds change every year. Check each one against the current finance act before anyone is paid by it." %}</span>
+    </div>
+
+    <div class="pick__foot">
+      <span class="pick__hint">
+        {% trans "Nothing is overwritten — loading again leaves your edits alone." %}
+      </span>
+      <div class="pick__actions">
+        <button type="button" class="oh-btn oh-btn--light"
+                onclick="$(this).closest('.oh-modal--show').removeClass('oh-modal--show')">
+          {% trans "Cancel" %}
+        </button>
+        <button type="submit" class="oh-btn oh-btn--secondary">
+          <ion-icon name="download-outline" class="me-1"></ion-icon>{% trans "Load selected" %}
+        </button>
+      </div>
+    </div>
+  </form>
+</div>

@@ -1,0 +1,184 @@
+{% extends 'index.html' %}
+{% load i18n %}
+{% load static %}
+{% load horillafilters %}
+
+{% block content %}
+<main :class="sidebarOpen ? 'oh-main__sidebar-visible' : ''">
+  {% include "payroll/batch/_batch.css.html" %}
+
+  <section class="oh-wrapper pb">
+
+    <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+      <div>
+        <div style="font-size:.78rem;">
+          <a href="{% url 'payroll-batch-home' %}">{% trans "Payroll runs" %}</a>
+        </div>
+        <h1 class="oh-main__titlebar-title fw-bold mb-0">{{ batch.batch_name }}</h1>
+        <div style="font-size:.8rem;color:#6b7280;">
+          {{ batch.period_start|date:"j M Y" }} &ndash; {{ batch.period_end|date:"j M Y" }}
+          {% if batch.pay_date %}
+            &middot; {% blocktrans with d=batch.pay_date|date:"j M Y" %}paid {{ d }}{% endblocktrans %}
+          {% endif %}
+          {% if batch.created_by_user %}
+            &middot; {% blocktrans with who=batch.created_by_user %}run by {{ who }}{% endblocktrans %}
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="d-flex align-items-center gap-2">
+        <span class="pb__pill pb__pill--{{ batch.status }}">{{ batch.get_status_display }}</span>
+        {% if perms.payroll.change_payslip and next_statuses %}
+        <div class="oh-dropdown" x-data="{open:false}">
+          <button type="button" class="oh-btn oh-btn--light" @click="open = !open">
+            {% trans "Change status" %}
+            <ion-icon name="chevron-down-outline" class="ms-1"></ion-icon>
+          </button>
+          <div class="oh-dropdown__menu" x-show="open" x-cloak @click.outside="open = false"
+               style="min-width:240px;">
+            <ul class="oh-dropdown__items">
+              {% for option in next_statuses %}
+              <li class="oh-dropdown__item">
+                {% if option.allowed %}
+                <form method="post" action="{% url 'payroll-batch-set-status' batch.pk %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="status" value="{{ option.value }}">
+                  <button type="submit" class="oh-dropdown__link"
+                          style="background:none;border:0;width:100%;text-align:left;">
+                    {% trans "Mark as" %} {{ option.label }}
+                  </button>
+                </form>
+                {% else %}
+                <span class="oh-dropdown__link" style="opacity:.55;cursor:not-allowed;display:block;">
+                  {% trans "Mark as" %} {{ option.label }}
+                  <span class="pb__problem">{{ option.reason }}</span>
+                </span>
+                {% endif %}
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+        {% endif %}
+        {% if perms.payroll.delete_payslip and batch.status != "paid" %}
+        <form method="post" action="{% url 'payroll-batch-delete' batch.pk %}"
+              onsubmit="return confirm('{% blocktrans with name=batch.batch_name count=batch.generated_count %}Delete the run {{ name }} and its {{ count }} payslip(s)? This cannot be undone.{% endblocktrans %}');">
+          {% csrf_token %}
+          <button type="submit" class="oh-btn oh-btn--danger-outline"
+                  title="{% trans 'Delete this run' %}">
+            <ion-icon name="trash-outline"></ion-icon>
+          </button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if messages %}
+      {% for message in messages %}
+      <div class="oh-alert oh-alert--animated {{ message.tags }}">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+
+    {% if not batch.is_finished %}
+    <div class="pb__panel mb-3">
+      <div style="padding:1.25rem;">
+        {% comment %}
+          Resuming an interrupted run: the same fragment that drove it the
+          first time picks up whatever is still queued.
+        {% endcomment %}
+        {% include "payroll/batch/_progress.html" with batch=batch %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="pb__kpis">
+      <div class="pb__kpi">
+        <div class="pb__kpi-label">{% trans "Payslips" %}</div>
+        <div class="pb__kpi-value">{{ batch.generated_count }}</div>
+        <div class="pb__kpi-note">{% blocktrans with n=batch.employee_count %}of {{ n }} in the run{% endblocktrans %}</div>
+      </div>
+      <div class="pb__kpi">
+        <div class="pb__kpi-label">{% trans "Gross" %}</div>
+        <div class="pb__kpi-value">{{ batch.total_gross|floatformat:2|currency_symbol_position }}</div>
+      </div>
+      <div class="pb__kpi">
+        <div class="pb__kpi-label">{% trans "Deductions" %}</div>
+        <div class="pb__kpi-value">{{ batch.total_deductions|floatformat:2|currency_symbol_position }}</div>
+      </div>
+      <div class="pb__kpi">
+        <div class="pb__kpi-label">{% trans "Net" %}</div>
+        <div class="pb__kpi-value">{{ batch.total_net|floatformat:2|currency_symbol_position }}</div>
+      </div>
+      <div class="pb__kpi">
+        <div class="pb__kpi-label">{% trans "Needs a look" %}</div>
+        <div class="pb__kpi-value {% if batch.flagged_count %}pb__kpi-value--warn{% endif %}">{{ batch.flagged_count }}</div>
+        <div class="pb__kpi-note">{% trans "net pay zero or below" %}</div>
+      </div>
+      <div class="pb__kpi">
+        <div class="pb__kpi-label">{% trans "Failed" %}</div>
+        <div class="pb__kpi-value {% if batch.failed_count %}pb__kpi-value--bad{% endif %}">{{ batch.failed_count }}</div>
+      </div>
+    </div>
+
+    {% if problems %}
+    <div class="pb__panel mb-3">
+      <div class="pb__panel-head">{% trans "Not generated" %}</div>
+      <table class="pb__table">
+        <tbody>
+          {% for line in problems %}
+          <tr>
+            <td style="width:30%;">{{ line.employee_id }}</td>
+            <td style="width:12%;">
+              <span class="pb__pill pb__pill--{% if line.status == 'failed' %}cancelled{% else %}draft{% endif %}">
+                {{ line.get_status_display }}
+              </span>
+            </td>
+            <td style="color:#6b7280;">{{ line.message }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    <div class="pb__panel">
+      <div class="pb__panel-head">{% trans "Payslips in this run" %}</div>
+      {% if payslips %}
+      <div class="pb__scroll">
+        <table class="pb__table">
+          <thead>
+            <tr>
+              <th>{% trans "Employee" %}</th>
+              <th class="pb__num">{% trans "Basic" %}</th>
+              <th class="pb__num">{% trans "Gross" %}</th>
+              <th class="pb__num">{% trans "Deductions" %}</th>
+              <th class="pb__num">{% trans "Net" %}</th>
+              <th>{% trans "Status" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for payslip in payslips %}
+            <tr style="cursor:pointer;"
+                onclick="window.location.href='{% url 'view-created-payslip' payslip.pk %}'"
+                class="{% if payslip.net_pay <= 0 %}pb__row--blocked{% endif %}">
+              <td>{{ payslip.employee_id }}</td>
+              <td class="pb__num">{{ payslip.basic_pay|floatformat:2|currency_symbol_position }}</td>
+              <td class="pb__num">{{ payslip.gross_pay|floatformat:2|currency_symbol_position }}</td>
+              <td class="pb__num">{{ payslip.deduction|floatformat:2|currency_symbol_position }}</td>
+              <td class="pb__num" style="font-weight:600;">{{ payslip.net_pay|floatformat:2|currency_symbol_position }}</td>
+              <td>{{ payslip.get_status_display }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="pb__empty">{% trans "No payslips yet." %}</div>
+      {% endif %}
+    </div>
+
+    {% include "payroll/batch/_pagination.html" with page=payslips %}
+
+  </section>
+</main>
+{% endblock content %}

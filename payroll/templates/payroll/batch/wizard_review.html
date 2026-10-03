@@ -1,0 +1,401 @@
+{% extends 'index.html' %}
+{% load i18n %}
+{% load static %}
+
+{% block content %}
+<main :class="sidebarOpen ? 'oh-main__sidebar-visible' : ''">
+  {% include "payroll/batch/_batch.css.html" %}
+  {% comment %}
+  The same calendar and conflict-resolution the monthly attendance summary
+  uses, hosted here too. An unresolved conflict is the one thing that blocks a
+  run, so the fix belongs on the screen that reports it -- sending someone to
+  another page and back, to run the review again, is a round trip that gets
+  skipped.
+  {% endcomment %}
+  {% include "attendance/monthly_summary/_calendar_modal_host.html" %}
+  {% comment %}
+  #relatedObjectModal, which the contract form is loaded into. It is included
+  per page rather than living in the base template, so a page that opens one
+  has to bring it.
+  {% endcomment %}
+  {% include "generic/components.html" %}
+  {% include "attendance/monthly_summary/_regularise_opener.html" %}
+
+  <section class="oh-wrapper pb">
+
+    <div class="oh-main__titlebar oh-main__titlebar--left mb-3">
+      <h1 class="oh-main__titlebar-title fw-bold mb-0">{{ batch_name }}</h1>
+      <div style="font-size:.8rem;color:#6b7280;">
+        {{ period_start|date:"j M Y" }} &ndash; {{ period_end|date:"j M Y" }}
+      </div>
+    </div>
+
+    {% include "payroll/batch/_steps.html" with step=step %}
+
+    <div class="pb__kpis">
+      <div class="pb__kpi">
+        <div class="pb__kpi-label">{% trans "Will be paid" %}</div>
+        <div class="pb__kpi-value">{{ ready_count }}</div>
+      </div>
+      <div class="pb__kpi">
+        <div class="pb__kpi-label">{% trans "Blocked" %}</div>
+        <div class="pb__kpi-value {% if blocked_count %}pb__kpi-value--bad{% endif %}">{{ blocked_count }}</div>
+        <div class="pb__kpi-note">{% trans "must be fixed first" %}</div>
+      </div>
+      <div class="pb__kpi">
+        <div class="pb__kpi-label">{% trans "Few paid days" %}</div>
+        <div class="pb__kpi-value {% if low_paid_count %}pb__kpi-value--warn{% endif %}">{{ low_paid_count }}</div>
+        <div class="pb__kpi-note">
+          {% blocktrans with n=low_paid_threshold %}under {{ n }} paid days{% endblocktrans %}
+        </div>
+      </div>
+      <div class="pb__kpi">
+        <div class="pb__kpi-label">{% trans "Excluded" %}</div>
+        <div class="pb__kpi-value">{{ excluded|length }}</div>
+        <div class="pb__kpi-note">{% trans "no payslip possible" %}</div>
+      </div>
+    </div>
+
+    {% if blocked_count %}
+    <div class="pb__alert pb__alert--danger">
+      <ion-icon name="alert-circle-outline"></ion-icon>
+      <div>
+        <div>{% blocktrans count n=blocked_count %}{{ n }} person cannot be paid until the problem below is fixed. They are listed first.{% plural %}{{ n }} people cannot be paid until the problems below are fixed. They are listed first.{% endblocktrans %}</div>
+        {% comment %}
+        Resolving conflicts one modal at a time is fine for a handful. At
+        month end it is not -- and what is actually known is "this person
+        worked nineteen days", which is a statement about the month, not about
+        any particular date. So the month's totals can be taken away as a
+        sheet, corrected, and brought back.
+        {% endcomment %}
+        <div class="pb__fixes mt-1">
+          <a class="pb__fix"
+             href="{% url 'attendance-regularisation-template' %}?from_date={{ period_start|date:'Y-m-d' }}&amp;to_date={{ period_end|date:'Y-m-d' }}{% for row in rows %}&amp;employee_ids={{ row.employee.pk }}{% endfor %}">
+            <ion-icon name="download-outline"></ion-icon>
+            {% trans "Download summary sheet" %}
+          </a>
+          <button type="button" class="pb__fix"
+                  onclick="document.getElementById('pb-reg-file').click();">
+            <ion-icon name="cloud-upload-outline"></ion-icon>
+            {% trans "Upload filled sheet" %}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    {% comment %}
+    Its own form, outside the generate form below -- a nested form is invalid
+    HTML and the browser drops the inner one, so the upload would post to
+    whichever survived.
+    {% endcomment %}
+    <form method="post" action="{% url 'attendance-regularisation-import' %}"
+          enctype="multipart/form-data" id="pb-reg-form" class="d-none">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{% url 'payroll-batch-review' %}">
+      {% comment %}
+      The period travels with the upload rather than being read from a column
+      the sheet could have edited -- otherwise a corrected March sheet would
+      overwrite April.
+      {% endcomment %}
+      <input type="hidden" name="from_date" value="{{ period_start|date:'Y-m-d' }}">
+      <input type="hidden" name="to_date" value="{{ period_end|date:'Y-m-d' }}">
+      <input type="file" name="regularisation_file" id="pb-reg-file"
+             accept=".xlsx,.xls,.csv"
+             onchange="document.getElementById('pb-reg-form').submit();">
+    </form>
+    {% endif %}
+
+    <div class="pb__panel mb-3">
+      <div class="pb__panel-head">
+        <span>{% trans "Attendance this period" %}</span>
+        <div class="pb__tools">
+          <span class="pb__count" data-row-count
+                data-label-shown="{% trans "shown" %}"></span>
+          <button type="button" class="pb__reset" data-sort-reset hidden>
+            <ion-icon name="arrow-undo-outline"></ion-icon>
+            {% trans "Blocked first" %}
+          </button>
+          <label class="pb__search">
+            <ion-icon name="search-outline"></ion-icon>
+            <input type="search" data-row-search
+                   placeholder="{% trans 'Search name or badge ID' %}"
+                   aria-label="{% trans 'Search name or badge ID' %}">
+          </label>
+        </div>
+      </div>
+      {% if rows %}
+      <div class="pb__scroll">
+        <table class="pb__table pb__table--top" id="pb-review-table">
+          <thead>
+            <tr>
+              <th class="pb__sortable" data-sort-key="pbname" data-sort-type="text">
+                {% trans "Employee" %}<span class="pb__arrow"></span>
+              </th>
+              <th class="pb__num pb__sortable" data-sort-key="present">
+                {% trans "Present" %}<span class="pb__arrow"></span>
+              </th>
+              <th class="pb__num pb__sortable" data-sort-key="paidleave">
+                {% trans "Paid leave" %}<span class="pb__arrow"></span>
+              </th>
+              <th class="pb__num pb__sortable" data-sort-key="unpaidleave">
+                {% trans "Unpaid leave" %}<span class="pb__arrow"></span>
+              </th>
+              <th class="pb__num pb__sortable" data-sort-key="absent">
+                {% trans "Absent" %}<span class="pb__arrow"></span>
+              </th>
+              <th class="pb__num pb__sortable" data-sort-key="weekoff">
+                {% trans "Week off" %}<span class="pb__arrow"></span>
+              </th>
+              <th class="pb__num pb__sortable" data-sort-key="holiday">
+                {% trans "Holiday" %}<span class="pb__arrow"></span>
+              </th>
+              <th class="pb__num pb__sortable" data-sort-key="working">
+                {% trans "Working days" %}<span class="pb__arrow"></span>
+              </th>
+              <th class="pb__num pb__sortable" data-sort-key="paiddays">
+                {% trans "Paid days" %}<span class="pb__arrow"></span>
+              </th>
+              <th class="pb__num pb__sortable" data-sort-key="overtime">
+                {% trans "Overtime" %}<span class="pb__arrow"></span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+            <tr class="{% if row.blocked %}pb__row--blocked{% endif %}"
+                data-row
+                data-pbname="{{ row.employee }}"
+                data-blocked="{% if row.blocked %}1{% else %}0{% endif %}"
+                data-present="{{ row.present }}"
+                data-paidleave="{{ row.paid_leave }}"
+                data-unpaidleave="{{ row.unpaid_leave }}"
+                data-absent="{{ row.absent }}"
+                data-weekoff="{{ row.week_off }}"
+                data-holiday="{{ row.holiday }}"
+                data-working="{{ row.total_working }}"
+                data-paiddays="{{ row.paid_days }}"
+                data-overtime="{{ row.overtime_seconds }}">
+              <td>
+                <div style="font-weight:600;">{{ row.employee }}</div>
+                {% for level, message in row.problems %}
+                  <span class="pb__problem pb__problem--{{ level }}">
+                    <ion-icon name="{% if level == blocking %}alert-circle{% else %}information-circle{% endif %}-outline"></ion-icon>
+                    {{ message }}
+                  </span>
+                {% endfor %}
+                <div class="pb__fixes">
+                  <button type="button" class="pb__fix"
+                          data-calendar-url="{% url 'attendance-monthly-summary-calendar' %}?employee_id={{ row.employee.pk }}&amp;from_date={{ period_start|date:'Y-m-d' }}&amp;to_date={{ period_end|date:'Y-m-d' }}">
+                    <ion-icon name="calendar-outline"></ion-icon>
+                    {% if row.unresolved_conflicts %}
+                      {% trans "Regularise attendance" %}
+                    {% else %}
+                      {% trans "Open attendance" %}
+                    {% endif %}
+                  </button>
+                  {% comment %}
+                  The other blocking problem -- no wage, no hourly rate, no
+                  earning marked as basic pay -- is fixed on the contract, so
+                  the contract opens from here too. ?modal=1 is the form's own
+                  modal chrome, which already exists for this.
+                  {% endcomment %}
+                  {% if row.contract and perms.payroll.change_contract %}
+                  <button type="button" class="pb__fix"
+                          hx-get="{% url 'update-contract' row.contract.pk %}?modal=1"
+                          hx-target="#relatedObjectModalBody"
+                          data-toggle="oh-modal-toggle"
+                          data-target="#relatedObjectModal">
+                    <ion-icon name="create-outline"></ion-icon>
+                    {% trans "Edit contract" %}
+                  </button>
+                  {% endif %}
+                </div>
+              </td>
+              <td class="pb__num">{{ row.present }}</td>
+              <td class="pb__num">{{ row.paid_leave }}</td>
+              <td class="pb__num">{{ row.unpaid_leave }}</td>
+              <td class="pb__num">{{ row.absent }}</td>
+              <td class="pb__num">{{ row.week_off }}</td>
+              <td class="pb__num">{{ row.holiday }}</td>
+              <td class="pb__num">{{ row.total_working }}</td>
+              <td class="pb__num {% if row.low_paid %}pb__low{% endif %}"
+                  {% if row.low_paid %}title="{% blocktrans with n=low_paid_threshold %}Under {{ n }} paid days{% endblocktrans %}"{% endif %}>
+                {{ row.paid_days }}
+              </td>
+              <td class="pb__num">{{ row.overtime_label|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+            <tr data-no-match class="pb__row--hidden">
+              <td colspan="10" class="pb__empty">
+                {% trans "Nobody here matches that search." %}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="pb__empty">{% trans "Nobody in this run can be given a payslip." %}</div>
+      {% endif %}
+    </div>
+
+    {% if excluded %}
+    <div class="pb__panel mb-3">
+      <div class="pb__panel-head">{% trans "Not included" %}</div>
+      <table class="pb__table">
+        <tbody>
+          {% for employee, reason in excluded %}
+          <tr>
+            <td style="width:35%;">{{ employee }}</td>
+            <td style="color:#6b7280;">{{ reason }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    <form method="post" action="{% url 'payroll-batch-start' %}"
+          class="d-flex justify-content-between align-items-center">
+      {% csrf_token %}
+      <div class="d-flex align-items-center gap-2">
+        <a href="{% url 'payroll-batch-scope' %}" class="oh-btn oh-btn--light">
+          <ion-icon name="arrow-back-outline" class="me-1"></ion-icon>
+          {% trans "Back" %}
+        </a>
+        <button type="button" class="oh-btn oh-btn--light"
+                onclick="window.location.reload();">
+          <ion-icon name="refresh-outline" class="me-1"></ion-icon>
+          {% trans "Re-check" %}
+        </button>
+      </div>
+      <button type="submit" class="oh-btn oh-btn--secondary" {% if not ready_count %}disabled{% endif %}>
+        {% blocktrans count n=ready_count %}Generate {{ n }} payslip{% plural %}Generate {{ n }} payslips{% endblocktrans %}
+        <ion-icon name="arrow-forward-outline" class="ms-1"></ion-icon>
+      </button>
+    </form>
+
+  </section>
+</main>
+
+{% comment %}
+Search and sort, in the browser.
+
+Deliberately not a server round trip: review() recomputes every employee's
+attendance from scratch, so ordering a column server-side would re-run all of
+that to move some rows around. The whole set is already on the page.
+
+The default order is not a sort -- it is "blocked first, then by name", set in
+batch_run.review() because a blocked row is the reason the screen is being
+read. Sorting a column overrides that, so there is a way back to it.
+{% endcomment %}
+<script>
+(function () {
+  var table = document.getElementById("pb-review-table");
+  if (!table) return;
+
+  var body = table.querySelector("tbody");
+  var rows = Array.prototype.slice.call(body.querySelectorAll("[data-row]"));
+  var noMatch = body.querySelector("[data-no-match]");
+
+  // Scoped to this panel, not the document. The page chrome and any filter
+  // panel reuse plenty of attribute names, and a document-wide lookup ends up
+  // reading somebody else's element.
+  var panel = table.closest(".pb__panel") || document;
+  var search = panel.querySelector("[data-row-search]");
+  var counter = panel.querySelector("[data-row-count]");
+  var reset = panel.querySelector("[data-sort-reset]");
+
+  // The order the server sent, kept so "Blocked first" can restore it rather
+  // than re-deriving a rule that lives in Python.
+  var original = rows.slice();
+  var sortKey = null;
+  var ascending = true;
+
+  function value(row, key, type) {
+    var raw = row.dataset[key];
+    if (type === "text") return (raw || "").toLowerCase();
+    var num = parseFloat(raw);
+    return isNaN(num) ? 0 : num;
+  }
+
+  function applyOrder(ordered) {
+    ordered.forEach(function (row) { body.insertBefore(row, noMatch); });
+  }
+
+  function sortBy(key, type) {
+    var ordered = rows.slice().sort(function (a, b) {
+      var left = value(a, key, type);
+      var right = value(b, key, type);
+      if (left < right) return ascending ? -1 : 1;
+      if (left > right) return ascending ? 1 : -1;
+      // Ties fall back to the name, so a column of equal numbers is still in
+      // a stable, readable order rather than whatever the sort happened to do.
+      var an = value(a, "pbname", "text");
+      var bn = value(b, "pbname", "text");
+      return an < bn ? -1 : an > bn ? 1 : 0;
+    });
+    applyOrder(ordered);
+  }
+
+  function markHeaders() {
+    table.querySelectorAll("[data-sort-key]").forEach(function (th) {
+      var active = th.dataset.sortKey === sortKey;
+      th.classList.toggle("pb__sortable--on", active);
+      th.classList.toggle("pb__sortable--desc", active && !ascending);
+      th.setAttribute(
+        "aria-sort",
+        active ? (ascending ? "ascending" : "descending") : "none"
+      );
+    });
+    if (reset) reset.hidden = sortKey === null;
+  }
+
+  function filter() {
+    var term = (search && search.value || "").trim().toLowerCase();
+    var shown = 0;
+    rows.forEach(function (row) {
+      var hit = !term || (row.dataset.pbname || "").toLowerCase().indexOf(term) !== -1;
+      row.classList.toggle("pb__row--hidden", !hit);
+      if (hit) shown += 1;
+    });
+    if (noMatch) noMatch.classList.toggle("pb__row--hidden", shown !== 0);
+    if (counter) {
+      counter.textContent = term
+        ? shown + " / " + rows.length
+        : rows.length + " " + (counter.dataset.labelShown || "");
+    }
+  }
+
+  table.querySelectorAll("[data-sort-key]").forEach(function (th) {
+    th.addEventListener("click", function () {
+      var key = th.dataset.sortKey;
+      // Same column again reverses it; a new column starts ascending.
+      ascending = key === sortKey ? !ascending : true;
+      sortKey = key;
+      sortBy(key, th.dataset.sortType || "number");
+      markHeaders();
+    });
+  });
+
+  if (reset) {
+    reset.addEventListener("click", function () {
+      sortKey = null;
+      ascending = true;
+      applyOrder(original);
+      markHeaders();
+    });
+  }
+
+  if (search) {
+    search.addEventListener("input", filter);
+    // Escape clears, which is what a search box is expected to do.
+    search.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") { search.value = ""; filter(); }
+    });
+  }
+
+  filter();
+  markHeaders();
+})();
+</script>
+{% endblock content %}

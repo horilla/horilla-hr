@@ -1,0 +1,32 @@
+{% extends 'index.html' %}
+{% load i18n %}
+{% load static %}
+
+{% block content %}
+<main :class="sidebarOpen ? 'oh-main__sidebar-visible' : ''">
+  {% include "payroll/batch/_batch.css.html" %}
+
+  <section class="oh-wrapper pb" style="max-width:720px;">
+
+    <div class="oh-main__titlebar oh-main__titlebar--left mb-3">
+      <h1 class="oh-main__titlebar-title fw-bold mb-0">{{ batch.batch_name }}</h1>
+      <div style="font-size:.8rem;color:#6b7280;">
+        {{ batch.period_start|date:"j M Y" }} &ndash; {{ batch.period_end|date:"j M Y" }}
+      </div>
+    </div>
+
+    {% include "payroll/batch/_steps.html" with step=step %}
+
+    <div class="pb__panel">
+      <div style="padding:1.25rem;">
+        {% include "payroll/batch/_progress.html" with batch=batch %}
+      </div>
+    </div>
+
+    <div class="pb__problem mt-2">
+      {% trans "Payslips are written as they are generated. If this page is closed, reopen the run from the list and it carries on from where it stopped — nobody is paid twice." %}
+    </div>
+
+  </section>
+</main>
+{% endblock content %}

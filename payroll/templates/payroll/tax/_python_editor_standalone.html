@@ -1,0 +1,122 @@
+{% load i18n %}
+{% comment %} ---------------------------------------------------------------------------
+   Standalone tax formula editor for a saved FilingStatus.
+
+   Used where there is no surrounding ModelForm — the bracket list swaps this
+   in instead of the bracket table when a filing status is in Python mode. It
+   therefore renders its own textarea (unlike _python_editor.html, which
+   decorates the one a form already rendered) and saves over AJAX.
+
+   Replaces a https://onecompiler.com iframe: the employer's formula was edited
+   in a third party's sandbox, and that sandbox's "run" said nothing about what
+   this system would compute. Test here calls the same run_tax_formula the
+   payroll engine calls.
+
+   Requires ``filing_status`` in context.
+   --------------------------------------------------------------------------- {% endcomment %}
+<div class="p-2">
+  <div class="flex justify-between items-center flex-wrap gap-2 mb-1">
+    <div class="text-sm" style="color:#858585;">
+      {% trans "Define" %} <code>calculate_federal_tax(yearly_income)</code>
+      {% trans "returning the tax for that yearly income." %}
+    </div>
+    <a href="{% url 'filing-status-rules' filing_status.pk %}" class="oh-btn oh-btn--light">
+      <ion-icon name="open-outline" class="me-1"></ion-icon>{% trans "Full editor & preview" %}
+    </a>
+  </div>
+
+  {% comment %} Django escapes this in HTML context, which is what a textarea needs. The
+     old version interpolated it into a JS template literal, where a backtick
+     blanked the editor and the next save wiped the stored code.
+
+     The height is set here rather than via rows="": Horilla's .oh-input rule
+     fixes a single-line height, which wins over the attribute and collapsed
+     this into a one-line box with a scrollbar. {% endcomment %}
+  <textarea id="pyCode{{ filing_status.pk }}" class="w-100" spellcheck="false"
+            style="min-height:340px;width:100%;padding:10px;border:1px solid #dcdcdc;border-radius:6px;
+                   line-height:1.5;tab-size:4;font-size:13px;
+                   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+                   white-space: pre; overflow-wrap: normal; overflow-x: auto;"
+  >{{ filing_status.python_code }}</textarea>
+
+  <div class="flex items-center gap-2 mt-2 flex-wrap">
+    <label class="oh-label mb-0" for="pySample{{ filing_status.pk }}">{% trans "Sample yearly income" %}</label>
+    <input type="number" step="any" id="pySample{{ filing_status.pk }}" class="oh-input" style="max-width:180px;" value="120000">
+    <button type="button" class="oh-btn oh-btn--light" id="pyTest{{ filing_status.pk }}">
+      <ion-icon name="play-outline" class="me-1"></ion-icon>{% trans "Test" %}
+    </button>
+    <button type="button" class="oh-btn oh-btn--secondary" id="pySave{{ filing_status.pk }}">
+      <ion-icon name="save-outline" class="me-1"></ion-icon>{% trans "Save" %}
+    </button>
+  </div>
+
+  <div id="pyResult{{ filing_status.pk }}" class="mt-2 p-2 text-sm" style="display:none;border-radius:6px;"></div>
+</div>
+
+<script>
+(function () {
+  var pk = "{{ filing_status.pk }}";
+  var code   = document.getElementById("pyCode" + pk);
+  var sample = document.getElementById("pySample" + pk);
+  var out    = document.getElementById("pyResult" + pk);
+  if (!code) return;
+
+  function show(message, ok) {
+    out.style.display = "";
+    out.style.background = ok ? "#e8f5ec" : "#fdecea";
+    out.style.color = ok ? "#1a7f37" : "#b00020";
+    out.textContent = message;
+  }
+
+  // Tab indents instead of leaving the field. Python is whitespace-significant,
+  // so a code box you cannot indent in is a code box you cannot use.
+  code.addEventListener("keydown", function (e) {
+    if (e.key !== "Tab") return;
+    e.preventDefault();
+    var start = code.selectionStart, end = code.selectionEnd;
+    code.value = code.value.slice(0, start) + "    " + code.value.slice(end);
+    code.selectionStart = code.selectionEnd = start + 4;
+  });
+
+  document.getElementById("pyTest" + pk).addEventListener("click", function () {
+    var body = new FormData();
+    body.append("code", code.value);
+    body.append("sample_income", sample.value);
+    show("{% trans 'Running…' %}", true);
+    fetch("{% url 'test-py-code' %}", {
+      method: "POST",
+      body: body,
+      headers: {"X-CSRFToken": getCookie("csrftoken"), "HX-Request": "true"},
+    })
+      .then(function (r) { return r.json().then(function (d) { return {ok: r.ok, data: d}; }); })
+      .then(function (res) {
+        if (res.ok && res.data.ok) {
+          show("{% trans 'Tax on' %} " + res.data.sample_income + " = " + res.data.result, true);
+        } else {
+          show(res.data.error || "{% trans 'Could not run the formula.' %}", false);
+        }
+      })
+      .catch(function () { show("{% trans 'Could not reach the server.' %}", false); });
+  });
+
+  document.getElementById("pySave" + pk).addEventListener("click", function () {
+    $.ajax({
+      type: "post",
+      url: "{% url 'update-py-code' filing_status.pk %}",
+      headers: {"HX-Request": "true"},
+      data: {csrfmiddlewaretoken: getCookie("csrftoken"), code: code.value},
+      success: function () {
+        show("{% trans 'Saved.' %}", true);
+        $('#reloadMessagesButton').click();
+      },
+      // The endpoint validates against the sandbox policy and returns the
+      // reason; surface it rather than failing silently.
+      error: function (xhr) {
+        var msg = "{% trans 'Could not save.' %}";
+        try { msg = JSON.parse(xhr.responseText).message || msg; } catch (err) {}
+        show(msg, false);
+      }
+    });
+  });
+})();
+</script>

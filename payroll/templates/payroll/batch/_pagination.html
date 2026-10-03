@@ -1,0 +1,35 @@
+{% comment %}
+Plain-link pagination for the run pages.
+
+The payroll lists elsewhere paginate over HTMX into a named container; these
+pages are ordinary full loads, so links are all that is needed. Pass the page
+object as `page` and any other query string as `pd`.
+{% endcomment %}
+{% load i18n %}
+{% if page.has_other_pages %}
+<div class="oh-pagination">
+  <span class="oh-pagination__page">
+    {% blocktrans with number=page.number total=page.paginator.num_pages %}Page {{ number }} of {{ total }}{% endblocktrans %}
+  </span>
+  <nav class="oh-pagination__nav">
+    <ul class="oh-pagination__items">
+      {% if page.has_previous %}
+      <li class="oh-pagination__item oh-pagination__item--wide">
+        <a class="oh-pagination__link" href="?{{ pd }}&page=1">{% trans "First" %}</a>
+      </li>
+      <li class="oh-pagination__item oh-pagination__item--wide">
+        <a class="oh-pagination__link" href="?{{ pd }}&page={{ page.previous_page_number }}">{% trans "Previous" %}</a>
+      </li>
+      {% endif %}
+      {% if page.has_next %}
+      <li class="oh-pagination__item oh-pagination__item--wide">
+        <a class="oh-pagination__link" href="?{{ pd }}&page={{ page.next_page_number }}">{% trans "Next" %}</a>
+      </li>
+      <li class="oh-pagination__item oh-pagination__item--wide">
+        <a class="oh-pagination__link" href="?{{ pd }}&page={{ page.paginator.num_pages }}">{% trans "Last" %}</a>
+      </li>
+      {% endif %}
+    </ul>
+  </nav>
+</div>
+{% endif %}

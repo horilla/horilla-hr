@@ -180,6 +180,23 @@ class TaxBracketNavView(HorillaNavView):
             hx-get="{reverse_lazy('create-filing-status')}"
             hx-target="#objectCreateModalTarget"
         """
+        # Starting from a correct slab table beats starting from an empty one:
+        # the ready-made configurations are the answer to "what should these
+        # numbers be?", which is the question an empty tax screen leaves you
+        # with.
+        self.actions = [
+            {
+                "action": _("Load a country's tax rules"),
+                "attrs": f"""
+                    class="oh-dropdown__link"
+                    data-toggle="oh-modal-toggle"
+                    data-target="#objectCreateModal"
+                    hx-get="{reverse_lazy('tax-pack-picker')}"
+                    hx-target="#objectCreateModalTarget"
+                    style="cursor: pointer;"
+                """,
+            },
+        ]
 
 
 @method_decorator(login_required, name="dispatch")

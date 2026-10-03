@@ -1,0 +1,20 @@
+{% load i18n %}
+{% comment %}
+The three steps, with the current one marked. `step` is 1, 2 or 3.
+{% endcomment %}
+<div class="pb__steps">
+  <div class="pb__step {% if step == 1 %}pb__step--on{% elif step > 1 %}pb__step--done{% endif %}">
+    <span class="pb__step-num">{% if step > 1 %}&check;{% else %}1{% endif %}</span>
+    {% trans "Who is in it" %}
+  </div>
+  <span class="pb__step-sep">&rsaquo;</span>
+  <div class="pb__step {% if step == 2 %}pb__step--on{% elif step > 2 %}pb__step--done{% endif %}">
+    <span class="pb__step-num">{% if step > 2 %}&check;{% else %}2{% endif %}</span>
+    {% trans "Check the inputs" %}
+  </div>
+  <span class="pb__step-sep">&rsaquo;</span>
+  <div class="pb__step {% if step == 3 %}pb__step--on{% endif %}">
+    <span class="pb__step-num">3</span>
+    {% trans "Generate" %}
+  </div>
+</div>

@@ -1,20 +1,468 @@
-{% extends "index.html" %}
-{% load static %}
+{% extends 'index.html' %}
 {% load i18n %}
+{% load static %}
+
+{% comment %}
+Filing statuses, and what each one does.
+
+The page was an accordion of names. A filing status is a mode flag, a slab
+table and four adjustment fields, so the name answers none of the questions
+the screen raises: which of these charges what, which are configured at all,
+and who is being taxed under them.
+
+Each row expands into computation_steps() -- the engine's real order, from
+tax_calc.compute_yearly_tax -- beside the slabs themselves, so the working is
+on the same screen as the summary rather than two clicks away.
+
+There is no horilla_theme copy of this template. There were two, and the theme
+one shadowed the other; the page now lives in one place.
+{% endcomment %}
+
 {% block content %}
-<meta name="csrf-token" content="{{ csrf_token }}">
-<div hx-get="{% url 'filing-status-nav' %}" hx-trigger="load"></div>
+<main :class="sidebarOpen ? 'oh-main__sidebar-visible' : ''">
+  {% include "generic/components.html" %}
+  {% comment %} Shared payroll page styling: panels, figure strip, tables. {% endcomment %}
+  {% include "payroll/batch/_batch.css.html" %}
 
-{% include "generic/components.html" %}
-<div class="oh-checkpoint-badge mb-2" id="selectedInstances" data-ids="[]" data-clicked="" style="display: none">
-</div>
+  <style>
+    .fs__mode {
+      display: inline-block; padding: .1rem .5rem; border-radius: 4px;
+      font-size: .72rem; font-weight: 600; white-space: nowrap;
+    }
+    .fs__mode--slabs { background: #dbeafe; color: #1e40af; }
+    .fs__mode--python { background: #ede9fe; color: #5b21b6; }
+    .fs__mode--none { background: #fee2e2; color: #991b1b; }
+    .fs__chip {
+      display: inline-block; padding: .1rem .45rem; margin-right: .25rem;
+      border: 1px solid var(--pb-line); border-radius: 999px;
+      font-size: .7rem; color: var(--pb-muted); white-space: nowrap;
+    }
+    /* The working, revealed in place. A <details> rather than a scripted
+       accordion: no JavaScript, and it keeps its state across a reload. */
+    .fs__more { border-top: 1px solid var(--pb-line); background: var(--pb-soft); }
+    .fs__more > summary {
+      cursor: pointer; list-style: none;
+      display: flex; align-items: center; gap: .4rem;
+      padding: .5rem .75rem; font-size: .75rem; color: var(--pb-muted);
+      user-select: none;
+    }
+    .fs__more > summary::-webkit-details-marker { display: none; }
+    .fs__more > summary:hover { color: var(--pb-accent); }
+    .fs__more[open] > summary { color: var(--pb-ink); font-weight: 600; }
+    /* The indicator has to move, or the row gives no sign of its own state.
+       Rotated rather than swapped for a second icon so it animates. */
+    .fs__caret {
+      font-size: .9rem; transition: transform .15s ease; flex: 0 0 auto;
+    }
+    .fs__more[open] > summary .fs__caret { transform: rotate(90deg); }
 
+    /* Slabs on the left, the steps beside them. The slabs are the taller
+       column and the one being checked against, so they lead; the steps read
+       as the commentary on them.
+       Two columns were tried the other way round first, with the three steps
+       on the left -- which left the accent bar running down the side of an
+       empty half. Putting the tall column against the bar fixes that. */
+    .fs__working {
+      display: grid;
+      grid-template-columns: minmax(18rem, 30rem) minmax(0, 1fr);
+      gap: 2rem; align-items: start;
+      padding: .25rem 1rem 1.1rem 1.9rem;
+      border-left: 3px solid var(--pb-accent); margin-left: .75rem;
+    }
+    @media (max-width: 1100px) {
+      /* Below this the two columns squeeze the bands onto two lines each,
+         which is worse than reading them one after the other. */
+      .fs__working { grid-template-columns: 1fr; gap: 1.1rem; }
+    }
 
-<div class="oh-wrapper" hx-get="{% url "filing-status-search" %}?{{request.GET.urlencode}}" hx-trigger="load"
- id="FilingStatusList">
-</div>
+    /* Heading left, what is set right -- on one line above the table, using
+       the width the heading was leaving empty. */
+    .fs__slabhead {
+      display: flex; align-items: baseline; justify-content: space-between;
+      gap: 1rem; flex-wrap: wrap;
+    }
+    .fs__adjustments {
+      display: flex; gap: .3rem; flex-wrap: wrap; margin-bottom: .5rem;
+    }
+    .fs__edit {
+      display: inline-flex; align-items: center; gap: .25rem;
+      font-size: .72rem; color: var(--pb-muted);
+      padding: .1rem .5rem; border: 1px solid var(--pb-line);
+      border-radius: 999px; background: var(--pb-bg); white-space: nowrap;
+    }
+    .fs__edit:hover { color: var(--pb-accent); border-color: var(--pb-accent); }
+    .fs__adj {
+      display: inline-block; padding: .1rem .5rem;
+      border: 1px solid var(--pb-line); border-radius: 999px;
+      background: var(--pb-bg); color: var(--pb-muted);
+      font-size: .7rem; white-space: nowrap;
+    }
+    .fs__adj b {
+      color: var(--pb-ink); font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
 
-<div class="oh-modal" id="objectUpdateModal" role="dialog" aria-labelledby="objectUpdateModalLabel" aria-hidden="true">
-    <div class="oh-modal__dialog" id="objectUpdateModalTarget"></div>
-</div>
+    .fs__subhead {
+      font-size: .68rem; text-transform: uppercase; letter-spacing: .05em;
+      color: var(--pb-muted); font-weight: 600; margin-bottom: .5rem;
+    }
+
+    /* Counters, not list-style: Tailwind's preflight sets `ol { list-style:
+       none }` app-wide, so an ordered list renders with no numbers at all --
+       which is the whole point of showing these in order. */
+    .fs__steps { margin: 0; padding: 0; list-style: none; counter-reset: fs-step; }
+    .fs__steps li {
+      position: relative; counter-increment: fs-step;
+      padding-left: 1.75rem; margin-bottom: .45rem;
+      font-size: .82rem; line-height: 1.5;
+    }
+    .fs__steps li::before {
+      content: counter(fs-step);
+      position: absolute; left: 0; top: .05rem;
+      width: 1.15rem; height: 1.15rem; border-radius: 50%;
+      background: var(--pb-bg); border: 1px solid var(--pb-line);
+      color: var(--pb-muted); font-size: .65rem; font-weight: 700;
+      display: grid; place-items: center;
+    }
+    .fs__steps li:last-child { margin-bottom: 0; }
+
+    /* Fills its column, which is bounded -- so the bands get room to breathe
+       without the rate ending up on the far side of the page from the band it
+       applies to. */
+    .fs__slabs {
+      width: 100%; font-size: .8rem;
+      background: var(--pb-bg); border: 1px solid var(--pb-line);
+      border-radius: 6px;
+      /* separate, not collapse. Under `border-collapse: collapse` the table's
+         own border is merged into the cells' borders and border-radius is
+         ignored outright -- so the box had no visible outer edge at all. With
+         separate and zero spacing the cells still meet, and the table keeps a
+         border of its own to draw. */
+      border-collapse: separate; border-spacing: 0;
+      overflow: hidden;
+    }
+    .fs__slabs th, .fs__slabs td {
+      padding: .45rem 1.25rem; font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      /* Light, like the rows of the list above it. At the same weight as the
+         table's own border every band looked like a separate box. */
+      border-bottom: 1px solid var(--pb-line-soft);
+    }
+    /* The header keeps the full-weight line: it is the edge of the headings,
+       not a divider between two bands. */
+    .fs__slabs thead th { border-bottom: 1px solid var(--pb-line); }
+    .fs__slabs tr:last-child td { border-bottom: 0; }
+    /* Between the counter and the band, and between the band and its rate,
+       so the eye can follow one row across. */
+    .fs__slabs td:not(:last-child), .fs__slabs th:not(:last-child) {
+      border-right: 1px solid var(--pb-line-soft);
+    }
+    .fs__slabs tbody tr:hover { background: var(--pb-soft); }
+    .fs__slabs th {
+      color: var(--pb-muted); font-weight: 600; font-size: .66rem;
+      text-transform: uppercase; letter-spacing: .04em;
+      background: var(--pb-soft); text-align: left;
+    }
+    .fs__slabs .fs__rate { text-align: right; font-weight: 600; }
+    /* Narrow and quiet: it is a place in the ladder, not a figure to read. */
+    .fs__slabs .fs__sn {
+      width: 1%; text-align: right; color: var(--pb-muted);
+      padding-right: .75rem; padding-left: .9rem;
+    }
+    .fs__slabs th.fs__rate { font-weight: 600; }
+
+    .fs__code {
+      margin: 0; padding: .55rem .65rem; background: var(--pb-bg);
+      border: 1px solid var(--pb-line); border-radius: 6px;
+      font-size: .72rem; max-height: 14rem; overflow: auto; white-space: pre;
+      max-width: 44rem;
+    }
+  </style>
+
+  <section class="oh-wrapper pb">
+
+    <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+      <div>
+        <h1 class="oh-main__titlebar-title fw-bold mb-0">{% trans "Filing statuses" %}</h1>
+        <div style="font-size:.8rem;color:#6b7280;">
+          {% trans "How income tax is worked out, and who it applies to." %}
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        {% if perms.payroll.add_filingstatus %}
+        <button type="button" class="oh-btn oh-btn--light"
+                data-toggle="oh-modal-toggle" data-target="#objectCreateModal"
+                hx-get="{% url 'tax-pack-picker' %}"
+                hx-target="#objectCreateModalTarget">
+          <ion-icon name="cloud-download-outline" class="me-1"></ion-icon>
+          {% trans "Load a country's rules" %}
+        </button>
+        <button type="button" class="oh-btn oh-btn--secondary"
+                data-toggle="oh-modal-toggle" data-target="#objectCreateModal"
+                hx-get="{% url 'create-filing-status' %}"
+                hx-target="#objectCreateModalTarget">
+          <ion-icon name="add-outline" class="me-1"></ion-icon>
+          {% trans "Create" %}
+        </button>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if messages %}
+      {% for message in messages %}
+      <div class="oh-alert oh-alert--animated {{ message.tags }}">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+
+    {% comment %}
+    Contracts with no filing status compute zero tax -- correctly and silently,
+    which looks exactly like a low earner until somebody reconciles a return.
+    It is the one thing on this page worth interrupting for.
+    {% endcomment %}
+    {% if unassigned %}
+    <div class="pb__alert pb__alert--danger">
+      <ion-icon name="alert-circle-outline"></ion-icon>
+      <span>
+        {% blocktrans count n=unassigned %}
+          1 active contract has no filing status, so no income tax is worked out
+          for them at all.
+        {% plural %}
+          {{ n }} active contracts have no filing status, so no income tax is
+          worked out for them at all.
+        {% endblocktrans %}
+        <a href="{% url 'view-contract' %}">{% trans "Open contracts" %}</a>
+      </span>
+    </div>
+    {% endif %}
+
+    {% if unconfigured %}
+    <div class="pb__alert pb__alert--warning">
+      <ion-icon name="information-circle-outline"></ion-icon>
+      <span>
+        {% blocktrans count n=unconfigured %}
+          1 filing status has no slabs and no formula, so it charges nothing to
+          anyone on it.
+        {% plural %}
+          {{ n }} filing statuses have no slabs and no formula, so they charge
+          nothing to anyone on them.
+        {% endblocktrans %}
+      </span>
+    </div>
+    {% endif %}
+
+    <div class="pb__kpis">
+      <div class="pb__kpi">
+        <div class="pb__kpi-label">{% trans "Filing statuses" %}</div>
+        <div class="pb__kpi-value">{{ rows|length }}</div>
+      </div>
+      <div class="pb__kpi">
+        <div class="pb__kpi-label">{% trans "Contracts covered" %}</div>
+        <div class="pb__kpi-value">{{ total_covered }}</div>
+      </div>
+      <div class="pb__kpi">
+        <div class="pb__kpi-label">{% trans "No filing status" %}</div>
+        <div class="pb__kpi-value {% if unassigned %}pb__kpi-value--bad{% endif %}">{{ unassigned }}</div>
+        <div class="pb__kpi-note">{% trans "no tax computed" %}</div>
+      </div>
+      <div class="pb__kpi">
+        <div class="pb__kpi-label">{% trans "Not configured" %}</div>
+        <div class="pb__kpi-value {% if unconfigured %}pb__kpi-value--warn{% endif %}">{{ unconfigured }}</div>
+        <div class="pb__kpi-note">{% trans "no slabs, no formula" %}</div>
+      </div>
+    </div>
+
+    <div class="pb__panel">
+      <div class="pb__panel-head">
+        <span>{% trans "All filing statuses" %}</span>
+        <span style="text-transform:none;font-weight:400;">
+          {% trans "Expand a row to see how it works the tax out." %}
+        </span>
+      </div>
+
+      {% if rows %}
+      <table class="pb__table">
+        <thead>
+          <tr>
+            <th>{% trans "Filing status" %}</th>
+            <th>{% trans "How tax is worked out" %}</th>
+            <th>{% trans "Applied to" %}</th>
+            <th class="pb__num">{% trans "Top rate" %}</th>
+            <th class="pb__num">{% trans "Contracts" %}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            <td style="font-weight:600;">{{ row.status.filing_status }}</td>
+            <td>
+              {% if row.status.use_py %}
+                <span class="fs__mode fs__mode--python">{% trans "Python formula" %}</span>
+              {% elif row.status.slab_count %}
+                <span class="fs__mode fs__mode--slabs">
+                  {% blocktrans count n=row.status.slab_count %}{{ n }} slab{% plural %}{{ n }} slabs{% endblocktrans %}
+                </span>
+              {% else %}
+                <span class="fs__mode fs__mode--none">{% trans "Nothing configured" %}</span>
+              {% endif %}
+              {% for adjustment in row.adjustments %}
+                <span class="fs__chip">{{ adjustment.label }}</span>
+              {% endfor %}
+            </td>
+            <td>{{ row.status.get_based_on_display }}</td>
+            <td class="pb__num">
+              {% if row.status.top_rate %}{{ row.status.top_rate|floatformat:"-2" }}%{% else %}&mdash;{% endif %}
+            </td>
+            <td class="pb__num">{{ row.status.employee_count }}</td>
+            <td class="pb__num" style="white-space:nowrap;">
+              {% if perms.payroll.change_filingstatus %}
+              <a class="pb__rowbtn" href="{{ row.status.get_rules_url }}"
+                 title="{% trans 'Slabs, adjustments and formula' %}">
+                <ion-icon name="options-outline"></ion-icon>
+              </a>
+              <a class="pb__rowbtn" data-toggle="oh-modal-toggle"
+                 data-target="#objectCreateModal"
+                 hx-get="{{ row.status.get_update_url }}"
+                 hx-target="#objectCreateModalTarget"
+                 title="{% trans 'Rename or change the basis' %}">
+                <ion-icon name="create-outline"></ion-icon>
+              </a>
+              {% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td colspan="6" style="padding:0;">
+              <details class="fs__more">
+                <summary>
+                  <ion-icon name="chevron-forward-outline" class="fs__caret"></ion-icon>
+                  <span>{% trans "How this works the tax out" %}</span>
+                </summary>
+                <div class="fs__working">
+                  <div class="fs__block">
+                    {% if row.status.use_py %}
+                      {% comment %}
+                      Same head as the slabs branch: a formula is edited on the
+                      same page, and the adjustments apply around it just as
+                      they apply around a slab table.
+                      {% endcomment %}
+                      <div class="fs__slabhead">
+                        <div class="fs__subhead">{% trans "Formula" %}</div>
+                        {% if perms.payroll.change_filingstatus %}
+                        <a class="fs__edit" href="{{ row.status.get_rules_url }}">
+                          <ion-icon name="options-outline"></ion-icon>
+                          {% trans "Slabs, adjustments & formula" %}
+                        </a>
+                        {% endif %}
+                      </div>
+                      {% if row.adjustments %}
+                      <div class="fs__adjustments">
+                        {% for adjustment in row.adjustments %}
+                          <span class="fs__adj">
+                            {{ adjustment.label }}
+                            <b>{{ adjustment.value }}</b>
+                          </span>
+                        {% endfor %}
+                      </div>
+                      {% endif %}
+                      <pre class="fs__code">{{ row.status.python_code|default:_("Nothing written yet.") }}</pre>
+                    {% elif row.status.slabs %}
+                      {% comment %}
+                      The adjustments belong with the slabs: they are applied
+                      around whichever mode computes the tax, so a slab table
+                      read on its own is only part of the answer. The steps
+                      beside it say when each one lands; these say what it is
+                      set to.
+                      {% endcomment %}
+                      <div class="fs__slabhead">
+                        <div class="fs__subhead">{% trans "Slabs" %}</div>
+                        {% if perms.payroll.change_filingstatus %}
+                        {% comment %}
+                        Where the slabs, the adjustments and the formula are
+                        actually set. Spotting something wrong in the working
+                        and having to go back up to the row to fix it is the
+                        trip this saves.
+                        {% endcomment %}
+                        <a class="fs__edit" href="{{ row.status.get_rules_url }}">
+                          <ion-icon name="options-outline"></ion-icon>
+                          {% trans "Slabs, adjustments & formula" %}
+                        </a>
+                        {% endif %}
+                      </div>
+                      {% if row.adjustments %}
+                      <div class="fs__adjustments">
+                        {% for adjustment in row.adjustments %}
+                          <span class="fs__adj">
+                            {{ adjustment.label }}
+                            <b>{{ adjustment.value }}</b>
+                          </span>
+                        {% endfor %}
+                      </div>
+                      {% endif %}
+                      <table class="fs__slabs">
+                        <thead>
+                          <tr>
+                            <th class="fs__sn">{% trans "SN" %}</th>
+                            <th>{% trans "Income band" %}</th>
+                            <th class="fs__rate">{% trans "Rate" %}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% comment %}
+                          The slabs are ordered by min_income, so the counter
+                          is the band's place in the ladder -- which is what
+                          somebody checking a tax table against a published one
+                          counts down.
+                          {% endcomment %}
+                          {% for slab in row.status.slabs %}
+                          <tr>
+                            <td class="fs__sn">{{ forloop.counter }}</td>
+                            <td>{{ slab.band_label }}</td>
+                            <td class="fs__rate">{{ slab.tax_rate|floatformat:"-2" }}%</td>
+                          </tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+                    {% else %}
+                      <div class="fs__slabhead">
+                        <div class="fs__subhead">{% trans "Slabs" %}</div>
+                        {% if perms.payroll.change_filingstatus %}
+                        <a class="fs__edit" href="{{ row.status.get_rules_url }}">
+                          <ion-icon name="options-outline"></ion-icon>
+                          {% trans "Slabs, adjustments & formula" %}
+                        </a>
+                        {% endif %}
+                      </div>
+                      <div class="pb__problem pb__problem--blocking">
+                        {% trans "No slabs yet, so this charges nothing." %}
+                      </div>
+                    {% endif %}
+                  </div>
+
+                  <div class="fs__block">
+                    <div class="fs__subhead">{% trans "In order" %}</div>
+                    <ol class="fs__steps">
+                      {% for step in row.status.computation_steps %}
+                        <li>{{ step }}</li>
+                      {% endfor %}
+                    </ol>
+                  </div>
+                </div>
+              </details>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="pb__empty">
+        {% trans "No filing statuses yet." %}
+        <div class="pb__problem mt-1">
+          {% trans "Without one, no income tax is worked out for anybody." %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+  </section>
+</main>
 {% endblock content %}
