@@ -2,7 +2,7 @@
 {% load static i18n %}
 
 {% block content %}
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
     <style>
         :root {
             --md-indigo: var(--primary-600, #e54f38);
@@ -32,6 +32,8 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            flex-wrap: wrap;
+            row-gap: 10px;
             margin-bottom: 20px;
         }
 
@@ -92,7 +94,7 @@
         /* Main layout: content + sidebar */
         .md-layout {
             display: grid;
-            grid-template-columns: 1fr var(--md-sidebar-w);
+            grid-template-columns: minmax(0, 1fr) var(--md-sidebar-w);
             align-items: start;
             gap: 20px;
         }
@@ -122,7 +124,7 @@
         /* KPI Grid */
         .md-kpi-grid {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             margin-bottom: 20px;
             gap: 14px;
         }
@@ -330,12 +332,13 @@
         /* Chart Grid — flat sortable container */
         .md-chart-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             margin-bottom: 20px;
             gap: 18px;
         }
 
         .md-chart-card {
+            min-width: 0;
             position: relative;
             /* visible so ApexCharts axis/legend labels are not clipped */
             overflow: visible;
@@ -681,6 +684,277 @@
         }
         .md-link-subtle:hover {
             text-decoration: underline;
+        }
+
+        /* Department Headcount legend: top departments as chips + "+N" popover */
+        .md-pie-legend {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 6px 12px 14px;
+        }
+        .md-pie-chips {
+            display: contents;
+        }
+        .md-pie-chip__name {
+            max-width: 130px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .md-pie-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 10px;
+            border: 1px solid rgba(128, 128, 128, 0.2);
+            border-radius: 999px;
+            background: none;
+            color: inherit;
+            font-size: 11px;
+            font-weight: 500;
+            white-space: nowrap;
+            flex-shrink: 0;
+            cursor: pointer;
+            transition: opacity 0.15s, border-color 0.15s;
+        }
+        .md-pie-chip:hover {
+            border-color: var(--md-indigo);
+        }
+        .md-pie-chip.is-off {
+            opacity: 0.45;
+        }
+        .md-pie-chip.is-off .md-pie-chip__dot {
+            filter: grayscale(1);
+        }
+        .md-pie-chip__dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .md-pie-chip--more {
+            text-transform: capitalize;
+            color: var(--md-indigo);
+            font-weight: 600;
+            border-style: dashed;
+        }
+        .md-pie-more {
+            position: relative;
+            display: inline-block;
+        }
+        .md-pie-pop {
+            display: none;
+            position: absolute;
+            right: 0;
+            bottom: 100%;
+            padding-bottom: 8px;
+            z-index: 40;
+        }
+        .md-pie-more:hover .md-pie-pop,
+        .md-pie-more:focus-within .md-pie-pop {
+            display: block;
+        }
+        .md-pie-pop__box {
+            width: max-content;
+            min-width: 230px;
+            max-width: 340px;
+            border: 1px solid rgba(128, 128, 128, 0.15);
+            border-radius: 10px;
+            background: #fff;
+            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.15);
+            padding: 8px 4px 6px;
+        }
+        .dark .md-pie-pop__box {
+            background: #242424;
+        }
+        .md-pie-pop__title {
+            padding: 0 10px 6px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            opacity: 0.55;
+        }
+        .md-pie-pop__list {
+            max-height: 190px;
+            overflow-y: auto;
+        }
+        .md-pie-pop__row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .md-pie-pop__row:hover {
+            background: rgba(128, 128, 128, 0.1);
+        }
+        .md-pie-pop__text {
+            display: flex;
+            flex: 1;
+            flex-direction: column;
+            min-width: 0;
+            line-height: 1.25;
+        }
+        .md-pie-pop__text > span {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .md-pie-pop__text > small {
+            white-space: nowrap;
+            font-size: 10px;
+            opacity: 0.6;
+        }
+        .md-pie-pop__row input {
+            accent-color: var(--md-indigo);
+            margin: 0;
+        }
+        .md-pie-pop__count {
+            flex-shrink: 0;
+            white-space: nowrap;
+            margin-left: auto;
+            font-size: 11px;
+            opacity: 0.55;
+        }
+        .md-chart-card:has(.md-pie-more:hover),
+        .md-chart-card:has(.md-pie-more:focus-within) {
+            z-index: 30;
+        }
+
+        /* Overdue tickets list */
+        .md-tkt-body {
+            padding: 0 6px 10px;
+            max-height: 372px;
+            overflow-y: auto;
+        }
+        .md-tkt-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            color: inherit;
+            text-decoration: none;
+            transition: background 0.15s;
+        }
+        .md-tkt-row:hover {
+            background: rgba(128, 128, 128, 0.08);
+            color: inherit;
+        }
+        .md-tkt-row + .md-tkt-row {
+            border-top: 1px solid rgba(128, 128, 128, 0.1);
+        }
+        .md-tkt-row__avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            object-fit: cover;
+            flex-shrink: 0;
+        }
+        .md-tkt-row__main {
+            flex: 1;
+            min-width: 0;
+        }
+        .md-tkt-row__title {
+            overflow: hidden;
+            font-size: 13px;
+            font-weight: 600;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .md-tkt-row__id {
+            margin-right: 6px;
+            color: var(--md-indigo);
+            font-weight: 700;
+        }
+        .md-tkt-row__meta {
+            overflow: hidden;
+            font-size: 11px;
+            opacity: 0.6;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .md-tkt-row__side {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+        .md-tkt-late {
+            color: #dc2626;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .md-tkt-prio {
+            padding: 1px 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .md-tkt-prio--high { background: rgba(239, 68, 68, 0.14); color: #dc2626; }
+        .md-tkt-prio--medium { background: rgba(245, 158, 11, 0.16); color: #b45309; }
+        .md-tkt-prio--low { background: rgba(34, 197, 94, 0.14); color: #15803d; }
+
+        /* Standard chart tooltip card */
+        .md-tip {
+            min-width: 150px;
+            padding: 10px 12px;
+            font-size: 12px;
+        }
+        .md-tip__title {
+            margin-bottom: 4px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .md-tip__row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            margin-top: 4px;
+        }
+        .md-tip__label {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .md-tip__dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .md-tip__sub {
+            font-weight: 400;
+            opacity: 0.65;
+        }
+
+        /* Icon-only button in a chart card header that opens the module's own dashboard */
+        .md-card-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            border: 1px solid color-mix(in srgb, var(--md-indigo) 25%, transparent);
+            background: color-mix(in srgb, var(--md-indigo) 8%, transparent);
+            color: var(--md-indigo);
+            text-decoration: none;
+            transition: background 0.15s, color 0.15s, transform 0.15s;
+        }
+        .md-card-link:hover {
+            background: var(--md-indigo);
+            color: #fff;
+            transform: translate(1px, -1px);
         }
 
         .md-btn-add {
@@ -1187,7 +1461,8 @@
 
         /* Period Picker */
         .md-period-picker {
-            display: none !important; /* TEMP: hide period picker */
+            display: flex;
+            flex-wrap: wrap;
             align-items: center;
             gap: 6px;
             font-size: 12px;
@@ -1431,13 +1706,14 @@
                 </div>
             </div>
             <div class="md-header__actions">
-                <div class="md-period-picker" hidden>
+                <div class="md-period-picker">
+                    <button class="md-period-preset" data-preset="today">{% trans "Today" %}</button>
+                    <button class="md-period-preset" data-preset="this_week">{% trans "This Week" %}</button>
                     <button class="md-period-preset" data-preset="this_month">{% trans "This Month" %}</button>
-                    <button class="md-period-preset" data-preset="last_month">{% trans "Last Month" %}</button>
-                    <button class="md-period-preset" data-preset="this_quarter">{% trans "Quarter" %}</button>
-                    <input type="date" id="md-from-date" title="{% trans 'From' %}">
+                    <button class="md-period-preset" data-preset="this_year">{% trans "This Year" %}</button>
+                    <input type="date" id="md-from-date" title="{% trans 'Custom range start' %}">
                     <span class="md-period-picker__sep">→</span>
-                    <input type="date" id="md-to-date" title="{% trans 'To' %}">
+                    <input type="date" id="md-to-date" title="{% trans 'Custom range end' %}">
                 </div>
                 <button
                     class="oh-btn oh-btn--secondary"
@@ -1493,12 +1769,6 @@
                 <div class="md-skeleton md-skeleton--value"></div>
                 <div class="md-skeleton md-skeleton--sub"></div>
             </div>
-            <div class="md-kpi-card md-kpi-card--skeleton">
-                <div class="md-skeleton md-skeleton--icon"></div>
-                <div class="md-skeleton md-skeleton--label"></div>
-                <div class="md-skeleton md-skeleton--value"></div>
-                <div class="md-skeleton md-skeleton--sub"></div>
-            </div>
         </div>
 
         <!-- Main layout -->
@@ -1506,6 +1776,62 @@
             <!-- Left: Charts (single flat grid for reordering) -->
             <div class="md-main">
                 <div class="md-chart-grid" id="md-charts-container">
+                    {% if perms.helpdesk.view_ticket or request.user.is_superuser %}
+                        <!-- Ticket Priority (open tickets) -->
+                        <div
+                            class="md-chart-card"
+                            data-chart-id="ticket_priority"
+                            data-chart-section="helpdesk"
+                            data-chart-label="{% trans 'Open Tickets by Priority' %}"
+                        >
+                            <div class="md-chart-card__header">
+                                <div>
+                                    <div class="md-chart-card__title">{% trans "Open Tickets by Priority" %}</div>
+                                    <div class="md-chart-card__subtitle">
+                                        {% trans "Closed tickets excluded" %}<span data-period-label></span>
+                                    </div>
+                                </div>
+                                <a
+                                    class="md-card-link"
+                                    id="ticket-priority-link"
+                                    href="{% url 'ticket-view' %}"
+                                    title="{% trans 'Open tickets' %}"
+                                    aria-label="{% trans 'Open tickets' %}"
+                                ><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7" /><path d="M8 7h9v9" /></svg></a>
+                            </div>
+                            <div class="md-chart-card__body"><div id="chart-ticket-priority"></div></div>
+                        </div>
+
+                        <!-- Overdue tickets list -->
+                        <div
+                            class="md-chart-card"
+                            data-chart-id="overdue_tickets"
+                            data-chart-section="helpdesk"
+                            data-chart-label="{% trans 'Overdue Tickets' %}"
+                        >
+                            <div class="md-chart-card__header">
+                                <div>
+                                    <div class="md-chart-card__title">
+                                        {% trans "Overdue Tickets" %}
+                                        <span class="md-badge md-badge--red" id="overdue-tickets-count" style="margin-left: 6px; display: none"></span>
+                                    </div>
+                                    <div class="md-chart-card__subtitle">
+                                        {% trans "Open and past deadline, most overdue first" %}<span data-period-label></span>
+                                    </div>
+                                </div>
+                                <a
+                                    class="md-card-link"
+                                    id="overdue-tickets-link"
+                                    href="{% url 'ticket-view' %}"
+                                    title="{% trans 'Open overdue tickets' %}"
+                                    aria-label="{% trans 'Open overdue tickets' %}"
+                                ><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7" /><path d="M8 7h9v9" /></svg></a>
+                            </div>
+                            <div class="md-chart-card__body md-tkt-body" id="overdue-tickets-list">
+                                <div class="md-info-panel__empty">{% trans "Loading..." %}</div>
+                            </div>
+                        </div>
+                    {% endif %}
                     <!-- Department Headcount -->
                     <div
                         class="md-chart-card"
@@ -1517,10 +1843,13 @@
                         <div class="md-chart-card__header">
                             <div>
                                 <div class="md-chart-card__title">{% trans "Department Headcount" %}</div>
-                                <div class="md-chart-card__subtitle">{% trans "Top 10 departments" %}</div>
+                                <div class="md-chart-card__subtitle">{% trans "All departments" %}</div>
                             </div>
                         </div>
-                        <div class="md-chart-card__body"><div id="chart-departments"></div></div>
+                        <div class="md-chart-card__body">
+                            <div id="chart-departments"></div>
+                            <div class="md-pie-legend" id="md-pie-legend-departments"></div>
+                        </div>
                     </div>
 
                     {% if perms.leave.view_leaverequest or request.user.is_superuser %}
@@ -1535,37 +1864,24 @@
                             <div class="md-chart-card__header">
                                 <div>
                                     <div class="md-chart-card__title">{% trans "Leave Trends" %}</div>
-                                    <div class="md-chart-card__subtitle">{% trans "Leave count vs Date" %}</div>
+                                    <div class="md-chart-card__subtitle">{% trans "Leave days by department" %}<span data-period-label></span></div>
                                 </div>
                                 <a
-                                    class="md-link text-xs"
+                                    class="md-card-link"
                                     href="{% url 'leave-dashboard' %}"
-                                >{% trans "Open Leave dashboard" %}</a>
+                                    title="{% trans 'Open Leave dashboard' %}"
+                                    aria-label="{% trans 'Open Leave dashboard' %}"
+                                >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7" /><path d="M8 7h9v9" /></svg>
+                                </a>
                             </div>
-                            <div class="md-chart-card__body"><div id="chart-leave-trend"></div></div>
+                            <div class="md-chart-card__body">
+                                <div id="chart-leave-trend"></div>
+                                <div class="md-pie-legend" id="md-pie-legend-leave-trend"></div>
+                            </div>
                         </div>
                     {% endif %}
 
-                    <!-- Employee Status -->
-                    <div
-                        class="md-chart-card"
-                        data-chart-id="employee_status"
-                        data-chart-section="overview"
-                        data-chart-label="{% trans 'Employee Status' %}"
-                        data-chart-default="hidden"
-                    >
-                        <div class="md-chart-card__header">
-                            <div>
-                                <div class="md-chart-card__title">{% trans "Employee Status" %}</div>
-                                <div class="md-chart-card__subtitle">{% trans "Active vs Inactive" %}</div>
-                            </div>
-                            <a
-                                class="md-link text-xs"
-                                href="{% url 'employee-dashboard' %}"
-                            >{% trans "Open Employee dashboard" %}</a>
-                        </div>
-                        <div class="md-chart-card__body"><div id="chart-employee-status"></div></div>
-                    </div>
 
                     <!-- Gender Distribution -->
                     <div
@@ -1581,25 +1897,31 @@
                                 <div class="md-chart-card__subtitle">{% trans "Active employees" %}</div>
                             </div>
                         </div>
-                        <div class="md-chart-card__body"><div id="chart-gender"></div></div>
+                        <div class="md-chart-card__body">
+                            <div id="chart-gender"></div>
+                            <div class="md-pie-legend" id="md-pie-legend-gender"></div>
+                        </div>
                     </div>
 
                     {% if perms.leave.view_leaverequest or request.user.is_superuser %}
-                        <!-- Leave Breakdown -->
+                        <!-- Leave Type Breakdown -->
                         <div
                             class="md-chart-card"
                             data-chart-id="leave_breakdown"
                             data-chart-section="overview"
-                            data-chart-label="{% trans 'Leave Breakdown' %}"
+                            data-chart-label="{% trans 'Leave Type Breakdown' %}"
                             data-chart-default="hidden"
                         >
                             <div class="md-chart-card__header">
                                 <div>
-                                    <div class="md-chart-card__title">{% trans "Leave Breakdown" %}</div>
-                                    <div class="md-chart-card__subtitle" id="leave-month">{% trans "This month" %}</div>
+                                    <div class="md-chart-card__title">{% trans "Leave Type Breakdown" %}</div>
+                                    <div class="md-chart-card__subtitle">{% trans "Approved vs pending by leave type" %}<span data-period-label></span></div>
                                 </div>
                             </div>
-                            <div class="md-chart-card__body"><div id="chart-leave"></div></div>
+                            <div class="md-chart-card__body">
+                                <div id="chart-leave"></div>
+                                <div class="md-pie-legend" id="md-pie-legend-leave"></div>
+                            </div>
                         </div>
                     {% endif %}
 
@@ -1609,76 +1931,26 @@
                             class="md-chart-card md-chart-card--wide"
                             data-chart-id="attendance_overview"
                             data-chart-section="attendance"
-                            data-chart-label="{% trans 'Attendance Overview' %}"
+                            data-chart-label="{% trans 'Attendance Daily Overview' %}"
                             data-chart-wide="1"
                         >
                             <div class="md-chart-card__header">
                                 <div>
-                                    <div class="md-chart-card__title">{% trans "Attendance Overview" %}</div>
+                                    <div class="md-chart-card__title">{% trans "Attendance Daily Overview" %}</div>
                                     <div class="md-chart-card__subtitle">
-                                        {% trans "On-time, late arrivals & early departures by department" %}
+                                        {% trans "On-time, late arrivals & early departures by department" %} — {% trans "Today" %}
                                     </div>
                                 </div>
                             </div>
-                            <div class="md-chart-card__body"><div id="chart-attendance-overview"></div></div>
+                            <div class="md-chart-card__body">
+                                <div id="chart-attendance-overview"></div>
+                                <div class="md-pie-legend" id="md-pie-legend-attendance"></div>
+                            </div>
                         </div>
 
-                        <!-- Department Overtime -->
-                        <div
-                            class="md-chart-card"
-                            data-chart-id="department_overtime"
-                            data-chart-section="attendance"
-                            data-chart-label="{% trans 'Department Overtime' %}"
-                        >
-                            <div class="md-chart-card__header">
-                                <div>
-                                    <div class="md-chart-card__title">{% trans "Department Overtime" %}</div>
-                                    <div class="md-chart-card__subtitle">
-                                        {% trans "Overtime hours by department" %}
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="md-chart-card__body"><div id="chart-overtime"></div></div>
-                        </div>
 
-                        <!-- Attendance Trend -->
-                        <div
-                            class="md-chart-card md-chart-card--wide"
-                            data-chart-id="attendance_trend"
-                            data-chart-section="attendance"
-                            data-chart-label="{% trans 'Attendance Trend' %}"
-                            data-chart-wide="1"
-                        >
-                            <div class="md-chart-card__header">
-                                <div>
-                                    <div class="md-chart-card__title">{% trans "Attendance Trend" %}</div>
-                                    <div class="md-chart-card__subtitle" id="md-attendance-trend-subtitle">
-                                        {% trans "Weekly rate — last 12 weeks" %}
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="md-chart-card__body"><div id="chart-attendance-trend"></div></div>
-                        </div>
                     {% endif %}
 
-                    <!-- Leave Coverage (7 days) -->
-                    <div
-                        class="md-chart-card md-chart-card--wide"
-                        data-chart-id="leave_coverage"
-                        data-chart-section="leave"
-                        data-chart-label="{% trans 'Leave Coverage' %}"
-                        data-chart-wide="1"
-                    >
-                        <div class="md-chart-card__header">
-                            <div>
-                                <div class="md-chart-card__title">{% trans "Leave Coverage" %}</div>
-                                <div class="md-chart-card__subtitle">
-                                    {% trans "Next 7 days — who is out vs available" %}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="md-chart-card__body"><div id="chart-leave-coverage"></div></div>
-                    </div>
 
                     {% if perms.recruitment.view_recruitment or request.user.is_superuser %}
                         <!-- Recruitment Pipeline -->
@@ -1686,18 +1958,19 @@
                             class="md-chart-card md-chart-card--wide"
                             data-chart-id="recruitment_pipeline"
                             data-chart-section="recruitment"
-                            data-chart-label="{% trans 'Recruitment Pipeline' %}"
+                            data-chart-label="{% trans 'Recruitment Pipeline Trend' %}"
                             data-chart-wide="1"
                         >
                             <div class="md-chart-card__header">
                                 <div>
-                                    <div class="md-chart-card__title">{% trans "Recruitment Pipeline" %}</div>
-                                    <div class="md-chart-card__subtitle">
-                                        {% trans "Candidates by stage per recruitment" %}
-                                    </div>
+                                    <div class="md-chart-card__title">{% trans "Recruitment Pipeline Trend" %}</div>
+                                    <div class="md-chart-card__subtitle" id="pipeline-subtitle">{% trans "All open recruitments — active candidates at each stage" %}</div>
                                 </div>
                             </div>
-                            <div class="md-chart-card__body"><div id="chart-pipeline"></div></div>
+                            <div class="md-chart-card__body">
+                                <div id="chart-pipeline"></div>
+                                <div class="md-pie-legend" id="md-pie-legend-pipeline"></div>
+                            </div>
                         </div>
 
                         <!-- Hiring Timeline -->
@@ -1705,81 +1978,25 @@
                             class="md-chart-card md-chart-card--wide"
                             data-chart-id="hiring_timeline"
                             data-chart-section="recruitment"
-                            data-chart-label="{% trans 'Hiring Timeline' %}"
+                            data-chart-label="{% trans 'Shortlisting Timeline' %}"
                             data-chart-wide="1"
                             data-chart-default="hidden"
                         >
                             <div class="md-chart-card__header">
                                 <div>
-                                    <div class="md-chart-card__title">{% trans "Hiring Timeline" %}</div>
-                                    <div class="md-chart-card__subtitle">{% trans "Employees joined by month" %}</div>
+                                    <div class="md-chart-card__title">{% trans "Shortlisting Timeline" %}</div>
+                                    <div class="md-chart-card__subtitle">{% trans "Shortlisted candidates by month, by job position" %}<span data-period-year-label></span></div>
                                 </div>
                             </div>
-                            <div class="md-chart-card__body"><div id="chart-hiring"></div></div>
+                            <div class="md-chart-card__body">
+                                <div id="chart-hiring"></div>
+                                <div class="md-pie-legend" id="md-pie-legend-hiring"></div>
+                            </div>
                         </div>
                     {% endif %}
 
-                    {% if perms.leave.view_leaverequest or request.user.is_superuser %}
-                        <!-- Leave by Department -->
-                        <div
-                            class="md-chart-card"
-                            data-chart-id="leave_by_department"
-                            data-chart-section="leave"
-                            data-chart-label="{% trans 'Leave by Department' %}"
-                            data-chart-default="hidden"
-                        >
-                            <div class="md-chart-card__header">
-                                <div>
-                                    <div class="md-chart-card__title">{% trans "Leave by Department" %}</div>
-                                    <div class="md-chart-card__subtitle">
-                                        {% trans "Requests ranked by department" %}
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="md-chart-card__body"><div id="chart-leave-dept"></div></div>
-                        </div>
 
-                        <!-- Department Leave Days -->
-                        <div
-                            class="md-chart-card"
-                            data-chart-id="department_leave_days"
-                            data-chart-section="leave"
-                            data-chart-label="{% trans 'Department Leave Days' %}"
-                            data-chart-default="hidden"
-                        >
-                            <div class="md-chart-card__header">
-                                <div>
-                                    <div class="md-chart-card__title">{% trans "Department Leave Days" %}</div>
-                                    <div class="md-chart-card__subtitle">
-                                        {% trans "Total leave days by department" %}
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="md-chart-card__body"><div id="chart-leave-days"></div></div>
-                        </div>
-                    {% endif %}
 
-                    {% if perms.recruitment.view_recruitment or request.user.is_superuser %}
-                        <!-- Recruitment Funnel (NEW) -->
-                        <div
-                            class="md-chart-card md-chart-card--wide"
-                            data-chart-id="recruitment_funnel"
-                            data-chart-section="recruitment"
-                            data-chart-label="{% trans 'Recruitment Funnel' %}"
-                            data-chart-wide="1"
-                            data-chart-default="hidden"
-                        >
-                            <div class="md-chart-card__header">
-                                <div>
-                                    <div class="md-chart-card__title">{% trans "Recruitment Funnel" %}</div>
-                                    <div class="md-chart-card__subtitle">
-                                        {% trans "Stage pipeline — share of candidates" %}
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="md-chart-card__body"><div id="chart-recruitment-funnel"></div></div>
-                        </div>
-                    {% endif %}
 
                     {% if perms.employee.view_employee or request.user.is_superuser %}
                         <!-- Employee Turnover -->
@@ -1787,40 +2004,31 @@
                             class="md-chart-card md-chart-card--wide"
                             data-chart-id="employee_turnover"
                             data-chart-section="overview"
-                            data-chart-label="{% trans 'Employee Turnover' %}"
+                            data-chart-label="{% trans 'Hire vs Turnover' %}"
                             data-chart-wide="1"
                         >
                             <div class="md-chart-card__header">
                                 <div>
-                                    <div class="md-chart-card__title">{% trans "Employee Turnover" %}</div>
+                                    <div class="md-chart-card__title">{% trans "Hire vs Turnover" %}</div>
                                     <div class="md-chart-card__subtitle" id="turnover-rate">
                                         {% trans "New hires vs exits — last 6 months" %}
                                     </div>
                                 </div>
+                                <a
+                                    class="md-card-link"
+                                    id="turnover-report-link"
+                                    href="#"
+                                    style="display: none"
+                                    title="{% trans 'Open turnover report' %}"
+                                    aria-label="{% trans 'Open turnover report' %}"
+                                >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7" /><path d="M8 7h9v9" /></svg>
+                                </a>
                             </div>
                             <div class="md-chart-card__body"><div id="chart-turnover"></div></div>
                         </div>
                     {% endif %}
 
-                    {% if request.user.is_superuser or perms.payroll.view_payslip and request.user.is_staff or perms.payroll.view_payslip and perms.payroll.change_payslip %}
-                        <!-- Payroll Summary — payroll operators only (staff/superuser/change_payslip) -->
-                        <div
-                            class="md-chart-card"
-                            data-chart-id="payroll_summary"
-                            data-chart-section="overview"
-                            data-chart-label="{% trans 'Payroll Summary' %}"
-                        >
-                            <div class="md-chart-card__header">
-                                <div>
-                                    <div class="md-chart-card__title">{% trans "Payroll Summary" %}</div>
-                                    <div class="md-chart-card__subtitle" id="payroll-month">
-                                        {% trans "Current vs previous month" %}
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="md-chart-card__body"><div id="chart-payroll"></div></div>
-                        </div>
-                    {% endif %}
                 </div>
             </div>
 
@@ -1850,14 +2058,17 @@
                 </div>
                 <div class="md-info-panel">
                     <div class="md-info-panel__header">
-                        <div class="md-info-panel__title">{% trans "On Leave Today" %}</div>
-                        <a
-                            id="md-leave-viewall"
-                            href="{% url 'request-view' %}"
-                            class="md-link-subtle"
-                        >{% trans "View all" %}</a>
+                        <div class="md-info-panel__title">{% trans "Birthdays & Anniversaries" %}</div>
                     </div>
-                    <div class="md-info-panel__body" id="md-todays-leave">
+                    <div class="md-info-panel__body" id="md-birthdays">
+                        <div class="md-info-panel__empty">{% trans "Loading..." %}</div>
+                    </div>
+                </div>
+                <div class="md-info-panel">
+                    <div class="md-info-panel__header">
+                        <div class="md-info-panel__title">{% trans "Pending Approvals" %}</div>
+                    </div>
+                    <div class="md-info-panel__body" id="md-pending-approvals">
                         <div class="md-info-panel__empty">{% trans "Loading..." %}</div>
                     </div>
                 </div>
@@ -1871,22 +2082,6 @@
                         >{% trans "View all" %}</a>
                     </div>
                     <div class="md-info-panel__body" id="md-holidays">
-                        <div class="md-info-panel__empty">{% trans "Loading..." %}</div>
-                    </div>
-                </div>
-                <div class="md-info-panel">
-                    <div class="md-info-panel__header">
-                        <div class="md-info-panel__title">{% trans "Birthdays & Anniversaries" %}</div>
-                    </div>
-                    <div class="md-info-panel__body" id="md-birthdays">
-                        <div class="md-info-panel__empty">{% trans "Loading..." %}</div>
-                    </div>
-                </div>
-                <div class="md-info-panel">
-                    <div class="md-info-panel__header">
-                        <div class="md-info-panel__title">{% trans "Pending Approvals" %}</div>
-                    </div>
-                    <div class="md-info-panel__body" id="md-pending-approvals">
                         <div class="md-info-panel__empty">{% trans "Loading..." %}</div>
                     </div>
                 </div>
@@ -1922,6 +2117,31 @@
             const ANIM = { enabled: true, easing: 'easeinout', speed: 700, animateGradually: { enabled: true, delay: 80 }, dynamicAnimation: { enabled: true, speed: 500 } };
             const GRID = { borderColor: gridColor, strokeDashArray: 5, padding: { left: 4, right: 4 } };
             const TOOLTIP_STYLE = { theme: isDark ? 'dark' : 'light', style: { fontSize: '12px' } };
+            // One tooltip card for every chart: bold title, then a coloured-dot row per value.
+            const tipCard = (title, rows) => `<div class="md-tip"><div class="md-tip__title">${escHtml(title)}</div>`
+                + rows.map(r => `<div class="md-tip__row"${r.indent ? ' style="padding-left:14px;font-size:11px;opacity:.8"' : ''}><span class="md-tip__label">${r.color ? `<i class="md-tip__dot" style="background:${r.color}"></i>` : ''}${escHtml(r.label)}</span><span${r.total ? ' style="font-weight:700"' : ''}>${escHtml(String(r.value))}${r.sub ? ` <span class="md-tip__sub">${escHtml(r.sub)}</span>` : ''}</span></div>`).join('')
+                + '</div>';
+            const stdTooltip = ({ unit = '', decimals = 0, rowLabel = '' } = {}) => ({
+                ...TOOLTIP_STYLE, shared: true, intersect: false,
+                custom: ({ series, seriesIndex, dataPointIndex, w }) => {
+                    const g = w.globals;
+                    const fmt = (v) => (decimals ? (parseFloat(v) || 0).toFixed(decimals) : v) + unit;
+                    const type = w.config.chart.type;
+                    if (type === 'pie' || type === 'donut') {
+                        const total = g.seriesTotals.reduce((a, b) => a + b, 0);
+                        const v = series[seriesIndex];
+                        return tipCard(g.labels[seriesIndex], [{ color: g.colors[seriesIndex], label: rowLabel, value: fmt(v), sub: total ? Math.round(v / total * 100) + '%' : '' }]);
+                    }
+                    const raw = (g.categoryLabels && g.categoryLabels[dataPointIndex]) || g.labels[dataPointIndex] || '';
+                    const title = Array.isArray(raw) ? raw.join(' ') : raw;
+                    const distributed = w.config.plotOptions.bar && w.config.plotOptions.bar.distributed;
+                    return tipCard(title, series.map((s, i) => ({
+                        color: distributed ? g.colors[dataPointIndex] : g.colors[i],
+                        label: g.seriesNames[i] || rowLabel,
+                        value: fmt(s[dataPointIndex]),
+                    })));
+                },
+            });
             const LEGEND_STYLE = { position: 'bottom', labels: { colors: textColor }, fontSize: '11px', fontWeight: 500, markers: { width: 8, height: 8, radius: 3 }, itemMargin: { horizontal: 8 } };
             const XAXIS_STYLE = { labels: { style: { colors: textColor, fontSize: '11px', fontWeight: 500 } }, axisBorder: { show: false }, axisTicks: { show: false } };
             const YAXIS_STYLE = { labels: { style: { colors: textColor, fontSize: '11px' } } };
@@ -1941,7 +2161,6 @@
                 attendance:  {% if perms.attendance.view_attendance or request.user.is_superuser %}true{% else %}false{% endif %},
                 leave:       {% if perms.leave.view_leaverequest   or request.user.is_superuser %}true{% else %}false{% endif %},
                 candidate:   {% if perms.recruitment.view_candidate or request.user.is_superuser %}true{% else %}false{% endif %},
-                recruitment: {% if perms.recruitment.view_recruitment or request.user.is_superuser %}true{% else %}false{% endif %},
             };
 
             const emptyHtml = (msg) => `<div class="md-empty"><img src="/static/images/ui/no_records.svg" alt="">${msg}</div>`;
@@ -1951,14 +2170,6 @@
                 const subHtml = `<div class="md-kpi-card__sub">${sub}</div>${extra}`;
                 if (!perm) return `<div class="md-kpi-card">${body}${subHtml}</div>`;
                 return `<div class="md-kpi-card"><a href="${href}" class="md-kpi-card__hit">${body}</a>${subHtml}</div>`;
-            };
-            // Small "On-Office · 30  WFH · 12" row shown under Present Today,
-            // built from server-grouped work_type_id__work_type counts.
-            const escapeHtml = (s) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-            const kpiBreakdown = (rows) => {
-                if (!rows || !rows.length) return '';
-                const items = rows.map(r => `<span class="md-kpi-card__breakdown-item">${escapeHtml(r.label)}<b>${r.count}</b></span>`).join('');
-                return `<div class="md-kpi-card__breakdown">${items}</div>`;
             };
 
             document.getElementById('md-date').textContent = new Date().toLocaleDateString('en-US', {
@@ -2021,19 +2232,27 @@
                 return baseUrl + sep + periodParams();
             }
 
+            function getWeekBounds(today) {
+                const dow = (today.getDay() + 6) % 7; // 0 = Monday
+                const from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - dow);
+                const to = new Date(from.getFullYear(), from.getMonth(), from.getDate() + 6);
+                return [from, to];
+            }
+
             function setPreset(preset) {
                 const today = new Date();
                 let from, to;
-                if (preset === 'this_month') {
+                if (preset === 'today') {
+                    from = today;
+                    to = today;
+                } else if (preset === 'this_week') {
+                    [from, to] = getWeekBounds(today);
+                } else if (preset === 'this_month') {
                     from = new Date(today.getFullYear(), today.getMonth(), 1);
                     to = new Date(today.getFullYear(), today.getMonth()+1, 0);
-                } else if (preset === 'last_month') {
-                    from = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-                    to = new Date(today.getFullYear(), today.getMonth(), 0);
-                } else if (preset === 'this_quarter') {
-                    const qMonth = Math.floor(today.getMonth() / 3) * 3;
-                    from = new Date(today.getFullYear(), qMonth, 1);
-                    to = new Date(today.getFullYear(), qMonth + 3, 0);
+                } else if (preset === 'this_year') {
+                    from = new Date(today.getFullYear(), 0, 1);
+                    to = new Date(today.getFullYear(), 11, 31);
                 }
                 fromInput.value = ymdLocal(from);
                 toInput.value = ymdLocal(to);
@@ -2050,27 +2269,57 @@
 
             function detectPreset() {
                 const today = new Date();
+                const [weekFrom, weekTo] = getWeekBounds(today);
                 const ranges = {
+                    today: [ymdLocal(today), ymdLocal(today)],
+                    this_week: [ymdLocal(weekFrom), ymdLocal(weekTo)],
                     this_month: [
                         ymdLocal(new Date(today.getFullYear(), today.getMonth(), 1)),
                         ymdLocal(new Date(today.getFullYear(), today.getMonth() + 1, 0)),
                     ],
-                    last_month: [
-                        ymdLocal(new Date(today.getFullYear(), today.getMonth() - 1, 1)),
-                        ymdLocal(new Date(today.getFullYear(), today.getMonth(), 0)),
+                    this_year: [
+                        ymdLocal(new Date(today.getFullYear(), 0, 1)),
+                        ymdLocal(new Date(today.getFullYear(), 11, 31)),
                     ],
-                    this_quarter: (() => {
-                        const qMonth = Math.floor(today.getMonth() / 3) * 3;
-                        return [
-                            ymdLocal(new Date(today.getFullYear(), qMonth, 1)),
-                            ymdLocal(new Date(today.getFullYear(), qMonth + 3, 0)),
-                        ];
-                    })(),
                 };
                 for (const [key, [f, t]] of Object.entries(ranges)) {
                     if (fromInput.value === f && toInput.value === t) return key;
                 }
                 return '';
+            }
+
+            // ─── Period label shown as subtitle on period-aware charts ───
+            const PRESET_LABELS = {
+                today: '{% trans "Today"|escapejs %}',
+                this_week: '{% trans "This Week"|escapejs %}',
+                this_month: '{% trans "This Month"|escapejs %}',
+                this_year: '{% trans "This Year"|escapejs %}',
+            };
+            function shortDate(d) {
+                return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            }
+            function periodLabel() {
+                const preset = detectPreset();
+                const from = new Date(fromInput.value + 'T00:00:00');
+                const to = new Date(toInput.value + 'T00:00:00');
+                let detail;
+                if (preset === 'this_month') {
+                    detail = from.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                } else if (preset === 'this_year') {
+                    detail = String(from.getFullYear());
+                } else if (preset === 'today') {
+                    detail = shortDate(from);
+                } else {
+                    detail = shortDate(from) + ' – ' + shortDate(to);
+                }
+                const name = PRESET_LABELS[preset] || '{% trans "Custom"|escapejs %}';
+                return name + ' · ' + detail;
+            }
+            function applyPeriodLabels() {
+                const label = ' — ' + periodLabel();
+                document.querySelectorAll('[data-period-label]').forEach(el => { el.textContent = label; });
+                const yearLabel = ' — ' + '{% trans "Year"|escapejs %}' + ' ' + new Date(toInput.value + 'T00:00:00').getFullYear();
+                document.querySelectorAll('[data-period-year-label]').forEach(el => { el.textContent = yearLabel; });
             }
 
             // Preset buttons
@@ -2089,6 +2338,7 @@
 
             initPeriod();
             highlightPreset(detectPreset());
+            applyPeriodLabels();
 
             // ═══════════════════════════════════════════
             //  CHART REORDER + VISIBILITY SYSTEM
@@ -2436,20 +2686,18 @@
 
             // ─── KPI CARDS ───
             function loadKpiCards() {
-                fetchP("{% url 'dashboard-kpi-data' %}")
+                fetch("{% url 'dashboard-kpi-data' %}")
                     .then(r => r.json())
                     .then(data => {
                         const empSvg   = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
                         const attSvg   = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>';
                         const leaveSvg = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
-                        const recruSvg = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>';
                         const offlineSvg = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="18" y1="8" x2="23" y2="13"/><line x1="23" y1="8" x2="18" y2="13"/></svg>';
                         document.getElementById('md-kpi-grid').innerHTML =
-                            kpiCard("{% url 'employee-view' %}?is_active=True&filter_applied=on",   PERM.employee,    'md-kpi-card__icon--indigo', empSvg,   '{% trans "Total Employees"|escapejs %}',   data.total_employees,   data.new_joiners > 0 ? '<span class="md-badge md-badge--green">+' + data.new_joiners + ' {% trans "This Month"|escapejs %}</span>' : '<span class="md-badge md-badge--blue">{% trans "No New Joiners"|escapejs %}</span>') +
-                            kpiCard("{% url 'employee-view' %}?present_on={% now 'Y-m-d' %}&is_active=True&filter_applied=on",  PERM.employee,    'md-kpi-card__icon--green',  attSvg,   '{% trans "Checked In Today"|escapejs %}',     data.present_today,     '<span class="md-badge ' + (data.attendance_rate >= 80 ? 'md-badge--green' : 'md-badge--amber') + '">' + data.attendance_rate + '% {% trans "Of Expected"|escapejs %}</span>', kpiBreakdown(data.present_by_work_type)) +
-                            kpiCard("{% url 'employee-view' %}?expected_to_check_in={% now 'Y-m-d' %}&is_active=True&filter_applied=on", PERM.employee, 'md-kpi-card__icon--red', offlineSvg, '{% trans "Absent"|escapejs %}', data.not_checked_in, data.not_checked_in > 0 ? '<span class="md-badge md-badge--amber">{% trans "Yet To Check In"|escapejs %}</span>' : '<span class="md-badge md-badge--green">{% trans "Everyone Checked In"|escapejs %}</span>') +
-                            kpiCard(`{% url 'request-view' %}?status=approved&today_leave=true&filter_applied=on`,     PERM.leave,       'md-kpi-card__icon--amber',  leaveSvg, '{% trans "On Leave"|escapejs %}',           data.on_leave,          (data.pending_leaves > 0 ? '<a href="{% url "request-view" %}?status=requested&filter_applied=on" class="md-badge md-badge--amber">' + data.pending_leaves + ' {% trans "Pending"|escapejs %}</a>' : '<span class="md-badge md-badge--green">{% trans "No Pending"|escapejs %}</span>') + (data.half_day_today > 0 ? ' <span class="md-badge md-badge--amber">' + data.half_day_today + ' {% trans "Half Day"|escapejs %}</span>' : '')) +
-                            (PERM.recruitment ? kpiCard("{% url 'recruitment-view' %}?closed=false&filter_applied=on", true, 'md-kpi-card__icon--purple', recruSvg, '{% trans "Open Recruitments"|escapejs %}', data.open_recruitments, '<span class="md-badge md-badge--blue">{% trans "Active Hiring"|escapejs %}</span>') : '');
+                            kpiCard("{% url 'employee-view' %}?is_active=True&filter_applied=on",   PERM.employee,    'md-kpi-card__icon--indigo', empSvg,   '{% trans "Total Employees"|escapejs %}',   data.total_employees,   data.new_joiners > 0 ? '<span class="md-badge md-badge--green">+' + data.new_joiners + ' {% trans "This Month"|escapejs %}</span>' : '') +
+                            kpiCard("{% url 'employee-view' %}?checked_in_on={% now 'Y-m-d' %}&is_active=True&filter_applied=on",  PERM.employee,    'md-kpi-card__icon--green',  attSvg,   '{% trans "Checked In Today"|escapejs %}',     data.present_today,     data.week_off_today ? '<span class="md-badge md-badge--amber">' + data.week_off_count + ' {% trans "on week off"|escapejs %}</span>' : '') +
+                            kpiCard("{% url 'employee-view' %}?expected_to_check_in={% now 'Y-m-d' %}&is_active=True&filter_applied=on", PERM.employee, 'md-kpi-card__icon--red', offlineSvg, '{% trans "Absent Today"|escapejs %}', data.not_checked_in, '') +
+                            kpiCard(`{% url 'request-view' %}?status=approved&today_leave=true&filter_applied=on`,     PERM.leave,       'md-kpi-card__icon--amber',  leaveSvg, '{% trans "On Leave"|escapejs %}',           data.on_leave,          '');
                     });
             }
             loadKpiCards();
@@ -2487,117 +2735,217 @@
             loadAnnouncements();
 
             // ─── TODAY'S LEAVE ───
-            function loadTodaysLeave() {
-                fetch("{% url 'dashboard-todays-leave' %}")
-                .then(r => r.json())
-                .then(data => {
-                    const el = document.getElementById('md-todays-leave');
-                    const viewAllLink = document.getElementById('md-leave-viewall');
-
-                    if (data.is_restricted) {
-                        // Normal user: hide "View all" and update panel title
-                        if (viewAllLink) viewAllLink.style.display = 'none';
-                        const leaveTitle = document.getElementById('md-todays-leave')
-                            ?.closest('.md-info-panel')
-                            ?.querySelector('.md-info-panel__title');
-                        if (leaveTitle) leaveTitle.textContent = '{% trans "My Leave Today"|escapejs %}';
-                    } else {
-                        if (viewAllLink) viewAllLink.href = `{% url 'request-view' %}?status=approved&today_leave=true`;
-                    }
-
-                    if (!data.leaves.length) {
-                        el.innerHTML = data.is_restricted
-                            ? '<div class="md-info-panel__empty">{% trans "You are not on leave today"|escapejs %}</div>'
-                            : '<div class="md-info-panel__empty">{% trans "No one on leave today"|escapejs %}</div>';
-                        return;
-                    }
-
-                    el.innerHTML = data.leaves.map(l => {
-                        const initials = (l.employee || '').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?';
-                        const avatarInner = l.avatar ? `<img src="${l.avatar}" alt="" onerror="this.parentElement.textContent='${initials}'">` : initials;
-                        if (data.is_restricted) {
-                            // No clickable HTMX link — restricted user can't open the leave detail
-                            return `
-                    <div class="md-leave-item">
-                        <div class="md-leave-item__avatar">${avatarInner}</div>
-                        <div class="md-leave-item__info">
-                            <div class="md-leave-item__name">${l.employee}</div>
-                            <div class="md-leave-item__type">${l.leave_type}</div>
-                        </div>
-                        <div class="md-leave-item__dates">
-                            <div>${l.start}${l.start !== l.end ? ' – ' + l.end : ''}</div>
-                            <span class="md-leave-item__days">${l.days}d</span>
-                        </div>
-                    </div>`;
-                        }
-                        return `
-                <div class="md-leave-item" style="cursor:pointer;"
-                     hx-get="/leave/leave-requests-detail-view/${l.id}/?instance_ids=&dashboard=True"
-                     hx-target="#genericModalBody" hx-swap="innerHTML"
-                     data-toggle="oh-modal-toggle" data-target="#genericModal">
-                    <div class="md-leave-item__avatar">${avatarInner}</div>
-                    <div class="md-leave-item__info">
-                        <div class="md-leave-item__name">${l.employee}</div>
-                        <div class="md-leave-item__type">${l.leave_type}</div>
-                    </div>
-                    <div class="md-leave-item__dates">
-                        <div>${l.start}${l.start !== l.end ? ' – ' + l.end : ''}</div>
-                        <span class="md-leave-item__days">${l.days}d</span>
-                    </div>
-                </div>`;
-                    }).join('');
-                    if (!data.is_restricted) htmx.process(el);
-                }).catch(() => { document.getElementById('md-todays-leave').innerHTML = '<div class="md-info-panel__empty">{% trans "No one on leave today"|escapejs %}</div>'; });
-            }
-            loadTodaysLeave();
 
             {% if perms.attendance.view_attendance or home_role == "manager" %}
             // ─── ATTENDANCE TREND ───
-            function loadAttendanceTrend() {
-                fetchP("{% url 'dashboard-attendance-trend' %}")
-                .then(r => r.json())
-                .then(data => {
-                    if (data.no_permission) { hideCard('attendance_trend'); return; }
-                    const sub = document.getElementById('md-attendance-trend-subtitle');
-                    if (sub && fromInput.value && toInput.value) {
-                        sub.textContent = `{% trans "Weekly rate"|escapejs %} — ${fromInput.value} → ${toInput.value}`;
-                    }
-                    renderChart('attendance-trend', document.querySelector("#chart-attendance-trend"), {
-                        series: [{ name: '{% trans "Attendance Rate"|escapejs %}', data: data.weeks.map(w => w.rate) }],
-                        chart: { type: 'area', height: 280, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', animations: ANIM },
-                        colors: ['#E54F38'],
-                        fill: { type: 'gradient', gradient: { type: 'vertical', shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.02, stops: [0, 90, 100],
-                            colorStops: [{ offset: 0, color: '#E54F38', opacity: 0.4 }, { offset: 100, color: '#a855f7', opacity: 0.02 }] } },
-                        stroke: { curve: 'straight', width: 3 },
-                        markers: { size: 5, colors: ['#E54F38'], strokeColors: cardBg, strokeWidth: 2, hover: { size: 7 } },
-                        dataLabels: { enabled: false },
-                        xaxis: { ...XAXIS_STYLE, categories: data.weeks.map(w => w.week) },
-                        yaxis: { ...YAXIS_STYLE, min: 0, max: 100, tickAmount: 5, forceNiceScale: false, labels: { ...YAXIS_STYLE.labels, formatter: v => v + '%' } },
-                        grid: GRID,
-                        tooltip: { ...TOOLTIP_STYLE, y: { formatter: v => v + '% {% trans "attendance"|escapejs %}' } },
-                    });
-                });
-            }
-            loadAttendanceTrend();
             {% endif %}
 
             // ─── DEPARTMENT HEADCOUNT ───
+            // ─── TICKETS (open tickets only) ───
+            {% if perms.helpdesk.view_ticket or request.user.is_superuser %}
+            const TICKET_STATUS_COLORS = { new: '#3b82f6', in_progress: '#f59e0b', on_hold: '#94a3b8' };
+            const ticketListUrl = (extra) => {
+                const p = new URLSearchParams(extra);
+                p.set('created_date_from', fromInput.value);
+                p.set('created_date_till', toInput.value);
+                p.set('filter_applied', 'on');
+                // 3rd tab = All Tickets (managers / ticket viewers), rather than My Tickets.
+                p.set('open_tab', '3');
+                return "{% url 'ticket-view' %}?" + p.toString();
+            };
+            function loadTicketPriority() {
+                fetchP("{% url 'dashboard-ticket-priority' %}")
+                .then(r => r.json())
+                .then(data => {
+                    if (data.no_permission) { hideCard('ticket_priority'); return; }
+                    document.getElementById('ticket-priority-link').href = ticketListUrl({ is_open: 'true' });
+                    if (!data.total) { document.querySelector("#chart-ticket-priority").innerHTML = emptyHtml('{% trans "No open tickets in this period"|escapejs %}'); return; }
+                    const cats = data.priorities;
+                    renderChart('ticket-priority', document.querySelector("#chart-ticket-priority"), {
+                        series: data.statuses.map(st => ({ name: st.label, data: cats.map(c => c.by_status[st.key] || 0) })),
+                        chart: { type: 'bar', stacked: true, height: 320, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', animations: ANIM,
+                            events: { dataPointSelection: (e, ctx, config) => {
+                                const c = cats[config.dataPointIndex];
+                                const st = data.statuses[config.seriesIndex];
+                                if (!c || !st) return;
+                                window.location.href = ticketListUrl({ priority: c.priority, status: st.key });
+                            }}
+                        },
+                        colors: data.statuses.map(st => TICKET_STATUS_COLORS[st.key] || '#94a3b8'),
+                        plotOptions: { bar: { borderRadius: 6, borderRadiusApplication: 'end', borderRadiusWhenStacked: 'last', columnWidth: '42%' } },
+                        stroke: { width: 2, colors: [cardBg] },
+                        xaxis: { ...XAXIS_STYLE, categories: cats.map(c => c.label) },
+                        yaxis: { min: 0, forceNiceScale: true, labels: { style: { colors: textColor, fontSize: '11px' }, formatter: v => Number.isInteger(+v) ? v : '' } },
+                        grid: GRID,
+                        dataLabels: { enabled: false },
+                        legend: { ...LEGEND_STYLE, position: 'top', horizontalAlign: 'right' },
+                        tooltip: { ...TOOLTIP_STYLE, shared: true, intersect: false, custom: ({ dataPointIndex }) => {
+                            const c = cats[dataPointIndex];
+                            if (!c) return '';
+                            return tipCard(c.label + ' ' + '{% trans "priority"|escapejs %}', [
+                                { total: true, label: '{% trans "Open tickets"|escapejs %}', value: c.total },
+                                ...data.statuses.map(st => ({ color: TICKET_STATUS_COLORS[st.key] || '#94a3b8', label: st.label, value: c.by_status[st.key] || 0 })),
+                                { color: '#dc2626', label: '{% trans "Overdue"|escapejs %}', value: c.overdue },
+                            ]);
+                        } },
+                        states: { hover: { filter: { type: 'darken', value: 0.9 } } },
+                    });
+                }).catch(() => { document.querySelector("#chart-ticket-priority").innerHTML = emptyHtml('{% trans "Unable to load tickets"|escapejs %}'); });
+            }
+            loadTicketPriority();
+
+            function loadOverdueTickets() {
+                fetchP("{% url 'dashboard-overdue-tickets' %}")
+                .then(r => r.json())
+                .then(data => {
+                    if (data.no_permission) { hideCard('overdue_tickets'); return; }
+                    const list = document.getElementById('overdue-tickets-list');
+                    const badge = document.getElementById('overdue-tickets-count');
+                    document.getElementById('overdue-tickets-link').href = ticketListUrl({ is_overdue: 'true' });
+                    if (!data.tickets.length) {
+                        badge.style.display = 'none';
+                        list.innerHTML = '<div class="md-info-panel__empty">{% trans "No overdue tickets in this period"|escapejs %}</div>';
+                        return;
+                    }
+                    badge.textContent = data.count;
+                    badge.style.display = '';
+                    const detailBase = "{% url 'ticket-detail' 0 %}";
+                    list.innerHTML = data.tickets.map(t => `
+                        <a class="md-tkt-row" href="${detailBase.replace(/0\/$/, t.id + '/')}">
+                            <img class="md-tkt-row__avatar" src="${escHtml(t.avatar || '/static/images/ui/default_avatar.jpg')}" alt="">
+                            <div class="md-tkt-row__main">
+                                <div class="md-tkt-row__title"><span class="md-tkt-row__id">${escHtml(t.ticket_id)}</span>${escHtml(t.title)}</div>
+                                <div class="md-tkt-row__meta">${escHtml(t.owner)}${t.assignee ? ' · {% trans "Assigned to"|escapejs %} ' + escHtml(t.assignee) : ' · {% trans "Unassigned"|escapejs %}'} · ${escHtml(t.status_label)}</div>
+                            </div>
+                            <div class="md-tkt-row__side">
+                                <span class="md-tkt-late">${t.days_overdue} {% trans "d overdue"|escapejs %}</span>
+                                <span class="md-tkt-prio md-tkt-prio--${escHtml(t.priority)}">${escHtml(t.priority_label)}</span>
+                            </div>
+                        </a>`).join('');
+                }).catch(() => { document.getElementById('overdue-tickets-list').innerHTML = '<div class="md-info-panel__empty">{% trans "Unable to load tickets"|escapejs %}</div>'; });
+            }
+            loadOverdueTickets();
+            {% endif %}
+
+            // ─── Shared pie/donut legend ───
+            // One row only: as many chips as fit, then a "+N" chip whose hover
+            // popover lists the rest with checkboxes. The first `topN` items start
+            // selected; everything else starts unselected. Unselected items are
+            // zeroed out of the series, so the canvas never carries extra labels.
+            const escHtml = (v) => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+            function createPieLegend({ el, chartKey, noun, topN = 5, maxChips = null, toSeries = null, onChange = null }) {
+                let items = [];
+                let selected = null;
+                const dot = (c) => `<span class="md-pie-chip__dot" style="background:${c}"></span>`;
+
+                function series() {
+                    return items.map(it => selected.has(it.name) ? it.value : 0);
+                }
+                function syncChart() {
+                    const chart = chartInstances[chartKey];
+                    if (onChange) { onChange(); return; }
+                    if (chart) chart.updateSeries(toSeries ? toSeries(series()) : series());
+                }
+                let visible = 0;
+                function chipsHtml(k) {
+                    return items.slice(0, k).map(it => {
+                        const on = selected.has(it.name);
+                        return `<button type="button" class="md-pie-chip${on ? '' : ' is-off'}" data-name="${escHtml(it.name)}" title="${escHtml(it.name)}: ${it.detail != null ? escHtml(it.detail) : it.value}">${dot(it.color)}<span class="md-pie-chip__name">${escHtml(it.name)}</span></button>`;
+                    }).join('');
+                }
+                // Toggling only touches the chips and checkbox states, never the
+                // popover element, so it stays open while items are ticked.
+                function refreshState() {
+                    const chips = el.querySelector('.md-pie-chips');
+                    if (chips) chips.innerHTML = chipsHtml(visible);
+                    el.querySelectorAll('input[data-name]').forEach(cb => {
+                        cb.checked = selected.has(cb.dataset.name);
+                    });
+                }
+                function toggle(name) {
+                    if (selected.has(name)) {
+                        if (selected.size > 1) selected.delete(name);
+                    } else {
+                        selected.add(name);
+                    }
+                    refreshState();
+                    syncChart();
+                }
+                function build(k) {
+                    visible = k;
+                    const rest = items.slice(k);
+                    let html = `<span class="md-pie-chips">${chipsHtml(k)}</span>`;
+                    if (rest.length) {
+                        html += `<span class="md-pie-more"><button type="button" class="md-pie-chip md-pie-chip--more">+${rest.length} ${escHtml(noun)}</button>`
+                            + `<div class="md-pie-pop"><div class="md-pie-pop__box"><div class="md-pie-pop__list">`
+                            + rest.map(it => `<label class="md-pie-pop__row"><input type="checkbox" data-name="${escHtml(it.name)}"${selected.has(it.name) ? ' checked' : ''}>${dot(it.color)}<span class="md-pie-pop__text"><span>${escHtml(it.name)}</span>${it.detail != null ? `<small>${escHtml(it.detail)}</small>` : ''}</span><span class="md-pie-pop__count">${it.value}</span></label>`).join('')
+                            + `</div></div></div></span>`;
+                    }
+                    el.innerHTML = html;
+                }
+                function render() {
+                    let k = Math.min(maxChips || topN, items.length);
+                    build(k);
+                    while (k > 1 && el.scrollWidth > el.clientWidth + 1) {
+                        k--;
+                        build(k);
+                    }
+                }
+                el.addEventListener('click', (e) => {
+                    const chip = e.target.closest('.md-pie-chip[data-name]');
+                    if (chip) toggle(chip.dataset.name);
+                });
+                el.addEventListener('change', (e) => {
+                    if (e.target.matches('input[data-name]')) toggle(e.target.dataset.name);
+                });
+                let resizeTimer = null;
+                window.addEventListener('resize', () => {
+                    clearTimeout(resizeTimer);
+                    resizeTimer = setTimeout(() => { if (items.length) render(); }, 150);
+                });
+                return {
+                    set(newItems) {
+                        items = newItems;
+                        const names = items.map(i => i.name);
+                        if (selected) selected = new Set([...selected].filter(n => names.includes(n)));
+                        if (!selected || !selected.size) selected = new Set(names.slice(0, topN));
+                        render();
+                    },
+                    series,
+                    selectedNames() { return items.filter(it => selected.has(it.name)).map(it => it.name); },
+                    clear() { items = []; el.innerHTML = ''; },
+                };
+            }
+            const deptColor = (i) => COLORS[i % COLORS.length];
+            const deptLegend = createPieLegend({
+                el: document.getElementById('md-pie-legend-departments'),
+                chartKey: 'departments',
+                noun: '{% trans "departments"|escapejs %}',
+            });
+            let deptData = [];
+
             function loadDepartmentHeadcount() {
                 fetch("{% url 'dashboard-department-headcount' %}")
                 .then(r => r.json())
                 .then(data => {
-                    if (!data.departments.length) { document.querySelector("#chart-departments").innerHTML = emptyHtml('{% trans "No department data"|escapejs %}'); return; }
+                    if (!data.departments.length) {
+                        document.querySelector("#chart-departments").innerHTML = emptyHtml('{% trans "No department data"|escapejs %}');
+                        deptLegend.clear();
+                        return;
+                    }
+                    deptData = data.departments;
+                    deptLegend.set(deptData.map((d, i) => ({ name: d.department, value: d.count, color: deptColor(i) })));
                     renderChart('departments', document.querySelector("#chart-departments"), {
-                        series: data.departments.map(d => d.count),
+                        series: deptLegend.series(),
                         chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit', animations: ANIM,
                             events: { dataPointSelection: (e, ctx, config) => {
                                 if (!PERM.employee) return;
-                                const dept = data.departments[config.dataPointIndex].department;
+                                const dept = deptData[config.dataPointIndex].department;
                                 window.location.href = "{% url 'employee-view' %}?department=" + encodeURIComponent(dept);
                             }}
                         },
-                        labels: data.departments.map(d => d.department),
-                        colors: COLORS.slice(0, data.departments.length),
+                        labels: deptData.map(d => d.department),
+                        colors: deptData.map((d, i) => deptColor(i)),
                         plotOptions: { pie: { expandOnClick: true, donut: { size: '68%',
                             labels: { show: true,
                                 name: { fontSize: '13px', fontWeight: 700, color: textColor, offsetY: -4 },
@@ -2605,14 +2953,19 @@
                                 total: { show: true, label: '{% trans "Total"|escapejs %}', color: subTextColor, fontSize: '12px', fontWeight: 600, formatter: w => w.globals.seriesTotals.reduce((a,b)=>a+b,0) } } } } },
                         stroke: { width: 3, colors: [cardBg] },
                         dataLabels: { enabled: false },
-                        legend: { ...LEGEND_STYLE },
-                        tooltip: { ...TOOLTIP_STYLE },
+                        legend: { show: false },
+                        tooltip: stdTooltip({ rowLabel: '{% trans "Employees"|escapejs %}' }),
                     });
                 });
             }
             loadDepartmentHeadcount();
 
             // ─── GENDER ───
+            const genderLegend = createPieLegend({
+                el: document.getElementById('md-pie-legend-gender'),
+                chartKey: 'gender',
+                noun: '{% trans "more"|escapejs %}',
+            });
             function loadGenderSplit() {
                 fetch("{% url 'dashboard-gender-split' %}")
                 .then(r => r.json())
@@ -2620,8 +2973,10 @@
                     if (!data.genders.length) { document.querySelector("#chart-gender").innerHTML = emptyHtml('{% trans "No data"|escapejs %}'); return; }
                     {# keyed on the raw gender value: the name the API sends is translated #}
                     const gc = { 'male': '#3b82f6', 'female': '#ec4899', 'other': '#a855f7', '': '#94a3b8' };
+                    const genderColors = data.genders.map(g => gc[g.key != null ? g.key : ''] || '#94a3b8');
+                    genderLegend.set(data.genders.map((g, i) => ({ name: g.gender, value: g.count, color: genderColors[i] })));
                     renderChart('gender', document.querySelector("#chart-gender"), {
-                        series: data.genders.map(g => g.count),
+                        series: genderLegend.series(),
                         chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit', animations: ANIM,
                             events: { dataPointSelection: (e, ctx, config) => {
                                 if (!PERM.employee) return;
@@ -2630,7 +2985,7 @@
                             }}
                         },
                         labels: data.genders.map(g => g.gender),
-                        colors: data.genders.map(g => gc[g.key != null ? g.key : ''] || '#94a3b8'),
+                        colors: genderColors,
                         plotOptions: { pie: { expandOnClick: true, donut: { size: '68%',
                             labels: { show: true,
                                 name: { fontSize: '13px', fontWeight: 700, color: textColor },
@@ -2641,8 +2996,8 @@
                         } } },
                         stroke: { width: 3, colors: [cardBg] },
                         dataLabels: { enabled: false },
-                        legend: { ...LEGEND_STYLE },
-                        tooltip: { ...TOOLTIP_STYLE, y: { formatter: v => v + ' {% trans "employees"|escapejs %}' } },
+                        legend: { show: false },
+                        tooltip: stdTooltip({ rowLabel: '{% trans "Employees"|escapejs %}' }),
                     });
                 });
             }
@@ -2650,32 +3005,72 @@
 
             {% if perms.leave.view_leaverequest or request.user.is_superuser %}
             // ─── LEAVE BREAKDOWN ───
+            const leaveTypeColor = (i) => COLORS[i % COLORS.length];
+            let leaveTypeData = [];
+            let leaveRange = { from: '', to: '' };
+            const LEAVE_STATUS_COLORS = ['#22c55e', '#f59e0b'];
+            function drawLeaveBreakdown() {
+                const names = new Set(leaveTypeLegend.selectedNames());
+                const shown = leaveTypeData.filter(b => names.has(b.type));
+                renderChart('leave-breakdown', document.querySelector("#chart-leave"), {
+                    series: [
+                        { name: '{% trans "Approved"|escapejs %}', data: shown.map(b => b.approved) },
+                        { name: '{% trans "Pending"|escapejs %}', data: shown.map(b => b.requested) },
+                    ],
+                    chart: { type: 'bar', stacked: true, stackType: '100%', height: 320, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', animations: ANIM,
+                        events: { dataPointSelection: (e, ctx, config) => {
+                            if (!PERM.leave) return;
+                            const row = shown[config.dataPointIndex];
+                            if (!row) return;
+                            const status = config.seriesIndex === 0 ? 'approved' : 'requested';
+                            window.location.href = "{% url 'request-view' %}?leave_type_id=" + row.id + "&status=" + status
+                                + "&from_date=" + leaveRange.from + "&to_date=" + leaveRange.to
+                                + "&nested_fields=leave_type_id&nested_fields=status&filter_applied=on";
+                        }}
+                    },
+                    colors: LEAVE_STATUS_COLORS,
+                    plotOptions: { bar: { horizontal: false, columnWidth: '42%', borderRadius: 6, borderRadiusApplication: 'around', borderRadiusWhenStacked: 'all' } },
+                    stroke: { width: 3, colors: [cardBg] },
+                    xaxis: { ...XAXIS_STYLE, categories: shown.map(b => b.type.split(' ')), tooltip: { enabled: false },
+                        labels: { ...XAXIS_STYLE.labels, rotate: 0, rotateAlways: false, hideOverlappingLabels: false, trim: false, maxHeight: 48, style: { ...XAXIS_STYLE.labels.style, fontSize: '10px' } } },
+                    yaxis: { min: 0, max: 100, tickAmount: 4, labels: { style: { colors: textColor, fontSize: '11px' }, formatter: v => Math.round(v) + '%' } },
+                    grid: GRID,
+                    dataLabels: { enabled: false },
+                    legend: { ...LEGEND_STYLE, position: 'top', horizontalAlign: 'right' },
+                    tooltip: { ...TOOLTIP_STYLE, shared: true, intersect: false, custom: ({ dataPointIndex }) => {
+                        const r = shown[dataPointIndex];
+                        if (!r) return '';
+                        const pct = (n) => r.count ? Math.round(n / r.count * 100) + '%' : '0%';
+                        return tipCard(r.type, [
+                            { total: true, label: '{% trans "Total records"|escapejs %}', value: r.count },
+                            { color: LEAVE_STATUS_COLORS[0], label: '{% trans "Approved"|escapejs %}', value: r.approved, sub: '(' + pct(r.approved) + ')' },
+                            { color: LEAVE_STATUS_COLORS[1], label: '{% trans "Pending"|escapejs %}', value: r.requested, sub: '(' + pct(r.requested) + ')' },
+                        ]);
+                    } },
+                    states: { hover: { filter: { type: 'darken', value: 0.85 } } },
+                });
+            }
+            const leaveTypeLegend = createPieLegend({
+                el: document.getElementById('md-pie-legend-leave'),
+                chartKey: 'leave-breakdown',
+                noun: '{% trans "leave types"|escapejs %}',
+                onChange: drawLeaveBreakdown,
+            });
             function loadLeaveBreakdown() {
                 fetchP("{% url 'dashboard-leave-breakdown' %}")
                 .then(r => r.json())
                 .then(data => {
                     if (data.no_permission) { hideCard('leave_breakdown'); return; }
-                    document.getElementById('leave-month').textContent = data.month;
-                    if (!data.breakdown.length) { document.querySelector("#chart-leave").innerHTML = emptyHtml('{% trans "No leave data this month"|escapejs %}'); return; }
-                    renderChart('leave-breakdown', document.querySelector("#chart-leave"), {
-                        series: [{ name: '{% trans "Requests"|escapejs %}', data: data.breakdown.map(b => b.count) }],
-                        chart: { type: 'bar', height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', animations: ANIM,
-                            events: { dataPointSelection: (e, ctx, config) => {
-                                if (!PERM.leave) return;
-                                const leaveType = data.breakdown[config.dataPointIndex]?.type || '';
-                                window.location.href = "{% url 'request-view' %}?leave_type_id__name=" + encodeURIComponent(leaveType);
-                            }}
-                        },
-                        colors: COLORS,
-                        plotOptions: { bar: { borderRadius: 8, borderRadiusApplication: 'end', horizontal: true, barHeight: '52%', distributed: true } },
-                        xaxis: { ...XAXIS_STYLE, categories: data.breakdown.map(b => b.type) },
-                        yaxis: { labels: { style: { colors: textColor, fontSize: '11px', fontWeight: 500 } } },
-                        grid: GRID,
-                        dataLabels: { enabled: true, formatter: (v, { dataPointIndex: i }) => v + ' (' + data.breakdown[i].days + 'd)', style: { fontSize: '11px', fontWeight: 600, colors: [textColor] }, offsetX: 6 },
-                        legend: { show: false },
-                        tooltip: { ...TOOLTIP_STYLE, y: { formatter: v => v + ' {% trans "requests"|escapejs %}' } },
-                        states: { hover: { filter: { type: 'darken', value: 0.85 } } },
-                    });
+                    if (!data.breakdown.length) {
+                        document.querySelector("#chart-leave").innerHTML = emptyHtml('{% trans "No leave types"|escapejs %}');
+                        leaveTypeLegend.clear();
+                        return;
+                    }
+                    leaveTypeData = data.breakdown;
+                    leaveRange = { from: data.from_date, to: data.to_date };
+                    leaveTypeLegend.set(leaveTypeData.map((b, i) => ({ name: b.type, value: b.count, color: leaveTypeColor(i),
+                        detail: b.count + ' {% trans "total"|escapejs %} · ' + b.approved + ' {% trans "approved"|escapejs %} · ' + b.requested + ' {% trans "pending"|escapejs %}' })));
+                    drawLeaveBreakdown();
                 });
             }
             loadLeaveBreakdown();
@@ -2683,144 +3078,186 @@
 
             // ─── EMPLOYEE STATUS ───
             // Donut (not radialBar): API returns absolute headcounts; radialBar treats series as 0–100%.
-            function loadEmployeeStatus() {
-                fetch("{% url 'dashboard-employee-status' %}")
-                .then(r => r.json())
-                .then(data => {
-                    if (!data.dataSet || !data.dataSet.length) { document.querySelector("#chart-employee-status").innerHTML = emptyHtml('{% trans "No data"|escapejs %}'); return; }
-                    {# keyed on the API's stable series keys, not on the translated labels #}
-                    const sc = { 'active': '#22c55e', 'inactive': '#ef4444' };
-                    const statusKeys = data.keys || ['active', 'inactive'];
-                    renderChart('employee-status', document.querySelector("#chart-employee-status"), {
-                        series: data.dataSet[0].data,
-                        chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit', animations: ANIM,
-                            events: { dataPointSelection: (e, ctx, config) => {
-                                if (!PERM.employee) return;
-                                const active = statusKeys[config.dataPointIndex] === 'active' ? 'true' : 'false';
-                                window.location.href = "{% url 'employee-view' %}?is_active=" + active;
-                            }}
-                        },
-                        labels: data.labels,
-                        colors: statusKeys.map(k => sc[k] || '#94a3b8'),
-                        plotOptions: { pie: { expandOnClick: true, donut: { size: '68%',
-                            labels: { show: true,
-                                name: { fontSize: '13px', fontWeight: 700, color: textColor },
-                                value: { fontSize: '20px', fontWeight: 800, color: textColor },
-                                total: { show: true, label: '{% trans "Total"|escapejs %}', color: subTextColor, fontSize: '11px', fontWeight: 600,
-                                    formatter: w => w.globals.seriesTotals.reduce((a,b)=>a+b,0) }
-                            }
-                        } } },
-                        legend: { ...LEGEND_STYLE, show: true },
-                        tooltip: { ...TOOLTIP_STYLE, y: { formatter: v => v + ' {% trans "employees"|escapejs %}' } },
-                    });
-                });
-            }
-            loadEmployeeStatus();
 
             {% if perms.attendance.view_attendance or home_role == "manager" %}
             // ─── ATTENDANCE OVERVIEW ───
+            let attData = null;
+            function drawAttendanceOverview() {
+                const names = new Set(attLegend.selectedNames());
+                const data = { labels: attData.labels, dataSet: attData.dataSet.filter(d => names.has(d.label)) };
+                renderChart('attendance-overview', document.querySelector("#chart-attendance-overview"), {
+                    // x-axis = departments; the stack = on time / late arrival / early departure.
+                    series: data.labels.map((statusLabel, k) => ({ name: statusLabel, data: data.dataSet.map(d => d.data[k]) })),
+                    chart: { type: 'bar', stacked: true, stackType: '100%', height: 320, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', animations: ANIM,
+                        events: { dataPointSelection: (e, ctx, config) => {
+                            if (!PERM.employee) return;
+                            // A series is a STATUS and a data point is a DEPARTMENT.
+                            // Indexing the statuses (rather than matching data.labels
+                            // text) keeps this working under translation, since those
+                            // labels are gettext'd.
+                            const ATT_STATUS = ['on_time', 'late_come', 'early_out'];
+                            const deptId = data.dataSet[config.dataPointIndex]?.id;
+                            const status = ATT_STATUS[config.seriesIndex];
+                            if (!deptId || !status) return;
+                            const params = new URLSearchParams({
+                                present_from: '{% now "Y-m-d" %}',
+                                present_to: '{% now "Y-m-d" %}',
+                                attendance_status: status,
+                                employee_work_info__department_id: deptId,
+                                is_active: 'True',
+                                filter_applied: 'on',
+                            });
+                            window.location.href = "{% url 'employee-view' %}?" + params.toString();
+                        }}
+                    },
+                    colors: ['#22c55e', '#f59e0b', '#ef4444'],
+                    fill: { type: 'gradient', gradient: { type: 'vertical', shadeIntensity: 0.25, opacityFrom: 1, opacityTo: 0.85 } },
+                    plotOptions: { bar: { borderRadius: 6, borderRadiusApplication: 'end', columnWidth: '58%' } },
+                    xaxis: { ...XAXIS_STYLE, categories: data.dataSet.map(d => d.label.split(' ')),
+                        labels: { ...XAXIS_STYLE.labels, rotate: 0, rotateAlways: false, hideOverlappingLabels: false, trim: false, maxHeight: 48, style: { ...XAXIS_STYLE.labels.style, fontSize: '11px' } } },
+                    yaxis: { min: 0, max: 100, tickAmount: 4, labels: { style: { colors: textColor, fontSize: '11px' }, formatter: v => Math.round(v) + '%' } },
+                    grid: GRID,
+                    dataLabels: { enabled: false },
+                    legend: { ...LEGEND_STYLE, position: 'top', horizontalAlign: 'right' },
+                    tooltip: { ...TOOLTIP_STYLE, shared: true, intersect: false, custom: ({ dataPointIndex }) => {
+                        const d = data.dataSet[dataPointIndex];
+                        if (!d) return '';
+                        const total = d.data.reduce((a, b) => a + b, 0);
+                        const colors = ['#22c55e', '#f59e0b', '#ef4444'];
+                        return tipCard(d.label, [
+                            { total: true, label: '{% trans "Total"|escapejs %}', value: total },
+                            ...data.labels.map((lbl, k) => ({ color: colors[k], label: lbl, value: d.data[k], sub: total ? '(' + Math.round(d.data[k] / total * 100) + '%)' : '(0%)' })),
+                        ]);
+                    } },
+                    states: { hover: { filter: { type: 'darken', value: 0.85 } } },
+                });
+            }
+            const attLegend = createPieLegend({
+                el: document.getElementById('md-pie-legend-attendance'),
+                chartKey: 'attendance-overview',
+                noun: '{% trans "departments"|escapejs %}',
+                maxChips: 50,
+                onChange: drawAttendanceOverview,
+            });
             function loadAttendanceOverview() {
                 fetch("{% url 'dashboard-attendance-overview' %}")
                 .then(r => r.json())
                 .then(data => {
                     if (data.no_permission) { hideCard('attendance_overview'); return; }
                     if (!data.dataSet || !data.dataSet.length) { document.querySelector("#chart-attendance-overview").innerHTML = emptyHtml('{% trans "No attendance records available"|escapejs %}'); return; }
-                    renderChart('attendance-overview', document.querySelector("#chart-attendance-overview"), {
-                        series: data.dataSet.map(d => ({ name: d.label, data: d.data })),
-                        chart: { type: 'bar', height: 320, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', stacked: false, animations: ANIM,
-                            events: { dataPointSelection: (e, ctx, config) => {
-                                if (!PERM.employee) return;
-                                // A series is a DEPARTMENT and a data point is a STATUS --
-                                // see generate_data_set in attendance/views/dashboard.py:
-                                // labels are the three statuses, dataSet has one entry per
-                                // department. Indexing the statuses (rather than matching
-                                // data.labels text) also keeps this working under
-                                // translation, since those labels are gettext'd.
-                                const ATT_STATUS = ['on_time', 'late_come', 'early_out'];
-                                const deptId = data.dataSet[config.seriesIndex]?.id;
-                                const status = ATT_STATUS[config.dataPointIndex];
-                                if (!deptId || !status) return;
-                                const params = new URLSearchParams({
-                                    present_on: '{% now "Y-m-d" %}',
-                                    attendance_status: status,
-                                    employee_work_info__department_id: deptId,
-                                    is_active: 'True',
-                                    filter_applied: 'on',
-                                });
-                                window.location.href = "{% url 'employee-view' %}?" + params.toString();
-                            }}
-                        },
-                        colors: ['#22c55e', '#f59e0b', '#ef4444'],
-                        fill: { type: 'gradient', gradient: { type: 'vertical', shadeIntensity: 0.25, opacityFrom: 1, opacityTo: 0.85 } },
-                        plotOptions: { bar: { borderRadius: 6, borderRadiusApplication: 'end', columnWidth: '58%' } },
-                        xaxis: { ...XAXIS_STYLE, categories: data.labels },
-                        yaxis: { ...YAXIS_STYLE },
-                        grid: GRID,
-                        dataLabels: { enabled: false },
-                        legend: { ...LEGEND_STYLE, position: 'top', horizontalAlign: 'right' },
-                        tooltip: { ...TOOLTIP_STYLE },
-                        states: { hover: { filter: { type: 'darken', value: 0.85 } } },
-                    });
+                    attData = data;
+                    attLegend.set(data.dataSet.map((d, i) => {
+                        const total = d.data.reduce((a, b) => a + b, 0);
+                        return { name: d.label, value: total, color: deptColor(i),
+                            detail: total + ' {% trans "total"|escapejs %} · ' + data.labels.map((l, k) => d.data[k] + ' ' + l).join(' · ') };
+                    }));
+                    drawAttendanceOverview();
                 }).catch(() => { document.querySelector("#chart-attendance-overview").innerHTML = emptyHtml('{% trans "Unable to load attendance data"|escapejs %}'); });
             }
             loadAttendanceOverview();
 
-            // ─── DEPARTMENT OVERTIME ───
-            function loadDepartmentOvertime() {
-                fetch("{% url 'dashboard-department-overtime' %}")
-                .then(r => r.json())
-                .then(data => {
-                    if (data.no_permission) { hideCard('department_overtime'); return; }
-                    if (!data.labels || !data.labels.length || !data.dataset || !data.dataset.length) { document.querySelector("#chart-overtime").innerHTML = emptyHtml('{% trans "No overtime data"|escapejs %}'); return; }
-                    renderChart('overtime', document.querySelector("#chart-overtime"), {
-                        series: [{ name: '{% trans "Hours"|escapejs %}', data: data.dataset[0].data }],
-                        chart: { type: 'bar', height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', animations: ANIM },
-                        colors: ['#06b6d4'],
-                        plotOptions: { bar: { borderRadius: 6, borderRadiusApplication: 'end', horizontal: true, barHeight: '55%', distributed: true } },
-                        xaxis: { ...XAXIS_STYLE, categories: data.labels, labels: { ...XAXIS_STYLE.labels, formatter: v => (parseFloat(v) || 0).toFixed(1) + 'h' } },
-                        yaxis: { labels: { style: { colors: textColor, fontSize: '11px', fontWeight: 500 } } },
-                        grid: GRID,
-                        dataLabels: { enabled: true, formatter: v => parseFloat(v).toFixed(1) + 'h', style: { fontSize: '11px', fontWeight: 600, colors: [textColor] }, offsetX: 6 },
-                        legend: { show: false },
-                        tooltip: { ...TOOLTIP_STYLE, y: { formatter: v => (parseFloat(v) || 0).toFixed(1) + ' {% trans "hrs"|escapejs %}' } },
-                    });
-                }).catch(() => { document.querySelector("#chart-overtime").innerHTML = emptyHtml('{% trans "No overtime data"|escapejs %}'); });
-            }
-            loadDepartmentOvertime();
             {% endif %}
 
             {% if perms.leave.view_leaverequest or request.user.is_superuser %}
             // ─── LEAVE OVER PERIOD ───
+            let leaveTrendData = null;
+            function drawLeaveTrend() {
+                const names = new Set(leaveTrendLegend.selectedNames());
+                const lines = leaveTrendData.dataset.map((d, i) => ({ ...d, color: deptColor(i) })).filter(d => names.has(d.label));
+                renderChart('leave-trend', document.querySelector("#chart-leave-trend"), {
+                    series: lines.map(d => ({ name: d.label, data: d.data })),
+                    chart: { type: 'line', height: 300, toolbar: { show: false }, zoom: { enabled: false }, background: 'transparent', fontFamily: 'inherit',
+                        animations: { enabled: false } },
+                    colors: lines.map(d => d.color),
+                    stroke: { curve: 'smooth', width: 3 },
+                    markers: { size: 0, hover: { size: 5 } },
+                    dataLabels: { enabled: false },
+                    legend: { show: false },
+                    xaxis: { ...XAXIS_STYLE, categories: leaveTrendData.labels },
+                    yaxis: { ...YAXIS_STYLE, min: 0, forceNiceScale: true, labels: { style: { colors: textColor, fontSize: '11px' }, formatter: v => Number.isInteger(+v) ? v : '' } },
+                    grid: GRID,
+                    tooltip: { ...TOOLTIP_STYLE, shared: true, intersect: false, custom: ({ series, dataPointIndex, w }) => {
+                        const rows = lines.map((d, i) => ({ color: d.color, label: d.label, value: series[i][dataPointIndex] + ' {% trans "leave(s)"|escapejs %}', n: series[i][dataPointIndex] }));
+                        const total = rows.reduce((a, r) => a + r.n, 0);
+                        const title = (w.globals.categoryLabels && w.globals.categoryLabels[dataPointIndex]) || w.globals.labels[dataPointIndex] || '';
+                        return tipCard(title, [{ total: true, label: '{% trans "Total"|escapejs %}', value: total + ' {% trans "leave(s)"|escapejs %}' }, ...rows]);
+                    } },
+                });
+            }
+            const leaveTrendLegend = createPieLegend({
+                el: document.getElementById('md-pie-legend-leave-trend'),
+                chartKey: 'leave-trend',
+                noun: '{% trans "departments"|escapejs %}',
+                maxChips: 50,
+                onChange: drawLeaveTrend,
+            });
             function loadLeaveOverPeriod() {
-                fetch("{% url 'dashboard-leave-trends' %}")
+                fetchP("{% url 'dashboard-leave-trends' %}?group=department" + (detectPreset() === 'this_month' ? '&bucket=week' : ''))
                 .then(r => r.json())
                 .then(data => {
                     if (data.no_permission) { hideCard('leave_trends'); return; }
-                    if (!data.labels || !data.labels.length) { document.querySelector("#chart-leave-trend").innerHTML = emptyHtml('{% trans "No leave data this month"|escapejs %}'); return; }
-                    const seriesArr = Array.isArray(data.dataset) ? data.dataset : [data.dataset];
-                    renderChart('leave-trend', document.querySelector("#chart-leave-trend"), {
-                        series: seriesArr.map(s => ({ name: s.label || 'Leaves', data: s.data })),
-                        chart: { type: 'area', height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', animations: ANIM,
-                            dropShadow: { enabled: true, top: 4, blur: 10, opacity: 0.1, color: '#a855f7' } },
-                        colors: ['#a855f7'],
-                        fill: { type: 'gradient', gradient: { type: 'vertical', shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.02, stops: [0, 90, 100] } },
-                        stroke: { curve: 'smooth', width: 3 },
-                        markers: { size: 5, colors: ['#a855f7'], strokeColors: cardBg, strokeWidth: 2, hover: { size: 7 } },
-                        dataLabels: { enabled: true, style: { fontSize: '11px', fontWeight: 700, colors: ['#a855f7'] }, background: { enabled: true, foreColor: '#fff', borderRadius: 4, padding: 3, borderWidth: 0, fillColors: ['#a855f7'] } },
-                        xaxis: { ...XAXIS_STYLE, categories: data.labels },
-                        yaxis: { ...YAXIS_STYLE, min: 0, tickAmount: 4 },
-                        grid: GRID,
-                        tooltip: { ...TOOLTIP_STYLE, y: { formatter: v => v + ' {% trans "leave(s)"|escapejs %}' } },
-                    });
-                }).catch(() => { document.querySelector("#chart-leave-trend").innerHTML = emptyHtml('{% trans "No leave data this month"|escapejs %}'); });
+                    if (!data.labels || !data.labels.length || !data.dataset || !data.dataset.length) { document.querySelector("#chart-leave-trend").innerHTML = emptyHtml('{% trans "No leave data"|escapejs %}'); leaveTrendLegend.clear(); return; }
+                    leaveTrendData = data;
+                    leaveTrendLegend.set(data.dataset.map((d, i) => ({ name: d.label, value: d.data.reduce((a, b) => a + b, 0), color: deptColor(i),
+                        detail: d.data.reduce((a, b) => a + b, 0) + ' {% trans "leave days"|escapejs %}' })));
+                    drawLeaveTrend();
+                }).catch(() => { document.querySelector("#chart-leave-trend").innerHTML = emptyHtml('{% trans "No leave data"|escapejs %}'); });
             }
             loadLeaveOverPeriod();
             {% endif %}
 
             {% if perms.recruitment.view_recruitment or request.user.is_superuser %}
             // ─── RECRUITMENT PIPELINE ───
+            let pipelineData = null;
+            const pipelineColor = (name) => COLORS[Math.max(0, pipelineData.dataSet.findIndex(r => r.label === name)) % COLORS.length];
+            function drawPipeline() {
+                const names = new Set(pipelineLegend.selectedNames());
+                const recs = pipelineData.dataSet.filter(r => names.has(r.label));
+                renderChart('pipeline', document.querySelector("#chart-pipeline"), {
+                    // y = share of each recruitment's candidates sitting at that stage (each line sums to 100%).
+                    series: recs.map(r => { const t = r.data.reduce((a, b) => a + b, 0); return { name: r.label, data: r.data.map(n => t ? Math.round(n / t * 1000) / 10 : 0) }; }),
+                    chart: { type: 'line', height: 320, toolbar: { show: false }, zoom: { enabled: false }, background: 'transparent', fontFamily: 'inherit',
+                        animations: { enabled: false },
+                        events: { markerClick: (e, ctx, { seriesIndex, dataPointIndex }) => {
+                            if (!PERM.candidate) return;
+                            const rec = recs[seriesIndex];
+                            const stage = (pipelineData.labels[dataPointIndex] || '').toLowerCase();
+                            if (!rec) return;
+                            window.location.href = "{% url 'candidate-view' %}?recruitment_id=" + rec.id + "&stage_id__stage_type=" + encodeURIComponent(stage);
+                        }}
+                    },
+                    colors: recs.map(r => pipelineColor(r.label)),
+                    stroke: { curve: 'smooth', width: 3 },
+                    markers: { size: 4, strokeWidth: 2, strokeColors: cardBg, hover: { size: 6 } },
+                    xaxis: { ...XAXIS_STYLE, categories: pipelineData.labels },
+                    yaxis: { min: 0, max: 100, tickAmount: 5, labels: { style: { colors: textColor, fontSize: '11px' }, formatter: v => Math.round(v) + '%' } },
+                    grid: GRID,
+                    dataLabels: { enabled: false },
+                    legend: { show: false },
+                    tooltip: { ...TOOLTIP_STYLE, shared: true, intersect: false, custom: ({ dataPointIndex }) => {
+                        const rows = [];
+                        let total = 0;
+                        recs.forEach((r) => {
+                            const n = r.data[dataPointIndex];
+                            const t = r.data.reduce((a, b) => a + b, 0);
+                            total += n;
+                            rows.push({ color: pipelineColor(r.label), label: r.label, value: n + ' {% trans "candidates"|escapejs %}', sub: t ? '(' + Math.round(n / t * 100) + '%)' : '(0%)' });
+                            (r.positions || []).forEach(pos => {
+                                if (pos.data[dataPointIndex] > 0) rows.push({ indent: true, label: pos.name, value: pos.data[dataPointIndex] });
+                            });
+                        });
+                        return tipCard(pipelineData.labels[dataPointIndex] || '', [{ total: true, label: '{% trans "Total candidates"|escapejs %}', value: total }, ...rows]);
+                    } },
+                });
+            }
+            const pipelineLegend = createPieLegend({
+                el: document.getElementById('md-pie-legend-pipeline'),
+                chartKey: 'pipeline',
+                noun: '{% trans "recruitments"|escapejs %}',
+                onChange: drawPipeline,
+            });
             function loadRecruitmentPipeline() {
-                fetch("{% url 'dashboard-recruitment-by-stage' %}?_t=" + Date.now())
+                fetch("{% url 'dashboard-recruitment-by-stage' %}?group=job_position&_t=" + Date.now())
                 .then(r => {
                     const ct = r.headers.get('content-type') || '';
                     if (!r.ok || !ct.includes('application/json')) {
@@ -2831,42 +3268,75 @@
                 })
                 .then(data => {
                     if (!data) return;
-                    if (!data.dataSet || !data.dataSet.length) { document.querySelector("#chart-pipeline").innerHTML = emptyHtml('{% trans "No active recruitments"|escapejs %}'); return; }
+                    if (!data.dataSet || !data.dataSet.length) { document.querySelector("#chart-pipeline").innerHTML = emptyHtml('{% trans "No active recruitments"|escapejs %}'); pipelineLegend.clear(); return; }
                     try {
-                        renderChart('pipeline', document.querySelector("#chart-pipeline"), {
-                            series: data.dataSet.map(r => ({ name: r.label, data: r.data })),
-                            chart: { type: 'bar', height: 320, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
-                                events: { dataPointSelection: (e, ctx, config) => {
-                                    if (!PERM.candidate) return;
-                                    const recruitment = data.dataSet[config.seriesIndex]?.label || '';
-                                    const stage = data.labels[config.dataPointIndex] || '';
-                                    window.location.href = "{% url 'candidate-view' %}?recruitment=" + encodeURIComponent(recruitment) + "&stage_id__stage_type=" + encodeURIComponent(stage.toLowerCase());
-                                }}
-                            },
-                            colors: ['#E54F38', '#3b82f6', '#06b6d4', '#22c55e', '#f59e0b'],
-                            plotOptions: { bar: { borderRadius: 6, columnWidth: '60%' } },
-                            xaxis: { ...XAXIS_STYLE, categories: data.labels },
-                            yaxis: { ...YAXIS_STYLE },
-                            grid: GRID,
-                            dataLabels: { enabled: false },
-                            legend: { ...LEGEND_STYLE, position: 'top', horizontalAlign: 'right' },
-                            tooltip: { ...TOOLTIP_STYLE,
-                                custom: ({ seriesIndex, dataPointIndex, w }) => {
-                                    const stage = w.globals.labels[dataPointIndex] || '';
-                                    const recruitment = w.globals.seriesNames[seriesIndex] || '';
-                                    const value = w.globals.series[seriesIndex][dataPointIndex] || 0;
-                                    return `<div style="padding:10px 14px;font-size:12px;border-radius:8px;"><b>${recruitment}</b><br><span style="opacity:0.7">${stage}:</span> <b>${value}</b> candidates</div>`;
-                                }
-                            },
-                        });
+                        pipelineData = data;
+                        document.getElementById('pipeline-subtitle').textContent = '{% trans "All open recruitments"|escapejs %} (' + data.open_recruitments + ') — {% trans "% of each recruitment's active candidates at each stage, not affected by the date filter"|escapejs %}';
+                        // Busiest recruitments first, so the default top 5 are the ones with most candidates.
+                        const total = (r) => r.data.reduce((a, b) => a + b, 0);
+                        pipelineData.dataSet.sort((a, b) => total(b) - total(a));
+                        pipelineLegend.set(pipelineData.dataSet.map((r, i) => ({ name: r.label, value: total(r), color: COLORS[i % COLORS.length], detail: total(r) + ' {% trans "candidates"|escapejs %}' })));
+                        drawPipeline();
                     } catch(e) { document.querySelector("#chart-pipeline").innerHTML = emptyHtml('{% trans "Chart error"|escapejs %}: ' + e.message); }
                 }).catch(() => { hideCard('recruitment_pipeline'); });
             }
             loadRecruitmentPipeline();
 
             // ─── HIRING TIMELINE ───
+            let hiringData = null;
+            const hiringColor = (name) => COLORS[Math.max(0, hiringData.dataSet.findIndex(d => d.label === name)) % COLORS.length];
+            function drawHiring() {
+                const names = new Set(hiringLegend.selectedNames());
+                const shown = hiringData.dataSet.filter(d => names.has(d.label));
+                const monthTotals = hiringData.labels.map((_, m) => shown.reduce((a, d) => a + d.data[m], 0));
+                const peak = Math.max(0, ...monthTotals);
+                // Whole numbers only on the y-axis: with small counts use one tick per integer.
+                const yaxis = peak <= 5
+                    ? { min: 0, max: Math.max(peak, 1), tickAmount: Math.max(peak, 1) }
+                    : { min: 0, forceNiceScale: true };
+                renderChart('hiring', document.querySelector("#chart-hiring"), {
+                    series: shown.map(d => ({ name: d.label, data: d.data })),
+                    chart: { type: 'bar', stacked: true, height: 280, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', animations: ANIM,
+                        events: { dataPointSelection: (e, ctx, config) => {
+                            if (!PERM.candidate) return;
+                            const monthNum = config.dataPointIndex + 1;
+                            const year = hiringData.year || new Date().getFullYear();
+                            const lastDay = new Date(year, monthNum, 0).getDate();
+                            const pad = n => String(n).padStart(2, '0');
+                            const from = `${year}-${pad(monthNum)}-01`;
+                            const till = `${year}-${pad(monthNum)}-${lastDay}`;
+                            const pos = shown[config.seriesIndex];
+                            window.location.href = "{% url 'candidate-view' %}?joining_date_from=" + from + "&joining_date_till=" + till + "&hired=true"
+                                + (pos && pos.id ? "&job_position_id=" + pos.id : "");
+                        }}
+                    },
+                    colors: shown.map(d => hiringColor(d.label)),
+                    plotOptions: { bar: { borderRadius: 6, borderRadiusApplication: 'end', borderRadiusWhenStacked: 'last', columnWidth: '48%' } },
+                    stroke: { width: 2, colors: [cardBg] },
+                    xaxis: { ...XAXIS_STYLE, categories: hiringData.labels },
+                    yaxis: { ...yaxis, labels: { style: { colors: textColor, fontSize: '11px' }, formatter: v => Math.round(v) } },
+                    grid: GRID,
+                    dataLabels: { enabled: false },
+                    legend: { show: false },
+                    tooltip: { ...TOOLTIP_STYLE, shared: true, intersect: false, custom: ({ series, dataPointIndex, w }) => {
+                        const rows = shown.map((d, i) => ({ color: hiringColor(d.label), label: d.label, n: series[i][dataPointIndex] })).filter(r => r.n > 0);
+                        const total = rows.reduce((a, r) => a + r.n, 0);
+                        return tipCard(hiringData.labels[dataPointIndex] || '', [
+                            { total: true, label: '{% trans "Total shortlisted"|escapejs %}', value: total },
+                            ...rows.map(r => ({ color: r.color, label: r.label, value: r.n, sub: total ? '(' + Math.round(r.n / total * 100) + '%)' : '' })),
+                        ]);
+                    } },
+                    states: { hover: { filter: { type: 'darken', value: 0.9 } } },
+                });
+            }
+            const hiringLegend = createPieLegend({
+                el: document.getElementById('md-pie-legend-hiring'),
+                chartKey: 'hiring',
+                noun: '{% trans "job positions"|escapejs %}',
+                onChange: drawHiring,
+            });
             function loadHiringTimeline() {
-                fetch("{% url 'dashboard-hiring-timeline' %}")
+                fetchP("{% url 'dashboard-hiring-timeline' %}?group=job_position")
                 .then(r => {
                     const ct = r.headers.get('content-type') || '';
                     if (!r.ok || !ct.includes('application/json')) {
@@ -2877,35 +3347,11 @@
                 })
                 .then(data => {
                     if (!data) return;
-                    if (!data.dataSet || !data.dataSet.length) { document.querySelector("#chart-hiring").innerHTML = emptyHtml('{% trans "No hiring data"|escapejs %}'); return; }
-                    renderChart('hiring', document.querySelector("#chart-hiring"), {
-                        series: [{ name: data.dataSet[0].label || 'Joined', data: data.dataSet[0].data }],
-                        chart: { type: 'bar', height: 280, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', animations: ANIM,
-                            events: { dataPointSelection: (e, ctx, config) => {
-                                if (!PERM.candidate) return;
-                                const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-                                const label = data.labels[config.dataPointIndex] || '';
-                                const monthNum = monthNames.indexOf(label) + 1;
-                                if (!monthNum) return;
-                                const year = new Date().getFullYear();
-                                const lastDay = new Date(year, monthNum, 0).getDate();
-                                const pad = n => String(n).padStart(2, '0');
-                                const from = `${year}-${pad(monthNum)}-01`;
-                                const till = `${year}-${pad(monthNum)}-${lastDay}`;
-                                window.location.href = "{% url 'candidate-view' %}?joining_date_from=" + from + "&joining_date_till=" + till + "&hired=true";
-                            }}
-                        },
-                        colors: ['#f59e0b'],
-                        fill: { type: 'gradient', gradient: { type: 'vertical', shadeIntensity: 0.4, opacityFrom: 1, opacityTo: 0.75,
-                            colorStops: [{ offset: 0, color: '#f59e0b', opacity: 1 }, { offset: 100, color: '#ef4444', opacity: 0.8 }] } },
-                        plotOptions: { bar: { borderRadius: 8, borderRadiusApplication: 'end', columnWidth: '48%' } },
-                        xaxis: { ...XAXIS_STYLE, categories: data.labels },
-                        yaxis: { ...YAXIS_STYLE },
-                        grid: GRID,
-                        dataLabels: { enabled: true, style: { fontSize: '11px', fontWeight: 700, colors: ['#fff'] }, background: { enabled: false } },
-                        tooltip: { ...TOOLTIP_STYLE, y: { formatter: v => v + ' {% trans "employee(s)"|escapejs %}' } },
-                        states: { hover: { filter: { type: 'darken', value: 0.85 } } },
-                    });
+                    if (!data.dataSet || !data.dataSet.length) { document.querySelector("#chart-hiring").innerHTML = emptyHtml('{% trans "No shortlisting data"|escapejs %}'); hiringLegend.clear(); return; }
+                    hiringData = data;
+                    const totalOf = (d) => d.data.reduce((a, b) => a + b, 0);
+                    hiringLegend.set(data.dataSet.map(d => ({ name: d.label, value: totalOf(d), color: hiringColor(d.label), detail: totalOf(d) + ' {% trans "shortlisted"|escapejs %}' })));
+                    drawHiring();
                 }).catch(() => { hideCard('hiring_timeline'); });
             }
             loadHiringTimeline();
@@ -2913,92 +3359,9 @@
 
             {% if perms.leave.view_leaverequest or home_role == "manager" %}
             // ─── LEAVE BY DEPARTMENT ───
-            function loadLeaveCoverage() {
-                const el = document.querySelector("#chart-leave-coverage");
-                if (!el) return;
-                fetchP("{% url 'dashboard-leave-coverage' %}")
-                .then(r => r.json())
-                .then(data => {
-                    if (!data.days || !data.days.length) {
-                        el.innerHTML = emptyHtml('{% trans "No leave coverage data"|escapejs %}');
-                        return;
-                    }
-                    renderChart('leave-coverage', el, {
-                        series: [
-                            { name: '{% trans "On leave"|escapejs %}', data: data.days.map(d => d.on_leave) },
-                            { name: '{% trans "Available"|escapejs %}', data: data.days.map(d => d.available) },
-                        ],
-                        chart: { type: 'bar', height: 280, stacked: true, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit' },
-                        colors: ['#f59e0b', '#22c55e'],
-                        plotOptions: { bar: { columnWidth: '55%', borderRadius: 4 } },
-                        xaxis: { ...XAXIS_STYLE, categories: data.days.map(d => d.label) },
-                        yaxis: { labels: { style: { colors: textColor, fontSize: '11px' } } },
-                        legend: { ...LEGEND_STYLE, position: 'top', horizontalAlign: 'left' },
-                        grid: GRID,
-                        dataLabels: { enabled: false },
-                        tooltip: {
-                            theme: isDark ? 'dark' : 'light',
-                            y: { formatter: v => v + ' {% trans "employees"|escapejs %}' },
-                        },
-                    });
-                }).catch(() => {
-                    if (el) el.innerHTML = emptyHtml('{% trans "Could not load coverage"|escapejs %}');
-                });
-            }
-            loadLeaveCoverage();
 
-            function loadLeaveByDepartment() {
-                fetch("{% url 'dashboard-leave-by-department' %}")
-                .then(r => r.json())
-                .then(data => {
-                    if (data.no_permission) { hideCard('leave_by_department'); return; }
-                    if (!data.labels || !data.labels.length || !data.data || !data.data.length) { document.querySelector("#chart-leave-dept").innerHTML = emptyHtml('{% trans "No leave data"|escapejs %}'); return; }
-                    renderChart('leave-dept', document.querySelector("#chart-leave-dept"), {
-                        series: [{ name: '{% trans "Requests"|escapejs %}', data: data.data }],
-                        chart: { type: 'bar', height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', animations: ANIM,
-                            events: { dataPointSelection: (e, ctx, config) => {
-                                if (!PERM.leave) return;
-                                const dept = data.labels[config.dataPointIndex];
-                                window.location.href = "{% url 'request-view' %}?department=" + encodeURIComponent(dept);
-                            }}
-                        },
-                        colors: ['#3b82f6','#E54F38','#a855f7','#ec4899','#06b6d4','#14b8a6'],
-                        plotOptions: { bar: { borderRadius: 8, borderRadiusApplication: 'end', horizontal: true, barHeight: '52%', distributed: true } },
-                        xaxis: { ...XAXIS_STYLE, categories: data.labels },
-                        yaxis: { labels: { style: { colors: textColor, fontSize: '11px', fontWeight: 500 } } },
-                        grid: GRID,
-                        dataLabels: { enabled: true, style: { fontSize: '11px', fontWeight: 600, colors: [textColor] }, offsetX: 6 },
-                        legend: { show: false },
-                        tooltip: { ...TOOLTIP_STYLE, y: { formatter: v => v + ' {% trans "request(s)"|escapejs %}' } },
-                        states: { hover: { filter: { type: 'darken', value: 0.85 } } },
-                    });
-                }).catch(() => { document.querySelector("#chart-leave-dept").innerHTML = emptyHtml('{% trans "No leave data"|escapejs %}'); });
-            }
-            loadLeaveByDepartment();
 
             // ─── DEPARTMENT LEAVE DAYS ───
-            function loadDepartmentLeaveDays() {
-                fetch("{% url 'dashboard-department-leave-days' %}")
-                .then(r => r.json())
-                .then(data => {
-                    if (data.no_permission) { hideCard('department_leave_days'); return; }
-                    if (!data.labels || !data.labels.length || !data.dataset || !data.dataset.length) { document.querySelector("#chart-leave-days").innerHTML = emptyHtml('{% trans "No leave data this month"|escapejs %}'); return; }
-                    renderChart('leave-days', document.querySelector("#chart-leave-days"), {
-                        series: [{ name: '{% trans "Leave Days"|escapejs %}', data: data.dataset[0].data }],
-                        chart: { type: 'bar', height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', animations: ANIM },
-                        colors: ['#3b82f6','#E54F38','#a855f7','#06b6d4','#14b8a6','#ec4899','#f59e0b','#22c55e','#ef4444','#f97316'],
-                        plotOptions: { bar: { borderRadius: 8, borderRadiusApplication: 'end', horizontal: true, barHeight: '50%', distributed: true } },
-                        xaxis: { ...XAXIS_STYLE, categories: data.labels },
-                        yaxis: { labels: { style: { colors: textColor, fontSize: '11px', fontWeight: 500 } } },
-                        grid: GRID,
-                        dataLabels: { enabled: true, formatter: v => v + ' {% trans "days"|escapejs %}', style: { fontSize: '11px', fontWeight: 600, colors: [textColor] }, offsetX: 6 },
-                        legend: { show: false },
-                        tooltip: { ...TOOLTIP_STYLE, y: { formatter: v => v + ' {% trans "day(s)"|escapejs %}' } },
-                        states: { hover: { filter: { type: 'darken', value: 0.85 } } },
-                    });
-                }).catch(() => { document.querySelector("#chart-leave-days").innerHTML = emptyHtml('{% trans "No leave data this month"|escapejs %}'); });
-            }
-            loadDepartmentLeaveDays();
             {% endif %}
 
             // ─── UPCOMING HOLIDAYS ───
@@ -3139,47 +3502,6 @@
 
             {% if perms.recruitment.view_recruitment or request.user.is_superuser %}
             // ─── RECRUITMENT FUNNEL (HTML stage funnel — share of candidates) ───
-            function loadRecruitmentFunnel() {
-                fetch("{% url 'dashboard-recruitment-pipeline' %}?_t=" + Date.now())
-                .then(r => r.json())
-                .then(data => {
-                    const el = document.querySelector("#chart-recruitment-funnel");
-                    if (!el) return;
-                    if (data.no_permission) {
-                        hideCard('recruitment_funnel');
-                        return;
-                    }
-                    if (chartInstances['recruitment-funnel']) {
-                        chartInstances['recruitment-funnel'].destroy();
-                        chartInstances['recruitment-funnel'] = null;
-                    }
-                    if (!data.stages || !data.stages.length) { el.innerHTML = emptyHtml('{% trans "No active recruitments"|escapejs %}'); return; }
-                    const stageColors = { initial: '#94a3b8', applied: '#E54F38', test: '#3b82f6', interview: '#f59e0b', hired: '#22c55e', cancelled: '#ef4444' };
-                    const maxCount = Math.max(...data.stages.map(s => s.count), 1);
-                    const total = data.total_candidates || data.stages.reduce((a, s) => a + (s.count || 0), 0) || 1;
-                    let html = '<div class="md-funnel">';
-                    data.stages.forEach((s, i) => {
-                        const pct = Math.max(18, (s.count / maxCount) * 100);
-                        const share = Math.round((s.count / total) * 1000) / 10;
-                        const color = stageColors[s.type] || COLORS[i % COLORS.length];
-                        const url = PERM.candidate
-                            ? ("{% url 'candidate-view' %}?stage_id__stage_type=" + encodeURIComponent(s.type))
-                            : '';
-                        const click = url ? `onclick="window.location.href='${url}'"` : '';
-                        html += `<div class="md-funnel-step" ${click} title="${s.stage}">
-                            <div class="md-funnel-step__label">${s.stage}</div>
-                            <div class="md-funnel-step__bar" style="width:${pct}%;background:${color};">${s.count}</div>
-                            <div class="md-funnel-step__share">${share}%</div>
-                        </div>`;
-                    });
-                    html += `</div><div class="md-funnel-meta">${data.total_active || 0} {% trans "active recruitments"|escapejs %} · ${data.total_candidates || 0} {% trans "candidates"|escapejs %} · ${data.hired || 0} {% trans "hired"|escapejs %}</div>`;
-                    el.innerHTML = html;
-                }).catch(() => {
-                    const el = document.querySelector("#chart-recruitment-funnel");
-                    if (el) el.innerHTML = emptyHtml('{% trans "Failed to load recruitment data"|escapejs %}');
-                });
-            }
-            loadRecruitmentFunnel();
             {% endif %}
 
             {% if perms.employee.view_employee or request.user.is_superuser %}
@@ -3191,10 +3513,13 @@
                     if (!data.months.length) { document.querySelector("#chart-turnover").innerHTML = emptyHtml('{% trans "No data"|escapejs %}'); return; }
                     const rateEl = document.getElementById('turnover-rate');
                     const rateTxt = `{% trans "6-month turnover rate"|escapejs %}: ${data.turnover_rate_6m}%`;
+                    rateEl.textContent = rateTxt;
+                    const reportLink = document.getElementById('turnover-report-link');
                     if (data.report_url) {
-                        rateEl.innerHTML = `${rateTxt} · <a class="md-link" href="${data.report_url}">{% trans "Open turnover report"|escapejs %}</a>`;
+                        reportLink.href = data.report_url;
+                        reportLink.style.display = '';
                     } else {
-                        rateEl.textContent = rateTxt;
+                        reportLink.style.display = 'none';
                     }
                     renderChart('turnover', document.querySelector("#chart-turnover"), {
                         series: [
@@ -3210,7 +3535,7 @@
                         grid: GRID,
                         dataLabels: { enabled: true, style: { fontSize: '11px', fontWeight: 700, colors: ['#fff'] }, background: { enabled: false } },
                         legend: { ...LEGEND_STYLE, position: 'top', horizontalAlign: 'right' },
-                        tooltip: { ...TOOLTIP_STYLE },
+                        tooltip: stdTooltip(),
                         states: { hover: { filter: { type: 'darken', value: 0.85 } } },
                     });
                 }).catch(() => { document.querySelector("#chart-turnover").innerHTML = emptyHtml('{% trans "No turnover data"|escapejs %}'); });
@@ -3220,52 +3545,6 @@
 
             {% if request.user.is_superuser or perms.payroll.view_payslip and request.user.is_staff or perms.payroll.view_payslip and perms.payroll.change_payslip %}
             // ─── PAYROLL SUMMARY ───
-            function loadPayrollSummary() {
-                fetchP("{% url 'dashboard-payroll-summary' %}")
-                .then(r => r.json())
-                .then(data => {
-                    if (data.no_permission) { hideCard('payroll_summary'); return; }
-                    const el = document.querySelector("#chart-payroll");
-                    document.getElementById('payroll-month').textContent = data.current_month;
-                    if (data.current.count === 0 && data.previous.count === 0) {
-                        el.innerHTML = emptyHtml('{% trans "No payroll data"|escapejs %}');
-                        return;
-                    }
-                    const fmt = v => v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-                    const changeIcon = data.change_percent > 0 ? '↑' : data.change_percent < 0 ? '↓' : '→';
-                    const changeClass = data.change_percent > 0 ? 'md-badge--amber' : data.change_percent < 0 ? 'md-badge--green' : '';
-
-                    el.innerHTML = `
-                <div style="padding:10px 4px 4px;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding:14px 16px;border-radius:12px;background:linear-gradient(135deg,#E54F38 0%,#a855f7 100%);">
-                        <div>
-                            <div style="font-size:10px;color:rgba(255,255,255,0.7);text-transform:uppercase;font-weight:700;letter-spacing:0.06em;margin-bottom:2px;">{% trans "Net Pay"|escapejs %}</div>
-                            <div style="font-size:28px;font-weight:800;color:#fff;line-height:1;">${fmt(data.current.net)}</div>
-                        </div>
-                        <span style="background:rgba(255,255,255,0.2);color:#fff;font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;">${changeIcon} ${Math.abs(data.change_percent)}%</span>
-                    </div>
-                    <div class="md-payroll-summary">
-                        <div class="md-payroll-stat" style="background:rgba(34,197,94,0.08);border-radius:10px;padding:10px;">
-                            <div class="md-payroll-stat__value" style="color:var(--md-green)">${fmt(data.current.gross)}</div>
-                            <div class="md-payroll-stat__label">{% trans "Gross"|escapejs %}</div>
-                        </div>
-                        <div class="md-payroll-stat" style="background:rgba(239,68,68,0.08);border-radius:10px;padding:10px;">
-                            <div class="md-payroll-stat__value" style="color:var(--md-red)">${fmt(data.current.deductions)}</div>
-                            <div class="md-payroll-stat__label">{% trans "Deductions"|escapejs %}</div>
-                        </div>
-                        <div class="md-payroll-stat" style="background:rgba(99,102,241,0.08);border-radius:10px;padding:10px;">
-                            <div class="md-payroll-stat__value" style="color:var(--md-indigo)">${data.current.count}</div>
-                            <div class="md-payroll-stat__label">{% trans "Payslips"|escapejs %}</div>
-                        </div>
-                        <div class="md-payroll-stat" style="background:rgba(128,128,128,0.06);border-radius:10px;padding:10px;">
-                            <div class="md-payroll-stat__value" style="opacity:0.55">${fmt(data.previous.net)}</div>
-                            <div class="md-payroll-stat__label">{% trans "Prev Month"|escapejs %}</div>
-                        </div>
-                    </div>
-                </div>`;
-                }).catch(() => { document.querySelector("#chart-payroll").innerHTML = emptyHtml('{% trans "No payroll data"|escapejs %}'); });
-            }
-            loadPayrollSummary();
             {% endif %}
 
             // ── Re-run every load/chart function above in place (used by the
@@ -3275,26 +3554,19 @@
             function refreshAllData() {
                 loadKpiCards();
                 loadAnnouncements();
-                loadTodaysLeave();
-                if (typeof loadAttendanceTrend === 'function') loadAttendanceTrend();
+                if (typeof loadTicketPriority === 'function') loadTicketPriority();
+                if (typeof loadOverdueTickets === 'function') loadOverdueTickets();
                 loadDepartmentHeadcount();
                 loadGenderSplit();
                 if (typeof loadLeaveBreakdown === 'function') loadLeaveBreakdown();
-                loadEmployeeStatus();
                 if (typeof loadAttendanceOverview === 'function') loadAttendanceOverview();
-                if (typeof loadDepartmentOvertime === 'function') loadDepartmentOvertime();
                 if (typeof loadLeaveOverPeriod === 'function') loadLeaveOverPeriod();
                 if (typeof loadRecruitmentPipeline === 'function') loadRecruitmentPipeline();
                 if (typeof loadHiringTimeline === 'function') loadHiringTimeline();
-                if (typeof loadLeaveCoverage === 'function') loadLeaveCoverage();
-                if (typeof loadLeaveByDepartment === 'function') loadLeaveByDepartment();
-                if (typeof loadDepartmentLeaveDays === 'function') loadDepartmentLeaveDays();
                 loadUpcomingHolidays();
                 if (typeof loadBirthdaysAnniversaries === 'function') loadBirthdaysAnniversaries();
                 loadPendingApprovals();
-                if (typeof loadRecruitmentFunnel === 'function') loadRecruitmentFunnel();
                 if (typeof loadEmployeeTurnover === 'function') loadEmployeeTurnover();
-                if (typeof loadPayrollSummary === 'function') loadPayrollSummary();
             }
 
             // ═══════════════════════════════════════════

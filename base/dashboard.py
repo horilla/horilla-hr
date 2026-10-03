@@ -475,10 +475,8 @@ def dashboard_kpi_data(request):
     """Return KPI summary data as JSON."""
     from employee.models import Employee
 
-    from_date, to_date = _parse_period(request)
-    today = to_date
+    # KPI tiles are live "today" figures; the dashboard's date filter never applies.
     real_today = date.today()
-    first_of_month = from_date
     scoped_ids = _scoped_active_employee_ids(request)
 
     emp_qs = Employee.objects.filter(is_active=True)
@@ -486,17 +484,17 @@ def dashboard_kpi_data(request):
         emp_qs = emp_qs.filter(id__in=scoped_ids)
     total_employees = emp_qs.count()
 
+    # The tile reads "+N This Month", so this is always the current calendar
+    # month (not the picker's range) and only counts active employees.
     new_joiners = 0
     try:
         from employee.models import EmployeeWorkInformation
 
-        join_qs = EmployeeWorkInformation.objects.filter(
-            date_joining__gte=first_of_month,
-            date_joining__lte=today,
-        )
-        if scoped_ids is not None:
-            join_qs = join_qs.filter(employee_id__in=scoped_ids)
-        new_joiners = join_qs.count()
+        new_joiners = EmployeeWorkInformation.objects.filter(
+            date_joining__gte=real_today.replace(day=1),
+            date_joining__lte=real_today,
+            employee_id__in=emp_qs,
+        ).count()
     except Exception:
         pass
 
@@ -532,49 +530,50 @@ def dashboard_kpi_data(request):
     on_leave = len(on_leave_employee_ids)
 
     present_today = 0
-    present_employee_ids = set()
-    present_by_work_type = []
+    present_ids = set()
     try:
         from attendance.models import Attendance
 
         present_qs = Attendance.objects.filter(
             attendance_date=real_today, employee_id__in=emp_qs
         )
-        present_employee_ids = set(
-            present_qs.values_list("employee_id", flat=True).distinct()
+        # Someone on approved leave counts as on leave, not as checked in, so
+        # Checked In + Absent + On Leave partition the headcount.
+        present_ids = (
+            set(present_qs.values_list("employee_id", flat=True))
+            - on_leave_employee_ids
         )
-        present_today = len(present_employee_ids)
-        present_by_work_type = list(
-            present_qs.values("work_type_id__work_type")
-            .annotate(count=Count("employee_id", distinct=True))
-            .order_by("-count")
-        )
-        present_by_work_type = [
-            {
-                "label": row["work_type_id__work_type"] or _("Unspecified"),
-                "count": row["count"],
-            }
-            for row in present_by_work_type
-        ]
+        present_today = len(present_ids)
     except Exception:
         pass
 
     # Expected = active employees not on approved leave (excludes leave from
     # the denominator so "absent" is not inflated by people who should be out).
     expected_today = max(0, total_employees - on_leave)
-    # "Absent" mirrors the employee-view "Expected to Check In" filter this
-    # card links to: active employees with no attendance record today who
-    # also aren't on approved leave today. Computed as an actual set
-    # difference (not total - present - on_leave) because present and
-    # on_leave can overlap -- e.g. a half-day leave where the employee still
-    # checked in -- and a plain subtraction would double-subtract those
-    # employees, undercounting Absent versus the redirect page.
+    # Counted as a set difference, not total - present - on_leave: someone on
+    # a half-day leave who also clocked in is in both of those sets, and
+    # subtracting both would count them out twice. This is the same
+    # definition as the employee list's "expected_to_check_in" filter
+    # (attendance/filters.py), which the card drills into, so the tile and
+    # the list always agree. The Attendance dashboard's own Offline card is
+    # a different, shift-aware metric.
     not_checked_in = (
-        emp_qs.exclude(id__in=present_employee_ids)
-        .exclude(id__in=on_leave_employee_ids)
-        .distinct()
-        .count()
+        emp_qs.exclude(id__in=present_ids).exclude(id__in=on_leave_employee_ids).count()
     )
+    # On a weekly off or holiday nobody is expected in, so whoever hasn't
+    # checked in is on week off rather than absent.
+    week_off_today = False
+    try:
+        from base.methods import get_holiday_dates, is_company_leave
+
+        week_off_today = bool(is_company_leave(real_today)) or real_today in set(
+            get_holiday_dates(real_today, real_today)
+        )
+    except Exception:
+        pass
+    week_off_count = not_checked_in if week_off_today else 0
+    if week_off_today:
+        not_checked_in = 0
     expected_to_check_in = not_checked_in
     # Keep absent_today as an alias for not_checked_in for API compatibility.
     absent_today = not_checked_in
@@ -590,27 +589,10 @@ def dashboard_kpi_data(request):
     except Exception:
         pass
 
-    open_recruitments = 0
-    try:
-        from recruitment.models import Recruitment
-
-        # Recruitments stay org-wide for users with recruitment view; managers
-        # without that perm see 0 (chart is also gated).
-        if (
-            request.user.has_perm("recruitment.view_recruitment")
-            or request.user.is_superuser
-        ):
-            open_recruitments = Recruitment.objects.filter(
-                is_active=True, closed=False
-            ).count()
-    except Exception:
-        pass
-
     return JsonResponse(
         {
             "total_employees": total_employees,
             "present_today": present_today,
-            "present_by_work_type": present_by_work_type,
             "absent_today": absent_today,
             "expected_today": expected_today,
             "not_checked_in": not_checked_in,
@@ -618,10 +600,11 @@ def dashboard_kpi_data(request):
             "attendance_rate": attendance_rate,
             "on_leave": on_leave,
             "half_day_today": half_day_today,
+            "week_off_today": week_off_today,
+            "week_off_count": week_off_count,
             "pending_leaves": pending_leaves,
             "new_joiners": new_joiners,
-            "open_recruitments": open_recruitments,
-            "date": today.isoformat(),
+            "date": real_today.isoformat(),
             "is_team_scoped": scoped_ids is not None,
         }
     )
@@ -685,7 +668,7 @@ def dashboard_attendance_trend(request):
 
 @login_required
 def dashboard_leave_breakdown(request):
-    """Leave type breakdown for the current calendar month.
+    """Leave type breakdown (approved vs pending) for the dashboard date range.
 
     Requires leave.view_leaverequest permission or superuser.
     """
@@ -693,63 +676,96 @@ def dashboard_leave_breakdown(request):
     if not (user.is_superuser or user.has_perm("leave.view_leaverequest")):
         return JsonResponse({"no_permission": True})
 
-    # Always the current calendar month -- ignores any from_date/to_date so
-    # the breakdown can't be pinned to a stale period by the shared date picker.
-    first_of_month, last_of_month = _current_month_bounds()
+    first_of_month, last_of_month = _parse_period(request)
     today = date.today()
     breakdown = []
 
     try:
         from django.db.models import Count, Sum
 
-        from leave.models import LeaveRequest
+        from leave.models import LeaveType
 
-        data = (
-            LeaveRequest.objects.filter(
-                start_date__gte=first_of_month,
-                start_date__lte=last_of_month,
+        # Any request that overlaps the month counts, not only those that
+        # start in it -- a leave begun on the 28th still belongs to this month.
+        # Same rows the Leave Requests page lists, so a click-through matches.
+        rows = (
+            _leave_request_list_qs(request)
+            .filter(
                 status__in=["approved", "requested"],
+                start_date__lte=last_of_month,
             )
-            .values("leave_type_id__name")
+            .filter(
+                Q(end_date__gte=first_of_month)
+                | Q(end_date__isnull=True, start_date__gte=first_of_month)
+            )
+            .order_by()  # LeaveRequest's default ordering would split the GROUP BY per row
+            .values("leave_type_id", "status")
             .annotate(count=Count("id"), total_days=Sum("requested_days"))
-            .order_by("-count")[:8]
         )
+        by_type = {}
+        for row in rows:
+            entry = by_type.setdefault(
+                row["leave_type_id"], {"approved": 0, "requested": 0, "days": 0.0}
+            )
+            entry[row["status"]] += row["count"]
+            entry["days"] += float(row["total_days"] or 0)
 
-        for item in data:
+        for lt in LeaveType.objects.all().order_by("name"):
+            entry = by_type.get(lt.pk, {"approved": 0, "requested": 0, "days": 0.0})
             breakdown.append(
                 {
-                    "type": item["leave_type_id__name"] or _("Unknown"),
-                    "count": item["count"],
-                    "days": float(item["total_days"] or 0),
+                    "id": lt.pk,
+                    "type": lt.name,
+                    "approved": entry["approved"],
+                    "requested": entry["requested"],
+                    "count": entry["approved"] + entry["requested"],
+                    "days": entry["days"],
                 }
             )
+        breakdown.sort(key=lambda b: (-b["count"], b["type"]))
     except Exception:
         pass
 
-    return JsonResponse({"breakdown": breakdown, "month": today.strftime("%B %Y")})
+    return JsonResponse(
+        {
+            "breakdown": breakdown,
+            "month": today.strftime("%B %Y"),
+            "from_date": first_of_month.isoformat(),
+            "to_date": last_of_month.isoformat(),
+        }
+    )
 
 
 @login_required
 def dashboard_department_headcount(request):
-    """Department-wise headcount."""
+    """Department-wise headcount for every department, largest first."""
     departments = []
 
     try:
         from django.db.models import Count
 
+        from base.models import Department
         from employee.models import Employee
 
         data = (
             Employee.objects.filter(is_active=True)
             .values("employee_work_info__department_id__department")
             .annotate(count=Count("id"))
-            .order_by("-count")[:10]
+            .order_by("-count")
         )
 
+        seen = set()
         for item in data:
             dept = item["employee_work_info__department_id__department"]
             if dept:
                 departments.append({"department": dept, "count": item["count"]})
+                seen.add(dept)
+        for name in (
+            Department.objects.exclude(department__in=seen)
+            .order_by("department")
+            .values_list("department", flat=True)
+        ):
+            departments.append({"department": name, "count": 0})
     except Exception:
         pass
 
@@ -1672,13 +1688,144 @@ def dashboard_employee_status(request):
     return _call_module_json(dashboard_employee, request)
 
 
+_OPEN_TICKET_STATUSES = ["new", "in_progress", "on_hold"]
+
+
+def _open_tickets_in_range(request):
+    """Open (not resolved/canceled) active tickets created in the dashboard range."""
+    from helpdesk.models import Ticket
+
+    from_date, to_date = _parse_period(request)
+    return (
+        from_date,
+        to_date,
+        Ticket.objects.filter(
+            is_active=True,
+            status__in=_OPEN_TICKET_STATUSES,
+            created_date__gte=from_date,
+            created_date__lte=to_date,
+        ),
+    )
+
+
+@login_required
+def dashboard_ticket_priority(request):
+    """Open tickets by priority (high first), split by status, with overdue counts."""
+    user = request.user
+    if not (user.is_superuser or user.has_perm("helpdesk.view_ticket")):
+        return JsonResponse({"no_permission": True})
+
+    from helpdesk.models import PRIORITY, TICKET_STATUS
+
+    today = date.today()
+    status_labels = [
+        (k, str(v)) for k, v in TICKET_STATUS if k in _OPEN_TICKET_STATUSES
+    ]
+    priorities = []
+    from_date, to_date = _parse_period(request)
+    try:
+        from_date, to_date, qs = _open_tickets_in_range(request)
+        counts = {}
+        for row in qs.order_by().values("priority", "status").annotate(n=Count("id")):
+            counts[(row["priority"], row["status"])] = row["n"]
+        overdue = {
+            row["priority"]: row["n"]
+            for row in qs.filter(deadline__lt=today)
+            .order_by()
+            .values("priority")
+            .annotate(n=Count("id"))
+        }
+        for key, label in reversed(list(PRIORITY)):  # high, medium, low
+            by_status = {s: counts.get((key, s), 0) for s, _l in status_labels}
+            priorities.append(
+                {
+                    "priority": key,
+                    "label": str(label),
+                    "by_status": by_status,
+                    "total": sum(by_status.values()),
+                    "overdue": overdue.get(key, 0),
+                }
+            )
+    except Exception:
+        priorities = []
+
+    return JsonResponse(
+        {
+            "priorities": priorities,
+            "statuses": [{"key": k, "label": label} for k, label in status_labels],
+            "total": sum(p["total"] for p in priorities),
+            "from_date": from_date.isoformat(),
+            "to_date": to_date.isoformat(),
+        }
+    )
+
+
+@login_required
+def dashboard_overdue_tickets(request):
+    """Open tickets past their deadline, most overdue first (top 10 plus the full count)."""
+    user = request.user
+    if not (user.is_superuser or user.has_perm("helpdesk.view_ticket")):
+        return JsonResponse({"no_permission": True})
+
+    today = date.today()
+    tickets = []
+    count = 0
+    from_date, to_date = _parse_period(request)
+    try:
+        from_date, to_date, qs = _open_tickets_in_range(request)
+        qs = qs.filter(deadline__lt=today)
+        count = qs.count()
+        for t in (
+            qs.select_related("employee_id", "ticket_type")
+            .prefetch_related("assigned_to")
+            .order_by("deadline", "id")[:10]
+        ):
+            emp = t.employee_id
+            assignee = next(iter(t.assigned_to.all()), None)
+            tickets.append(
+                {
+                    "id": t.id,
+                    "ticket_id": (
+                        f"{t.ticket_type.prefix}-{t.pk:03d}"
+                        if t.ticket_type
+                        else str(t.pk)
+                    ),
+                    "title": t.title,
+                    "owner": emp.get_full_name() if emp else "—",
+                    "avatar": emp.get_avatar() if emp else None,
+                    "assignee": assignee.get_full_name() if assignee else "",
+                    "priority": t.priority,
+                    "priority_label": t.get_priority_display(),
+                    "status_label": t.get_status_display(),
+                    "deadline": t.deadline.strftime("%b %d, %Y"),
+                    "days_overdue": (today - t.deadline).days,
+                }
+            )
+    except Exception:
+        tickets = []
+
+    return JsonResponse(
+        {
+            "tickets": tickets,
+            "count": count,
+            "from_date": from_date.isoformat(),
+            "to_date": to_date.isoformat(),
+        }
+    )
+
+
 @login_required
 def dashboard_attendance_overview(request):
     from attendance.views.dashboard import dashboard_attendance
 
-    first_of_month, _ = _current_month_bounds()
+    # Daily overview: always today, never the dashboard's date filter.
+    today = date.today().isoformat()
     scoped_request = _force_get_params(
-        request, type="monthly", date=first_of_month.strftime("%Y-%m")
+        request,
+        type="date_range",
+        date=today,
+        end_date=today,
+        unit="employees",
     )
     return _call_module_json(dashboard_attendance, scoped_request)
 
@@ -1687,9 +1834,12 @@ def dashboard_attendance_overview(request):
 def dashboard_department_overtime(request):
     from attendance.views.dashboard import department_overtime_chart
 
-    first_of_month, _ = _current_month_bounds()
+    from_date, to_date = _parse_period(request)
     scoped_request = _force_get_params(
-        request, type="monthly", date=first_of_month.strftime("%Y-%m")
+        request,
+        type="date_range",
+        date=from_date.isoformat(),
+        end_date=to_date.isoformat(),
     )
     return _call_module_json(department_overtime_chart, scoped_request)
 
@@ -1698,7 +1848,10 @@ def dashboard_department_overtime(request):
 def dashboard_leave_trends(request):
     from leave.views import leave_over_period
 
-    scoped_request = _force_get_params(request, period="month")
+    from_date, to_date = _parse_period(request)
+    scoped_request = _force_get_params(
+        request, from_date=from_date.isoformat(), to_date=to_date.isoformat()
+    )
     return _call_module_json(leave_over_period, scoped_request)
 
 
@@ -1706,11 +1859,11 @@ def dashboard_leave_trends(request):
 def dashboard_leave_by_department(request):
     from leave.views import overall_leave
 
-    first_of_month, last_of_month = _current_month_bounds()
+    from_date, to_date = _parse_period(request)
     scoped_request = _force_get_params(
         request,
-        from_date=first_of_month.isoformat(),
-        to_date=last_of_month.isoformat(),
+        from_date=from_date.isoformat(),
+        to_date=to_date.isoformat(),
     )
     return _call_module_json(overall_leave, scoped_request)
 
@@ -1719,8 +1872,10 @@ def dashboard_leave_by_department(request):
 def dashboard_department_leave_days(request):
     from leave.views import department_leave_chart
 
-    first_of_month, _ = _current_month_bounds()
-    scoped_request = _force_get_params(request, date=first_of_month.strftime("%Y-%m"))
+    from_date, to_date = _parse_period(request)
+    scoped_request = _force_get_params(
+        request, from_date=from_date.isoformat(), to_date=to_date.isoformat()
+    )
     return _call_module_json(department_leave_chart, scoped_request)
 
 
@@ -1728,7 +1883,9 @@ def dashboard_department_leave_days(request):
 def dashboard_hiring_timeline(request):
     from recruitment.views.dashboard import dashboard_hiring
 
-    return _call_module_json(dashboard_hiring, request)
+    _, to_date = _parse_period(request)
+    scoped_request = _force_get_params(request, id=str(to_date.year))
+    return _call_module_json(dashboard_hiring, scoped_request)
 
 
 @login_required
