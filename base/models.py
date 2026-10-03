@@ -123,10 +123,12 @@ class Company(HorillaModel):
         return str(self.company)
 
     def company_icon_with_name(self):
+        from django.templatetags.static import static
 
+        icon_url = self.icon.url if self.icon else static("images/ui/auth-logo.png")
         return format_html(
             '<img src="{}" style="width: 30px; border-radius: 100%; display:inline;" class="oh-profile__image" alt="" /> {}',
-            self.icon.url,
+            icon_url,
             self.company,
         )
 
