@@ -1628,6 +1628,19 @@ class HorillaDetailedView(DetailView):
     instance = None
     empty_template = None
 
+    # Opt-in: pin the title row and the action row, and give the body between
+    # them a bounded height instead of letting the whole dialog scroll. Off by
+    # default so every existing Detail View keeps the whole dialog as one
+    # scroller; a view whose body is long or interactive (a table plus a form,
+    # say) turns it on so its actions stay reachable and the title stays in
+    # view.
+    #
+    # A view that sets this is expected to have ONE body block, and that block
+    # scrolls itself -- the body area is deliberately not a scroller, so the
+    # scrollbar sits beside the content that actually moves rather than running
+    # a full-height track past whatever the block pins at its own top.
+    sticky_chrome: bool = False
+
     # Set on a subclass to self-register as the related-object-link target for `model` (see related_link_registry.py).
     detail_view_url_name = None
     detail_view_permission = None
@@ -1703,6 +1716,7 @@ class HorillaDetailedView(DetailView):
         context["actions"] = self.actions
         context["action_method"] = self.action_method
         context["cols"] = self.cols
+        context["sticky_chrome"] = self.sticky_chrome
 
         if instance_ids:
             prev_id, next_id = closest_numbers(instance_ids, pk)

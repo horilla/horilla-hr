@@ -1,8 +1,45 @@
 {% load static i18n %}
 {% load generic_template_filters %}
-<div class="modal-box px-5 bg-white w-full max-w-md md:min-w-[700px] rounded-lg shadow-card p-0 transition-all duration-300 opacity-100 scale-100 max-h-[85vh] flex flex-col">
-    <div class="p-5 flex flex-col min-h-0" id="detailViewContainer">
-        <div class="flex justify-between items-center mb-2">
+{% if sticky_chrome %}
+{% comment %}
+Opt-in (HorillaDetailedView.sticky_chrome): pin the title row and the action
+row, and scroll only the body between them. The default is the whole dialog as
+one scroller, which is fine for a short body -- but a long or interactive one
+scrolls its own title and its Edit/Delete buttons off screen, so the actions
+are only reachable by scrolling back past everything.
+
+Done as a flag rather than changed for everyone: every Detail View in the app
+shares this template, and a three-line body inside a flex column would sit
+against the top of an 85vh dialog instead of shrinking to fit.
+{% endcomment %}
+<style>
+  .hdv--sticky { display: flex; flex-direction: column; overflow: hidden; }
+  /* min-height:0 on both: without it a flex child refuses to shrink below its
+     content, so the body never scrolls and the dialog grows past 85vh. */
+  .hdv--sticky > .hdv__inner {
+    display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto;
+  }
+  .hdv--sticky .hdv__head, .hdv--sticky .hdv__foot { flex: 0 0 auto; }
+  /* The body does NOT scroll: its block does, so the scrollbar sits beside
+     the content that actually moves. Scrolling here instead ran a full-height
+     track past the pinned chrome, which reads as though the chrome scrolls
+     too. The block is therefore expected to manage its own scrolling -- see
+     the flag's docstring. */
+  .hdv--sticky .hdv__body {
+    flex: 1 1 auto; min-height: 0; overflow: hidden;
+    grid-template-rows: minmax(0, 1fr);
+  }
+  /* Without this a grid item refuses to shrink below its content, so the
+     block never gets a bounded height to scroll within. */
+  .hdv--sticky .hdv__body > * { min-height: 0; }
+  .hdv--sticky .hdv__foot:not(:empty) {
+    border-top: 1px solid #ececf0; padding-top: 12px; margin-top: 4px;
+  }
+</style>
+{% endif %}
+<div class="modal-box px-5 bg-white w-full max-w-md md:min-w-[700px] rounded-lg shadow-card p-0 transition-all duration-300 opacity-100 scale-100 max-h-[85vh] {% if sticky_chrome %}hdv--sticky{% else %}flex flex-col{% endif %}">
+    <div class="p-5 hdv__inner{% if not sticky_chrome %} flex flex-col min-h-0{% endif %}" id="detailViewContainer">
+        <div class="flex justify-between items-center mb-2 hdv__head">
             <h2 class="text-md font-semibold">{{ title }}</h2>
             {% if instance_ids %}
                 <div class="flex ml-auto mr-5">
@@ -36,7 +73,7 @@
             </button>
         </div>
         {% if header %}
-            <div class="flex items-center gap-5 mb-5" {{header.attrs|format:object|safe}}>
+            <div class="flex items-center gap-5 mb-5 hdv__head" {{header.attrs|format:object|safe}}>
                 {% if header.avatar %}
                     <div>
                         <img
@@ -73,7 +110,7 @@
             </div>
         {% endif %}
 
-        <div class="grid grid-cols-1 md:grid-cols-12 gap-3 mb-5 mt-5 overflow-y-auto flex-1 min-h-0">
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-3 mb-5 mt-5 hdv__body{% if not sticky_chrome %} overflow-y-auto flex-1 min-h-0{% endif %}">
             {% for col in body %}
                 {% if not col.2 %}
                     <div class="col-span-1 md:col-span-{{ cols|get_item:col.1|default:6 }} mb-2 flex gap-5">
@@ -103,7 +140,7 @@
         {% endfor %} {% endcomment %}
 
         <div class="m-3" id="enlargeattachmentContainer"></div>
-        <div class="flex flex-wrap justify-between gap-2 md:gap-1">
+        <div class="flex flex-wrap justify-between gap-2 md:gap-1 hdv__foot">
             {% if actions or action_method %}
                 <div class="flex gap-1">
                     {% if actions and not action_method %}

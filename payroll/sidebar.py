@@ -22,6 +22,11 @@ SUBMENUS = [
         "menu": _("Payslips"),
         "redirect": reverse("view-payslip"),
     },
+    {
+        "menu": _("Payroll Runs"),
+        "redirect": reverse("payroll-batch-home"),
+        "accessibility": "payroll.sidebar.payslip_accessibility",
+    },
     # {
     #     "menu": _("Allowances"),
     #     "redirect": reverse("view-allowance"),
@@ -32,6 +37,11 @@ SUBMENUS = [
     #     "redirect": reverse("view-deduction"),
     #     "accessibility": "payroll.sidebar.deduction_accessibility",
     # },
+    {
+        "menu": _("Contributions"),
+        "redirect": reverse("payroll-contribution-list"),
+        "accessibility": "payroll.sidebar.payslip_accessibility",
+    },
     {
         "menu": _("Loans & Salary Advances"),
         "redirect": reverse("view-loan"),
@@ -98,6 +108,10 @@ def allowance_accessibility(request, submenu, user_perms, *args, **kwargs):
 
 def deduction_accessibility(request, submenu, user_perms, *args, **kwargs):
     return request.user.has_perm("payroll.view_deduction")
+
+
+def payslip_accessibility(request, submenu, user_perms, *args, **kwargs):
+    return request.user.has_perm("payroll.view_payslip")
 
 
 def loan_accessibility(request, submenu, user_perms, *args, **kwargs):

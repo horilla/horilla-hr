@@ -10,7 +10,13 @@ from django.views.generic import RedirectView
 from payroll import dashboard as pay_dashboard
 from payroll.cbv import contracts, dashboard, payslip_automation, settings_tabs
 from payroll.models.models import Contract, Payslip
-from payroll.views import views
+from payroll.views import (
+    batch_views,
+    contract_components,
+    contribution_views,
+    payslip_edit_views,
+    views,
+)
 
 urlpatterns = [
     path("", include("payroll.urls.component_urls")),
@@ -53,6 +59,16 @@ urlpatterns = [
         views.view_single_contract,
         name="single-contract-view",
     ),
+    path(
+        "contract-components/<int:pk>/",
+        contract_components.contract_components,
+        name="contract-components",
+    ),
+    path(
+        "contracts-bulk-components/",
+        contract_components.bulk_contract_components,
+        name="contracts-bulk-components",
+    ),
     path("payslip-pdf/<int:id>/", views.payslip_pdf, name="payslip-pdf"),
     # path("contract-filter/", views.contract_filter, name="contract-filter"),
     path("settings/", views.settings, name="payroll-settings"),
@@ -65,6 +81,21 @@ urlpatterns = [
         "payslip-status-update-no-id/",
         views.update_payslip_status_no_id,
         name="payslip-status-update-no-id",
+    ),
+    path(
+        "edit-payslip-components/<int:payslip_id>/",
+        payslip_edit_views.edit_payslip_components,
+        name="edit-payslip-components",
+    ),
+    path(
+        "payslip-line-formula-preview/<int:payslip_id>/",
+        payslip_edit_views.preview_payslip_line_formula,
+        name="payslip-line-formula-preview",
+    ),
+    path(
+        "recalculate-payslip-lines/<int:payslip_id>/",
+        payslip_edit_views.recalculate_payslip_lines,
+        name="recalculate-payslip-lines",
     ),
     path(
         "view-payslip/<int:payslip_id>/",
@@ -332,5 +363,68 @@ urlpatterns = [
         "dashboard/api/components/",
         pay_dashboard.payroll_component_breakdown,
         name="payroll-dashboard-components",
+    ),
+    # ------------------------------------------------------------------
+    # Payroll runs: the list, one run, the three-step wizard, and the
+    # pay period that fills the wizard's dates.
+    # ------------------------------------------------------------------
+    path("payroll-runs/", batch_views.batch_home, name="payroll-batch-home"),
+    path(
+        "payroll-runs/<int:batch_id>/",
+        batch_views.batch_detail,
+        name="payroll-batch-detail",
+    ),
+    path(
+        "payroll-runs/<int:batch_id>/delete/",
+        batch_views.batch_delete,
+        name="payroll-batch-delete",
+    ),
+    path(
+        "payroll-runs/<int:batch_id>/status/",
+        batch_views.batch_set_status,
+        name="payroll-batch-set-status",
+    ),
+    path("payroll-runs/new/", batch_views.wizard_scope, name="payroll-batch-scope"),
+    path(
+        "payroll-runs/new/review/",
+        batch_views.wizard_review,
+        name="payroll-batch-review",
+    ),
+    path(
+        "payroll-runs/new/start/", batch_views.wizard_start, name="payroll-batch-start"
+    ),
+    path(
+        "payroll-runs/<int:batch_id>/progress/",
+        batch_views.wizard_progress,
+        name="payroll-batch-progress",
+    ),
+    path(
+        "payroll-runs/<int:batch_id>/generate/",
+        batch_views.wizard_generate_slice,
+        name="payroll-batch-generate",
+    ),
+    # ------------------------------------------------------------------
+    # Contributions: what was withheld and what the employer owes with it.
+    # Read from the payslips as issued -- see payroll.methods.contributions.
+    # ------------------------------------------------------------------
+    path(
+        "contributions/",
+        contribution_views.contribution_list,
+        name="payroll-contribution-list",
+    ),
+    path(
+        "contributions/<int:component_id>/",
+        contribution_views.contribution_detail,
+        name="payroll-contribution-detail",
+    ),
+    path(
+        "contributions/export/",
+        contribution_views.contribution_export,
+        name="payroll-contribution-export",
+    ),
+    path(
+        "pay-period-settings/",
+        batch_views.pay_period_settings,
+        name="pay-period-settings",
     ),
 ]

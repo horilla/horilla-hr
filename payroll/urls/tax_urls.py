@@ -94,4 +94,17 @@ urlpatterns = [
         name="tax-bracket-delete",
     ),
     path("update-py-code/<int:pk>/", tax_views.update_py_code, name="update-py-code"),
+    path("test-py-code/", tax_views.test_py_code, name="test-py-code"),
+    path("tax-pack-picker/", tax_views.tax_pack_picker, name="tax-pack-picker"),
+    path("load-tax-pack/", tax_views.load_tax_pack, name="load-tax-pack"),
+    path(
+        "filing-status-rules/<int:pk>/",
+        tax_views.filing_status_rules,
+        name="filing-status-rules",
+    ),
+    path(
+        "filing-status-tax-preview/<int:pk>/",
+        tax_views.preview_filing_status_tax,
+        name="filing-status-tax-preview",
+    ),
 ]

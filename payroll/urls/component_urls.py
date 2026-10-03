@@ -17,9 +17,43 @@ from payroll.cbv import (
     salary_structure,
 )
 from payroll.models.models import Deduction
-from payroll.views import component_views
+from payroll.views import (
+    component_formula_views,
+    component_views,
+    salary_structure_preview,
+)
 
 urlpatterns = [
+    path(
+        "component-formula-preview/",
+        component_formula_views.preview_component_formula,
+        name="component-formula-preview",
+    ),
+    path(
+        "component-limit-preview/",
+        component_formula_views.preview_maximum_unit,
+        name="component-limit-preview",
+    ),
+    path(
+        "component-library/",
+        component_formula_views.component_library_picker,
+        name="component-library",
+    ),
+    path(
+        "load-component-library/",
+        component_formula_views.load_component_library,
+        name="load-component-library",
+    ),
+    path(
+        "salary-structure-preview/<int:pk>/",
+        salary_structure_preview.preview_salary_structure,
+        name="salary-structure-preview",
+    ),
+    path(
+        "salary-structure-employees/<int:pk>/",
+        salary_structure_preview.salary_structure_employees,
+        name="salary-structure-employees",
+    ),
     path(
         "individual-payslip-tab-list/<int:pk>/",
         payslip.PayrollTab.as_view(),
