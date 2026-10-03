@@ -324,7 +324,14 @@ def currency_symbol_position(amount):
 
     currency = symbol.currency_symbol if symbol else "$"
 
-    if symbol.position == "postfix":
+    # The line above already allows for there being no PayrollSettings row;
+    # this one did not, so every payslip page raised AttributeError on a
+    # system where payroll settings had never been saved -- a fresh install,
+    # or a new company. Matches PayrollSettings.position's own default, so
+    # saving settings for the first time does not move the symbol.
+    position = symbol.position if symbol else "postfix"
+
+    if position == "postfix":
         currency_symbol = f"{amount} {currency}"
     else:
         currency_symbol = f"{currency} {amount}"
