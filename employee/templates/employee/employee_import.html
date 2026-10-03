@@ -7,13 +7,26 @@
         <ion-icon name="close-outline"></ion-icon>
     </button>
     <div class="oh-modal__dialog-body p-0 pb-4">
-        <form hx-post="{% url 'work-info-import' %}" hx-target="#objectCreateModalTarget" hx-encoding="multipart/form-data" class="oh-profile-section">
+        <form hx-post="{% url 'work-info-import' %}" hx-target="#objectCreateModalTarget" hx-encoding="multipart/form-data" hx-request='{"timeout": 600000}' class="oh-profile-section"
+            hx-on::before-request="workInfoImportStart(this)"
+            hx-on::after-request="if (!event.detail.successful) { workInfoImportStop(this); }">
             {% csrf_token %}
-            <div class="oh-modal__dialog-body mr-5" id="uploading" style="display: none">
-                <div class="loader-container">
-                    <div class="loader"></div>
-                    <div class="loader-text">{% trans "Uploading..." %}</div>
-                </div>
+            <style>
+                .wi-import-loader { display: none; flex-direction: column; align-items: center; text-align: center; padding: 2rem 1rem 1rem; }
+                .wi-import-loader.wi-active { display: flex; }
+                .wi-import-spinner { width: 56px; height: 56px; border: 5px solid #ececec; border-top-color: #e54f38; border-radius: 50%; animation: wi-import-spin 0.9s linear infinite; }
+                .wi-import-title { margin: 1.1rem 0 0.25rem; font-size: 1rem; font-weight: 600; color: #333; }
+                .wi-import-file { font-size: 0.8rem; color: #666; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                .wi-import-elapsed { margin-top: 0.75rem; font-size: 0.8rem; font-variant-numeric: tabular-nums; color: #888; }
+                .wi-import-note { margin-top: 0.4rem; font-size: 0.75rem; color: #999; }
+                @keyframes wi-import-spin { to { transform: rotate(360deg); } }
+            </style>
+            <div class="wi-import-loader" role="status" aria-live="polite">
+                <div class="wi-import-spinner"></div>
+                <div class="wi-import-title">{% trans "Importing employees..." %}</div>
+                <div class="wi-import-file"></div>
+                <div class="wi-import-elapsed">0:00</div>
+                <div class="wi-import-note">{% trans "Large files can take a few minutes. Please keep this window open." %}</div>
             </div>
 
             <div id="error-container" style="color: red"></div>
@@ -55,6 +68,39 @@
 </div>
 
 <script>
+    window.workInfoImportToggleForm = function (form, hidden) {
+        $(form).find(".modal-body, .modal-footer").each(function () {
+            if (hidden) {
+                this.style.setProperty("display", "none", "important");
+            } else {
+                this.style.removeProperty("display");
+            }
+        });
+    };
+    window.workInfoImportStop = function (form) {
+        clearInterval(form._wiTimer);
+        $(form).find(".wi-import-loader").removeClass("wi-active");
+        workInfoImportToggleForm(form, false);
+    };
+    window.workInfoImportStart = function (form) {
+        var $loader = $(form).find(".wi-import-loader");
+        var file = $(form).find("input[type=file]")[0];
+        $loader.find(".wi-import-file").text(file && file.files[0] ? file.files[0].name : "");
+        $loader.find(".wi-import-elapsed").text("0:00");
+        workInfoImportToggleForm(form, true);
+        $loader.addClass("wi-active");
+        var started = Date.now();
+        clearInterval(form._wiTimer);
+        form._wiTimer = setInterval(function () {
+            if (!document.body.contains(form)) {
+                clearInterval(form._wiTimer);
+                return;
+            }
+            var s = Math.floor((Date.now() - started) / 1000);
+            $loader.find(".wi-import-elapsed").text(Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"));
+        }, 1000);
+    };
+
     document.getElementById("workInfoImportButton")
     .dispatchEvent(new MouseEvent("click", {
         bubbles: true,

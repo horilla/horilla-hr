@@ -10,7 +10,6 @@ from itertools import chain, groupby
 
 import pandas as pd
 from django.apps import apps
-from django.contrib.auth.hashers import make_password
 from django.db import connection, models, transaction
 from django.utils.translation import gettext as _
 
@@ -449,10 +448,7 @@ def bulk_create_user_import(success_lists):
         HorillaUser(
             username=row["Email"],
             email=row["Email"],
-            # bulk_create bypasses create_user(), so the password must be
-            # hashed here directly -- passing a raw string would store it
-            # in plain text until set_initial_password() overwrites it.
-            password=make_password(generate_random_password()),
+            password=str(row["Phone"]).strip(),
             is_superuser=False,
             is_new_employee=True,
         )
