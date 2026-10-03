@@ -624,9 +624,16 @@ class PayslipHelpTextTests(Fixture):
         "horilla_theme/templates/payroll/payslip/_loss_of_pay_row.html"
     )
 
+    # The Loss of Pay breakdown popover is its own include as well.
+    LOP_POPOVER = pathlib.Path(
+        "horilla_theme/templates/payroll/payslip/_loss_of_pay_popover.html"
+    )
+
     def source(self):
-        return self.SUMMARY.read_text(encoding="utf-8") + self.LOP_ROW.read_text(
-            encoding="utf-8"
+        return (
+            self.SUMMARY.read_text(encoding="utf-8")
+            + self.LOP_ROW.read_text(encoding="utf-8")
+            + self.LOP_POPOVER.read_text(encoding="utf-8")
         )
 
     def test_only_a_few_bubbles_are_left(self):
