@@ -19,7 +19,10 @@
         </a>
     {% endif %}
 
-    {% if perms.payroll.delete_allowance %}
+    {# A standard pay item cannot be deleted -- the loan and penalty  #}
+{# generators read it. Hidden rather than shown-and-refused: an   #}
+{# offered action that always fails is worse than no action.      #}
+{% if perms.payroll.delete_allowance and not instance.is_system %}
         <a
             class="oh-btn oh-btn--danger oh-btn--sq-sm"
             hx-get="{% url 'generic-delete' %}?model=payroll.Allowance&pk={{instance.id}}"

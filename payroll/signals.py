@@ -89,17 +89,27 @@ def create_installments(sender, instance, created, **kwargs):
         asset = True if instance.asset_id is None else False
 
     if created and asset and instance.type != "fine":
+        from payroll.methods.deductions import LOAN_PAYOUT_KEYS
+        from payroll.system_components import policy_fields
+
         loan = Allowance()
-        loan.amount = instance.loan_amount
         loan.title = instance.title
-        loan.include_active_employees = False
         loan.amount = instance.loan_amount
+        loan.include_active_employees = False
         loan.only_show_under_employee = True
-        loan.is_fixed = True
         loan.is_fixed = True
         loan.one_time_date = instance.provided_date
         loan.is_loan = True
-        loan.include_active_employees = False
+
+        # Whether the payout is taxed, and whether it prorates, comes from the
+        # standard component for this kind. The defaults it used to inherit
+        # made a loan taxable income and prorated it by calendar days -- so a
+        # mid-month joiner received a fraction of the loan they were granted.
+        for field, value in policy_fields(
+            LOAN_PAYOUT_KEYS.get(instance.type, "loan_payout")
+        ).items():
+            setattr(loan, field, value)
+
         loan.save()
         loan.specific_employees.add(instance.employee_id)
         instance.allowance_id = loan

@@ -1,0 +1,37 @@
+{% load widget_tweaks i18n %}
+{% comment %}
+One field: label, control, help and errors.
+
+`row.show_if` is the progressive-disclosure rule from
+payroll/forms/component_layout.py; componentForm.js reads it and toggles the
+[hidden] attribute. Fields with no rule are always shown.
+{% endcomment %}
+<div class="col-12 col-md-{{ row.width }} oh-component-field"
+     data-row
+     data-section-of="{{ section_key }}"
+     id="id_{{ row.field.name }}_parent_div"
+     {% if row.show_if %}data-show-if="{{ row.show_if }}"{% endif %}>
+  {% comment %}
+  The help icon sits on the label line. oh-label__info does not lay its children
+  out, so the icon fell to a line of its own and pushed the control down —
+  making every field that has help text taller than its neighbour and leaving
+  the two columns of a row misaligned.
+  {% endcomment %}
+  <div class="oh-component-field__label">
+    <label class="oh-label mb-0{% if row.field.field.required %} required-star{% endif %}"
+           for="{{ row.field.id_for_label }}">{{ row.field.label }}</label>
+    {% if row.field.help_text %}
+      <span class="oh-info" title="{{ row.field.help_text }}"></span>
+    {% endif %}
+  </div>
+  {% if row.field.field.widget.input_type == "checkbox" %}
+    <div class="oh-switch" style="width:30px">
+      {{ row.field|add_class:"oh-switch__checkbox" }}
+    </div>
+  {% else %}
+    <div id="dynamic_field_{{ row.field.name }}">
+      {{ row.field|add_class:"form-control" }}
+    </div>
+  {% endif %}
+  {{ row.field.errors }}
+</div>

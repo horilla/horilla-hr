@@ -164,6 +164,9 @@ class SalaryStructureFormView(HorillaFormView):
     model = SalaryStructure
     form_class = SalaryStructureForm
     new_display_title = _("Create Salary Structure")
+    # Its own template: the components are a checkbox table rather than two tag
+    # boxes, because a tag box cannot say what a component pays or when.
+    template_name = "payroll/salary_structure/structure_form.html"
     dynamic_create_fields = [
         ("allowances", DynamicAllowanceCreateFormView),
         ("deductions", DynamicDeductionCreateFormView),
@@ -183,6 +186,28 @@ class SalaryStructureFormView(HorillaFormView):
         context = super().get_context_data(**kwargs)
         if self.form.instance.pk:
             self.form_class.verbose_name = _("Update Salary Structure")
+
+        from payroll.forms.component_layout import component_picker_rows
+
+        # What is already ticked comes from the bound data on a redisplay, so a
+        # failed save does not lose the selection, and from the instance
+        # otherwise.
+        if self.form.is_bound:
+            selected_allowances = self.form.data.getlist("allowances")
+            selected_deductions = self.form.data.getlist("deductions")
+        elif self.form.instance.pk:
+            selected_allowances = self.form.instance.allowances.values_list(
+                "pk", flat=True
+            )
+            selected_deductions = self.form.instance.deductions.values_list(
+                "pk", flat=True
+            )
+        else:
+            selected_allowances = selected_deductions = []
+
+        context["picker_rows"] = component_picker_rows(
+            selected_allowances, selected_deductions
+        )
         return context
 
     def form_valid(self, form: SalaryStructureForm):
@@ -258,8 +283,13 @@ class SalaryStructureFormDuplicate(HorillaFormView):
 )
 class SalaryStructureDetailView(HorillaDetailedView):
     """
-    Detail view for a salary structure: assigned employees span the full
-    width on top, allowances and deductions sit side by side below.
+    Detail view for a salary structure: the employees on it, then every
+    component in the order the engine runs them, then a worked example.
+
+    Allowances and deductions used to sit in two columns showing titles only.
+    That hid the two things someone opening a structure actually wants: what
+    each component works out to, and the single order they run in across both
+    lists — which is what decides what a percentage or a formula may refer to.
     """
 
     model = SalaryStructure
@@ -273,17 +303,23 @@ class SalaryStructureDetailView(HorillaDetailedView):
         "avatar": "",
     }
 
+    # One block, which renders its own summary bar and tabs. Three stacked
+    # blocks put the employees list, a wide component table and an interactive
+    # example in one vertical scroll, so reading any of them meant scrolling
+    # the other two away.
     body = [
-        (_("Employees"), "get_employees_detail_col"),
-        (_("Allowances"), "get_allowances_detail_col", True),
-        (_("Deductions"), "get_deductions_detail_col", True),
+        (_("Structure"), "get_structure_detail_col", True),
     ]
 
     cols = {
-        "get_employees_detail_col": 12,
-        "get_allowances_detail_col": 6,
-        "get_deductions_detail_col": 6,
+        "get_structure_detail_col": 12,
     }
+
+    # The body here is a long component list or an interactive example, so the
+    # title row and the Edit / Delete / Duplicate row are pinned and only the
+    # middle scrolls. Otherwise running an example scrolls its own actions off
+    # the bottom and the structure's name off the top.
+    sticky_chrome = True
 
     action_method = "salary_structure_detail_actions"
 

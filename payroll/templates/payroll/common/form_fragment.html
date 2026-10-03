@@ -18,7 +18,12 @@
 </style>
 
 <div id="contractFormTarget" style="position: relative">
-    <div style="position: absolute; top: 16px; right: 16px; z-index: 2">
+    {% comment %}
+    A modal has its own close button, and there is no list behind it to go
+    back to.
+    {% endcomment %}
+    <div style="position: absolute; top: 16px; right: 16px; z-index: 2"
+         {% if in_modal %}hidden{% endif %}>
         <button
             type="button"
             id="payrollFormBackButton"
@@ -29,13 +34,13 @@
             Back
         </button>
     </div>
-    <div class="oh-wrapper d-flex justify-content-center mt-4 mb-4">
+    <div class="{% if in_modal %}{% else %}oh-wrapper d-flex justify-content-center mt-4 mb-4{% endif %}">
         <form
             action=""
             hx-post="{{ post_url }}"
-            hx-target="#listContainer"
+            hx-target="{{ form_target|default:'#listContainer' }}"
             hx-swap="innerHTML"
-            class="oh-onboarding-card"
+            class="{% if in_modal %}w-100{% else %}oh-onboarding-card{% endif %}"
             method="post"
             enctype="multipart/form-data"
         >
@@ -92,16 +97,24 @@
             }
         };
         function toggleFunction() {
-            if ($("#id_calculate_daily_leave_amount").is(":checked")) {
-                $("#id_deduction_for_one_leave_amount,[for=id_deduction_for_one_leave_amount]").hide();
-            } else {
-                $("#id_deduction_for_one_leave_amount,[for=id_deduction_for_one_leave_amount]").show();
+            var computed = $("#id_calculate_daily_leave_amount").is(":checked");
+
+            // The grid cell, not the input's parent: the field is wrapped in
+            // an .oh-input-group inside the cell, so hiding the parent leaves
+            // an empty half-width column sitting in the row.
+            function cell(id) {
+                return $(id).closest(".col-12, .col-md-6, .col-md-12");
             }
-            if ($("#id_calculate_daily_leave_amount").is(":checked")) {
-                $("#id_deduction_for_one_leave_amount").parent().hide();
-            } else {
-                $("#id_deduction_for_one_leave_amount").parent().show();
-            }
+
+            // The flat per-leave figure: only when the amount is NOT computed.
+            cell("#id_deduction_for_one_leave_amount").toggle(!computed);
+
+            // What the computed amount is a share of, and how many days it is
+            // shared between. Hidden when the figure is typed in, because
+            // neither would affect anything -- a setting that does nothing is
+            // worse than no setting.
+            cell("#id_daily_leave_amount_base").toggle(computed);
+            cell("#id_daily_leave_amount_divisor").toggle(computed);
         }
         function contractInitial(element) {
             var employee_id = $(element).val();

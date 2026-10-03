@@ -36,20 +36,24 @@
             }
         }
         function toggleFunction() {
-            if ($("#id_calculate_daily_leave_amount").is(":checked")) {
-                $(
-                    "#id_deduction_for_one_leave_amount,[for=id_deduction_for_one_leave_amount]"
-                ).hide();
-            } else {
-                $(
-                    "#id_deduction_for_one_leave_amount,[for=id_deduction_for_one_leave_amount]"
-                ).show();
+            var computed = $("#id_calculate_daily_leave_amount").is(":checked");
+
+            // The grid cell, not the input's parent: the field is wrapped in
+            // an .oh-input-group inside the cell, so hiding the parent leaves
+            // an empty half-width column sitting in the row.
+            function cell(id) {
+                return $(id).closest(".col-12, .col-md-6, .col-md-12");
             }
-            if ($("#id_calculate_daily_leave_amount").is(":checked")) {
-                $("#id_deduction_for_one_leave_amount").parent().hide();
-            } else {
-                $("#id_deduction_for_one_leave_amount").parent().show();
-            }
+
+            // The flat per-leave figure: only when the amount is NOT computed.
+            cell("#id_deduction_for_one_leave_amount").toggle(!computed);
+
+            // What the computed amount is a share of, and how many days it is
+            // shared between. Hidden when the figure is typed in, because
+            // neither would affect anything -- a setting that does nothing is
+            // worse than no setting.
+            cell("#id_daily_leave_amount_base").toggle(computed);
+            cell("#id_daily_leave_amount_divisor").toggle(computed);
         }
         function contractInitial(element) {
             var employee_id = $(element).val();

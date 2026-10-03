@@ -1,0 +1,112 @@
+{% load static i18n widget_tweaks %}
+{% comment %}
+The salary structure form.
+
+Its own template rather than the generic one because the components are now a
+checkbox table instead of two tag boxes — a tag box cannot say what a component
+pays or when it applies, which is the whole reason for choosing between them.
+
+The form fields are unchanged: the table's checkboxes post as `allowances` and
+`deductions`, which is what the two ModelMultipleChoiceFields already expect.
+{% endcomment %}
+
+<style>
+  .ss-form__row { display: flex; gap: 16px; flex-wrap: wrap; }
+  .ss-form__field { flex: 1 1 260px; min-width: 0; margin-bottom: 14px; }
+  /* Label and its help icon on one line. oh-info does not sit inline on its
+     own, so a block label dropped it onto a second line and made the field
+     taller than the one beside it. */
+  .ss-form__field label {
+    display: flex; align-items: center; gap: 6px; min-height: 20px;
+    font-size: 12px; font-weight: 600; color: #4b5563;
+    margin-bottom: 4px;
+  }
+  .ss-form__field .oh-info { flex: 0 0 auto; margin: 0; }
+  .ss-form__section {
+    font-size: 11px; font-weight: 600; letter-spacing: .06em;
+    text-transform: uppercase; color: #6b7280;
+    margin: 6px 0 8px;
+  }
+  .ss-form__errors { color: #b00020; font-size: 12px; margin-top: 4px; }
+  .ss-form__actions {
+    display: flex; justify-content: flex-end; gap: 10px;
+    margin-top: 16px; padding-top: 14px; border-top: 1px solid #ececf0;
+  }
+</style>
+
+<div id="{{ view_id }}">
+  {% for field_tuple in dynamic_create_fields %}
+    <div class="oh-modal" id="dynamicModal{{ field_tuple.0 }}" role="dialog"
+         aria-labelledby="dynamicModal{{ field_tuple.0 }}" aria-hidden="true">
+      <div class="oh-modal__dialog" id="dynamicModal{{ field_tuple.0 }}Body"></div>
+    </div>
+  {% endfor %}
+</div>
+
+<form id="{{ view_id }}Form"
+      hx-post="{{ request.path }}?{{ request.GET.urlencode }}"
+      {% if request.META.HTTP_HX_TARGET %}hx-target="#{{ request.META.HTTP_HX_TARGET }}"{% endif %}
+      hx-swap="{% if hx_target == 'this' %}outerHTML{% else %}innerHTML{% endif %}"
+      hx-encoding="multipart/form-data"
+      {% if hx_confirm %}hx-confirm="{{ hx_confirm }}"{% endif %}
+      novalidate>
+
+  {% if form.verbose_name %}
+    <div class="oh-modal__dialog-header">
+      <h2 class="oh-modal__dialog-title">{{ form.verbose_name }}</h2>
+      <button type="button" class="oh-modal__close--custom"
+              onclick="$(this).closest('.oh-modal--show').removeClass('oh-modal--show')"
+              aria-label="{% trans 'Close' %}" {{ form.close_button_attrs|safe }}>
+        <ion-icon name="close-outline"></ion-icon>
+      </button>
+    </div>
+  {% endif %}
+
+  <div class="oh-modal__dialog-body oh-modal__dialog-relative">
+    <div class="oh-general__tab-target oh-profile-section" id="{{ form.container_id }}">
+      <div class="oh-profile-section__card">
+
+        {{ form.non_field_errors }}
+
+        <div class="ss-form__row">
+          <div class="ss-form__field">
+            <label for="{{ form.title.id_for_label }}">{{ form.title.label }}</label>
+            {{ form.title|add_class:"oh-input w-100 form-control" }}
+            <div class="ss-form__errors">{{ form.title.errors }}</div>
+          </div>
+          <div class="ss-form__field">
+            <label for="{{ form.structure_mode.id_for_label }}">
+              {{ form.structure_mode.label }}
+              {% if form.structure_mode.help_text %}
+                <span class="oh-info" title="{{ form.structure_mode.help_text }}"></span>
+              {% endif %}
+            </label>
+            {{ form.structure_mode|add_class:"oh-select oh-select-2 form-control" }}
+            <div class="ss-form__errors">{{ form.structure_mode.errors }}</div>
+          </div>
+        </div>
+
+        <div class="ss-form__section">{% trans "Components" %}</div>
+        {% include "payroll/salary_structure/_component_picker.html" %}
+        <div class="ss-form__errors">
+          {{ form.allowances.errors }}{{ form.deductions.errors }}
+        </div>
+
+        <div class="ss-form__section" style="margin-top:18px;">
+          {% trans "Employees on this structure" %}
+        </div>
+        <div class="ss-form__field" style="flex:1 1 100%;">
+          {{ form.employees }}
+          <div class="ss-form__errors">{{ form.employees.errors }}</div>
+        </div>
+
+        {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+
+        <div class="ss-form__actions">
+          <button type="submit" class="oh-btn oh-btn--secondary"
+                  {{ form.submit_button_attrs|safe }}>{% trans "Save" %}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>

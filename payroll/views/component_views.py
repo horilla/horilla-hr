@@ -66,24 +66,13 @@ from payroll.filters import (
     ReimbursementFilter,
 )
 from payroll.forms import component_forms as forms
-from payroll.methods.deductions import create_deductions, update_compensation_deduction
-from payroll.methods.methods import (
-    calculate_employer_contribution,
-    compute_net_pay,
-    compute_salary_on_period,
-    paginator_qry,
-    save_payslip,
+from payroll.methods.deductions import create_deductions
+from payroll.methods.methods import paginator_qry, payslip_fields, save_payslip
+from payroll.methods.payroll_run import (  # noqa: F401  (re-exported for callers)
+    get_pending_attendance,
+    payroll_calculation,
 )
-from payroll.methods.payslip_calc import (
-    calculate_allowance,
-    calculate_gross_pay,
-    calculate_net_pay_deduction,
-    calculate_post_tax_deduction,
-    calculate_pre_tax_deduction,
-    calculate_tax_deduction,
-    calculate_taxable_gross_pay,
-)
-from payroll.methods.tax_calc import calculate_taxable_amount
+from payroll.methods.tax_calc import TaxComputationError
 from payroll.models.models import (
     Allowance,
     Contract,
@@ -113,242 +102,6 @@ operator_mapping = {
     "icontains": operator.contains,
     "range": return_none,
 }
-
-
-def get_pending_attendance(employee, start_date, end_date):
-    """
-    Attendance records in the payslip period that still need validation
-    and/or overtime approval — surfaced on the payslip so HR can act on
-    them without leaving the page. Unvalidated attendance doesn't count
-    toward pay (see get_attendance() in payroll/methods/methods.py).
-    """
-    if not apps.is_installed("attendance"):
-        return []
-    Attendance = get_horilla_model_class(app_label="attendance", model="attendance")
-    records = Attendance.objects.filter(
-        employee_id=employee,
-        attendance_date__range=(start_date, end_date),
-    ).order_by("attendance_date")
-
-    pending = []
-    for att in records:
-        needs_validation = not att.attendance_validated
-        needs_ot_approval = (
-            bool(att.overtime_second) and not att.attendance_overtime_approve
-        )
-        if not needs_validation and not needs_ot_approval:
-            continue
-        worked = att.at_work_second or 0
-        overtime = att.overtime_second or 0
-        pending.append(
-            {
-                "id": att.id,
-                "date_label": att.attendance_date.strftime("%d %b %Y"),
-                "worked_label": f"{worked // 3600}h {(worked % 3600) // 60:02d}m",
-                "overtime_label": f"{overtime // 3600}h {(overtime % 3600) // 60:02d}m",
-                "needs_validation": needs_validation,
-                "needs_ot_approval": needs_ot_approval,
-            }
-        )
-    return pending
-
-
-def payroll_calculation(employee, start_date, end_date, month_summary=None):
-    """
-    Calculate payroll components for the specified employee within the given date range.
-
-
-    Args:
-        employee (Employee): The employee for whom the payroll is calculated.
-        start_date (date): The start date of the payroll period.
-        end_date (date): The end date of the payroll period.
-
-
-    Returns:
-        dict: A dictionary containing the calculated payroll components:
-    """
-    basic_pay_details = compute_salary_on_period(
-        employee, start_date, end_date, month_summary=month_summary
-    )
-
-    if not basic_pay_details:
-        return None
-    contract = basic_pay_details["contract"]
-    contract_wage = basic_pay_details["contract_wage"]
-    basic_pay = basic_pay_details["basic_pay"]
-    loss_of_pay = basic_pay_details["loss_of_pay"]
-    custom_leave_deduction = basic_pay_details.get("custom_leave_deduction", 0.0)
-    custom_leave_breakdown = basic_pay_details.get("custom_leave_breakdown", [])
-    paid_days = basic_pay_details["paid_days"]
-    unpaid_days = basic_pay_details["unpaid_days"]
-    partial_pay_days = basic_pay_details.get("partial_pay_days", 0)
-
-    def _secs_to_label(secs):
-        secs = int(secs or 0)
-        return f"{secs // 3600}h {(secs % 3600) // 60:02d}m"
-
-    regular_seconds = basic_pay_details.get("regular_seconds")
-    ot_seconds = basic_pay_details.get("ot_seconds")
-    regular_hours_label = (
-        _secs_to_label(regular_seconds) if regular_seconds is not None else None
-    )
-    ot_hours_label = _secs_to_label(ot_seconds) if ot_seconds is not None else None
-
-    ot_regular_seconds = basic_pay_details.get("ot_regular_seconds", 0)
-    ot_week_off_seconds = basic_pay_details.get("ot_week_off_seconds", 0)
-    ot_holiday_seconds = basic_pay_details.get("ot_holiday_seconds", 0)
-    ot_regular_hours_label = (
-        _secs_to_label(ot_regular_seconds) if ot_regular_seconds else None
-    )
-    ot_week_off_hours_label = (
-        _secs_to_label(ot_week_off_seconds) if ot_week_off_seconds else None
-    )
-    ot_holiday_hours_label = (
-        _secs_to_label(ot_holiday_seconds) if ot_holiday_seconds else None
-    )
-
-    pending_attendance = get_pending_attendance(employee, start_date, end_date)
-
-    working_days_details = basic_pay_details["month_data"]
-
-    updated_basic_pay_data = update_compensation_deduction(
-        employee, basic_pay, "basic_pay", start_date, end_date
-    )
-    basic_pay = updated_basic_pay_data["compensation_amount"]
-    basic_pay_deductions = updated_basic_pay_data["deductions"]
-
-    loss_of_pay_amount = 0
-    if not contract.deduct_leave_from_basic_pay:
-        loss_of_pay_amount = loss_of_pay
-    else:
-        basic_pay = basic_pay - loss_of_pay_amount
-
-    kwargs = {
-        "employee": employee,
-        "start_date": start_date,
-        "end_date": end_date,
-        "basic_pay": basic_pay,
-        "day_dict": working_days_details,
-    }
-    # basic pay will be basic_pay = basic_pay - update_compensation_amount
-    # Overtime pay (regular/week-off/holiday) comes from the configurable
-    # "Regular Overtime" / "Week Off Overtime" / "Holiday Overtime"
-    # Allowance types — see calculate_based_on_overtime and friends in
-    # payroll/methods/payslip_calc.py. Nothing to inject here; it's just
-    # part of whatever calculate_allowance() returns below.
-    allowances = calculate_allowance(**kwargs)
-
-    # finding the total allowance
-    total_allowance = sum(allowance["amount"] for allowance in allowances["allowances"])
-
-    kwargs["allowances"] = allowances
-    kwargs["total_allowance"] = total_allowance
-    updated_gross_pay_data = calculate_gross_pay(**kwargs)
-    gross_pay = updated_gross_pay_data["gross_pay"]
-    gross_pay_deductions = updated_gross_pay_data["deductions"]
-    kwargs["gross_pay"] = gross_pay
-    pretax_deductions = calculate_pre_tax_deduction(**kwargs)
-    post_tax_deductions = calculate_post_tax_deduction(**kwargs)
-
-    installments = (
-        pretax_deductions["installments"] | post_tax_deductions["installments"]
-    )
-
-    taxable_gross_pay = calculate_taxable_gross_pay(**kwargs)
-    tax_deductions = calculate_tax_deduction(**kwargs)
-    federal_tax = calculate_taxable_amount(**kwargs)
-
-    total_allowance = sum(item["amount"] for item in allowances["allowances"])
-    total_pretax_deduction = sum(
-        item["amount"] for item in pretax_deductions["pretax_deductions"]
-    )
-    total_post_tax_deduction = sum(
-        item["amount"] for item in post_tax_deductions["post_tax_deductions"]
-    )
-    total_tax_deductions = sum(
-        item["amount"] for item in tax_deductions["tax_deductions"]
-    )
-
-    total_deductions = (
-        total_pretax_deduction
-        + total_post_tax_deduction
-        + total_tax_deductions
-        + federal_tax
-        + loss_of_pay_amount  # 1022
-    )
-
-    net_pay = gross_pay - total_deductions
-    # loss_of_pay        -> actual lop amount
-    # loss_of_pay_amount -> actual lop amount, but only when it wasn't
-    #                       already subtracted from basic_pay above (i.e.
-    #                       zero when deduct_leave_from_basic_pay is
-    #                       enabled, since basic_pay already reflects it)
-    net_pay = compute_net_pay(
-        net_pay=net_pay,
-        gross_pay=gross_pay,
-        total_pretax_deduction=total_pretax_deduction,
-        total_post_tax_deduction=total_post_tax_deduction,
-        total_tax_deductions=total_tax_deductions,
-        federal_tax=federal_tax,
-        loss_of_pay_amount=loss_of_pay_amount,
-        loss_of_pay=loss_of_pay,
-    )
-    updated_net_pay_data = update_compensation_deduction(
-        employee, net_pay, "net_pay", start_date, end_date
-    )
-    net_pay = updated_net_pay_data["compensation_amount"]
-    update_net_pay_deductions = updated_net_pay_data["deductions"]
-
-    net_pay_deductions = calculate_net_pay_deduction(
-        net_pay,
-        post_tax_deductions["net_pay_deduction"],
-        **kwargs,
-    )
-    net_pay_deduction_list = net_pay_deductions["net_pay_deductions"]
-    for deduction in update_net_pay_deductions:
-        net_pay_deduction_list.append(deduction)
-    net_pay = net_pay - net_pay_deductions["net_deduction"]
-    payslip_data = {
-        "employee": employee,
-        "contract_wage": contract_wage,
-        "basic_pay": basic_pay,
-        "gross_pay": gross_pay,
-        "taxable_gross_pay": taxable_gross_pay["taxable_gross_pay"],
-        "net_pay": net_pay,
-        "allowances": allowances["allowances"],
-        "paid_days": paid_days,
-        "unpaid_days": unpaid_days,
-        "partial_pay_days": partial_pay_days,
-        "regular_hours_label": regular_hours_label,
-        "ot_hours_label": ot_hours_label,
-        "ot_regular_hours_label": ot_regular_hours_label,
-        "ot_week_off_hours_label": ot_week_off_hours_label,
-        "ot_holiday_hours_label": ot_holiday_hours_label,
-        "pending_attendance": pending_attendance,
-        "basic_pay_deductions": basic_pay_deductions,
-        "gross_pay_deductions": gross_pay_deductions,
-        "pretax_deductions": pretax_deductions["pretax_deductions"],
-        "post_tax_deductions": post_tax_deductions["post_tax_deductions"],
-        "tax_deductions": tax_deductions["tax_deductions"],
-        "net_deductions": net_pay_deduction_list,
-        "total_deductions": total_deductions,
-        "loss_of_pay": loss_of_pay,
-        "custom_leave_deduction": custom_leave_deduction,
-        "custom_leave_breakdown": custom_leave_breakdown,
-        "federal_tax": federal_tax,
-        "start_date": start_date,
-        "end_date": end_date,
-        "range": f"{start_date.strftime('%b %d %Y')} - {end_date.strftime('%b %d %Y')}",
-    }
-    data_to_json = payslip_data.copy()
-    data_to_json["employee"] = employee.id
-    data_to_json["start_date"] = start_date.strftime("%Y-%m-%d")
-    data_to_json["end_date"] = end_date.strftime("%Y-%m-%d")
-    json_data = json.dumps(data_to_json)
-
-    payslip_data["json_data"] = json_data
-    payslip_data["installments"] = installments
-    return payslip_data
 
 
 @login_required
@@ -692,10 +445,24 @@ def delete_allowance(request, allowance_id, emp_id=None):
         previous_instance, next_instance = closest_numbers(instances_list, allowance_id)
         instances_list.remove(allowance_id)
     allowance = payroll.models.models.Allowance.objects.filter(id=allowance_id).first()
+    if allowance and allowance.is_system:
+        # A standard pay item cannot be removed: the loan, penalty or
+        # reimbursement code reads it to decide how the rows it generates are
+        # treated, and with it gone they would silently fall back to model
+        # defaults nobody chose. See payroll/system_components.py.
+        messages.error(
+            request,
+            _(
+                "%(title)s is a standard component and cannot be deleted. "
+                "Its settings can still be changed."
+            )
+            % {"title": allowance.title},
+        )
+        allowance = None
     if allowance:
         allowance.delete()
         messages.success(request, _("Allowance deleted successfully"))
-    else:
+    elif not instances_ids:
         messages.error(request, _("Allowance not found"))
 
     paths = {
@@ -913,10 +680,24 @@ def delete_deduction(request, deduction_id, emp_id=None):
         previous_instance, next_instance = closest_numbers(instances_list, deduction_id)
         instances_list.remove(deduction_id)
     deduction = Deduction.objects.filter(id=deduction_id).first()
+    if deduction and deduction.is_system:
+        # A standard pay item cannot be removed: the loan, penalty or
+        # reimbursement code reads it to decide how the rows it generates are
+        # treated, and with it gone they would silently fall back to model
+        # defaults nobody chose. See payroll/system_components.py.
+        messages.error(
+            request,
+            _(
+                "%(title)s is a standard component and cannot be deleted. "
+                "Its settings can still be changed."
+            )
+            % {"title": deduction.title},
+        )
+        deduction = None
     if deduction:
         deduction.delete()
         messages.success(request, _("Deduction deleted successfully"))
-    else:
+    elif not instances_ids:
         messages.error(request, _("Deduction not found"))
 
     paths = {
@@ -1051,31 +832,30 @@ def generate_payslip(request):
                     emp_count -= 1
                     continue
 
-                payslip = payroll_calculation(
-                    employee,
-                    start_date,
-                    end_date,
-                    month_summary=att_summary.get(employee.pk, dict({})),
-                )
+                try:
+                    payslip = payroll_calculation(
+                        employee,
+                        start_date,
+                        end_date,
+                        month_summary=att_summary.get(employee.pk, dict({})),
+                    )
+                except TaxComputationError as exc:
+                    # Skip this employee rather than saving a payslip whose tax
+                    # silently computed to 0. Same shape as the contract-not-
+                    # started skip above: report it, drop the count, carry on
+                    # with the rest of the batch.
+                    messages.error(request, str(exc))
+                    emp_count -= 1
+                    continue
                 payslips.append(payslip)
                 json_data.append(payslip["json_data"])
 
                 payslip["payslip"] = payslip
-                data = {}
-                data["employee"] = employee
-                data["group_name"] = group_name
-                data["start_date"] = payslip["start_date"]
-                data["end_date"] = payslip["end_date"]
-                data["status"] = "draft"
-                data["contract_wage"] = payslip["contract_wage"]
-                data["basic_pay"] = payslip["basic_pay"]
-                data["gross_pay"] = payslip["gross_pay"]
-                data["deduction"] = payslip["total_deductions"]
-                data["net_pay"] = payslip["net_pay"]
-                data["pay_data"] = json.loads(payslip["json_data"])
-                calculate_employer_contribution(data)
-                data["installments"] = payslip["installments"]
-                instance = save_payslip(**data)
+                instance = save_payslip(
+                    **payslip_fields(
+                        payslip, employee, status="draft", group_name=group_name
+                    )
+                )
                 instances.append(instance)
                 notify.send(
                     request.user.employee_get,
@@ -1187,26 +967,25 @@ def create_payslip(request, new_post_data=None):
                 employee = form.cleaned_data["employee_id"]
                 start_date = form.cleaned_data["start_date"]
                 end_date = form.cleaned_data["end_date"]
-                payslip_data = payroll_calculation(employee, start_date, end_date)
+                try:
+                    payslip_data = payroll_calculation(employee, start_date, end_date)
+                except TaxComputationError as exc:
+                    # Re-show the form with the reason rather than saving a
+                    # payslip whose tax silently computed to 0.
+                    messages.error(request, str(exc))
+                    return render(
+                        request,
+                        "payroll/payslip/create_payslip.html",
+                        {"individual_form": form},
+                    )
                 payslip_data["payslip"] = payslip
-                data = {}
-                data["employee"] = employee
-                data["start_date"] = payslip_data["start_date"]
-                data["end_date"] = payslip_data["end_date"]
-                data["status"] = (
-                    "draft"
-                    if request.GET.get("status") is None
-                    else request.GET["status"]
+                payslip_data["instance"] = save_payslip(
+                    **payslip_fields(
+                        payslip_data,
+                        employee,
+                        status=request.GET.get("status") or "draft",
+                    )
                 )
-                data["contract_wage"] = payslip_data["contract_wage"]
-                data["basic_pay"] = payslip_data["basic_pay"]
-                data["gross_pay"] = payslip_data["gross_pay"]
-                data["deduction"] = payslip_data["total_deductions"]
-                data["net_pay"] = payslip_data["net_pay"]
-                data["pay_data"] = json.loads(payslip_data["json_data"])
-                calculate_employer_contribution(data)
-                data["installments"] = payslip_data["installments"]
-                payslip_data["instance"] = save_payslip(**data)
                 form = forms.PayslipForm()
                 messages.success(request, _("Payslip Saved"))
                 payslip = payslip_data["instance"]
@@ -1303,7 +1082,10 @@ def view_individual_payslip(request, employee_id, start_date, end_date):
     This method is used to render the template for viewing a payslip.
     """
 
-    payslip_data = payroll_calculation(employee_id, start_date, end_date)
+    try:
+        payslip_data = payroll_calculation(employee_id, start_date, end_date)
+    except TaxComputationError as exc:
+        return HorillaRedirect(request, message=str(exc))
     if not payslip_data:
         return HorillaRedirect(
             request,

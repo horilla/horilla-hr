@@ -1,0 +1,44 @@
+{% load i18n %}
+{% comment %}
+One extra condition row.
+
+The first row is the form's own `field` / `condition` / `value`. Further rows
+post as `other_fields` / `other_conditions` / `other_values`, which is what
+`MultipleCondition` reads them back from.
+
+The selects are written out from the bound fields' choices rather than cloned
+from the first row in JavaScript, which is how the old widget built them: a
+clone carries whatever state select2 had already put on the original, and an
+existing component's saved conditions had to be re-created and re-selected by a
+second script after render.
+
+Expects `field`, `condition` and `value` bound fields for their choices, plus
+`selected_*` for a row being restored.
+{% endcomment %}
+<div class="col-12 col-md-4">
+  <label class="oh-label">{{ field.label }}</label>
+  <select name="other_fields" class="oh-select form-control">
+    {% for value_, label_ in field.field.choices %}
+      <option value="{{ value_ }}"{% if selected_field and selected_field == value_ %} selected{% endif %}>{{ label_ }}</option>
+    {% endfor %}
+  </select>
+</div>
+<div class="col-12 col-md-4">
+  <label class="oh-label">{{ condition.label }}</label>
+  <select name="other_conditions" class="oh-select form-control">
+    {% for value_, label_ in condition.field.choices %}
+      <option value="{{ value_ }}"{% if selected_condition and selected_condition == value_ %} selected{% endif %}>{{ label_ }}</option>
+    {% endfor %}
+  </select>
+</div>
+<div class="col-12 col-md-4">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+    <label class="oh-label mb-0">{{ value.label }}</label>
+    <button type="button" data-remove-condition title="{% trans 'Remove' %}"
+            style="background:none;border:none;cursor:pointer;color:#dc3545;padding:0;line-height:1;">
+      <ion-icon name="trash-outline" style="font-size:16px;"></ion-icon>
+    </button>
+  </div>
+  <input type="text" name="other_values" class="oh-input form-control"
+         value="{{ selected_value|default:'' }}">
+</div>

@@ -1,0 +1,86 @@
+{% load i18n %}
+{% comment %}
+Which components apply to one employee.
+
+One list of everything tickable rather than "add" and "remove" as separate
+screens: they are the same decision, and splitting them makes you hold the
+difference in your head.
+
+A component that applies to every employee, or by condition, shows ticked and
+disabled with the reason beside it. It is not this contract's to switch off —
+doing that for one person means an exclusion on the component — and a tick
+that silently does not hold would be worse than no tick.
+{% endcomment %}
+
+{% include "payroll/_picker_modal.html" %}
+
+<div class="oh-modal__dialog-header mb-3">
+  <span class="text-lg font-semibold text-gray-900">
+    <ion-icon name="options-outline" class="me-1"></ion-icon>
+    {% trans "Components for" %} {{ contract.employee_id }}
+  </span>
+  <button class="oh-modal__close--custom" type="button"
+          aria-label="{% trans 'Close' %}"
+          onclick="$(this).closest('.oh-modal--show').removeClass('oh-modal--show')">
+    <ion-icon name="close-outline"></ion-icon>
+  </button>
+</div>
+
+<div class="oh-modal__dialog-body">
+  <p class="pick__lead">
+    {% blocktrans %}Ticking one adds this employee to that component. It does not change the component itself, which is shared with everyone else on it. The standard items — loss of pay, loans, fines — are always on and shown here so the list is the whole picture.{% endblocktrans %}
+  </p>
+
+  <form method="post" action="{% url 'contract-components' contract.pk %}">
+    {% csrf_token %}
+
+    <div class="pick__body">
+      {% regroup rows by kind as grouped %}
+      {% for group in grouped %}
+        <div class="pick__group">
+          {% if group.grouper == "allowance" %}{% trans "Earnings" %}
+          {% else %}{% trans "Deductions" %}{% endif %}
+        </div>
+        {% for row in group.list %}
+          <label class="pick__row{% if row.locked %} is-loaded{% endif %}">
+            <input type="checkbox" class="pick__check" name="components"
+                   value="{{ row.kind }}:{{ row.pk }}"
+                   {% if row.checked %}checked{% endif %}
+                   {% if row.locked %}disabled{% endif %}>
+            <span class="pick__main">
+              <span class="pick__name">{{ row.component.title }}</span>
+              <span class="pick__badge pick__badge--{% if row.kind == 'allowance' %}earning{% else %}deduction{% endif %}">
+                {% if row.kind == "allowance" %}{% trans "Earning" %}
+                {% else %}{% trans "Deduction" %}{% endif %}
+              </span>
+              <span class="pick__summary">{{ row.component.code|default:"" }}</span>
+              {% if row.standard %}
+                <span class="pick__note">
+                  {% trans "Applies when it happens — a loan granted, leave unpaid — not by being ticked here. Its settings live on the component." %}
+                </span>
+              {% endif %}
+            </span>
+            {% if row.locked %}
+              <span class="pick__loaded">{{ row.source_label }}</span>
+            {% endif %}
+          </label>
+        {% endfor %}
+      {% endfor %}
+    </div>
+
+    <div class="pick__foot">
+      <span class="pick__hint">
+        {% trans "Applies to this employee only." %}
+      </span>
+      <div class="pick__actions">
+        <button type="button" class="oh-btn oh-btn--light"
+                onclick="$(this).closest('.oh-modal--show').removeClass('oh-modal--show')">
+          {% trans "Cancel" %}
+        </button>
+        <button type="submit" class="oh-btn oh-btn--secondary">
+          {% trans "Save" %}
+        </button>
+      </div>
+    </div>
+  </form>
+</div>

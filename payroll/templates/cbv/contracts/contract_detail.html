@@ -1,0 +1,257 @@
+{% load i18n %}
+{% comment %}
+The contract detail modal.
+
+It was fifteen labelled rows in a grid — start date beside job role beside
+filing status — with no answer to the question someone actually opens a
+contract to ask: what will this person be paid, and which components decide
+it. The components were not shown at all, because nothing linked them to a
+contract on screen; they reach an employee through
+Allowance.specific_employees, and a salary structure is only what puts them
+there.
+
+So: a summary bar of the figures that drive a payslip, then two tabs. Terms
+holds the fifteen fields. Components shows every component that reaches this
+employee AND how it reaches them — through the structure, targeted directly,
+applying to everybody, or condition-based. Those four look identical on a
+payslip and are completely different when you want to stop one.
+{% endcomment %}
+
+<style>
+  .cd { font-size: 13px; display: flex; flex-direction: column; height: 100%; min-height: 0; }
+  .cd__chrome { flex: 0 0 auto; }
+  .cd__panel { min-height: 0; }
+  .cd__panel:not([hidden]) {
+    flex: 1 1 auto; overflow-y: auto; padding-right: 6px; margin-right: -6px;
+  }
+  .cd__panel[hidden] { display: none; }
+
+  .cd__summary {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px;
+    padding: 10px 12px; margin-bottom: 12px;
+    border: 1px solid #e6e7eb; border-radius: 10px; background: #fbfbfc;
+  }
+  .cd__chip {
+    display: inline-flex; align-items: baseline; gap: 5px;
+    font-size: 11.5px; color: #6b7280;
+  }
+  .cd__chip b {
+    font-weight: 650; color: #1f2430; font-size: 13px;
+    font-variant-numeric: tabular-nums;
+  }
+  .cd__status {
+    font-size: 10px; font-weight: 700; letter-spacing: .04em;
+    text-transform: uppercase; border-radius: 5px; padding: 2px 8px;
+  }
+  .cd__status--active { background: #e4f4ed; color: #0f7b5f; }
+  .cd__status--other { background: #eef1f6; color: #3b4457; }
+  .cd__muted { color: #9ca3af; }
+
+  .cd__tabs {
+    display: flex; gap: 2px; border-bottom: 1px solid #e6e7eb; margin-bottom: 14px;
+  }
+  .cd__tab {
+    border: 0; background: none; cursor: pointer;
+    padding: 8px 14px; font-size: 13px; font-weight: 600; color: #8b90a0;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+  .cd__tab:hover { color: #4b5563; }
+  .cd__tab[aria-selected="true"] {
+    color: var(--primary-600, #e54f38); border-bottom-color: var(--primary-600, #e54f38);
+  }
+  .cd__tab-count {
+    font-size: 10.5px; font-weight: 700; color: #9ca3af;
+    background: #f1f2f4; border-radius: 9px; padding: 1px 6px; margin-left: 5px;
+  }
+
+  /* ---- terms ---- */
+  .cd__terms { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
+  @media (max-width: 620px) { .cd__terms { grid-template-columns: 1fr; } }
+  .cd__term {
+    display: flex; gap: 12px; padding: 8px 0;
+    border-bottom: 1px solid #f1f2f4; font-size: 12.5px;
+  }
+  .cd__term-label { flex: 0 0 132px; color: #6b7280; }
+  .cd__term-value { flex: 1 1 auto; min-width: 0; color: #1f2430; font-weight: 500; }
+
+  /* ---- components ---- */
+  .cd__intro { font-size: 12.5px; color: #8b90a0; margin-bottom: 8px; }
+  .cd__table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .cd__table th {
+    text-align: left; font-size: 10px; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; color: #6b7280;
+    padding: 8px 10px; border-bottom: 1px solid #e6e7eb; white-space: nowrap;
+  }
+  .cd__table td {
+    padding: 9px 10px; border-bottom: 1px solid #f1f2f4; vertical-align: top;
+  }
+  .cd__table tr:last-child td { border-bottom: 0; }
+  .cd__title { font-weight: 600; color: #1f2430; }
+  .cd__code {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 11.5px; color: #9ca3af;
+  }
+  .cd__calc {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 12px; color: #4b5563;
+  }
+  .cd__kind {
+    display: inline-block; font-size: 10px; font-weight: 700;
+    letter-spacing: .04em; text-transform: uppercase;
+    border-radius: 4px; padding: 1px 6px; margin-left: 6px; white-space: nowrap;
+  }
+  .cd__kind--allowance { background: #e4f4ed; color: #0f7b5f; }
+  .cd__kind--deduction { background: #fdeeeb; color: var(--primary-600, #e54f38); }
+  .cd__source { font-size: 11.5px; color: #6b7280; white-space: nowrap; }
+  .cd__source--everyone, .cd__source--conditional { color: #9ca3af; }
+  .cd__empty { color: #9ca3af; font-size: 13px; padding: 14px 0; }
+  .cd__note {
+    display: flex; align-items: flex-start; gap: 7px;
+    border: 1px solid #e6e7eb; border-left: 3px solid var(--primary-600, #e54f38);
+    border-radius: 8px; background: #fbfbfc; padding: 10px 12px;
+    margin-bottom: 12px; font-size: 12.5px; color: #4b5563;
+  }
+  .cd__note ion-icon { flex: 0 0 auto; font-size: 15px; margin-top: 1px; }
+  .cd__manage {
+    border: 0; border-radius: 8px; background: var(--primary-600, #e54f38);
+    color: #fff; padding: 8px 16px; font-size: 13px; font-weight: 600;
+    cursor: pointer; margin-bottom: 12px;
+  }
+</style>
+
+<div class="cd" data-contract-detail="{{ instance.pk }}">
+  <div class="cd__chrome">
+    <div class="cd__summary">
+      <span class="cd__status cd__status--{% if instance.contract_status == 'active' %}active{% else %}other{% endif %}">
+        {{ instance.get_status_display }}
+      </span>
+      <span class="cd__chip">
+        {% trans "Pay" %} <b>{{ instance.pay_rate|floatformat:2 }}</b>
+        {{ instance.get_wage_type_display|lower }}
+      </span>
+      {% if instance.monthly_ctc %}
+        <span class="cd__chip">
+          {% trans "CTC" %} <b>{{ instance.monthly_ctc|floatformat:2 }}</b>
+        </span>
+      {% endif %}
+      <span class="cd__chip">
+        {% trans "Structure" %}
+        {% if instance.salary_structure_id %}
+          <b>{{ instance.salary_structure_id }}</b>
+        {% else %}<span class="cd__muted">{% trans "None" %}</span>{% endif %}
+      </span>
+      <span class="cd__chip">
+        {% trans "Tax" %}
+        {% if instance.filing_status %}<b>{{ instance.filing_status }}</b>
+        {% else %}<span class="cd__muted">{% trans "None" %}</span>{% endif %}
+      </span>
+    </div>
+
+    <div class="cd__tabs" role="tablist">
+      <button type="button" class="cd__tab" role="tab" aria-selected="true"
+              data-cd-tab="terms">{% trans "Terms" %}</button>
+      <button type="button" class="cd__tab" role="tab" aria-selected="false"
+              data-cd-tab="components">
+        {% trans "Components" %}
+        <span class="cd__tab-count">{{ component_rows|length }}</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="cd__panel" role="tabpanel" data-cd-panel="terms">
+    <div class="cd__terms">
+      {% for label, value in terms %}
+        <div class="cd__term">
+          <span class="cd__term-label">{{ label }}</span>
+          <span class="cd__term-value">
+            {% if value %}{{ value }}{% else %}<span class="cd__muted">—</span>{% endif %}
+          </span>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="cd__panel" role="tabpanel" data-cd-panel="components" hidden>
+    {% comment %}
+    Said plainly, because it is the thing nobody can see from a payslip: a
+    component applying to everybody is not something this contract decides,
+    so it cannot be switched off here.
+    {% endcomment %}
+    <div class="cd__note">
+      <ion-icon name="information-circle-outline"></ion-icon>
+      <span>{% blocktrans %}A component reaches this employee through the salary structure, by being added to them directly, by applying to every employee, or by a condition. Only the first two are this contract's to change.{% endblocktrans %}</span>
+    </div>
+
+    {% if perms.payroll.change_contract %}
+      <button type="button" class="cd__manage"
+              hx-get="{% url 'contract-components' instance.pk %}"
+              hx-target="#relatedObjectModalBody"
+              data-toggle="oh-modal-toggle"
+              data-target="#relatedObjectModal">
+        {% trans "Manage components" %}
+      </button>
+    {% endif %}
+
+    {% if component_rows %}
+      <table class="cd__table">
+        <thead>
+          <tr>
+            <th>{% trans "Seq" %}</th>
+            <th>{% trans "Component" %}</th>
+            <th>{% trans "Calculation" %}</th>
+            <th>{% trans "How it applies" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in component_rows %}
+            <tr>
+              <td class="cd__muted">{{ row.sequence }}</td>
+              <td>
+                <span class="cd__title">{{ row.title }}</span>
+                <span class="cd__kind cd__kind--{{ row.kind }}">
+                  {% if row.kind == "allowance" %}{% trans "Earning" %}
+                  {% else %}{% trans "Deduction" %}{% endif %}
+                </span>
+                <div class="cd__code">{{ row.code|default:"—" }}</div>
+              </td>
+              <td class="cd__calc">{{ row.calculation }}</td>
+              <td class="cd__source cd__source--{{ row.source }}">
+                {{ row.source_label }}
+                {% if row.generated %}
+                  <div class="cd__muted">{% trans "generated" %}</div>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="cd__empty">
+        {% trans "No component reaches this employee yet." %}
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+(function () {
+  var root = document.querySelector("[data-contract-detail]");
+  if (!root || root.dataset.wired) { return; }
+  root.dataset.wired = "1";
+
+  var tabs = root.querySelectorAll("[data-cd-tab]");
+  var panels = root.querySelectorAll("[data-cd-panel]");
+
+  tabs.forEach(function (tab) {
+    tab.addEventListener("click", function () {
+      var wanted = tab.dataset.cdTab;
+      tabs.forEach(function (other) {
+        other.setAttribute("aria-selected", String(other === tab));
+      });
+      panels.forEach(function (panel) {
+        panel.hidden = panel.dataset.cdPanel !== wanted;
+      });
+    });
+  });
+})();
+</script>

@@ -1,0 +1,502 @@
+{% load i18n %}
+{% comment %}
+A worked example for the structure.
+
+The figures come from the server calling the same strategy functions
+calculate_allowance dispatches to, in the same order, through the same
+compute_limit and flat_amount. Only the inputs are invented — a sample wage and
+a plain 30-calendar-day month with 22 working days in it — because a real period
+depends on an employee's contract and the company calendar.
+
+Two limits are stated on the panel rather than papered over: income tax is not
+included (it needs a filing status from a contract, which a structure does not
+have), and components that measure attendance report that instead of a guess.
+{% endcomment %}
+
+<style>
+  /* One row. Each field shares the width instead of reserving a fixed 150px,
+     which is what pushed the button onto a line of its own in the modal. */
+  .ss-example__controls {
+    display: flex; align-items: flex-end; gap: 12px; flex-wrap: nowrap;
+    margin-bottom: 8px;
+  }
+  .ss-example__field { flex: 1 1 0; min-width: 0; }
+  .ss-example__field[hidden] { display: none; }
+  .ss-example__run { flex: 0 0 auto; white-space: nowrap; }
+  /* Below this the four of them genuinely do not fit, so let them wrap. */
+  @media (max-width: 560px) {
+    .ss-example__controls { flex-wrap: wrap; }
+    .ss-example__field { flex: 1 1 140px; }
+  }
+  .ss-example__field label {
+    display: block; font-size: 11px; font-weight: 600; color: #6b7280;
+    margin-bottom: 4px;
+  }
+  .ss-example__field input {
+    width: 100%; border: 1px solid #e6e7eb; border-radius: 8px;
+    padding: 7px 10px; font-size: 13px; outline: none;
+  }
+  .ss-example__field input:focus { border-color: var(--primary-600, #e54f38); }
+  .ss-example__field.is-unused label { color: #b6bac4; }
+  .ss-example__field input:disabled {
+    background: #f4f5f7; color: #b6bac4; cursor: not-allowed;
+  }
+  .ss-example__run {
+    border: 0; border-radius: 8px; background: var(--primary-600, #e54f38);
+    color: #fff; padding: 9px 18px; font-size: 13px; font-weight: 600;
+    cursor: pointer; line-height: 1.3;
+  }
+  .ss-example__hint { font-size: 12px; color: #9ca3af; margin-bottom: 8px; }
+  /* The intro line, the controls and the "why is this disabled" note each had
+     their own bottom margin, and the first group heading then added another
+     14px on top -- four gaps stacking into a band of empty panel above the
+     first figure. */
+  .ss-example__hint:first-child { margin-bottom: 6px; }
+
+  .ss-example__group {
+    font-size: 10px; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; color: #6b7280;
+    padding: 14px 10px 6px;
+  }
+  /* The first heading needs no gap above it: the controls already provide
+     one. Only the second (Deductions) is separating two lists. */
+  .ss-example__table tr:first-child .ss-example__group { padding-top: 2px; }
+  .ss-example__table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .ss-example__table td { padding: 7px 10px; border-bottom: 1px solid #f1f2f4; }
+  .ss-example__code {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 12px; color: #9ca3af; white-space: nowrap;
+  }
+  .ss-example__calc { color: #9ca3af; font-size: 12px; }
+  .ss-example__amount {
+    text-align: right; font-weight: 600; font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .ss-example__employer {
+    text-align: right; font-size: 12px; color: #8b90a0;
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .ss-example__note { text-align: right; color: #9ca3af; font-size: 12px; }
+  /* Listed with the deductions because that is where a payslip carries it,
+     but greyed and struck through: this example reduces the pay itself rather
+     than subtracting a lump, so the figure is what the days cost, not another
+     amount coming off. */
+  .ss-example__informational td { color: #9ca3af; }
+  .ss-example__informational .ss-example__amount {
+    font-weight: 500; color: #9ca3af; text-decoration: line-through;
+  }
+  .ss-example__sub td {
+    border-top: 1px solid #e6e7eb; border-bottom: 0;
+    font-weight: 650; padding-top: 9px;
+  }
+  /* The ledger convention for a grand total, rather than a 2px near-black
+     slab: it reads as final without being the heaviest mark on the panel. */
+  .ss-example__net td {
+    border-top: 3px double #cdd1d9; border-bottom: 0;
+    font-weight: 700; padding-top: 10px; font-size: 14px;
+  }
+  /* The CTC reconciliation keeps its own coloured strip: it is a verdict on
+     the structure, not a footnote about the example, and the colour is the
+     whole point of it. Sits above the notes for that reason. */
+  .ss-example__recon {
+    margin-top: 14px; border-radius: 9px; padding: 10px 12px; font-size: 12.5px;
+  }
+  .ss-example__recon--ok { background: #e9f6f1; color: #0f7b5f; }
+  .ss-example__recon--gap { background: #fdeeeb; color: #a3301d; }
+  /* The footnotes, as a block rather than loose sentences.
+     They were two unrelated grey lines hanging directly off the Net pay rule
+     with nothing holding them — the employer-share total and the period, each
+     a run-on sentence, reading as leftovers rather than as part of the panel.
+     Labelled rows in a card: the same shape as the equation cards on the
+     working tab, so the panel has one vocabulary. */
+  .ss-example__notes {
+    margin-top: 14px; border: 1px solid #e6e7eb; border-radius: 9px;
+    background: #fbfbfc; padding: 4px 12px;
+  }
+  .ss-example__note-row {
+    display: flex; gap: 12px; font-size: 12px; color: #6b7280;
+    padding: 8px 0;
+  }
+  .ss-example__note-row + .ss-example__note-row { border-top: 1px solid #f1f2f4; }
+  .ss-example__note-label {
+    flex: 0 0 104px; font-weight: 600; color: #4b5563;
+  }
+  .ss-example__note-value { flex: 1 1 auto; min-width: 0; }
+  .ss-example__note-value b {
+    font-weight: 650; color: #1f2430; font-variant-numeric: tabular-nums;
+  }
+  .ss-example__muted { color: #9ca3af; font-size: 13px; }
+  .ss-example__error { color: #b00020; font-size: 13px; }
+
+  /* ---- the heads, and the equation behind each ---- */
+  .ss-example__heads { margin-top: 0; }
+  .ss-example__heads-title {
+    font-size: 12px; color: #9ca3af; margin-bottom: 10px;
+  }
+  .ss-example__head {
+    border: 1px solid #e6e7eb; border-radius: 9px;
+    padding: 10px 12px; margin-bottom: 8px; background: #fff;
+  }
+  .ss-example__head-top {
+    display: flex; align-items: baseline; gap: 10px;
+  }
+  .ss-example__head-name { font-weight: 650; color: #1f2430; font-size: 13.5px; }
+  .ss-example__head-value {
+    margin-left: auto; font-weight: 700; font-size: 14px;
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .ss-example__head-formula {
+    font-size: 12px; color: #6b7280; margin-top: 3px;
+  }
+  .ss-example__head-terms {
+    margin-top: 7px; border-top: 1px solid #f1f2f4; padding-top: 7px;
+  }
+  .ss-example__term {
+    display: flex; align-items: baseline; gap: 8px;
+    font-size: 12.5px; color: #4b5563; padding: 2px 0;
+  }
+  .ss-example__term-sign {
+    width: 12px; flex: 0 0 12px; text-align: center;
+    color: #9ca3af; font-weight: 700;
+  }
+  .ss-example__term-amount {
+    margin-left: auto; font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .ss-example__head-note { font-size: 11.5px; color: #9ca3af; margin-top: 7px; }
+  .ss-example__head-tag {
+    font-size: 10px; font-weight: 700; letter-spacing: .04em;
+    text-transform: uppercase; border-radius: 4px; padding: 1px 6px;
+    background: #fdeeeb; color: var(--primary-600, #e54f38); white-space: nowrap;
+  }
+</style>
+
+<div class="ss-example" data-structure-example
+     data-url="{% url 'salary-structure-preview' instance.pk %}">
+  <div class="ss-example__hint">
+    {% blocktrans %}Run through the same engine that produces real payslips, over a sample 30 day month with 22 working days. Nothing is saved.{% endblocktrans %}
+  </div>
+
+  {% comment %}
+  CTC leads because it is the figure a package is quoted at, and it is what the
+  reconciliation at the bottom checks the structure against. Basic pay only
+  appears when no earning is marked as basic pay — otherwise the component
+  works it out and a typed figure would be a second, unrelated number.
+  {% endcomment %}
+  {% comment %}
+  Each figure is enabled only when something in this structure reads it. A box
+  you can type into that changes nothing is worse than no box: it invites
+  someone to set a CTC, watch the totals not move, and conclude the example is
+  broken. The disabled ones keep their place in the row and say why.
+  {% endcomment %}
+  <div class="ss-example__controls">
+    <div class="ss-example__field{% if not sample_inputs.ctc.used %} is-unused{% endif %}">
+      <label for="ss-ctc-{{ instance.pk }}">{% trans "Monthly CTC" %}</label>
+      <input type="number" step="any" id="ss-ctc-{{ instance.pk }}"
+             data-example-ctc value="50000"
+             {% if not sample_inputs.ctc.used %}disabled title="{{ sample_inputs.ctc.why }}"{% endif %}>
+    </div>
+    <div class="ss-example__field{% if not sample_inputs.basic.used %} is-unused{% endif %}">
+      <label for="ss-basic-{{ instance.pk }}">{% trans "Contract basic pay" %}</label>
+      <input type="number" step="any" id="ss-basic-{{ instance.pk }}"
+             data-example-basic value="25000"
+             {% if not sample_inputs.basic.used %}disabled title="{{ sample_inputs.basic.why }}"{% endif %}>
+    </div>
+    <div class="ss-example__field">
+      <label for="ss-lop-{{ instance.pk }}">{% trans "Loss-of-pay days" %}</label>
+      <input type="number" step="1" min="0" id="ss-lop-{{ instance.pk }}"
+             data-example-lop value="0">
+    </div>
+    {% comment %}
+    A structure carries no filing status — a contract does — so the example
+    offers the ones configured. Picking one works the tax out through the same
+    function a payslip uses.
+    {% endcomment %}
+    <div class="ss-example__field">
+      <label for="ss-tax-{{ instance.pk }}">{% trans "Income tax" %}</label>
+      <select id="ss-tax-{{ instance.pk }}" data-example-tax
+              class="oh-select oh-select-2 form-control">
+        <option value="">{% trans "Not included" %}</option>
+        {% for status in filing_statuses %}
+          <option value="{{ status.pk }}">{{ status }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="button" class="ss-example__run" data-example-run>
+      {% trans "Calculate example" %}
+    </button>
+  </div>
+  {% if sample_inputs.ctc.why or sample_inputs.basic.why %}
+    <div class="ss-example__hint">
+      {% if sample_inputs.ctc.why %}
+        <div><strong>{% trans "Monthly CTC" %}:</strong> {{ sample_inputs.ctc.why }}</div>
+      {% endif %}
+      {% if sample_inputs.basic.why %}
+        <div><strong>{% trans "Contract basic pay" %}:</strong> {{ sample_inputs.basic.why }}</div>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <div data-example-body>
+    <div class="ss-example__muted">
+      {% trans "Select Calculate example to see the figures." %}
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var root = document.querySelector("[data-structure-example]");
+  if (!root || root.dataset.wired) { return; }
+  root.dataset.wired = "1";
+
+  // The token is on <body hx-headers>, which is how this app hands it to HTMX;
+  // there is no csrfmiddlewaretoken input in a detail view to read.
+  function csrfToken() {
+    try {
+      var headers = JSON.parse(document.body.getAttribute("hx-headers") || "{}");
+      if (headers["X-CSRFToken"]) { return headers["X-CSRFToken"]; }
+    } catch (err) { /* not JSON */ }
+    var match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]*)/);
+    return match ? decodeURIComponent(match[1]) : "";
+  }
+
+  var body = root.querySelector("[data-example-body]");
+
+  function money(value) {
+    return Number(value).toLocaleString(undefined, {
+      minimumFractionDigits: 2, maximumFractionDigits: 2
+    });
+  }
+
+  function lineRow(line) {
+    // An informational line states a figure without it being part of any
+    // total, so it has to look unlike the lines that are.
+    if (line.informational) {
+      return '<tr class="ss-example__informational"><td>' + line.title +
+        ' <span class="ss-example__code">' + (line.code || "") + "</span></td>" +
+        '<td class="ss-example__calc">' + line.calculation + "</td>" +
+        '<td class="ss-example__amount">' + money(line.amount) + "</td>" +
+        '<td class="ss-example__note">' + (line.note || "") + "</td></tr>";
+    }
+    var right = line.amount === null
+      ? '<td class="ss-example__note" colspan="2">' + (line.note || "") + "</td>"
+      : '<td class="ss-example__amount">' + money(line.amount) + "</td>" +
+        '<td class="ss-example__employer">' +
+        (line.employer ? "+" + money(line.employer) : "") + "</td>";
+    return (
+      "<tr><td>" + line.title +
+      ' <span class="ss-example__code">' + (line.code || "") + "</span></td>" +
+      '<td class="ss-example__calc">' + line.calculation + "</td>" + right + "</tr>"
+    );
+  }
+
+  function group(label) {
+    return '<tr><td class="ss-example__group" colspan="4">' + label + "</td></tr>";
+  }
+
+  function subtotal(label, value, cls) {
+    return '<tr class="' + (cls || "ss-example__sub") + '"><td>' + label +
+      '</td><td></td><td class="ss-example__amount">' + money(value) +
+      "</td><td></td></tr>";
+  }
+
+  // The payslip heads, each with the equation behind it. Four bare totals said
+  // what the figures were but never where they came from -- which earnings gross
+  // counted, what taxable gross took off, why net differs from gross by more
+  // than the lines listed above it. The equations are the engine's own, so this
+  // is also the clearest statement of what payroll does with a structure.
+  function headBlock(head, taxBase) {
+    var terms = head.terms.map(function (term) {
+      return '<div class="ss-example__term">' +
+        '<span class="ss-example__term-sign">' + term.sign + "</span>" +
+        "<span>" + term.label + "</span>" +
+        '<span class="ss-example__term-amount">' + money(term.amount) + "</span>" +
+        "</div>";
+    }).join("");
+
+    // Which figure the chosen filing status reads its brackets against. It
+    // changes the tax substantially and was not said anywhere before.
+    var tag = "";
+    if (taxBase && taxBase === head.key) {
+      tag = ' <span class="ss-example__head-tag">' +
+        "{% trans 'Income tax is read from this' %}</span>";
+    }
+
+    return '<div class="ss-example__head">' +
+      '<div class="ss-example__head-top">' +
+      '<span class="ss-example__head-name">' + head.label + "</span>" + tag +
+      '<span class="ss-example__head-value">' + money(head.amount) + "</span>" +
+      "</div>" +
+      '<div class="ss-example__head-formula">' + head.formula + "</div>" +
+      '<div class="ss-example__head-terms">' + terms + "</div>" +
+      (head.note ? '<div class="ss-example__head-note">' + head.note + "</div>" : "") +
+      "</div>";
+  }
+
+  // Handed to whoever embedded this panel, rather than appended below the
+  // payslip: four blocks of working pushed the lines they explain off the top
+  // of the panel just as the figures arrived. The detail modal puts it on its
+  // own tab. Anywhere that does not listen simply does not show it.
+  function publishWorking(html) {
+    root.dispatchEvent(new CustomEvent("structure-example:working", {
+      bubbles: true,
+      detail: {html: html}
+    }));
+  }
+
+  function headsSection(data) {
+    if (!data.heads || !data.heads.length) { return ""; }
+    // The filing status names its base as gross_pay / taxable_gross_pay /
+    // basic_pay; the heads are keyed gross_pay / taxable_gross.
+    var taxBase = null;
+    if (data.tax_line && data.tax_line.base_key) {
+      taxBase = data.tax_line.base_key === "taxable_gross_pay"
+        ? "taxable_gross"
+        : data.tax_line.base_key;
+    }
+    return '<div class="ss-example__heads">' +
+      '<div class="ss-example__heads-title">' +
+      "{% trans 'Each equation is the one payroll itself uses.' %}</div>" +
+      data.heads.map(function (head) { return headBlock(head, taxBase); }).join("") +
+      "</div>";
+  }
+
+  function noteRow(label, value) {
+    return '<div class="ss-example__note-row">' +
+      '<span class="ss-example__note-label">' + label + "</span>" +
+      '<span class="ss-example__note-value">' + value + "</span></div>";
+  }
+
+  // What the figures above rest on, said as facts rather than as a trailing
+  // sentence: the period they were worked over, whether tax is in them, and
+  // what the employer pays on top.
+  function notes(data) {
+    var rows = [];
+
+    var period = "<b>" + data.calendar_days + "</b> {% trans 'calendar days' %}, " +
+      "<b>" + data.worked_days + "</b> {% trans 'of' %} " + data.working_days +
+      " {% trans 'working days' %}";
+    if (data.lop_days) {
+      period += " — {% trans 'after' %} <b>" + data.lop_days +
+        "</b> {% trans 'loss-of-pay days' %}";
+    }
+    rows.push(noteRow("{% trans 'Sample period' %}", period));
+
+    rows.push(noteRow(
+      "{% trans 'Income tax' %}",
+      data.tax_included
+        ? "{% trans 'Included, worked out by the same code a payslip uses. A real employee takes their filing status from their contract.' %}"
+        : "{% trans 'Not included — choose a filing status above to see it.' %}"
+    ));
+
+    if (data.employer_total) {
+      rows.push(noteRow(
+        "{% trans 'Employer share' %}",
+        "<b>" + money(data.employer_total) + "</b> — " +
+        "{% trans 'a company cost on top of gross, not taken from the employee.' %}"
+      ));
+    }
+
+    return '<div class="ss-example__notes">' + rows.join("") + "</div>";
+  }
+
+  function render(data) {
+    var html = [];
+
+    if (data.earning_lines.length) {
+      html.push(group("{% trans 'Earnings' %}"));
+      data.earning_lines.forEach(function (line) { html.push(lineRow(line)); });
+      html.push(subtotal("{% trans 'Gross pay' %}", data.gross_pay));
+    }
+
+    if (data.deduction_lines.length || data.tax_line || data.lop_line) {
+      html.push(group("{% trans 'Deductions' %}"));
+      // Loss of pay first, as a payslip lists it: it is about the days
+      // worked, before anything worked out from what those days earned.
+      if (data.lop_line) { html.push(lineRow(data.lop_line)); }
+      data.deduction_lines.forEach(function (line) { html.push(lineRow(line)); });
+      // Tax last, because it is worked out on what the deductions above leave.
+      if (data.tax_line) { html.push(lineRow(data.tax_line)); }
+      html.push(subtotal("{% trans 'Total deductions' %}", data.deductions_total));
+    }
+
+    if (!html.length) {
+      publishWorking("");
+      body.innerHTML = '<div class="ss-example__muted">' +
+        "{% trans 'This structure has no components yet.' %}</div>";
+      return;
+    }
+
+    html.push(subtotal("{% trans 'Net pay' %}", data.net_pay, "ss-example__net"));
+
+    publishWorking(headsSection(data));
+
+    var out = '<table class="ss-example__table"><tbody>' + html.join("") +
+      "</tbody></table>";
+
+    // Shown in both modes: under CTC Down a gap is usually a missing balance
+    // earning, and under Gross Up it answers "does this structure add up to
+    // the package I mean to offer?".
+    if (data.ctc_target) {
+      var ok = data.ctc_reconciles;
+      var gap = data.ctc_gap;
+      var message;
+      if (ok) {
+        message = "{% trans 'Earnings and employer share account for the whole CTC.' %}";
+      } else if (gap > 0) {
+        message = "{% trans 'Short of the CTC by' %} " + money(gap) +
+          (data.mode === "ctc_down"
+            ? " — {% trans 'add a balance earning to absorb the remainder.' %}"
+            : " — {% trans 'the package would cost less than the CTC quoted.' %}");
+      } else {
+        message = "{% trans 'Over the CTC by' %} " + money(-gap) +
+          " — {% trans 'the components add up to more than the package quoted.' %}";
+      }
+      out += '<div class="ss-example__recon ss-example__recon--' +
+        (ok ? "ok" : "gap") + '">' + message + "</div>";
+    }
+
+    out += notes(data);
+
+    body.innerHTML = out;
+  }
+
+  root.querySelector("[data-example-run]").addEventListener("click", function () {
+    // A disabled box sends 0: its value is whatever was typed before it was
+    // disabled, and the server would otherwise treat that as a figure someone
+    // meant.
+    function figure(selector) {
+      var input = root.querySelector(selector);
+      if (!input || input.disabled) { return "0"; }
+      return input.value || "0";
+    }
+
+    var payload = new FormData();
+    payload.append("ctc", figure("[data-example-ctc]"));
+    payload.append("basic", figure("[data-example-basic]"));
+    payload.append("lop_days", root.querySelector("[data-example-lop]").value || "0");
+    var tax = root.querySelector("[data-example-tax]");
+    payload.append("filing_status", tax ? tax.value : "");
+
+    fetch(root.dataset.url, {
+      method: "POST",
+      body: payload,
+      headers: {"X-CSRFToken": csrfToken(), "HX-Request": "true"}
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.ok) {
+          publishWorking("");
+          body.innerHTML = '<div class="ss-example__error">' + (data.error || "") + "</div>";
+          return;
+        }
+        render(data);
+      })
+      .catch(function () {
+        publishWorking("");
+        body.innerHTML =
+          '<div class="ss-example__error">{% trans "Could not reach the server." %}</div>';
+      });
+  });
+})();
+</script>

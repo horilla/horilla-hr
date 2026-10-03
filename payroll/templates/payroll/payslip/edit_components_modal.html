@@ -1,0 +1,574 @@
+{% load i18n %}
+{% comment %}
+Editing a generated payslip's components, with a live preview.
+
+Every row here is a line already on this payslip's own stored snapshot — see
+payroll/methods/payslip_edit.py for what that means and why editing one never
+touches the shared Allowance/Deduction it may have come from. Basic Pay and
+Income Tax are their own rows because that is exactly how the payslip stores
+them (a scalar and a top-level figure, not entries in a list), not a choice
+made for this form.
+
+The preview below recomputes the instant any amount changes or any row is
+marked removed — pure addition and the same cap-at-gross, floor-at-zero rule
+the engine's own last step applies, nothing that needs the server. Saving
+sends the same numbers through payslip_edit.apply_edits, so what was
+previewed is what gets written.
+{% endcomment %}
+
+<style>
+  .pe__head-sub { font-size: 12px; color: #8b90a0; margin-top: 2px; }
+  .pe__cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 640px) { .pe__cols { grid-template-columns: 1fr; } }
+  .pe__section-title {
+    font-size: 10px; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; color: #6b7280; margin-bottom: 6px;
+  }
+  .pe__row {
+    display: flex; align-items: center; gap: 8px; padding: 6px 0;
+    border-bottom: 1px solid #f1f2f4;
+  }
+  .pe__row:last-child { border-bottom: 0; }
+  .pe__title {
+    flex: 1 1 auto; font-size: 13px; color: #1f2430; min-width: 0;
+    display: flex; flex-direction: column; gap: 1px;
+  }
+  .pe__title--locked { color: #6b7280; }
+  .pe__name { display: flex; align-items: center; gap: 5px; }
+
+  /* What the component is, not what somebody typed. Inline as well as in the
+     popover: it is the short half of the answer and reads at a glance, and it
+     cannot be clipped by the modal's own scrolling the way an overlay can. */
+  .pe__basis {
+    font-size: 11px; color: #8b90a0; font-variant-numeric: tabular-nums;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .pe__why-wrap { position: relative; display: inline-flex; }
+  .pe__why {
+    width: 13px; height: 13px; border-radius: 50%; border: 0; padding: 0;
+    background: #e6e7eb; color: #6b7280; cursor: pointer;
+    font-size: 9px; font-weight: 700; line-height: 13px; font-style: normal;
+  }
+  .pe__why:hover, .pe__why:focus { background: var(--primary-600, #e54f38); color: #fff; }
+  {% comment %}
+  The popover is never shown where it is written. It is copied to the end of
+  <body> and placed against the icon's own screen position, because inside the
+  modal it has to get past a scrolling dialog body and the modal's own
+  stacking -- an absolutely positioned panel in here is clipped or painted
+  under, and either way the hover appears to do nothing at all.
+  {% endcomment %}
+  .pe__pop { display: none; }
+  .pe__pop--float {
+    display: block; position: absolute; z-index: 2147483000;
+    width: 240px; padding: 9px 11px; border-radius: 8px;
+    background: #1f2430; color: #fff; font-size: 11px; line-height: 1.45;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .28); white-space: normal;
+    pointer-events: none;
+  }
+  .pe__pop--float .pe__pop-basis { display: block; font-weight: 600; }
+  .pe__pop--float .pe__pop-note { display: block; margin-top: 4px; color: #c9cdd6; }
+  .pe__pop-basis { display: block; font-weight: 600; }
+  .pe__pop-note { display: block; margin-top: 4px; color: #c9cdd6; }
+  .pe__row.is-overridden .pe__basis { text-decoration: line-through; }
+  .pe__amount {
+    width: 110px; flex: 0 0 auto; text-align: right;
+    border: 1px solid #e6e7eb; border-radius: 6px; padding: 4px 6px;
+    font-variant-numeric: tabular-nums; font-size: 13px;
+  }
+  .pe__amount:disabled { background: #f9fafb; color: #9ca3af; }
+  .pe__remove {
+    flex: 0 0 auto; width: 16px; height: 16px; cursor: pointer;
+  }
+  .pe__remove-spacer { flex: 0 0 auto; width: 16px; }
+  .pe__row.is-removed .pe__title,
+  .pe__row.is-removed .pe__amount { opacity: .4; text-decoration: line-through; }
+  .pe__row.is-removed .pe__amount { pointer-events: none; }
+
+  .pe__preview {
+    margin-top: 16px; padding: 12px 14px; border-radius: 10px;
+    background: #fbfbfc; border: 1px solid #e6e7eb;
+    display: flex; flex-wrap: wrap; gap: 18px; align-items: baseline;
+  }
+  .pe__preview-label {
+    font-size: 10px; font-weight: 700; letter-spacing: .05em;
+    text-transform: uppercase; color: #9ca3af; margin-right: 20px;
+  }
+  .pe__stat { display: flex; flex-direction: column; }
+  .pe__stat-label { font-size: 11px; color: #8b90a0; }
+  .pe__stat-value {
+    font-size: 15px; font-weight: 700; color: #1f2430;
+    font-variant-numeric: tabular-nums;
+  }
+  .pe__stat-value--net { color: var(--primary-600, #e54f38); }
+  .pe__short {
+    width: 100%; font-size: 12px; color: #b45309; margin-top: 4px;
+  }
+  .pe__foot {
+    display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px;
+  }
+
+  .pe__new {
+    margin-top: 16px; border: 1px solid #e6e7eb; border-radius: 10px;
+    padding: 10px 14px;
+  }
+  .pe__new-summary {
+    cursor: pointer; font-size: 13px; font-weight: 600; color: #1f2430;
+    display: flex; align-items: center; gap: 6px; list-style: none;
+  }
+  .pe__new-summary::-webkit-details-marker { display: none; }
+  .pe__new-summary ion-icon { font-size: 16px; color: var(--primary-600, #e54f38); }
+  .pe__new-note { font-size: 12px; color: #8b90a0; margin: 8px 0 10px; }
+  .pe__row--new { border-bottom: 0; gap: 8px; }
+  .pe__select, .pe__new-title {
+    border: 1px solid #e6e7eb; border-radius: 6px; padding: 4px 6px;
+    font-size: 13px; background: #fff;
+  }
+  .pe__select { flex: 0 0 auto; }
+  .pe__new-title { flex: 1 1 auto; min-width: 0; }
+  .pe__calc-toggle {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: #6b7280; margin-top: 8px; cursor: pointer;
+  }
+  .pe__calc { margin-top: 12px; }
+</style>
+
+<div class="oh-modal__dialog-header">
+  <div>
+    <span class="text-lg font-semibold text-gray-900">
+      {% trans "Edit payslip components" %}
+    </span>
+    <div class="pe__head-sub">
+      {{ payslip.employee_id }} &middot; {{ payslip.start_date }} &ndash; {{ payslip.end_date }}
+    </div>
+    <div class="pe__head-sub">
+      {% trans "Change any amount, or tick a line to leave it off this payslip." %}
+    </div>
+  </div>
+  <button class="oh-modal__close--custom" type="button"
+          aria-label="{% trans 'Close' %}"
+          onclick="$(this).closest('.oh-modal--show').removeClass('oh-modal--show')">
+    <ion-icon name="close-outline"></ion-icon>
+  </button>
+</div>
+
+<div class="oh-modal__dialog-body">
+  <form id="pe-form" method="post"
+        data-pe-recalculate="{{ recalculate_url }}"
+        action="{% url 'edit-payslip-components' payslip.pk %}"
+        hx-post="{% url 'edit-payslip-components' payslip.pk %}"
+        hx-target="#payslipBody" hx-swap="innerHTML">
+    {% csrf_token %}
+
+    <div class="pe__cols">
+      <div>
+        <div class="pe__section-title">{% trans "Earnings" %}</div>
+        {% for line in lines %}
+          {% if line.section == "earning" %}
+            <div class="pe__row" data-pe-row data-pe-section="earning"
+                 data-pe-key="{{ line.key }}">
+              <span class="pe__title{% if not line.removable %} pe__title--locked{% endif %}">
+                <span class="pe__name">
+                  {{ line.title }}
+                  {% if line.basis %}
+                    <span class="pe__why-wrap">
+                      <button type="button" class="pe__why" data-pe-why
+                              aria-label="{% trans 'How this is worked out' %}">i</button>
+                      <span class="pe__pop" role="tooltip">
+                        <span class="pe__pop-basis">{{ line.basis }}</span>
+                        {% if line.applies %}
+                          <span class="pe__pop-note">{% trans "Applies" %}: {{ line.applies }}</span>
+                        {% endif %}
+                        {% if line.depends_on %}
+                          <span class="pe__pop-note">
+                            {% trans "Worked out from the other lines, so it moves when they do. Type over it to fix it where it is." %}
+                          </span>
+                        {% else %}
+                          <span class="pe__pop-note">
+                            {% trans "Not worked out from the other lines on this payslip, so editing them leaves it where it is." %}
+                          </span>
+                        {% endif %}
+                      </span>
+                    </span>
+                  {% endif %}
+                </span>
+                {% if line.basis %}<span class="pe__basis">{{ line.basis }}</span>{% endif %}
+              </span>
+              {% if line.removable %}
+                {% comment %}
+                aria-label rather than title: the theme turns a title into a
+                floating tooltip, and on a row this tight it landed across the
+                line's own name. What the tick does is said once above instead.
+                {% endcomment %}
+                <input type="checkbox" class="pe__remove" name="remove"
+                       value="{{ line.key }}" data-pe-remove
+                       aria-label="{% trans 'Leave this line off' %}">
+              {% else %}
+                <span class="pe__remove-spacer"></span>
+              {% endif %}
+              <input type="number" step="0.01" class="pe__amount" data-pe-amount
+                     name="amount:{{ line.key }}" value="{{ line.amount|floatformat:2 }}">
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+
+      <div>
+        <div class="pe__section-title">{% trans "Deductions" %}</div>
+        {% for line in lines %}
+          {% if line.section == "deduction" %}
+            <div class="pe__row" data-pe-row data-pe-section="deduction"
+                 data-pe-key="{{ line.key }}">
+              <span class="pe__title{% if not line.removable %} pe__title--locked{% endif %}">
+                <span class="pe__name">
+                  {{ line.title }}
+                  {% if line.basis %}
+                    <span class="pe__why-wrap">
+                      <button type="button" class="pe__why" data-pe-why
+                              aria-label="{% trans 'How this is worked out' %}">i</button>
+                      <span class="pe__pop" role="tooltip">
+                        <span class="pe__pop-basis">{{ line.basis }}</span>
+                        {% if line.applies %}
+                          <span class="pe__pop-note">{% trans "Applies" %}: {{ line.applies }}</span>
+                        {% endif %}
+                        {% if line.depends_on %}
+                          <span class="pe__pop-note">
+                            {% trans "Worked out from the other lines, so it moves when they do. Type over it to fix it where it is." %}
+                          </span>
+                        {% else %}
+                          <span class="pe__pop-note">
+                            {% trans "Not worked out from the other lines on this payslip, so editing them leaves it where it is." %}
+                          </span>
+                        {% endif %}
+                      </span>
+                    </span>
+                  {% endif %}
+                </span>
+                {% if line.basis %}<span class="pe__basis">{{ line.basis }}</span>{% endif %}
+              </span>
+              {% if line.removable %}
+                {% comment %}
+                aria-label rather than title: the theme turns a title into a
+                floating tooltip, and on a row this tight it landed across the
+                line's own name. What the tick does is said once above instead.
+                {% endcomment %}
+                <input type="checkbox" class="pe__remove" name="remove"
+                       value="{{ line.key }}" data-pe-remove
+                       aria-label="{% trans 'Leave this line off' %}">
+              {% else %}
+                <span class="pe__remove-spacer"></span>
+              {% endif %}
+              <input type="number" step="0.01" class="pe__amount" data-pe-amount
+                     name="amount:{{ line.key }}" value="{{ line.amount|floatformat:2 }}">
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+
+    {% comment %}
+    A line with no component behind it. This is where "add an allowance" went:
+    the old buttons on the payslip created a real Allowance or Deduction and
+    then deleted and regenerated the whole payslip to pick it up, which meant a
+    one-off correction left a permanent component behind and re-ran every other
+    figure on the slip to apply it. A line added here exists on this payslip
+    and nowhere else, and changes nothing that was already worked out.
+    {% endcomment %}
+    <details class="pe__new">
+      <summary class="pe__new-summary">
+        <ion-icon name="add-circle-outline"></ion-icon>
+        {% trans "Add a line to this payslip" %}
+      </summary>
+      <p class="pe__new-note">
+        {% trans "A one-off, on this payslip only. No allowance or deduction is created, so nobody's next payslip changes." %}
+      </p>
+
+      <div class="pe__row pe__row--new" data-pe-row data-pe-new data-pe-section="earning">
+        <select name="new_section" class="pe__select" data-pe-new-section
+                aria-label="{% trans 'Earning or deduction' %}">
+          <option value="earning">{% trans "Earning" %}</option>
+          <option value="deduction">{% trans "Deduction" %}</option>
+        </select>
+        <input type="text" name="new_title" class="pe__new-title" data-pe-new-title
+               maxlength="200" autocomplete="off"
+               placeholder="{% trans 'What is it for?' %}">
+        <input type="number" step="0.01" class="pe__amount" data-pe-amount
+               name="new_amount" value="" placeholder="0.00"
+               aria-label="{% trans 'Amount' %}">
+      </div>
+
+      <label class="pe__calc-toggle">
+        <input type="checkbox" data-pe-calc>
+        {% trans "Work the amount out with a formula" %}
+      </label>
+
+      <div class="pe__calc" data-pe-calc-panel hidden>
+        {% comment %}
+        Disabled while the panel is closed, so a formula someone built and then
+        changed their mind about is not posted -- and is still there, untouched,
+        if they open it again. The server recomputes it either way: the amount
+        box is filled in from the preview for the reader's benefit, never taken
+        as the answer.
+        {% endcomment %}
+        <input type="hidden" name="new_formula" value="" disabled data-pe-formula>
+        {% include "payroll/component/_formula_builder.html" with formula_field="new_formula" %}
+      </div>
+    </details>
+
+    <div class="pe__preview">
+      <span class="pe__preview-label">{% trans "Preview — not saved yet" %}</span>
+      <div class="pe__stat">
+        <span class="pe__stat-label">{% trans "Gross pay" %}</span>
+        <span class="pe__stat-value" data-pe-preview="gross_pay">0.00</span>
+      </div>
+      <div class="pe__stat">
+        <span class="pe__stat-label">{% trans "Total deductions" %}</span>
+        <span class="pe__stat-value" data-pe-preview="total_deductions">0.00</span>
+      </div>
+      <div class="pe__stat">
+        <span class="pe__stat-label">{% trans "Net pay" %}</span>
+        <span class="pe__stat-value pe__stat-value--net" data-pe-preview="net_pay">0.00</span>
+      </div>
+      <div class="pe__short" data-pe-short hidden></div>
+    </div>
+
+    <div class="pe__foot">
+      <button type="button" class="oh-btn oh-btn--light"
+              onclick="$(this).closest('.oh-modal--show').removeClass('oh-modal--show')">
+        {% trans "Cancel" %}
+      </button>
+      <button type="submit" class="oh-btn oh-btn--secondary">
+        {% trans "Save" %}
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+(function () {
+  var form = document.getElementById("pe-form");
+  if (!form) { return; }
+
+  // Recomputes on every change, purely by addition -- the same rule
+  // payslip_edit.preview_totals applies server-side: earnings summed for
+  // gross, deductions summed and capped at gross, net floored at zero. No tax
+  // bracket or formula is re-derived here; Income Tax is just another row a
+  // person can edit, not something this recalculates on their behalf.
+  function recompute() {
+    var earnings = 0, deductions = 0;
+    form.querySelectorAll("[data-pe-row]").forEach(function (row) {
+      // The line being added counts only once it has a name, which is also
+      // what the server requires of it -- until then it is an empty box, not
+      // a line worth nothing.
+      if (row.hasAttribute("data-pe-new")) {
+        var titleField = row.querySelector("[data-pe-new-title]");
+        if (!titleField || !titleField.value.trim()) { return; }
+      }
+
+      var removeBox = row.querySelector("[data-pe-remove]");
+      var removed = removeBox && removeBox.checked;
+      row.classList.toggle("is-removed", !!removed);
+      if (removed) { return; }
+
+      var amountField = row.querySelector("[data-pe-amount]");
+      var amount = parseFloat(amountField.value);
+      if (isNaN(amount)) { amount = 0; }
+
+      if (row.dataset.peSection === "earning") { earnings += amount; }
+      else { deductions += amount; }
+    });
+
+    var grossPay = Math.round(earnings * 100) / 100;
+    var totalDeductions = Math.round(Math.min(deductions, grossPay) * 100) / 100;
+    var uncovered = Math.round((deductions - totalDeductions) * 100) / 100;
+    var netPay = Math.round(Math.max(0, grossPay - totalDeductions) * 100) / 100;
+
+    form.querySelector('[data-pe-preview="gross_pay"]').textContent = grossPay.toFixed(2);
+    form.querySelector('[data-pe-preview="total_deductions"]').textContent = totalDeductions.toFixed(2);
+    form.querySelector('[data-pe-preview="net_pay"]').textContent = netPay.toFixed(2);
+
+    var shortEl = form.querySelector("[data-pe-short]");
+    if (uncovered > 0) {
+      shortEl.hidden = false;
+      shortEl.textContent = "{% trans 'Deductions exceed gross pay by' %} "
+        + uncovered.toFixed(2) + " — {% trans 'capped, and this much would not be taken.' %}";
+    } else {
+      shortEl.hidden = true;
+    }
+  }
+
+  // A line somebody typed into is taken as stated from then on -- the server
+  // is told not to re-derive it. Overriding a figure is the reason this form
+  // exists, so a recalculation must never write over what was just typed.
+  var overridden = {};
+  var recalcTimer;
+
+  function noteOverride(target) {
+    var row = target.closest && target.closest("[data-pe-row]");
+    if (!row || !row.dataset.peKey || !target.matches("[data-pe-amount]")) { return; }
+    overridden[row.dataset.peKey] = true;
+    row.classList.add("is-overridden");
+  }
+
+  // Percentages, formulas and the balance of a CTC are worked out from the
+  // component definitions, which live on the server -- see
+  // recalculate_payslip_lines. Doing it here as well would be a second
+  // implementation of the engine, free to disagree with the one that
+  // generated the payslip.
+  function recalculate() {
+    var url = form.dataset.peRecalculate;
+    if (!url) { return; }
+
+    var body = new FormData(form);
+    Object.keys(overridden).forEach(function (key) { body.append("given", key); });
+
+    fetch(url, {
+      method: "POST",
+      body: body,
+      headers: {"X-CSRFToken": csrfToken(), "HX-Request": "true"}
+    })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        if (!data || !data.ok) { return; }
+        Object.keys(data.amounts).forEach(function (key) {
+          if (overridden[key]) { return; }
+          var field = form.querySelector('[name="amount:' + key + '"]');
+          if (field && document.activeElement !== field) {
+            field.value = Number(data.amounts[key]).toFixed(2);
+          }
+        });
+        recompute();
+      })
+      .catch(function () { /* the figures on screen stay as they are */ });
+  }
+
+  function scheduleRecalculate() {
+    clearTimeout(recalcTimer);
+    recalcTimer = setTimeout(recalculate, 400);
+  }
+
+  function csrfToken() {
+    try {
+      var headers = JSON.parse(document.body.getAttribute("hx-headers") || "{}");
+      if (headers["X-CSRFToken"]) { return headers["X-CSRFToken"]; }
+    } catch (err) {
+      /* not JSON; fall through to the cookie */
+    }
+    var match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]*)/);
+    return match ? decodeURIComponent(match[1]) : "";
+  }
+
+  form.addEventListener("input", function (event) {
+    noteOverride(event.target);
+    recompute();
+    scheduleRecalculate();
+  });
+  form.addEventListener("change", function (event) {
+    recompute();
+    if (event.target.matches("[data-pe-remove]")) { scheduleRecalculate(); }
+  });
+
+  // Earning or deduction is a choice on the new line, not a fixed property of
+  // where it sits, so the row's own section follows the select.
+  var sectionSelect = form.querySelector("[data-pe-new-section]");
+  if (sectionSelect) {
+    sectionSelect.addEventListener("change", function () {
+      sectionSelect.closest("[data-pe-row]").dataset.peSection = sectionSelect.value;
+      recompute();
+    });
+  }
+
+  // The formula is the calculator, so while it is in use the amount is its
+  // answer rather than something to type over. It is still submitted, and the
+  // server still ignores it in favour of evaluating the formula itself.
+  var calcToggle = form.querySelector("[data-pe-calc]");
+  var calcPanel = form.querySelector("[data-pe-calc-panel]");
+  var formulaField = form.querySelector("[data-pe-formula]");
+  var newAmount = form.querySelector("[data-pe-new] [data-pe-amount]");
+  if (calcToggle && calcPanel && formulaField) {
+    calcToggle.addEventListener("change", function () {
+      calcPanel.hidden = !calcToggle.checked;
+      formulaField.disabled = !calcToggle.checked;
+      newAmount.readOnly = calcToggle.checked;
+      recompute();
+    });
+  }
+
+  // The builder announces what its expression came to on this payslip; the
+  // amount box shows that figure so the person can see the line they are
+  // about to add, the same as any other line on this form.
+  form.addEventListener("formula:previewed", function (event) {
+    if (!calcToggle || !calcToggle.checked || !newAmount) { return; }
+    newAmount.value = Number(event.detail.result).toFixed(2);
+    recompute();
+  });
+
+  recompute();
+
+  // ---- "how is this worked out" popover ----
+  // Built on demand at the end of <body> and thrown away again, rather than
+  // shown where it sits. Nothing inside the modal can then clip it or paint
+  // over it, and nothing is left behind when the modal closes and takes this
+  // form's <style> with it.
+  var POP_ID = "pe-popover";
+
+  function hidePopover() {
+    var existing = document.getElementById(POP_ID);
+    if (existing) { existing.remove(); }
+  }
+
+  function showPopover(button) {
+    var source = button.parentNode.querySelector(".pe__pop");
+    if (!source) { return; }
+    hidePopover();
+
+    var pop = document.createElement("div");
+    pop.id = POP_ID;
+    pop.className = "pe__pop pe__pop--float";
+    pop.setAttribute("role", "tooltip");
+    pop.innerHTML = source.innerHTML;
+    document.body.appendChild(pop);
+
+    // Placed against the icon's own position on screen, and kept inside the
+    // window -- an icon near the right edge would otherwise open a panel
+    // half of which is off it.
+    var rect = button.getBoundingClientRect();
+    var room = document.documentElement.clientWidth;
+    var left = Math.min(rect.left, room - pop.offsetWidth - 12);
+    pop.style.left = Math.max(12, left) + window.scrollX + "px";
+    pop.style.top = rect.bottom + window.scrollY + 6 + "px";
+  }
+
+  form.querySelectorAll("[data-pe-why]").forEach(function (button) {
+    button.addEventListener("mouseenter", function () { showPopover(button); });
+    button.addEventListener("focus", function () { showPopover(button); });
+    button.addEventListener("mouseleave", hidePopover);
+    button.addEventListener("blur", hidePopover);
+    // Tapping is the only way to reach it without a pointer, and it also
+    // stops the button submitting anything on the way.
+    button.addEventListener("click", function (event) {
+      event.preventDefault();
+      showPopover(button);
+    });
+  });
+
+  // It is placed once, against where the icon was, so anything that moves the
+  // icon has to take it down rather than leave it pointing at nothing.
+  document.addEventListener("scroll", hidePopover, true);
+  window.addEventListener("resize", hidePopover);
+  // Anywhere else takes it down, which is also what closes it after a tap and
+  // what stops it outliving the modal when Cancel is pressed with it open.
+  document.addEventListener("click", function (event) {
+    if (!event.target.closest("[data-pe-why]")) { hidePopover(); }
+  });
+
+  // Closes the modal once the swap into #payslipBody has actually happened --
+  // not on click, which would close it even if the server rejected the save.
+  form.addEventListener("htmx:afterRequest", function (event) {
+    if (event.detail && event.detail.successful) {
+      hidePopover();
+      var modal = document.getElementById("objectCreateModal");
+      if (modal) { modal.classList.remove("oh-modal--show"); }
+    }
+  });
+})();
+</script>

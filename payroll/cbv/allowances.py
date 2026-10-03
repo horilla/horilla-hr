@@ -37,6 +37,16 @@ class AllowanceFormView(HorillaFormView):
     new_display_title = _("Create Allowance")
     template_name = "payroll/allowance/allowance_form.html"
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Section layout, formula chips and any saved extra conditions. Built
+        # in payroll/forms/component_layout.py so both component forms lay out
+        # the same way and a new field cannot go unrendered.
+        from payroll.forms.component_layout import form_context
+
+        context.update(form_context(self.form, Allowance))
+        return context
+
     def form_valid(self, form: AllowanceForm) -> HttpResponse:
         if form.is_valid():
             if form.instance.pk:
@@ -205,6 +215,27 @@ class AllowanceNavView(HorillaNavView):
                                 hx-get="{reverse_lazy('create-allowance')}"
                                 hx-target="#objectCreateModalTarget"
                                 """
+            # Which page this nav is embedded in, so loading a
+            # component returns there rather than always landing on
+            # Allowances. Both standalone pages and the two
+            # payroll-settings tabs share these navs.
+            library_from = self.request.GET.get("from") or "allowance"
+            # The ready-made components. Offered beside Create rather than
+            # instead of it: HRA, PF, GOSI and the rest are the same handful
+            # every company builds by hand, and the rate or the base is easy
+            # to get subtly wrong.
+            self.actions = [
+                {
+                    "action": _("Add from library"),
+                    "attrs": f"""
+                        data-toggle="oh-modal-toggle"
+                        data-target="#objectCreateModal"
+                        hx-get="{reverse('component-library')}?from={library_from}"
+                        hx-target="#objectCreateModalTarget"
+                        hx-swap="innerHTML"
+                        """,
+                },
+            ]
 
         self.view_types = [
             {
@@ -230,6 +261,11 @@ class AllowanceNavView(HorillaNavView):
     filter_body_template = "cbv/allowances/allowance_filter.html"
     filter_form_context_name = "form"
     search_swap_target = "#listContainer"
+    # The page embeds this nav above an empty #listContainer and never fetches
+    # into it. apply_first_filter=True (the default) tells the nav "whoever
+    # embedded me already fetched the content", so nothing did -- the list
+    # stayed blank until a save or a filter happened to trigger a reload.
+    apply_first_filter = False
     # Modern slide-over filter panel (generic/horilla_nav.html's own
     # {% if modern_filter %} branch) -- same treatment as every other
     # panel this session. AllowanceFilter has no FK/M2M fields, so no

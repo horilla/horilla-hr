@@ -31,21 +31,69 @@ imports, file access, attribute introspection, or I/O are permitted.
 
 import ast
 import re
+import threading
 
 __all__ = [
     "TaxCodeValidationError",
+    "TaxFormulaTimeout",
     "validate_tax_code",
     "run_tax_code",
+    "run_tax_formula",
 ]
+
+# Wall-clock budget for one formula evaluation. Generous for arithmetic over a
+# handful of brackets; short enough that a runaway formula cannot hold a
+# payroll run open.
+DEFAULT_TIMEOUT_SECONDS = 2.0
 
 
 class TaxCodeValidationError(ValueError):
     """Raised when user-supplied tax code violates the sandbox policy."""
 
 
+class TaxFormulaTimeout(Exception):
+    """Raised when a tax formula exceeds its execution time budget."""
+
+
 # Builtins that are safe to expose to the formula. Deliberately minimal:
 # numeric/sequence helpers only, nothing that touches the filesystem,
 # imports, evaluation, or introspection.
+# Ceiling on anything that can manufacture a long iteration. A tax formula
+# walks a handful of brackets; nothing legitimate needs a million steps.
+#
+# This exists because the wall-clock timeout cannot stop a C-level builtin.
+# ``sum(range(10**9))`` holds the GIL inside a single bytecode operation, so
+# the watchdog thread never gets scheduled to notice its deadline — measured at
+# 17 seconds of full-core burn against a 2 second timeout. Capping the
+# iteration at the source is what actually bounds it.
+MAX_ITERATIONS = 1_000_000
+
+# Largest exponent allowed to ``pow``. Big enough for any rate maths, small
+# enough that the result cannot become a multi-megabyte integer.
+MAX_POW_EXPONENT = 64
+
+
+def _guarded_range(*args):
+    """``range`` that refuses to produce an absurd number of steps."""
+    result = range(*args)
+    if len(result) > MAX_ITERATIONS:
+        raise TaxCodeValidationError(
+            f"range() of {len(result):,} steps exceeds the {MAX_ITERATIONS:,} "
+            "allowed in a tax formula."
+        )
+    return result
+
+
+def _guarded_pow(base, exponent, *args):
+    """``pow`` that refuses exponents big enough to be a memory bomb."""
+    if isinstance(exponent, (int, float)) and abs(exponent) > MAX_POW_EXPONENT:
+        raise TaxCodeValidationError(
+            f"pow() exponent {exponent} exceeds the maximum of {MAX_POW_EXPONENT} "
+            "allowed in a tax formula."
+        )
+    return pow(base, exponent, *args)
+
+
 _SAFE_BUILTINS = {
     "abs": abs,
     "min": min,
@@ -53,7 +101,7 @@ _SAFE_BUILTINS = {
     "round": round,
     "sum": sum,
     "len": len,
-    "range": range,
+    "range": _guarded_range,
     "float": float,
     "int": int,
     "bool": bool,
@@ -66,7 +114,7 @@ _SAFE_BUILTINS = {
     "zip": zip,
     "map": map,
     "filter": filter,
-    "pow": pow,
+    "pow": _guarded_pow,
     "divmod": divmod,
 }
 
@@ -205,12 +253,27 @@ def validate_tax_code(code: str) -> None:
     _check(code)
 
 
-def run_tax_code(code: str, yearly_income):
-    """Validate, sandbox-execute, and call the tax formula.
+def run_tax_formula(code: str, yearly_income, timeout: float = DEFAULT_TIMEOUT_SECONDS):
+    """Validate, sandbox-execute, and call the tax formula under a time limit.
 
     Returns the numeric result of ``calculate_federal_tax(yearly_income)``.
     Raises :class:`TaxCodeValidationError` if the code violates the sandbox
-    policy. Any error raised by the formula itself propagates to the caller.
+    policy, :class:`TaxFormulaTimeout` if it does not finish within ``timeout``
+    seconds, or propagates whatever the formula itself raised.
+
+    The AST allow-list above bounds what the code may *reach*, but nothing in
+    it bounds how long the code may *run*: ``while True: pass`` passes every
+    policy check and then hangs whichever thread is generating payslips. Since
+    the code being run is operator-supplied and stored in the database, that is
+    a denial-of-service waiting to happen, and it used to be reachable through
+    ``run_tax_code``.
+
+    The work therefore happens on a daemon worker joined with a wall-clock
+    timeout. ``threading`` rather than ``signal.alarm`` because the latter is
+    POSIX-only and this project runs on Windows too. Joining does not *kill* a
+    stuck worker — Python cannot — but it frees the caller immediately, which
+    is what fixes the availability problem; the abandoned daemon holds no lock
+    another request can see and dies with the process.
     """
     _check(code)
 
@@ -226,19 +289,54 @@ def run_tax_code(code: str, yearly_income):
         "pass_print": _noop,
         "formated_result": _noop,
     }
-    local_vars = {}
+    result_box = {}
+    error_box = {}
 
-    # The AST check above has already guaranteed there are no imports, dunder
-    # escapes, or dangerous calls; execution happens with the restricted
-    # builtins only.
-    compiled = compile(code, "<tax_code>", "exec")
-    exec(
-        compiled, sandbox_globals, local_vars
-    )  # noqa: S102 - sandboxed; see module docstring
+    def _worker():
+        try:
+            # The AST check above has already guaranteed there are no imports,
+            # dunder escapes, or dangerous calls; execution happens with the
+            # restricted builtins only.
+            #
+            # One namespace, deliberately: exec() with separate globals and
+            # locals puts the author's top-level definitions in locals, while a
+            # function body resolves free names through globals. So a formula
+            # that defined a helper — or recursed — died with "name 'helper' is
+            # not defined", and the only formulas that worked were ones with
+            # every helper nested inside the entry point.
+            compiled = compile(code, "<tax_code>", "exec")
+            exec(
+                compiled, sandbox_globals
+            )  # noqa: S102 - sandboxed; see module docstring
+            func = sandbox_globals.get(ENTRY_POINT)
+            if not callable(func):
+                raise TaxCodeValidationError(
+                    f"Tax code did not define a callable '{ENTRY_POINT}'."
+                )
+            result_box["value"] = func(yearly_income)
+        except BaseException as exc:  # noqa: BLE001 - re-raised in the caller's thread
+            error_box["error"] = exc
 
-    func = local_vars.get(ENTRY_POINT) or sandbox_globals.get(ENTRY_POINT)
-    if not callable(func):
-        raise TaxCodeValidationError(
-            f"Tax code did not define a callable '{ENTRY_POINT}'."
+    worker = threading.Thread(target=_worker, daemon=True)
+    worker.start()
+    worker.join(timeout=timeout)
+
+    if worker.is_alive():
+        raise TaxFormulaTimeout(
+            f"Tax formula did not finish within {timeout}s and was abandoned."
         )
-    return func(yearly_income)
+    if "error" in error_box:
+        raise error_box["error"]
+    return result_box.get("value")
+
+
+def run_tax_code(code: str, yearly_income):
+    """Backwards-compatible alias for :func:`run_tax_formula`.
+
+    Deliberately delegates rather than keeping its own untimed ``exec``: an
+    unbounded runner that still exists is one a caller can still reach, and
+    this one was reachable from ``tax_calc.calculate_taxable_amount`` on every
+    payslip. There is now no code path that executes a formula without a
+    timeout.
+    """
+    return run_tax_formula(code, yearly_income)

@@ -1,7 +1,11 @@
 {% load i18n static %}
 
 <div class="oh-inner-sidebar-content border border-[#ebebeb] rounded-md mb-5" id="autoPayslipTabRoot">
-    <div hx-get="{% url 'deduction-view-nav' %}" hx-trigger="load"></div>
+    {% comment %}
+    ?from=settings so "Add from library" comes back to this tab rather
+    than to the standalone page -- both embed the same nav.
+    {% endcomment %}
+    <div hx-get="{% url 'deduction-view-nav' %}?from=settings" hx-trigger="load"></div>
 
     <p class="text-xs text-gray-500 mt-1 ml-2">
         {% trans "Configure deductions for your company." %}

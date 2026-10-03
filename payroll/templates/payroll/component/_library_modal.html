@@ -1,0 +1,100 @@
+{% load i18n %}
+{% comment %}
+Ready-made components.
+
+Every payroll department builds the same dozen by hand and gets the same
+details slightly wrong each time — the rate, which base it applies to, whether
+it comes off before tax, the ceiling it stops at. Each row says what the
+component actually does, because picking one from a list of names would just
+move the guesswork.
+
+Loading creates ordinary Allowances and Deductions. They are editable like any
+other afterwards; nothing here keeps managing them.
+
+Shares its design with the tax-configuration chooser (payroll/_picker_modal.html):
+same interaction, so the same row shape and the same header and footer. This
+one had no close button at all, which left the Escape key or a click outside
+as the only way out of it.
+{% endcomment %}
+
+{% include "payroll/_picker_modal.html" %}
+
+<div class="oh-modal__dialog-header mb-3">
+  <span class="text-lg font-semibold text-gray-900">
+    <ion-icon name="albums-outline" class="me-1"></ion-icon>
+    {% trans "Start from a ready-made component" %}
+  </span>
+  <button class="oh-modal__close--custom" type="button"
+          aria-label="{% trans 'Close' %}"
+          onclick="$(this).closest('.oh-modal--show').removeClass('oh-modal--show')">
+    <ion-icon name="close-outline"></ion-icon>
+  </button>
+</div>
+
+<div class="oh-modal__dialog-body">
+  <p class="pick__lead">
+    {% blocktrans %}Each one is created as an ordinary allowance or deduction that you can then edit.{% endblocktrans %}
+  </p>
+
+  <form method="post" action="{% url 'load-component-library' %}">
+    {% csrf_token %}
+    {% comment %}
+    Which page opened the chooser, so loading lands back there. Checked against
+    an allowlist of url names in the view rather than being reversed here, so it
+    cannot be turned into an off-site redirect.
+    {% endcomment %}
+    <input type="hidden" name="return_to" value="{{ return_to }}">
+
+    <div class="pick__body">
+      {% regroup rows by group as grouped %}
+      {% for group in grouped %}
+        <div class="pick__group">{{ group.grouper }}</div>
+        {% for row in group.list %}
+          <label class="pick__row{% if row.already_loaded %} is-loaded{% endif %}">
+            <input type="checkbox" class="pick__check" name="components"
+                   value="{{ row.key }}"
+                   {% if row.already_loaded %}disabled{% endif %}>
+            <span class="pick__main">
+              <span class="pick__name">{{ row.name }}</span>
+              <span class="pick__badge pick__badge--{{ row.kind }}">
+                {% if row.kind == "allowance" %}{% trans "Earning" %}
+                {% else %}{% trans "Deduction" %}{% endif %}
+              </span>
+              <span class="pick__summary">{{ row.summary }}</span>
+              {% if row.note %}<span class="pick__note">{{ row.note }}</span>{% endif %}
+            </span>
+            {% if row.already_loaded %}
+              <span class="pick__loaded">
+                <ion-icon name="checkmark-circle"></ion-icon>{% trans "Already added" %}
+              </span>
+            {% endif %}
+          </label>
+        {% endfor %}
+      {% endfor %}
+    </div>
+
+    {% comment %}
+    Said plainly rather than buried: these are the figures at the time of
+    writing, and rates change. The component is a head start, not an authority.
+    {% endcomment %}
+    <div class="pick__caveat">
+      <ion-icon name="alert-circle-outline"></ion-icon>
+      <span>{% blocktrans %}Rates change — check them against your own rules before anyone is paid by them.{% endblocktrans %}</span>
+    </div>
+
+    <div class="pick__foot">
+      <span class="pick__hint">
+        {% trans "Nothing is overwritten — a component you already have is left alone." %}
+      </span>
+      <div class="pick__actions">
+        <button type="button" class="oh-btn oh-btn--light"
+                onclick="$(this).closest('.oh-modal--show').removeClass('oh-modal--show')">
+          {% trans "Cancel" %}
+        </button>
+        <button type="submit" class="oh-btn oh-btn--secondary">
+          <ion-icon name="download-outline" class="me-1"></ion-icon>{% trans "Add selected" %}
+        </button>
+      </div>
+    </div>
+  </form>
+</div>

@@ -75,6 +75,23 @@ class TaxBracket(HorillaModel):
             f"{self.min_income} for {self.filing_status_id}"
         )
 
+    def band_label(self):
+        """
+        The income range this slab covers, as one phrase.
+
+        One column rather than a From and a To. Split across two, a range reads
+        as two unrelated numbers with the page's width between them, which is
+        what made a seven-slab table hard to follow.
+
+        The open-ended top slab is stored as NULL by some tax packs and as
+        float("inf") by others, and only the first was handled -- so the last
+        row of a US table read "inf". Both mean the same thing and both say so.
+        """
+        top = self.max_income
+        if top is None or top == math.inf:
+            return _("%(floor)s and above") % {"floor": f"{self.min_income:,.0f}"}
+        return f"{self.min_income:,.0f} – {top:,.0f}"
+
     def get_display_max_income(self):
         """
         Retrieves the maximum income.

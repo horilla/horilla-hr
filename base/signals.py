@@ -84,6 +84,15 @@ def create_deduction_cutleave_from_penalty(sender, instance, created, **kwargs):
             penalty.is_fixed = True
             penalty.amount = instance.penalty_amount
             penalty.only_show_under_employee = True
+
+            # Follows the "Attendance penalty" standard component rather than
+            # the model defaults, which quietly made every late-come and leave
+            # penalty a pre-tax deduction.
+            from payroll.system_components import policy_fields
+
+            for field, value in policy_fields("penalty").items():
+                setattr(penalty, field, value)
+
             penalty.save()
             penalty.include_active_employees = False
             penalty.specific_employees.add(instance.employee_id)

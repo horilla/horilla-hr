@@ -1,0 +1,198 @@
+{% load i18n %}
+{% comment %}
+The components in a salary structure, as a table of checkboxes.
+
+A tag box cannot say what a component does. "House Rent Allowance (HRA)" and
+"House Rent Allowance (Metro)" are two near-identical chips, and nothing tells
+you which pays half of basic and which pays a flat 1,600, or which one is the
+basic pay. Choosing between them meant opening each component in another screen.
+
+The columns are the same ones the structure's own listing shows, from the same
+summarisers, so a component reads the same before and after it is added. Rows
+are in (sequence, pk) order — the engine's own — so the list doubles as a
+preview of the order they will run in.
+
+The checkboxes post as `allowances` and `deductions`, which is exactly what the
+two ModelMultipleChoiceFields already expect, so the form is unchanged.
+{% endcomment %}
+
+<style>
+  .ss-picker { width: 100%; }
+  .ss-picker__bar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .ss-picker__search {
+    flex: 1 1 200px; min-width: 0;
+    border: 1px solid #e6e7eb; border-radius: 8px;
+    padding: 7px 10px; font-size: 13px; outline: none;
+  }
+  .ss-picker__search:focus { border-color: var(--primary-600, #e54f38); }
+  .ss-picker__action {
+    border: 0; background: none; color: var(--primary-600, #e54f38);
+    font-size: 12px; font-weight: 600; cursor: pointer; padding: 0;
+  }
+  .ss-picker__count { font-size: 12px; color: #9ca3af; margin-left: auto; }
+
+  .ss-picker__scroll {
+    max-height: 320px; overflow-y: auto; overflow-x: hidden;
+    border: 1px solid #e6e7eb; border-radius: 10px;
+  }
+  .ss-picker__table {
+    width: 100%; border-collapse: collapse; font-size: 13px;
+    table-layout: auto;
+  }
+  .ss-picker__table thead th {
+    position: sticky; top: 0; background: #fbfbfc; z-index: 1;
+    text-align: left; font-size: 10px; font-weight: 700;
+    letter-spacing: .06em; text-transform: uppercase; color: #6b7280;
+    padding: 8px 10px; border-bottom: 1px solid #e6e7eb; white-space: nowrap;
+  }
+  .ss-picker__table td {
+    padding: 8px 10px; border-bottom: 1px solid #f1f2f4; vertical-align: top;
+  }
+  .ss-picker__table tr:last-child td { border-bottom: 0; }
+  .ss-picker__table tr.is-checked td { background: #fdf7f6; }
+  .ss-picker__seq { color: #9ca3af; font-variant-numeric: tabular-nums; width: 1%; }
+  .ss-picker__code {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 11.5px; color: #9ca3af; white-space: nowrap;
+  }
+  .ss-picker__title { font-weight: 600; color: #1f2430; }
+  .ss-picker__calc {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 12px; color: #4b5563;
+  }
+  .ss-picker__muted { color: #9ca3af; }
+  .ss-picker__type { font-weight: 600; white-space: nowrap; }
+  .ss-picker__type--earning { color: #0f7b5f; }
+  .ss-picker__type--deduction { color: var(--primary-600, #e54f38); }
+  .ss-picker__badge {
+    display: inline-block; font-size: 10px; font-weight: 700;
+    letter-spacing: .04em; text-transform: uppercase;
+    background: #e4f4ed; color: #0f7b5f;
+    border-radius: 4px; padding: 1px 5px; margin-left: 6px;
+  }
+  .ss-picker__empty { padding: 16px; color: #9ca3af; font-size: 13px; }
+  .ss-picker__aside { font-size: 11.5px; color: #9ca3af; margin-bottom: 8px; }
+</style>
+
+<div class="ss-picker" data-component-picker>
+  <div class="ss-picker__bar">
+    <input type="text" class="ss-picker__search" data-picker-search
+           placeholder="{% trans 'Search name or code' %}"
+           aria-label="{% trans 'Search components' %}">
+    <button type="button" class="ss-picker__action" data-picker-all>
+      {% trans "Select all shown" %}
+    </button>
+    <button type="button" class="ss-picker__action" data-picker-none>
+      {% trans "Clear" %}
+    </button>
+    <span class="ss-picker__count" data-picker-count></span>
+  </div>
+  <div class="ss-picker__aside">
+    {% blocktrans %}Proration, CTC and ceilings are on the structure's own page once saved.{% endblocktrans %}
+  </div>
+
+  <div class="ss-picker__scroll">
+    {% if picker_rows %}
+      <table class="ss-picker__table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>{% trans "Seq" %}</th>
+            <th>{% trans "Component" %}</th>
+            <th>{% trans "Type" %}</th>
+            <th>{% trans "Calculation" %}</th>
+            <th>{% trans "Applies" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in picker_rows %}
+            <tr data-picker-row
+                data-search="{{ row.title|lower }} {{ row.code|lower }}"
+                class="{% if row.checked %}is-checked{% endif %}">
+              <td>
+                <input type="checkbox" name="{{ row.field }}" value="{{ row.pk }}"
+                       data-picker-check
+                       {% if row.checked %}checked{% endif %}>
+              </td>
+              <td class="ss-picker__seq">{{ row.sequence }}</td>
+              <td>
+                <span class="ss-picker__title">{{ row.title }}</span>
+                {% if row.is_basic_pay %}
+                  <span class="ss-picker__badge">{% trans "Basic pay" %}</span>
+                {% endif %}
+                <div class="ss-picker__code">{{ row.code }}</div>
+              </td>
+              <td class="ss-picker__type ss-picker__type--{% if row.kind == 'earning' %}earning{% else %}deduction{% endif %}">
+                {{ row.type_label }}
+              </td>
+              <td class="ss-picker__calc">{{ row.calculation }}</td>
+              <td class="ss-picker__muted">{{ row.applies }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="ss-picker__empty">
+        {% trans "No components exist yet. Create an allowance or a deduction first." %}
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+(function () {
+  var picker = document.querySelector("[data-component-picker]");
+  if (!picker || picker.dataset.wired) { return; }
+  picker.dataset.wired = "1";
+
+  var rows = Array.prototype.slice.call(
+    picker.querySelectorAll("[data-picker-row]")
+  );
+  var count = picker.querySelector("[data-picker-count]");
+
+  function visible(row) { return !row.hidden; }
+
+  function refresh() {
+    var chosen = rows.filter(function (row) {
+      var box = row.querySelector("[data-picker-check]");
+      row.classList.toggle("is-checked", box.checked);
+      return box.checked;
+    });
+    count.textContent = chosen.length
+      ? chosen.length + " {% trans 'selected' %}"
+      : "{% trans 'None selected' %}";
+  }
+
+  picker.addEventListener("change", function (e) {
+    if (e.target.matches("[data-picker-check]")) { refresh(); }
+  });
+
+  picker.querySelector("[data-picker-search]").addEventListener("input", function (e) {
+    var needle = e.target.value.trim().toLowerCase();
+    rows.forEach(function (row) {
+      row.hidden = needle !== "" && row.dataset.search.indexOf(needle) === -1;
+    });
+  });
+
+  // Deliberately only the rows on screen: with a search applied, "select all"
+  // meaning every component in the system would tick things nobody can see.
+  picker.querySelector("[data-picker-all]").addEventListener("click", function () {
+    rows.filter(visible).forEach(function (row) {
+      row.querySelector("[data-picker-check]").checked = true;
+    });
+    refresh();
+  });
+
+  picker.querySelector("[data-picker-none]").addEventListener("click", function () {
+    rows.filter(visible).forEach(function (row) {
+      row.querySelector("[data-picker-check]").checked = false;
+    });
+    refresh();
+  });
+
+  refresh();
+})();
+</script>

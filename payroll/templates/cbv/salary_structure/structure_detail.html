@@ -1,0 +1,265 @@
+{% load i18n %}
+{% comment %}
+The salary structure detail modal.
+
+It used to be three stacked blocks — employees, then a ten-column component
+table, then the worked example — inside a modal about 760px wide. Everything
+competed for the same vertical space: the component table scrolled sideways,
+the example's inputs sat halfway down the scroll, and its results appeared
+below the fold, so running an example meant scrolling away from the thing you
+were checking it against.
+
+Now: a summary bar of counts, then tabs — Components, Employees, Example, and
+the working behind the example once it has been run. They are separate
+readings of the same structure and are never needed on screen at once, which
+is exactly what tabs are for. Each panel then gets the full width of the modal
+rather than a third of its height.
+{% endcomment %}
+
+<style>
+  /* The open tab panel is the scroller — not the dialog, and not the dialog's
+     body. The summary, the basic-pay note and the tab bar are the context for
+     whatever is below (which structure, which tab), so they stay put; and
+     because they sit outside the scroller rather than being pinned inside it,
+     the scrollbar spans only the list that actually moves. A sticky header
+     inside a taller scroller looks the same at rest but leaves a full-height
+     track running past it, which reads as though the whole thing scrolls.
+
+     HorillaDetailedView.sticky_chrome gives this block a bounded height to
+     work within; without it .ssd is just a normal block and everything below
+     degrades to the dialog scrolling as one, which is still usable. */
+  .ssd {
+    font-size: 13px;
+    display: flex; flex-direction: column;
+    height: 100%; min-height: 0;
+  }
+  .ssd__chrome { flex: 0 0 auto; }
+  .ssd__panel { min-height: 0; }
+  .ssd__panel:not([hidden]) {
+    flex: 1 1 auto; overflow-y: auto;
+    /* Room for the scrollbar so it does not sit on the content. */
+    padding-right: 6px; margin-right: -6px;
+  }
+
+  /* ---- summary bar ---- */
+  .ssd__summary {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px;
+    padding: 10px 12px; margin-bottom: 12px;
+    border: 1px solid #e6e7eb; border-radius: 10px; background: #fbfbfc;
+  }
+  .ssd__chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11.5px; font-weight: 600; color: #4b5563;
+  }
+  .ssd__chip ion-icon { font-size: 14px; color: #9ca3af; }
+  .ssd__chip--warn {
+    background: #fff8e6; color: #7a5b00;
+    border-radius: 5px; padding: 2px 8px;
+  }
+  .ssd__chip--warn ion-icon { color: #b8860b; }
+  .ssd__tab-count--warn { background: #fdf1cf; color: #7a5b00; }
+  .ssd__chip--mode {
+    background: #eef1f6; color: #3b4457;
+    border-radius: 5px; padding: 2px 8px;
+    text-transform: uppercase; letter-spacing: .04em; font-size: 10px;
+  }
+
+  /* ---- basic-pay note ---- */
+  .ssd__note {
+    display: flex; align-items: flex-start; gap: 7px;
+    border: 1px solid #e6e7eb;
+    border-left: 3px solid var(--primary-600, #e54f38);
+    border-radius: 8px; background: #fbfbfc;
+    padding: 10px 12px; margin-bottom: 12px;
+    font-size: 12.5px; color: #4b5563;
+  }
+  .ssd__note ion-icon { flex: 0 0 auto; font-size: 15px; margin-top: 1px; }
+
+  /* ---- tabs ---- */
+  .ssd__tabs {
+    display: flex; gap: 2px; border-bottom: 1px solid #e6e7eb; margin-bottom: 14px;
+  }
+  .ssd__tab {
+    border: 0; background: none; cursor: pointer;
+    padding: 8px 14px; font-size: 13px; font-weight: 600; color: #8b90a0;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+  .ssd__tab:hover { color: #4b5563; }
+  .ssd__tab[aria-selected="true"] {
+    color: var(--primary-600, #e54f38);
+    border-bottom-color: var(--primary-600, #e54f38);
+  }
+  .ssd__tab-count {
+    font-size: 10.5px; font-weight: 700; color: #9ca3af;
+    background: #f1f2f4; border-radius: 9px; padding: 1px 6px; margin-left: 5px;
+  }
+  .ssd__panel[hidden] { display: none; }
+  .ssd__loading { font-size: 13px; color: #9ca3af; padding: 12px 0; }
+</style>
+
+<div class="ssd" data-structure-detail="{{ instance.pk }}">
+
+  <div class="ssd__chrome">
+
+  {% comment %}
+  What someone opening a structure wants first, as counts: which mode it runs
+  in, how many components of each kind, and how many people it pays. The
+  employees used to be a labelled row of names of their own at the top,
+  pushing everything else down.
+  {% endcomment %}
+  <div class="ssd__summary">
+    <span class="ssd__chip ssd__chip--mode">
+      {% if instance.structure_mode == "ctc_down" %}{% trans "CTC Down" %}
+      {% else %}{% trans "Gross Up" %}{% endif %}
+    </span>
+    <span class="ssd__chip">
+      <ion-icon name="trending-up-outline"></ion-icon>
+      {% blocktrans count counter=earning_count %}{{ counter }} earning{% plural %}{{ counter }} earnings{% endblocktrans %}
+    </span>
+    <span class="ssd__chip">
+      <ion-icon name="trending-down-outline"></ion-icon>
+      {% blocktrans count counter=deduction_count %}{{ counter }} deduction{% plural %}{{ counter }} deductions{% endblocktrans %}
+    </span>
+    {% comment %}
+    A count, not the names. The name chips were the widest thing in this bar
+    and said the least — they truncated past six and carried nothing but a
+    name. Who they are, and what their contracts say, is the Employees tab.
+    {% endcomment %}
+    <span class="ssd__chip">
+      <ion-icon name="people-outline"></ion-icon>
+      {% blocktrans count counter=employee_count %}{{ counter }} employee{% plural %}{{ counter }} employees{% endblocktrans %}
+    </span>
+    {% comment %}
+    Counted up front, unlike the rows themselves, because a structure that
+    would pay somebody no basic pay should say so before anyone thinks to open
+    the Employees tab. It is two cheap queries, not a per-employee resolution.
+    {% endcomment %}
+    {% if employees_missing_basic %}
+      <span class="ssd__chip ssd__chip--warn" title="{% trans 'Their payslips would show basic pay zero, and every component worked out from basic pay zero with it.' %}">
+        <ion-icon name="warning-outline"></ion-icon>
+        {% blocktrans count counter=employees_missing_basic %}{{ counter }} without basic pay{% plural %}{{ counter }} without basic pay{% endblocktrans %}
+      </span>
+    {% endif %}
+  </div>
+
+  {% comment %}
+  Where basic pay comes from — kept out of the tabs because it applies to both
+  readings, and it is not inferable from the component list: the contract wage
+  wins and a flagged earning is only the fallback, so a structure can contain
+  one and never use it.
+  {% endcomment %}
+  <div class="ssd__note">
+    <ion-icon name="information-circle-outline"></ion-icon>
+    <span>{{ basic_pay_note }}</span>
+  </div>
+
+  <div class="ssd__tabs" role="tablist">
+    <button type="button" class="ssd__tab" role="tab" aria-selected="true"
+            data-ssd-tab="components">
+      {% trans "Components" %}
+      <span class="ssd__tab-count">{{ rows|length }}</span>
+    </button>
+    <button type="button" class="ssd__tab" role="tab" aria-selected="false"
+            data-ssd-tab="employees">
+      {% trans "Employees" %}
+      <span class="ssd__tab-count{% if employees_missing_basic %} ssd__tab-count--warn{% endif %}">
+        {{ employee_count }}</span>
+    </button>
+    <button type="button" class="ssd__tab" role="tab" aria-selected="false"
+            data-ssd-tab="example">
+      {% trans "Example calculation" %}
+    </button>
+    {% comment %}
+    The equations behind gross, taxable gross, total deductions and net. Their
+    own tab rather than a section under the example: they are four blocks of
+    working, which pushed the payslip lines they explain off the top of the
+    panel just as the figures arrived. Hidden until an example has been run,
+    because until then there is nothing to explain.
+    {% endcomment %}
+    <button type="button" class="ssd__tab" role="tab" aria-selected="false"
+            data-ssd-tab="working" data-ssd-tab-working hidden>
+      {% trans "How it adds up" %}
+    </button>
+  </div>
+
+  </div>
+
+  <div class="ssd__panel" role="tabpanel" data-ssd-panel="components">
+    {% include "cbv/salary_structure/components_detail_col.html" %}
+  </div>
+  {% comment %}
+  Fetched the first time the tab is opened, not rendered with the modal. It is
+  the one panel whose cost scales with the company — a contract and a basic-pay
+  resolution per person — and the modal opens on Components, so most of that
+  work was for a panel nobody had asked for. The counts above are two cheap
+  queries and stay server-rendered, so the warning still shows without it.
+  {% endcomment %}
+  <div class="ssd__panel" role="tabpanel" data-ssd-panel="employees"
+       data-ssd-lazy="{% url 'salary-structure-employees' instance.pk %}" hidden>
+    <div class="ssd__loading">{% trans "Loading…" %}</div>
+  </div>
+  <div class="ssd__panel" role="tabpanel" data-ssd-panel="example" hidden>
+    {% include "cbv/salary_structure/example_detail_col.html" %}
+  </div>
+  <div class="ssd__panel" role="tabpanel" data-ssd-panel="working"
+       data-ssd-working hidden></div>
+</div>
+
+<script>
+(function () {
+  var root = document.querySelector("[data-structure-detail]");
+  if (!root || root.dataset.wired) { return; }
+  root.dataset.wired = "1";
+
+  var tabs = root.querySelectorAll("[data-ssd-tab]");
+  var panels = root.querySelectorAll("[data-ssd-panel]");
+
+  function show(wanted) {
+    tabs.forEach(function (tab) {
+      tab.setAttribute("aria-selected", String(tab.dataset.ssdTab === wanted));
+    });
+    panels.forEach(function (panel) {
+      panel.hidden = panel.dataset.ssdPanel !== wanted;
+    });
+  }
+
+  // A panel marked lazy fetches itself the first time it is shown, and only
+  // once — reopening the tab must not re-query.
+  function load(panel) {
+    var url = panel.dataset.ssdLazy;
+    if (!url || panel.dataset.ssdLoaded) { return; }
+    panel.dataset.ssdLoaded = "1";
+    if (typeof htmx === "undefined") { return; }
+    htmx.ajax("GET", url, {target: panel, swap: "innerHTML"});
+  }
+
+  tabs.forEach(function (tab) {
+    tab.addEventListener("click", function () {
+      var wanted = tab.dataset.ssdTab;
+      show(wanted);
+      panels.forEach(function (panel) {
+        if (panel.dataset.ssdPanel === wanted) { load(panel); }
+      });
+    });
+  });
+
+  // The example panel hands its working over rather than writing into this
+  // template's DOM itself, so each template still owns its own markup and the
+  // example keeps working unchanged if it is ever embedded somewhere without
+  // these tabs.
+  var workingPanel = root.querySelector("[data-ssd-working]");
+  var workingTab = root.querySelector("[data-ssd-tab-working]");
+
+  root.addEventListener("structure-example:working", function (event) {
+    var html = (event.detail && event.detail.html) || "";
+    workingPanel.innerHTML = html;
+    workingTab.hidden = !html;
+    // Deliberately not switched to: the figures have just arrived on the
+    // example panel and that is what was asked for. The tab appearing is the
+    // invitation to go and read why.
+    if (!html && workingTab.getAttribute("aria-selected") === "true") {
+      show("example");
+    }
+  });
+})();
+</script>

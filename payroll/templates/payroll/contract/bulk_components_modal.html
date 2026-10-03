@@ -1,0 +1,177 @@
+{% load i18n %}
+{% comment %}
+Components and structures, for many contracts at once.
+
+Two ways of doing one job, side by side because the difference matters and is
+not guessable: a salary structure is a named set someone maintains, so
+assigning it keeps those employees in step with it afterwards. Adding
+components directly does not — it is a one-off, and nothing later remembers
+why those particular people have that particular component. Said on the form
+rather than left to be discovered.
+{% endcomment %}
+
+{% include "payroll/_picker_modal.html" %}
+
+<style>
+  .bulk__tabs { display: flex; gap: 2px; border-bottom: 1px solid #e6e7eb; margin-bottom: 14px; }
+  .bulk__tab {
+    border: 0; background: none; cursor: pointer; padding: 8px 14px;
+    font-size: 13px; font-weight: 600; color: #8b90a0;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+  .bulk__tab[aria-selected="true"] {
+    color: var(--primary-600, #e54f38); border-bottom-color: var(--primary-600, #e54f38);
+  }
+  .bulk__panel[hidden] { display: none; }
+  .bulk__select {
+    width: 100%; border: 1px solid #e6e7eb; border-radius: 8px;
+    padding: 8px 10px; font-size: 13px; margin-bottom: 10px;
+  }
+  .bulk__who {
+    font-size: 12px; color: #6b7280; background: #fbfbfc;
+    border: 1px solid #e6e7eb; border-radius: 8px;
+    padding: 9px 11px; margin-bottom: 12px;
+  }
+  .bulk__mode { display: flex; gap: 14px; font-size: 12.5px; margin-bottom: 10px; }
+  .bulk__mode label { display: inline-flex; align-items: center; gap: 5px; }
+</style>
+
+<div class="oh-modal__dialog-header mb-3">
+  <span class="text-lg font-semibold text-gray-900">
+    <ion-icon name="layers-outline" class="me-1"></ion-icon>
+    {% trans "Components for the selected contracts" %}
+  </span>
+  <button class="oh-modal__close--custom" type="button"
+          aria-label="{% trans 'Close' %}"
+          onclick="$(this).closest('.oh-modal--show').removeClass('oh-modal--show')">
+    <ion-icon name="close-outline"></ion-icon>
+  </button>
+</div>
+
+<div class="oh-modal__dialog-body">
+  {% comment %}
+  Who this will hit, spelled out. A bulk action driven by a selection made on
+  another screen is the easiest kind to fire at the wrong rows.
+  {% endcomment %}
+  <div class="bulk__who">
+    {% if contracts %}
+      {% blocktrans count counter=contracts|length %}{{ counter }} contract selected:{% plural %}{{ counter }} contracts selected:{% endblocktrans %}
+      {% for contract in contracts|slice:":8" %}{{ contract.employee_id }}{% if not forloop.last %}, {% endif %}{% endfor %}
+      {% if contracts|length > 8 %}…{% endif %}
+    {% else %}
+      <strong>{% trans "Nothing is selected." %}</strong>
+      {% trans "Tick the contracts on the list first." %}
+    {% endif %}
+  </div>
+
+  <div class="bulk__tabs" role="tablist">
+    <button type="button" class="bulk__tab" role="tab" aria-selected="true"
+            data-bulk-tab="structure">{% trans "Assign a structure" %}</button>
+    <button type="button" class="bulk__tab" role="tab" aria-selected="false"
+            data-bulk-tab="components">{% trans "Add or remove components" %}</button>
+  </div>
+
+  <div class="bulk__panel" data-bulk-panel="structure">
+    <form method="post" action="{% url 'contracts-bulk-components' %}">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="structure">
+      {% for id in ids %}<input type="hidden" name="instance_ids" value="{{ id }}">{% endfor %}
+
+      <p class="pick__lead">
+        {% blocktrans %}Puts each employee onto that structure's components, and takes them off the one they were on.{% endblocktrans %}
+      </p>
+
+      <select name="salary_structure" class="bulk__select" required>
+        <option value="">{% trans "Choose a salary structure…" %}</option>
+        {% for structure in structures %}
+          <option value="{{ structure.pk }}">{{ structure }}</option>
+        {% endfor %}
+      </select>
+
+      <div class="pick__foot">
+        <span class="pick__hint">{% trans "Kept in step with the structure afterwards." %}</span>
+        <div class="pick__actions">
+          <button type="submit" class="oh-btn oh-btn--secondary">{% trans "Assign" %}</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div class="bulk__panel" data-bulk-panel="components" hidden>
+    <form method="post" action="{% url 'contracts-bulk-components' %}">
+      {% csrf_token %}
+      {% for id in ids %}<input type="hidden" name="instance_ids" value="{{ id }}">{% endfor %}
+
+      <p class="pick__lead">
+        {% blocktrans %}A one-off change to these employees. Nothing afterwards remembers why they have it — a structure is the way to keep a set maintained.{% endblocktrans %}
+      </p>
+
+      <div class="bulk__mode">
+        <label><input type="radio" name="action" value="add" checked> {% trans "Add to these employees" %}</label>
+        <label><input type="radio" name="action" value="remove"> {% trans "Remove from these employees" %}</label>
+      </div>
+
+      <div class="pick__body">
+        <div class="pick__group">{% trans "Earnings" %}</div>
+        {% for component in allowances %}
+          <label class="pick__row">
+            <input type="checkbox" class="pick__check" name="components"
+                   value="allowance:{{ component.pk }}">
+            <span class="pick__main">
+              <span class="pick__name">{{ component.title }}</span>
+              <span class="pick__summary">{{ component.code|default:"" }}</span>
+            </span>
+          </label>
+        {% empty %}
+          <div class="pick__empty">{% trans "No earnings to choose from." %}</div>
+        {% endfor %}
+
+        <div class="pick__group">{% trans "Deductions" %}</div>
+        {% for component in deductions %}
+          <label class="pick__row">
+            <input type="checkbox" class="pick__check" name="components"
+                   value="deduction:{{ component.pk }}">
+            <span class="pick__main">
+              <span class="pick__name">{{ component.title }}</span>
+              <span class="pick__summary">{{ component.code|default:"" }}</span>
+            </span>
+          </label>
+        {% empty %}
+          <div class="pick__empty">{% trans "No deductions to choose from." %}</div>
+        {% endfor %}
+      </div>
+
+      <div class="pick__foot">
+        <span class="pick__hint">{% trans "Applies to the selected employees only." %}</span>
+        <div class="pick__actions">
+          <button type="button" class="oh-btn oh-btn--light"
+                  onclick="$(this).closest('.oh-modal--show').removeClass('oh-modal--show')">
+            {% trans "Cancel" %}
+          </button>
+          <button type="submit" class="oh-btn oh-btn--secondary">{% trans "Apply" %}</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function () {
+  var root = document.querySelector("[data-bulk-panel]");
+  if (!root) { return; }
+  var scope = root.closest(".oh-modal__dialog-body") || document;
+  var tabs = scope.querySelectorAll("[data-bulk-tab]");
+  var panels = scope.querySelectorAll("[data-bulk-panel]");
+
+  tabs.forEach(function (tab) {
+    tab.addEventListener("click", function () {
+      tabs.forEach(function (other) {
+        other.setAttribute("aria-selected", String(other === tab));
+      });
+      panels.forEach(function (panel) {
+        panel.hidden = panel.dataset.bulkPanel !== tab.dataset.bulkTab;
+      });
+    });
+  });
+})();
+</script>

@@ -44,15 +44,21 @@
 </div>
 
 
+{% comment %}
+DeductionNav.search_swap_target is #deductionListContainer, which is what the
+payroll-settings Deductions tab calls its container. This page called the same
+thing #listContainer, so search and filter here swapped their results into an
+element that does not exist and the list never changed.
+{% endcomment %}
 <div class="oh-wrapper"
-   id="listContainer">
+   id="deductionListContainer">
 </div>
 
 <script>
   (function () {
     function syncDeductionsNavVisibility() {
       var nav = document.getElementById("payrollDeductionsNavBar");
-      var list = document.getElementById("listContainer");
+      var list = document.getElementById("deductionListContainer");
       if (!nav || !list) return;
       var isForm = !!list.querySelector("#contractFormTarget");
       nav.style.display = isForm ? "none" : "";
@@ -61,7 +67,7 @@
       if (typeof htmx === "undefined") return;
       var query = window.location.search || "";
       var url = "{% url 'deduction-view-list' %}" + query;
-      htmx.ajax("GET", url, { target: "#listContainer", swap: "innerHTML" });
+      htmx.ajax("GET", url, { target: "#deductionListContainer", swap: "innerHTML" });
       var $msg = $("#reloadMessagesButton");
       if ($msg.length) $msg.click();
     }
@@ -70,13 +76,13 @@
     });
     document.addEventListener("DOMContentLoaded", syncDeductionsNavVisibility);
     document.body.addEventListener("htmx:afterSwap", function (e) {
-      if (e.detail && e.detail.target && e.detail.target.id === "listContainer") {
+      if (e.detail && e.detail.target && e.detail.target.id === "deductionListContainer") {
         syncDeductionsNavVisibility();
         setTimeout(syncDeductionsNavVisibility, 0);
       }
     });
     document.body.addEventListener("htmx:afterSettle", function (e) {
-      if (e.detail && e.detail.target && e.detail.target.id === "listContainer") {
+      if (e.detail && e.detail.target && e.detail.target.id === "deductionListContainer") {
         syncDeductionsNavVisibility();
       }
     });

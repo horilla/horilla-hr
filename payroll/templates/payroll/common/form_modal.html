@@ -1,0 +1,32 @@
+{% load i18n %}
+{% comment %}
+A payroll form in the app's standard modal chrome.
+
+The fragment underneath (form_fragment.html) is written for the contracts
+page: a centred card with a Back button, whose form posts into #listContainer.
+Dropped into a modal as-is it had no title and no close button, and its save
+would have swapped a contract list into whatever #listContainer happened to be
+on the page behind it.
+
+So the fragment is given the header, close button and body that every other
+Horilla modal has, and told to post back into the modal instead. It is the
+same fragment either way, so a contract form looks and behaves the same
+wherever it is opened — which is the point of using it rather than writing a
+second one.
+{% endcomment %}
+
+<div class="oh-modal__dialog-header">
+  <span class="text-lg font-semibold text-gray-900">
+    <ion-icon name="document-text-outline" class="me-1"></ion-icon>
+    {{ modal_title|default:_("Edit") }}
+  </span>
+  <button class="oh-modal__close--custom" type="button"
+          aria-label="{% trans 'Close' %}"
+          onclick="$(this).closest('.oh-modal--show').removeClass('oh-modal--show')">
+    <ion-icon name="close-outline"></ion-icon>
+  </button>
+</div>
+
+<div class="oh-modal__dialog-body">
+  {% include "payroll/common/form_fragment.html" %}
+</div>

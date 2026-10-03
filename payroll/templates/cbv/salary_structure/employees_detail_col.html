@@ -1,0 +1,368 @@
+{% load i18n %}
+{% comment %}
+Everyone this structure pays, and what their contract tells the engine.
+
+Not just a list of names — the contract figures are the other half of every
+calculation the Components tab describes. The components say "50% of basic
+pay"; this says whose basic pay is what. The wage in particular is read
+differently depending on the mode (basic pay under Gross Up, the pot to divide
+under CTC Down), which is why the reading is spelled out per row rather than
+left as a column heading.
+
+Employees reach a structure through their active contract's salary_structure_id,
+so this is exactly the set the engine would run — an employee whose contract
+ended is not here, however they were assigned.
+{% endcomment %}
+
+<style>
+  .ss-emp__intro { font-size: 12.5px; color: #8b90a0; margin-bottom: 6px; }
+  .ss-emp__table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .ss-emp__table th {
+    text-align: left; font-size: 10px; font-weight: 700;
+    letter-spacing: .06em; text-transform: uppercase; color: #6b7280;
+    padding: 8px 10px; border-bottom: 1px solid #e6e7eb; white-space: nowrap;
+    /* .ssd__panel[data-ssd-panel="employees"] is the actual scroller (see the
+       comment on it in structure_detail.html) — a header sticky to that,
+       rather than to the dialog, is what keeps it pinned exactly while this
+       tab's rows scroll underneath it. Needs its own background: sticky
+       content still sits in normal flow, so without one the scrolled rows
+       show through it as they pass. */
+    position: sticky; top: 0; z-index: 1;
+    background: #fff;
+  }
+  /* Sorting lives on the headings rather than in a separate control: there is
+     nowhere in a modal to put a sort menu that is cheaper to reach than the
+     column itself. The button inherits the heading's type so the row of
+     headings still reads as one line. */
+  .ss-emp__sort {
+    border: 0; background: none; padding: 0; cursor: pointer;
+    font: inherit; color: inherit; letter-spacing: inherit;
+    text-transform: inherit; display: inline-flex; align-items: center; gap: 4px;
+  }
+  .ss-emp__sort:hover { color: #4b5563; }
+  .ss-emp__sort[aria-sort] { color: var(--primary-600, #e54f38); }
+  .ss-emp__arrow { font-size: 9px; opacity: .45; }
+  .ss-emp__sort[aria-sort] .ss-emp__arrow { opacity: 1; }
+  th.ss-emp__th--right .ss-emp__sort { flex-direction: row-reverse; }
+  .ss-emp__table td {
+    padding: 10px; border-bottom: 1px solid #f1f2f4; vertical-align: top;
+  }
+  .ss-emp__table tr:last-child td { border-bottom: 0; }
+  .ss-emp__name { font-weight: 600; color: #1f2430; }
+  .ss-emp__badge {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 11.5px; color: #9ca3af;
+  }
+  /* The contract opens as a form over this modal rather than as a page.
+     contract_update already renders a modal-ready fragment for an HTMX
+     request; its own detail view is a fragment with no document around it, so
+     linking out to a page meant building one, and a page navigation would
+     have thrown away whatever was being read here anyway. */
+  .ss-emp__contract {
+    font-size: 11.5px; margin-top: 2px;
+    display: inline-flex; align-items: center; gap: 3px;
+    color: #9ca3af; text-decoration: none; cursor: pointer;
+  }
+  a.ss-emp__contract:hover {
+    color: var(--primary-600, #e54f38); text-decoration: underline;
+  }
+  .ss-emp__external { font-size: 10px; }
+  .ss-emp__amount {
+    text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap;
+    font-weight: 600; color: #1f2430;
+  }
+  .ss-emp__unit { font-size: 11px; color: #9ca3af; font-weight: 400; }
+  .ss-emp__muted { color: #9ca3af; }
+  .ss-emp__empty { color: #9ca3af; font-size: 13px; padding: 12px 0; }
+
+  /* A contract the structure cannot work basic pay from. Not a styling
+     nicety: the payslip still generates, with basic zero and every
+     "% of basic pay" on the structure zero with it, so nothing downstream
+     announces the problem. */
+  .ss-emp__warn {
+    display: flex; align-items: flex-start; gap: 7px;
+    background: #fff8e6; color: #7a5b00;
+    border-radius: 8px; padding: 9px 11px; margin-bottom: 10px;
+    font-size: 12px;
+  }
+  .ss-emp__warn ion-icon { flex: 0 0 auto; font-size: 15px; margin-top: 1px; }
+  .ss-emp__table tr.is-warned td { background: #fffbef; }
+  /* Quiet, because it is the third thing saying this. The banner above and
+     the tinted row already carry the alarm; a bold uppercase pill with its own
+     icon on top of those made the cell the loudest mark in the table and broke
+     the column's rhythm — every other cell there is a right-aligned figure.
+     A dot and plain words keep the scan line intact and still stand out
+     against the greys around them. */
+  .ss-emp__flag {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12.5px; font-weight: 600; color: #8a6412; white-space: nowrap;
+  }
+  .ss-emp__flag::before {
+    content: ""; flex: 0 0 auto;
+    width: 6px; height: 6px; border-radius: 50%; background: #d9a326;
+  }
+  .ss-emp__warn-text { color: #b08a3c; }
+
+  /* How an hourly contract's basic pay is arrived at. Explained rather than
+     assumed: it is the one wage type whose basic is not a figure anyone typed
+     in, so "the contract wage" would be an answer to a different question. */
+  .ss-emp__hint {
+    display: flex; align-items: flex-start; gap: 7px;
+    border: 1px solid #e6e7eb; border-radius: 8px; background: #fbfbfc;
+    padding: 10px 12px; margin-bottom: 10px;
+    font-size: 12px; color: #4b5563;
+  }
+  .ss-emp__hint ion-icon { flex: 0 0 auto; font-size: 15px; margin-top: 1px; color: #9ca3af; }
+  .ss-emp__formula {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 11.5px; color: #1f2430;
+    background: #f1f2f4; border-radius: 4px; padding: 1px 5px;
+  }
+</style>
+
+<div class="ss-emp">
+  {% if employee_rows %}
+    {% if warned_count %}
+      <div class="ss-emp__warn">
+        <ion-icon name="warning-outline"></ion-icon>
+        <span>
+          {% blocktrans count counter=warned_count %}{{ counter }} contract has no basic pay for this structure to read. Their payslip would show basic zero, and every component worked out from basic pay zero with it — set a wage on the contract, or mark an earning here as basic pay.{% plural %}{{ counter }} contracts have no basic pay for this structure to read. Their payslips would show basic zero, and every component worked out from basic pay zero with it — set a wage on those contracts, or mark an earning here as basic pay.{% endblocktrans %}
+        </span>
+      </div>
+    {% endif %}
+
+    {% if instance.has_hourly_employees %}
+      {% comment %}
+      Shown only when someone here is actually paid by the hour. Two things it
+      has to say, because neither is guessable from the table: what the figure
+      is made of, and that it wins — an hourly contract with a rate takes its
+      basic from the hours, so an earning marked as basic pay is not used for
+      that employee at all.
+      {% endcomment %}
+      <div class="ss-emp__hint">
+        <ion-icon name="time-outline"></ion-icon>
+        <span>
+          {% blocktrans %}<b>Paid by the hour:</b> basic pay is <span class="ss-emp__formula">hourly rate × regular hours</span> — the hours worked on scheduled working days, less the overtime part of those days. Week-off and holiday hours are overtime in full, not basic, and are paid only by the overtime earnings if this structure includes them.{% endblocktrans %}
+          <br>
+          {% blocktrans %}This takes priority: where an hourly contract states a rate, basic pay comes from the hours worked, and an earning marked as basic pay is not used for that employee.{% endblocktrans %}
+        </span>
+      </div>
+    {% endif %}
+
+    <div class="ss-emp__intro">
+      {% if instance.structure_mode == "ctc_down" %}
+        {% blocktrans %}This structure divides each contract's Monthly CTC. Where none is set, the wage is divided instead.{% endblocktrans %}
+      {% else %}
+        {% blocktrans %}This structure reads each contract's wage as basic pay, and builds gross up from it.{% endblocktrans %}
+      {% endif %}
+    </div>
+
+    <table class="ss-emp__table">
+      <thead>
+        <tr>
+          <th>
+            <button type="button" class="ss-emp__sort" data-emp-sort="name">
+              {% trans "Employee" %}<span class="ss-emp__arrow">&#9650;&#9660;</span>
+            </button>
+          </th>
+          <th style="text-align:right;" class="ss-emp__th--right">
+            <button type="button" class="ss-emp__sort" data-emp-sort="pay">
+              {% if instance.structure_mode == "ctc_down" %}{% trans "Monthly CTC" %}
+              {% else %}{% trans "Wage" %}{% endif %}<span class="ss-emp__arrow">&#9650;&#9660;</span>
+            </button>
+          </th>
+          <th style="text-align:right;" class="ss-emp__th--right">
+            <button type="button" class="ss-emp__sort" data-emp-sort="other">
+              {% if instance.structure_mode == "ctc_down" %}{% trans "Wage" %}
+              {% else %}{% trans "Monthly CTC" %}{% endif %}<span class="ss-emp__arrow">&#9650;&#9660;</span>
+            </button>
+          </th>
+          {% comment %}
+          Sorted on whether basic pay resolves at all, not on its amount: most
+          of the column has no figure in it (an hourly contract's basic is its
+          hours, a component's is the structure's) so an amount sort would say
+          almost nothing, while "which of these has no basic pay" is the whole
+          reason for the column.
+          {% endcomment %}
+          <th style="text-align:right;" class="ss-emp__th--right">
+            <button type="button" class="ss-emp__sort" data-emp-sort="basic"
+                    aria-sort="ascending"
+                    title="{% trans 'Sorts the contracts with no basic pay to the top.' %}">
+              {% trans "Basic pay" %}<span class="ss-emp__arrow">&#9650;&#9660;</span>
+            </button>
+          </th>
+          <th>{% trans "Income tax" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in employee_rows %}
+          <tr class="{% if row.no_basic %}is-warned{% endif %}"
+              data-emp-row
+              data-name="{{ row.employee|lower }}"
+              data-pay="{% if instance.structure_mode == 'ctc_down' %}{{ row.monthly_ctc|default:0|stringformat:'f' }}{% else %}{{ row.pay_rate|default:0|stringformat:'f' }}{% endif %}"
+              data-other="{% if instance.structure_mode == 'ctc_down' %}{{ row.pay_rate|default:0|stringformat:'f' }}{% else %}{{ row.monthly_ctc|default:0|stringformat:'f' }}{% endif %}"
+              data-basic="{% if row.no_basic %}0{% else %}1{% endif %}">
+            <td>
+              <span class="ss-emp__name">{{ row.employee }}</span>
+              {% if row.badge %}
+                <span class="ss-emp__badge">{{ row.badge }}</span>
+              {% endif %}
+              {% comment %}
+              Into #relatedObjectModal, not the modal this table is in: that
+              one is the salary structure, and replacing it would lose the
+              context the contract is being read against. The name says what it
+              opens, so it is not a surprise that a caption is clickable.
+              {% endcomment %}
+              {% if perms.payroll.change_contract %}
+                <a class="ss-emp__contract"
+                   hx-get="{% url 'update-contract' row.contract.id %}?modal=1"
+                   hx-target="#relatedObjectModalBody"
+                   data-toggle="oh-modal-toggle"
+                   data-target="#relatedObjectModal"
+                   onclick="event.stopPropagation()"
+                   title="{% trans 'Edit this contract' %}">
+                  {{ row.contract_name }}<span class="ss-emp__external">&#9998;</span>
+                </a>
+              {% else %}
+                <div class="ss-emp__contract">{{ row.contract_name }}</div>
+              {% endif %}
+            </td>
+            {% comment %}
+            The figure the mode actually reads comes first. Under CTC Down that
+            is the Monthly CTC and the wage is the fallback; under Gross Up it
+            is the wage and the CTC is only a target to reconcile against.
+            {% endcomment %}
+            {% if instance.structure_mode == "ctc_down" %}
+              <td class="ss-emp__amount">
+                {% if row.monthly_ctc %}{{ row.monthly_ctc|floatformat:2 }}
+                {% else %}<span class="ss-emp__muted">—</span>{% endif %}
+              </td>
+              <td class="ss-emp__amount">
+                {{ row.pay_rate|floatformat:2 }}
+                <div class="ss-emp__unit">{{ row.wage_type }}</div>
+              </td>
+            {% else %}
+              <td class="ss-emp__amount">
+                {{ row.pay_rate|floatformat:2 }}
+                <div class="ss-emp__unit">{{ row.wage_type }}</div>
+              </td>
+              <td class="ss-emp__amount">
+                {% if row.monthly_ctc %}{{ row.monthly_ctc|floatformat:2 }}
+                {% else %}<span class="ss-emp__muted">—</span>{% endif %}
+              </td>
+            {% endif %}
+            {% comment %}
+            Resolved per employee, not assumed from the mode. Under Gross Up
+            the wage IS basic pay — so the figure repeats, and the caption
+            under it is what makes the repetition meaningful. But an employee
+            on a zero wage falls through to the flagged earning instead, which
+            is precisely the row worth spotting.
+            {% endcomment %}
+            <td class="ss-emp__amount">
+              {% if row.basic_amount %}
+                {{ row.basic_amount|floatformat:2 }}
+                <div class="ss-emp__unit">{% trans "the contract wage" %}</div>
+              {% elif row.basic_component %}
+                <span class="ss-emp__muted">{{ row.basic_component.title }}</span>
+                <div class="ss-emp__unit">{% trans "worked out by the structure" %}</div>
+              {% elif row.is_hourly and row.basic_from_contract %}
+                <span class="ss-emp__muted"
+                      title="{% trans 'Hours on scheduled working days, less the overtime part of those days. Week-off and holiday hours are overtime, not basic.' %}">
+                  {% trans "rate × regular hours" %}
+                </span>
+                <div class="ss-emp__unit">{% trans "once attendance is in" %}</div>
+              {% elif row.basic_from_contract %}
+                <span class="ss-emp__muted">{% trans "From the wage" %}</span>
+                <div class="ss-emp__unit">{% trans "once the period is known" %}</div>
+              {% else %}
+                <span class="ss-emp__flag">{% trans "No basic pay" %}</span>
+                <div class="ss-emp__unit ss-emp__warn-text">
+                  {% trans "nothing works it out" %}
+                </div>
+              {% endif %}
+            </td>
+            <td class="ss-emp__muted">
+              {% if row.filing_status %}{{ row.filing_status }}
+              {% else %}{% trans "None" %}{% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="ss-emp__empty">
+      {% blocktrans %}Nobody is on this structure yet. An employee joins it through their active contract, so assign it there or from the structure's own edit form.{% endblocktrans %}
+    </div>
+  {% endif %}
+</div>
+
+<script>
+(function () {
+  // Scoped to this panel and re-wired on every load: the tab fetches itself,
+  // so this script runs again each time and must not bind twice.
+  var panel = document.querySelector(".ss-emp");
+  if (!panel || panel.dataset.wired) { return; }
+  panel.dataset.wired = "1";
+
+  var body = panel.querySelector("tbody");
+  if (!body) { return; }
+  var rows = Array.prototype.slice.call(panel.querySelectorAll("[data-emp-row]"));
+
+  function value(row, key) {
+    var raw = row.dataset[key];
+    if (key === "name") { return raw; }
+    var number = parseFloat(raw);
+    return isNaN(number) ? 0 : number;
+  }
+
+  function sortBy(button) {
+    var key = button.dataset.empSort;
+    // Third click is not "no sort": there is no unsorted state to go back to
+    // once the rows have moved, so it just flips.
+    var next = button.getAttribute("aria-sort") === "ascending"
+      ? "descending" : "ascending";
+
+    panel.querySelectorAll("[data-emp-sort]").forEach(function (other) {
+      other.removeAttribute("aria-sort");
+    });
+    button.setAttribute("aria-sort", next);
+
+    var direction = next === "ascending" ? 1 : -1;
+    var sorted = rows.slice().sort(function (a, b) {
+      var left = value(a, key);
+      var right = value(b, key);
+      if (left < right) { return -1 * direction; }
+      if (left > right) { return 1 * direction; }
+      // Name as the tie-break, so equal figures keep a stable, readable order
+      // rather than whatever the previous sort happened to leave.
+      return a.dataset.name.localeCompare(b.dataset.name);
+    });
+    sorted.forEach(function (row) { body.appendChild(row); });
+  }
+
+  panel.querySelectorAll("[data-emp-sort]").forEach(function (button) {
+    button.addEventListener("click", function () { sortBy(button); });
+  });
+
+  // Saving the contract form returns an empty 200 carrying
+  // HX-Trigger: reloadPayrollContracts -- which is what the contracts page
+  // listens for. Nothing here did, so the form modal was left open and blank,
+  // and this table went on showing the old wage. Bound to body once, not per
+  // load: this panel re-fetches itself and would otherwise stack listeners.
+  if (!document.body.dataset.ssEmpContractWired) {
+    document.body.dataset.ssEmpContractWired = "1";
+    document.body.addEventListener("reloadPayrollContracts", function () {
+      var modal = document.getElementById("relatedObjectModal");
+      if (modal) { modal.classList.remove("oh-modal--show"); }
+
+      // The figures on this tab come from the contract, so a saved wage or
+      // CTC has to be reflected here -- including whether the row still warns
+      // about basic pay, which is the whole point of having edited it.
+      var open = document.querySelector("[data-ssd-panel='employees'][data-ssd-lazy]");
+      if (open && typeof htmx !== "undefined") {
+        htmx.ajax("GET", open.dataset.ssdLazy, {target: open, swap: "innerHTML"});
+      }
+    });
+  }
+})();
+</script>

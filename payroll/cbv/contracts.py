@@ -51,6 +51,12 @@ class ContractsList(HorillaListView):
         "filing_status",
         "wage",
         "contract_status",
+        # Deliberately NOT salary_structure_id. A bulk update writes the field
+        # directly, and the field is not what puts an employee on a
+        # structure's components -- Contract.set_salary_structure is. Offering
+        # it here would assign a structure that then paid nothing, which is
+        # worse than not offering it. The Components bulk action does it
+        # properly.
     ]
 
     def __init__(self, **kwargs: Any) -> None:
@@ -67,7 +73,7 @@ class ContractsList(HorillaListView):
         (_("Start Date"), "contract_start_date"),
         (_("End Date"), "contract_end_date"),
         (_("Wage Type"), "get_wage_type_display"),
-        (_("Basic Salary"), "wage"),
+        (_("Contract wage"), "wage"),
         (_("Filing Status"), "filing_status"),
         (_("Salary Structure"), "salary_structure_id"),
         (_("Status"), "status_col"),
@@ -84,7 +90,7 @@ class ContractsList(HorillaListView):
         (_("Employee"), "employee_id__get_full_name"),
         (_("Start Date"), "contract_start_date"),
         (_("End Date"), "contract_end_date"),
-        (_("Basic Salary"), "wage"),
+        (_("Contract wage"), "wage"),
         (_("Status"), "status_col"),
     ]
 
@@ -201,6 +207,23 @@ class ContractsNav(HorillaNavView):
                         """,
                 }
             )
+        if self.request.user.has_perm("payroll.change_contract"):
+            # Components and structures, for the contracts ticked in the list.
+            # hx-vals reads the same #selectedInstances the Export action
+            # above reads, which is how this list already tracks a selection.
+            self.actions.append(
+                {
+                    "action": _("Components"),
+                    "attrs": f"""
+                        data-toggle="oh-modal-toggle"
+                        data-target="#relatedObjectModal"
+                        hx-get="{reverse_lazy('contracts-bulk-components')}"
+                        hx-target="#relatedObjectModalBody"
+                        hx-vals='js:{{"instance_ids": JSON.parse(document.getElementById("selectedInstances")?.getAttribute("data-ids")||"[]")}}'
+                        style="cursor: pointer;"
+                        """,
+                }
+            )
         self.actions.append(
             {
                 "action": _("Delete"),
@@ -296,24 +319,16 @@ class ContractsDetailView(HorillaDetailedView):
         "avatar": "employee_id__get_avatar",
     }
 
+    # One block, which renders its own summary bar and tabs. Fifteen labelled
+    # rows left nowhere to put the components, and the components are what
+    # decide what the wage in row four actually turns into.
     body = [
-        (_("Start Date"), "contract_start_date"),
-        (_("End Date"), "contract_end_date"),
-        (_("Wage Type"), "get_wage_type_display"),
-        (_("Basic Salary"), "wage"),
-        (_("Deduct From Basic Pay"), "deduct_leave_from_basic_pay_col"),
-        (_("Department"), "department"),
-        (_("Job Position"), "job_position"),
-        (_("Job Role"), "job_role"),
-        (_("Shift"), "shift"),
-        (_("Work Type"), "work_type"),
-        (_("Filing Status"), "filing_status"),
-        (_("Salary Structure"), "salary_structure_id"),
-        (_("Pay Frequency"), "get_pay_frequency_display"),
-        (_("Status"), "get_status_display"),
-        (_("Calculate Leave Amount"), "cal_leave_amount", True),
-        (_("Note"), "note_col", True),
-        (_("Document"), "edocument_col", True),
+        (_("Contract"), "get_contract_detail_col", True),
     ]
+
+    cols = {"get_contract_detail_col": 12}
+
+    # Long body, and an action row that must stay reachable while reading it.
+    sticky_chrome = True
 
     action_method = "detail_action"

@@ -44,6 +44,25 @@ class DeductionNav(HorillaNavView):
                             hx-target="#objectCreateModalTarget"
                             hx-swap="innerHTML"
                             """
+            # Which page this nav is embedded in, so loading a
+            # component returns there rather than always landing on
+            # Allowances. Both standalone pages and the two
+            # payroll-settings tabs share these navs.
+            library_from = self.request.GET.get("from") or "deduction"
+            # Same chooser as the Allowances nav -- it covers both kinds, and
+            # a deduction like PF or GOSI is the more error-prone half.
+            self.actions = [
+                {
+                    "action": _("Add from library"),
+                    "attrs": f"""
+                        data-toggle="oh-modal-toggle"
+                        data-target="#objectCreateModal"
+                        hx-get="{reverse('component-library')}?from={library_from}"
+                        hx-target="#objectCreateModalTarget"
+                        hx-swap="innerHTML"
+                        """,
+                },
+            ]
         self.view_types = [
             {
                 "type": "list",
@@ -68,6 +87,11 @@ class DeductionNav(HorillaNavView):
     filter_instance = DeductionFilter()
     filter_form_context_name = "form"
     search_swap_target = "#deductionListContainer"
+    # The page embeds this nav above an empty #listContainer and never fetches
+    # into it. apply_first_filter=True (the default) tells the nav "whoever
+    # embedded me already fetched the content", so nothing did -- the list
+    # stayed blank until a save or a filter happened to trigger a reload.
+    apply_first_filter = False
     template_name = "generic/inline_nav.html"
     # Modern slide-over filter panel (generic/inline_nav.html's own
     # {% if modern_filter %} branch) -- same treatment as every other
@@ -298,6 +322,16 @@ class DeductionFormView(HorillaFormView):
     form_class = DeductionForm
     new_display_title = _("Create Deduction")
     template_name = "payroll/deduction/deduction_form.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Section layout, formula chips and any saved extra conditions. Built
+        # in payroll/forms/component_layout.py so both component forms lay out
+        # the same way and a new field cannot go unrendered.
+        from payroll.forms.component_layout import form_context
+
+        context.update(form_context(self.form, Deduction))
+        return context
 
     def form_valid(self, form: DeductionForm) -> HttpResponse:
         if form.is_valid():

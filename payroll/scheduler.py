@@ -4,16 +4,19 @@ scheduler.py
 This module is used to register scheduled tasks
 """
 
-import json
+import logging
 from datetime import date, timedelta
 
 from dateutil.relativedelta import relativedelta
 
 from horilla.scheduling import register_job
-from payroll.methods.methods import calculate_employer_contribution, save_payslip
-from payroll.views.component_views import payroll_calculation
+from payroll.methods.methods import payslip_fields, save_payslip
+from payroll.methods.payroll_run import payroll_calculation
+from payroll.methods.tax_calc import TaxComputationError
 
 from .models.models import Contract, Payslip
+
+logger = logging.getLogger(__name__)
 
 
 def expire_contract():
@@ -70,22 +73,18 @@ def generate_payslip(date, companies, all):
         # A contract starting mid-period shortens only that employee's payslip,
         # so the adjusted start must stay local to this iteration.
         start_date = max(period_start, contract.contract_start_date)
-        payslip_data = payroll_calculation(employee, start_date, period_end)
+        try:
+            payslip_data = payroll_calculation(employee, start_date, period_end)
+        except TaxComputationError as exc:
+            # Unattended job: skip the employee whose filing status is broken
+            # rather than saving them a 0-tax payslip or aborting the run for
+            # everyone else. The next scheduled run picks them up once fixed.
+            logger.error("Scheduled payslip skipped: %s", exc)
+            continue
         payslip_data["payslip"] = payslip
-        data = {}
-        data["employee"] = employee
-        data["start_date"] = payslip_data["start_date"]
-        data["end_date"] = payslip_data["end_date"]
-        data["status"] = "draft"
-        data["contract_wage"] = payslip_data["contract_wage"]
-        data["basic_pay"] = payslip_data["basic_pay"]
-        data["gross_pay"] = payslip_data["gross_pay"]
-        data["deduction"] = payslip_data["total_deductions"]
-        data["net_pay"] = payslip_data["net_pay"]
-        data["pay_data"] = json.loads(payslip_data["json_data"])
-        calculate_employer_contribution(data)
-        data["installments"] = payslip_data["installments"]
-        payslip_data["instance"] = save_payslip(**data)
+        payslip_data["instance"] = save_payslip(
+            **payslip_fields(payslip_data, employee, status="draft")
+        )
 
 
 def is_last_day_of_month(date):

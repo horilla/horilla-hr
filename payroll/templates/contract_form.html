@@ -70,3 +70,97 @@
     </div>
   </div>
 </div>
+
+{% comment %}
+Keeps the wage label honest while the structure is being chosen.
+
+ContractForm sets it server-side from the saved structure, but on a new
+contract — and on any change before saving — the box would otherwise still
+read "Basic Salary" for a structure where the wage is the whole figure the
+components divide up.
+{% endcomment %}
+<script>
+(function () {
+  var wage = document.querySelector("[name=wage]");
+  var picker = document.querySelector("[name=salary_structure_id]");
+  if (!wage || !picker) { return; }
+
+  var label = document.querySelector("label[for=id_wage]");
+  var info = label && label.parentElement
+    ? label.parentElement.querySelector(".oh-info")
+    : null;
+
+  // A one-line note under the box, naming the structure responsible. The label
+  // swap alone is easy to miss on a form this long, and reading the wrong
+  // meaning into this number is how a payslip comes out wrong.
+  var note = document.querySelector("[data-wage-reading]");
+  if (!note) {
+    note = document.createElement("div");
+    note.setAttribute("data-wage-reading", "");
+    note.style.cssText =
+      "font-size:12px;color:#6b7280;margin-top:4px;display:flex;gap:6px;";
+    (wage.parentElement || wage).appendChild(note);
+  }
+
+  function apply() {
+    var option = picker.options[picker.selectedIndex];
+    var mode = (option && option.getAttribute("data-structure-mode")) || "gross_up";
+    var suffix = mode === "ctc_down" ? "ctc-down" : "gross-up";
+    var text = wage.getAttribute("data-wage-label-" + suffix);
+    var help = wage.getAttribute("data-wage-help-" + suffix);
+    var reading = wage.getAttribute("data-wage-reading-" + suffix);
+    if (label && text) { label.textContent = text; }
+    if (info && help) { info.setAttribute("title", help); }
+    if (reading) {
+      var structure = option && option.value ? option.textContent.trim() : "";
+      note.textContent = structure ? reading + " (" + structure + ")" : reading;
+    }
+  }
+
+  picker.addEventListener("change", apply);
+  if (window.jQuery) { jQuery(picker).on("change select2:select", apply); }
+  apply();
+
+  // Show the box the wage type actually pays from, and hide the ones it does
+  // not. An hourly contract showing a required "Basic Salary" of 0 next to an
+  // empty "Hourly wage" is the screen that prompted this: two boxes for one
+  // number, and the wrong one demanded.
+  var wageType = document.querySelector("[name=wage_type]");
+  var hourly = document.querySelector("[name=hourly_wage]");
+  var ctc = document.querySelector("[name=monthly_ctc]");
+
+  function cell(field) {
+    return field ? field.closest(".col-12, .col-md-6, .col-md-12") : null;
+  }
+
+  function applyUnits() {
+    if (!wageType) { return; }
+    var isHourly = wageType.value === "hourly";
+    var hourlyCell = cell(hourly);
+    var wageCell = cell(wage);
+    if (hourlyCell) { hourlyCell.style.display = isHourly ? "" : "none"; }
+    // The monthly figure is still shown for an hourly contract, because it is
+    // the documented fallback when the hourly box is empty — but it is no
+    // longer the thing being asked for first.
+    if (wageCell && isHourly) { wageCell.style.order = "1"; }
+  }
+
+  function applyCtc() {
+    var option = picker.options[picker.selectedIndex];
+    var mode = (option && option.getAttribute("data-structure-mode")) || "gross_up";
+    var ctcCell = cell(ctc);
+    // Only a CTC Down structure divides it, so for anything else it is a box
+    // that would change nothing.
+    if (ctcCell) { ctcCell.style.display = mode === "ctc_down" ? "" : "none"; }
+  }
+
+  if (wageType) {
+    wageType.addEventListener("change", applyUnits);
+    if (window.jQuery) { jQuery(wageType).on("change select2:select", applyUnits); }
+  }
+  picker.addEventListener("change", applyCtc);
+  if (window.jQuery) { jQuery(picker).on("change select2:select", applyCtc); }
+  applyUnits();
+  applyCtc();
+})();
+</script>

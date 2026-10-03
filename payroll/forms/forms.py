@@ -22,7 +22,67 @@ from payroll.models.models import (
     PayrollGeneralSetting,
     ReimbursementFile,
     ReimbursementrequestComment,
+    SalaryStructure,
 )
+
+# What the contract wage IS depends on the structure the contract is on, and
+# the field cannot say "Basic Salary" in both cases without lying in one of
+# them. Under CTC Down the wage is the whole figure the components divide up,
+# and basic is one of the components — often "50% of gross" — so calling that
+# box basic pay describes the opposite of what it does.
+WAGE_LABELS = {
+    "gross_up": _("Basic Salary"),
+    "ctc_down": _("Gross / CTC"),
+}
+
+# The unit the wage is in, said in the label rather than left to Wage Type two
+# boxes away. The same number means three different things depending on it, and
+# a list column showing "100" cannot tell you which.
+WAGE_UNITS = {
+    "monthly": _("per month"),
+    "daily": _("per day"),
+    "hourly": _("per hour"),
+}
+WAGE_HELP = {
+    "gross_up": _("Basic pay. Allowances are added on top of it to reach gross."),
+    "ctc_down": _(
+        "The total to divide up. Every earning, including basic pay, comes "
+        "from a component of this structure — so a component can be defined "
+        "as a percentage of gross, and the balance component absorbs whatever "
+        "is left."
+    ),
+}
+
+# Said plainly, next to the box, naming the structure responsible. The label
+# alone changes silently when the structure changes, which is easy to miss on a
+# form this long — and reading the wrong meaning into this number is how a
+# payslip comes out wrong.
+WAGE_READING = {
+    "gross_up": _("Read as basic pay."),
+    "ctc_down": _("Read as cost to company, and divided up by the structure."),
+}
+
+
+class SalaryStructureSelect(forms.Select):
+    """
+    The structure picker, with each option carrying its structure's mode.
+
+    The mode lives on SalaryStructure, not on Contract, so the form cannot know
+    which reading of the wage applies until one is picked. Publishing it per
+    option lets the wage label follow the choice on screen instead of only
+    being right again after a save.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.structure_modes = {}
+
+    def create_option(self, name, value, *args, **kwargs):
+        option = super().create_option(name, value, *args, **kwargs)
+        mode = self.structure_modes.get(str(value))
+        if mode:
+            option["attrs"]["data-structure-mode"] = mode
+        return option
 
 
 class ContractForm(ModelForm):
@@ -84,6 +144,56 @@ class ContractForm(ModelForm):
         self.fields["contract_document"].widget.attrs[
             "accept"
         ] = ".jpg, .jpeg, .png, .pdf"
+        self._label_wage_for_structure()
+
+    def _label_wage_for_structure(self):
+        """
+        Name the wage box after what it holds on the chosen structure, and give
+        the picker what the page needs to keep doing so as the choice changes.
+        """
+        structure = getattr(self.instance, "salary_structure_id", None)
+        mode = getattr(structure, "structure_mode", None) or "gross_up"
+
+        wage = self.fields["wage"]
+        wage.label = WAGE_LABELS.get(mode, WAGE_LABELS["gross_up"])
+        wage.help_text = WAGE_HELP.get(mode, WAGE_HELP["gross_up"])
+        wage.widget.attrs.update(
+            {
+                "data-wage-label-gross-up": WAGE_LABELS["gross_up"],
+                "data-wage-label-ctc-down": WAGE_LABELS["ctc_down"],
+                "data-wage-help-gross-up": WAGE_HELP["gross_up"],
+                "data-wage-help-ctc-down": WAGE_HELP["ctc_down"],
+                "data-wage-reading-gross-up": WAGE_READING["gross_up"],
+                "data-wage-reading-ctc-down": WAGE_READING["ctc_down"],
+                "data-wage-structure": str(structure) if structure else "",
+            }
+        )
+
+        # An hourly contract is paid from its own box, so the monthly figure is
+        # not what the engine reads and should not be demanded.
+        if (self.instance.wage_type or "monthly") == "hourly":
+            self.fields["wage"].required = False
+        unit = WAGE_UNITS.get(self.instance.wage_type or "monthly")
+        if unit and wage.label:
+            wage.label = f"{wage.label} ({unit})"
+        for name, per in (
+            ("hourly_wage", WAGE_UNITS["hourly"]),
+            ("monthly_ctc", WAGE_UNITS["monthly"]),
+        ):
+            field = self.fields.get(name)
+            if field is not None and field.label:
+                field.label = f"{field.label} ({per})"
+
+        picker = self.fields.get("salary_structure_id")
+        if picker is None:
+            return
+        widget = SalaryStructureSelect(choices=picker.widget.choices)
+        widget.attrs.update(picker.widget.attrs)
+        widget.structure_modes = {
+            str(pk): mode
+            for pk, mode in SalaryStructure.objects.values_list("pk", "structure_mode")
+        }
+        picker.widget = widget
 
     def as_p(self):
         """

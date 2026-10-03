@@ -1,0 +1,95 @@
+{% comment %}
+Shared styles for the two "start from something ready-made" choosers: salary
+components, and tax configurations.
+
+They are the same interaction — pick several from a grouped list, load them,
+nothing is overwritten — and they had drifted into two different designs: one
+a cramped five-column table where the descriptions fought the Slabs and Top
+rate columns for width, the other a plain list with no close button at all.
+One stylesheet, one row shape, so the two read the same and neither can drift
+again on its own.
+
+The row: a checkbox, a name with a kind badge, a one-line summary, an optional
+caveat, and optional figures on the right. Country or region is the group
+heading rather than a column, which is what frees the width for the summary.
+{% endcomment %}
+<style>
+  .pick__lead { font-size: 13px; color: #6b7280; margin: 0 0 4px; }
+  .pick__body {
+    max-height: 52vh; overflow-y: auto; overflow-x: hidden;
+    margin: 4px -4px 0; padding: 0 4px;
+  }
+  .pick__group {
+    font-size: 10px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; color: #6b7280;
+    padding: 14px 0 6px;
+  }
+  .pick__group:first-child { padding-top: 4px; }
+
+  .pick__row {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 10px 6px; border-bottom: 1px solid #f1f2f4;
+    border-radius: 6px; cursor: pointer;
+  }
+  .pick__row:hover { background: #fbfbfc; }
+  .pick__row:last-child { border-bottom: 0; }
+  .pick__row.is-loaded { cursor: default; }
+  .pick__row.is-loaded:hover { background: none; }
+  /* Dimmed, not hidden: seeing that GOSI is already there is the answer to
+     "why is it not in this list?". */
+  .pick__row.is-loaded .pick__name,
+  .pick__row.is-loaded .pick__summary { color: #9ca3af; }
+
+  .pick__check { flex: 0 0 auto; margin-top: 2px; }
+  .pick__main { flex: 1 1 auto; min-width: 0; }
+  .pick__name { font-weight: 600; color: #1f2430; font-size: 13.5px; }
+  .pick__badge {
+    display: inline-block; font-size: 10px; font-weight: 700;
+    letter-spacing: .04em; text-transform: uppercase;
+    border-radius: 4px; padding: 1px 6px; margin-left: 6px;
+    white-space: nowrap; vertical-align: 1px;
+  }
+  .pick__badge--earning { background: #e4f4ed; color: #0f7b5f; }
+  .pick__badge--deduction { background: #fdeeeb; color: var(--primary-600, #e54f38); }
+  .pick__summary { font-size: 12.5px; color: #4b5563; margin-top: 3px; }
+  .pick__note { font-size: 11.5px; color: #9ca3af; margin-top: 3px; }
+  .pick__meta {
+    font-size: 11.5px; color: #9ca3af; margin-top: 4px;
+    display: flex; flex-wrap: wrap; gap: 3px 12px;
+  }
+  .pick__meta b { font-weight: 600; color: #6b7280; }
+
+  /* Figures that belong to the thing rather than describing it -- the slab
+     count and top rate of a tax configuration. Right-aligned so they line up
+     down the list instead of being read as part of the sentence. */
+  .pick__stats {
+    flex: 0 0 auto; text-align: right; min-width: 74px;
+    font-size: 11.5px; color: #9ca3af;
+  }
+  .pick__stat b {
+    display: block; font-size: 13px; font-weight: 650; color: #4b5563;
+    font-variant-numeric: tabular-nums;
+  }
+  .pick__stat + .pick__stat { margin-top: 5px; }
+  .pick__loaded {
+    flex: 0 0 auto; font-size: 11.5px; color: #0f7b5f; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+
+  .pick__caveat {
+    display: flex; align-items: flex-start; gap: 7px;
+    background: #fff8e6; color: #7a5b00;
+    border-radius: 8px; padding: 9px 11px; margin-top: 12px;
+    font-size: 12px;
+  }
+  .pick__caveat ion-icon { flex: 0 0 auto; font-size: 15px; margin-top: 1px; }
+
+  .pick__foot {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 12px; margin-top: 14px; padding-top: 12px;
+    border-top: 1px solid #ececf0;
+  }
+  .pick__hint { font-size: 11.5px; color: #9ca3af; }
+  .pick__actions { display: flex; gap: 8px; flex: 0 0 auto; }
+  .pick__empty { font-size: 13px; color: #9ca3af; padding: 16px 6px; }
+</style>

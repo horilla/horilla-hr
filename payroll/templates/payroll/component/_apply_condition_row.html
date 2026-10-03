@@ -1,0 +1,115 @@
+{% load i18n %}
+{% comment %}
+One extra "when it applies" rule.
+
+Built from the same pieces as every other field on the form — a
+`col-* oh-component-field` cell, an `oh-component-field__label`, and the widget
+class the form itself uses — rather than a private grid. The inputs cannot come
+from `_field.html` because they are repeated and post as parallel lists, but
+they have no reason to look different, and a hand-rolled cell drifts the moment
+the form's own styling changes.
+
+Posted as apply_choices / apply_codes / apply_conditions / apply_amounts /
+apply_starts / apply_ends, read back by `save_apply_conditions` in
+payroll/forms/component_forms.py. Every row contributes to every list at the
+same index, so all the inputs stay in the DOM whether or not they are on screen.
+
+`data-show-scope="row"` keeps a row's own Measure and Is driving its own
+component and amount boxes. Without it they all share field names and would
+follow whichever row came first.
+
+Labels are taken from the bound fields so the extra rules read as the same kind
+of thing as the first one, in whatever language the form is in.
+{% endcomment %}
+<div class="col-12 apply-rule" data-apply-row>
+  <div class="apply-rule__head">
+    <span class="apply-rule__and">{% trans "and" %}</span>
+    <span class="apply-rule__rule"></span>
+    <button type="button" class="apply-rule__remove" data-remove-apply
+            title="{% trans 'Remove this rule' %}" aria-label="{% trans 'Remove this rule' %}">
+      <ion-icon name="trash-outline"></ion-icon>
+    </button>
+  </div>
+
+  <div class="row m-0">
+    <div class="col-12 col-md-6 oh-component-field">
+      <div class="oh-component-field__label">
+        <label class="oh-label mb-0">{{ if_choice.label }}</label>
+      </div>
+      <div>
+        <select name="apply_choices"
+                class="{{ if_choice.field.widget.attrs.class }} form-control">
+          {% for value_, label_ in if_choice.field.choices %}
+            <option value="{{ value_ }}"{% if rule and rule.choice == value_ %} selected{% endif %}>{{ label_ }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 oh-component-field"
+         data-show-scope="row" data-show-if="apply_choices=component">
+      <div class="oh-component-field__label">
+        <label class="oh-label mb-0">{{ if_component_code.label }}</label>
+      </div>
+      <div>
+        <select name="apply_codes"
+                class="{{ if_component_code.field.widget.attrs.class }} form-control">
+          {% for value_, label_ in if_component_code.field.choices %}
+            <option value="{{ value_ }}"{% if rule and rule.component_code == value_ %} selected{% endif %}>{{ label_ }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 oh-component-field">
+      <div class="oh-component-field__label">
+        <label class="oh-label mb-0">{{ if_condition.label }}</label>
+      </div>
+      <div>
+        <select name="apply_conditions"
+                class="{{ if_condition.field.widget.attrs.class }} form-control">
+          {% for value_, label_ in if_condition.field.choices %}
+            <option value="{{ value_ }}"{% if rule and rule.condition == value_ %} selected{% endif %}>{{ label_ }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 oh-component-field"
+         data-show-scope="row"
+         data-show-if="apply_conditions=equal|notequal|lt|gt|le|ge">
+      <div class="oh-component-field__label">
+        <label class="oh-label mb-0">{{ if_amount.label }}</label>
+      </div>
+      <div>
+        <input type="number" step="any" name="apply_amounts"
+               class="{{ if_amount.field.widget.attrs.class }} form-control"
+               value="{% if rule %}{{ rule.amount|default_if_none:'' }}{% endif %}">
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 oh-component-field"
+         data-show-scope="row" data-show-if="apply_conditions=range">
+      <div class="oh-component-field__label">
+        <label class="oh-label mb-0">{{ start_range.label }}</label>
+      </div>
+      <div>
+        <input type="number" step="any" name="apply_starts"
+               class="{{ start_range.field.widget.attrs.class }} form-control"
+               value="{% if rule %}{{ rule.start_range|default_if_none:'' }}{% endif %}">
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 oh-component-field"
+         data-show-scope="row" data-show-if="apply_conditions=range">
+      <div class="oh-component-field__label">
+        <label class="oh-label mb-0">{{ end_range.label }}</label>
+      </div>
+      <div>
+        <input type="number" step="any" name="apply_ends"
+               class="{{ end_range.field.widget.attrs.class }} form-control"
+               value="{% if rule %}{{ rule.end_range|default_if_none:'' }}{% endif %}">
+      </div>
+    </div>
+  </div>
+</div>

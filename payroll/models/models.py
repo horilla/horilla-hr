@@ -19,6 +19,7 @@ from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
+from django.utils.translation import ngettext
 
 from base.horilla_company_manager import HorillaCompanyManager
 from base.methods import get_next_month_same_date
@@ -38,6 +39,7 @@ from horilla.horilla_middlewares import _thread_locals
 from horilla.models import HorillaModel, upload_path
 from horilla_audit.models import HorillaAuditInfo, HorillaAuditLog
 from horilla_views.cbv_methods import render_template
+from payroll.methods.proration import BASIS_CHOICES
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +53,62 @@ def min_zero(value):
     """
     if value < 0:
         raise ValidationError(_("Value must be greater than zero"))
+
+
+# Figures the engine publishes itself. A component may not take one of these
+# names, because a formula reading GROSS has to get gross — an allowance titled
+# "Gross" would otherwise derive the code GROSS and quietly replace it with its
+# own amount, moving every percentage-of-gross in the structure.
+#
+# BASIC is deliberately absent: a CTC Down structure derives basic pay FROM a
+# component, so that one is meant to be written.
+RESERVED_COMPONENT_CODES = frozenset({"GROSS", "CTC"})
+
+
+def derive_component_code(model, title, exclude_pk=None):
+    """
+    Build a component code from its title.
+
+    Codes exist so one component can refer to another, but nobody configuring
+    payroll should have to invent one: they pick the component they mean from a
+    list. So the code is derived here and the field stays out of the form.
+
+    "House Rent Allowance" -> HOUSE_RENT_ALLOWANCE, de-duplicated with a
+    numeric suffix if that name is already taken.
+    """
+    base = re.sub(r"[^A-Za-z0-9]+", "_", (title or "").strip()).strip("_").upper()
+    base = re.sub(r"_+", "_", base)[:28] or "COMPONENT"
+    if base[0].isdigit():
+        base = f"C_{base}"[:28]
+
+    candidate = base
+    suffix = 2
+    while True:
+        taken = candidate in RESERVED_COMPONENT_CODES
+        if not taken:
+            clash = model.objects.filter(code=candidate)
+            if exclude_pk:
+                clash = clash.exclude(pk=exclude_pk)
+            taken = clash.exists()
+        if not taken:
+            return candidate
+        candidate = f"{base[:26]}_{suffix}"
+        suffix += 1
+
+
+def component_code_validator(value):
+    """
+    A component code is an identifier other components reference by name, so it
+    has to be predictable to type and safe to drop into a formula: uppercase,
+    starting with a letter, no spaces or punctuation beyond an underscore.
+    """
+    if value and not re.fullmatch(r"[A-Z][A-Z0-9_]*", value):
+        raise ValidationError(
+            _(
+                "Use an uppercase code starting with a letter, e.g. BASIC or "
+                "HRA_METRO. Letters, digits and underscores only."
+            )
+        )
 
 
 def get_date_range(start_date, end_date):
@@ -84,6 +142,21 @@ class FilingStatus(HorillaModel):
     FilingStatus model
     """
 
+    # python_code holds Python source, not prose or markup, and HorillaModel's
+    # XSS regex is built for HTML. Its inline-event-handler pattern (on\w+\s*=)
+    # matches any assignment to a variable containing "on" — "month_taxable =",
+    # "contribution =", "bonus =" — so a perfectly ordinary tax formula was
+    # rejected as "Potential XSS content detected." The template this app ships
+    # as the starting point trips it, which means Python mode could not save
+    # its own default.
+    #
+    # Exempting it is safe because this field has a far stricter guard already:
+    # validate_tax_code parses it and rejects anything outside an AST allow-list
+    # before it can be stored, and the engine executes it with restricted
+    # builtins under a timeout. It is never rendered as HTML — the editor puts
+    # it in a textarea, where Django escapes it.
+    xss_exempt_fields = ["python_code"]
+
     based_on_choice = [
         ("basic_pay", _("Basic Pay")),
         ("gross_pay", _("Gross Pay")),
@@ -104,6 +177,47 @@ class FilingStatus(HorillaModel):
     )
     use_py = models.BooleanField(verbose_name=_("Python Code"), default=False)
     python_code = models.TextField(null=True)
+
+    # --- Declarative adjustments -------------------------------------------
+    # Applied around whichever mode computes the tax, so slabs and a Python
+    # formula both get them. Every default is a no-op, so existing filing
+    # statuses compute exactly as before until someone sets one.
+    #
+    # These exist because the shipped Python template is 70 lines that
+    # reimplement the bracket table, which means the only reason most tenants
+    # ever reached for code was a rule the data model could not express. These
+    # three cover the common ones: US federal needs the deduction; India's new
+    # regime needs all three.
+    standard_deduction = models.FloatField(
+        default=0.0,
+        verbose_name=_("Standard deduction"),
+        help_text=_(
+            "Subtracted from yearly income before tax is worked out. 0 for none."
+        ),
+    )
+    rebate_income_limit = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name=_("Rebate income limit"),
+        help_text=_(
+            "If yearly income after the standard deduction is at or below this, "
+            "the rebate below is applied. Leave blank for no rebate."
+        ),
+    )
+    rebate_max_amount = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name=_("Maximum rebate"),
+        help_text=_(
+            "The most tax the rebate can cancel out. Tax never goes below zero."
+        ),
+    )
+    cess_percent = models.FloatField(
+        default=0.0,
+        verbose_name=_("Cess / surcharge (%)"),
+        help_text=_("Added on top of the computed tax, as a percentage of it."),
+    )
+
     description = models.TextField(
         blank=True,
         verbose_name=_("Description"),
@@ -116,6 +230,75 @@ class FilingStatus(HorillaModel):
 
     def __str__(self) -> str:
         return str(self.filing_status)
+
+    @property
+    def computation_steps(self):
+        """
+        How this filing status works out tax, as ordered plain-English steps.
+
+        Tax configuration is spread across a mode flag, a slab table and four
+        adjustment fields, so what a status actually *does* was only knowable
+        by reading all of them and knowing the order the engine applies them
+        in. This states it, in the engine's real order (see
+        tax_calc.compute_yearly_tax), so the screen answers the question the
+        configuration raises.
+        """
+        steps = [
+            _("Start from the employee's %(basis)s for the period, scaled to a year.")
+            % {"basis": self.get_based_on_display()}
+        ]
+
+        if self.standard_deduction:
+            steps.append(
+                _("Subtract a standard deduction of %(amount)s.")
+                % {"amount": f"{self.standard_deduction:,.0f}"}
+            )
+
+        if self.use_py:
+            steps.append(_("Work out the tax with the Python formula."))
+        else:
+            count = self.taxbracket_set.count()
+            if count:
+                # ngettext, not "slab(s)": this is read by someone checking a
+                # tax configuration, and a parenthesised plural reads as a
+                # placeholder nobody finished.
+                steps.append(
+                    ngettext(
+                        "Apply the single tax slab, charging its rate on the "
+                        "part of income inside it.",
+                        "Apply %(count)s tax slabs, charging each band's rate "
+                        "on only the part of income inside it.",
+                        count,
+                    )
+                    % {"count": count}
+                )
+            else:
+                steps.append(_("No slabs are configured yet, so the tax is 0."))
+
+        if self.rebate_income_limit is not None:
+            steps.append(
+                _(
+                    "If taxable income is at or below %(limit)s, cancel up to "
+                    "%(amount)s of that tax."
+                )
+                % {
+                    "limit": f"{self.rebate_income_limit:,.0f}",
+                    "amount": f"{self.rebate_max_amount or 0:,.0f}",
+                }
+            )
+
+        if self.cess_percent:
+            steps.append(
+                _("Add %(percent)s%% cess on top of the tax still payable.")
+                % {"percent": f"{self.cess_percent:g}"}
+            )
+
+        steps.append(_("Scale the yearly figure back down to this pay period."))
+        return steps
+
+    def get_rules_url(self):
+        """URL of this filing status' own slabs/adjustments/formula page."""
+        return reverse("filing-status-rules", kwargs={"pk": self.pk})
 
     def get_update_url(self):
         """
@@ -210,7 +393,52 @@ class Contract(HorillaModel):
         default="monthly",
         verbose_name=_("Pay Frequency"),
     )
-    wage = models.FloatField(verbose_name=_("Basic Salary"), null=True, default=0)
+    # One field, two readings, and the salary structure decides which — the same
+    # answer the v2 engine settled on for its own wage field. The
+    # verbose_name stays "Basic Salary" because that is what it means for the
+    # overwhelming majority of contracts (no structure, or a Gross Up one);
+    # ContractForm swaps the label when the structure says otherwise.
+    wage = models.FloatField(
+        verbose_name=_("Basic Salary"),
+        null=True,
+        default=0,
+        help_text=_(
+            "Basic pay under a Gross Up structure. Under a CTC Down structure "
+            "this is the monthly cost to company instead, and basic pay is "
+            "worked out from a component of that structure. The unit follows "
+            "Wage Type: a monthly figure, a day rate, or an hourly rate."
+        ),
+    )
+    # The hourly rate gets its own box rather than being read out of `wage`.
+    # One field holding a monthly salary for one contract and an hourly rate for
+    # the next is why every list column showing it is ambiguous: 100 could be a
+    # month's pay or an hour's. Left empty it falls back to `wage`, so hourly
+    # contracts entered before this field existed are unaffected.
+    hourly_wage = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name=_("Hourly wage"),
+        help_text=_(
+            "Pay for one hour. Used when Wage Type is Hourly, multiplied by "
+            "the hours actually worked. Leave empty to use Basic Salary as the "
+            "hourly rate instead."
+        ),
+    )
+    # Stated outright rather than inferred. The wage above is the pay rate —
+    # basic pay, per the unit in Wage Type. This is the whole package, and the
+    # two are different numbers, so they get different boxes. A CTC Down
+    # structure divides this up; left empty, it falls back to the wage so that
+    # structures configured before this field existed keep working.
+    monthly_ctc = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name=_("Monthly CTC"),
+        help_text=_(
+            "The total monthly cost to company. Only used by a CTC Down "
+            "salary structure, which divides it into components. Leave empty "
+            "to divide up the wage above instead."
+        ),
+    )
     filing_status = models.ForeignKey(
         FilingStatus,
         on_delete=models.PROTECT,
@@ -282,14 +510,24 @@ class Contract(HorillaModel):
     contract_document = models.FileField(upload_to=upload_path, null=True, blank=True)
     deduct_leave_from_basic_pay = models.BooleanField(
         default=True,
-        verbose_name=_("Deduct From Basic Pay"),
-        help_text=_("Deduct the leave amount from basic pay."),
+        verbose_name=_("Take Loss Of Pay Off Basic Pay"),
+        help_text=_(
+            "On: unpaid days are taken off basic pay before gross is built, "
+            "so nothing appears as a separate deduction. Off: basic pay is "
+            "left whole and loss of pay is deducted afterwards — which also "
+            "means it does not reduce taxable gross."
+        ),
     )
     calculate_daily_leave_amount = models.BooleanField(
         default=True,
         verbose_name=_("Calculate Daily Leave Amount"),
         help_text=_(
-            "Leave amount will be calculated by dividing the basic pay by number of working days."
+            "On: one unpaid day costs Daily Leave Amount From ÷ Daily Leave "
+            "Amount Divided By, both set below. Off: it costs the flat "
+            "Deduction For One Leave Amount typed in instead. Either way, "
+            "Deduct Leave From Basic Pay decides whether it comes off basic "
+            "pay directly or shows as its own deduction, and Loss Of Pay Is "
+            "Pre-Tax decides whether it also reduces what tax is worked out on."
         ),
     )
     deduction_for_one_leave_amount = models.FloatField(
@@ -297,6 +535,50 @@ class Contract(HorillaModel):
         blank=True,
         default=0,
         verbose_name=_("Deduction For One Leave Amount"),
+    )
+    # What a day of unpaid leave costs, when it is computed rather than typed
+    # in. Two separate questions, and both were hardcoded: which figure a day
+    # is a share OF, and how many days it is shared between.
+    DAILY_LEAVE_BASE_CHOICES = [
+        ("wage", _("Basic pay")),
+        ("monthly_ctc", _("Monthly CTC")),
+        ("gross_pay", _("Gross pay")),
+    ]
+    daily_leave_amount_base = models.CharField(
+        max_length=20,
+        choices=DAILY_LEAVE_BASE_CHOICES,
+        default="wage",
+        verbose_name=_("Daily Leave Amount From"),
+        help_text=_(
+            "Which figure a day of unpaid leave is a share of. Gross pay is "
+            "only known after the earnings are worked out, so choosing it "
+            "defers the deduction: basic pay is left whole and loss of pay "
+            "comes off afterwards, instead of being taken out of basic first."
+        ),
+    )
+    loss_of_pay_is_pretax = models.BooleanField(
+        default=True,
+        verbose_name=_("Loss Of Pay Is Pre-Tax"),
+        help_text=_(
+            "On: unpaid days come out of the figure tax is worked out on, so "
+            "the employee is not taxed on pay they did not receive. Off: they "
+            "are taxed as though they had been paid it."
+        ),
+    )
+    DAILY_LEAVE_DIVISOR_CHOICES = [
+        ("working_days", _("Working days in the month")),
+        ("calendar_days", _("Calendar days in the month")),
+    ]
+    daily_leave_amount_divisor = models.CharField(
+        max_length=20,
+        choices=DAILY_LEAVE_DIVISOR_CHOICES,
+        default="calendar_days",
+        verbose_name=_("Daily Leave Amount Divided By"),
+        help_text=_(
+            "Working days makes each unpaid day cost more: a 44,000 wage over "
+            "22 working days is 2,000 a day, over 30 calendar days it is "
+            "1,467. Calendar days is the default for a new contract."
+        ),
     )
 
     note = models.TextField(null=True, blank=True)
@@ -308,6 +590,212 @@ class Contract(HorillaModel):
     )
 
     objects = HorillaCompanyManager("employee_id__employee_work_info__company_id")
+
+    def get_contract_detail_col(self):
+        """
+        The whole contract modal: summary, then Terms and Components tabs.
+
+        One block rather than fifteen labelled rows, so the components have
+        somewhere to live — they were not shown on a contract at all, despite
+        being the thing that decides what the wage above them turns into.
+        """
+        rows = self.component_rows
+        return render_template(
+            path="cbv/contracts/contract_detail.html",
+            context={
+                "instance": self,
+                "component_rows": rows,
+                # Built here rather than as fifteen body entries: the tab lays
+                # them out in two columns, which the generic one-per-row grid
+                # cannot do.
+                "terms": [
+                    (_("Start date"), self.contract_start_date),
+                    (_("End date"), self.contract_end_date),
+                    (_("Wage type"), self.get_wage_type_display()),
+                    (_("Contract wage"), self.wage),
+                    (_("Hourly wage"), self.hourly_wage),
+                    (_("Monthly CTC"), self.monthly_ctc),
+                    (_("Pay frequency"), self.get_pay_frequency_display()),
+                    (_("Department"), self.department),
+                    (_("Job position"), self.job_position),
+                    (_("Job role"), self.job_role),
+                    (_("Shift"), self.shift),
+                    (_("Work type"), self.work_type),
+                    (
+                        _("Deduct leave from basic pay"),
+                        _("Yes") if self.deduct_leave_from_basic_pay else _("No"),
+                    ),
+                    (
+                        _("Calculate daily leave amount"),
+                        _("Yes") if self.calculate_daily_leave_amount else _("No"),
+                    ),
+                    (_("Note"), self.note),
+                ],
+            },
+        )
+
+    @property
+    def component_rows(self):
+        """
+        Every component that reaches this employee, and how it reaches them.
+
+        A salary structure is not the link: add_allowance() pushes the
+        employee onto the component's ``specific_employees`` and that is what
+        the engine reads. So a component can apply through the structure,
+        because it was targeted directly, because it applies to all active
+        employees, or because it is condition-based — four routes that look
+        identical on a payslip and completely different when you want to stop
+        one.
+
+        Membership is the only thing editable from a contract. The component
+        itself is shared: changing "HRA 50%" here would change it for everyone
+        on it, which is what the structure and the component's own form are
+        for.
+        """
+        from payroll.methods.component_summary import calculation_summary
+
+        employee = self.employee_id
+        structure = self.salary_structure_id
+        in_structure = {"allowance": set(), "deduction": set()}
+        if structure is not None:
+            in_structure["allowance"] = set(
+                structure.allowances.values_list("pk", flat=True)
+            )
+            in_structure["deduction"] = set(
+                structure.deductions.values_list("pk", flat=True)
+            )
+
+        rows = []
+        for model, kind in ((Allowance, "allowance"), (Deduction, "deduction")):
+            targeted = set(
+                model.objects.filter(specific_employees=employee).values_list(
+                    "pk", flat=True
+                )
+            )
+            excluded = set(
+                model.objects.filter(exclude_employees=employee).values_list(
+                    "pk", flat=True
+                )
+            )
+            reachable = (
+                (
+                    model.objects.filter(pk__in=targeted)
+                    | model.objects.filter(is_condition_based=True).exclude(
+                        pk__in=excluded
+                    )
+                    | model.objects.filter(include_active_employees=True).exclude(
+                        pk__in=excluded
+                    )
+                )
+                .exclude(is_system=True)
+                .distinct()
+            )
+
+            for component in reachable.order_by("sequence", "pk"):
+                if component.pk in in_structure[kind]:
+                    source, source_label = "structure", _("From the structure")
+                elif component.pk in targeted:
+                    source, source_label = "targeted", _("Added to this employee")
+                elif component.include_active_employees:
+                    source, source_label = "everyone", _("Applies to all employees")
+                else:
+                    source, source_label = "conditional", _("Condition based")
+
+                rows.append(
+                    {
+                        "component": component,
+                        "kind": kind,
+                        "pk": component.pk,
+                        "title": component.title,
+                        "code": component.code,
+                        "sequence": component.sequence,
+                        "calculation": calculation_summary(component),
+                        "source": source,
+                        "source_label": source_label,
+                        # Only a directly-targeted or structure component can
+                        # be turned off here. "Applies to all employees" and
+                        # condition-based ones are decided by the component,
+                        # so switching one off for one person would mean
+                        # adding them to exclude_employees -- a different
+                        # thing, and one that belongs on the component.
+                        "can_toggle": source in ("structure", "targeted"),
+                        # A loan instalment, a penalty or an approved
+                        # reimbursement: real pay for this employee, but
+                        # generated, so not something to tick on or off.
+                        "generated": component.only_show_under_employee,
+                        "standard": False,
+                    }
+                )
+
+        # The standard pay items apply to everybody, always. Not membership —
+        # nobody is opted in to loss of pay; it happens when leave is unpaid,
+        # a loan happens when one is granted. They are listed because the
+        # question this view answers is "what can reach this payslip", and
+        # leaving them out answered it wrongly by omission.
+        for model, kind in ((Allowance, "allowance"), (Deduction, "deduction")):
+            for template in (
+                model.objects.entire().filter(is_system=True).order_by("sequence", "pk")
+            ):
+                rows.append(
+                    {
+                        "component": template,
+                        "kind": kind,
+                        "pk": template.pk,
+                        "title": template.title,
+                        "code": template.code,
+                        "sequence": template.sequence,
+                        "calculation": _("When it happens"),
+                        "source": "standard",
+                        "source_label": _("Standard, always on"),
+                        "can_toggle": False,
+                        "generated": False,
+                        "standard": True,
+                    }
+                )
+
+        rows.sort(
+            key=lambda row: (
+                row.get("standard", False),
+                row["generated"],
+                row["sequence"],
+                row["pk"],
+            )
+        )
+        return rows
+
+    @property
+    def assignable_components(self):
+        """
+        The components that could be added to this contract but are not on it.
+
+        Generated rows and system templates are left out: the first belong to
+        one loan or claim, the second are never paid.
+        """
+        on_it = {(row["kind"], row["pk"]) for row in self.component_rows}
+        rows = []
+        for model, kind in ((Allowance, "allowance"), (Deduction, "deduction")):
+            queryset = (
+                model.objects.exclude(is_system=True)
+                .exclude(only_show_under_employee=True)
+                .order_by("sequence", "pk")
+            )
+            for component in queryset:
+                if (kind, component.pk) not in on_it:
+                    rows.append({"component": component, "kind": kind})
+        return rows
+
+    @property
+    def pay_rate(self):
+        """
+        The figure the engine should read, in the unit Wage Type states.
+
+        Hourly contracts have their own box; everything else uses the wage. The
+        fallback to `wage` is what keeps an hourly contract entered before that
+        box existed paying exactly what it paid.
+        """
+        if self.wage_type == "hourly" and self.hourly_wage:
+            return self.hourly_wage
+        return self.wage
 
     def get_wage_type_display(self):
         """
@@ -817,6 +1305,10 @@ def rate_validator(value):
         raise ValidationError(_("Rate must be less than 100"))
 
 
+# Sourced from the module that does the arithmetic, so the options offered here
+# and the scaling actually applied cannot drift apart.
+MAXIMUM_UNIT_CHOICES = [(value, _(label)) for value, label in BASIS_CHOICES]
+
 CONDITION_CHOICE = [
     ("equal", _("Equal (==)")),
     ("notequal", _("Not Equal (!=)")),
@@ -868,6 +1360,81 @@ class MultipleCondition(models.Model):
     )
 
 
+# What a "when it applies" rule may be measured against.
+#
+# The set differs by component type, and not for tidiness: gross is basic plus
+# the allowances, and net is what is left after the deductions, so at the moment
+# an ALLOWANCE is being worked out neither figure exists yet. if_condition_on
+# used to leave gross at 0 for allowances, so a rule against it would have
+# compared with zero and silently paid nothing — which is why the allowance list
+# only ever offered basic pay.
+APPLY_CHOICE_BASE = [
+    ("basic_pay", _("Basic pay")),
+    ("ctc", _("Cost to company")),
+    ("component", _("Another component")),
+]
+APPLY_CHOICE_AFTER_EARNINGS = [
+    ("gross_pay", _("Gross pay")),
+    ("taxable_gross_pay", _("Taxable gross pay")),
+]
+
+
+class ApplyCondition(models.Model):
+    """
+    One extra "when it applies" rule, beyond the one on the component itself.
+
+    Every rule has to hold for the component to be paid. Separate rows rather
+    than a single expression because each is a plain comparison and the form
+    builds them by picking, not by typing — and because "range" needs two bounds
+    where the others need one.
+    """
+
+    choice = models.CharField(max_length=32, default="basic_pay")
+    condition = models.CharField(
+        max_length=10, choices=IF_CONDITION_CHOICE, default="gt"
+    )
+    amount = models.FloatField(default=0.0)
+    start_range = models.FloatField(null=True, blank=True)
+    end_range = models.FloatField(null=True, blank=True)
+    # The target when `choice` is "component". Held by code, like
+    # percentage_of_code, so a rule survives the component being renamed.
+    component_code = models.CharField(max_length=32, blank=True, default="")
+
+    def __str__(self):
+        return f"{self.choice} {self.condition} {self.amount}"
+
+
+class SystemSafeQuerySet(models.QuerySet):
+    """
+    A queryset that will not delete a standard pay item.
+
+    Model.delete() is not called for a queryset delete — Django deletes in
+    bulk — so the guard on the model is no protection against
+    ``Deduction.objects.filter(...).delete()``. That is not a hypothetical: it
+    is how the loan signal clears a repayment schedule before rebuilding it,
+    and how bulk actions elsewhere in this app remove rows. One stray filter
+    and the template a generator depends on is gone.
+
+    Excluded rather than refused, so a bulk delete still removes everything it
+    legitimately can: the caller wanted the instalments gone, and the template
+    was never one of them.
+    """
+
+    def delete(self):
+        blocked = self.filter(is_system=True)
+        if blocked.exists():
+            logger.warning(
+                "Skipped %s system component(s) in a bulk delete: %s",
+                blocked.count(),
+                ", ".join(blocked.values_list("system_key", flat=True)),
+            )
+            return self.exclude(is_system=True).delete()
+        return super().delete()
+
+
+SystemSafeCompanyManagerBase = HorillaCompanyManager.from_queryset(SystemSafeQuerySet)
+
+
 class Allowance(HorillaModel):
     """
     Allowance model
@@ -880,6 +1447,13 @@ class Allowance(HorillaModel):
 
     based_on_choice = [
         ("basic_pay", _("Basic Pay")),
+        # Reference another component by its code, rather than one of the
+        # fixed aggregates every other strategy is hardwired to.
+        ("component", _("Percentage of Another Component")),
+        ("formula", _("Custom Formula")),
+        # Absorbs whatever is left of CTC after every other earning. Only
+        # meaningful in a CTC Down structure, and only as the last component.
+        ("balance", _("Balance of CTC")),
         ("children", _("Children")),
     ]
 
@@ -894,9 +1468,7 @@ class Allowance(HorillaModel):
         ]
         based_on_choice += attendance_choices
 
-    if_condition_choice = [
-        ("basic_pay", _("Basic Pay")),
-    ]
+    if_condition_choice = APPLY_CHOICE_BASE
     title = models.CharField(
         max_length=255,
         null=False,
@@ -925,6 +1497,20 @@ class Allowance(HorillaModel):
     is_taxable = models.BooleanField(
         default=True,
     )
+    # Says outright that this earning IS the employee's basic pay, rather than
+    # the engine inferring it from a derived code. It is only used when the
+    # contract does not state a wage — the contract wins, because that is where
+    # an employee's pay is agreed. See basic_pay_source() below.
+    is_basic_pay = models.BooleanField(
+        default=False,
+        verbose_name=_("This is basic pay"),
+        help_text=_(
+            "Use this earning as the employee's basic pay when their contract "
+            "has no wage. If the contract does state a wage, that wins and "
+            "this earning is not paid — otherwise basic would be counted "
+            "twice."
+        ),
+    )
     is_condition_based = models.BooleanField(
         default=False,
     )
@@ -942,6 +1528,47 @@ class Allowance(HorillaModel):
         max_length=255,
         null=True,
         blank=True,
+    )
+
+    # --- Cross-component reference ----------------------------------------
+    # A component had no identity another component could name, and no defined
+    # position in the run: candidates were gathered as an unordered queryset
+    # union, so "HRA = 50% of BASIC" was inexpressible and evaluation order was
+    # whatever the database happened to return.
+    code = models.CharField(
+        max_length=32,
+        blank=True,
+        default="",
+        verbose_name=_("Code"),
+        validators=[component_code_validator],
+        help_text=_(
+            "Short uppercase name other components can refer to, e.g. BASIC or "
+            "HRA. Leave blank if nothing needs to reference this one."
+        ),
+    )
+    sequence = models.PositiveIntegerField(
+        default=100,
+        db_index=True,
+        verbose_name=_("Sequence"),
+        help_text=_(
+            "Evaluation order — lower runs first. A component can only use the "
+            "value of one that runs before it."
+        ),
+    )
+    percentage_of_code = models.CharField(
+        max_length=32,
+        blank=True,
+        default="",
+        verbose_name=_("Percentage of"),
+        help_text=_("Code of the component this percentage is taken from."),
+    )
+    formula = models.TextField(
+        blank=True,
+        default="",
+        verbose_name=_("Formula"),
+        help_text=_(
+            "Expression over other components' codes, e.g. (BASIC + DA) * 0.12"
+        ),
     )
 
     is_fixed = models.BooleanField(
@@ -1025,21 +1652,39 @@ class Allowance(HorillaModel):
         validators=[min_zero],
         verbose_name=_("Maximum Amount"),
     )
+    # Governs the flat amount AND the ceiling, which is why it no longer lives
+    # under "upper limit". It keeps the column name it was born with because
+    # renaming one costs a data migration for no behaviour.
+    #
+    # Defaults to a month's worth split by calendar days, so a new component
+    # prorates without anyone having to think about it — a ten day period pays
+    # ten thirtieths, which is what people mean by a monthly figure.
+    #
+    # Existing components were settled onto a flat basis first (see
+    # normalise_component_basis), because they were created when this field did
+    # nothing and their amounts are whatever they have always paid. So this
+    # default reaches new components only, and a statutory flat figure like
+    # professional tax needs "A flat amount" chosen explicitly.
     maximum_unit = models.CharField(
         max_length=20,
         null=True,
-        default="month_working_days",
-        choices=[
-            (
-                "month_working_days",
-                _("For working days on month"),
-            ),
-            # ("monthly_working_days", "For working days on month"),
-        ],
-        verbose_name=_("Maximum Unit"),
+        default="month_calendar_days",
+        choices=MAXIMUM_UNIT_CHOICES,
+        verbose_name=_("This amount is"),
+        help_text=_(
+            "What the figures above are quoted per — both a fixed amount and "
+            "any ceiling. A month's worth is shared out across a part-month "
+            "period, so ten working days of a twenty-two working day month "
+            "gives ten twenty-seconds of it. A flat amount is the same in "
+            "every period, however long. Percentages are not affected: they "
+            "already follow the period through whatever they are a percentage "
+            "of."
+        ),
     )
     if_choice = models.CharField(
-        max_length=10,
+        # Long enough for "taxable_gross_pay"; the old limit of 10 predates any
+        # choice longer than "basic_pay".
+        max_length=32,
         choices=if_condition_choice,
         default="basic_pay",
     )
@@ -1064,9 +1709,38 @@ class Allowance(HorillaModel):
     )
     only_show_under_employee = models.BooleanField(default=False, editable=False)
     is_loan = models.BooleanField(default=False, editable=False)
-    objects = HorillaCompanyManager()
+    # A standard pay item -- a loan, a fine, loss of pay -- as a template row
+    # rather than a component anyone built. See payroll/system_components.py:
+    # the real rows are generated per employee per instalment, so this one is
+    # never paid; it says how its kind is treated, and the generators read it
+    # instead of falling through to the model defaults.
+    is_system = models.BooleanField(default=False, editable=False)
+    system_key = models.CharField(
+        max_length=50, blank=True, default="", editable=False, db_index=True
+    )
+    # Querysets from this manager refuse to bulk-delete a standard pay
+    # item; see SystemSafeQuerySet.
+    objects = SystemSafeCompanyManagerBase()
     other_conditions = models.ManyToManyField(
         MultipleCondition, blank=True, editable=False
+    )
+    # Extra "when it applies" rules. The one on the component itself is the
+    # first; these are AND-ed onto it.
+    apply_conditions = models.ManyToManyField(
+        ApplyCondition, blank=True, editable=False, related_name="%(class)s_set"
+    )
+    # Which component the first "when it applies" rule measures, when it is set
+    # to measure one. Separate from percentage_of_code: that is what the amount
+    # is a share of, and there is no reason the two must be the same component.
+    if_component_code = models.CharField(
+        max_length=32,
+        blank=True,
+        default="",
+        verbose_name=_("Which component"),
+        help_text=_(
+            "The component this rule looks at. It must be worked out before "
+            "this one, so give it a lower sequence."
+        ),
     )
 
     class Meta:
@@ -1402,7 +2076,35 @@ class Allowance(HorillaModel):
 
         if not self.id:
             stamp_company_on_create(self)
+        # Derived, not asked for: a code exists so other components can refer to
+        # this one, and the person configuring payroll picks components from a
+        # list rather than inventing identifiers.
+        if not (self.code or "").strip():
+            self.code = derive_component_code(Allowance, self.title, exclude_pk=self.pk)
         super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        """
+        A standard pay item cannot be deleted.
+
+        Loans, penalties and reimbursements read their template to decide how
+        the rows they generate are treated. Remove it and those generators
+        fall back to model defaults nobody chose — silently, on the next loan
+        anyone raises. Refused here as well as in the view because a template
+        is reachable from a shell, an API and the admin, and the consequence
+        is the same from all three.
+
+        Refused rather than raised, following Reimbursement.delete(): callers
+        here delete in bulk and a raise would abort the rest of the batch.
+        """
+        if self.is_system:
+            logger.warning(
+                "Refused to delete system component %s (%s)",
+                self.system_key,
+                self.title,
+            )
+            return (0, {})
+        return super().delete(*args, **kwargs)
 
 
 class Deduction(HorillaModel):
@@ -1410,16 +2112,18 @@ class Deduction(HorillaModel):
     Deduction model
     """
 
-    if_condition_choice = [
-        ("basic_pay", _("Basic Pay")),
-        ("gross_pay", _("Gross Pay")),
-    ]
+    if_condition_choice = APPLY_CHOICE_BASE + APPLY_CHOICE_AFTER_EARNINGS
 
     based_on_choice = [
         ("basic_pay", _("Basic Pay")),
         ("gross_pay", _("Gross Pay")),
         ("taxable_gross_pay", _("Taxable Gross Pay")),
         ("net_pay", _("Net Pay")),
+        # A deduction may reference any earning that ran before it, plus the
+        # aggregates of its own phase — but not a deduction from a later
+        # phase, which the form refuses.
+        ("component", _("Percentage of Another Component")),
+        ("formula", _("Custom Formula")),
     ]
 
     exceed_choice = [
@@ -1488,6 +2192,47 @@ class Deduction(HorillaModel):
             ("net_pay", _("Net Pay")),
         ],
     )
+    # --- Cross-component reference ----------------------------------------
+    # A component had no identity another component could name, and no defined
+    # position in the run: candidates were gathered as an unordered queryset
+    # union, so "HRA = 50% of BASIC" was inexpressible and evaluation order was
+    # whatever the database happened to return.
+    code = models.CharField(
+        max_length=32,
+        blank=True,
+        default="",
+        verbose_name=_("Code"),
+        validators=[component_code_validator],
+        help_text=_(
+            "Short uppercase name other components can refer to, e.g. BASIC or "
+            "HRA. Leave blank if nothing needs to reference this one."
+        ),
+    )
+    sequence = models.PositiveIntegerField(
+        default=100,
+        db_index=True,
+        verbose_name=_("Sequence"),
+        help_text=_(
+            "Evaluation order — lower runs first. A component can only use the "
+            "value of one that runs before it."
+        ),
+    )
+    percentage_of_code = models.CharField(
+        max_length=32,
+        blank=True,
+        default="",
+        verbose_name=_("Percentage of"),
+        help_text=_("Code of the component this percentage is taken from."),
+    )
+    formula = models.TextField(
+        blank=True,
+        default="",
+        verbose_name=_("Formula"),
+        help_text=_(
+            "Expression over other components' codes, e.g. (BASIC + DA) * 0.12"
+        ),
+    )
+
     is_fixed = models.BooleanField(
         default=True,
     )
@@ -1513,6 +2258,36 @@ class Deduction(HorillaModel):
         verbose_name=_("Employee rate"),
     )
 
+    # What the employer pays alongside this deduction.
+    #
+    # A rate is a percentage of whatever `based_on` names, which cannot
+    # express the cases that actually arise: PF where the employer's 12% is
+    # split 8.33% to pension and 3.67% to PF and each half is capped
+    # separately, or a contribution on (BASIC + DA) while the employee's own
+    # share comes off BASIC alone. Worse, the rate field is only shown when
+    # `based_on` is a percentage-of figure -- so a component using a custom
+    # formula had no way to state an employer share at all.
+    EMPLOYER_BASIS_RATE = "rate"
+    EMPLOYER_BASIS_FORMULA = "formula"
+    employer_basis_choice = [
+        (EMPLOYER_BASIS_RATE, _("A percentage of the same figure")),
+        (EMPLOYER_BASIS_FORMULA, _("Custom formula")),
+    ]
+    employer_basis = models.CharField(
+        max_length=16,
+        choices=employer_basis_choice,
+        default=EMPLOYER_BASIS_RATE,
+        # Optional on a form: it has a default that IS the previous behaviour,
+        # so a form that predates it -- or any caller posting a deduction
+        # without it -- must still validate rather than failing silently with
+        # "this field is required" on a field nobody knew to send.
+        blank=True,
+        verbose_name=_("Employer contribution"),
+        help_text=_(
+            "How the employer's share is worked out. A percentage uses the "
+            "same figure the deduction is based on."
+        ),
+    )
     employer_rate = models.FloatField(
         default=0.00,
         null=True,
@@ -1520,6 +2295,14 @@ class Deduction(HorillaModel):
         validators=[
             rate_validator,
         ],
+    )
+    employer_formula = models.TextField(
+        blank=True,
+        default="",
+        verbose_name=_("Employer formula"),
+        help_text=_(
+            "Expression over other components' codes, e.g. (BASIC + DA) * 0.0367"
+        ),
     )
     has_max_limit = models.BooleanField(
         default=False,
@@ -1532,18 +2315,39 @@ class Deduction(HorillaModel):
         verbose_name=_("Maximum Amount"),
     )
 
+    # Governs the flat amount AND the ceiling, which is why it no longer lives
+    # under "upper limit". It keeps the column name it was born with because
+    # renaming one costs a data migration for no behaviour.
+    #
+    # Defaults to a month's worth split by calendar days, so a new component
+    # prorates without anyone having to think about it — a ten day period pays
+    # ten thirtieths, which is what people mean by a monthly figure.
+    #
+    # Existing components were settled onto a flat basis first (see
+    # normalise_component_basis), because they were created when this field did
+    # nothing and their amounts are whatever they have always paid. So this
+    # default reaches new components only, and a statutory flat figure like
+    # professional tax needs "A flat amount" chosen explicitly.
     maximum_unit = models.CharField(
         max_length=20,
         null=True,
-        default="month_working_days",
-        choices=[
-            ("month_working_days", _("For working days on month")),
-            # ("monthly_working_days", "For working days on month"),
-        ],
-        verbose_name=_("Maximum Unit"),
+        default="month_calendar_days",
+        choices=MAXIMUM_UNIT_CHOICES,
+        verbose_name=_("This amount is"),
+        help_text=_(
+            "What the figures above are quoted per — both a fixed amount and "
+            "any ceiling. A month's worth is shared out across a part-month "
+            "period, so ten working days of a twenty-two working day month "
+            "gives ten twenty-seconds of it. A flat amount is the same in "
+            "every period, however long. Percentages are not affected: they "
+            "already follow the period through whatever they are a percentage "
+            "of."
+        ),
     )
     if_choice = models.CharField(
-        max_length=10,
+        # Long enough for "taxable_gross_pay"; the old limit of 10 predates any
+        # choice longer than "basic_pay".
+        max_length=32,
         choices=if_condition_choice,
         default="basic_pay",
     )
@@ -1559,11 +2363,40 @@ class Deduction(HorillaModel):
         Company, null=True, editable=False, on_delete=models.PROTECT
     )
     only_show_under_employee = models.BooleanField(default=False, editable=False)
-    objects = HorillaCompanyManager()
+    # Querysets from this manager refuse to bulk-delete a standard pay
+    # item; see SystemSafeQuerySet.
+    objects = SystemSafeCompanyManagerBase()
 
     is_installment = models.BooleanField(default=False, editable=False)
+    # A standard pay item -- a loan, a fine, loss of pay -- as a template row
+    # rather than a component anyone built. See payroll/system_components.py:
+    # the real rows are generated per employee per instalment, so this one is
+    # never paid; it says how its kind is treated, and the generators read it
+    # instead of falling through to the model defaults.
+    is_system = models.BooleanField(default=False, editable=False)
+    system_key = models.CharField(
+        max_length=50, blank=True, default="", editable=False, db_index=True
+    )
     other_conditions = models.ManyToManyField(
         MultipleCondition, blank=True, editable=False
+    )
+    # Extra "when it applies" rules. The one on the component itself is the
+    # first; these are AND-ed onto it.
+    apply_conditions = models.ManyToManyField(
+        ApplyCondition, blank=True, editable=False, related_name="%(class)s_set"
+    )
+    # Which component the first "when it applies" rule measures, when it is set
+    # to measure one. Separate from percentage_of_code: that is what the amount
+    # is a share of, and there is no reason the two must be the same component.
+    if_component_code = models.CharField(
+        max_length=32,
+        blank=True,
+        default="",
+        verbose_name=_("Which component"),
+        help_text=_(
+            "The component this rule looks at. It must be worked out before "
+            "this one, so give it a lower sequence."
+        ),
     )
 
     @cached_property
@@ -1800,6 +2633,12 @@ class Deduction(HorillaModel):
     def clean(self):
         super().clean()
 
+        # Blank means the default. The field is optional on a form, so an
+        # omitted value arrives as "" -- which is not a choice, and would make
+        # get_employer_basis_display() empty on every screen that shows it.
+        if not self.employer_basis:
+            self.employer_basis = self.EMPLOYER_BASIS_RATE
+
         if self.is_tax:
             self.is_pretax = False
         if not self.is_fixed:
@@ -1809,7 +2648,16 @@ class Deduction(HorillaModel):
                         "If the 'Is fixed' field is disabled, the 'Based on' field is required."
                     )
                 )
-        if not self.is_fixed and self.based_on and not self.rate:
+        # A formula carries its own arithmetic ("(BASIC - LOP) * 0.12") --
+        # rate is meaningless there, unlike every other based_on option here,
+        # which is a plain "rate% of X" and has nothing else to say the
+        # percentage.
+        if (
+            not self.is_fixed
+            and self.based_on
+            and self.based_on != "formula"
+            and not self.rate
+        ):
             raise ValidationError(
                 _(
                     "Employee rate must be specified for deductions that are not fixed amount"
@@ -1875,7 +2723,30 @@ class Deduction(HorillaModel):
 
         if not self.id:
             stamp_company_on_create(self)
+        if not (self.code or "").strip():
+            self.code = derive_component_code(Deduction, self.title, exclude_pk=self.pk)
+        # An empty string here is worse than useless. The three ordinary
+        # deduction phases select `update_compensation__isnull=True`, and the
+        # compensation pass matches an exact type, so a row holding "" is taken
+        # by neither and disappears from the payslip without a word. The field
+        # is blank=True, so anything that posts it empty — a hidden input, the
+        # admin, the API — could produce one.
+        if not (self.update_compensation or "").strip():
+            self.update_compensation = None
         super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        """
+        A standard pay item cannot be deleted. See Allowance.delete().
+        """
+        if self.is_system:
+            logger.warning(
+                "Refused to delete system component %s (%s)",
+                self.system_key,
+                self.title,
+            )
+            return (0, {})
+        return super().delete(*args, **kwargs)
 
 
 class SalaryStructure(HorillaModel):
@@ -1889,8 +2760,29 @@ class SalaryStructure(HorillaModel):
     ``specific_employees`` directly and is unaffected by this model.
     """
 
+    STRUCTURE_MODE_CHOICES = [
+        ("gross_up", _("Gross Up — the wage is basic pay, allowances add to it")),
+        ("ctc_down", _("CTC Down — the wage is the gross, components divide it")),
+    ]
+
     title = models.CharField(
         max_length=255,
+    )
+    structure_mode = models.CharField(
+        max_length=20,
+        choices=STRUCTURE_MODE_CHOICES,
+        default="gross_up",
+        verbose_name=_("Structure mode"),
+        help_text=_(
+            "Gross Up: the contract wage IS basic pay, and allowances are added "
+            "on top of it to reach gross. Gross is therefore only known once "
+            "every component has run, so nothing can be defined as a "
+            "percentage of it. "
+            "CTC Down: the contract wage IS the gross, and the components "
+            "divide it up. Because the total is known before anything runs, a "
+            "component can say 'basic is 50% of gross' — one of them needs the "
+            "code BASIC, and a balance component absorbs whatever is left."
+        ),
     )
     allowances = models.ManyToManyField(
         Allowance,
@@ -2036,6 +2928,339 @@ class SalaryStructure(HorillaModel):
             id__in=[contract.employee_id_id for contract in self._active_contracts()]
         )
 
+    @property
+    def component_rows(self):
+        """
+        Every component in this structure, in the order the engine runs them.
+
+        One list rather than an allowances column beside a deductions column:
+        the order across both is what decides what a percentage can refer to,
+        and two side-by-side lists hid it completely. A deduction at sequence
+        100 running before an allowance at 200 is exactly the kind of thing
+        someone needs to see without opening either.
+        """
+        from payroll.methods.component_summary import (
+            applies_summary,
+            calculation_summary,
+            ceiling_summary,
+            in_ctc_summary,
+            proration_summary,
+        )
+
+        rows = []
+        for component, kind in (
+            *((item, "earning") for item in self.allowances.all()),
+            *((item, "deduction") for item in self.deductions.all()),
+        ):
+            if kind == "earning":
+                type_label = _("Earning")
+                taxable = _("Yes") if component.is_taxable else _("No")
+            elif component.is_tax:
+                type_label = _("Tax")
+                taxable = _("—")
+            elif component.is_pretax:
+                type_label = _("Pre-tax deduction")
+                taxable = _("—")
+            else:
+                type_label = _("Deduction")
+                taxable = _("—")
+
+            rows.append(
+                {
+                    "component": component,
+                    "kind": kind,
+                    "sequence": component.sequence,
+                    "code": component.code,
+                    "title": component.title,
+                    "type_label": type_label,
+                    "taxable": taxable,
+                    "calculation": calculation_summary(component),
+                    "prorates": proration_summary(component),
+                    "in_ctc": in_ctc_summary(component, kind),
+                    "ceiling": ceiling_summary(component),
+                    "applies": applies_summary(component),
+                }
+            )
+
+        # The engine's own ordering: sequence, then pk as the tie-break.
+        rows.sort(key=lambda row: (row["sequence"] or 0, row["component"].pk or 0))
+        return rows
+
+    @property
+    def sample_inputs(self):
+        """
+        Which of the worked example's figures this structure actually reads.
+
+        A box you can type into that changes nothing is worse than no box: it
+        invites someone to set a CTC, watch the totals not move, and conclude
+        the example is broken. So each one is enabled only when something here
+        depends on it, and says why when it is not.
+        """
+        from payroll.methods.basic_pay_source import basic_pay_component
+
+        allowances = list(self.allowances.all())
+        deductions = list(self.deductions.all())
+        components = allowances + deductions
+        ctc_down = (self.structure_mode or "gross_up") == "ctc_down"
+
+        def mentions(component, name):
+            if (component.percentage_of_code or "").strip().upper() == name:
+                return True
+            if name in (component.formula or "").upper():
+                return True
+            if (getattr(component, "if_component_code", "") or "").upper() == name:
+                return True
+            return False
+
+        uses_ctc = ctc_down or any(
+            component.based_on == "balance"
+            or (component.if_choice or "") == "ctc"
+            or mentions(component, "CTC")
+            for component in components
+        )
+
+        flagged = basic_pay_component(allowances)
+        # In CTC Down basic comes out of the package, so a typed figure would be
+        # a second unrelated number; with a flagged earning the structure works
+        # it out itself.
+        uses_basic = not ctc_down and flagged is None
+
+        return {
+            "ctc": {
+                "used": uses_ctc,
+                "why": (
+                    ""
+                    if uses_ctc
+                    else _(
+                        "Nothing here is worked out from the CTC, so this "
+                        "figure would not change any of the amounts below."
+                    )
+                ),
+            },
+            "basic": {
+                "used": uses_basic,
+                "why": (
+                    ""
+                    if uses_basic
+                    else (
+                        _(
+                            "This structure divides the CTC, and basic pay comes "
+                            "out of it rather than from the contract."
+                        )
+                        if ctc_down
+                        else _(
+                            "%(component)s works basic pay out, so it is not "
+                            "taken from the contract here."
+                        )
+                        % {"component": flagged.title if flagged else ""}
+                    )
+                ),
+            },
+        }
+
+    @property
+    def has_basic_pay_component(self):
+        """
+        Whether an earning here works basic pay out.
+
+        Decides whether the worked example needs a basic pay typed into it: with
+        a flagged earning the structure produces basic itself, and a typed
+        figure would be a second, unrelated number.
+        """
+        from payroll.methods.basic_pay_source import basic_pay_component
+
+        return basic_pay_component(self.allowances.all()) is not None
+
+    @property
+    def basic_pay_note(self):
+        """
+        How basic pay is decided for employees on this structure.
+
+        Said on the structure because that is where components are chosen, and
+        from there nobody can see an employee's contract. The precedence — the
+        contract wage wins, a flagged earning is the fallback — is not something
+        anyone could infer from the component list.
+        """
+        from payroll.methods.structure_rules import basic_pay_note
+
+        return basic_pay_note(self.structure_mode, list(self.allowances.all()))
+
+    @property
+    def employee_rows(self):
+        """
+        Everyone on this structure, with what their contract tells the engine.
+
+        Their own tab rather than a strip of names in the summary, because the
+        contract figures are the other half of every calculation the structure
+        describes: the components say "50% of basic pay", and this says whose
+        basic pay is what. The wage in particular is read differently by mode —
+        basic pay under Gross Up, the pot to divide under CTC Down — so seeing
+        it beside the mode is what makes a structure's effect concrete.
+        """
+        from payroll.methods.basic_pay_source import COMPONENT as BASIC_FROM_COMPONENT
+        from payroll.methods.basic_pay_source import CONTRACT as BASIC_FROM_CONTRACT
+        from payroll.methods.basic_pay_source import resolve_basic_pay_source
+
+        allowances = list(self.allowances.all())
+        ctc_down = (self.structure_mode or "gross_up") == "ctc_down"
+
+        rows = []
+        for contract in self._active_contracts().select_related(
+            "employee_id", "filing_status"
+        ):
+            employee = contract.employee_id
+
+            # Resolved per employee through the one function that holds this
+            # precedence, not by assuming "Gross Up means the wage is basic".
+            # It is the wage only while the wage is non-zero and no CTC has
+            # taken it over; an employee on a zero wage falls through to the
+            # flagged earning, and that is exactly the case worth seeing here.
+            basic_source, basic_component = resolve_basic_pay_source(
+                # pay_rate, not wage: an hourly contract keeps its figure in
+                # hourly_wage, so reading `wage` would call a correctly entered
+                # hourly contract basic-less.
+                contract.pay_rate,
+                allowances,
+                wage_is_the_pot=ctc_down and not contract.monthly_ctc,
+            )
+            # A figure only where one can honestly be given. A monthly wage IS
+            # the period's basic pay; an hourly or daily one becomes basic only
+            # after the hours are known, and a component's value only after the
+            # structure has run.
+            basic_amount = (
+                contract.wage
+                if basic_source == BASIC_FROM_CONTRACT
+                and contract.wage_type == "monthly"
+                else None
+            )
+
+            rows.append(
+                {
+                    "employee": employee,
+                    "badge": employee.badge_id or "",
+                    "contract": contract,
+                    "contract_name": contract.contract_name,
+                    "basic_source": basic_source,
+                    "basic_amount": basic_amount,
+                    "basic_from_contract": basic_source == BASIC_FROM_CONTRACT,
+                    "basic_component": (
+                        basic_component
+                        if basic_source == BASIC_FROM_COMPONENT
+                        else None
+                    ),
+                    # Nothing works this employee's basic pay out, so a payslip
+                    # would be produced with basic zero — and every "% of basic"
+                    # on the structure with it. Flagged per row because it is a
+                    # property of the contract meeting the structure, not of
+                    # either alone: the same structure pays everyone else fine.
+                    "no_basic": basic_source
+                    not in (
+                        BASIC_FROM_CONTRACT,
+                        BASIC_FROM_COMPONENT,
+                    ),
+                    # pay_rate, not wage: an hourly contract keeps its figure in
+                    # its own box, and showing `wage` there would show a number
+                    # the engine does not read.
+                    "pay_rate": contract.pay_rate,
+                    "wage_type": contract.get_wage_type_display(),
+                    # Hourly basic pay is worked out from attendance rather
+                    # than stated, so the panel explains it rather than
+                    # printing a figure payroll would not produce.
+                    "is_hourly": contract.wage_type == "hourly",
+                    "monthly_ctc": contract.monthly_ctc,
+                    "filing_status": contract.filing_status,
+                }
+            )
+        # Anyone the structure cannot work basic pay for comes first. A name
+        # sort buries the one broken contract among fifty working ones, and
+        # that row is the only reason most people open this tab. Sorted here
+        # rather than only in the browser so the order holds without JS, and
+        # the panel offers the other orders on its column headings.
+        rows.sort(key=lambda row: (not row["no_basic"], str(row["employee"])))
+        return rows
+
+    @property
+    def has_hourly_employees(self):
+        """Whether anyone here is paid by the hour, for the panel's note."""
+        return self._active_contracts().filter(wage_type="hourly").exists()
+
+    @property
+    def employees_missing_basic(self):
+        """
+        How many employees on this structure would be paid no basic pay.
+
+        Counted rather than resolved row by row, because the summary bar needs
+        the number before the Employees tab has been opened — the rows
+        themselves load on demand.
+
+        The conditions mirror resolve_basic_pay_source exactly:
+
+          * A flagged earning covers everyone, whatever their wage, so there is
+            nothing to warn about.
+          * Otherwise a zero wage leaves nothing to read basic from.
+          * And a CTC Down structure with neither a flagged earning nor a
+            Monthly CTC divides the wage itself, so the wage is spoken for and
+            basic has no source at all.
+        """
+        from payroll.methods.basic_pay_source import basic_pay_component
+
+        if basic_pay_component(self.allowances.all()) is not None:
+            return 0
+
+        contracts = self._active_contracts()
+
+        # "States a figure to read basic from", matching Contract.pay_rate:
+        # the wage, except on an hourly contract, where it is hourly_wage.
+        # Filtering on `wage` alone called a correctly entered hourly contract
+        # basic-less. Whether those hours were actually worked is an attendance
+        # question, not a configuration one, so it is not asked here.
+        states_pay = (models.Q(wage__isnull=False) & ~models.Q(wage=0)) | (
+            models.Q(wage_type="hourly")
+            & models.Q(hourly_wage__isnull=False)
+            & ~models.Q(hourly_wage=0)
+        )
+
+        if (self.structure_mode or "gross_up") == "ctc_down":
+            # Those dividing the wage have no basic source at all; those with a
+            # stated CTC still fall back to the wage.
+            stated_ctc = models.Q(monthly_ctc__isnull=False) & ~models.Q(monthly_ctc=0)
+            return contracts.exclude(stated_ctc & states_pay).count()
+
+        return contracts.exclude(states_pay).count()
+
+    def get_structure_detail_col(self):
+        """
+        The whole detail modal: summary bar, then the Components, Employees and
+        Example tabs.
+
+        One block rather than three stacked ones. Employees, a ten-column
+        component table and an interactive worked example were all competing
+        for the height of a 760px modal — the table scrolled sideways and the
+        example's results landed below the fold, away from the components they
+        were meant to explain.
+        """
+        rows = self.component_rows
+        # Counts in the summary bar; the people themselves load into their tab
+        # on demand. A strip of name chips was the widest thing in the bar and
+        # said the least: it truncated past six, carried nothing but a name,
+        # and the figure anyone wants at a glance is how many this pays.
+        return render_template(
+            path="cbv/salary_structure/structure_detail.html",
+            context={
+                "instance": self,
+                "rows": rows,
+                "basic_pay_note": self.basic_pay_note,
+                "employee_count": self._active_contracts().count(),
+                "employees_missing_basic": self.employees_missing_basic,
+                "earning_count": sum(1 for row in rows if row["kind"] == "earning"),
+                "deduction_count": sum(1 for row in rows if row["kind"] == "deduction"),
+                "sample_inputs": self.sample_inputs,
+                # A structure carries no filing status — a contract does — so
+                # the example offers every one configured and lets you pick.
+                "filing_statuses": FilingStatus.objects.all(),
+            },
+        )
+
     def get_allowances_detail_col(self):
         """
         Allowances column for the detail view
@@ -2077,6 +3302,19 @@ class Payslip(HorillaModel):
     ]
     group_name = models.CharField(
         max_length=50, null=True, blank=True, verbose_name=_("Batch name")
+    )
+    # The run this payslip belongs to. group_name above is kept because years
+    # of payslips carry one, and because nothing should be rewritten to
+    # introduce this -- but it is a string with no identity: two unrelated
+    # runs sharing a name are one batch as far as it is concerned. New runs
+    # set both; anything older has the name only.
+    payroll_batch = models.ForeignKey(
+        "payroll.PayrollBatch",
+        null=True,
+        blank=True,
+        editable=False,
+        on_delete=models.SET_NULL,
+        related_name="payslips",
     )
     reference = models.CharField(max_length=255, unique=False, null=True, blank=True)
     employee_id = models.ForeignKey(
@@ -2627,12 +3865,32 @@ class Reimbursement(HorillaModel):
                                 )
 
                 if proceed:
+                    from payroll.system_components import policy_fields
+
                     reimbursement = Allowance()
                     reimbursement.one_time_date = self.allowance_on
                     reimbursement.title = self.title
                     reimbursement.only_show_under_employee = True
                     reimbursement.include_active_employees = False
                     reimbursement.amount = self.amount
+
+                    # An expense paid back, leave cashed in and bonus points
+                    # cashed in are three different things for tax, and all
+                    # three came through here inheriting is_taxable=True
+                    # because nothing set it. Each now follows its own
+                    # standard component.
+                    for field, value in policy_fields(
+                        self.type
+                        if self.type
+                        in {
+                            "reimbursement",
+                            "leave_encashment",
+                            "bonus_encashment",
+                        }
+                        else "reimbursement"
+                    ).items():
+                        setattr(reimbursement, field, value)
+
                     reimbursement.save()
                     reimbursement.include_active_employees = False
                     reimbursement.specific_employees.add(self.employee_id)
@@ -2976,3 +4234,13 @@ class PayslipAutoGenerate(models.Model):
 
     def __str__(self) -> str:
         return f"{self.generate_day} | {self.company_id} "
+
+
+# Pay periods and payroll runs. Imported here rather than defined here because
+# models.py is already four thousand lines, and because a run is a different
+# subject from a component: see payroll/models/payroll_run.py.
+from payroll.models.payroll_batch import (  # noqa: E402,F401
+    PayPeriodSettings,
+    PayrollBatch,
+    PayrollBatchLine,
+)

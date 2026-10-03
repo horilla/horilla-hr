@@ -1,0 +1,125 @@
+{% load i18n %}
+{% comment %}
+The structure's components, in the order the engine runs them.
+
+One table, not an allowances column beside a deductions column. The order runs
+across both — a deduction at sequence 100 is worked out before an allowance at
+200 — and that order decides what a percentage or a formula is allowed to refer
+to. Two side-by-side lists hid it entirely, and showed titles only, so reading
+a structure meant opening every component in turn to find out whether HRA was a
+fixed 1,600 or half of basic.
+
+Ten columns of that did not fit a modal, so the table scrolled sideways and the
+last four were effectively invisible. The rules now sit under each component as
+labelled chips instead: the same facts, laid out down the page, which is the
+direction a modal actually has room in.
+{% endcomment %}
+
+<style>
+  .ss-components__intro { font-size: 12.5px; color: #8b90a0; margin-bottom: 6px; }
+  .ss-components__table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .ss-components__table th {
+    text-align: left; font-size: 10px; font-weight: 700;
+    letter-spacing: .06em; text-transform: uppercase; color: #6b7280;
+    padding: 8px 10px; border-bottom: 1px solid #e6e7eb; white-space: nowrap;
+  }
+  .ss-components__table td {
+    padding: 10px; border-bottom: 1px solid #f1f2f4; vertical-align: top;
+  }
+  .ss-components__table tr:last-child td { border-bottom: 0; }
+  .ss-components__seq {
+    color: #9ca3af; font-variant-numeric: tabular-nums; width: 1%;
+    white-space: nowrap;
+  }
+  .ss-components__code {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 11.5px; color: #9ca3af;
+    /* Codes can be long (HOUSE_RENT_ALLOWANCE_HRA); wrapping keeps them from
+       setting the column width and pushing Calculation off the edge. */
+    word-break: break-all;
+  }
+  .ss-components__title { font-weight: 600; color: #1f2430; }
+  .ss-components__calc {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 12.5px; color: #374151; word-break: break-word;
+  }
+  .ss-components__type {
+    display: inline-block; font-size: 10px; font-weight: 700;
+    letter-spacing: .04em; text-transform: uppercase;
+    border-radius: 4px; padding: 1px 6px; margin-left: 6px;
+    white-space: nowrap;
+  }
+  .ss-components__type--earning { background: #e4f4ed; color: #0f7b5f; }
+  .ss-components__type--deduction {
+    background: #fdeeeb; color: var(--primary-600, #e54f38);
+  }
+  .ss-components__rules {
+    display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 6px;
+  }
+  .ss-components__rule { font-size: 11.5px; color: #6b7280; white-space: nowrap; }
+  .ss-components__rule b { font-weight: 600; color: #4b5563; }
+  .ss-components__empty { color: #9ca3af; font-size: 13px; padding: 12px 0; }
+</style>
+
+<div class="ss-components">
+  <div class="ss-components__intro">
+    {% blocktrans %}Evaluated top to bottom. A component can only be worked out from one listed above it.{% endblocktrans %}
+  </div>
+
+  {% if rows %}
+    <table class="ss-components__table">
+      <thead>
+        <tr>
+          <th>{% trans "Seq" %}</th>
+          <th>{% trans "Component" %}</th>
+          <th>{% trans "Calculation" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td class="ss-components__seq">{{ row.sequence }}</td>
+            <td>
+              <span class="ss-components__title">{{ row.title }}</span>
+              <span class="ss-components__type ss-components__type--{% if row.kind == 'earning' %}earning{% else %}deduction{% endif %}">
+                {{ row.type_label }}
+              </span>
+              <div class="ss-components__code">{{ row.code|default:"—" }}</div>
+              {% comment %}
+              The four columns that used to be off the right-hand edge. Each
+              keeps its label, because "Inherited" or "—" on its own says
+              nothing; the tooltips are the same ones the headers carried.
+              {% endcomment %}
+              <div class="ss-components__rules">
+                <span class="ss-components__rule"
+                      title="{% trans 'Inherited means it follows the period through whatever it is calculated from.' %}">
+                  {% trans "Prorates" %}: <b>{{ row.prorates }}</b>
+                </span>
+                <span class="ss-components__rule"
+                      title="{% trans 'Whether a CTC figure has to cover this. Earnings and employer shares do; a deduction comes out of gross, which is already counted.' %}">
+                  {% trans "In CTC" %}: <b>{{ row.in_ctc }}</b>
+                </span>
+                {% if row.kind == "earning" %}
+                  <span class="ss-components__rule">
+                    {% trans "Taxable" %}: <b>{{ row.taxable }}</b>
+                  </span>
+                {% endif %}
+                <span class="ss-components__rule">
+                  {% trans "Ceiling" %}: <b>{{ row.ceiling }}</b>
+                </span>
+                <span class="ss-components__rule">
+                  {% trans "Applies" %}: <b>{{ row.applies }}</b>
+                </span>
+              </div>
+            </td>
+            <td class="ss-components__calc">{{ row.calculation }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="ss-components__empty">
+      {% trans "No components yet. Add an allowance or a deduction to this structure." %}
+    </div>
+  {% endif %}
+</div>

@@ -1,0 +1,559 @@
+{% load i18n %}
+{% comment %}
+Tap-to-build formula editor.
+
+Deliberately not a text box. The whole direction of this work is that the
+person configuring payroll should not have to know syntax to express a rule —
+they pick the components they mean and the operators between them, and see what
+it comes to. The stored value is still a plain expression string, so the engine
+evaluates it unchanged.
+
+Requires `formula_codes` in context (see component_formula_views.available_codes)
+and the form's own `formula` field, which stays in the DOM as the real input.
+
+Styled with its own scoped tokens rather than the oh-btn family: every control
+here is a token to tap, and rendering them as full buttons made a wall of
+identical primary-coloured pills with no indication of which were components,
+which were operators and which were numbers.
+{% endcomment %}
+
+<style>
+  .fx {
+    --fx-line: #e6e7eb;
+    --fx-ink: #1f2430;
+    --fx-mute: #8b90a0;
+    --fx-soft: #f6f7f9;
+    /* Follows whichever theme the company has picked rather than introducing a
+       second brand colour into the page. */
+    --fx-accent: var(--primary-600, #e54f38);
+    --fx-accent-soft: var(--primary-200, #fdeeeb);
+    font-size: 13px;
+    color: var(--fx-ink);
+  }
+  @supports (color: color-mix(in srgb, red 10%, white)) {
+    .fx { --fx-accent-soft: color-mix(in srgb, var(--fx-accent) 12%, #fff); }
+  }
+
+  /* ---- expression canvas ---- */
+  .fx__canvas-wrap { position: relative; }
+  .fx__canvas {
+    min-height: 76px;
+    border: 1px solid var(--fx-line);
+    border-radius: 10px;
+    background: #fff;
+    padding: 14px 92px 14px 14px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+  .fx__placeholder { color: var(--fx-mute); }
+  .fx__clear {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    border: 1px solid var(--fx-line);
+    background: #fff;
+    color: var(--fx-mute);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .fx__clear:hover { color: var(--fx-ink); border-color: #cfd2da; }
+
+  /* ---- tokens in the canvas ---- */
+  .fx__token {
+    border: 0;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    line-height: 1.3;
+  }
+  .fx__token--component { background: var(--fx-accent-soft); color: var(--fx-accent); }
+  .fx__token--operator {
+    background: var(--fx-soft);
+    color: #5b6070;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+  }
+  .fx__token--number { background: #fdf2e3; color: #8a5a12; font-variant-numeric: tabular-nums; }
+  .fx__token:hover { filter: brightness(.96); }
+
+  .fx__hint { color: var(--fx-mute); font-size: 12px; margin: 6px 2px 0; }
+
+  /* ---- panels ---- */
+  .fx__grid { display: flex; gap: 14px; margin-top: 14px; flex-wrap: wrap; align-items: flex-start; }
+  .fx__panel {
+    flex: 1 1 320px;
+    border: 1px solid var(--fx-line);
+    border-radius: 10px;
+    padding: 12px;
+    background: #fff;
+    min-width: 0;
+  }
+  .fx__panel--narrow { flex: 0 1 230px; }
+  .fx__panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .fx__panel-head h4 {
+    margin: 0;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--fx-mute);
+  }
+  .fx__search {
+    border: 1px solid var(--fx-line);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 12px;
+    max-width: 150px;
+    outline: none;
+  }
+  .fx__search:focus { border-color: var(--fx-accent); }
+
+  .fx__group { margin-bottom: 12px; }
+  .fx__group:last-child { margin-bottom: 0; }
+  .fx__group-label { font-size: 11px; color: var(--fx-mute); margin-bottom: 6px; }
+  .fx__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .fx__scroll { max-height: 200px; overflow-y: auto; padding-right: 4px; }
+
+  .fx__chip {
+    border: 1px solid var(--fx-line);
+    background: #fff;
+    color: var(--fx-ink);
+    border-radius: 999px;
+    padding: 5px 12px;
+    font-size: 12.5px;
+    cursor: pointer;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .fx__chip:hover { border-color: var(--fx-accent); color: var(--fx-accent); }
+  .fx__chip--engine {
+    background: var(--fx-accent-soft);
+    border-color: transparent;
+    color: var(--fx-accent);
+    font-weight: 600;
+  }
+  .fx__empty { color: var(--fx-mute); font-size: 12px; }
+
+  /* ---- operator keypad ---- */
+  .fx__keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .fx__key {
+    border: 1px solid var(--fx-line);
+    background: #fff;
+    border-radius: 8px;
+    padding: 9px 0;
+    font-size: 15px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    color: #5b6070;
+    cursor: pointer;
+  }
+  .fx__key:hover { border-color: var(--fx-accent); color: var(--fx-accent); }
+
+  .fx__value { display: flex; gap: 6px; }
+  .fx__value input {
+    flex: 1;
+    min-width: 0;
+    border: 1px solid var(--fx-line);
+    border-radius: 8px;
+    padding: 7px 10px;
+    font-size: 13px;
+    outline: none;
+  }
+  .fx__value input:focus { border-color: var(--fx-accent); }
+  .fx__add {
+    border: 0;
+    border-radius: 8px;
+    background: var(--fx-accent);
+    color: #fff;
+    padding: 7px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .fx__add:hover { filter: brightness(1.05); }
+
+  /* ---- preview ---- */
+  .fx__preview {
+    margin-top: 14px;
+    border: 1px solid var(--fx-line);
+    border-radius: 10px;
+    background: var(--fx-soft);
+    padding: 14px;
+  }
+  .fx__preview-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .fx__preview-head h4 {
+    margin: 0;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--fx-mute);
+  }
+  .fx__sample { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--fx-mute); margin: 0; }
+  .fx__sample input {
+    width: 110px;
+    border: 1px solid var(--fx-line);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 12.5px;
+    background: #fff;
+    outline: none;
+  }
+  .fx__expression {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    color: #5b6070;
+    word-break: break-word;
+  }
+  .fx__result {
+    font-size: 26px;
+    font-weight: 650;
+    margin-top: 4px;
+    font-variant-numeric: tabular-nums;
+    color: var(--fx-accent);
+  }
+  .fx__result--error { color: #b00020; font-size: 14px; font-weight: 500; }
+  .fx__detail { font-size: 12px; color: var(--fx-mute); margin-top: 2px; }
+</style>
+
+{% comment %}
+Which field this builder writes to. Included twice on the Deduction form --
+once for the component's own amount, once for the employer's share -- so the
+target cannot be assumed.
+
+Where the preview goes is a parameter for the same reason. On a component form
+there is no employee in view, so it can only be evaluated against illustrative
+figures; on a payslip the employee and the period are both already decided and
+the real ones exist. Same builder, same JSON, different context.
+{% endcomment %}
+{% url 'component-formula-preview' as fx_sample_preview_url %}
+<div class="fx" data-formula-builder
+     data-formula-field="{{ formula_field|default:'formula' }}"
+     data-formula-preview-url="{{ formula_preview_url|default:fx_sample_preview_url }}">
+  <div class="fx__canvas-wrap">
+    <div class="fx__canvas" data-formula-tokens></div>
+    <button type="button" class="fx__clear" data-formula-clear>{% trans "Clear" %}</button>
+  </div>
+  <p class="fx__hint">{% trans "Tap a token to remove it." %}</p>
+
+  <div class="fx__grid">
+    <section class="fx__panel">
+      <div class="fx__panel-head">
+        <h4>{% trans "Components" %}</h4>
+        <input type="text" class="fx__search" data-formula-search
+               placeholder="{% trans 'Search' %}" aria-label="{% trans 'Search components' %}">
+      </div>
+
+      <div class="fx__scroll">
+        <div class="fx__group" data-chip-group>
+          <div class="fx__group-label">{% trans "Worked out by payroll" %}</div>
+          <div class="fx__chips">
+            {% for item in formula_codes %}{% if item.engine %}
+              <button type="button" class="fx__chip fx__chip--engine"
+                      data-formula-token="{{ item.code }}"
+                      data-formula-label="{{ item.label }}"
+                      title="{{ item.code }}">{{ item.label }}</button>
+            {% endif %}{% endfor %}
+          </div>
+        </div>
+
+        <div class="fx__group" data-chip-group>
+          <div class="fx__group-label">{% trans "Your components" %}</div>
+          <div class="fx__chips">
+            {% for item in formula_codes %}{% if not item.engine %}
+              <button type="button" class="fx__chip"
+                      data-formula-token="{{ item.code }}"
+                      data-formula-label="{{ item.label }}"
+                      title="{{ item.code }}">{{ item.label }}</button>
+            {% endif %}{% endfor %}
+          </div>
+          <div class="fx__empty" data-no-components hidden>
+            {% trans "None yet — create an allowance or deduction and it appears here." %}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="fx__panel fx__panel--narrow">
+      <div class="fx__panel-head"><h4>{% trans "Operators" %}</h4></div>
+      <div class="fx__keys">
+        <button type="button" class="fx__key" data-formula-token="+">+</button>
+        <button type="button" class="fx__key" data-formula-token="-">&minus;</button>
+        <button type="button" class="fx__key" data-formula-token="*">&times;</button>
+        <button type="button" class="fx__key" data-formula-token="/">&divide;</button>
+        <button type="button" class="fx__key" data-formula-token="(">(</button>
+        <button type="button" class="fx__key" data-formula-token=")">)</button>
+      </div>
+
+      <div class="fx__panel-head" style="margin-top:14px;"><h4>{% trans "Number" %}</h4></div>
+      <div class="fx__value">
+        <input type="number" step="any" data-formula-value placeholder="0.5">
+        <button type="button" class="fx__add" data-formula-add>{% trans "Add" %}</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="fx__preview">
+    <div class="fx__preview-head">
+      <h4>{% trans "Live preview" %}</h4>
+      {% if formula_preview_note %}
+        <span class="fx__sample">{{ formula_preview_note }}</span>
+      {% else %}
+        <label class="fx__sample">
+          {% trans "on a sample basic pay of" %}
+          <input type="number" step="any" value="30000" data-formula-sample>
+        </label>
+      {% endif %}
+    </div>
+    <div class="fx__expression" data-formula-expression>&mdash;</div>
+    <div class="fx__result" data-formula-result></div>
+    <div class="fx__detail" data-formula-detail></div>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll("[data-formula-builder]").forEach(function (root) {
+  if (root.dataset.wired) { return; }
+  root.dataset.wired = "1";
+
+  // Everything is looked up inside this builder's own form. A page that has
+  // both a filter panel and a create modal open holds more than one element of
+  // each of these names.
+  var form = root.closest("form") || document;
+
+  // The token lives on <body hx-headers>, which is how this app hands it to
+  // HTMX — there is no csrfmiddlewaretoken input in these forms to read, so
+  // looking for one silently produced a 403 and an empty panel.
+  function csrfToken() {
+    try {
+      var headers = JSON.parse(document.body.getAttribute("hx-headers") || "{}");
+      if (headers["X-CSRFToken"]) return headers["X-CSRFToken"];
+    } catch (err) {
+      /* not JSON; fall through to the cookie */
+    }
+    var match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]*)/);
+    return match ? decodeURIComponent(match[1]) : "";
+  }
+
+
+  var PROMPT = "{% trans 'Tap a component below to start.' %}";
+  var REMOVE = "{% trans 'Remove' %}";
+  var USING = "{% trans 'using' %}";
+  var ESTIMATED = "{% trans 'estimated' %}";
+  var FAILED = "{% trans 'Could not work it out.' %}";
+  var UNREACHABLE = "{% trans 'Could not reach the server.' %}";
+
+  // The form's own field stays the source of truth; the builder writes to it.
+  var fieldName = root.dataset.formulaField || "formula";
+  function field() {
+    return form.querySelector("[name='" + fieldName + "']");
+  }
+  var canvas = root.querySelector("[data-formula-tokens]");
+
+  // Split a stored expression back into tokens, so an existing formula can be
+  // edited rather than only rewritten from scratch.
+  function parse(text) {
+    return (text || "").match(/[A-Za-z_][A-Za-z0-9_]*|\d*\.?\d+|[()+*\/-]/g) || [];
+  }
+  var tokens = parse(field() ? field().value : "");
+
+  function isComponent(token) { return /^[A-Za-z_][A-Za-z0-9_]*$/.test(token); }
+  function isNumber(token) { return /^\d*\.?\d+$/.test(token); }
+
+  // code -> human name, so the expression reads as the components the user
+  // actually clicked rather than as identifiers they never chose.
+  var LABELS = {};
+  root.querySelectorAll("[data-formula-token]").forEach(function (btn) {
+    var token = btn.dataset.formulaToken;
+    if (isComponent(token)) {
+      LABELS[token] = btn.dataset.formulaLabel || btn.textContent.trim();
+    }
+  });
+  function labelFor(token) { return LABELS[token] || token; }
+
+  function render() {
+    canvas.innerHTML = "";
+    if (!tokens.length) {
+      var empty = document.createElement("span");
+      empty.className = "fx__placeholder";
+      empty.textContent = PROMPT;
+      canvas.appendChild(empty);
+      return;
+    }
+    tokens.forEach(function (token, index) {
+      var chip = document.createElement("button");
+      chip.type = "button";
+      var kind = isComponent(token)
+        ? "component"
+        : (isNumber(token) ? "number" : "operator");
+      chip.className = "fx__token fx__token--" + kind;
+      chip.textContent = kind === "component" ? labelFor(token) : token;
+      // Not a `title` attribute: this app binds a jQuery UI tooltip widget to
+      // every `[title]` element document-wide (footerScripts.js), and this
+      // canvas is rebuilt from scratch (innerHTML = "") on every add/remove --
+      // destroying a hovered chip mid-tooltip orphans that widget's popup,
+      // which then never gets cleaned up. aria-label carries the same
+      // information to assistive tech without opting into that widget; sighted
+      // users already have the "Tap a token to remove it." hint above.
+      chip.setAttribute("aria-label", chip.textContent + ", " + REMOVE);
+      chip.addEventListener("click", function () {
+        tokens.splice(index, 1);
+        sync();
+      });
+      canvas.appendChild(chip);
+    });
+  }
+
+  var debounce;
+  function sync() {
+    render();
+    var expression = tokens.join(" ");
+    if (field()) { field().value = expression; }
+    root.querySelector("[data-formula-expression]").textContent = expression || "—";
+    clearTimeout(debounce);
+    debounce = setTimeout(preview, 250);
+  }
+
+  function preview() {
+    var expression = tokens.join(" ");
+    var resultBox = root.querySelector("[data-formula-result]");
+    var detailBox = root.querySelector("[data-formula-detail]");
+    resultBox.className = "fx__result";
+    if (!expression) {
+      resultBox.textContent = "";
+      detailBox.textContent = "";
+      return;
+    }
+    var sampleBox = root.querySelector("[data-formula-sample]");
+    var body = new FormData();
+    body.append("formula", expression);
+    body.append("sample_basic", sampleBox ? (sampleBox.value || "0") : "0");
+    fetch(root.dataset.formulaPreviewUrl, {
+      method: "POST",
+      body: body,
+      headers: {
+        "X-CSRFToken": csrfToken(),
+        "HX-Request": "true"
+      }
+    })
+      .then(function (r) { return r.json().then(function (d) { return {ok: r.ok, data: d}; }); })
+      .then(function (res) {
+        if (res.ok && res.data.ok) {
+          resultBox.textContent = Number(res.data.result).toLocaleString(undefined, {
+            minimumFractionDigits: 2, maximumFractionDigits: 2
+          });
+          // The server says what it evaluated against; "estimated" is only
+          // right when it was sample figures, which is the default and so the
+          // fallback.
+          detailBox.textContent = res.data.used.length
+            ? USING + " " + res.data.used.map(function (u) {
+                return u.code + " = " + Number(u.value).toLocaleString();
+              }).join(", ") + "  (" + (res.data.note || ESTIMATED) + ")"
+            : "";
+          // So an including page can take the figure rather than re-deriving
+          // it -- the payslip editor puts it straight into the line's amount.
+          root.dispatchEvent(new CustomEvent("formula:previewed", {
+            bubbles: true,
+            detail: {result: res.data.result, expression: expression}
+          }));
+        } else {
+          resultBox.className = "fx__result fx__result--error";
+          resultBox.textContent = res.data.error || FAILED;
+          detailBox.textContent = "";
+        }
+      })
+      .catch(function () {
+        resultBox.className = "fx__result fx__result--error";
+        resultBox.textContent = UNREACHABLE;
+      });
+  }
+
+  root.addEventListener("click", function (e) {
+    var tokenBtn = e.target.closest("[data-formula-token]");
+    if (tokenBtn) {
+      e.preventDefault();
+      tokens.push(tokenBtn.dataset.formulaToken);
+      sync();
+      return;
+    }
+    if (e.target.closest("[data-formula-add]")) {
+      e.preventDefault();
+      var input = root.querySelector("[data-formula-value]");
+      if (input.value !== "") {
+        tokens.push(input.value);
+        input.value = "";
+        sync();
+      }
+      return;
+    }
+    if (e.target.closest("[data-formula-clear]")) {
+      e.preventDefault();
+      tokens = [];
+      sync();
+    }
+  });
+
+  // Enter in the number box adds the number; without this it submits the
+  // component form from inside the builder.
+  root.querySelector("[data-formula-value]").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      root.querySelector("[data-formula-add]").click();
+    }
+  });
+
+  var search = root.querySelector("[data-formula-search]");
+  if (search) {
+    search.addEventListener("input", function () {
+      var needle = search.value.trim().toLowerCase();
+      root.querySelectorAll(".fx__chip").forEach(function (chip) {
+        var haystack = (
+          (chip.dataset.formulaLabel || "") + " " + chip.dataset.formulaToken
+        ).toLowerCase();
+        chip.hidden = needle !== "" && haystack.indexOf(needle) === -1;
+      });
+      root.querySelectorAll("[data-chip-group]").forEach(function (group) {
+        var chips = group.querySelectorAll(".fx__chip");
+        group.hidden = chips.length > 0 && !Array.prototype.some.call(chips, function (c) {
+          return !c.hidden;
+        });
+      });
+    });
+  }
+
+  var noComponents = root.querySelector("[data-no-components]");
+  if (noComponents) {
+    noComponents.hidden =
+      root.querySelectorAll(".fx__chip:not(.fx__chip--engine)").length > 0;
+  }
+
+  var sampleField = root.querySelector("[data-formula-sample]");
+  if (sampleField) {
+    sampleField.addEventListener("input", function () {
+      clearTimeout(debounce);
+      debounce = setTimeout(preview, 250);
+    });
+  }
+
+  sync();
+});
+</script>

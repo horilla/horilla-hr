@@ -1,0 +1,516 @@
+{% load widget_tweaks i18n static %}
+{% comment %}
+The Allowance / Deduction form.
+
+Both models are the same shape — a name, an amount rule, who it applies to and
+when — so both forms are this one template, and each simply has no rows for the
+fields it does not define. The grouping and the show/hide rules come from
+payroll/forms/component_layout.py rather than from a chain of name comparisons
+here, which is what previously let fields exist on the model, save correctly,
+and have nowhere on the form to set them.
+{% endcomment %}
+
+<style>
+  .oh-component-form [hidden] { display: none !important; }
+  .oh-component-form__section { width: 100%; margin: 18px 0 2px; }
+  .oh-component-form__section:first-of-type { margin-top: 4px; }
+  .oh-component-form__heading {
+    display: flex; align-items: baseline; gap: 10px; width: 100%;
+  }
+  .oh-component-form__heading h3 {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .06em; color: #6b7280; margin: 0; white-space: nowrap;
+  }
+  .oh-component-form__heading .rule { flex: 1; height: 1px; background: #e5e7eb; }
+  .oh-component-form__hint { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+
+  /* Label and its help icon on one line, and every field the same height, so
+     the two columns of a row line up whether or not they have help text. */
+  .oh-component-form__label,
+  .oh-component-field__label {
+    display: flex; align-items: center; gap: 6px; min-height: 22px;
+    margin-bottom: 4px;
+  }
+  .oh-component-field__label .oh-info { flex: 0 0 auto; margin: 0; }
+  .oh-component-field { margin-bottom: 12px; }
+
+  .oh-formula-row {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    background: #f7f7f9; border-radius: 8px; padding: 12px;
+  }
+  .oh-formula-row__summary {
+    flex: 1; min-width: 180px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 13px; color: #374151; word-break: break-word;
+  }
+  .oh-formula-row__summary.is-empty { color: #9ca3af; font-style: italic; }
+
+  /* The panel below sets display:flex, which beats the [hidden] attribute's
+     display:none from the UA stylesheet — so without this the builder sat open
+     over the form from the moment the page rendered. */
+  .oh-formula-popover[hidden] { display: none !important; }
+  .oh-formula-popover {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(17, 24, 39, .5);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .oh-formula-popover__panel {
+    background: #fff; border-radius: 14px; width: min(860px, 100%);
+    max-height: 90vh; display: flex; flex-direction: column;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, .28);
+    overflow: hidden;
+  }
+  .oh-formula-popover__head {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 16px; padding: 18px 20px 14px; border-bottom: 1px solid #ececf0;
+  }
+  .oh-formula-popover__head h3 {
+    margin: 0; font-size: 16px; font-weight: 650; color: #1f2430;
+  }
+  .oh-formula-popover__head p {
+    margin: 2px 0 0; font-size: 12.5px; color: #8b90a0;
+  }
+  .oh-formula-popover__x {
+    border: 0; background: transparent; color: #8b90a0; cursor: pointer;
+    font-size: 22px; line-height: 1; padding: 0 4px;
+  }
+  .oh-formula-popover__x:hover { color: #1f2430; }
+  .oh-formula-popover__body { padding: 18px 20px; overflow: auto; }
+  .oh-formula-popover__foot {
+    display: flex; justify-content: flex-end; gap: 10px;
+    padding: 14px 20px; border-top: 1px solid #ececf0; background: #fbfbfc;
+  }
+  .oh-formula-popover__done {
+    border: 0; border-radius: 8px;
+    background: var(--primary-600, #e54f38); color: #fff;
+    padding: 9px 22px; font-size: 13.5px; font-weight: 600; cursor: pointer;
+  }
+  .oh-formula-popover__done:hover { filter: brightness(1.05); }
+
+  .condition-row { background: #fafafa; border-radius: 8px; padding: 8px; }
+
+  /* An extra rule is drawn exactly like the first one — same two-column cells,
+     no panel around it. Only the AND line and the delete control distinguish
+     it, because it is the same kind of thing and boxing it made it look like a
+     different kind. */
+  .apply-rule { padding: 0; margin-bottom: 4px; }
+  .apply-rule__head {
+    display: flex; align-items: center; gap: 10px;
+    margin: 4px 0 10px;
+  }
+  .apply-rule__and {
+    font-size: 10px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; color: #6b7280;
+  }
+  .apply-rule__rule { flex: 1; height: 1px; background: #e5e7eb; }
+  .apply-rule__remove {
+    border: 0; background: transparent; color: #dc3545;
+    cursor: pointer; padding: 0; line-height: 1; font-size: 15px;
+  }
+  .apply-rule .oh-component-field[hidden] { display: none !important; }
+
+  .oh-limit-note {
+    border: 1px solid #e6e7eb; border-left: 3px solid var(--primary-600, #e54f38);
+    border-radius: 8px; background: #fbfbfc; padding: 12px 14px;
+  }
+  .oh-limit-note__head {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; color: #6b7280; margin-bottom: 8px;
+  }
+  .oh-limit-note__row {
+    display: flex; align-items: baseline; gap: 8px;
+    font-size: 13px; padding: 3px 0;
+  }
+  .oh-limit-note__label { color: #4b5563; }
+  .oh-limit-note__dots {
+    flex: 1; border-bottom: 1px dotted #d8dae0; min-width: 12px;
+  }
+  .oh-limit-note__value {
+    font-weight: 650; font-variant-numeric: tabular-nums; color: #1f2430;
+  }
+  .oh-limit-note__share { font-size: 11.5px; color: #9ca3af; }
+  .oh-limit-note__muted { font-size: 13px; color: #9ca3af; }
+  .oh-limit-note__foot { font-size: 11.5px; color: #9ca3af; margin-top: 8px; }
+
+  /* ---- steps ---- */
+  .oh-steps {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    padding: 0 0 4px; margin-bottom: 4px;
+  }
+  .oh-steps__step {
+    flex: 1 1 180px; min-width: 0;
+    display: flex; align-items: center; gap: 10px;
+    border: 1px solid #e6e7eb; border-radius: 10px;
+    background: #fff; padding: 10px 12px; cursor: pointer;
+    text-align: left; position: relative;
+  }
+  .oh-steps__step:hover { border-color: #cfd2da; }
+  .oh-steps__num {
+    flex: 0 0 auto;
+    width: 24px; height: 24px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: #eceef2; color: #6b7280;
+    font-size: 12px; font-weight: 700;
+  }
+  .oh-steps__text { min-width: 0; display: block; }
+  .oh-steps__label {
+    display: block; font-size: 13px; font-weight: 600; color: #1f2430;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .oh-steps__hint {
+    display: block; font-size: 11.5px; color: #9ca3af;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .oh-steps__step.is-current {
+    border-color: var(--primary-600, #e54f38);
+    box-shadow: inset 0 0 0 1px var(--primary-600, #e54f38);
+  }
+  .oh-steps__step.is-current .oh-steps__num {
+    background: var(--primary-600, #e54f38); color: #fff;
+  }
+  .oh-steps__step.is-done .oh-steps__num { background: #d6e9e1; color: #0f7b5f; }
+  .oh-steps__flag {
+    position: absolute; top: 6px; right: 8px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #b00020; color: #fff;
+    font-size: 11px; font-weight: 700; line-height: 16px; text-align: center;
+  }
+
+  .oh-step-panel[hidden] { display: none !important; }
+
+  .oh-step-nav {
+    display: flex; align-items: center; gap: 8px;
+    width: 100%; margin-top: 14px; padding-top: 14px;
+    border-top: 1px solid #ececf0;
+  }
+  .oh-step-nav__spacer { flex: 1; }
+  .oh-step-nav [hidden] { display: none !important; }
+
+  @media (max-width: 640px) {
+    .oh-steps__hint { display: none; }
+    .oh-steps__step { flex: 1 1 100%; }
+  }
+</style>
+
+{% if form.verbose_name %}
+<div class="oh-modal__dialog-header">
+  <h2 class="oh-modal__dialog-title" id="createTitle">{{ form.verbose_name }}</h2>
+  <button type="button" class="oh-modal__close--custom"
+          onclick="$(this).closest('.oh-modal--show').removeClass('oh-modal--show')"
+          aria-label="{% trans 'Close' %}" {{ form.close_button_attrs|safe }}>
+    <ion-icon name="close-outline" role="img" class="md hydrated"
+              aria-label="{% trans 'close outline' %}"></ion-icon>
+  </button>
+</div>
+{% endif %}
+
+<div class="oh-modal__dialog-body oh-modal__dialog-relative">
+  <div class="oh-general__tab-target oh-profile-section oh-component-form"
+       id="{{ form.container_id }}">
+    <div class="oh-profile-section__card row">
+      <div class="row" style="padding-right:0">
+
+        <div class="col-12" style="padding-right:0">{{ form.non_field_errors }}</div>
+
+        {% comment %}
+        The step rail. Stepping is presentation only — every field stays in the
+        DOM and the form still posts once — so validation, "save and add
+        another" and the view behind it are unaffected. Steps are clickable
+        rather than strictly sequential, because editing an existing component
+        usually means changing one thing on one step.
+        {% endcomment %}
+        <div class="col-12 oh-steps" role="tablist" data-steps>
+          {% for step in component_steps %}
+            <button type="button" class="oh-steps__step" role="tab"
+                    data-step-tab="{{ step.key }}"
+                    aria-controls="step-{{ step.key }}">
+              <span class="oh-steps__num">{{ step.index }}</span>
+              <span class="oh-steps__text">
+                <span class="oh-steps__label">{{ step.label }}</span>
+                {% if step.hint %}<span class="oh-steps__hint">{{ step.hint }}</span>{% endif %}
+              </span>
+              <span class="oh-steps__flag" data-step-flag hidden
+                    title="{% trans 'Something on this step needs attention' %}">!</span>
+            </button>
+          {% endfor %}
+        </div>
+
+        {% for step in component_steps %}
+        <div class="col-12 oh-step-panel" id="step-{{ step.key }}"
+             data-step-panel="{{ step.key }}" role="tabpanel">
+        <div class="row" style="padding-right:0">
+
+        {% for section in step.sections %}
+          {% comment %}
+          The heading and its fields are siblings, not parent and child:
+          they all have to be direct children of the Bootstrap .row or the
+          grid breaks. So they are linked by key instead, which is what
+          lets a heading hide once everything under it is hidden — the
+          "Upper limit" rule sat there alone on a fixed amount.
+          {% endcomment %}
+          <div class="oh-component-form__section col-12"
+               data-section="{{ section.key }}">
+            <div class="oh-component-form__heading">
+              <h3>{{ section.title }}</h3><span class="rule"></span>
+            </div>
+            {% if section.hint %}
+              <div class="oh-component-form__hint">{{ section.hint }}</div>
+            {% endif %}
+          </div>
+
+          {% for row in section.rows %}
+            {% include "payroll/component/_field.html" with row=row section_key=section.key %}
+
+            {% if row.field.name == "based_on" %}
+              {% comment %}
+              The formula belongs with the amount rule, but the builder is too
+              big to sit inline under every component — so the form carries a
+              one-line summary and opens the builder over it. The field itself
+              stays in the DOM: it is what actually saves.
+              {% endcomment %}
+              <div class="col-12 oh-component-field" data-row
+                   data-section-of="{{ section.key }}"
+                   id="id_formula_parent_div"
+                   data-show-if="is_fixed=off based_on=formula">
+                <div class="oh-label__info">
+                  <label class="oh-label" for="id_formula">{% trans "Formula" %}</label>
+                </div>
+                <div class="oh-formula-row">
+                  <div class="oh-formula-row__summary" data-formula-summary="formula"
+                       data-empty="{% trans 'No formula yet.' %}"></div>
+                  <button type="button" class="oh-btn oh-btn--secondary"
+                          data-open-formula="formula">
+                    <ion-icon name="calculator-outline" class="mr-1"></ion-icon>
+                    {% trans "Build formula" %}
+                  </button>
+                </div>
+                <div style="display:none">{{ form.formula }}</div>
+                {{ form.formula.errors }}
+              </div>
+            {% endif %}
+
+            {% if row.field.name == "employer_basis" and form.employer_formula %}
+              {% comment %}
+              The employer's own share, when it is not simply a percentage of
+              the same figure. Statutory contributions routinely are not: an
+              employer's 12% split 8.33% to pension and 3.67% to provident
+              fund, each capped separately, is not one rate off one basis.
+
+              Same builder, writing to a different field.
+              {% endcomment %}
+              <div class="col-12 oh-component-field" data-row
+                   data-section-of="{{ section.key }}"
+                   id="id_employer_formula_parent_div"
+                   data-show-if="employer_basis=formula">
+                <div class="oh-label__info">
+                  <label class="oh-label" for="id_employer_formula">
+                    {% trans "Employer formula" %}
+                  </label>
+                </div>
+                <div class="oh-formula-row">
+                  <div class="oh-formula-row__summary"
+                       data-formula-summary="employer_formula"
+                       data-empty="{% trans 'No employer formula yet.' %}"></div>
+                  <button type="button" class="oh-btn oh-btn--secondary"
+                          data-open-formula="employer_formula">
+                    <ion-icon name="calculator-outline" class="mr-1"></ion-icon>
+                    {% trans "Build formula" %}
+                  </button>
+                </div>
+                <div style="display:none">{{ form.employer_formula }}</div>
+                {{ form.employer_formula.errors }}
+              </div>
+            {% endif %}
+
+            {% if row.field.name == "maximum_unit" %}
+              {% comment %}
+              What the basis actually does to this component's figures. The
+              field spent a long time on the form describing scaling the engine
+              had commented out, so the worked numbers are how the label and
+              the behaviour stay tied together — and they come from the server
+              running the same period_factor a payslip runs, never from
+              arithmetic repeated in JavaScript.
+              {% endcomment %}
+              <div class="col-12 oh-component-field" data-row
+                   data-section-of="{{ section.key }}">
+                <div class="oh-limit-note" data-limit-note
+                     data-url="{% url 'component-limit-preview' %}"
+                     data-nothing="{% trans 'A percentage already follows the period, so this setting has nothing to scale here.' %}"
+                     data-empty="{% trans 'Enter an amount to see what it allows.' %}">
+                  <div class="oh-limit-note__head">
+                    <ion-icon name="information-circle-outline"></ion-icon>
+                    <span data-limit-note-title>{% trans "How this works out" %}</span>
+                  </div>
+                  <div class="oh-limit-note__body" data-limit-note-body>
+                    <span class="oh-limit-note__muted">
+                      {% trans "Enter an amount to see what it allows." %}
+                    </span>
+                  </div>
+                  <div class="oh-limit-note__foot">
+                    {% trans "Example periods. A real one follows the company calendar and the employee's contract." %}
+                  </div>
+                </div>
+              </div>
+            {% endif %}
+
+            {% if row.field.name == "end_range" %}
+              {% comment %}
+              Extra "when it applies" rules. All of them have to hold, so a
+              second rule narrows the component rather than offering it a
+              second way to qualify.
+              {% endcomment %}
+              <div class="col-12 oh-component-field" data-row
+                   data-section-of="{{ section.key }}">
+                <div data-apply-rows>
+                  {% comment %}
+                  Guarded on pk: reading a many-to-many on an unsaved instance
+                  raises, because there is no row for the join table to point at.
+                  {% endcomment %}
+                  {% if form.instance.pk %}
+                    {% for rule in form.instance.apply_conditions.all %}
+                      {% include "payroll/component/_apply_condition_row.html" with rule=rule if_choice=form.if_choice if_condition=form.if_condition if_component_code=form.if_component_code if_amount=form.if_amount start_range=form.start_range end_range=form.end_range %}
+                    {% endfor %}
+                  {% endif %}
+                </div>
+                <div style="text-align:right">
+                  <a href="javascript:void(0)" class="text-primary-600" data-add-apply
+                     style="display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:500;">
+                    <ion-icon name="add-outline" style="font-size:14px;"></ion-icon>
+                    {% trans "Add another rule" %}
+                  </a>
+                </div>
+              </div>
+            {% endif %}
+
+            {% if row.field.name == "value" %}
+              {% comment %}
+              Extra conditions, after the first row the layout just drew. They
+              are rendered server-side from their saved values; the old widget
+              built them in JavaScript by cloning the first row and then ran a
+              second script to re-select what had been saved.
+              {% endcomment %}
+              <div class="col-12 oh-component-field" data-row
+                   data-section-of="{{ section.key }}"
+                   data-show-if="include_active_employees=off is_condition_based=on">
+                <div data-condition-rows>
+                  {% for extra in extra_conditions %}
+                    <div class="condition-row row m-0 mb-2" data-condition-row>
+                      {% include "payroll/component/_condition_inputs.html" with field=form.field condition=form.condition value=form.value selected_field=extra.field selected_condition=extra.condition selected_value=extra.value %}
+                    </div>
+                  {% endfor %}
+                </div>
+
+                <div style="text-align:right">
+                  <a href="javascript:void(0)" class="text-primary-600" data-add-condition
+                     style="display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:500;">
+                    <ion-icon name="add-outline" style="font-size:14px;"></ion-icon>
+                    {% trans "Add condition" %}
+                  </a>
+                </div>
+              </div>
+            {% endif %}
+          {% endfor %}
+        {% endfor %}
+
+        </div>
+        </div>
+        {% endfor %}
+
+        {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+      </div>
+
+      {% comment %}
+      Save is on every step, not only the last. Next moves forward; it is the
+      prominent action while there is somewhere to go, and disappears on the
+      final step. Editing one field on step two should not require walking to
+      the end of the form to commit it.
+      {% endcomment %}
+      <div class="oh-step-nav">
+        <button type="button" class="oh-btn oh-btn--light" data-step-back hidden>
+          <ion-icon name="chevron-back-outline" class="mr-1"></ion-icon>
+          {% trans "Back" %}
+        </button>
+        <span class="oh-step-nav__spacer"></span>
+        {% if not form.instance.pk %}
+          <button type="submit" name="save_and_add_another" value="true"
+                  class="oh-btn oh-btn--light"
+                  hx-swap="none"
+                  data-reset-after-save
+                  {{ form.submit_button_attrs|safe }}>{% trans "Save And Add Another" %}</button>
+        {% endif %}
+        <button type="submit" class="oh-btn oh-btn--secondary" data-step-save
+                {{ form.submit_button_attrs|safe }}>{% trans "Save" %}</button>
+        <button type="button" class="oh-btn oh-btn--secondary" data-step-next>
+          {% trans "Next" %}
+          <ion-icon name="chevron-forward-outline" class="ml-1"></ion-icon>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% comment %}
+The popover is inside the form on purpose: the builder resolves its field with
+closest("form"), and the list page behind this modal renders a filter panel
+carrying the same field names.
+{% endcomment %}
+<div class="oh-formula-popover" data-formula-popover="formula"
+     data-formula-backdrop hidden>
+  <div class="oh-formula-popover__panel" role="dialog" aria-modal="true"
+       aria-label="{% trans 'Build the formula' %}">
+    <div class="oh-formula-popover__head">
+      <div>
+        <h3>{% trans "Build the formula" %}</h3>
+        <p>{% trans "Tap the components and operators you want — no code, no syntax." %}</p>
+      </div>
+      <button type="button" class="oh-formula-popover__x" data-close-formula
+              aria-label="{% trans 'Close' %}">&times;</button>
+    </div>
+    <div class="oh-formula-popover__body">
+      {% include "payroll/component/_formula_builder.html" with formula_field="formula" %}
+    </div>
+    <div class="oh-formula-popover__foot">
+      <button type="button" class="oh-formula-popover__done" data-close-formula>
+        {% trans "Done" %}
+      </button>
+    </div>
+  </div>
+</div>
+
+{% if form.employer_formula %}
+<div class="oh-formula-popover" data-formula-popover="employer_formula"
+     data-formula-backdrop hidden>
+  <div class="oh-formula-popover__panel" role="dialog" aria-modal="true"
+       aria-label="{% trans 'Build the employer formula' %}">
+    <div class="oh-formula-popover__head">
+      <div>
+        <h3>{% trans "Build the employer formula" %}</h3>
+        <p>{% trans "What the employer pays alongside this deduction. Same components, same operators." %}</p>
+      </div>
+      <button type="button" class="oh-formula-popover__x" data-close-formula
+              aria-label="{% trans 'Close' %}">&times;</button>
+    </div>
+    <div class="oh-formula-popover__body">
+      {% include "payroll/component/_formula_builder.html" with formula_field="employer_formula" %}
+    </div>
+    <div class="oh-formula-popover__foot">
+      <button type="button" class="oh-formula-popover__done" data-close-formula>
+        {% trans "Done" %}
+      </button>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<template data-apply-template>
+  {% include "payroll/component/_apply_condition_row.html" with if_choice=form.if_choice if_condition=form.if_condition if_component_code=form.if_component_code if_amount=form.if_amount start_range=form.start_range end_range=form.end_range %}
+</template>
+
+<template data-condition-template>
+  <div class="condition-row row m-0 mb-2" data-condition-row>
+    {% include "payroll/component/_condition_inputs.html" with field=form.field condition=form.condition value=form.value %}
+  </div>
+</template>
+
+<script src="{% static 'src/js/componentForm.js' %}"></script>

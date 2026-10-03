@@ -54,10 +54,10 @@
                         hx-get="{% url 'contract-filter' %}?{{pd}}&orderby=contract_end_date">{% trans "End Date" %}
                     </div>
                     <div data-cell-index="4" data-cell-title="{% trans 'Wage Type' %}" class="oh-sticky-table__th">{% trans "Wage Type" %}</div>
-                    <div data-cell-index="5" data-cell-title="{% trans 'Basic Salary' %}"
+                    <div data-cell-index="5" data-cell-title="{% trans 'Contract wage' %}"
                         class="oh-sticky-table__th {% if request.sort_option.order == '-wage' %}arrow-up {% elif request.sort_option.order == 'wage' %}arrow-down {% else %} arrow-up-down {% endif %}"
                         hx-target="#payroll-contract-container"
-                        hx-get="{% url 'contract-filter' %}?{{pd}}&orderby=wage">{% trans "Basic Salary" %}</div>
+                        hx-get="{% url 'contract-filter' %}?{{pd}}&orderby=wage">{% trans "Contract wage" %}</div>
                     <div data-cell-index="6" data-cell-title="{% trans 'Filing Status' %}" class="oh-sticky-table__th">
                         {% trans "Filing Status" %}</div>
                     <div data-cell-index="7" data-cell-title="{% trans 'Status' %}" class="oh-sticky-table__th">{% trans "Status" %}</div>
