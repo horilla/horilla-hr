@@ -1,7 +1,10 @@
+from datetime import date
+
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from employee.models import Employee
+from horilla import horilla_middlewares
 from leave.methods import calculate_requested_days
 from leave.models import *
 
@@ -63,6 +66,20 @@ def leave_Validations(self, data):
         raise serializers.ValidationError(
             _("There is already a leave request for this date range.")
         )
+
+    # Past-date restriction -- mirrors LeaveRequest.clean() on the web
+    request = getattr(horilla_middlewares._thread_locals, "request", None)
+    if request and not request.user.is_superuser:
+        emp_company = getattr(
+            getattr(employee, "employee_work_info", None), "company_id", None
+        )
+        restrict = EmployeePastLeaveRestrict.objects.filter(
+            enabled=True, company_id=emp_company
+        ).first()
+        if restrict and start_date < date.today():
+            raise serializers.ValidationError(
+                _("Requests cannot be made for past dates.")
+            )
 
     # checking if the end date is less than the start date
     if not start_date <= end_date:
