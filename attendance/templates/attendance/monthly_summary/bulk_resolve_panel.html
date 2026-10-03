@@ -1,0 +1,122 @@
+{% load i18n %}
+<style>
+.crpb-mark-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 7px;
+  margin-bottom: 14px;
+}
+.crpb-mark-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 9px 6px;
+  border-radius: 8px;
+  border: 1.5px solid;
+  cursor: pointer;
+  font-size: .72rem;
+  font-weight: 600;
+  transition: opacity .12s, box-shadow .12s;
+  background: #fff;
+  text-align: center;
+  line-height: 1.3;
+}
+.crpb-mark-btn:hover { box-shadow: 0 0 0 2px currentColor; opacity: .9; }
+.crpb-mark-btn ion-icon { font-size: 1.15rem; }
+.crpb-full   { color:#065f46; border-color:#6ee7b7; background:#d1fae5; }
+.crpb-half   { color:#854d0e; border-color:#fb923c; background:#fef9c3; }
+.crpb-absent { color:#991b1b; border-color:#fca5a5; background:#fee2e2; }
+.crpb-paid   { color:#1e40af; border-color:#93c5fd; background:#dbeafe; }
+.crpb-unpaid { color:#9a3412; border-color:#fdba74; background:#ffedd5; }
+.crpb-hol    { color:#134e4a; border-color:#5eead4; background:#ccfbf1; }
+.crpb-woff   { color:#4c1d95; border-color:#c4b5fd; background:#ede9fe; }
+.crpb-ot     { color:#92400e; border-color:#fed7aa; background:#ffedd5; }
+
+.crpb-date-chip {
+  display: inline-block;
+  font-size: .68rem;
+  font-weight: 600;
+  color: #374151;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  padding: 2px 7px;
+  margin: 0 4px 4px 0;
+}
+</style>
+
+<div>
+
+  <!-- ── Title row — sticky at the top of the popover's own scroll area ─── -->
+  <div style="position:sticky;top:0;z-index:5;background:#fff;
+              padding:12px 20px 11px;border-bottom:1px solid #f1f5f9;
+              display:flex;align-items:center;justify-content:space-between;
+              border-radius:10px 10px 0 0;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <ion-icon name="checkbox-outline" style="color:#6366f1;font-size:1.1rem;flex-shrink:0;"></ion-icon>
+      <span style="font-weight:700;font-size:.88rem;color:#1e1b4b;">
+        {% blocktrans count counter=dates|length %}{{ counter }} day selected{% plural %}{{ counter }} days selected{% endblocktrans %}
+      </span>
+    </div>
+    <button onclick="msCalClosePanel()"
+            style="background:none;border:none;color:#9ca3af;cursor:pointer;font-size:1rem;padding:2px 6px;" title="{% trans 'Close' %}">✕</button>
+  </div>
+
+  <div style="padding:12px 20px 16px;">
+
+    <!-- ── Selected dates ───────────────────────────────────────────────── -->
+    <div style="margin-bottom:12px;max-height:70px;overflow-y:auto;">
+      {% for d in dates %}<span class="crpb-date-chip">{{ d|date:"d M" }}</span>{% endfor %}
+    </div>
+
+    <!-- ── Mark all as grid ─────────────────────────────────────────────── -->
+    <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6c757d;margin-bottom:7px;">
+      {% trans "Mark all selected days as" %}
+    </div>
+    <div class="crpb-mark-grid">
+      <button class="crpb-mark-btn crpb-full" onclick="msCalBulkResolvePost('full_present')">
+        <ion-icon name="checkmark-circle-outline"></ion-icon>
+        {% trans "Full Present" %}
+      </button>
+      <button class="crpb-mark-btn crpb-half" onclick="msCalBulkResolvePost('half_present')">
+        <ion-icon name="remove-circle-outline"></ion-icon>
+        {% trans "Half Day" %}
+      </button>
+      <button class="crpb-mark-btn crpb-absent" onclick="msCalBulkResolvePost('absent')">
+        <ion-icon name="close-circle-outline"></ion-icon>
+        {% trans "Absent" %}
+      </button>
+      <button class="crpb-mark-btn crpb-paid" onclick="msCalBulkResolvePost('paid_leave')">
+        <ion-icon name="calendar-outline"></ion-icon>
+        {% trans "Paid Leave" %}
+      </button>
+      <button class="crpb-mark-btn crpb-unpaid" onclick="msCalBulkResolvePost('unpaid_leave')">
+        <ion-icon name="calendar-clear-outline"></ion-icon>
+        {% trans "Unpaid Leave" %}
+      </button>
+      <button class="crpb-mark-btn crpb-hol" onclick="msCalBulkResolvePost('holiday')">
+        <ion-icon name="sunny-outline"></ion-icon>
+        {% trans "Holiday" %}
+      </button>
+      <button class="crpb-mark-btn crpb-woff" onclick="msCalBulkResolvePost('week_off')">
+        <ion-icon name="moon-outline"></ion-icon>
+        {% trans "Week Off" %}
+      </button>
+      <button class="crpb-mark-btn crpb-ot" onclick="msCalBulkResolvePost('approve_ot')">
+        <ion-icon name="checkmark-done-outline"></ion-icon>
+        {% trans "Approve as Overtime" %}
+      </button>
+    </div>
+
+    <button onclick="msCalClosePanel()"
+            style="background:#f9fafb;color:#6b7280;border:1px solid #d1d5db;border-radius:6px;
+                   padding:6px 14px;font-size:.78rem;font-weight:600;cursor:pointer;
+                   display:flex;align-items:center;gap:5px;">
+      <ion-icon name="close-outline" style="font-size:.9rem;"></ion-icon>
+      {% trans "Clear Selection" %}
+    </button>
+
+  </div>
+</div>

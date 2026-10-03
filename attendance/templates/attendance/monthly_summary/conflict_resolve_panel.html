@@ -50,10 +50,13 @@
 }
 </style>
 
-<div style="padding:14px 20px 16px;">
+<div>
 
-  <!-- ── Title row ─────────────────────────────────────────────────────── -->
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+  <!-- ── Title row — sticky at the top of the popover's own scroll area ─── -->
+  <div style="position:sticky;top:0;z-index:5;background:#fff;
+              padding:12px 20px 11px;border-bottom:1px solid #f1f5f9;
+              display:flex;align-items:center;justify-content:space-between;
+              border-radius:10px 10px 0 0;">
     <div style="display:flex;align-items:center;gap:8px;">
       {% if conflict_type == "paid_leave" or conflict_type == "unpaid_leave" %}
         <ion-icon name="warning-outline" style="color:#e85d04;font-size:1.1rem;flex-shrink:0;"></ion-icon>
@@ -75,9 +78,11 @@
         <span style="font-weight:700;font-size:.88rem;color:#1e1b4b;">{{ date|date:"d M Y" }}</span>
       {% endif %}
     </div>
-    <button onclick="var p=document.getElementById('cal-resolve-panel');p.style.display='none';p.innerHTML='';"
+    <button onclick="msCalClosePanel()"
             style="background:none;border:none;color:#9ca3af;cursor:pointer;font-size:1rem;padding:2px 6px;" title="{% trans 'Close' %}">✕</button>
   </div>
+
+  <div style="padding:12px 20px 16px;">
 
   <!-- ── Current attendance info ───────────────────────────────────────── -->
   {% if att_row %}
@@ -481,4 +486,5 @@
   </div>
   {% endif %}
 
+  </div>
 </div>

@@ -30,7 +30,7 @@ from base.forms import AttendanceAllowedIPForm
 from base.models import AttendanceAllowedIP
 from base.views import add_remove_dynamic_fields
 
-from .views import summary, views
+from .views import regularisation_import, summary, views
 
 urlpatterns = [
     path(
@@ -1100,6 +1100,33 @@ urlpatterns = [
         "monthly-summary/conflict-resolve/",
         summary.attendance_monthly_summary_conflict_resolve,
         name="attendance-monthly-summary-conflict-resolve",
+    ),
+    # Ctrl/Shift-click a range of calendar day cells, then apply one status
+    # to all of them at once — the in-context sibling of the spreadsheet-based
+    # bulk regularisation above, for when the days are all visible together
+    # on one employee's calendar rather than scattered across the summary.
+    path(
+        "monthly-summary/conflict-bulk-resolve/",
+        summary.attendance_monthly_summary_conflict_bulk_resolve,
+        name="attendance-monthly-summary-conflict-bulk-resolve",
+    ),
+    # Bulk regularisation by spreadsheet: download the days awaiting a
+    # decision, fill one column, upload. See regularisation_import for why the
+    # template is pre-filled rather than empty.
+    path(
+        "monthly-summary/regularisation-template/",
+        regularisation_import.regularisation_template,
+        name="attendance-regularisation-template",
+    ),
+    path(
+        "monthly-summary/regularisation-import/",
+        regularisation_import.regularisation_import,
+        name="attendance-regularisation-import",
+    ),
+    path(
+        "monthly-summary/regularisation-confirm/",
+        regularisation_import.regularisation_confirm,
+        name="attendance-regularisation-confirm",
     ),
     path(
         "monthly-summary/bulk-override/",

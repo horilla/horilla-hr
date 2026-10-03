@@ -1,0 +1,431 @@
+{% load i18n %}
+{% comment %}
+The attendance calendar modal, and the conflict resolution it hosts.
+
+Lifted out of monthly_summary/table_partial.html so the payroll run review can
+open the same thing. Regularising a conflict is the fix for the one problem
+that blocks a payroll run, and sending someone to another screen to do it --
+then back, to run the review again -- is the sort of round trip that gets
+skipped.
+
+The JavaScript has to live here rather than in calendar_modal.html because
+scripts inserted through innerHTML do not execute; the modal's cells call these
+functions by name. Context (employee, dates, resolve URL) is read from the
+#cal-data element the modal template injects.
+
+Include this once per page, then call:
+
+    window.openAttendanceCalendar(url)
+
+where url is `attendance-monthly-summary-calendar` with employee_id, from_date
+and to_date.
+{% endcomment %}
+<style>
+@keyframes ms-spin { to { transform: rotate(360deg); } }
+</style>
+
+<!-- â"€â"€ Calendar modal overlay â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ -->
+<div id="cal-modal-overlay"
+     style="display:none;position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.45);
+            align-items:center;justify-content:center;">
+  <div id="cal-modal-inner"
+       style="background:#fff;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.25);
+              width:min(94vw,860px);max-height:92vh;overflow:hidden;display:flex;
+              flex-direction:column;position:relative;">
+    <button id="cal-modal-close"
+            onclick="document.getElementById('cal-modal-overlay').style.display='none'"
+            style="position:absolute;top:10px;right:12px;background:none;border:none;
+                   color:#6c757d;cursor:pointer;z-index:1;padding:4px;border-radius:6px;
+                   display:flex;align-items:center;justify-content:center;
+                   transition:background .15s,color .15s;"
+            onmouseenter="this.style.background='#f1f5f9';this.style.color='#374151';"
+            onmouseleave="this.style.background='none';this.style.color='#6c757d';">
+      <ion-icon name="close-outline" style="font-size:1.4rem;pointer-events:none;"></ion-icon>
+    </button>
+    <div id="cal-modal-content" style="overflow-y:auto;flex:1;"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var overlay = document.getElementById('cal-modal-overlay');
+  var content = document.getElementById('cal-modal-content');
+
+  // Close on backdrop click
+  overlay.addEventListener('click', function (e) {
+    if (e.target === overlay) overlay.style.display = 'none';
+  });
+
+  // Close on Escape
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') overlay.style.display = 'none';
+  });
+
+  window.openAttendanceCalendar = function (url) {
+    // Hide the metric hover popover if visible
+    var pop = document.getElementById('ms-pop');
+    if (pop) pop.style.display = 'none';
+
+    content.innerHTML = '<div style="padding:28px 24px;color:#6c757d;font-size:.85rem;display:flex;align-items:center;gap:10px;">'
+      + '<span style="width:16px;height:16px;border:2px solid #dee2e6;border-top-color:#6366f1;border-radius:50%;display:inline-block;animation:ms-spin .6s linear infinite;flex-shrink:0;"></span>'
+      + ' Loading calendar...</div>';
+
+    overlay.style.display = 'flex';
+
+    fetch(url, { headers: { 'HX-Request': 'true', 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(function (r) { return r.text(); })
+      .then(function (html) { content.innerHTML = html; })
+      .catch(function () {
+        content.innerHTML = '<p style="padding:24px;color:#dc3545;">Failed to load calendar.</p>';
+      });
+  };
+
+  // Row click â†’ open calendar  (metric cell hover still shows popover separately)
+  // Anything carrying data-calendar-url opens it: a summary table row, or the
+  // "Fix attendance" button on the payroll run review. Delegated from the
+  // document so rows swapped in by HTMX are covered without re-binding.
+  document.addEventListener('click', function (e) {
+    var trigger = e.target.closest && e.target.closest('[data-calendar-url]');
+    if (!trigger) return;
+    e.preventDefault();
+    window.openAttendanceCalendar(trigger.dataset.calendarUrl);
+  });
+
+  // â"€â"€ Conflict resolution helpers (called from calendar cell onclick attrs) â"€
+  // NOTE: functions must live here, NOT in calendar_modal.html, because
+  // scripts inside innerHTML do not execute in browsers.
+  // Context (employee, dates, URL) is read from #cal-data injected by the template.
+
+  function _getCalData() {
+    var el = document.getElementById('cal-data');
+    if (!el) return null;
+    return {
+      empId:          el.dataset.emp,
+      fromDate:       el.dataset.from,
+      toDate:         el.dataset.to,
+      resolveUrl:     el.dataset.resolveUrl,
+      bulkResolveUrl: el.dataset.bulkResolveUrl,
+    };
+  }
+
+  function _calSpinner(msg) {
+    return '<div style="padding:14px 20px;font-size:.8rem;color:#92400e;display:flex;align-items:center;gap:8px;">'
+      + '<span style="width:14px;height:14px;border:2px solid #fb923c;border-top-color:#92400e;border-radius:50%;display:inline-block;animation:ms-spin .6s linear infinite;flex-shrink:0;"></span>'
+      + ' ' + (msg || 'Loading...') + '</div>';
+  }
+
+  // Position the popover (position:fixed, viewport-relative) just under the
+  // clicked cell. Fixed rather than absolute so it escapes the overflow:auto
+  // clip on .cal-body / #cal-modal-content — an absolutely-positioned popover
+  // nested inside those gets cut off at their scroll boundary instead of
+  // floating over the rest of the calendar.
+  function _positionResolvePanel(panel, cellEl) {
+    if (!cellEl) return;
+    var modalInner = document.getElementById('cal-modal-inner');
+    var bounds = (modalInner || document.documentElement).getBoundingClientRect();
+    var eRect = cellEl.getBoundingClientRect();
+
+    var panelWidth  = panel.offsetWidth  || 340;
+    var panelHeight = panel.offsetHeight || 160;
+
+    var left = eRect.left;
+    var maxLeft = bounds.right - panelWidth - 8;
+    var minLeft = bounds.left + 8;
+    if (left > maxLeft) left = maxLeft;
+    if (left < minLeft) left = minLeft;
+
+    var top = eRect.bottom + 6;
+    var maxTop = bounds.bottom - panelHeight - 8;
+    if (top > maxTop) {
+      // No room below the cell — flip above it instead.
+      var above = eRect.top - panelHeight - 6;
+      top = above > bounds.top ? above : Math.max(bounds.top + 8, maxTop);
+    }
+
+    panel.style.left = left + 'px';
+    panel.style.top  = top + 'px';
+  }
+
+  // Closes the popover (single-day or bulk) and, if a multi-selection is
+  // active, clears it too — used by every close path (outside click, scroll,
+  // the panel's own ✕/Cancel buttons) so none of them can leave the calendar
+  // in a half-closed state (popover gone but cells still highlighted, or
+  // vice versa).
+  window.msCalClosePanel = function () {
+    var panel = document.getElementById('cal-resolve-panel');
+    if (panel) {
+      panel.style.display = 'none';
+      panel.innerHTML = '';
+      panel.className = '';
+    }
+    _msCalClearSelection();
+  };
+
+  // Click outside the popover (and not on another day cell, which opens
+  // its own popover) closes it.
+  document.addEventListener('mousedown', function (e) {
+    var panel = document.getElementById('cal-resolve-panel');
+    if (!panel || panel.style.display === 'none' || !panel.innerHTML) return;
+    if (panel.contains(e.target)) return;
+    if (e.target.closest && e.target.closest('.cal-cell:not(.cal-empty):not(.cal-out-of-range)')) return;
+    window.msCalClosePanel();
+  });
+
+  // Scrolling the calendar (or the modal around it) would leave a
+  // position:fixed popover visually detached from the cell it's anchored to
+  // — close it rather than let it drift. Capture phase: 'scroll' does not
+  // bubble, but capture still reaches descendants' scroll containers.
+  document.addEventListener('scroll', function (e) {
+    var panel = document.getElementById('cal-resolve-panel');
+    if (!panel || panel.style.display === 'none') return;
+    if (panel.contains(e.target)) return;
+    window.msCalClosePanel();
+  }, true);
+
+  // ── Multi-select: Ctrl/Cmd-click toggles a day; Shift-click selects the
+  // range between the last click and this one, and moves the reference point
+  // to here — so holding Shift through several clicks grows the selection
+  // segment by segment (day 5 -> day 10, then that click -> day 15, ...)
+  // rather than always re-measuring from wherever Shift was first pressed.
+  // Releasing the modifier key opens the bulk "mark all as" popover.
+  var msCalSelection = new Set();       // Set of 'YYYY-MM-DD' strings
+  var msCalAnchorDate = null;           // reference point for the next shift-click
+  var msCalLastTouchedCell = null;      // for anchoring the bulk popover
+
+  function _msCalAllDayCells() {
+    var body = document.querySelector('.cal-body');
+    if (!body) return [];
+    return Array.prototype.slice.call(
+      body.querySelectorAll('.cal-cell[data-date]:not(.cal-empty):not(.cal-out-of-range)')
+    );
+  }
+
+  function _msCalSetSelected(cellEl, selected) {
+    var d = cellEl.dataset.date;
+    if (!d) return;
+    if (selected) {
+      msCalSelection.add(d);
+      cellEl.classList.add('cal-cell-selected');
+    } else {
+      msCalSelection.delete(d);
+      cellEl.classList.remove('cal-cell-selected');
+    }
+  }
+
+  function _msCalClearSelection() {
+    if (!msCalSelection.size) return;
+    _msCalAllDayCells().forEach(function (c) { c.classList.remove('cal-cell-selected'); });
+    msCalSelection.clear();
+    msCalAnchorDate = null;
+    msCalLastTouchedCell = null;
+  }
+
+  // Adjusting the selection while a popover (single-day or bulk) is open
+  // dismisses it without touching the selection itself — it reopens, for
+  // the new selection, once the modifier key is released.
+  function _msCalHidePanelKeepingSelection() {
+    var panel = document.getElementById('cal-resolve-panel');
+    if (!panel) return;
+    panel.style.display = 'none';
+    panel.innerHTML = '';
+    panel.className = '';
+  }
+
+  function _msCalToggleSelect(cellEl) {
+    _msCalHidePanelKeepingSelection();
+    _msCalSetSelected(cellEl, !msCalSelection.has(cellEl.dataset.date));
+    msCalAnchorDate = cellEl.dataset.date;
+    msCalLastTouchedCell = cellEl;
+  }
+
+  function _msCalRangeSelect(cellEl) {
+    _msCalHidePanelKeepingSelection();
+    var cells = _msCalAllDayCells();
+    var toIdx = cells.indexOf(cellEl);
+    if (toIdx === -1) return;
+    var fromIdx = msCalAnchorDate
+      ? cells.findIndex(function (c) { return c.dataset.date === msCalAnchorDate; })
+      : toIdx;
+    if (fromIdx === -1) fromIdx = toIdx;
+    var lo = Math.min(fromIdx, toIdx), hi = Math.max(fromIdx, toIdx);
+    for (var i = lo; i <= hi; i++) { _msCalSetSelected(cells[i], true); }
+    // The reference point for the NEXT shift-click moves to here, so holding
+    // Shift through a chain of clicks selects each successive segment
+    // (day 5 -> day 10, then that click -> day 15, ...) instead of always
+    // re-measuring the whole span from the very first click.
+    msCalAnchorDate = cellEl.dataset.date;
+    msCalLastTouchedCell = cellEl;
+  }
+
+  window.msCalCellClick = function (e, cellEl, date, conflictType, detail) {
+    var withCtrl  = e && (e.ctrlKey || e.metaKey);
+    var withShift = e && e.shiftKey;
+
+    if (withCtrl)  { _msCalToggleSelect(cellEl); return; }
+    if (withShift) { _msCalRangeSelect(cellEl);  return; }
+
+    // Plain click — a fresh single-day action, so any multi-selection in
+    // progress is abandoned.
+    _msCalClearSelection();
+    msCalLoadResolve(cellEl, date, conflictType, detail);
+  };
+
+  // Only once BOTH Ctrl/Cmd and Shift are released does the bulk popover
+  // appear — while either is still held, the user may still be extending
+  // the selection.
+  document.addEventListener('keyup', function (e) {
+    if (e.key !== 'Control' && e.key !== 'Shift' && e.key !== 'Meta') return;
+    if (e.ctrlKey || e.shiftKey || e.metaKey) return;
+    if (msCalSelection.size > 0) { window.msCalOpenBulkPanel(); }
+  });
+
+  window.msCalOpenBulkPanel = function () {
+    var ctx = _getCalData();
+    if (!ctx || !ctx.bulkResolveUrl) return;
+    var panel = document.getElementById('cal-resolve-panel');
+    if (!panel) return;
+    var anchorCell = msCalLastTouchedCell || document.querySelector('.cal-cell-selected');
+
+    panel.className = '';
+    panel.style.display = 'block';
+    panel.innerHTML = _calSpinner('Loading...');
+    _positionResolvePanel(panel, anchorCell);
+
+    var params = new URLSearchParams();
+    params.set('employee_id', ctx.empId);
+    params.set('from_date', ctx.fromDate);
+    params.set('to_date', ctx.toDate);
+    msCalSelection.forEach(function (d) { params.append('dates', d); });
+
+    fetch(ctx.bulkResolveUrl + '?' + params.toString(), {
+      headers: { 'HX-Request': 'true', 'X-Requested-With': 'XMLHttpRequest' }
+    }).then(function (r) { return r.text(); })
+      .then(function (html) {
+        panel.innerHTML = html;
+        if (typeof htmx !== 'undefined') { htmx.process(panel); }
+        _positionResolvePanel(panel, anchorCell);
+      })
+      .catch(function () { panel.innerHTML = '<p style="padding:12px;color:#dc3545;">Failed to load.</p>'; });
+  };
+
+  window.msCalBulkResolvePost = function (resolution) {
+    var ctx = _getCalData();
+    if (!ctx || !ctx.bulkResolveUrl || !msCalSelection.size) return;
+
+    var csrf = document.cookie.replace(/(?:(?:^|.*;\s*)csrftoken\s*=\s*([^;]*).*$)|^.*$/, '$1');
+
+    content.innerHTML = '<div style="padding:28px 24px;color:#6c757d;font-size:.85rem;display:flex;align-items:center;gap:10px;">'
+      + '<span style="width:16px;height:16px;border:2px solid #dee2e6;border-top-color:#6366f1;border-radius:50%;display:inline-block;animation:ms-spin .6s linear infinite;flex-shrink:0;"></span>'
+      + ' Saving and refreshing...</div>';
+
+    var body = new URLSearchParams();
+    body.set('employee_id', ctx.empId);
+    body.set('from_date', ctx.fromDate);
+    body.set('to_date', ctx.toDate);
+    body.set('resolution', resolution);
+    msCalSelection.forEach(function (d) { body.append('dates', d); });
+
+    // The DOM this Set/anchor pointed at is about to be replaced wholesale
+    // by the fresh calendar render below, so reset the selection state now
+    // rather than leave it referencing detached elements.
+    msCalSelection = new Set();
+    msCalAnchorDate = null;
+    msCalLastTouchedCell = null;
+
+    fetch(ctx.bulkResolveUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'HX-Request': 'true',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRFToken': csrf,
+      },
+      body: body.toString(),
+    }).then(function (r) { return r.text(); })
+      .then(function (html) { content.innerHTML = html; })
+      .catch(function () {
+        content.innerHTML = '<p style="padding:24px;color:#dc3545;">Failed to save.</p>';
+      });
+  };
+
+  window.msCalLoadResolve = function (cellEl, date, conflictType, detail) {
+    var ctx = _getCalData();
+    if (!ctx) return;
+    var panel = document.getElementById('cal-resolve-panel');
+    if (!panel) return;
+
+    // Apply visual theme based on conflict type
+    panel.className = '';
+    if (conflictType === 'paid_leave' || conflictType === 'unpaid_leave') {
+      panel.className = 'panel-conflict';
+    } else if (conflictType === 'holiday_ot' || conflictType === 'week_off_ot') {
+      panel.className = 'panel-ot';
+    }
+
+    panel.style.display = 'block';
+    panel.innerHTML = _calSpinner('Loading...');
+    if (cellEl && cellEl.scrollIntoView) {
+      cellEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    _positionResolvePanel(panel, cellEl);
+
+    var params = new URLSearchParams({
+      employee_id:   ctx.empId,
+      date:          date,
+      from_date:     ctx.fromDate,
+      to_date:       ctx.toDate,
+      conflict_type: conflictType || '',
+    });
+    fetch(ctx.resolveUrl + '?' + params.toString(), {
+      headers: { 'HX-Request': 'true', 'X-Requested-With': 'XMLHttpRequest' }
+    }).then(function (r) { return r.text(); })
+      .then(function (html) {
+        panel.innerHTML = html;
+        // Register HTMX on dynamically-inserted content (innerHTML bypass)
+        if (typeof htmx !== 'undefined') { htmx.process(panel); }
+        // If the panel reveals a resolved banner, switch to green theme
+        if (panel.querySelector && panel.querySelector('[data-resolved]')) {
+          panel.className = 'panel-resolved';
+        }
+        // Real content is a different height than the loading spinner —
+        // recompute so the flip-above-the-cell logic sees the true size.
+        _positionResolvePanel(panel, cellEl);
+      })
+      .catch(function () { panel.innerHTML = '<p style="padding:12px;color:#dc3545;">Failed to load.</p>'; });
+  };
+
+  window.msCalResolvePost = function (resolution, conflictType) {
+    var ctx = _getCalData();
+    var dateInput = document.getElementById('cal-resolve-date');
+    if (!ctx || !dateInput) return;
+
+    var csrf = document.cookie.replace(/(?:(?:^|.*;\s*)csrftoken\s*=\s*([^;]*).*$)|^.*$/, '$1');
+
+    content.innerHTML = '<div style="padding:28px 24px;color:#6c757d;font-size:.85rem;display:flex;align-items:center;gap:10px;">'
+      + '<span style="width:16px;height:16px;border:2px solid #dee2e6;border-top-color:#6366f1;border-radius:50%;display:inline-block;animation:ms-spin .6s linear infinite;flex-shrink:0;"></span>'
+      + ' Saving and refreshing...</div>';
+
+    fetch(ctx.resolveUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'HX-Request': 'true',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRFToken': csrf,
+      },
+      body: new URLSearchParams({
+        employee_id:   ctx.empId,
+        date:          dateInput.value,
+        from_date:     ctx.fromDate,
+        to_date:       ctx.toDate,
+        resolution:    resolution,
+        conflict_type: conflictType,
+      })
+    }).then(function (r) { return r.text(); })
+      .then(function (html) { content.innerHTML = html; })
+      .catch(function () {
+        content.innerHTML = '<p style="padding:24px;color:#dc3545;">Failed to save resolution.</p>';
+      });
+  };
+})();
+</script>

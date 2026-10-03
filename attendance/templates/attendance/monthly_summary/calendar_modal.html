@@ -77,7 +77,7 @@
 }
 
 /* ── Calendar body ────────────────────────────────────────────────────────── */
-.cal-body { padding: 16px 20px 20px; overflow-y: auto; max-height: calc(90vh - 200px); }
+.cal-body { padding: 16px 20px 20px; overflow-y: auto; max-height: calc(90vh - 200px); position: relative; }
 .cal-month-label {
   font-size: .8rem;
   font-weight: 700;
@@ -132,6 +132,16 @@
 .cal-cell.cal-resolved-conflict:hover {
   outline: 2px solid #10b981;
   outline-offset: -2px;
+}
+/* Multi-select — Ctrl/Cmd-click toggles a cell, Shift-click selects a range;
+   releasing the modifier key opens the bulk "mark all as" popover. Takes
+   priority over the conflict rings above so a selected conflict day is still
+   visibly selected. */
+.cal-cell.cal-cell-selected {
+  outline: 2px solid #6366f1 !important;
+  outline-offset: -2px;
+  box-shadow: 0 0 0 4px rgba(99,102,241,.18) !important;
+  background-color: rgba(99,102,241,.08);
 }
 
 /* Amber dot — leave conflict needing regularisation */
@@ -220,16 +230,25 @@
 .cal-holiday      { background: #a5f3fc; color: #155e75; }
 .cal-weekend      { background: #f1f5f9; color: #94a3b8; }
 
-/* ── Conflict resolve panel ──────────────────────────────────────────────── */
+/* ── Conflict resolve popover — anchored to the clicked day cell ─────────── */
+/* position:fixed (viewport-relative) so it escapes the overflow:auto clip on
+   .cal-body / #cal-modal-content instead of being cut off inside them; the
+   host script positions it with getBoundingClientRect() to match. */
 #cal-resolve-panel {
-  border-top: 2px solid #e5e7eb;
-  background: #fff;
-  padding: 0;
   display: none;
+  position: fixed;
+  z-index: 100010;
+  width: min(340px, calc(100vw - 16px));
+  max-height: min(420px, 70vh);
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 14px 36px rgba(15,23,42,.25);
 }
-#cal-resolve-panel.panel-conflict { border-top-color: #e85d04; background: #fff4ed; }
-#cal-resolve-panel.panel-resolved { border-top-color: #10b981; background: #f0fdf4; }
-#cal-resolve-panel.panel-ot       { border-top-color: #0f766e; background: #f0fdf4; }
+#cal-resolve-panel.panel-conflict { border-color: #e85d04; }
+#cal-resolve-panel.panel-resolved { border-color: #10b981; }
+#cal-resolve-panel.panel-ot       { border-color: #0f766e; }
 
 /* ── Legend ──────────────────────────────────────────────────────────────── */
 .cal-legend {
@@ -253,12 +272,13 @@
 }
 </style>
 
-<!-- Data element — read by msCalLoadResolve / msCalResolvePost in table_partial.html -->
+<!-- Data element — read by msCalLoadResolve / msCalResolvePost / msCalBulkResolvePost in _calendar_modal_host.html -->
 <div id="cal-data"
      data-emp="{{ employee.pk }}"
      data-from="{{ from_date|date:'Y-m-d' }}"
      data-to="{{ to_date|date:'Y-m-d' }}"
      data-resolve-url="{% url 'attendance-monthly-summary-conflict-resolve' %}"
+     data-bulk-resolve-url="{% url 'attendance-monthly-summary-conflict-bulk-resolve' %}"
      style="display:none;"></div>
 
 <!-- ── Header ───────────────────────────────────────────────────────────── -->
@@ -366,8 +386,9 @@
           </div>
         {% else %}
           <div class="cal-cell cal-{{ cell.status }}{% if cell.is_conflict %} cal-has-conflict{% elif cell.resolution %} cal-resolved-conflict{% endif %}"
-               title="{{ cell.date|date:'d M Y' }}{% if cell.detail %} — {{ cell.detail }}{% endif %}{% if cell.conflict_with == 'paid_leave' or cell.conflict_with == 'unpaid_leave' %} ⚠ conflicts with {{ cell.conflict_with }}{% elif cell.conflict_with == 'holiday_ot' %} HO — Holiday Overtime{% elif cell.conflict_with == 'week_off_ot' %} WO — Week Off Overtime{% elif cell.conflict_with == 'regular_ot' %} OT — Overtime{% elif cell.resolution %} ✓ resolved{% endif %}"
-               onclick="msCalLoadResolve('{{ cell.date|date:'Y-m-d' }}', '{{ cell.conflict_with|default:'' }}', '{{ cell.detail|default:''|escapejs }}')">
+               data-date="{{ cell.date|date:'Y-m-d' }}"
+               title="{{ cell.date|date:'d M Y' }}{% if cell.detail %} — {{ cell.detail }}{% endif %}{% if cell.conflict_with == 'paid_leave' or cell.conflict_with == 'unpaid_leave' %} ⚠ conflicts with {{ cell.conflict_with }}{% elif cell.conflict_with == 'holiday_ot' %} HO — Holiday Overtime{% elif cell.conflict_with == 'week_off_ot' %} WO — Week Off Overtime{% elif cell.conflict_with == 'regular_ot' %} OT — Overtime{% elif cell.resolution %} ✓ resolved{% endif %}{% trans ' — Ctrl/Shift-click to select multiple days' %}"
+               onclick="msCalCellClick(event, this, '{{ cell.date|date:'Y-m-d' }}', '{{ cell.conflict_with|default:'' }}', '{{ cell.detail|default:''|escapejs }}')">
             <div class="cal-day-num">{{ cell.day }}</div>
             {% if cell.detail %}<div class="cal-day-detail">{{ cell.detail }}</div>{% endif %}
             {% if cell.conflict_with == "paid_leave" or cell.conflict_with == "unpaid_leave" %}
@@ -393,10 +414,10 @@
     {% endfor %}
   </div>
   {% endfor %}
-</div>
 
-<!-- ── Conflict resolve panel (hidden until a cell is clicked) ──────────── -->
-<div id="cal-resolve-panel"></div>
+  <!-- ── Conflict resolve popover (hidden until a cell is clicked) ────────── -->
+  <div id="cal-resolve-panel"></div>
+</div>
 
 <!-- ── Legend ────────────────────────────────────────────────────────────── -->
 <div class="cal-legend">

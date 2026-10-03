@@ -22,7 +22,12 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from xlsxwriter.utility import xl_range
 
-from attendance.models import Attendance, AttendanceDailyHours, AttendanceSummaryHours
+from attendance.models import (
+    Attendance,
+    AttendanceDailyHours,
+    AttendanceSummaryHours,
+    AttendanceSummaryOverride,
+)
 from base.methods import (
     filtersubordinatesemployeemodel,
     get_company_leave_dates,
@@ -502,9 +507,23 @@ def build_monthly_summary(from_date, to_date, employee_qs):
                 "total_working": total_working,
                 "week_off": int(week_off),
                 "holiday": int(holiday_c),
+                # Working days for THIS employee, as the day loop above
+                # actually attributed them. total_working beside it is
+                # company-wide -- get_working_days() is called without an
+                # employee -- so on anyone whose roster differs from the
+                # default the two disagree, and a row that does not reconcile
+                # with itself is unreadable. Derived from the same buckets, so
+                # by construction it always adds up.
+                "working_days": present + paid_leave + unpaid_leave + absent,
                 "conflict_days": conflict_days,
                 "resolved_conflicts": resolved_conflicts,
                 "unresolved_conflicts": conflict_days - resolved_conflicts,
+                # The actual days still awaiting a decision, not just how many.
+                # A bulk regularisation template is only useful if it can be
+                # handed back pre-filled with the rows that need answering.
+                "unresolved_conflict_dates": sorted(
+                    conflict_date_set - emp_resolved_dates
+                ),
                 "hours_second": final_hours,
                 "hours_label": hours_label,
                 "is_hours_edited": is_hours_edited,
@@ -539,6 +558,30 @@ def build_monthly_summary(from_date, to_date, employee_qs):
             unique_fields=["employee_id", "from_date", "to_date"],
             update_fields=["hours_second"],
         )
+
+    # Stated totals win over counted ones. Applied last, over the finished
+    # rows, so everything derived from the counts -- paid_days, the conflict
+    # figures, the fleet totals below -- is computed from what HR actually
+    # stated rather than from figures it has already replaced.
+    overrides = {
+        o.employee_id_id: o
+        for o in AttendanceSummaryOverride.objects.filter(
+            employee_id__in=[r["employee"].pk for r in rows],
+            from_date=from_date,
+            to_date=to_date,
+        )
+    }
+    if overrides:
+        for row in rows:
+            override = overrides.get(row["employee"].pk)
+            if override is not None:
+                override.applied_to(row)
+
+        total_present = sum(r["present"] for r in rows)
+        total_absent = sum(r["absent"] for r in rows)
+        total_paid = sum(r["paid_leave"] for r in rows)
+        total_unpaid = sum(r["unpaid_leave"] for r in rows)
+        total_conflicts = sum(r["unresolved_conflicts"] for r in rows)
 
     summary_totals = {
         "total_employees": len(rows),
@@ -587,6 +630,14 @@ def attendance_monthly_summary(request):
     context = {
         "from_date": request.GET.get("from_date", from_date_default.isoformat()),
         "to_date": request.GET.get("to_date", to_date_default.isoformat()),
+        # Bound to the request the same way from_date/to_date/is_active
+        # already are -- without an explicit value= of their own, these two
+        # had nothing telling the browser what to show on a fresh render, so
+        # a plain reload (Clear All's own mechanism) could still show
+        # whatever the browser last had typed into that field, independent
+        # of the page the server just sent back with no filter applied.
+        "search": request.GET.get("search", ""),
+        "name_or_badge": request.GET.get("name_or_badge", ""),
         "selected_employees": Employee.objects.filter(
             pk__in=request.GET.getlist("employee_id")
         ),
@@ -620,6 +671,33 @@ def attendance_monthly_summary(request):
         "is_active": request.GET.get("is_active", ""),
         "pd": request.GET.urlencode(),
     }
+    # Same fields msRenderFilterTags() (monthly_summary.html) counts as "an
+    # extra filter is on" -- not from_date/to_date, which always carry a
+    # value and so would show the Filter button as permanently active. Set
+    # here too, not only by that script, so the button's accent border and
+    # count badge are right from the very first response rather than only
+    # after the page's own JS runs.
+    # One count per FIELD, not per selected value -- three employees picked
+    # is one active filter ("Employee"), the same as the chip row shows,
+    # not three.
+    active_filter_count = sum(
+        1
+        for present in (
+            request.GET.get("search"),
+            request.GET.get("name_or_badge"),
+            request.GET.get("is_active"),
+            request.GET.getlist("employee_id"),
+            request.GET.getlist("department_id"),
+            request.GET.getlist("job_position_id"),
+            request.GET.getlist("shift_id"),
+            request.GET.getlist("work_type_id"),
+            request.GET.getlist("employee_work_info__company_id"),
+            request.GET.getlist("employee_work_info__reporting_manager_id"),
+            request.GET.getlist("employee_work_info__tags"),
+        )
+        if present
+    )
+    context["active_filter_count"] = active_filter_count
     return render(request, "attendance/monthly_summary/monthly_summary.html", context)
 
 
@@ -2169,6 +2247,87 @@ def attendance_monthly_summary_conflict_resolve(request):
     }
     return render(
         request, "attendance/monthly_summary/conflict_resolve_panel.html", context
+    )
+
+
+@login_required
+@manager_can_enter("attendance.change_attendance")
+@hx_request_required
+def attendance_monthly_summary_conflict_bulk_resolve(request):
+    """
+    HTMX view for regularising a multi-day selection at once — the calendar's
+    cells support Ctrl/Shift-click multi-select; once the modifier key is
+    released, this backs the "mark all selected days as" popover.
+
+    GET  → renders the bulk panel for the given `dates`.
+    POST → applies the chosen resolution to every one of them and re-renders
+           the full calendar, same as the single-day conflict-resolve view.
+    """
+    from attendance.models import AttendanceConflictResolution
+
+    emp_id = request.POST.get("employee_id") or request.GET.get("employee_id")
+    from_date = _parse_date(
+        request.POST.get("from_date") or request.GET.get("from_date"),
+        datetime.date.today().replace(day=1),
+    )
+    to_date = _parse_date(
+        request.POST.get("to_date") or request.GET.get("to_date"), datetime.date.today()
+    )
+
+    try:
+        emp = Employee.objects.get(pk=emp_id)
+    except Employee.DoesNotExist:
+        return HttpResponse(
+            "<p style='padding:12px;color:#6c757d;'>Employee not found.</p>"
+        )
+
+    raw_dates = request.POST.getlist("dates") or request.GET.getlist("dates")
+    dates = sorted(
+        {d for d in (_parse_date(v, None) for v in raw_dates) if d is not None}
+    )
+    if not dates:
+        return HttpResponse(
+            "<p style='padding:12px;color:#6c757d;'>No days selected.</p>"
+        )
+
+    if request.method == "POST":
+        resolution = request.POST.get("resolution")
+        # Deliberately narrower than the single-day view's set: "partial_hours"
+        # needs a specific target duration per day (not meaningful across a
+        # heterogeneous selection), and "clear" isn't exposed as a bulk action.
+        _valid = {
+            "full_present",
+            "half_present",
+            "absent",
+            "paid_leave",
+            "unpaid_leave",
+            "holiday",
+            "week_off",
+            "approve_ot",
+        }
+        if resolution in _valid:
+            for d in dates:
+                AttendanceConflictResolution.objects.update_or_create(
+                    employee_id=emp,
+                    date=d,
+                    defaults={"resolution": resolution, "conflict_type": ""},
+                )
+            if resolution == "approve_ot":
+                Attendance.objects.filter(
+                    employee_id=emp, attendance_date__in=dates
+                ).update(attendance_overtime_approve=True)
+
+        # Re-render the full calendar so counts and dots update immediately,
+        # same as the single-day path.
+        context = _build_calendar_context(emp, from_date, to_date)
+        return render(
+            request, "attendance/monthly_summary/calendar_modal.html", context
+        )
+
+    # ── GET: render the "mark all as" panel for the selected dates ──────────
+    context = {"employee": emp, "dates": dates}
+    return render(
+        request, "attendance/monthly_summary/bulk_resolve_panel.html", context
     )
 
 
