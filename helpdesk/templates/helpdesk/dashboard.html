@@ -23,8 +23,7 @@
     .hd-kpi-card__icon--green { background: #dcfce7; color: var(--hd-green); } .hd-kpi-card__icon--red { background: #fee2e2; color: var(--hd-red); }
     .dark .hd-kpi-card__icon--blue { background: #1e3a5f; } .dark .hd-kpi-card__icon--amber { background: #78350f; }
     .dark .hd-kpi-card__icon--green { background: #14532d; } .dark .hd-kpi-card__icon--red { background: #7f1d1d; }
-    .hd-kpi-card__label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.5; margin-bottom: 6px; }
-    .hd-kpi-card__value { font-size: 28px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+    .hd-kpi-card__label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.5; margin-bottom: 6px; }    .hd-kpi-card__value { font-size: 28px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
     .hd-kpi-card__sub { font-size: 12px; opacity: 0.6; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
     .hd-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
     .hd-badge--green { background: #dcfce7; color: #166534; } .hd-badge--amber { background: #fef3c7; color: #92400e; } .hd-badge--red { background: #fee2e2; color: #991b1b; }
@@ -117,12 +116,12 @@
     .hd-refresh__toggle { cursor: pointer; opacity: 0.6; font-size: 13px; border: none; background: none; color: inherit; padding: 2px; }
     .hd-refresh__toggle:hover { opacity: 1; }
     #chart-hd-status .apexcharts-pie-slice-donut,
-    #chart-hd-workload .apexcharts-bar-area,
-    #chart-hd-trend .apexcharts-bar-area,
+    #chart-hd-trend .apexcharts-marker,
     #chart-hd-priority .apexcharts-bar-area,
     #chart-hd-dept .apexcharts-bar-area,
     #chart-hd-status .apexcharts-pie-slice-donut,
     #chart-hd-type .apexcharts-pie-slice-donut { cursor: pointer; }
+    #chart-hd-type .apexcharts-legend-text { display: inline-block; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
 
 
     /* Responsive */
@@ -163,45 +162,29 @@
         <div class="hd-main">
             <div class="hd-chart-grid">
                 <div class="hd-chart-card" data-chart-id="ticket_status" data-chart-label="{% trans 'Ticket Status' %}">
-                    <div class="hd-chart-card__header"><div><div class="hd-chart-card__title">{% trans "Ticket Status" %}</div><div class="hd-chart-card__subtitle">{% trans "Tickets created this month" %}</div></div></div>
+                    <div class="hd-chart-card__header"><div><div class="hd-chart-card__title">{% trans "Ticket Status" %}</div><div class="hd-chart-card__subtitle">{% trans "All tickets" %}</div></div></div>
                     <div class="hd-chart-card__body"><div id="chart-hd-status"></div></div>
                 </div>
                 <div class="hd-chart-card" data-chart-id="priority_breakdown" data-chart-label="{% trans 'Priority Breakdown' %}">
-                    <div class="hd-chart-card__header"><div><div class="hd-chart-card__title">{% trans "Priority Breakdown" %}</div><div class="hd-chart-card__subtitle">{% trans "Low, medium, high — this month" %}</div></div></div>
+                    <div class="hd-chart-card__header"><div><div class="hd-chart-card__title">{% trans "Priority Breakdown" %}</div><div class="hd-chart-card__subtitle">{% trans "Open tickets by priority" %}</div></div></div>
                     <div class="hd-chart-card__body"><div id="chart-hd-priority"></div></div>
                 </div>
                 <div class="hd-chart-card" data-chart-id="tickets_by_type" data-chart-label="{% trans 'Tickets by Type' %}">
-                    <div class="hd-chart-card__header"><div><div class="hd-chart-card__title">{% trans "Tickets by Type" %}</div><div class="hd-chart-card__subtitle">{% trans "Suggestion, complaint, service, etc. — this month" %}</div></div></div>
+                    <div class="hd-chart-card__header"><div><div class="hd-chart-card__title">{% trans "Tickets by Type" %}</div><div class="hd-chart-card__subtitle">{% trans "Suggestion, complaint, service, etc." %}</div></div></div>
                     <div class="hd-chart-card__body"><div id="chart-hd-type"></div></div>
                 </div>
                 <div class="hd-chart-card" data-chart-id="tickets_by_dept" data-chart-label="{% trans 'Tickets by Department' %}">
-                    <div class="hd-chart-card__header"><div><div class="hd-chart-card__title">{% trans "Tickets by Department" %}</div><div class="hd-chart-card__subtitle">{% trans "Raised by department — this month" %}</div></div></div>
+                    <div class="hd-chart-card__header"><div><div class="hd-chart-card__title">{% trans "Tickets by Department" %}</div><div class="hd-chart-card__subtitle">{% trans "Open tickets raised by department" %}</div></div></div>
                     <div class="hd-chart-card__body"><div id="chart-hd-dept"></div></div>
                 </div>
                 <div class="hd-chart-card hd-chart-card--wide" data-chart-id="ticket_trend" data-chart-label="{% trans 'Ticket Trend' %}">
-                    <div class="hd-chart-card__header"><div><div class="hd-chart-card__title">{% trans "Ticket Trend" %}</div><div class="hd-chart-card__subtitle">{% trans "Created vs resolved — by week, this month" %}</div></div></div>
+                    <div class="hd-chart-card__header"><div><div class="hd-chart-card__title">{% trans "Ticket Trend" %}</div><div class="hd-chart-card__subtitle">{% trans "Created vs resolved — last 6 months" %}</div></div></div>
                     <div class="hd-chart-card__body"><div id="chart-hd-trend"></div></div>
-                </div>
-                <div class="hd-chart-card" data-chart-id="sla_compliance" data-chart-label="{% trans 'SLA Compliance' %}">
-                    <div class="hd-chart-card__header"><div><div class="hd-chart-card__title">{% trans "SLA Compliance" %}</div><div class="hd-chart-card__subtitle">{% trans "Resolved within deadline — this month" %}</div></div></div>
-                    <div class="hd-chart-card__body"><div id="chart-hd-sla"></div></div>
-                </div>
-                <div class="hd-chart-card" data-chart-id="assignee_workload" data-chart-label="{% trans 'Assignee Workload' %}">
-                    <div class="hd-chart-card__header"><div><div class="hd-chart-card__title">{% trans "Assignee Workload" %}</div><div class="hd-chart-card__subtitle">{% trans "Open tickets per assignee" %}</div></div></div>
-                    <div class="hd-chart-card__body"><div id="chart-hd-workload"></div></div>
                 </div>
             </div>
         </div>
 
         <div class="hd-sidebar">
-            <div class="hd-info-panel">
-                <div class="hd-info-panel__header">
-                    <div class="hd-info-panel__title">{% trans "Overdue Tickets" %}</div>
-                </div>
-                <div class="hd-info-panel__body" id="hd-overdue">
-                    <div class="hd-info-panel__empty">{% trans "Loading..." %}</div>
-                </div>
-            </div>
             <div class="hd-info-panel">
                 <div class="hd-info-panel__header">
                     <div class="hd-info-panel__title">{% trans "Recent Tickets" %}</div>
@@ -270,7 +253,7 @@
     function initPeriod() {
         const saved = sessionStorage.getItem(PERIOD_KEY);
         if (saved) { try { const p = JSON.parse(saved); fromInput.value = p.from; toInput.value = p.to; return; } catch {} }
-        fromInput.value = getFirstOfMonth(); toInput.value = getLastOfMonth();
+        fromInput.value = ""; toInput.value = "";
     }
     function savePeriod() { sessionStorage.setItem(PERIOD_KEY, JSON.stringify({ from: fromInput.value, to: toInput.value })); }
     function periodParams() { const f = fromInput.value, t = toInput.value; return (f && t) ? ("from_date=" + encodeURIComponent(f) + "&to_date=" + encodeURIComponent(t)) : ""; }
@@ -416,26 +399,26 @@
                     <div class="hd-kpi-card__icon hd-kpi-card__icon--blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></svg></div>
                     <div class="hd-kpi-card__label">{% trans "Open Tickets"|escapejs %}</div>
                     <div class="hd-kpi-card__value">${data.open_tickets}</div>
-                    <div class="hd-kpi-card__sub"><span class="hd-badge hd-badge--amber">${data.new_tickets} {% trans "New"|escapejs %}</span><span class="hd-badge hd-badge--blue">${data.in_progress} {% trans "In Progress"|escapejs %}</span></div>
+                    <div class="hd-kpi-card__sub"><span class="hd-badge hd-badge--amber">${data.new_tickets} {% trans "New"|escapejs %}</span><span class="hd-badge hd-badge--blue">${data.in_progress} {% trans "In Progress"|escapejs %}</span><span class="hd-badge hd-badge--red">${data.on_hold} {% trans "On Hold"|escapejs %}</span></div>
                 </a>
-                <div class="hd-kpi-card hd-kpi-card--static" title="${'Resolution Rate = Resolved (' + data.period_resolved + ') / Total Tickets (' + data.total_tickets + ') × 100 = ' + data.resolution_rate + '%'}">
+                <div class="hd-kpi-card hd-kpi-card--static" title="${'Resolution Rate (this month) = Resolved this month (' + data.month_resolved + ') / Created this month (' + data.month_created + ') × 100 = ' + data.resolution_rate + '%'}">
                     <div class="hd-kpi-card__icon hd-kpi-card__icon--green"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
                     <div class="hd-kpi-card__label">{% trans "Resolution Rate"|escapejs %}</div>
                     <div class="hd-kpi-card__value">${data.resolution_rate}%</div>
-                    <div class="hd-kpi-card__sub"><span class="hd-badge hd-badge--green">${data.period_resolved} {% trans "Resolved Of"|escapejs %} ${data.total_tickets}</span></div>
+                    <div class="hd-kpi-card__sub"><span class="hd-badge hd-badge--green">${data.month_resolved} {% trans "Resolved Of"|escapejs %} ${data.month_created} {% trans "This Month"|escapejs %}</span></div>
                 </div>
                 <a href="{% url 'ticket-view' %}?ticket_tab=all_tickets&open_tab=3&is_overdue=true&filter_applied=1" class="hd-kpi-card">
                     <div class="hd-kpi-card__icon hd-kpi-card__icon--red"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
                     <div class="hd-kpi-card__label">{% trans "Overdue"|escapejs %}</div>
                     <div class="hd-kpi-card__value">${data.overdue}</div>
-                    <div class="hd-kpi-card__sub">${data.on_hold > 0 ? '<span class="hd-badge hd-badge--red">' + data.on_hold + ' {% trans "On Hold"|escapejs %}</span>' : '<span class="hd-badge hd-badge--amber">{% trans "Past Deadline"|escapejs %}</span>'}</div>
+                    <div class="hd-kpi-card__sub"><span class="hd-badge hd-badge--amber">{% trans "Past Deadline"|escapejs %}</span></div>
                 </a>
-                <div class="hd-kpi-card hd-kpi-card--static" title="${data.avg_resolution_days !== null ? ('Avg Resolution = average of (Resolved Date − Created Date) across ' + data.avg_resolution_count + ' ticket(s) resolved this period = ' + data.avg_resolution_days + ' days') : 'No tickets resolved this period yet'}">
-                    <div class="hd-kpi-card__icon hd-kpi-card__icon--amber"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-                    <div class="hd-kpi-card__label">{% trans "Avg Resolution"|escapejs %}</div>
-                    <div class="hd-kpi-card__value">${data.avg_resolution_days !== null ? data.avg_resolution_days + 'd' : '—'}</div>
-                    <div class="hd-kpi-card__sub"><span class="hd-badge hd-badge--purple">${data.avg_resolution_count} {% trans "Tickets Resolved This Period"|escapejs %}</span></div>
-                </div>`;
+                <a href="{% url 'ticket-view' %}?ticket_tab=all_tickets&open_tab=3&is_unassigned=true&filter_applied=1" class="hd-kpi-card">
+                    <div class="hd-kpi-card__icon hd-kpi-card__icon--amber"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" y1="11" x2="23" y2="11"/></svg></div>
+                    <div class="hd-kpi-card__label">{% trans "Unassigned"|escapejs %}</div>
+                    <div class="hd-kpi-card__value">${data.unassigned}</div>
+                    <div class="hd-kpi-card__sub"><span class="hd-badge hd-badge--amber">{% trans "Awaiting Assignment"|escapejs %}</span></div>
+                </a>`;
         });
     }
     loadKpiCards();
@@ -450,7 +433,9 @@
             renderChart('hd-status', document.querySelector("#chart-hd-status"), {
                 series: data.statuses.map(s => s.count),
                 chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit',
-                    events: { dataPointSelection: (e, ctx, config) => {
+                    events: { mounted: ctx => {
+                        data.statuses.filter(s => s.status === 'resolved' || s.status === 'canceled').forEach(s => ctx.hideSeries(s.label));
+                    }, dataPointSelection: (e, ctx, config) => {
                         const status = data.statuses[config.dataPointIndex].status;
                         window.location.href = "{% url 'ticket-view' %}?ticket_tab=all_tickets&status=" + encodeURIComponent(status) + createdDateRangeParams(data.period_from_date, data.period_to_date);
                     }}
@@ -478,7 +463,7 @@
                 chart: { type: 'bar', height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
                     events: { dataPointSelection: (e, ctx, config) => {
                         const p = data.priorities[config.dataPointIndex];
-                        if (p && p.priority) window.location.href = "{% url 'ticket-view' %}?ticket_tab=all_tickets&priority=" + encodeURIComponent(p.priority) + createdDateRangeParams(data.period_from_date, data.period_to_date);
+                        if (p && p.priority) window.location.href = "{% url 'ticket-view' %}?ticket_tab=all_tickets&is_open=true&priority=" + encodeURIComponent(p.priority) + createdDateRangeParams(data.period_from_date, data.period_to_date);
                     }}
                 },
                 colors: data.priorities.map(p => priorityColors[p.priority] || '#94a3b8'),
@@ -503,7 +488,11 @@
             renderChart('hd-type', document.querySelector("#chart-hd-type"), {
                 series: data.types.map(t => t.count),
                 chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit',
-                    events: { dataPointSelection: (e, ctx, config) => {
+                    events: { mounted: ctx => {
+                        ctx.el.querySelectorAll('.apexcharts-legend-series').forEach((item, i) => {
+                            if (data.types[i]) item.title = data.types[i].type;
+                        });
+                    }, dataPointSelection: (e, ctx, config) => {
                         const t = data.types[config.dataPointIndex];
                         const base = "{% url 'ticket-view' %}?ticket_tab=all_tickets";
                         const range = createdDateRangeParams(data.period_from_date, data.period_to_date);
@@ -514,7 +503,7 @@
                 colors: COLORS.slice(0, data.types.length),
                 plotOptions: { pie: { donut: { size: '65%', labels: { show: true, total: { show: true, label: '{% trans "Total"|escapejs %}', color: textColor, fontSize: '13px', fontWeight: 600, formatter: w => w.globals.seriesTotals.reduce((a,b)=>a+b,0) } } } } },
                 stroke: { width: 2, colors: [cardBg] }, dataLabels: { enabled: false },
-                legend: { position: 'bottom', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
+                legend: { position: 'bottom', height: 48, labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
                 tooltip: { theme: isDark ? 'dark' : 'light' },
             });
         });
@@ -534,7 +523,7 @@
                         const d = data.departments[config.dataPointIndex];
                         const base = "{% url 'ticket-view' %}?ticket_tab=all_tickets";
                         const range = createdDateRangeParams(data.period_from_date, data.period_to_date);
-                        window.location.href = (d && d.id ? base + "&department=" + d.id : base) + range;
+                        window.location.href = (d && d.id ? base + "&department=" + d.id : base) + "&is_open=true" + range;
                     }}
                 },
                 colors: COLORS,
@@ -555,112 +544,35 @@
     fetchP("{% url 'helpdesk-dashboard-trend' %}")
         .then(r => r.json())
         .then(data => {
-            if (!data.weeks.length) { document.querySelector("#chart-hd-trend").innerHTML = emptyHtml('{% trans "No data"|escapejs %}'); return; }
+            if (!data.months.length) { document.querySelector("#chart-hd-trend").innerHTML = emptyHtml('{% trans "No data"|escapejs %}'); return; }
             renderChart('hd-trend', document.querySelector("#chart-hd-trend"), {
-                series: [
-                    { name: '{% trans "Created"|escapejs %}', data: data.weeks.map(w => w.created) },
-                    { name: '{% trans "Resolved"|escapejs %}', data: data.weeks.map(w => w.resolved) },
-                ],
-                chart: { type: 'bar', height: 280, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
-                    events: { dataPointSelection: (e, ctx, config) => {
-                        const w = data.weeks[config.dataPointIndex];
+                series: data.series.map(s => ({ name: s.label, data: s.data })),
+                chart: { type: 'line', height: 280, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
+                    events: { markerClick: (e, ctx, config) => {
+                        const m = data.months[config.dataPointIndex];
+                        const s = data.series[config.seriesIndex];
                         const base = "{% url 'ticket-view' %}?ticket_tab=all_tickets";
-                        if (!w || !w.from_date) { window.location.href = base; return; }
-                        if (config.seriesIndex === 1) {
-                            window.location.href = base + "&status=resolved" + dateRangeParams('resolved_date', w.from_date, w.to_date);
+                        if (!m || !s) { window.location.href = base; return; }
+                        if (s.key === 'resolved') {
+                            window.location.href = base + "&status=resolved" + dateRangeParams('resolved_date', m.from_date, m.to_date);
                         } else {
-                            window.location.href = base + createdDateRangeParams(w.from_date, w.to_date);
+                            window.location.href = base + createdDateRangeParams(m.from_date, m.to_date);
                         }
                     }}
                 },
                 colors: ['#3b82f6', '#22c55e'],
-                plotOptions: { bar: { borderRadius: 5, columnWidth: '55%' } },
-                xaxis: { categories: data.weeks.map(w => w.week), labels: { style: { colors: textColor, fontSize: '11px' } }, axisBorder: { show: false }, axisTicks: { show: false } },
-                yaxis: { labels: { style: { colors: textColor } } },
+                stroke: { curve: 'smooth', width: 2.5 },
+                markers: { size: 4, strokeWidth: 0, hover: { size: 6 } },
+                xaxis: { categories: data.months.map(m => m.month), labels: { style: { colors: textColor, fontSize: '11px' } }, axisBorder: { show: false }, axisTicks: { show: false } },
+                yaxis: { min: 0, forceNiceScale: true, decimalsInFloat: 0, labels: { style: { colors: textColor } } },
                 grid: { borderColor: gridColor, strokeDashArray: 4 },
-                dataLabels: { enabled: true, style: { fontSize: '11px', colors: ['#fff'] } },
+                dataLabels: { enabled: false },
                 legend: { position: 'top', horizontalAlign: 'right', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
                 tooltip: { theme: isDark ? 'dark' : 'light' },
             });
         });
     }
     loadTicketTrend();
-
-    // ─── SLA COMPLIANCE ───
-    function loadSlaCompliance() {
-    fetchP("{% url 'helpdesk-dashboard-sla' %}")
-        .then(r => r.json())
-        .then(data => {
-            const slaEl = document.querySelector("#chart-hd-sla");
-            if (data.total_with_deadline === 0) { slaEl.innerHTML = emptyHtml('{% trans "No tickets with deadlines"|escapejs %}'); return; }
-            renderChart('hd-sla', slaEl, {
-                series: [data.compliance_rate],
-                chart: { type: 'radialBar', height: 300, background: 'transparent', fontFamily: 'inherit',
-                    events: {
-                        click: () => { window.location.href = "{% url 'ticket-view' %}?ticket_tab=all_tickets&status=resolved" + dateRangeParams('resolved_date', data.period_from_date, data.period_to_date); },
-                    },
-                },
-                colors: [data.compliance_rate >= 90 ? '#22c55e' : data.compliance_rate >= 70 ? '#f59e0b' : '#ef4444'],
-                plotOptions: { radialBar: { hollow: { size: '60%' }, track: { background: isDark ? '#334155' : '#f1f5f9' }, dataLabels: { name: { fontSize: '13px', color: textColor, offsetY: -10 }, value: { fontSize: '28px', fontWeight: 800, color: textColor, formatter: v => v + '%' } } } },
-                labels: ['{% trans "SLA Compliance"|escapejs %}'],
-                subtitle: { text: `${data.resolved_on_time} {% trans "on time"|escapejs %} · ${data.resolved_late} {% trans "late"|escapejs %} · ${data.open_overdue} {% trans "overdue"|escapejs %}`, align: 'center', style: { fontSize: '11px', color: textColor }, offsetY: 280 },
-            });
-            slaEl.style.cursor = 'pointer';
-            slaEl.addEventListener('click', () => { window.location.href = "{% url 'ticket-view' %}?ticket_tab=all_tickets&status=resolved" + dateRangeParams('resolved_date', data.period_from_date, data.period_to_date); });
-        });
-    }
-    loadSlaCompliance();
-
-    // ─── ASSIGNEE WORKLOAD ───
-    function loadAssigneeWorkload() {
-    fetchP("{% url 'helpdesk-dashboard-workload' %}")
-        .then(r => r.json())
-        .then(data => {
-            if (!data.assignees.length) { document.querySelector("#chart-hd-workload").innerHTML = emptyHtml('{% trans "No assigned tickets"|escapejs %}'); return; }
-            renderChart('hd-workload', document.querySelector("#chart-hd-workload"), {
-                series: [{ name: '{% trans "Tickets"|escapejs %}', data: data.assignees.map(a => a.count) }],
-                chart: { type: 'bar', height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
-                    events: { dataPointSelection: (e, ctx, config) => {
-                        const assignee = data.assignees[config.dataPointIndex];
-                        const range = createdDateRangeParams(data.period_from_date, data.period_to_date);
-                        const url = assignee && assignee.id
-                            ? "{% url 'ticket-view' %}?ticket_tab=all_tickets&is_open=true&assigned_to=" + assignee.id + range
-                            : "{% url 'ticket-view' %}?ticket_tab=all_tickets&is_open=true" + range;
-                        window.location.href = url;
-                    }}
-                },
-                colors: data.assignees.map(a => a.count > 10 ? '#ef4444' : a.count > 5 ? '#f59e0b' : '#22c55e'),
-                plotOptions: { bar: { borderRadius: 6, horizontal: true, barHeight: '55%', distributed: true } },
-                xaxis: { categories: data.assignees.map(a => a.name), labels: { style: { colors: textColor } } },
-                yaxis: { labels: { style: { colors: textColor, fontSize: '11px' } } },
-                grid: { borderColor: gridColor },
-                dataLabels: { enabled: true, formatter: (v, { dataPointIndex: i }) => `${v}${data.assignees[i].high > 0 ? ' (' + data.assignees[i].high + ' high)' : ''}`, style: { fontSize: '11px' } },
-                legend: { show: false },
-                tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: (v, { dataPointIndex: i }) => `${v} tickets (${data.assignees[i].high} high priority)` } },
-            });
-        });
-    }
-    loadAssigneeWorkload();
-
-    // ─── OVERDUE TICKETS ───
-    function loadOverdueTickets() {
-    fetchP("{% url 'helpdesk-dashboard-overdue' %}")
-        .then(r => r.json())
-        .then(data => {
-            const el = document.getElementById('hd-overdue');
-            if (!data.tickets.length) { el.innerHTML = '<div class="hd-info-panel__empty">{% trans "No overdue tickets"|escapejs %}</div>'; return; }
-            el.innerHTML = data.tickets.map(t => `
-                <a href="/helpdesk/ticket-detail/${t.id}/" class="hd-ticket-item">
-                    <div class="hd-priority-dot hd-priority-dot--${t.priority}"></div>
-                    <div class="hd-ticket-item__info">
-                        <div class="hd-ticket-item__title">${t.title}</div>
-                        <div class="hd-ticket-item__meta">${t.ticket_id} · ${t.employee}</div>
-                    </div>
-                    <span class="hd-badge hd-badge--red">${t.days_overdue}d</span>
-                </a>`).join('');
-        }).catch(() => { document.getElementById('hd-overdue').innerHTML = '<div class="hd-info-panel__empty">{% trans "No data"|escapejs %}</div>'; });
-    }
-    loadOverdueTickets();
 
     // ─── RECENT TICKETS ───
     function loadRecentTickets() {
@@ -693,9 +605,6 @@
         loadTicketsByType();
         loadTicketsByDept();
         loadTicketTrend();
-        loadSlaCompliance();
-        loadAssigneeWorkload();
-        loadOverdueTickets();
         loadRecentTickets();
     }
 

@@ -103,6 +103,10 @@ class TicketFilter(HorillaFilterSet):
         method="filter_is_overdue",
         widget=django_filters.widgets.BooleanWidget(),
     )
+    is_unassigned = django_filters.BooleanFilter(
+        method="filter_is_unassigned",
+        widget=django_filters.widgets.BooleanWidget(),
+    )
     department = django_filters.NumberFilter(
         field_name="employee_id__employee_work_info__department_id",
     )
@@ -211,6 +215,18 @@ class TicketFilter(HorillaFilterSet):
             return queryset.filter(
                 deadline__lt=date.today(),
                 status__in=["new", "in_progress", "on_hold"],
+            )
+        return queryset
+
+    def filter_is_unassigned(self, queryset, name, value):
+        """
+        Matches the dashboard's "Unassigned" KPI: still in an open status
+        with nobody in Assigned To.
+        """
+        if value:
+            return queryset.filter(
+                status__in=["new", "in_progress"],
+                assigned_to__isnull=True,
             )
         return queryset
 
