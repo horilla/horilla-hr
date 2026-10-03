@@ -68,6 +68,16 @@ urlpatterns = [
     path("", views.home, name="home-page"),
     path("dashboard/", dashboard_module.main_dashboard_view, name="dashboard"),
     path(
+        "dashboard/api/ticket-priority/",
+        dashboard_module.dashboard_ticket_priority,
+        name="dashboard-ticket-priority",
+    ),
+    path(
+        "dashboard/api/overdue-tickets/",
+        dashboard_module.dashboard_overdue_tickets,
+        name="dashboard-overdue-tickets",
+    ),
+    path(
         "dashboard/api/kpi/",
         dashboard_module.dashboard_kpi_data,
         name="dashboard-kpi-data",
