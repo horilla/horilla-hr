@@ -4,6 +4,7 @@ views.py
 This module is used to map url pattens with django views or methods
 """
 
+import calendar
 import csv
 import hmac
 import json
@@ -327,14 +328,20 @@ DEMO_PAYROLL_RENAMED_PREFIX = "Demo Payroll - "
 
 def normalize_demo_payslips():
     """
-    Re-anchor demo payslip periods onto real calendar months.
+    Re-anchor demo payslips onto real calendar months and recompute every
+    figure through the real payroll engine, using the same attendance
+    monthly-summary path the payroll batch run uses -- not just shift the
+    dates and leave the figures whatever they originally shipped as. A demo
+    payslip whose employee has no active contract to compute against is
+    deleted rather than re-dated with numbers that no longer mean anything;
+    "22 of 30 paid days, 0 loss of pay" reading nothing like the employee's
+    actual attendance was this function only ever having moved the dates.
 
-    Demo payslips ship tagged as ``Demo Payroll M-<n>``, where ``n`` counts months
-    back from the current one. Fixture date shifting moves every date by a fixed
-    number of days, which cannot keep month-long periods aligned to month
-    boundaries, so the period, the dates embedded in ``pay_head_data`` and the batch
-    label are recomputed from that tag instead. Returns the number of payslips
-    updated.
+    Demo payslips ship tagged as ``Demo Payroll M-<n>``, where ``n`` counts
+    months back from the current one. Fixture date shifting moves every date
+    by a fixed number of days, which cannot keep month-long periods aligned
+    to month boundaries, so the period is recomputed from that tag instead.
+    Returns the number of payslips updated.
 
     A row's group_name is renamed to ``Demo Payroll - <Mon Year>`` below for a
     human-readable label -- but that also matches the seeder's own
@@ -344,15 +351,19 @@ def normalize_demo_payslips():
     dynamically-created (non-fixture) backfilled payslip would only ever
     get re-anchored once and then drift stale forever.
 
-    Also runs the app's own ``expire_contract()`` scheduled task inline:
-    fixture loaddata bypasses both Contract.save() and the scheduler, so a
-    demo Contract shipped "active" with a now-past contract_end_date (after
-    the fixture date shift) would otherwise stay contradictorily "active"
-    until the real scheduler happens to run.
+    Also runs the app's own ``expire_contract()`` scheduled task inline,
+    before any of the above: fixture loaddata bypasses both Contract.save()
+    and the scheduler, so a demo Contract shipped "active" with a now-past
+    contract_end_date (after the fixture date shift) would otherwise stay
+    contradictorily "active" -- and this function would recompute a payslip
+    against a contract that should already read as expired.
     """
     if not apps.is_installed("payroll"):
         return 0
 
+    from attendance.methods.utils import get_employee_attendance_summary
+    from payroll.methods.methods import payslip_fields, save_payslip
+    from payroll.methods.payroll_run import payroll_calculation
     from payroll.models.models import Payslip
     from payroll.scheduler import expire_contract
 
@@ -360,12 +371,19 @@ def normalize_demo_payslips():
 
     today = datetime.today().date()
     updated = 0
+    stale_pks = []
 
     # _base_manager skips the company scoping that would hide other companies' rows.
     payslips = Payslip._base_manager.filter(
         Q(group_name__startswith=DEMO_PAYROLL_GROUP_PREFIX)
         | Q(group_name__startswith=DEMO_PAYROLL_RENAMED_PREFIX)
-    )
+    ).select_related("employee_id")
+
+    # Grouped by period rather than recomputed row by row: every employee
+    # landing on the same "M-<n>" tag needs the same date range, so their
+    # attendance summaries are fetched together in one call per period
+    # instead of one query per payslip.
+    by_period = {}
     for payslip in payslips:
         if payslip.group_name.startswith(DEMO_PAYROLL_GROUP_PREFIX):
             try:
@@ -384,32 +402,56 @@ def normalize_demo_payslips():
         while month < 1:
             month += 12
             year -= 1
-        # Day 28 exists in every month, so each period stays inside its own month.
         start = datetime(year, month, 1).date()
-        end = datetime(year, month, 28).date()
+        end = datetime(year, month, calendar.monthrange(year, month)[1]).date()
+        by_period.setdefault((start, end), []).append((payslip, offset))
 
-        pay_head_data = payslip.pay_head_data
-        if isinstance(pay_head_data, dict):
-            pay_head_data["start_date"] = start.strftime("%Y-%m-%d")
-            pay_head_data["end_date"] = end.strftime("%Y-%m-%d")
-            pay_head_data["range"] = (
-                f"{start.strftime('%b %d %Y')} - {end.strftime('%b %d %Y')}"
+    for (start, end), rows in by_period.items():
+        employees = [payslip.employee_id for payslip, _offset in rows]
+        try:
+            summaries = get_employee_attendance_summary(employees, start, end)
+        except Exception:  # noqa: BLE001
+            logger.exception(
+                "Attendance summary unavailable while normalizing demo payslips"
             )
+            summaries = {}
 
-        status = payslip.status
-        # M-0 is the current, still-open month -- a payslip can't already be
-        # "paid" or "confirmed" for a period that hasn't closed yet.
-        if offset == 0 and status in ("paid", "confirmed"):
-            status = "review_ongoing"
+        for payslip, offset in rows:
+            employee = payslip.employee_id
+            result = payroll_calculation(
+                employee, start, end, month_summary=summaries.get(employee.pk, {})
+            )
+            if not result:
+                # No active contract to compute against (or some other
+                # engine-level refusal) -- a payslip that cannot be
+                # recomputed should not keep existing under a fake date.
+                stale_pks.append(payslip.pk)
+                continue
 
-        Payslip._base_manager.filter(pk=payslip.pk).update(
-            start_date=start,
-            end_date=end,
-            pay_head_data=pay_head_data,
-            group_name=f"{DEMO_PAYROLL_RENAMED_PREFIX}{start.strftime('%b %Y')}",
-            status=status,
-        )
-        updated += 1
+            status = payslip.status
+            # M-0 is the current month; it only exists here at all when
+            # _target_periods judged it already closed (today is its last
+            # day), so unlike before this is not blanket-downgraded --
+            # only a status the engine could not have produced itself.
+            if offset == 0 and status in ("paid", "confirmed"):
+                status = "review_ongoing"
+
+            group_name = f"{DEMO_PAYROLL_RENAMED_PREFIX}{start.strftime('%b %Y')}"
+            fields = payslip_fields(
+                result, employee, status=status, group_name=group_name
+            )
+            saved = save_payslip(**fields)
+            # save_payslip finds-or-creates by (employee, start, end): if the
+            # dates now match a different, already-existing row (the
+            # dynamic backfill's own payslip for the same period, most
+            # commonly), that row absorbs this one and the original --
+            # about to be a duplicate of it -- goes rather than doubling up.
+            if saved.pk != payslip.pk:
+                stale_pks.append(payslip.pk)
+            updated += 1
+
+    if stale_pks:
+        Payslip._base_manager.filter(pk__in=stale_pks).delete()
 
     return updated
 
@@ -5929,10 +5971,13 @@ def _system_preferences_context(request):
         )
         from payroll.forms.component_forms import PayrollSettingsForm
 
-        currency_instance, _created = PayrollSettings.objects.get_or_create(
-            company_id=tracking_company
-        )
-        currency_form = PayrollSettingsForm(instance=currency_instance)
+        try:
+            currency_instance, _created = PayrollSettings.objects.get_or_create(
+                company_id=tracking_company
+            )
+            currency_form = PayrollSettingsForm(instance=currency_instance)
+        except Exception as e:
+            currency_form = None
     else:
         currency_form = None
 
