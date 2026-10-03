@@ -1312,6 +1312,28 @@ def get_present_on(queryset, _name, value):
     return queryset.filter(employee_attendances__attendance_date=value).distinct()
 
 
+def get_checked_in_on(queryset, _name, value):
+    """
+    Employees with an attendance record on ``value`` who are not on approved
+    leave that date. Backs the dashboard's "Checked In Today" KPI, which keeps
+    people on leave out so Checked In + Absent + On Leave add up to the total.
+    """
+    from django.db.models import Q
+
+    from leave.models import LeaveRequest
+
+    on_leave_ids = (
+        LeaveRequest.objects.filter(status="approved", start_date__lte=value)
+        .filter(Q(end_date__gte=value) | Q(end_date__isnull=True, start_date=value))
+        .values_list("employee_id", flat=True)
+    )
+    return (
+        queryset.filter(employee_attendances__attendance_date=value)
+        .exclude(id__in=on_leave_ids)
+        .distinct()
+    )
+
+
 def get_not_present_on(queryset, _name, value):
     """
     Inverse of get_present_on -- active employees with no attendance record
@@ -1329,7 +1351,13 @@ def get_expected_to_check_in(queryset, _name, value):
     """
     from django.db.models import Q
 
+    from base.methods import get_holiday_dates, is_company_leave
     from leave.models import LeaveRequest
+
+    # Nobody is expected in on a weekly off or holiday, so there is no one
+    # "absent" -- matches the dashboard tile, which counts them as week off.
+    if is_company_leave(value) or value in set(get_holiday_dates(value, value)):
+        return queryset.none()
 
     present_ids = Attendance.objects.filter(attendance_date=value).values_list(
         "employee_id", flat=True
@@ -1365,32 +1393,48 @@ def filter_attendance_status(self, queryset, _name, value):
     EmployeeFilter below -- unlike the plain functions above, which
     django-filter calls as f(queryset, name, value) with no self.
     """
-    on_date = (self.data or {}).get("present_on") or None
+    data = self.data or {}
+    start = data.get("present_from") or data.get("present_on") or None
+    end = data.get("present_to") or start
+
+    late = AttendanceLateComeEarlyOut.objects.filter(type=value)
+    if start:
+        late = late.filter(attendance_id__attendance_date__range=(start, end))
 
     if value == "on_time":
-        # On time == attended, and not flagged late for that attendance.
-        # Mirrors the chart, which derives its On Time bar the same way:
-        # total attendance minus the late-come rows (see generate_data_set
-        # in attendance/views/dashboard.py).
-        present = (
-            queryset.filter(employee_attendances__attendance_date=on_date)
-            if on_date
-            else queryset.filter(employee_attendances__isnull=False)
+        # On time == has an attendance in scope that is not flagged late.
+        # Mirrors the dashboard chart, which counts employees the same way
+        # (generate_data_set with unit=employees).
+        attendances = Attendance.objects.all()
+        if start:
+            attendances = attendances.filter(attendance_date__range=(start, end))
+        late_attendance_ids = AttendanceLateComeEarlyOut.objects.filter(
+            type="late_come"
+        ).values_list("attendance_id", flat=True)
+        ids = attendances.exclude(id__in=late_attendance_ids).values_list(
+            "employee_id", flat=True
         )
-        late = AttendanceLateComeEarlyOut.objects.filter(type="late_come")
-        if on_date:
-            late = late.filter(attendance_id__attendance_date=on_date)
-        return present.exclude(
-            id__in=late.values_list("employee_id", flat=True)
-        ).distinct()
+        return queryset.filter(id__in=ids).distinct()
 
-    lookups = {"late_come_early_out__type": value}
-    if on_date:
-        lookups["late_come_early_out__attendance_id__attendance_date"] = on_date
-    return queryset.filter(**lookups).distinct()
+    return queryset.filter(id__in=late.values_list("employee_id", flat=True)).distinct()
+
+
+def filter_present_range(self, queryset, _name, value):
+    """Employees with an attendance record between present_from and present_to."""
+    end = (self.data or {}).get("present_to") or value
+    return queryset.filter(
+        employee_attendances__attendance_date__range=(value, end)
+    ).distinct()
+
+
+def filter_present_to(self, queryset, _name, value):
+    """present_to only closes the range; present_from does the filtering."""
+    return queryset
 
 
 EmployeeFilter.filter_attendance_status = filter_attendance_status
+EmployeeFilter.filter_present_range = filter_present_range
+EmployeeFilter.filter_present_to = filter_present_to
 
 
 og_init = EmployeeFilter.__init__
@@ -1415,6 +1459,29 @@ def online_init(self, *args, **kwargs):
     )
     self.filters["present_on"] = present_field
     self.form.fields["present_on"] = present_field.field
+    present_from_field = django_filters.DateFilter(
+        label=_("Present From"),
+        method="filter_present_range",
+        widget=forms.DateInput(attrs={"type": "date", "class": "oh-input w-100"}),
+    )
+    present_from_field.parent = self
+    self.filters["present_from"] = present_from_field
+    self.form.fields["present_from"] = present_from_field.field
+    present_to_field = django_filters.DateFilter(
+        label=_("Present To"),
+        method="filter_present_to",
+        widget=forms.DateInput(attrs={"type": "date", "class": "oh-input w-100"}),
+    )
+    present_to_field.parent = self
+    self.filters["present_to"] = present_to_field
+    self.form.fields["present_to"] = present_to_field.field
+    checked_in_field = django_filters.DateFilter(
+        label=_("Checked In On"),
+        method=get_checked_in_on,
+        widget=forms.DateInput(attrs={"type": "date", "class": "oh-input w-100"}),
+    )
+    self.filters["checked_in_on"] = checked_in_field
+    self.form.fields["checked_in_on"] = checked_in_field.field
     not_present_field = django_filters.DateFilter(
         label=_("Not Present On"),
         method=get_not_present_on,

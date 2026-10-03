@@ -7,7 +7,7 @@ This module is used to write dashboard related views
 import datetime
 
 from django.core import serializers
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils.translation import gettext_lazy as _
@@ -183,28 +183,64 @@ def dashboard_pipeline(request):
 
     today = _dt.date.today()
     # Exclude future recruitments (start_date > today) — they have no candidates yet
-    recruitment_obj = Recruitment.objects.filter(closed=False, start_date__lte=today)
+    recruitment_obj = Recruitment.objects.filter(
+        closed=False, is_active=True, start_date__lte=today
+    )
     data_set = []
     labels = [type[1] for type in Stage.stage_types]
+    stage_keys = [type[0] for type in Stage.stage_types]
+    by_position = request.GET.get("group") == "job_position"
     for rec in recruitment_obj:
         data = [stage_type_candidate_count(rec, type[0]) for type in Stage.stage_types]
         if rec.candidate.all():
-            data_set.append(
-                {
-                    "label": (
-                        rec.title
-                        if rec.title is not None
-                        else f"""{rec.job_position_id}
+            entry = {
+                "label": (
+                    rec.title
+                    if rec.title is not None
+                    else f"""{rec.job_position_id}
                     {rec.start_date}"""
-                    ),
-                    "data": data,
-                    "id": rec.id,
-                }
-            )
+                ),
+                "data": data,
+                "id": rec.id,
+            }
+            if by_position:
+                # Same candidates as the counts above (active, in a stage of
+                # this recruitment), split by each candidate's job position.
+                positions = {}
+                rows = (
+                    Candidate.objects.filter(
+                        is_active=True, stage_id__recruitment_id=rec
+                    )
+                    .order_by()
+                    .values(
+                        "job_position_id",
+                        "job_position_id__job_position",
+                        "stage_id__stage_type",
+                    )
+                    .annotate(n=Count("id"))
+                )
+                for row in rows:
+                    key = row["job_position_id"]
+                    pos = positions.setdefault(
+                        key,
+                        {
+                            "id": key,
+                            "name": row["job_position_id__job_position"]
+                            or _("No position"),
+                            "data": [0] * len(stage_keys),
+                        },
+                    )
+                    if row["stage_id__stage_type"] in stage_keys:
+                        pos["data"][
+                            stage_keys.index(row["stage_id__stage_type"])
+                        ] += row["n"]
+                entry["positions"] = list(positions.values())
+            data_set.append(entry)
     response = JsonResponse(
         {
             "dataSet": data_set,
             "labels": labels,
+            "open_recruitments": recruitment_obj.count(),
             "message": _("No records available at the moment."),
         }
     )
@@ -228,10 +264,22 @@ def dashboard_hiring(request):
     )
 
     candidate_count_per_month = [0] * 12
+    per_position = {}
 
-    for candidate in hired_candidates:
+    for candidate in hired_candidates.select_related("job_position_id"):
         month_index = candidate.joining_date.month - 1
         candidate_count_per_month[month_index] += 1
+        position = candidate.job_position_id
+        key = position.pk if position else None
+        entry = per_position.setdefault(
+            key,
+            {
+                "id": key,
+                "label": position.job_position if position else _("No position"),
+                "data": [0] * 12,
+            },
+        )
+        entry["data"][month_index] += 1
 
     labels = [
         _("January"),
@@ -248,15 +296,20 @@ def dashboard_hiring(request):
         _("December"),
     ]
 
-    data_set = [
-        {
-            "label": _("Hired in %(year)s") % {"year": selected_year},
-            "data": candidate_count_per_month,
-            "backgroundColor": "rgba(236, 131, 25)",
-        }
-    ]
+    if request.GET.get("group") == "job_position":
+        data_set = sorted(
+            per_position.values(), key=lambda e: (-sum(e["data"]), str(e["label"]))
+        )
+    else:
+        data_set = [
+            {
+                "label": _("Hired in %(year)s") % {"year": selected_year},
+                "data": candidate_count_per_month,
+                "backgroundColor": "rgba(236, 131, 25)",
+            }
+        ]
 
-    return JsonResponse({"dataSet": data_set, "labels": labels})
+    return JsonResponse({"dataSet": data_set, "labels": labels, "year": selected_year})
 
 
 @login_required

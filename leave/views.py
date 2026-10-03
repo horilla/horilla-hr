@@ -3215,17 +3215,32 @@ def department_leave_chart(request):
     ):
         return JsonResponse({"no_permission": True})
 
-    day = date.today()
-    if request.GET.get("date"):
-        day = request.GET.get("date")
-        day = datetime.strptime(day, "%Y-%m")
+    from_param = request.GET.get("from_date")
+    to_param = request.GET.get("to_date")
+    leave_request = LeaveRequest.objects.filter(status="approved")
+    if from_param and to_param:
+        try:
+            range_start = date.fromisoformat(from_param)
+            range_end = date.fromisoformat(to_param)
+            leave_request = leave_request.filter(start_date__lte=range_end).filter(
+                Q(end_date__gte=range_start)
+                | Q(end_date__isnull=True, start_date__gte=range_start)
+            )
+        except ValueError:
+            day = date.today()
+            leave_request = leave_request.filter(
+                start_date__month=day.month, start_date__year=day.year
+            )
+    else:
+        day = date.today()
+        if request.GET.get("date"):
+            day = datetime.strptime(request.GET.get("date"), "%Y-%m")
+        leave_request = leave_request.filter(
+            start_date__month=day.month, start_date__year=day.year
+        )
 
     departments = Department.objects.all()
     department_counts = {dep.department: 0 for dep in departments}
-    leave_request = LeaveRequest.objects.filter(status="approved")
-    leave_request = leave_request.filter(
-        start_date__month=day.month, start_date__year=day.year
-    )
     leave_dates = []
     labels = []
     for leave in leave_request:
@@ -3319,22 +3334,39 @@ def leave_over_period(request):
         return JsonResponse({"no_permission": True})
 
     today = date.today()
-    if request.GET.get("period") == "month":
-        # Full current calendar month -- used by the main analytics
-        # dashboard, which wants the whole month's trend rather than just
-        # the current week.
-        start_of_month = today.replace(day=1)
-        next_month = start_of_month.replace(day=28) + timedelta(days=4)
-        end_of_month = next_month.replace(day=1) - timedelta(days=1)
-        period_dates = [
-            start_of_month + timedelta(days=i)
-            for i in range((end_of_month - start_of_month).days + 1)
-        ]
-    else:
-        start_of_week = today - timedelta(days=today.weekday())
-        period_dates = [start_of_week + timedelta(days=i) for i in range(6)]
-    leave_in_period = []
-
+    from_param = request.GET.get("from_date")
+    to_param = request.GET.get("to_date")
+    period_dates = None
+    bucket = "day"
+    if from_param and to_param:
+        try:
+            range_start = date.fromisoformat(from_param)
+            range_end = date.fromisoformat(to_param)
+            period_dates = [
+                range_start + timedelta(days=i)
+                for i in range((range_end - range_start).days + 1)
+            ]
+            bucket = request.GET.get("bucket")
+            if bucket not in ("day", "week", "month"):
+                span = len(period_dates)
+                bucket = "day" if span <= 30 else "week" if span <= 180 else "month"
+        except ValueError:
+            period_dates = None
+    if period_dates is None:
+        if request.GET.get("period") == "month":
+            # Full current calendar month -- used by the main analytics
+            # dashboard, which wants the whole month's trend rather than just
+            # the current week.
+            start_of_month = today.replace(day=1)
+            next_month = start_of_month.replace(day=28) + timedelta(days=4)
+            end_of_month = next_month.replace(day=1) - timedelta(days=1)
+            period_dates = [
+                start_of_month + timedelta(days=i)
+                for i in range((end_of_month - start_of_month).days + 1)
+            ]
+        else:
+            start_of_week = today - timedelta(days=today.weekday())
+            period_dates = [start_of_week + timedelta(days=i) for i in range(6)]
     leave_request = LeaveRequest.objects.filter(
         status="approved",
         start_date__lte=period_dates[-1],
@@ -3342,27 +3374,75 @@ def leave_over_period(request):
         Q(end_date__gte=period_dates[0])
         | Q(end_date__isnull=True, start_date__gte=period_dates[0])
     )
-    leave_dates = []
-    for leave in leave_request:
+    by_department = request.GET.get("group") == "department"
+    per_day = {}
+    per_dept_day = {}
+    for leave in leave_request.select_related(
+        "employee_id__employee_work_info__department_id"
+    ):
+        dept_name = ""
+        if by_department:
+            work_info = getattr(leave.employee_id, "employee_work_info", None)
+            dept = getattr(work_info, "department_id", None)
+            dept_name = dept.department if dept else _("No department")
         for leave_date in leave.requested_dates():
-            leave_dates.append(leave_date)
+            per_day[leave_date] = per_day.get(leave_date, 0) + 1
+            if by_department:
+                days = per_dept_day.setdefault(dept_name, {})
+                days[leave_date] = days.get(leave_date, 0) + 1
 
-    filtered_dates = [day for day in leave_dates if day in period_dates]
+    # Group the days into buckets (a bucket is clipped to the requested range).
+    def bucket_key(day):
+        if bucket == "week":
+            return day - timedelta(days=day.weekday())
+        if bucket == "month":
+            return day.replace(day=1)
+        return day
+
+    buckets = {}
     for period_date in period_dates:
-        days = [
-            filtered_date
-            for filtered_date in filtered_dates
-            if filtered_date == period_date
-        ]
-        leave_in_period.append(len(days))
-    dataset = (
-        {
-            "label": _("Leave Trends"),
-            "data": leave_in_period,
-        },
-    )
+        key = bucket_key(period_date)
+        entry = buckets.setdefault(key, {"first": period_date, "last": period_date})
+        entry["last"] = period_date
 
-    labels = [period_date.strftime("%d-%m-%Y") for period_date in period_dates]
+    def bucketed(day_counts):
+        totals = {key: 0 for key in buckets}
+        for day, n in day_counts.items():
+            key = bucket_key(day)
+            if key in totals and period_dates[0] <= day <= period_dates[-1]:
+                totals[key] += n
+        return list(totals.values())
+
+    labels = []
+    for key, entry in buckets.items():
+        if bucket == "week":
+            first, last = entry["first"], entry["last"]
+            labels.append(
+                first.strftime("%d %b")
+                if first == last
+                else f"{first.strftime('%d %b')} - {last.strftime('%d %b')}"
+            )
+        elif bucket == "month":
+            labels.append(key.strftime("%b %Y"))
+        else:
+            labels.append(key.strftime("%d-%m-%Y"))
+
+    if by_department:
+        # Every department gets a line (flat if it had no leave), busiest first.
+        for name in Department.objects.values_list("department", flat=True):
+            per_dept_day.setdefault(name, {})
+        dataset = [
+            {"label": name, "data": bucketed(days)}
+            for name, days in per_dept_day.items()
+        ]
+        dataset.sort(key=lambda d: (-sum(d["data"]), str(d["label"])))
+    else:
+        dataset = (
+            {
+                "label": _("Leave Trends"),
+                "data": bucketed(per_day),
+            },
+        )
 
     response = {
         "labels": labels,

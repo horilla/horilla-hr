@@ -315,7 +315,7 @@ def generate_data_set(request, start_date, type, end_date, dept):
     early_out_obj = find_early_out(
         department=dept, start_date=start_date, end_date=end_date
     )
-
+    # Reporting managers only see their team (teammate change), then count.
     attendance = filtersubordinates(request, attendance, "attendance.view_attendance")
     late_come_obj = filtersubordinates(
         request, late_come_obj, "attendance.view_attendance"
@@ -324,10 +324,28 @@ def generate_data_set(request, start_date, type, end_date, dept):
         request, early_out_obj, "attendance.view_attendance"
     )
 
-    on_time = len(attendance) - len(late_come_obj)
+    if request.GET.get("unit") == "employees":
+        # Distinct employees per status, so a bar equals the employee list it
+        # drills into. On time = at least one attendance not flagged late.
+        attendance = attendance.filter(employee_id__is_active=True)
+        late_come_obj = late_come_obj.filter(employee_id__is_active=True)
+        early_out_obj = early_out_obj.filter(employee_id__is_active=True)
+        late_attendance_ids = late_come_obj.values_list("attendance_id", flat=True)
+        on_time = (
+            attendance.exclude(id__in=late_attendance_ids)
+            .values("employee_id")
+            .distinct()
+            .count()
+        )
+        late_count = late_come_obj.values("employee_id").distinct().count()
+        early_count = early_out_obj.values("employee_id").distinct().count()
+    else:
+        on_time = len(attendance) - len(late_come_obj)
+        late_count = len(late_come_obj)
+        early_count = len(early_out_obj)
 
     data = {}
-    if on_time or late_come_obj or early_out_obj:
+    if on_time or late_count or early_count:
         data = {
             # id alongside label so callers can link back to this exact
             # department by pk instead of re-matching on its name -- the
@@ -335,7 +353,7 @@ def generate_data_set(request, start_date, type, end_date, dept):
             # employee list that way when a bar is clicked.
             "id": dept.pk,
             "label": dept.department,
-            "data": [on_time, len(late_come_obj), len(early_out_obj)],
+            "data": [on_time, late_count, early_count],
         }
 
     return data if data else None
