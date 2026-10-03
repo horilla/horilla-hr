@@ -186,9 +186,22 @@ def _reanchor_holidays(today: date) -> int:
 
 
 def _reanchor_loans(today: date) -> int:
+    """
+    Re-anchoring installment_start_date alone leaves LoanAccount.deduction_ids
+    pointing at whatever Deduction rows the *previous* schedule created --
+    get_installments() reads the field live and so recomputes a clean
+    monthly-from-the-new-date schedule, but the actual attached Deduction
+    rows never followed it. Across repeated demo reloads those went stale
+    and duplicated (several installments landing on the same one_time_date,
+    e.g. three separate "Emergency Loan" rows all dated the same day), which
+    is exactly what a generated payslip then displayed. Deleting and
+    recreating installment Deductions here, in the same pass that moves the
+    date, is what keeps the two in agreement.
+    """
     if not apps.is_installed("payroll"):
         return 0
-    from payroll.models.models import LoanAccount
+    from payroll.methods.deductions import create_deductions
+    from payroll.models.models import Deduction, LoanAccount
 
     window_start = today - timedelta(days=TRAILING_DAYS)
     rows = list(LoanAccount._base_manager.order_by("id"))
@@ -211,6 +224,27 @@ def _reanchor_loans(today: date) -> int:
                     pass
             fields["settled_date"] = when
         LoanAccount._base_manager.filter(pk=loan.pk).update(**fields)
+
+        if loan.allowance_id_id:
+            # The one-time payout allowance (separate from the installment
+            # Deductions below) carries its own one_time_date, matched to
+            # provided_date the same way create_installments sets it up.
+            from payroll.models.models import Allowance
+
+            Allowance._base_manager.filter(pk=loan.allowance_id_id).update(
+                one_time_date=provided
+            )
+
+        stale_ids = list(loan.deduction_ids.values_list("id", flat=True))
+        if stale_ids:
+            Deduction._base_manager.filter(pk__in=stale_ids).delete()
+        loan.refresh_from_db(fields=["installment_start_date"])
+        fresh = [
+            create_deductions(loan, amount, installment_date)
+            for installment_date, amount in loan.get_installments().items()
+        ]
+        loan.deduction_ids.set(fresh)
+
         updated += 1
     return updated
 

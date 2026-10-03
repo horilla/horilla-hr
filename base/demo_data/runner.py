@@ -43,8 +43,7 @@ from base.demo_data.modules.offboarding_expansion import (
 )
 from base.demo_data.modules.offboarding_trend import backfill_offboarding_letters
 from base.demo_data.modules.onboarding_trend import backfill_onboarding_pipeline
-from base.demo_data.modules.payroll_features import backfill_payroll_feature_coverage
-from base.demo_data.modules.payroll_trend import backfill_payroll_coverage
+from base.demo_data.modules.payroll_precise import backfill_precise_payroll
 from base.demo_data.modules.pms_trend import (
     backfill_pms_coverage,
     backfill_pms_objectives,
@@ -143,15 +142,13 @@ def run_enterprise_demo_seeder(
     result["helpdesk_backfill"] = backfill_helpdesk_tickets(today)
     result["helpdesk_scenarios_reanchor"] = reanchor_helpdesk_scenarios(today)
 
-    # Assign SalaryStructure/FilingStatus to a handful of contracts per
-    # company *before* creating any new demo payslips below, so a
-    # newly-backfilled payslip is never computed against a contract whose
-    # tax/salary-structure FKs are still unset.
-    result["payroll_feature_coverage"] = backfill_payroll_feature_coverage(today)
-
-    # Depends on Contract (fixtures, already loaded) and Attendance (just
-    # backfilled above) for its per-employee day-count computation.
-    result["payroll_coverage_backfill"] = backfill_payroll_coverage(today)
+    # A small, dedicated set of employees per company with attendance stated
+    # outright and payslips verified to reconcile against it -- replaces the
+    # broad roster's own contracts/payslips (backfill_payroll_feature_coverage /
+    # backfill_payroll_coverage), which depended on attendance_trend.py's
+    # backfill reconciling cleanly for every employee it touched, and for some
+    # it didn't (see payroll_precise.py's module docstring).
+    result["precise_payroll"] = backfill_precise_payroll(today)
 
     result["recruitment_company_pipelines"] = backfill_company_recruitment_pipelines(
         today
