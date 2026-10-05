@@ -242,7 +242,10 @@ class HorillaListView(ListView):
 
     def get_queryset(self, queryset=None, filtered=False, *args, **kwargs):
         if not self.queryset:
-            self.queryset = super().get_queryset() if not queryset else queryset
+            # `is None`, not truthiness: a scoped queryset that is legitimately
+            # empty (e.g. an employee with no documents) must stay empty
+            # instead of falling back to the model's whole table.
+            self.queryset = super().get_queryset() if queryset is None else queryset
             self._saved_filters = QueryDict("", mutable=True)
             if self.filter_class:
                 query_dict = self.request.GET
@@ -2400,6 +2403,10 @@ class HorillaNavView(TemplateView):
     empty_inputs: list = []
     view_types: list = []
     create_attrs: str = """"""
+    create_label: str = ""
+    # Hide the search box in generic/inline_nav.html; the form (which also
+    # auto-loads the list) is still rendered.
+    hide_search: bool = False
     apply_first_filter = True
     default_group_by: str = ""
     # Opt-in redesign of the Filter dropdown's accordion sections (see horilla_nav.html's .oh-filter-modern styles).
@@ -2542,6 +2549,8 @@ class HorillaNavView(TemplateView):
         # Filled in below once the request-bound filterset exists; which rows are applied depends on this request's GET data.
         context["custom_filter_rows"] = []
         context["create_attrs"] = self.create_attrs
+        context["create_label"] = self.create_label
+        context["hide_search"] = self.hide_search
         context["search_in"] = self.search_in
         context["apply_first_filter"] = self.apply_first_filter
         context["default_group_by"] = self.default_group_by
