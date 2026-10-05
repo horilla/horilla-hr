@@ -6,7 +6,7 @@
 <main :class="sidebarOpen ? 'oh-main__sidebar-visible' : ''">
   {% include "payroll/batch/_batch.css.html" %}
 
-  <section class="oh-wrapper pb" style="max-width:860px;">
+  <section class="oh-wrapper pb pb--wizard">
 
     <div class="oh-main__titlebar oh-main__titlebar--left mb-3">
       <h1 class="oh-main__titlebar-title fw-bold mb-0">{% trans "Run payroll" %}</h1>
@@ -25,24 +25,23 @@
 
       <div class="pb__panel mb-3">
         <div class="pb__panel-head">{% trans "The period" %}</div>
-        <div style="padding:1rem;">
-          <div class="row">
-            <div class="col-md-4 mb-3">
+        <div style="padding:1.1rem 1rem 1rem;">
+          <div class="pb__fields">
+            <div class="pb__field">
               <label class="oh-label" for="{{ form.batch_name.id_for_label }}">{{ form.batch_name.label }}</label>
               {{ form.batch_name }}
-              <div class="pb__problem">{{ form.batch_name.help_text }}</div>
               {% for error in form.batch_name.errors %}
                 <div class="pb__problem pb__problem--blocking">{{ error }}</div>
               {% endfor %}
             </div>
-            <div class="col-md-4 mb-3">
+            <div class="pb__field">
               <label class="oh-label" for="{{ form.period_start.id_for_label }}">{{ form.period_start.label }}</label>
               {{ form.period_start }}
               {% for error in form.period_start.errors %}
                 <div class="pb__problem pb__problem--blocking">{{ error }}</div>
               {% endfor %}
             </div>
-            <div class="col-md-4 mb-3">
+            <div class="pb__field">
               <label class="oh-label" for="{{ form.period_end.id_for_label }}">{{ form.period_end.label }}</label>
               {{ form.period_end }}
               {% for error in form.period_end.errors %}
@@ -50,9 +49,13 @@
               {% endfor %}
             </div>
           </div>
-          <div class="pb__problem">
-            {% blocktrans with boundary=settings.get_boundary_display %}Filled from your pay period setting: {{ boundary }}.{% endblocktrans %}
-            <a href="{% url 'pay-period-settings' %}">{% trans "Change it" %}</a>
+          <div class="pb__hint">
+            <ion-icon name="information-circle-outline"></ion-icon>
+            <span>
+              {{ form.batch_name.help_text }}
+              {% blocktrans with boundary=settings.get_boundary_display %}The period is filled from your pay period setting: {{ boundary }}.{% endblocktrans %}
+              <a href="{% url 'pay-period-settings' %}">{% trans "Change it" %}</a>
+            </span>
           </div>
         </div>
       </div>
@@ -60,13 +63,22 @@
       <div class="pb__panel mb-3">
         <div class="pb__panel-head">{% trans "Who is in it" %}</div>
         <div style="padding:1rem;">
-          <div class="pb__options">
+          <div class="pb__choices">
             {% for radio in form.scope %}
-            <label class="pb__option" :class="scope === '{{ radio.data.value }}' ? 'pb__option--on' : ''">
+            <label class="pb__choice" :class="scope === '{{ radio.data.value }}' ? 'pb__choice--on' : ''">
               <input type="radio" name="{{ form.scope.name }}" value="{{ radio.data.value }}"
                      x-model="scope"
                      {% if radio.data.selected %}checked{% endif %}>
-              <span>{{ radio.choice_label }}</span>
+              <span>
+                <span class="pb__choice-title">{{ radio.choice_label }}</span>
+                <span class="pb__choice-desc d-block">
+                  {% if radio.data.value == 'all' %}
+                    {% trans "Every employee with an active contract. Anyone not eligible, or who already has a payslip for this period, is listed as excluded on the next step rather than silently dropped." %}
+                  {% else %}
+                    {% trans "Choose exactly which employees to include in this run." %}
+                  {% endif %}
+                </span>
+              </span>
             </label>
             {% endfor %}
           </div>
@@ -78,9 +90,6 @@
             {% endfor %}
           </div>
 
-          <div class="pb__problem mt-2" x-show="scope === 'all'">
-            {% trans "Anyone without an active contract, or who already has a payslip for this period, is listed as excluded on the next step rather than silently dropped." %}
-          </div>
         </div>
       </div>
 
@@ -91,7 +100,7 @@
         </div>
       {% endfor %}
 
-      <div class="d-flex justify-content-between align-items-center">
+      <div class="pb__actions">
         <a href="{% url 'payroll-batch-home' %}" class="oh-btn oh-btn--light">{% trans "Cancel" %}</a>
         <button type="submit" class="oh-btn oh-btn--secondary">
           {% trans "Check the inputs" %}

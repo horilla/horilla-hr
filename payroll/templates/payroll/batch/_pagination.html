@@ -1,35 +1,58 @@
 {% comment %}
-Plain-link pagination for the run pages.
+Pagination for the run pages, in the standard Horilla style (the theme's
+.hlv-pagination): double and single chevrons either side of a "[n] / N" box
+you can type a page into.
 
 The payroll lists elsewhere paginate over HTMX into a named container; these
-pages are ordinary full loads, so links are all that is needed. Pass the page
-object as `page` and any other query string as `pd`.
+pages are ordinary full loads, so the buttons just rewrite ?page= in the
+address. Anything else already in it (filters, sorting) is kept. Pass the page
+object as `page`.
 {% endcomment %}
 {% load i18n %}
 {% if page.has_other_pages %}
-<div class="oh-pagination">
-  <span class="oh-pagination__page">
-    {% blocktrans with number=page.number total=page.paginator.num_pages %}Page {{ number }} of {{ total }}{% endblocktrans %}
-  </span>
-  <nav class="oh-pagination__nav">
-    <ul class="oh-pagination__items">
-      {% if page.has_previous %}
-      <li class="oh-pagination__item oh-pagination__item--wide">
-        <a class="oh-pagination__link" href="?{{ pd }}&page=1">{% trans "First" %}</a>
-      </li>
-      <li class="oh-pagination__item oh-pagination__item--wide">
-        <a class="oh-pagination__link" href="?{{ pd }}&page={{ page.previous_page_number }}">{% trans "Previous" %}</a>
-      </li>
-      {% endif %}
-      {% if page.has_next %}
-      <li class="oh-pagination__item oh-pagination__item--wide">
-        <a class="oh-pagination__link" href="?{{ pd }}&page={{ page.next_page_number }}">{% trans "Next" %}</a>
-      </li>
-      <li class="oh-pagination__item oh-pagination__item--wide">
-        <a class="oh-pagination__link" href="?{{ pd }}&page={{ page.paginator.num_pages }}">{% trans "Last" %}</a>
-      </li>
-      {% endif %}
-    </ul>
-  </nav>
+<div class="pb__pager">
+  <div class="hlv-pagination border border-primary-500" data-pb-pager>
+    <button type="button" data-page="1" title="{% trans 'First' %}" aria-label="{% trans 'First page' %}"
+            {% if not page.has_previous %}disabled{% endif %}>
+      <i class="fa-solid fa-angles-left"></i>
+    </button>
+    <button type="button" data-page="{% if page.has_previous %}{{ page.previous_page_number }}{% endif %}" title="{% trans 'Previous' %}" aria-label="{% trans 'Previous page' %}"
+            {% if not page.has_previous %}disabled{% endif %}>
+      <i class="fa-solid fa-angle-left"></i>
+    </button>
+    <div>
+      <input type="number" min="1" max="{{ page.paginator.num_pages }}" value="{{ page.number }}"
+             title="{% trans 'Enter a page number and press Enter' %}" aria-label="{% trans 'Page number' %}"
+             name="page" onclick="this.select()">
+      <span>/ {{ page.paginator.num_pages }}</span>
+    </div>
+    <button type="button" data-page="{% if page.has_next %}{{ page.next_page_number }}{% endif %}" title="{% trans 'Next' %}" aria-label="{% trans 'Next page' %}"
+            {% if not page.has_next %}disabled{% endif %}>
+      <i class="fa-solid fa-angle-right"></i>
+    </button>
+    <button type="button" data-page="{{ page.paginator.num_pages }}" title="{% trans 'Last' %}" aria-label="{% trans 'Last page' %}"
+            {% if not page.has_next %}disabled{% endif %}>
+      <i class="fa-solid fa-angles-right"></i>
+    </button>
+  </div>
 </div>
+<script>
+  (function () {
+    document.querySelectorAll('[data-pb-pager]').forEach(function (pager) {
+      var input = pager.querySelector('input[name="page"]');
+      var go = function (n) {
+        var max = parseInt(input.max, 10) || 1;
+        n = Math.min(Math.max(parseInt(n, 10) || 1, 1), max);
+        var params = new URLSearchParams(window.location.search);
+        params.set('page', n);
+        window.location.search = params.toString();
+      };
+      pager.querySelectorAll('button[data-page]').forEach(function (btn) {
+        btn.addEventListener('click', function () { if (!btn.disabled) go(btn.dataset.page); });
+      });
+      input.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); go(input.value); } });
+      input.addEventListener('change', function () { go(input.value); });
+    });
+  })();
+</script>
 {% endif %}

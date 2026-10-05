@@ -6,13 +6,16 @@
 <main :class="sidebarOpen ? 'oh-main__sidebar-visible' : ''">
   {% include "payroll/batch/_batch.css.html" %}
 
-  <section class="oh-wrapper pb" style="max-width:720px;">
+  <section class="oh-wrapper pb pb--wizard">
 
     <div class="oh-main__titlebar oh-main__titlebar--left mb-3">
       <div style="font-size:.78rem;">
-        <a href="{% url 'payroll-batch-home' %}">{% trans "Payroll runs" %}</a>
+        <a href="{% url 'payroll-batch-home' %}">&larr; {% trans "Payroll runs" %}</a>
       </div>
       <h1 class="oh-main__titlebar-title fw-bold mb-0">{% trans "Pay period" %}</h1>
+      <div style="font-size:.8rem;color:#6b7280;">
+        {% trans "Set once for the company. New payroll runs start from these dates." %}
+      </div>
     </div>
 
     {% if messages %}
@@ -23,41 +26,55 @@
 
     <form method="post">
       {% csrf_token %}
-      <div class="pb__panel mb-3">
-        <div class="pb__panel-head">{% trans "When a pay month begins and ends" %}</div>
-        <div style="padding:1rem;">
-          {% for field in form %}
-          <div class="mb-3">
-            <label class="oh-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
-            {{ field }}
-            {% if field.help_text %}
-              <div class="pb__problem">{{ field.help_text }}</div>
-            {% endif %}
-            {% for error in field.errors %}
-              <div class="pb__problem pb__problem--blocking">{{ error }}</div>
+
+      <div class="pb__split">
+        <div class="pb__panel">
+          <div class="pb__panel-head">{% trans "When a pay month begins and ends" %}</div>
+          <div style="padding:1.1rem 1rem 1rem;">
+            <div class="pb__fields pb__fields--two">
+              <div class="pb__field pb__field-full">
+                <label class="oh-label" for="{{ form.boundary.id_for_label }}">{{ form.boundary.label }}</label>
+                {{ form.boundary }}
+                {% if form.boundary.help_text %}<div class="pb__field-help">{{ form.boundary.help_text }}</div>{% endif %}
+                {% for error in form.boundary.errors %}<div class="pb__problem pb__problem--blocking">{{ error }}</div>{% endfor %}
+              </div>
+              <div class="pb__field">
+                <label class="oh-label" for="{{ form.pay_day_offset.id_for_label }}">{{ form.pay_day_offset.label }}</label>
+                {{ form.pay_day_offset }}
+                {% if form.pay_day_offset.help_text %}<div class="pb__field-help">{{ form.pay_day_offset.help_text }}</div>{% endif %}
+                {% for error in form.pay_day_offset.errors %}<div class="pb__problem pb__problem--blocking">{{ error }}</div>{% endfor %}
+              </div>
+              <div class="pb__field">
+                <label class="oh-label" for="{{ form.input_cutoff_days.id_for_label }}">{{ form.input_cutoff_days.label }}</label>
+                {{ form.input_cutoff_days }}
+                {% if form.input_cutoff_days.help_text %}<div class="pb__field-help">{{ form.input_cutoff_days.help_text }}</div>{% endif %}
+                {% for error in form.input_cutoff_days.errors %}<div class="pb__problem pb__problem--blocking">{{ error }}</div>{% endfor %}
+              </div>
+            </div>
+            {% for error in form.non_field_errors %}
+              <div class="pb__problem pb__problem--blocking mt-3">{{ error }}</div>
             {% endfor %}
           </div>
-          {% endfor %}
+        </div>
+
+        <div class="pb__split-aside">
+          <div class="pb__panel">
+            <div class="pb__panel-head">{% trans "This month, with these settings" %}</div>
+            <div class="pb__figure">
+              <div class="pb__figure-label">{% trans "Period" %}</div>
+              <div class="pb__figure-value">{{ example_start|date:"j M Y" }} &ndash; {{ example_end|date:"j M Y" }}</div>
+            </div>
+            <div class="pb__figure">
+              <div class="pb__figure-label">{% trans "Pay date" %}</div>
+              <div class="pb__figure-value">{{ example_pay_date|date:"j M Y" }}</div>
+            </div>
+            <div class="pb__aside-note">{% trans "Based on the saved settings. Save to see a change reflected here." %}</div>
+          </div>
         </div>
       </div>
 
-      <div class="pb__panel mb-3">
-        <div class="pb__panel-head">{% trans "This month, with these settings" %}</div>
-        <table class="pb__table">
-          <tbody>
-            <tr>
-              <td style="width:40%;">{% trans "Period" %}</td>
-              <td>{{ example_start|date:"j M Y" }} &ndash; {{ example_end|date:"j M Y" }}</td>
-            </tr>
-            <tr>
-              <td>{% trans "Pay date" %}</td>
-              <td>{{ example_pay_date|date:"j M Y" }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="d-flex justify-content-end">
+      <div class="pb__actions">
+        <a href="{% url 'payroll-batch-home' %}" class="oh-btn oh-btn--light">{% trans "Cancel" %}</a>
         <button type="submit" class="oh-btn oh-btn--secondary">{% trans "Save" %}</button>
       </div>
     </form>

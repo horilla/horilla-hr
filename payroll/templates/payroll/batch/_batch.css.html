@@ -117,35 +117,186 @@ apart the moment they were written twice.
   .pb__row--blocked:hover { background: #fee2e2; }
 
   /* ---- wizard chrome ---- */
+  /* A card the same width as the panels beneath it, with the three steps
+     joined by a line: circle, title, caption, then a connector that fills the
+     rest of the row and turns green once the step is done. */
   .pb__steps {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    padding: 1rem 1.25rem;
     margin-bottom: 1.25rem;
-    flex-wrap: wrap;
+    border: 1px solid var(--pb-line);
+    border-radius: 10px;
+    background: var(--pb-bg);
   }
   .pb__step {
     display: flex;
     align-items: center;
-    gap: 0.45rem;
-    font-size: 0.82rem;
+    gap: 0.75rem;
+    min-width: 0;
     color: var(--pb-muted);
   }
+  .pb__step:not(:last-child) { flex: 1; }
+  .pb__step:not(:last-child)::after {
+    content: "";
+    flex: 1;
+    height: 2px;
+    margin: 0 1.25rem;
+    border-radius: 2px;
+    background: var(--pb-line);
+  }
+  .pb__step--done:not(:last-child)::after { background: #10b981; }
+  .pb__step--on, .pb__step--done { color: var(--pb-ink); }
   .pb__step-num {
-    width: 22px;
-    height: 22px;
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
     border-radius: 50%;
     display: grid;
     place-items: center;
-    font-size: 0.72rem;
+    font-size: 0.85rem;
     font-weight: 600;
-    background: #e5e7eb;
+    background: #f3f4f6;
     color: #6b7280;
+    border: 2px solid var(--pb-line);
   }
-  .pb__step--on { color: var(--pb-ink); font-weight: 600; }
-  .pb__step--on .pb__step-num { background: var(--pb-accent); color: #fff; }
-  .pb__step--done .pb__step-num { background: #d1fae5; color: #065f46; }
-  .pb__step-sep { color: #d1d5db; }
+  .pb__step--on .pb__step-num {
+    background: var(--pb-accent); border-color: var(--pb-accent); color: #fff;
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.15);
+  }
+  .pb__step--done .pb__step-num { background: #10b981; border-color: #10b981; color: #fff; }
+  .pb__step-text { min-width: 0; line-height: 1.25; white-space: nowrap; }
+  .pb__step-title { font-size: 0.9rem; font-weight: 600; }
+  .pb__step-sub { font-size: 0.75rem; color: var(--pb-muted); margin-top: 2px; }
+  body.dark .pb__step-num { background: #374151; border-color: #4b5563; color: #9ca3af; }
+  @media (max-width: 760px) {
+    .pb__steps { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
+    .pb__step:not(:last-child) { flex: none; }
+    .pb__step:not(:last-child)::after { display: none; }
+    .pb__step-text { white-space: normal; }
+  }
+
+  /* ---- step 1 form ---- */
+  /* One width for the whole wizard, so moving between steps does not make the
+     page jump. */
+  .pb--wizard { max-width: 1100px; }
+  .pb__fields {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem 1.25rem;
+    align-items: start;
+  }
+  @media (max-width: 860px) { .pb__fields { grid-template-columns: 1fr; } }
+  .pb__field .oh-label { display: block; margin-bottom: 0.35rem; }
+  .pb__hint {
+    display: flex; align-items: flex-start; gap: 0.45rem;
+    margin-top: 1rem; padding-top: 0.85rem;
+    border-top: 1px dashed var(--pb-line);
+    font-size: 0.78rem; line-height: 1.4; color: var(--pb-muted);
+  }
+  .pb__hint ion-icon { flex: 0 0 auto; font-size: 1rem; margin-top: 1px; }
+  .pb__hint a { color: var(--pb-accent); }
+
+  /* Choice cards: the title and what it does, side by side, instead of a bare
+     label with the explanation floating below both. */
+  .pb__choices {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.85rem;
+  }
+  @media (max-width: 860px) { .pb__choices { grid-template-columns: 1fr; } }
+  .pb__choice {
+    display: flex; align-items: flex-start; gap: 0.75rem;
+    padding: 0.9rem 1rem;
+    border: 1px solid var(--pb-line); border-radius: 8px;
+    background: var(--pb-bg); cursor: pointer;
+    transition: border-color .12s ease, background .12s ease;
+  }
+  .pb__choice:hover { border-color: #d1d5db; }
+  .pb__choice input { margin-top: 3px; accent-color: var(--pb-accent); }
+  .pb__choice--on { border-color: var(--pb-accent); background: #fef2f2; }
+  .pb__choice-title { font-size: 0.9rem; font-weight: 600; color: var(--pb-ink); }
+  .pb__choice-desc { font-size: 0.78rem; line-height: 1.4; color: var(--pb-muted); margin-top: 2px; }
+  body.dark .pb__choice--on { background: #2a1414; }
+
+  /* ---- pay period settings: form beside a live preview ---- */
+  .pb__split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 1.25rem;
+    align-items: start;
+  }
+  @media (max-width: 960px) { .pb__split { grid-template-columns: 1fr; } }
+  .pb__split-aside { position: sticky; top: 90px; }
+  @media (max-width: 960px) { .pb__split-aside { position: static; } }
+  .pb__fields--two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  @media (max-width: 640px) { .pb__fields--two { grid-template-columns: 1fr; } }
+  .pb__field-full { grid-column: 1 / -1; }
+  .pb__field-help { font-size: 0.78rem; line-height: 1.4; color: var(--pb-muted); margin-top: 0.35rem; }
+  .pb__figure { padding: 0.9rem 1rem; border-bottom: 1px solid var(--pb-line-soft); }
+  .pb__figure:last-child { border-bottom: 0; }
+  .pb__figure-label {
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--pb-muted); margin-bottom: 0.25rem;
+  }
+  .pb__figure-value { font-size: 1.15rem; font-weight: 600; color: var(--pb-ink); font-variant-numeric: tabular-nums; }
+  .pb__aside-note { padding: 0.75rem 1rem; font-size: 0.75rem; color: var(--pb-muted); background: var(--pb-soft); border-top: 1px solid var(--pb-line); }
+
+  /* ---- run header: title and status on one line, facts as chips ---- */
+  .pb__head {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 1rem; flex-wrap: wrap; margin-bottom: 1.25rem;
+  }
+  .pb__back { font-size: 0.78rem; display: inline-flex; align-items: center; gap: 4px; }
+  .pb__title-row { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-top: 2px; }
+  .pb__title-row .oh-main__titlebar-title { margin: 0; }
+  .pb__pill--lg { font-size: 0.8rem; padding: 0.25rem 0.8rem; }
+  .pb__meta { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.6rem; }
+  .pb__chip {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.28rem 0.7rem;
+    border: 1px solid var(--pb-line); border-radius: 999px;
+    background: var(--pb-bg); font-size: 0.78rem; color: var(--pb-ink);
+  }
+  .pb__chip ion-icon { color: var(--pb-muted); font-size: 0.95rem; }
+  .pb__chip-label { color: var(--pb-muted); }
+  .pb__head-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+  .pb__head-actions form, .pb__head-actions .oh-dropdown { margin: 0; display: flex; }
+
+  /* The header's buttons, one look: same height, outline, radius and hover.
+     The app's .oh-btn variants each size and border themselves differently, so
+     side by side they came out uneven. */
+  .pb__btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+    height: 38px; padding: 0 0.95rem;
+    border: 1px solid var(--pb-line); border-radius: 8px;
+    background: var(--pb-bg); color: var(--pb-ink);
+    font-size: 0.85rem; font-weight: 500; line-height: 1;
+    cursor: pointer; white-space: nowrap;
+    transition: border-color .12s ease, color .12s ease, background .12s ease;
+  }
+  .pb__btn:hover { border-color: var(--pb-accent); color: var(--pb-accent); }
+  .pb__btn ion-icon { font-size: 1rem; }
+  .pb__btn--icon { width: 38px; padding: 0; }
+  .pb__btn--danger { color: #b91c1c; border-color: #fecaca; }
+  .pb__btn--danger:hover { background: #fef2f2; border-color: #dc2626; color: #b91c1c; }
+  body.dark .pb__btn { background: #242424; }
+  body.dark .pb__btn--danger:hover { background: #2a1414; }
+
+  /* ---- pager: the theme's .hlv-pagination, placed at the right above a list ---- */
+  .pb__pager { display: flex; justify-content: flex-end; margin-bottom: 0.75rem; }
+  .pb .hlv-pagination { border: 1px solid var(--primary-500, #f87171); border-radius: 6px; }
+  .pb .hlv-pagination button { color: #666; }
+  .pb .hlv-pagination button:hover:not(:disabled) { background: #f5f5f5; }
+  .pb .hlv-pagination button:disabled { color: #ccc; cursor: not-allowed; }
+  body.dark .pb .hlv-pagination { background: #242424; }
+  body.dark .pb .hlv-pagination button:hover:not(:disabled) { background: #333; }
+
+  /* Back / Next, in a bar that sits under the content at the same width. */
+  .pb__actions {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 0.75rem; padding-top: 1rem; margin-top: 0.25rem;
+  }
 
   /* ---- problems ---- */
   .pb__problem {
@@ -423,56 +574,4 @@ apart the moment they were written twice.
   body.dark .pb__row--blocked .pb__fix {
     border-color: #7f1d1d; color: #fca5a5; background: transparent;
   }
-
-  /* ---- pagination ----
-     _pagination.html already renders the app's standard .oh-pagination
-     markup, but that class family is only defined in the legacy stylesheet
-     (static/src/css/main.css) that the plain, un-themed base template
-     loads -- the actual base template this page extends resolves to
-     horilla_theme/templates/index.html (which shadows it), and that one
-     never includes that stylesheet at all. Ported here, scoped under .pb,
-     rather than added to the theme's own global CSS, which risks
-     side-effects on every other page that already renders this markup
-     unstyled today and so is not expecting it to suddenly look different. */
-  .pb .oh-pagination {
-    margin-top: 1.25rem;
-    display: -webkit-box; display: -ms-flexbox; display: flex;
-    -webkit-box-align: center; -ms-flex-align: center; align-items: center;
-    -webkit-box-pack: justify; -ms-flex-pack: justify; justify-content: space-between;
-  }
-  @media (max-width: 575.98px) {
-    .pb .oh-pagination {
-      -webkit-box-orient: vertical; -webkit-box-direction: normal;
-      -ms-flex-direction: column; flex-direction: column;
-      -webkit-box-align: start; -ms-flex-align: start; align-items: flex-start;
-    }
-  }
-  .pb .oh-pagination__page { color: hsl(0, 0%, 11%); font-size: 0.9rem; }
-  .pb .oh-pagination__items {
-    display: -webkit-box; display: -ms-flexbox; display: flex;
-    -webkit-box-align: center; -ms-flex-align: center; align-items: center;
-    list-style-type: none; padding-left: 0;
-  }
-  .pb .oh-pagination__item {
-    display: -webkit-box; display: -ms-flexbox; display: flex;
-    -webkit-box-align: center; -ms-flex-align: center; align-items: center;
-    -webkit-box-pack: center; -ms-flex-pack: center; justify-content: center;
-    width: 40px; height: 40px; padding: 10px;
-    background-color: hsl(0, 0%, 100%);
-    border: 1px solid hsl(213, 22%, 84%); border-right: 0;
-    font-size: 0.9rem; cursor: pointer;
-  }
-  .pb .oh-pagination__item:first-child { border-radius: 0; }
-  .pb .oh-pagination__item:last-child { border-right: 1px solid hsl(213, 22%, 84%); border-radius: 0; }
-  .pb .oh-pagination__item:hover { background-color: hsl(0, 0%, 95%); }
-  .pb .oh-pagination__item--wide { width: -webkit-fit-content; width: -moz-fit-content; width: fit-content; }
-  .pb .oh-pagination__link:hover { text-decoration: none; }
-  .pb .oh-pagination__nav { display: -webkit-box; display: -ms-flexbox; display: flex; }
-
-  body.dark .pb .oh-pagination__page,
-  body.dark .pb .oh-pagination__link { color: #e5e7eb; }
-  body.dark .pb .oh-pagination__item {
-    background-color: #2a2a2a; border-color: #4b5563;
-  }
-  body.dark .pb .oh-pagination__item:hover { background-color: #3a3a3a; }
 </style>

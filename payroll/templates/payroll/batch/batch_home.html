@@ -59,6 +59,8 @@
       </div>
     </div>
 
+    {% include "payroll/batch/_pagination.html" with page=batches %}
+
     <div class="pb__panel">
       <div class="pb__panel-head">
         <span>{% trans "All runs" %}</span>
@@ -137,8 +139,6 @@
       </div>
       {% endif %}
     </div>
-
-    {% include "payroll/batch/_pagination.html" with page=batches %}
 
   </section>
 </main>

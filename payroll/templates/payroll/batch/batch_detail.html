@@ -9,30 +9,55 @@
 
   <section class="oh-wrapper pb">
 
-    <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+    <div class="pb__head">
       <div>
-        <div style="font-size:.78rem;">
-          <a href="{% url 'payroll-batch-home' %}">{% trans "Payroll runs" %}</a>
+        <a href="{% url 'payroll-batch-home' %}" class="pb__back">
+          <ion-icon name="arrow-back-outline"></ion-icon>{% trans "Payroll runs" %}
+        </a>
+        <div class="pb__title-row">
+          <h1 class="oh-main__titlebar-title fw-bold">{{ batch.batch_name }}</h1>
+          <span class="pb__pill pb__pill--lg pb__pill--{{ batch.status }}">{{ batch.get_status_display }}</span>
         </div>
-        <h1 class="oh-main__titlebar-title fw-bold mb-0">{{ batch.batch_name }}</h1>
-        <div style="font-size:.8rem;color:#6b7280;">
-          {{ batch.period_start|date:"j M Y" }} &ndash; {{ batch.period_end|date:"j M Y" }}
+        <div class="pb__meta">
+          <span class="pb__chip">
+            <ion-icon name="calendar-outline"></ion-icon>
+            <span class="pb__chip-label">{% trans "Period" %}</span>
+            {{ batch.period_start|date:"j M Y" }} &ndash; {{ batch.period_end|date:"j M Y" }}
+          </span>
           {% if batch.pay_date %}
-            &middot; {% blocktrans with d=batch.pay_date|date:"j M Y" %}paid {{ d }}{% endblocktrans %}
+          <span class="pb__chip">
+            <ion-icon name="cash-outline"></ion-icon>
+            <span class="pb__chip-label">{% trans "Pay date" %}</span>
+            {{ batch.pay_date|date:"j M Y" }}
+          </span>
           {% endif %}
           {% if batch.created_by_user %}
-            &middot; {% blocktrans with who=batch.created_by_user %}run by {{ who }}{% endblocktrans %}
+          <span class="pb__chip">
+            <ion-icon name="person-outline"></ion-icon>
+            <span class="pb__chip-label">{% trans "Run by" %}</span>
+            {{ batch.created_by_user }}
+          </span>
           {% endif %}
         </div>
       </div>
 
-      <div class="d-flex align-items-center gap-2">
-        <span class="pb__pill pb__pill--{{ batch.status }}">{{ batch.get_status_display }}</span>
+      <div class="pb__head-actions">
+        {% if batch.status == "draft" and perms.payroll.add_payslip and perms.payroll.delete_payslip %}
+        <form method="post" action="{% url 'payroll-batch-reopen' batch.pk %}"
+              onsubmit="return confirm('{% trans "Go back to Check the inputs? The draft payslips of this run are discarded and made again when you generate." %}');">
+          {% csrf_token %}
+          <button type="submit" class="pb__btn"
+                  title="{% trans 'Fix attendance or contracts, then generate again' %}">
+            <ion-icon name="arrow-undo-outline"></ion-icon>
+            {% trans "Back to inputs" %}
+          </button>
+        </form>
+        {% endif %}
         {% if perms.payroll.change_payslip and next_statuses %}
         <div class="oh-dropdown" x-data="{open:false}">
-          <button type="button" class="oh-btn oh-btn--light" @click="open = !open">
+          <button type="button" class="pb__btn" @click="open = !open">
             {% trans "Change status" %}
-            <ion-icon name="chevron-down-outline" class="ms-1"></ion-icon>
+            <ion-icon name="chevron-down-outline"></ion-icon>
           </button>
           <div class="oh-dropdown__menu" x-show="open" x-cloak @click.outside="open = false"
                style="min-width:240px;">
@@ -64,7 +89,7 @@
         <form method="post" action="{% url 'payroll-batch-delete' batch.pk %}"
               onsubmit="return confirm('{% blocktrans with name=batch.batch_name count=batch.generated_count %}Delete the run {{ name }} and its {{ count }} payslip(s)? This cannot be undone.{% endblocktrans %}');">
           {% csrf_token %}
-          <button type="submit" class="oh-btn oh-btn--danger-outline"
+          <button type="submit" class="pb__btn pb__btn--icon pb__btn--danger"
                   title="{% trans 'Delete this run' %}">
             <ion-icon name="trash-outline"></ion-icon>
           </button>
@@ -141,6 +166,8 @@
     </div>
     {% endif %}
 
+    {% include "payroll/batch/_pagination.html" with page=payslips %}
+
     <div class="pb__panel">
       <div class="pb__panel-head">{% trans "Payslips in this run" %}</div>
       {% if payslips %}
@@ -176,8 +203,6 @@
       <div class="pb__empty">{% trans "No payslips yet." %}</div>
       {% endif %}
     </div>
-
-    {% include "payroll/batch/_pagination.html" with page=payslips %}
 
   </section>
 </main>

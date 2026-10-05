@@ -2,19 +2,26 @@
 {% comment %}
 The three steps, with the current one marked. `step` is 1, 2 or 3.
 {% endcomment %}
-<div class="pb__steps">
-  <div class="pb__step {% if step == 1 %}pb__step--on{% elif step > 1 %}pb__step--done{% endif %}">
+<div class="pb__steps" role="list">
+  <div class="pb__step {% if step == 1 %}pb__step--on{% elif step > 1 %}pb__step--done{% endif %}" role="listitem"{% if step == 1 %} aria-current="step"{% endif %}>
     <span class="pb__step-num">{% if step > 1 %}&check;{% else %}1{% endif %}</span>
-    {% trans "Who is in it" %}
+    <div class="pb__step-text">
+      <div class="pb__step-title">{% trans "Who is in it" %}</div>
+      <div class="pb__step-sub">{% trans "Pick the period and the people" %}</div>
+    </div>
   </div>
-  <span class="pb__step-sep">&rsaquo;</span>
-  <div class="pb__step {% if step == 2 %}pb__step--on{% elif step > 2 %}pb__step--done{% endif %}">
+  <div class="pb__step {% if step == 2 %}pb__step--on{% elif step > 2 %}pb__step--done{% endif %}" role="listitem"{% if step == 2 %} aria-current="step"{% endif %}>
     <span class="pb__step-num">{% if step > 2 %}&check;{% else %}2{% endif %}</span>
-    {% trans "Check the inputs" %}
+    <div class="pb__step-text">
+      <div class="pb__step-title">{% trans "Check the inputs" %}</div>
+      <div class="pb__step-sub">{% trans "Review hours and fix problems" %}</div>
+    </div>
   </div>
-  <span class="pb__step-sep">&rsaquo;</span>
-  <div class="pb__step {% if step == 3 %}pb__step--on{% endif %}">
+  <div class="pb__step {% if step == 3 %}pb__step--on{% endif %}" role="listitem"{% if step == 3 %} aria-current="step"{% endif %}>
     <span class="pb__step-num">3</span>
-    {% trans "Generate" %}
+    <div class="pb__step-text">
+      <div class="pb__step-title">{% trans "Generate" %}</div>
+      <div class="pb__step-sub">{% trans "Create the payslips" %}</div>
+    </div>
   </div>
 </div>
