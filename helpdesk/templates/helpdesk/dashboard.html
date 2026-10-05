@@ -35,7 +35,7 @@
     .hd-main { min-width: 0; } .hd-sidebar { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 90px; max-height: calc(100vh - 90px - 24px); overflow-y: auto; }
     .hd-sidebar::-webkit-scrollbar { width: 3px; }
     .hd-sidebar::-webkit-scrollbar-thumb { border-radius: 3px; background: rgba(128,128,128,0.2); }
-    .hd-chart-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 20px; }
+    .hd-chart-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 20px; }
     .hd-chart-card { border-radius: 12px; background: #ffffff; border: 1px solid rgba(128,128,128,0.12); overflow: visible; }
     .dark .hd-chart-card { background: #242424; border-color: rgba(255,255,255,0.08); }
     .hd-chart-card--wide { grid-column: span 2; }
@@ -121,12 +121,34 @@
     #chart-hd-dept .apexcharts-bar-area,
     #chart-hd-status .apexcharts-pie-slice-donut,
     #chart-hd-type .apexcharts-pie-slice-donut { cursor: pointer; }
-    #chart-hd-type .apexcharts-legend-text { display: inline-block; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
+    /* Pie legend: chips that fit on one row, then a "+N" chip with a popover for the rest */
+    .hd-pie-legend { display: flex; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 6px; padding: 6px 12px 14px; }
+    .hd-pie-chips { display: contents; }
+    .hd-pie-chip__name { max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
+    .hd-pie-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border: 1px solid rgba(128,128,128,0.2); border-radius: 999px; background: none; color: inherit; font-size: 11px; font-weight: 500; white-space: nowrap; flex-shrink: 0; cursor: pointer; transition: opacity 0.15s, border-color 0.15s; }
+    .hd-pie-chip:hover { border-color: var(--hd-indigo); }
+    .hd-pie-chip.is-off { opacity: 0.45; }
+    .hd-pie-chip.is-off .hd-pie-chip__dot { filter: grayscale(1); }
+    .hd-pie-chip__dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .hd-pie-chip--more { text-transform: capitalize; color: var(--hd-indigo); font-weight: 600; border-style: dashed; }
+    .hd-pie-more { position: relative; display: inline-block; }
+    .hd-pie-pop { display: none; position: absolute; right: 0; bottom: 100%; padding-bottom: 8px; z-index: 40; }
+    .hd-pie-more:hover .hd-pie-pop, .hd-pie-more:focus-within .hd-pie-pop { display: block; }
+    .hd-pie-pop__box { width: max-content; min-width: 230px; max-width: 340px; border: 1px solid rgba(128,128,128,0.15); border-radius: 10px; background: #ffffff; box-shadow: 0 8px 28px rgba(0,0,0,0.15); padding: 8px 4px 6px; }
+    .dark .hd-pie-pop__box { background: #242424; }
+    .hd-pie-pop__list { max-height: 190px; overflow-y: auto; }
+    .hd-pie-pop__row { display: flex; align-items: center; gap: 8px; padding: 5px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; }
+    .hd-pie-pop__row:hover { background: rgba(128,128,128,0.1); }
+    .hd-pie-pop__text { display: flex; flex: 1; flex-direction: column; min-width: 0; line-height: 1.25; }
+    .hd-pie-pop__text > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hd-pie-pop__row input { accent-color: var(--hd-indigo); margin: 0; }
+    .hd-pie-pop__count { flex-shrink: 0; white-space: nowrap; margin-left: auto; font-size: 11px; opacity: 0.55; }
+    .hd-chart-card:has(.hd-pie-more:hover), .hd-chart-card:has(.hd-pie-more:focus-within) { z-index: 30; position: relative; }
 
 
     /* Responsive */
     @media (max-width: 1280px) { .hd-layout { grid-template-columns: 1fr; } .hd-sidebar { position: static; display: grid; grid-template-columns: 1fr 1fr; max-height: none; overflow-y: visible; } }
-    @media (max-width: 1024px) { .hd-kpi-grid { grid-template-columns: repeat(2, 1fr); } .hd-chart-grid { grid-template-columns: 1fr; } .hd-chart-card--wide { grid-column: span 1; } .hd-sidebar { grid-template-columns: 1fr; } }
+    @media (max-width: 1024px) { .hd-kpi-grid { grid-template-columns: repeat(2, 1fr); } .hd-chart-grid { grid-template-columns: minmax(0, 1fr); } .hd-chart-card--wide { grid-column: span 1; } .hd-sidebar { grid-template-columns: 1fr; } }
     @media (max-width: 640px) { .hd-kpi-grid { grid-template-columns: 1fr; } }
 </style>
 
@@ -147,7 +169,6 @@
                 <input type="date" id="hd-to-date" title="{% trans 'To' %}">
             </div>
             <button class="hd-btn-customize" id="hd-open-customize" title="{% trans 'Customize' %}">⚙ {% trans "Customize" %}</button>
-            <a href="{% url 'ticket-view' %}" class="hd-btn-back">← {% trans "Pipeline View" %}</a>
         </div>
     </div>
 
@@ -171,7 +192,7 @@
                 </div>
                 <div class="hd-chart-card" data-chart-id="tickets_by_type" data-chart-label="{% trans 'Tickets by Type' %}">
                     <div class="hd-chart-card__header"><div><div class="hd-chart-card__title">{% trans "Tickets by Type" %}</div><div class="hd-chart-card__subtitle">{% trans "Suggestion, complaint, service, etc." %}</div></div></div>
-                    <div class="hd-chart-card__body"><div id="chart-hd-type"></div></div>
+                    <div class="hd-chart-card__body"><div id="chart-hd-type"></div><div class="hd-pie-legend" id="hd-pie-legend-type"></div></div>
                 </div>
                 <div class="hd-chart-card" data-chart-id="tickets_by_dept" data-chart-label="{% trans 'Tickets by Department' %}">
                     <div class="hd-chart-card__header"><div><div class="hd-chart-card__title">{% trans "Tickets by Department" %}</div><div class="hd-chart-card__subtitle">{% trans "Open tickets raised by department" %}</div></div></div>
@@ -479,20 +500,100 @@
     }
     loadPriorityBreakdown();
 
+    // ─── Shared pie/donut legend ───
+    const escHtml = (v) => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    function createPieLegend({ el, chartKey, noun }) {
+        let items = [];
+        let selected = new Set();
+        let visible = 0;
+        const dot = (c) => `<span class="hd-pie-chip__dot" style="background:${c}"></span>`;
+
+        function series() {
+            return items.map(it => selected.has(it.key) ? it.value : 0);
+        }
+        function chipsHtml(k) {
+            return items.slice(0, k).map(it => {
+                const on = selected.has(it.key);
+                return `<button type="button" class="hd-pie-chip${on ? '' : ' is-off'}" data-key="${escHtml(it.key)}" title="${escHtml(it.name)}: ${it.value}">${dot(it.color)}<span class="hd-pie-chip__name">${escHtml(it.name)}</span></button>`;
+            }).join('');
+        }
+        function refreshState() {
+            const chips = el.querySelector('.hd-pie-chips');
+            if (chips) chips.innerHTML = chipsHtml(visible);
+            el.querySelectorAll('input[data-key]').forEach(cb => { cb.checked = selected.has(cb.dataset.key); });
+        }
+        function toggle(key) {
+            if (selected.has(key)) {
+                if (selected.size > 1) selected.delete(key);
+            } else {
+                selected.add(key);
+            }
+            refreshState();
+            const chart = chartInstances[chartKey];
+            if (chart) chart.updateSeries(series());
+        }
+        function build(k) {
+            visible = k;
+            const rest = items.slice(k);
+            let html = `<span class="hd-pie-chips">${chipsHtml(k)}</span>`;
+            if (rest.length) {
+                html += `<span class="hd-pie-more"><button type="button" class="hd-pie-chip hd-pie-chip--more">+${rest.length} ${escHtml(noun)}</button>`
+                    + `<div class="hd-pie-pop"><div class="hd-pie-pop__box"><div class="hd-pie-pop__list">`
+                    + rest.map(it => `<label class="hd-pie-pop__row"><input type="checkbox" data-key="${escHtml(it.key)}"${selected.has(it.key) ? ' checked' : ''}>${dot(it.color)}<span class="hd-pie-pop__text"><span>${escHtml(it.name)}</span></span><span class="hd-pie-pop__count">${it.value}</span></label>`).join('')
+                    + `</div></div></div></span>`;
+            }
+            el.innerHTML = html;
+        }
+        function render() {
+            let k = items.length;
+            build(k);
+            while (k > 1 && el.scrollWidth > el.clientWidth + 1) {
+                k--;
+                build(k);
+            }
+        }
+        el.addEventListener('click', (e) => {
+            const chip = e.target.closest('.hd-pie-chip[data-key]');
+            if (chip) toggle(chip.dataset.key);
+        });
+        el.addEventListener('change', (e) => {
+            if (e.target.matches('input[data-key]')) toggle(e.target.dataset.key);
+        });
+        let resizeTimer = null;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => { if (items.length) render(); }, 150);
+        });
+        return {
+            set(newItems) {
+                items = newItems;
+                const keys = items.map(i => i.key);
+                selected = new Set([...selected].filter(k => keys.includes(k)));
+                if (!selected.size) selected = new Set(keys);
+                render();
+            },
+            series,
+            clear() { items = []; selected = new Set(); el.innerHTML = ''; },
+        };
+    }
+    const typeLegend = createPieLegend({
+        el: document.getElementById('hd-pie-legend-type'),
+        chartKey: 'hd-type',
+        noun: '{% trans "types"|escapejs %}',
+    });
+
     // ─── TICKETS BY TYPE ───
     function loadTicketsByType() {
     fetchP("{% url 'helpdesk-dashboard-type' %}")
         .then(r => r.json())
         .then(data => {
-            if (!data.types.length) { document.querySelector("#chart-hd-type").innerHTML = emptyHtml('{% trans "No tickets"|escapejs %}'); return; }
+            if (!data.types.length) { document.querySelector("#chart-hd-type").innerHTML = emptyHtml('{% trans "No tickets"|escapejs %}'); typeLegend.clear(); return; }
+            const typeColor = (i) => COLORS[i % COLORS.length];
+            typeLegend.set(data.types.map((t, i) => ({ key: String(t.id), name: t.type, value: t.count, color: typeColor(i) })));
             renderChart('hd-type', document.querySelector("#chart-hd-type"), {
-                series: data.types.map(t => t.count),
+                series: typeLegend.series(),
                 chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit',
-                    events: { mounted: ctx => {
-                        ctx.el.querySelectorAll('.apexcharts-legend-series').forEach((item, i) => {
-                            if (data.types[i]) item.title = data.types[i].type;
-                        });
-                    }, dataPointSelection: (e, ctx, config) => {
+                    events: { dataPointSelection: (e, ctx, config) => {
                         const t = data.types[config.dataPointIndex];
                         const base = "{% url 'ticket-view' %}?ticket_tab=all_tickets";
                         const range = createdDateRangeParams(data.period_from_date, data.period_to_date);
@@ -500,10 +601,10 @@
                     }}
                 },
                 labels: data.types.map(t => t.type),
-                colors: COLORS.slice(0, data.types.length),
+                colors: data.types.map((t, i) => typeColor(i)),
                 plotOptions: { pie: { donut: { size: '65%', labels: { show: true, total: { show: true, label: '{% trans "Total"|escapejs %}', color: textColor, fontSize: '13px', fontWeight: 600, formatter: w => w.globals.seriesTotals.reduce((a,b)=>a+b,0) } } } } },
                 stroke: { width: 2, colors: [cardBg] }, dataLabels: { enabled: false },
-                legend: { position: 'bottom', height: 48, labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
+                legend: { show: false },
                 tooltip: { theme: isDark ? 'dark' : 'light' },
             });
         });
