@@ -1006,16 +1006,6 @@ urlpatterns = [
         name="attendance-dashboard-kpi",
     ),
     path(
-        "dashboard/api/weekly/",
-        att_dashboard.attendance_weekly_trend,
-        name="attendance-dashboard-weekly",
-    ),
-    path(
-        "dashboard/api/departments/",
-        att_dashboard.attendance_department_breakdown,
-        name="attendance-dashboard-dept",
-    ),
-    path(
         "dashboard/api/late-early/",
         att_dashboard.attendance_late_early_data,
         name="attendance-dashboard-late-early",
@@ -1036,9 +1026,14 @@ urlpatterns = [
         name="attendance-dashboard-shifts",
     ),
     path(
-        "dashboard/api/absenteeism/",
-        att_dashboard.attendance_absenteeism_trend,
-        name="attendance-dashboard-absenteeism",
+        "dashboard/api/attendance-percentage/",
+        att_dashboard.attendance_percentage_by_dimension,
+        name="attendance-dashboard-percentage",
+    ),
+    path(
+        "dashboard/api/absence-percentage/",
+        att_dashboard.absence_percentage_by_dimension,
+        name="attendance-dashboard-absence-percentage",
     ),
     path(
         "dashboard/api/work-types/",
@@ -1054,11 +1049,6 @@ urlpatterns = [
         "dashboard/api/top-absentees/",
         att_dashboard.attendance_top_absentees,
         name="attendance-dashboard-absentees",
-    ),
-    path(
-        "dashboard/api/clockin-dist/",
-        att_dashboard.attendance_clockin_distribution,
-        name="attendance-dashboard-clockin",
     ),
     path(
         "dashboard/api/calendar/",
