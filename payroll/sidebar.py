@@ -37,11 +37,12 @@ SUBMENUS = [
     #     "redirect": reverse("view-deduction"),
     #     "accessibility": "payroll.sidebar.deduction_accessibility",
     # },
-    {
-        "menu": _("Contributions"),
-        "redirect": reverse("payroll-contribution-list"),
-        "accessibility": "payroll.sidebar.payslip_accessibility",
-    },
+    # Temporarily hidden from the menu; the page itself is untouched.
+    # {
+    #     "menu": _("Contributions"),
+    #     "redirect": reverse("payroll-contribution-list"),
+    #     "accessibility": "payroll.sidebar.payslip_accessibility",
+    # },
     {
         "menu": _("Loans & Salary Advances"),
         "redirect": reverse("view-loan"),
