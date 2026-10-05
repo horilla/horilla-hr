@@ -25,10 +25,8 @@ from base.methods import (
 )
 from base.models import CompanyLeaves, Holidays
 from horilla.methods import get_horilla_model_class
-from payroll.methods.component_formula import (
-    ComponentFormulaError,
-    run_component_formula,
-)
+from payroll.methods.component_formula import ComponentFormulaError
+from payroll.methods.employer_cost import employer_amount
 from payroll.models.models import Contract, Deduction, Payslip
 
 logger = logging.getLogger(__name__)
@@ -1014,29 +1012,23 @@ def calculate_employer_contribution(data):
         if component is None:
             continue
 
-        if component.employer_basis == Deduction.EMPLOYER_BASIS_FORMULA:
-            if not (component.employer_formula or "").strip():
-                continue
-            try:
-                employer_contribution_amount = float(
-                    run_component_formula(component.employer_formula, context)
-                )
-            except ComponentFormulaError as exc:
-                # Reported against the component and skipped, not raised: a
-                # mistyped employer formula is the employer's own share, and
-                # it must not stop the employee being paid.
-                logger.error(
-                    "Employer formula on %s could not be worked out: %s",
-                    component,
-                    exc,
-                )
-                continue
-            deduction["employer_contribution_formula"] = component.employer_formula
-        else:
-            if not (component.employer_rate or 0) > 0:
-                continue
-            amount = pay_head_data.get(component.based_on) or 0
-            employer_contribution_amount = (amount * component.employer_rate) / 100
+        try:
+            result = employer_amount(component, pay_head_data, context)
+        except ComponentFormulaError as exc:
+            # Reported against the component and skipped, not raised: a
+            # mistyped employer formula is the employer's own share, and
+            # it must not stop the employee being paid.
+            logger.error(
+                "Employer formula on %s could not be worked out: %s",
+                component,
+                exc,
+            )
+            continue
+        if result is None:
+            continue
+        employer_contribution_amount, formula = result
+        if formula is not None:
+            deduction["employer_contribution_formula"] = formula
 
         deduction["based_on"] = component.based_on
         deduction["employer_contribution_amount"] = employer_contribution_amount

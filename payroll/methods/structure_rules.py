@@ -26,6 +26,8 @@ same conclusion in its own component-set validation.
 
 from django.utils.translation import gettext_lazy as _
 
+from payroll.methods.employer_cost import RECONCILABLE_BASES
+
 
 def _flagged_basics(allowances):
     return [c for c in allowances if getattr(c, "is_basic_pay", False)]
@@ -112,6 +114,46 @@ def structure_problems(structure_mode, allowances, deductions=()):
                 )
                 % {"titles": titles}
             )
+
+    # CTC is the whole cost to the employer, so the balance earning is worked
+    # out net of the employer's contributions. That only closes if each of them
+    # can be known before the balance is: a percentage of basic or gross pay can
+    # (gross is solved for), but one of taxable gross or net pay is itself
+    # derived from the balance, and a formula that names the balance cannot be
+    # evaluated before it exists.
+    if mode == "ctc_down" and balances:
+        balance_codes = {
+            (getattr(c, "code", "") or "").strip().upper() for c in balances
+        } - {""}
+        for deduction in deductions:
+            if getattr(deduction, "employer_basis", "rate") == "formula":
+                import re
+
+                used = set(
+                    re.findall(
+                        r"[A-Z_][A-Z0-9_]*",
+                        (getattr(deduction, "employer_formula", "") or "").upper(),
+                    )
+                )
+                if used & balance_codes:
+                    problems.append(
+                        _(
+                            "The employer share of %(title)s refers to the balance "
+                            "earning, which is worked out from it."
+                        )
+                        % {"title": deduction.title}
+                    )
+            elif (getattr(deduction, "employer_rate", 0) or 0) > 0 and getattr(
+                deduction, "based_on", None
+            ) not in RECONCILABLE_BASES:
+                problems.append(
+                    _(
+                        "The employer share of %(title)s is a percentage of a "
+                        "figure that depends on the balance earning, so the CTC "
+                        "cannot add up. Base it on basic pay or gross pay."
+                    )
+                    % {"title": deduction.title}
+                )
 
     return problems
 

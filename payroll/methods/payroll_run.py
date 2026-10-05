@@ -275,6 +275,34 @@ def payroll_calculation(employee, start_date, end_date, month_summary=None):
         # was taxed as though it had been paid.
         "loss_of_pay_amount": loss_of_pay_amount,
     }
+    # Loss of pay taken off the earning that IS basic pay, the way it comes off a
+    # contract wage under Gross Up. The earning is cut right where it is worked
+    # out, so everything that follows reads the adjusted basic: a percentage of
+    # BASIC, a deduction based on basic pay, and the balance (which is worked
+    # out from CTC less this cut, or it would simply win the money back).
+    # Only where the LOP does not itself depend on gross, which includes basic.
+    kwargs["basic_lop_reduction"] = (
+        float(loss_of_pay)
+        if (
+            # Only when the package is stated on the contract. When the wage is
+            # the pot being divided, the loss of pay has already come off it
+            # (compute_salary_on_period reduces the wage), so cutting basic as
+            # well would take it twice.
+            ctc_stated
+            and basic_source == BASIC_FROM_COMPONENT
+            and contract.deduct_leave_from_basic_pay
+            and not basic_pay_details.get("lop_from_gross")
+        )
+        else 0.0
+    )
+    if structure_mode == "ctc_down":
+        # CTC is the whole cost to the employer, so the balance earning needs to
+        # know which employer contributions are coming. See employer_cost.py.
+        from payroll.methods.employer_cost import eligible_deductions
+
+        kwargs["employer_deductions"] = eligible_deductions(
+            employee, start_date, end_date
+        )
     # basic pay will be basic_pay = basic_pay - update_compensation_amount
     # Overtime pay (regular/week-off/holiday) comes from the configurable
     # "Regular Overtime" / "Week Off Overtime" / "Holiday Overtime"
@@ -292,6 +320,8 @@ def payroll_calculation(employee, start_date, end_date, month_summary=None):
         if basic_source == BASIC_FROM_COMPONENT
         else None
     )
+    # How much of the loss of pay the basic earning actually took (see above).
+    basic_lop_applied = float(component_context.get("_basic_lop", 0) or 0)
 
     # Nobody said where basic pay comes from: no contract wage, and no earning
     # marked as basic pay. A zero basic is not a harmless display problem — a
@@ -387,8 +417,12 @@ def payroll_calculation(employee, start_date, end_date, month_summary=None):
         # the component's own formula result) that was already relied on.
         # Left unhandled, the deduction simply vanished -- computed, then
         # thrown away with the basic_pay it never actually reduced.
+        # Whatever part of the loss of pay the basic earning could not absorb
+        # (it cannot go below zero) is still deducted, separately.
         if contract.deduct_leave_from_basic_pay and not loss_of_pay_amount:
-            loss_of_pay_amount = loss_of_pay
+            leftover = loss_of_pay - basic_lop_applied
+            if leftover > 0.005:
+                loss_of_pay_amount = leftover
 
     # Whether Basic Pay above already carries the reduction, for the payslip's
     # own "already reflected" note -- true only when the deduction actually
@@ -396,7 +430,7 @@ def payroll_calculation(employee, start_date, end_date, month_summary=None):
     lop_reflected_in_basic = (
         contract.deduct_leave_from_basic_pay
         and not basic_pay_details.get("lop_from_gross")
-        and derived_basic_pay is None
+        and (derived_basic_pay is None or basic_lop_applied > 0)
     )
 
     pretax_deductions = calculate_pre_tax_deduction(**kwargs)
@@ -583,6 +617,9 @@ def payroll_calculation(employee, start_date, end_date, month_summary=None):
         # Basic" only under Gross Up (CTC Down's wage reads as the whole
         # package, not basic, so relabeling it the same way would lie).
         "structure_mode": structure_mode,
+        # The package a CTC Down payslip divides, for the strip at its top: the
+        # contract wage is zero there, and "Contract wage 0.00" says nothing.
+        "monthly_ctc": float(contract.monthly_ctc) if ctc_stated else None,
         "lop_reflected_in_basic": lop_reflected_in_basic,
         "partial_pay_days": partial_pay_days,
         "regular_hours_label": regular_hours_label,

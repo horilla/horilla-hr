@@ -413,11 +413,23 @@ def calculate_allowance(**kwargs):
                     # Forwarded so a component/formula strategy can see what
                     # earlier components computed.
                     "component_context": context,
+                    # Only a CTC Down run supplies this; the balance earning
+                    # takes the employer's contributions off the package.
+                    "employer_deductions": kwargs.get("employer_deductions"),
                 }
             )
         kwargs["amount"] = amount
         kwargs["component"] = allowance
         amount = if_condition_on(**kwargs)
+
+        # Loss of pay comes off the earning that IS basic pay, before anything
+        # reads it -- so a percentage of BASIC and a deduction based on basic pay
+        # both see the adjusted figure. Never below zero.
+        lop_cut = float(kwargs.get("basic_lop_reduction") or 0)
+        if lop_cut and allowance.is_basic_pay and "_basic_lop" not in context:
+            cut = min(float(amount or 0), lop_cut)
+            amount = float(amount or 0) - cut
+            context["_basic_lop"] = cut
 
         record(context, allowance, amount)
         accumulate(context, amount)
@@ -1279,16 +1291,28 @@ def calculate_based_on_balance(*_args, **kwargs):
     run — and it never goes negative: if the named components already exceed
     CTC, this contributes nothing rather than paying the difference back.
 
-    Scope, stated plainly: "what is left of CTC" here means what is left after
-    the EARNINGS, not after employer-side costs. Legacy payroll has no
-    employer-cost line to subtract (only Deduction.employer_rate, which lives
-    in phases that run after earnings), so this decomposes gross.
+    CTC is the whole cost to the employer, so what is left means after the
+    employer's own contributions too (Deduction.employer_rate / formula), not
+    only after the earnings. Without that the package always overshot by the
+    employer's share: gross came to exactly CTC and the contributions went on
+    top. They are taken off here, through payroll.methods.employer_cost, when
+    the caller supplies the deductions that apply.
     """
+    from payroll.methods.employer_cost import balance_after_employer_cost
+
     component = kwargs["component"]
     day_dict = kwargs["day_dict"]
     context = kwargs.get("component_context") or {}
 
-    remaining = float(context.get("CTC", 0) or 0) - float(context.get(EARNED, 0) or 0)
+    employer_deductions = kwargs.get("employer_deductions")
+    if employer_deductions is None:
+        remaining = (
+            float(context.get("CTC", 0) or 0)
+            - float(context.get("_basic_lop", 0) or 0)
+            - float(context.get(EARNED, 0) or 0)
+        )
+    else:
+        remaining = balance_after_employer_cost(employer_deductions, context)
     return compute_limit(component, max(remaining, 0.0), day_dict)
 
 

@@ -27,6 +27,8 @@ from django.utils.translation import gettext_lazy as _
 
 from horilla.decorators import hx_request_required, login_required, permission_required
 from payroll.methods.component_engine import accumulate, new_context, record
+from payroll.methods.component_formula import ComponentFormulaError
+from payroll.methods.employer_cost import employer_amount
 from payroll.methods.methods import compute_yearly_taxable_amount
 from payroll.methods.proration import flat_amount
 from payroll.methods.tax_calc import TaxComputationError, compute_yearly_tax
@@ -75,7 +77,9 @@ def sample_day_dict(lop_days=0):
     ]
 
 
-def _strategy_kwargs(component, context, day_dict, basic_pay, gross_pay):
+def _strategy_kwargs(
+    component, context, day_dict, basic_pay, gross_pay, employer_deductions=None
+):
     return {
         "employee": None,
         "component": component,
@@ -83,12 +87,15 @@ def _strategy_kwargs(component, context, day_dict, basic_pay, gross_pay):
         "gross_pay": gross_pay,
         "day_dict": day_dict,
         "component_context": context,
+        "employer_deductions": employer_deductions,
         "start_date": None,
         "end_date": None,
     }
 
 
-def _amount_for(component, context, day_dict, basic_pay, gross_pay):
+def _amount_for(
+    component, context, day_dict, basic_pay, gross_pay, employer_deductions=None
+):
     """One component's amount, through the engine's own strategy for it."""
     from payroll.methods.payslip_calc import calculation_mapping
 
@@ -105,7 +112,9 @@ def _amount_for(component, context, day_dict, basic_pay, gross_pay):
 
     try:
         amount = strategy(
-            **_strategy_kwargs(component, context, day_dict, basic_pay, gross_pay)
+            **_strategy_kwargs(
+                component, context, day_dict, basic_pay, gross_pay, employer_deductions
+            )
         )
     except Exception as exc:  # a formula that does not evaluate, say
         return None, str(exc) or str(_("Could not be worked out"))
@@ -211,6 +220,12 @@ def preview_salary_structure(request, pk):
     # payroll_run skips it, so the example cannot show a second basic.
     skip = flagged if (flagged is not None and basic_pay > 0) else None
 
+    # CTC Down only: the balance earning takes the employer's contributions off
+    # the package, so it needs the deductions that carry one.
+    employer_deductions = (
+        [r["component"] for r in rows if r["kind"] == "deduction"] if ctc_down else None
+    )
+
     earning_lines = []
     earnings_total = 0.0
     # Tracked separately because the heads below are the engine's, term for
@@ -245,7 +260,12 @@ def preview_salary_structure(request, pk):
             )
             continue
         amount, note = _amount_for(
-            component, context, day_dict, basic_pay, context.get("GROSS", 0.0)
+            component,
+            context,
+            day_dict,
+            basic_pay,
+            context.get("GROSS", 0.0),
+            employer_deductions,
         )
         if amount is not None:
             record(context, component, amount)
@@ -265,6 +285,7 @@ def preview_salary_structure(request, pk):
         gross_pay = earnings_total
 
     deduction_lines = []
+    employer_pending = []
     deductions_total = 0.0
     employer_total = 0.0
     # The engine's three disjoint buckets (payslip_calc filters on exactly these
@@ -278,7 +299,6 @@ def preview_salary_structure(request, pk):
             continue
         component = row["component"]
         amount, note = _amount_for(component, context, day_dict, basic_pay, gross_pay)
-        employer = None
         if amount is not None:
             record(context, component, amount)
             deductions_total += float(amount)
@@ -288,11 +308,9 @@ def preview_salary_structure(request, pk):
                 pretax_total += float(amount)
             else:
                 post_tax_total += float(amount)
-            rate = getattr(component, "employer_rate", 0) or 0
-            if rate:
-                employer = float(amount) * float(rate) / 100
-                employer_total += employer
-        deduction_lines.append(_line(row, amount, note, employer=employer))
+        line = _line(row, amount, note)
+        deduction_lines.append(line)
+        employer_pending.append((line, component))
 
     # calculate_taxable_gross_pay, term for term. The non-taxable earnings half
     # was missing here and only the pre-tax deductions were taken off, so a
@@ -302,6 +320,25 @@ def preview_salary_structure(request, pk):
     # showed a negative taxable gross where a real payslip shows nought would
     # be a worked example of something that cannot happen.
     taxable_gross = max(0.0, gross_pay - non_taxable_total - pretax_total)
+
+    # The employer's share, worked out by the same function a payslip uses
+    # (payroll.methods.employer_cost), against the figure each deduction is
+    # based on. It used to take the rate of the employee's own deduction,
+    # which understated a 12% PF on a 20,000 basic as 288 instead of 2,400.
+    # Done after taxable gross, because a deduction can be based on it.
+    employer_figures = {
+        "basic_pay": basic_pay,
+        "gross_pay": gross_pay,
+        "taxable_gross_pay": taxable_gross,
+    }
+    for line, component in employer_pending:
+        try:
+            result = employer_amount(component, employer_figures, context)
+        except ComponentFormulaError:
+            continue
+        if result is not None and result[0]:
+            line["employer"] = round(float(result[0]), 2)
+            employer_total += float(result[0])
 
     # ---- loss of pay -------------------------------------------------------
     # Shown among the deductions because that is where a payslip carries it,

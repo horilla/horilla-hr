@@ -355,14 +355,14 @@ urlpatterns = [
         name="payroll-dashboard-reimbursement",
     ),
     path(
-        "dashboard/api/salary-dist/",
-        pay_dashboard.payroll_salary_distribution,
-        name="payroll-dashboard-salary-dist",
+        "dashboard/api/contribution-cost/",
+        pay_dashboard.payroll_contribution_cost,
+        name="payroll-dashboard-contribution-cost",
     ),
     path(
-        "dashboard/api/components/",
-        pay_dashboard.payroll_component_breakdown,
-        name="payroll-dashboard-components",
+        "dashboard/api/run-coverage/",
+        pay_dashboard.payroll_run_coverage,
+        name="payroll-dashboard-run-coverage",
     ),
     # ------------------------------------------------------------------
     # Payroll runs: the list, one run, the three-step wizard, and the
