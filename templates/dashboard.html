@@ -2,7 +2,7 @@
 {% load static i18n %}
 
 {% block content %}
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@7.8.0/dist/apexcharts.min.js"></script>
     <style>
         :root {
             --md-indigo: var(--primary-600, #e54f38);
@@ -544,9 +544,29 @@
         }
 
         .md-info-panel__title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
             font-weight: 700;
             font-size: 13px;
         }
+
+        /* How many items the panel holds, beside its title. Hidden at zero. */
+        .md-count-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 24px;
+            height: 24px;
+            padding: 0 6px;
+            border-radius: 999px;
+            background: var(--md-indigo);
+            color: #fff;
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 1;
+        }
+        .md-count-badge[hidden] { display: none; }
 
         .md-info-panel__body {
             flex: 1;
@@ -928,6 +948,13 @@
         .md-tkt-prio--low { background: rgba(34, 197, 94, 0.14); color: #15803d; }
 
         /* Standard chart tooltip card */
+        /* Stage names under the pipeline chart open that stage's candidates. */
+        #chart-pipeline .apexcharts-xaxis-label,
+        #chart-pipeline .apexcharts-grid,
+        #chart-pipeline .apexcharts-line-series,
+        #chart-leave-trend .apexcharts-xaxis-label,
+        #chart-leave-trend .apexcharts-grid,
+        #chart-leave-trend .apexcharts-line-series { cursor: pointer; }
         .md-tip {
             min-width: 150px;
             padding: 10px 12px;
@@ -1831,7 +1858,7 @@
                             <div class="md-chart-card__header">
                                 <div>
                                     <div class="md-chart-card__title">{% trans "Leave Trends" %}</div>
-                                    <div class="md-chart-card__subtitle">{% trans "Leave days by department" %}<span data-period-label></span></div>
+                                    <div class="md-chart-card__subtitle">{% trans "Unique approved leave requests by department" %}<span data-period-label></span></div>
                                 </div>
                                 <a
                                     class="md-card-link"
@@ -2058,7 +2085,7 @@
             <div class="md-sidebar">
                 <div class="md-info-panel">
                     <div class="md-info-panel__header">
-                        <div class="md-info-panel__title">{% trans "Announcements" %}</div>
+                        <div class="md-info-panel__title">{% trans "Announcements" %}<span id="md-announcements-count" class="md-count-badge" hidden title="{% trans 'Announcements' %}">0</span></div>
                         {% if perms.base.add_announcement %}
                             <button
                                 class="md-btn-add"
@@ -2080,7 +2107,7 @@
                 </div>
                 <div class="md-info-panel">
                     <div class="md-info-panel__header">
-                        <div class="md-info-panel__title">{% trans "Birthdays & Anniversaries" %}</div>
+                        <div class="md-info-panel__title">{% trans "Birthdays & Anniversaries" %}<span id="md-birthdays-count" class="md-count-badge" hidden title="{% trans 'This month' %}">0</span></div>
                     </div>
                     <div class="md-info-panel__body" id="md-birthdays">
                         <div class="md-info-panel__empty">{% trans "Loading..." %}</div>
@@ -2088,7 +2115,7 @@
                 </div>
                 <div class="md-info-panel">
                     <div class="md-info-panel__header">
-                        <div class="md-info-panel__title">{% trans "Pending Approvals" %}</div>
+                        <div class="md-info-panel__title">{% trans "Pending Approvals" %}<span id="md-pending-count" class="md-count-badge" hidden title="{% trans 'Waiting for approval' %}">0</span></div>
                     </div>
                     <div class="md-info-panel__body" id="md-pending-approvals">
                         <div class="md-info-panel__empty">{% trans "Loading..." %}</div>
@@ -2096,7 +2123,7 @@
                 </div>
                 <div class="md-info-panel">
                     <div class="md-info-panel__header">
-                        <div class="md-info-panel__title">{% trans "Upcoming Holidays" %}</div>
+                        <div class="md-info-panel__title">{% trans "Upcoming Holidays" %}<span id="md-holidays-count" class="md-count-badge" hidden title="{% trans 'Upcoming holidays' %}">0</span></div>
                         <a
                             id="md-holidays-viewall"
                             href="{% url 'holiday-view' %}"
@@ -2144,7 +2171,10 @@
                 + rows.map(r => `<div class="md-tip__row"${r.indent ? ' style="padding-left:14px;font-size:11px;opacity:.8"' : ''}><span class="md-tip__label">${r.color ? `<i class="md-tip__dot" style="background:${r.color}"></i>` : ''}${escHtml(r.label)}</span><span${r.total ? ' style="font-weight:700"' : ''}>${escHtml(String(r.value))}${r.sub ? ` <span class="md-tip__sub">${escHtml(r.sub)}</span>` : ''}</span></div>`).join('')
                 + '</div>';
             const stdTooltip = ({ unit = '', decimals = 0, rowLabel = '' } = {}) => ({
-                ...TOOLTIP_STYLE, shared: true, intersect: false,
+                // fillSeriesColor off: a pie/donut tooltip is otherwise painted in the
+                // slice's colour with white text, which the light card below then
+                // leaves unreadable (white on white / dark on dark).
+                ...TOOLTIP_STYLE, shared: true, intersect: false, fillSeriesColor: false,
                 custom: ({ series, seriesIndex, dataPointIndex, w }) => {
                     const g = w.globals;
                     const fmt = (v) => (decimals ? (parseFloat(v) || 0).toFixed(decimals) : v) + unit;
@@ -2656,7 +2686,14 @@
                 };
                 const chart = new ApexCharts(el, options);
                 chartInstances[key] = chart;
-                chart.render();
+                const drawn = chart.render();
+                // render() finishes asynchronously. If this chart was replaced while it was
+                // still drawing (two loads close together), destroy() ran on a chart that
+                // had not mounted yet and its SVG then arrived anyway: the same chart,
+                // twice. Whichever draw finishes after being superseded removes itself.
+                if (drawn && drawn.then) {
+                    drawn.then(() => { if (chartInstances[key] !== chart) { try { chart.destroy(); } catch (e) { /* already gone */ } } });
+                }
                 return chart;
             }
 
@@ -2724,12 +2761,21 @@
             }
             loadKpiCards();
 
+            // Count beside a side panel's title; hidden when there is nothing in it.
+            function setMdCount(id, n) {
+                const badge = document.getElementById(id);
+                if (!badge) return;
+                badge.textContent = n;
+                badge.hidden = !n;
+            }
+
             // ─── ANNOUNCEMENTS ───
             function loadAnnouncements() {
                 fetch("{% url 'dashboard-announcements' %}")
                     .then(r => r.json())
                     .then(data => {
                         const el = document.getElementById('md-announcements');
+                        setMdCount('md-announcements-count', data.announcements.length);
                         if (!data.announcements.length) { el.innerHTML = '<div class="md-info-panel__empty">{% trans "No announcements"|escapejs %}</div>'; return; }
                         el.innerHTML = data.announcements.map(a => `
                     <div class="md-ann-item" data-ann-id="${a.id}" style="cursor:pointer;">
@@ -3186,6 +3232,16 @@
             {% if perms.leave.view_leaverequest or request.user.is_superuser %}
             // ─── LEAVE OVER PERIOD ───
             let leaveTrendData = null;
+            let leaveTrendHoverIndex = -1;
+            // The approved leave behind one point of the chart, grouped Department > Employee.
+            function openLeaveTrendPeriod(index) {
+                if (!PERM.leave || index == null || index < 0 || !leaveTrendData || !leaveTrendData.ranges) return;
+                const range = leaveTrendData.ranges[index];
+                if (!range) return;
+                window.location.href = "{% url 'request-view' %}?from_date=" + range.from + "&to_date=" + range.to
+                    + "&status=approved&filter_applied=1"
+                    + "&nested_fields=employee_id__employee_work_info__department_id&nested_fields=employee_id";
+            }
             function drawLeaveTrend() {
                 const names = new Set(leaveTrendLegend.selectedNames());
                 const lines = leaveTrendData.dataset.map((d, i) => ({ ...d, color: deptColor(i) })).filter(d => names.has(d.label));
@@ -3196,7 +3252,14 @@
                 renderChart('leave-trend', document.querySelector("#chart-leave-trend"), {
                     series: lines.map(d => ({ name: d.label, data: d.data })),
                     chart: { type: 'line', height: 300, toolbar: { show: false }, zoom: { enabled: false }, background: 'transparent', fontFamily: 'inherit',
-                        animations: { enabled: false } },
+                        animations: { enabled: false },
+                        events: {
+                            // A click anywhere on a day's column opens that day's leave: no need to
+                            // land on a line. The column is the one the pointer is over.
+                            click: (e, ctx, cfg) => openLeaveTrendPeriod(leaveTrendHoverIndex >= 0 ? leaveTrendHoverIndex : (cfg && cfg.dataPointIndex)),
+                            xAxisLabelClick: (e, ctx, { labelIndex }) => openLeaveTrendPeriod(labelIndex),
+                            mouseLeave: () => { leaveTrendHoverIndex = -1; },
+                        } },
                     colors: lines.map(d => d.color),
                     stroke: { curve: 'smooth', width: 3 },
                     markers: { size: 0, hover: { size: 5 } },
@@ -3206,6 +3269,7 @@
                     yaxis: { ...YAXIS_STYLE, min: 0, max: yMax, tickAmount: yMax / yStep, labels: { style: { colors: textColor, fontSize: '11px' }, formatter: v => Number.isInteger(+v) ? v : '' } },
                     grid: GRID,
                     tooltip: { ...TOOLTIP_STYLE, shared: true, intersect: false, custom: ({ series, dataPointIndex, w }) => {
+                        leaveTrendHoverIndex = dataPointIndex;
                         const rows = lines.map((d, i) => ({ color: d.color, label: d.label, value: series[i][dataPointIndex] + ' {% trans "leave(s)"|escapejs %}', n: series[i][dataPointIndex] }));
                         const total = rows.reduce((a, r) => a + r.n, 0);
                         const title = (w.globals.categoryLabels && w.globals.categoryLabels[dataPointIndex]) || w.globals.labels[dataPointIndex] || '';
@@ -3221,14 +3285,14 @@
                 onChange: drawLeaveTrend,
             });
             function loadLeaveOverPeriod() {
-                fetchP("{% url 'dashboard-leave-trends' %}?group=department")
+                fetchP("{% url 'dashboard-leave-trends' %}?group=department&count=requests" + (detectPreset() === 'this_month' ? '&bucket=week' : ''))
                 .then(r => r.json())
                 .then(data => {
                     if (data.no_permission) { hideCard('leave_trends'); return; }
                     if (!data.labels || !data.labels.length || !data.dataset || !data.dataset.length) { document.querySelector("#chart-leave-trend").innerHTML = emptyHtml('{% trans "No leave data"|escapejs %}'); leaveTrendLegend.clear(); return; }
                     leaveTrendData = data;
                     leaveTrendLegend.set(data.dataset.map((d, i) => ({ name: d.label, value: d.data.reduce((a, b) => a + b, 0), color: deptColor(i),
-                        detail: d.data.reduce((a, b) => a + b, 0) + ' {% trans "leave days"|escapejs %}' })));
+                        detail: d.data.reduce((a, b) => a + b, 0) + ' {% trans "leave requests"|escapejs %}' })));
                     drawLeaveTrend();
                 }).catch(() => { document.querySelector("#chart-leave-trend").innerHTML = emptyHtml('{% trans "No leave data"|escapejs %}'); });
             }
@@ -3238,6 +3302,16 @@
             {% if perms.recruitment.view_recruitment or request.user.is_superuser %}
             // ─── RECRUITMENT PIPELINE ───
             let pipelineData = null;
+            let pipelineHoverIndex = -1;
+            // Every open recruitment's candidates at one stage, grouped Recruitment > Job Position.
+            function openPipelineStage(index) {
+                if (!PERM.candidate || index == null || index < 0 || !pipelineData) return;
+                const stage = (pipelineData.labels[index] || '').toLowerCase();
+                if (!stage) return;
+                window.location.href = "{% url 'candidate-view' %}?stage_id__stage_type=" + encodeURIComponent(stage)
+                    + "&recruitment_id__closed=False"
+                    + "&nested_fields=recruitment_id&nested_fields=job_position_id";
+            }
             const pipelineColor = (name) => COLORS[Math.max(0, pipelineData.dataSet.findIndex(r => r.label === name)) % COLORS.length];
             function drawPipeline() {
                 const names = new Set(pipelineLegend.selectedNames());
@@ -3247,13 +3321,18 @@
                     series: recs.map(r => { const t = r.data.reduce((a, b) => a + b, 0); return { name: r.label, data: r.data.map(n => t ? Math.round(n / t * 1000) / 10 : 0) }; }),
                     chart: { type: 'line', height: 320, toolbar: { show: false }, zoom: { enabled: false }, background: 'transparent', fontFamily: 'inherit',
                         animations: { enabled: false },
-                        events: { markerClick: (e, ctx, { seriesIndex, dataPointIndex }) => {
-                            if (!PERM.candidate) return;
-                            const rec = recs[seriesIndex];
-                            const stage = (pipelineData.labels[dataPointIndex] || '').toLowerCase();
-                            if (!rec) return;
-                            window.location.href = "{% url 'candidate-view' %}?recruitment_id=" + rec.id + "&stage_id__stage_type=" + encodeURIComponent(stage);
-                        }}
+                        events: {
+                            // A click anywhere on a stage's column opens that stage's candidates:
+                            // no need to land on a line or a dot. The column is whichever one the
+                            // pointer is over (tracked by the tooltip below), falling back to the
+                            // one Apex reports for the click.
+                            click: (e, ctx, cfg) => {
+                                const idx = pipelineHoverIndex >= 0 ? pipelineHoverIndex : (cfg && cfg.dataPointIndex);
+                                openPipelineStage(idx);
+                            },
+                            xAxisLabelClick: (e, ctx, { labelIndex }) => openPipelineStage(labelIndex),
+                            mouseLeave: () => { pipelineHoverIndex = -1; },
+                        }
                     },
                     colors: recs.map(r => pipelineColor(r.label)),
                     stroke: { curve: 'smooth', width: 3 },
@@ -3263,17 +3342,29 @@
                     grid: GRID,
                     dataLabels: { enabled: false },
                     legend: { show: false },
-                    tooltip: { ...TOOLTIP_STYLE, shared: true, intersect: false, custom: ({ dataPointIndex }) => {
+                    // Fixed to the chart's top-right rather than following the pointer. This
+                    // tooltip lists every recruitment and its job positions, which at a busy
+                    // stage is taller than the chart: following the pointer it was placed
+                    // above the top of the screen, under the page header, and so "sometimes"
+                    // did not appear at all.
+                    tooltip: { ...TOOLTIP_STYLE, shared: true, intersect: false, fixed: { enabled: true, position: 'topRight', offsetX: 0, offsetY: 0 }, custom: ({ dataPointIndex }) => {
+                        pipelineHoverIndex = dataPointIndex;
                         const rows = [];
                         let total = 0;
+                        const POSITIONS_SHOWN = 2;
                         recs.forEach((r) => {
                             const n = r.data[dataPointIndex];
                             const t = r.data.reduce((a, b) => a + b, 0);
                             total += n;
                             rows.push({ color: pipelineColor(r.label), label: r.label, value: n + ' {% trans "candidates"|escapejs %}', sub: t ? '(' + Math.round(n / t * 100) + '%)' : '(0%)' });
-                            (r.positions || []).forEach(pos => {
-                                if (pos.data[dataPointIndex] > 0) rows.push({ indent: true, label: pos.name, value: pos.data[dataPointIndex] });
-                            });
+                            // Busiest job positions first, the rest folded into one line.
+                            const atStage = (r.positions || []).filter(pos => pos.data[dataPointIndex] > 0)
+                                .sort((a, b) => b.data[dataPointIndex] - a.data[dataPointIndex]);
+                            atStage.slice(0, POSITIONS_SHOWN).forEach(pos => rows.push({ indent: true, label: pos.name, value: pos.data[dataPointIndex] }));
+                            if (atStage.length > POSITIONS_SHOWN) {
+                                const rest = atStage.slice(POSITIONS_SHOWN).reduce((sum, pos) => sum + pos.data[dataPointIndex], 0);
+                                rows.push({ indent: true, label: '+' + (atStage.length - POSITIONS_SHOWN) + ' {% trans "more positions"|escapejs %}', value: rest });
+                            }
                         });
                         return tipCard(pipelineData.labels[dataPointIndex] || '', [{ total: true, label: '{% trans "Total candidates"|escapejs %}', value: total }, ...rows]);
                     } },
@@ -3402,6 +3493,7 @@
                     if (!el) return;
                     const viewAllLink = document.getElementById('md-holidays-viewall');
                     if (viewAllLink) viewAllLink.href = `{% url 'holiday-view' %}`;
+                    setMdCount('md-holidays-count', data.holidays.length);
 
                     if (!data.holidays.length) { el.innerHTML = '<div class="md-info-panel__empty">{% trans "No holidays this month"|escapejs %}</div>'; return; }
                     el.innerHTML = data.holidays.map(h => {
@@ -3453,6 +3545,7 @@
                         });
                     });
                     items.sort((a, b) => a.days_away - b.days_away);
+                    setMdCount('md-birthdays-count', items.length);
                     if (!items.length) {
                         el.innerHTML = '<div class="md-info-panel__empty">{% trans "None this month"|escapejs %}</div>';
                         return;
@@ -3522,6 +3615,7 @@
                         return;
                     }
                     if (sideEl) sideEl.innerHTML = renderPendingCards(data.pending);
+                    setMdCount('md-pending-count', Number((data.pending || {}).total) || 0);
                 }).catch(() => {
                     const sideEl = document.getElementById('md-pending-approvals');
                     if (sideEl) sideEl.innerHTML = '<div class="md-info-panel__empty">{% trans "Unable to load"|escapejs %}</div>';
