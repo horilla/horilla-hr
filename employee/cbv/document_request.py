@@ -16,6 +16,7 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import gettext_noop
 
+from base.cbv.work_shift_tab import ProfileTabShellView
 from base.methods import (
     choosesubordinates,
     get_key_instances,
@@ -535,3 +536,38 @@ class DocumentIndividualTabList(DocumentListView):
             pk = self.kwargs.get("pk")
             queryset = self.model.objects.filter(employee_id=pk)
         return HorillaListView.get_queryset(self, queryset, filtered, *args, **kwargs)
+
+
+@method_decorator(login_required, name="dispatch")
+@method_decorator(hx_request_required, name="dispatch")
+class DocumentIndividualTabShell(ProfileTabShellView):
+    """
+    Shell for the Documents profile tab: loads the nav (with the Create
+    button) and, through it, the employee's documents list.
+    """
+
+    shell_target_id = "document-shell"
+    nav_url_name = "employee-document-tab-nav"
+
+
+@method_decorator(login_required, name="dispatch")
+class DocumentIndividualNav(HorillaNavView):
+    """
+    Minimal nav (Create button only) for the Documents profile tab.
+    """
+
+    template_name = "generic/inline_nav.html"
+    nav_title = _("Documents")
+    hide_search = True
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        pk = self.request.resolver_match.kwargs.get("pk")
+        self.search_url = reverse("employee-document-tab-list", kwargs={"pk": pk})
+        self.search_swap_target = "#document-shell"
+        self.create_attrs = f"""
+            hx-get="{reverse('document-create', kwargs={'emp_id': pk})}"
+            hx-target="#genericModalBody"
+            data-toggle="oh-modal-toggle"
+            data-target="#genericModal"
+        """

@@ -19,7 +19,7 @@ from base.cbv.work_shift_tab import WorkAndShiftTabView
 from base.context_processors import enable_profile_edit
 from base.forms import AddToUserGroupForm
 from employee import views
-from employee.cbv.document_request import DocumentIndividualTabList
+from employee.cbv.document_request import DocumentIndividualTabShell
 from employee.filters import EmployeeFilter
 from employee.history import get_employee_history_models, get_employee_model_history
 from employee.models import Employee
@@ -247,7 +247,7 @@ EmployeeProfileView.add_tab(
         },
         {
             "title": _("Documents"),
-            "view": DocumentIndividualTabList.as_view(),
+            "view": DocumentIndividualTabShell.as_view(),
             "accessibility": "employee.cbv.accessibility.document_accessibility",
         },
         {
