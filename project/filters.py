@@ -121,6 +121,11 @@ class TaskAllFilter(HorillaFilterSet):
         field_name="end_date",
         widget=forms.HiddenInput(),
     )
+    # Open (still to do / in progress) tasks only, used by the ESS dashboard's
+    # Assigned Tasks tile so the list matches the tile's count.
+    is_open = django_filters.BooleanFilter(
+        method="filter_is_open", label=_("Open tasks only")
+    )
     end_from = django_filters.DateFilter(
         field_name="end_date",
         lookup_expr="gte",
@@ -180,6 +185,11 @@ class TaskAllFilter(HorillaFilterSet):
             "status",
             "is_active",
         ]
+
+    def filter_is_open(self, queryset, _name, value):
+        if value:
+            return queryset.filter(status__in=["to_do", "in_progress"])
+        return queryset
 
     def filter_by_task(self, queryset, _, value):
         queryset = queryset.filter(title__icontains=value)
