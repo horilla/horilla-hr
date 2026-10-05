@@ -118,6 +118,7 @@
                     >
                         <ion-icon name="bookmark-outline" class="mr-1"></ion-icon>
                         {% trans "Templates" %}
+                        <span id="activeTemplateLabel" class="oh-report-template-active-badge" style="display: none;"></span>
                     </button>
                     <div
                         class="oh-dropdown__menu oh-dropdown__menu--right p-3"
@@ -292,6 +293,21 @@
         return heading.replace(/Reports$/, "Report").trim().replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "") + ".xlsx";
     }
 
+    // Tracks which saved template (if any) the pivot table currently
+    // reflects, purely to drive the "which one is applied" indicator --
+    // cleared when a different template loads, the active one is deleted,
+    // or the report type is switched (template lists are scoped per type).
+    var activeTemplateId = null;
+
+    function updateActiveTemplateLabel(name) {
+        var $badge = $("#activeTemplateLabel");
+        if (name) {
+            $badge.text(name).show();
+        } else {
+            $badge.hide().text("");
+        }
+    }
+
     function refreshTemplateList() {
         $.getJSON("{% url 'report-templates-list' %}", { report_slug: currentReportSlug() }, function (res) {
             var $list = $("#reportTemplateList");
@@ -301,11 +317,15 @@
                 return;
             }
             res.templates.forEach(function (t) {
-                var $row = $('<div class="oh-report-template-item"></div>');
+                var isActive = activeTemplateId !== null && String(t.id) === String(activeTemplateId);
+                var $row = $('<div class="oh-report-template-item"></div>').toggleClass("oh-report-template-item--active", isActive);
                 var $link = $('<a href="#" class="oh-report-template-load"></a>').data("id", t.id).append(
                     $('<ion-icon name="bookmark-outline"></ion-icon>'),
                     $('<span></span>').text(t.name)
                 );
+                if (isActive) {
+                    $link.append($('<ion-icon name="checkmark-circle" class="oh-report-template-active-check"></ion-icon>'));
+                }
                 var $del = $('<span class="oh-report-template-delete" title="{% trans "Delete"|escapejs %}"></span>').data("id", t.id).append(
                     $('<ion-icon name="trash-outline"></ion-icon>')
                 );
@@ -510,7 +530,18 @@
     $(document).off("click", ".oh-report-template-load").on("click", ".oh-report-template-load", function (e) {
         e.preventDefault();
         var id = $(this).data("id");
+        if (String(id) === String(activeTemplateId)) {
+            // Clicking the already-applied template again deselects it --
+            // reload back to the page's own default/blank arrangement, the
+            // same state a fresh visit starts from.
+            window.location.reload();
+            return;
+        }
+        var name = $(this).find("span").first().text();
         $.getJSON("/report/report-templates/" + id + "/", function (res) {
+            activeTemplateId = id;
+            updateActiveTemplateLabel(name);
+            refreshTemplateList();
             applyTemplateConfig(res.config);
         });
     });
@@ -541,6 +572,10 @@
                 method: "POST",
                 headers: { "X-CSRFToken": "{{ csrf_token }}" },
                 success: function () {
+                    if (String(id) === String(activeTemplateId)) {
+                        activeTemplateId = null;
+                        updateActiveTemplateLabel(null);
+                    }
                     refreshTemplateList();
                     $("#reloadMessagesButton").click();
                 },
@@ -733,6 +768,8 @@
                 syncFilterRowsFromApplied();
                 renderAppliedFilterChips();
                 $("#filterCount").text("");
+                activeTemplateId = null;
+                updateActiveTemplateLabel(null);
                 loadPivotData(selectedModel);
                 refreshTemplateList();
             });

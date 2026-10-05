@@ -37,6 +37,32 @@
             margin-top: 2px;
         }
 
+        .oh-report-template-item--active {
+            background-color: #fcedeb;
+        }
+
+        .oh-report-template-active-check {
+            color: #28a745 !important;
+            font-size: 15px;
+            flex-shrink: 0;
+        }
+
+        .oh-report-template-active-badge {
+            display: inline-flex;
+            align-items: center;
+            margin-left: 6px;
+            padding-left: 6px;
+            border-left: 1px solid rgba(255, 255, 255, 0.5);
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.92);
+            font-weight: 400;
+            max-width: 140px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            vertical-align: middle;
+        }
+
         .oh-export-option {
             display: flex;
             align-items: center;
