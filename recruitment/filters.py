@@ -171,6 +171,35 @@ class CandidateFilter(HorillaFilterSet):
         method="filter_mail_sent",
         widget=django_filters.widgets.BooleanWidget(),
     )
+    # True = portal link sent but the candidate hasn't finished the portal
+    # flow yet (OnboardingPortal.used only flips to True once they reach
+    # the very end -- see employee_bank_details_save in onboarding/views.py).
+    # A candidate with no portal row at all doesn't match either direction,
+    # same as portal_sent's own all-or-nothing semantics above.
+    portal_incomplete = django_filters.BooleanFilter(
+        field_name="onboarding_portal__used",
+        method="filter_portal_incomplete",
+        widget=django_filters.widgets.BooleanWidget(),
+    )
+    # True = candidate is actually sitting in an onboarding pipeline stage
+    # (a CandidateStage row exists) -- start_onboard isn't a reliable
+    # proxy for this (see onboarding/dashboard.py's own notes: a candidate
+    # can be added to the pipeline without that flag ever getting set),
+    # and job_position_id alone matches every recruitment candidate for
+    # that position, not just the ones currently onboarding.
+    in_onboarding_pipeline = django_filters.BooleanFilter(
+        field_name="onboarding_stage",
+        method="filter_in_onboarding_pipeline",
+        widget=django_filters.widgets.BooleanWidget(),
+    )
+    # Direct field lookup (no method needed) -- unlike the two above, this
+    # doesn't need an isnull-inversion dance: a candidate with no
+    # CandidateStage row at all simply never matches either True or False
+    # here, same as any plain filter on a nullable related field.
+    in_final_onboarding_stage = django_filters.BooleanFilter(
+        field_name="onboarding_stage__onboarding_stage_id__is_final_stage",
+        widget=django_filters.widgets.BooleanWidget(),
+    )
     joining_set = django_filters.BooleanFilter(
         field_name="joining_date",
         method="filter_joining_set",
@@ -433,6 +462,12 @@ class CandidateFilter(HorillaFilterSet):
 
     def filter_mail_sent(self, queryset, name, value):
         return queryset.filter(onboarding_portal__isnull=(not value))
+
+    def filter_portal_incomplete(self, queryset, name, value):
+        return queryset.filter(onboarding_portal__used=(not value))
+
+    def filter_in_onboarding_pipeline(self, queryset, name, value):
+        return queryset.filter(onboarding_stage__isnull=(not value))
 
     def filter_joining_set(self, queryset, name, value):
         return queryset.filter(joining_date__isnull=(not value))

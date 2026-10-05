@@ -98,8 +98,10 @@ class PipelineCandidateFilter(HorillaFilterSet):
         field_name="candidate_id__candidate_task__onboarding_task_id",
         queryset=OnboardingTask.objects.all(),
     )
+    # status lives on CandidateTask itself, not on the OnboardingTask it
+    # points to -- onboarding_task_id__status doesn't exist on that model.
     task_status = filters.ChoiceFilter(
-        field_name="candidate_id__candidate_task__onboarding_task_id__status",
+        field_name="candidate_id__candidate_task__status",
         choices=CandidateTask.choice,
     )
     candidate = django_filters.ModelMultipleChoiceFilter(
@@ -264,8 +266,10 @@ class KanbanCandidateFilter(FilterSet):
         field_name="candidate_task__onboarding_task_id",
         queryset=OnboardingTask.objects.all(),
     )
+    # status lives on CandidateTask itself, not on the OnboardingTask it
+    # points to -- onboarding_task_id__status doesn't exist on that model.
     task_status = filters.ChoiceFilter(
-        field_name="candidate_task__onboarding_task_id__status",
+        field_name="candidate_task__status",
         choices=CandidateTask.choice,
     )
     candidate = django_filters.ModelMultipleChoiceFilter(
@@ -492,6 +496,10 @@ class OnboardingCandidateFilter(HorillaFilterSet):
     tasks = filters.ModelMultipleChoiceFilter(
         field_name="candidate_id__candidate_task__onboarding_task_id",
         queryset=OnboardingTask.objects.all(),
+    )
+    task_status = filters.ChoiceFilter(
+        field_name="candidate_id__candidate_task__status",
+        choices=CandidateTask.choice,
     )
     onboarding_end_date__gte = django_filters.DateFilter(
         field_name="onboarding_end_date",

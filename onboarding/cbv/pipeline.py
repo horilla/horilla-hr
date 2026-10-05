@@ -196,13 +196,26 @@ class RecruitmentTabView(HorillaTabView):
             is_active=True
         )
         view_type = self.request.GET.get("view", "list")
+        # Carry over any other query params (e.g. ?task_status=stuck from the
+        # dashboard's Stuck Tasks tile) down into each tab's shell, which in
+        # turn forwards them to the actual board content request -- "view"
+        # is excluded since it's already handled by the view_type/url logic
+        # below, not meant to be a board-content filter itself.
+        extra_params = self.request.GET.copy()
+        extra_params.pop("view", None)
+        extra_qs = extra_params.urlencode()
         self.tabs = []
         for rec in recruitments:
             tab = {}
             tab["title"] = rec
             url = reverse("onboarding-pipeline-shell", kwargs={"rec_id": rec.pk})
+            query_parts = []
             if view_type != "list":
-                url += f"?view={view_type}"
+                query_parts.append(f"view={view_type}")
+            if extra_qs:
+                query_parts.append(extra_qs)
+            if query_parts:
+                url += "?" + "&".join(query_parts)
             tab["url"] = url
 
             tab["badge_label"] = _("Stages")
@@ -337,6 +350,14 @@ class RecruitmentPipelineContentShell(TemplateView):
             content_url = reverse(
                 "candidate-card-cbv-onboarding", kwargs={"pk": rec.pk}
             )
+        # Forward any extra query params (e.g. ?task_status=stuck) through to
+        # the actual board content request -- "view" is excluded since it
+        # only picks which endpoint above, not a board-content filter itself.
+        extra_params = self.request.GET.copy()
+        extra_params.pop("view", None)
+        extra_qs = extra_params.urlencode()
+        if extra_qs:
+            content_url += f"?{extra_qs}"
         context["content_url"] = content_url
         context["rec_id"] = rec.pk
         context["nav_url"] = (

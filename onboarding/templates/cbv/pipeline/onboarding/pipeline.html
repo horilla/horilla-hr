@@ -12,7 +12,7 @@
     <div
         class="oh-wrapper"
         id="pipelineContainer"
-        hx-get="{% url 'cbv-pipeline-tab-onboarding' %}"
+        hx-get="{% url 'cbv-pipeline-tab-onboarding' %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}"
         hx-trigger="load"
     >
     </div>

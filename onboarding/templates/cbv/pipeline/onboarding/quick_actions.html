@@ -183,6 +183,20 @@
                                 style="cursor: pointer;"
                             >{% trans "Bulk Mail" %}</a>
                         </li>
+                        <li>
+                            {# hx-vals (not repeated hidden <input name="ids"> elements --     #}
+                            {# htmx's own form-param collection only keeps the LAST one of     #}
+                            {# several same-named plain inputs, silently dropping every        #}
+                            {# candidate but one) carries the whole id list as a JSON array,    #}
+                            {# which htmx natively serializes into repeated "ids" POST params. #}
+                            <a
+                                class="px-4 py-1.5 hover:text-primary-600 transition duration-300 text-xs gap-4 items-center flex w-full"
+                                hx-post="{% url 'email-send' %}"
+                                hx-vals='{"ids": [{% for cs in stage.candidate.all %}{{ cs.candidate_id_id }}{% if not forloop.last %},{% endif %}{% endfor %}]}'
+                                hx-confirm="{% blocktrans with count=stage.candidate.count %}Send the onboarding portal link to all {{ count }} candidate(s) in this stage?{% endblocktrans %}"
+                                style="cursor: pointer;"
+                            >{% trans "Send Portal" %}</a>
+                        </li>
                         {% endif %}
                         {% if perms.onboarding.delete_onboardingstage or request.user|recruitment_manages:stage.recruitment_id %}
                         <li>

@@ -312,29 +312,9 @@ urlpatterns = [
         name="onboarding-dashboard-kpi",
     ),
     path(
-        "dashboard/api/stages/",
-        on_dashboard.onboarding_stage_distribution,
-        name="onboarding-dashboard-stages",
-    ),
-    path(
-        "dashboard/api/tasks/",
-        on_dashboard.onboarding_task_status,
-        name="onboarding-dashboard-tasks",
-    ),
-    path(
-        "dashboard/api/recruitment/",
-        on_dashboard.onboarding_by_recruitment,
-        name="onboarding-dashboard-recruitment",
-    ),
-    path(
         "dashboard/api/position/",
         on_dashboard.onboarding_by_job_position,
         name="onboarding-dashboard-position",
-    ),
-    path(
-        "dashboard/api/candidates/",
-        on_dashboard.onboarding_candidates_list,
-        name="onboarding-dashboard-candidates",
     ),
     path(
         "dashboard/api/my-tasks/",
@@ -345,10 +325,5 @@ urlpatterns = [
         "dashboard/api/completion-trend/",
         on_dashboard.onboarding_completion_trend,
         name="onboarding-dashboard-completion-trend",
-    ),
-    path(
-        "dashboard/api/portal-status/",
-        on_dashboard.onboarding_portal_status,
-        name="onboarding-dashboard-portal-status",
     ),
 ]
