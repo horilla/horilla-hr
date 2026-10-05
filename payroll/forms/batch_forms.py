@@ -64,7 +64,7 @@ class PayrollBatchScopeForm(HorillaForm):
         label=_("Include"),
         choices=[
             (SCOPE_ALL, _("Everyone with an active contract")),
-            (SCOPE_SELECTED, _("Only the employees I choose")),
+            (SCOPE_SELECTED, _("Specific employees")),
         ],
         initial=SCOPE_ALL,
         widget=forms.RadioSelect,
