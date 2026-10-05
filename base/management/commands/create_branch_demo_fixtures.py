@@ -7,7 +7,8 @@ real LeaveRequest rows spanning the month before last through 30 days into
 the future, and Payslips for the one most-recently-closed calendar month
 only. Helpdesk tickets are spread over the last six months and routed through
 each branch's department / job position hierarchy. Each branch also gets its
-own asset inventory with allocations, requests and service requests.
+own asset inventory with allocations, requests and service requests, and
+its own recruitments with stage pipelines, candidates and interviews.
 
 Built on the same two-layer trick as create_precise_payroll_fixtures.py:
 real Attendance/LeaveRequest rows for a calendar that looks genuine, plus an
@@ -113,6 +114,45 @@ FEMALE_FIRST_NAMES = {
     "Sofia",
     "Victoria",
 }
+
+PROJECT_SPECS = [
+    # (title, status, start offset, end offset, task status cycle)
+    ("Website Revamp", "in_progress", -60, 30, ["completed", "in_progress", "to_do"]),
+    (
+        "Mobile App",
+        "in_progress",
+        -40,
+        -5,
+        ["completed", "in_progress", "in_progress", "to_do"],
+    ),
+    ("HR Portal Migration", "completed", -120, -20, ["completed"]),
+    ("Q4 Marketing Campaign", "new", 5, 90, ["to_do"]),
+    ("Data Warehouse", "on_hold", -75, 45, ["completed", "in_progress", "to_do"]),
+]
+
+PROJECT_TASK_TITLES = [
+    "Requirements gathering",
+    "UX wireframes",
+    "Database schema",
+    "API development",
+    "Frontend build",
+    "Integration testing",
+    "Security review",
+    "Performance tuning",
+    "User acceptance testing",
+    "Documentation",
+    "Deployment plan",
+    "Training session",
+]
+
+PROJECT_STAGES = [("In Progress", False), ("Review", False), ("Done", True)]
+
+# Hire vs Turnover chart: how many months back each hire joined / each exit
+# falls. Joins stop short of the current month, which the Birthdays &
+# Anniversaries widget reads as anniversaries (a hire this month would show as
+# a "0 yr anniversary").
+TURNOVER_HIRE_MONTHS_AGO = [5, 5, 4, 3, 3, 2, 1, 1]
+TURNOVER_EXIT_MONTHS_AGO = [4, 3, 2, 2, 1, 0]
 
 WEEKDAY_NAMES = ["monday", "tuesday", "wednesday", "thursday", "friday"]
 
@@ -325,6 +365,118 @@ ASSET_SERVICE_ISSUES = [
     "Charging port is loose.",
 ]
 
+RECRUITMENT_PLANS = [
+    ("Software Engineer", 3, 2),
+    ("Sales Representative", 2, 1),
+    ("HR Business Partner", 1, 0),
+    ("Marketing Specialist", 2, 2),
+    ("Financial Analyst", 2, 1),
+]
+RECRUITMENT_EXTRA_STAGES = [
+    ("Technical Test", "test", 2),
+    ("Interview", "interview", 3),
+    ("Hired", "hired", 4),
+    ("Cancelled Candidates", "cancelled", 50),
+]
+RECRUITMENT_STAGE_PATTERN = [
+    "applied",
+    "applied",
+    "applied",
+    "initial",
+    "initial",
+    "test",
+    "test",
+    "interview",
+    "interview",
+    "interview",
+    "hired",
+    "cancelled",
+    "applied",
+    "initial",
+    "hired",
+    "cancelled",
+]
+RECRUITMENT_MONTH_BUCKETS = [0, 0, -1, 0, -1, -2, 0, -1, 0, -1, 0, -2, 0, -1, 0, -2]
+RECRUITMENT_SOURCES = [
+    "application",
+    "software",
+    "application",
+    "other",
+    "application",
+    "software",
+]
+RECRUITMENT_REFERRAL_SOURCES = [
+    "job_board",
+    "company_career_site",
+    "social_media",
+    "employee_referral",
+    "recruiter_headhunter",
+    "search_engine",
+    "college_university",
+    "job_board",
+]
+CANDIDATE_FIRST_NAMES = [
+    "Emma",
+    "Liam",
+    "Sofia",
+    "Noah",
+    "Olivia",
+    "Ethan",
+    "Mia",
+    "Lucas",
+    "Chloe",
+    "Mason",
+    "Grace",
+    "Oliver",
+    "Nora",
+    "Elijah",
+    "Hannah",
+    "James",
+    "Lily",
+    "Henry",
+    "Leah",
+    "Daniel",
+]
+CANDIDATE_LAST_NAMES = [
+    "Walker",
+    "Brooks",
+    "Fisher",
+    "Hayes",
+    "Morgan",
+    "Bennett",
+    "Carter",
+    "Dawson",
+    "Ellis",
+    "Foster",
+    "Gray",
+    "Harper",
+    "Jensen",
+    "Keller",
+    "Lawson",
+]
+CANDIDATE_CITIES = ["Austin", "Denver", "Seattle", "Boston", "Chicago", "Portland"]
+TALENT_POOLS = [
+    (
+        "Engineering Bench",
+        "Strong engineering profiles to consider for future openings.",
+    ),
+    (
+        "Sales and Marketing",
+        "Promising sales and marketing candidates kept for later roles.",
+    ),
+    (
+        "Future Hires",
+        "Good fits we could not place yet but want to stay in touch with.",
+    ),
+]
+TALENT_POOL_REASONS = [
+    "Strong profile, no open position at the moment.",
+    "Good interview feedback, revisit next quarter.",
+    "Great skills, salary expectation slightly above budget.",
+    "Interested in a future opening on the team.",
+]
+TALENT_POOL_MEMBERS = 6
+
 
 def _add_months(d, delta):
     m = d.month - 1 + delta
@@ -377,6 +529,11 @@ class Command(BaseCommand):
         total_employees = 0
         tickets_created = open_tickets = 0
         assets_created = asset_requests = service_requests = 0
+        projects_created = 0
+        recruitments_created = candidates_created = hires_created = (
+            interviews_created
+        ) = 0
+        pools_created = pool_members_created = 0
         for company_spec in COMPANIES:
             self.stdout.write(f"\n=== {company_spec['name']} ===")
             company, shift = self._scaffolding(company_spec)
@@ -437,9 +594,19 @@ class Command(BaseCommand):
                 tickets_created += tickets
                 open_tickets += open_count
                 assets, requests, services = self._assets_for(company, employees, today)
+                projects_created += self._projects_for(company, employees, today)
                 assets_created += assets
                 asset_requests += requests
                 service_requests += services
+                recs, cands, hires, interviews, pools, pool_members = (
+                    self._recruitment_for(company, employees, today)
+                )
+                recruitments_created += recs
+                candidates_created += cands
+                hires_created += hires
+                interviews_created += interviews
+                pools_created += pools
+                pool_members_created += pool_members
 
             batch = self._run_payroll_batch(
                 employees[:-UNRUN_PER_COMPANY],
@@ -450,16 +617,46 @@ class Command(BaseCommand):
             payslips_created += batch.generated_count
             runs_created += 1
 
+            self._turnover_for(company, employees, today)
+
+        self.stdout.write(self.style.SUCCESS("\nDone."))
         self.stdout.write(
             self.style.SUCCESS(
-                f"\nDone. {len(COMPANIES)} companies, {total_employees} employees, "
-                f"{runs_created} payroll runs, {payslips_created} payslips for "
+                f"Companies:   {len(COMPANIES)} companies, {total_employees} employees"
+            )
+        )
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Payroll:     {runs_created} runs, {payslips_created} payslips for "
                 f"{last_month_start:%b %Y} -- every one verified paid_days + "
-                f"unpaid_days == that month's calendar days. Attendance runs "
-                f"through {today}; leave runs through {leave_horizon_end}. "
-                f"Helpdesk: {tickets_created} tickets ({open_tickets} open). "
-                f"Assets: {assets_created} assets, {asset_requests} requests, "
-                f"{service_requests} service requests."
+                f"unpaid_days == that month's calendar days"
+            )
+        )
+        self.stdout.write(self.style.SUCCESS(f"Attendance:  runs through {today}"))
+        self.stdout.write(
+            self.style.SUCCESS(f"Leave:       runs through {leave_horizon_end}")
+        )
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Helpdesk:    {tickets_created} tickets ({open_tickets} open)"
+            )
+        )
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Assets:      {assets_created} assets, {asset_requests} requests, "
+                f"{service_requests} service requests. Projects: {projects_created}"
+            )
+        )
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Recruitment: {recruitments_created} recruitments, "
+                f"{candidates_created} candidates ({hires_created} hired), "
+                f"{interviews_created} interviews"
+            )
+        )
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Talent pool: {pools_created} pools ({pool_members_created} members)"
             )
         )
 
@@ -1172,7 +1369,7 @@ class Command(BaseCommand):
         wrong. Anyone on approved leave covering today is skipped, so a
         present row and an approved leave never both claim the same day.
         """
-        from attendance.models import Attendance
+        from attendance.models import Attendance, AttendanceLateComeEarlyOut
         from leave.models import LeaveRequest
 
         on_leave_today = set(
@@ -1195,16 +1392,40 @@ class Command(BaseCommand):
             if weekend_limit is not None and checked_in >= weekend_limit:
                 break
             checked_in += 1
-            Attendance.objects.create(
+            # A few arrive late / leave early so the dashboard's Attendance Daily
+            # Overview has Late Arrival and Early Departure values, not just On Time.
+            # (The clock-in views write the AttendanceLateComeEarlyOut rows by hand,
+            # so they are created here the same way.)
+            kind = (
+                "late_come"
+                if checked_in % 5 == 3
+                else "early_out" if checked_in % 7 == 5 else None
+            )
+            clock_in = (
+                datetime.time(9, 45) if kind == "late_come" else datetime.time(9, 0)
+            )
+            clock_out = (
+                datetime.time(16, 30) if kind == "early_out" else datetime.time(18, 0)
+            )
+            worked = {"late_come": "08:15", "early_out": "07:30"}.get(kind, "09:00")
+            attendance = Attendance.objects.create(
                 employee_id=employee,
                 attendance_date=today,
                 shift_id=shift,
-                attendance_clock_in=datetime.time(9, 0),
-                attendance_clock_out=datetime.time(18, 0),
-                attendance_worked_hour="09:00",
+                attendance_clock_in=clock_in,
+                attendance_clock_out=clock_out,
+                attendance_worked_hour=worked,
                 minimum_hour="08:00",
                 attendance_validated=True,
             )
+            if kind:
+                # .save() not .create(): the model's save() runs super().save() twice,
+                # which a create()'s force_insert turns into a duplicate-pk error.
+                AttendanceLateComeEarlyOut(
+                    attendance_id=attendance,
+                    employee_id=employee,
+                    type=kind,
+                ).save()
 
     def _pending_attendance_request_for(self, employees, older_month_start):
         """One attendance-correction request left pending, for the
@@ -1493,6 +1714,145 @@ class Command(BaseCommand):
         )
         return HELPDESK_TICKETS_PER_COMPANY, open_count
 
+    # -- projects ----------------------------------------------------------------
+
+    def _projects_for(self, company, employees, today):
+        """Projects across every status with stages, tasks and timesheets for the branch."""
+        from project.models import Project, ProjectStage, Task, TimeSheet
+
+        weekdays = [
+            d
+            for d in (today - datetime.timedelta(days=n) for n in range(1, 40))
+            if d.weekday() < 5
+        ]
+        tasks_created = timesheets_created = 0
+        for p_index, (name, status, start_off, end_off, task_cycle) in enumerate(
+            PROJECT_SPECS
+        ):
+            start = today + datetime.timedelta(days=start_off)
+            end = today + datetime.timedelta(days=end_off)
+            manager = employees[(p_index * 4) % len(employees)]
+            project = Project.objects.create(
+                title=f"{company.company} - {name}",
+                status=status,
+                start_date=start,
+                end_date=end,
+                description=f"{name} for {company.company}.",
+                company_id=company,
+            )
+            project.managers.add(manager)
+
+            # Project.save() already made the first "Todo" stage; add the rest.
+            stages = {"to_do": ProjectStage.objects.get(project=project, title="Todo")}
+            for title, is_end in PROJECT_STAGES:
+                stages[title] = ProjectStage.objects.create(
+                    project=project, title=title, is_end_stage=is_end
+                )
+            stage_for = {
+                "to_do": stages["to_do"],
+                "in_progress": stages["In Progress"],
+                "completed": stages["Done"],
+            }
+
+            span = max((end - start).days, 1)
+            for t_index in range(6):
+                t_status = task_cycle[t_index % len(task_cycle)]
+                t_start = start + datetime.timedelta(days=(span * t_index) // 8)
+                t_end = min(end, t_start + datetime.timedelta(days=max(span // 4, 3)))
+                members = [
+                    employees[(p_index * 4 + t_index + k + 1) % len(employees)]
+                    for k in range(3)
+                ]
+                task = Task.objects.create(
+                    title=PROJECT_TASK_TITLES[
+                        (p_index * 3 + t_index) % len(PROJECT_TASK_TITLES)
+                    ],
+                    project=project,
+                    stage=stage_for[t_status],
+                    status=t_status,
+                    start_date=t_start,
+                    end_date=t_end,
+                    allocated_hours=f"{16 + 8 * (t_index % 4):02d}:00",
+                    description=f"{PROJECT_TASK_TITLES[(p_index * 3 + t_index) % len(PROJECT_TASK_TITLES)]} for {name}.",
+                    sequence=t_index,
+                )
+                task.task_managers.add(manager)
+                task.task_members.set(members)
+                tasks_created += 1
+
+                if t_status == "to_do" or t_start > today:
+                    continue
+                for d_index, day in enumerate(weekdays[: 4 + t_index]):
+                    if day < t_start:
+                        continue
+                    worker = members[d_index % len(members)]
+                    TimeSheet.objects.create(
+                        project_id=project,
+                        task_id=task,
+                        employee_id=worker,
+                        date=day,
+                        time_spent=f"{3 + (d_index + t_index) % 5:02d}:00",
+                        status=(
+                            "completed" if t_status == "completed" else "in_Progress"
+                        ),
+                        description=f"Worked on {task.title.lower()}.",
+                    )
+                    timesheets_created += 1
+
+        self.stdout.write(
+            f"  Projects: {len(PROJECT_SPECS)} projects, {tasks_created} tasks, "
+            f"{timesheets_created} timesheets"
+        )
+        return len(PROJECT_SPECS)
+
+    # -- turnover ----------------------------------------------------------------
+
+    def _turnover_for(self, company, employees, today):
+        """
+        Hires and exits spread over the last few months, for the dashboard's
+        Hire vs Turnover chart.
+
+        Hires are read from each employee's joining date. Exits come from
+        approved resignation letters: that source leaves the employee active, so
+        payroll, attendance and everything else already loaded is untouched,
+        where marking someone inactive would drop them from all of it. The
+        letters are taken from employees other than the department heads and the
+        ones given back-dated joining dates here.
+        """
+        from employee.models import EmployeeWorkInformation
+        from offboarding.models import ResignationLetter
+
+        hire_pool = employees[-len(TURNOVER_HIRE_MONTHS_AGO) :]
+        for k, (employee, months_ago) in enumerate(
+            zip(hire_pool, TURNOVER_HIRE_MONTHS_AGO)
+        ):
+            joined = _add_months(today.replace(day=1), -months_ago).replace(
+                day=3 + k * 3
+            )
+            EmployeeWorkInformation.objects.filter(employee_id=employee).update(
+                date_joining=joined
+            )
+
+        exit_pool = [employees[i] for i in (9, 12, 14, 16, 18, 20)]
+        for k, (employee, months_ago) in enumerate(
+            zip(exit_pool, TURNOVER_EXIT_MONTHS_AGO)
+        ):
+            leaves_on = _add_months(today.replace(day=1), -months_ago).replace(
+                day=8 + k * 3
+            )
+            ResignationLetter.objects.create(
+                employee_id=employee,
+                title="Resignation",
+                description="Moving on to a new opportunity.",
+                planned_to_leave_on=leaves_on,
+                status="approved",
+            )
+
+        self.stdout.write(
+            f"  Turnover: {len(hire_pool)} hires, {len(exit_pool)} approved exits "
+            f"over the last {max(TURNOVER_HIRE_MONTHS_AGO) + 1} months"
+        )
+
     # -- assets ------------------------------------------------------------------
 
     def _assets_for(self, company, employees, today):
@@ -1648,6 +2008,172 @@ class Command(BaseCommand):
         )
         return ASSETS_PER_COMPANY, ASSET_REQUESTS_PER_COMPANY, service
 
+    # -- recruitment -------------------------------------------------------------
+
+    def _recruitment_for(self, company, employees, today):
+        """Branch-scoped recruitments with stages, back-dated candidates and interviews."""
+        from django.utils import timezone
+
+        from base.models import JobPosition
+        from recruitment.models import (
+            Candidate,
+            InterviewSchedule,
+            Recruitment,
+            SkillZone,
+            SkillZoneCandidate,
+            Stage,
+        )
+
+        positions = {
+            p.job_position: p for p in JobPosition.objects.filter(company_id=company)
+        }
+        managers = employees[:3]
+        this_month_start = today.replace(day=1)
+        candidates_created = interviews_created = hired_total = 0
+        pool_candidates = []
+
+        for r, (position_name, vacancy, hire_target) in enumerate(RECRUITMENT_PLANS):
+            position = positions[position_name]
+            recruitment = Recruitment.default.create(
+                title=f"{position_name} Hiring",
+                description=f"Open hiring for {vacancy} {position_name} position(s) at {company.company}.",
+                vacancy=vacancy,
+                company_id=company,
+                job_position_id=position,
+                start_date=today - datetime.timedelta(days=75),
+                is_published=True,
+            )
+            recruitment.open_positions.add(position)
+            recruitment.recruitment_managers.set(managers)
+
+            stages = {
+                stage.stage_type: stage
+                for stage in Stage._base_manager.filter(recruitment_id=recruitment)
+            }
+            for stage_name, stage_type, sequence in RECRUITMENT_EXTRA_STAGES:
+                stages[stage_type] = Stage._base_manager.create(
+                    recruitment_id=recruitment,
+                    stage=stage_name,
+                    stage_type=stage_type,
+                    sequence=sequence,
+                )
+            for stage in stages.values():
+                stage.stage_managers.set(managers)
+
+            hires_left = hire_target
+            for i, stage_type in enumerate(RECRUITMENT_STAGE_PATTERN):
+                if stage_type == "hired":
+                    if hires_left == 0:
+                        stage_type = "interview"
+                    else:
+                        hires_left -= 1
+
+                first = CANDIDATE_FIRST_NAMES[(r * 7 + i) % len(CANDIDATE_FIRST_NAMES)]
+                last = CANDIDATE_LAST_NAMES[(r * 3 + i * 5) % len(CANDIDATE_LAST_NAMES)]
+                referral_source = RECRUITMENT_REFERRAL_SOURCES[
+                    (i * 3 + r) % len(RECRUITMENT_REFERRAL_SOURCES)
+                ]
+                if stage_type == "hired":
+                    offer_status = ["accepted", "joined", "accepted"][hired_total % 3]
+                elif stage_type == "interview":
+                    offer_status = "sent" if i % 2 else "not_sent"
+                elif stage_type == "cancelled":
+                    offer_status = "rejected" if i % 2 else "not_sent"
+                else:
+                    offer_status = "not_sent"
+
+                candidate = Candidate._base_manager.create(
+                    name=f"{first} {last}",
+                    recruitment_id=recruitment,
+                    job_position_id=position,
+                    stage_id=stages[stage_type],
+                    email=f"{first}.{last}.{recruitment.pk}.{i}@example.com".lower(),
+                    mobile=f"+1555{recruitment.pk % 100:02d}{i:02d}{(i * 37) % 1000:03d}",
+                    gender="female" if (i + r) % 2 else "male",
+                    source=RECRUITMENT_SOURCES[(i + r) % len(RECRUITMENT_SOURCES)],
+                    referral_source=referral_source,
+                    referral=(
+                        employees[(i * 7 + r) % len(employees)]
+                        if referral_source == "employee_referral"
+                        else None
+                    ),
+                    offer_letter_status=offer_status,
+                    city=CANDIDATE_CITIES[(r + i) % len(CANDIDATE_CITIES)],
+                    country="United States",
+                )
+
+                bucket = RECRUITMENT_MONTH_BUCKETS[i]
+                month_start = _add_months(this_month_start, bucket)
+                if bucket == 0:
+                    applied_on = month_start + datetime.timedelta(
+                        days=(i * 2 + r) % today.day
+                    )
+                else:
+                    applied_on = month_start + datetime.timedelta(days=(i * 3 + r) % 27)
+                fields = {
+                    "created_at": timezone.make_aware(
+                        datetime.datetime.combine(applied_on, datetime.time(10, 0))
+                    )
+                }
+                if stage_type == "hired":
+                    hired_on = min(
+                        applied_on + datetime.timedelta(days=8 + (i + r) % 9), today
+                    )
+                    fields["hired_date"] = hired_on
+                    fields["joining_date"] = hired_on + datetime.timedelta(
+                        days=14 + (i * 3) % 17
+                    )
+                    hired_total += 1
+                Candidate._base_manager.filter(pk=candidate.pk).update(**fields)
+                candidates_created += 1
+                if stage_type in ("cancelled", "initial", "test"):
+                    pool_candidates.append(candidate)
+
+                if stage_type != "interview":
+                    continue
+                interview_date = max(
+                    this_month_start,
+                    today + datetime.timedelta(days=((i + r * 2) % 11) - 4),
+                )
+                interview = InterviewSchedule._base_manager.create(
+                    candidate_id=candidate,
+                    interview_date=interview_date,
+                    interview_time=datetime.time(10 + (i + r) % 6, 30 if i % 2 else 0),
+                    description=f"Panel round for the {position_name} opening.",
+                    completed=interview_date < today,
+                )
+                interview.employee_id.set(managers[:2])
+                interviews_created += 1
+
+        pool_members = 0
+        for p, (title, description) in enumerate(TALENT_POOLS):
+            pool = SkillZone._base_manager.create(
+                title=title, description=description, company_id=company
+            )
+            members = pool_candidates[p :: len(TALENT_POOLS)][:TALENT_POOL_MEMBERS]
+            for m, member in enumerate(members):
+                SkillZoneCandidate._base_manager.create(
+                    skill_zone_id=pool,
+                    candidate_id=member,
+                    reason=TALENT_POOL_REASONS[(p + m) % len(TALENT_POOL_REASONS)],
+                )
+                pool_members += 1
+
+        self.stdout.write(
+            f"  Recruitment: {len(RECRUITMENT_PLANS)} recruitments, "
+            f"{candidates_created} candidates ({hired_total} hired), "
+            f"{interviews_created} interviews, "
+            f"{len(TALENT_POOLS)} talent pools ({pool_members} members)"
+        )
+        return (
+            len(RECRUITMENT_PLANS),
+            candidates_created,
+            hired_total,
+            interviews_created,
+            len(TALENT_POOLS),
+            pool_members,
+        )
+
 
 @contextlib.contextmanager
 def _as_request():
@@ -1677,6 +2203,7 @@ def _as_request():
         def __init__(self, who):
             self.user = who
             self.session = {}
+            self.GET = {}
 
     _thread_locals.request = _Request(user)
     try:
