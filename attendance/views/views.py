@@ -308,7 +308,6 @@ def attendance_import(request):
 
 
 @login_required
-@hx_request_required
 def attendance_export(request):
     resolver_match = request.resolver_match
     if (
@@ -316,6 +315,11 @@ def attendance_export(request):
         and resolver_match.url_name
         and resolver_match.url_name == "attendance-info-export-form"
     ):
+        # Only the filter form is an htmx fragment. The export itself is a
+        # plain form GET (a file download, e.g. from the employee list's
+        # "Export Individual Data"), so it must not require HX-Request.
+        if "HTTP_HX_REQUEST" not in request.META:
+            return render(request, "405.html", status=405)
         return render(
             request,
             "attendance/attendance/export_filter.html",
