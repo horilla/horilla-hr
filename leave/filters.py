@@ -222,6 +222,13 @@ class LeaveRequestFilter(HorillaFilterSet):
         field_name="employee_id__employee_work_info__department_id__department",
         lookup_expr="icontains",
     )
+    # Paid/unpaid leave type, used by the leave dashboard's Paid vs Unpaid chart
+    # (matches its split: anything that is not paid counts as unpaid).
+    payment = django_filters.ChoiceFilter(
+        choices=[("paid", _("Paid")), ("unpaid", _("Unpaid"))],
+        method="filter_payment",
+        label=_("Payment"),
+    )
     # Dedicated comma-separated "Name or Badge ID" search, alongside the
     # AJAX employee_id picker below rather than instead of it -- same
     # field/behavior as EmployeeFilter.name_or_badge/AttendanceFilters.
@@ -327,6 +334,16 @@ class LeaveRequestFilter(HorillaFilterSet):
             "employee_id__employee_work_info__shift_id",
             "employee_id__employee_work_info__work_type_id",
         ]
+
+    def filter_payment(self, queryset, _name, value):
+        """
+        Paid/unpaid leave type filter
+        """
+        if value == "paid":
+            return queryset.filter(leave_type_id__payment="paid")
+        if value == "unpaid":
+            return queryset.exclude(leave_type_id__payment="paid")
+        return queryset
 
     def overall_leave_filter(self, queryset, _, value):
         """
