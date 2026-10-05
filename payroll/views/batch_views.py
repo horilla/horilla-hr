@@ -21,7 +21,7 @@ nobody reviewed.
 """
 
 import logging
-from datetime import date
+from datetime import date, timedelta
 
 from django.contrib import messages
 from django.db import transaction
@@ -236,6 +236,62 @@ def batch_delete(request, batch_id):
     return HorillaRedirect(request, reverse("payroll-batch-home"))
 
 
+@login_required
+@permission_required("payroll.delete_payslip")
+@permission_required("payroll.add_payslip")
+def batch_reopen(request, batch_id):
+    """
+    Send a draft run back to "Check the inputs", to fix what it was built on.
+
+    A draft is only worth keeping while it is right. When it turns out wrong
+    because of what it read -- attendance that needs regularising, a contract
+    missing a wage -- the fix is made in those places, and the payslips have to
+    be made again to pick it up. This does the first half: it discards the
+    run's draft payslips and puts the same people and period back in front of
+    the review step, where the fixes are one click away. Generating from there
+    makes the run afresh.
+
+    Only a draft run qualifies. Once any payslip has moved on (review,
+    confirmed, paid) it is a record somebody has acted on, and changing it
+    goes through the run's status, not through a quiet rebuild.
+    """
+    batch = get_object_or_404(PayrollBatch, pk=batch_id)
+    detail = reverse("payroll-batch-detail", args=[batch.pk])
+
+    if request.method != "POST":
+        return HorillaRedirect(request, detail)
+
+    if (
+        batch.status != PayrollBatch.DRAFT
+        or batch.payslips.exclude(status="draft").exists()
+    ):
+        messages.error(
+            request,
+            _("Only a draft run can be sent back to check its inputs."),
+        )
+        return HorillaRedirect(request, detail)
+
+    state = {
+        "batch_name": batch.batch_name,
+        "period_start": batch.period_start.isoformat(),
+        "period_end": batch.period_end.isoformat(),
+        "employee_ids": list(batch.lines.values_list("employee_id_id", flat=True)),
+    }
+    with transaction.atomic():
+        batch.payslips.all().delete()
+        batch.delete()
+
+    request.session[SESSION_KEY] = state
+    messages.info(
+        request,
+        _(
+            "Back at Check the inputs. The draft payslips were discarded; fix "
+            "what needs fixing and generate again."
+        ),
+    )
+    return HorillaRedirect(request, reverse("payroll-batch-review"))
+
+
 # ---------------------------------------------------------------------------
 # Step 1 — scope
 # ---------------------------------------------------------------------------
@@ -246,7 +302,11 @@ def batch_delete(request, batch_id):
 def wizard_scope(request):
     """Which period, and who is in it."""
     settings = _settings_for(request)
-    period = settings.period_for(date.today())
+    # Last month, not this one: payroll is run once the month is over, so the
+    # period that is complete is the one people almost always want. The dates
+    # stay editable.
+    last_month_day = date.today().replace(day=1) - timedelta(days=1)
+    period = settings.period_for(last_month_day)
 
     if request.method == "POST":
         form = PayrollBatchScopeForm(request.POST, period=period)

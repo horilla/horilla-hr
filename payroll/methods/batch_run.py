@@ -113,14 +113,22 @@ def _exceptions_for(row, employee, contract):
         structure = contract.salary_structure_id
         flagged = basic_pay_component(structure.allowances.all()) if structure else None
         if flagged is None:
+            # Named for the wage type the contract is on: telling a monthly
+            # employee there is no "hourly rate" sends them looking for a
+            # field that does not apply to them.
+            wage_name = {
+                "monthly": _("monthly wage"),
+                "daily": _("daily wage"),
+                "hourly": _("hourly wage"),
+            }.get(contract.wage_type, _("wage"))
             problems.append(
                 (
                     BLOCKING,
                     _(
-                        "No wage or hourly rate on the contract, and no earning "
-                        "marked as basic pay. There is nothing to work pay out "
-                        "from."
-                    ),
+                        "No %(wage)s on the contract, and no earning marked as "
+                        "basic pay. There is nothing to work pay out from."
+                    )
+                    % {"wage": wage_name},
                 )
             )
 

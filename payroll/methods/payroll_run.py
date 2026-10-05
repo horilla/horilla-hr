@@ -195,7 +195,21 @@ def payroll_calculation(employee, start_date, end_date, month_summary=None):
     # Monthly CTC; when that is empty the wage is divided instead, which is what
     # structures configured before the field existed have always done.
     ctc_stated = bool(structure_mode == "ctc_down" and contract.monthly_ctc)
-    wage_is_the_pot = structure_mode == "ctc_down" and not ctc_stated
+    # In CTC Down the wage is never basic pay: it is either the package being
+    # divided (no Monthly CTC stated) or simply not used (one is). Basic comes
+    # from the earning flagged as basic pay, always. Deciding it from whether a
+    # CTC is stated got the second case wrong: a contract left holding a wage
+    # from an earlier Gross Up structure read as "basic is the wage", the flagged
+    # Basic was skipped, and basic_pay is zero under CTC Down -- so basic and
+    # everything that is a percentage of it came out zero and the balance paid
+    # the whole package.
+    wage_is_the_pot = structure_mode == "ctc_down"
+
+    # A stated CTC on a contract that also holds a wage is prorated by the
+    # wage's own ratio below, and that ratio already carries the loss of pay, so
+    # the package arrives here with it taken off. Everything that would take it
+    # off again has to know.
+    pot_prorated_by_wage = ctc_stated and bool(contract.wage)
 
     period_ctc = basic_pay
     if ctc_stated:
@@ -288,7 +302,12 @@ def payroll_calculation(employee, start_date, end_date, month_summary=None):
             # the pot being divided, the loss of pay has already come off it
             # (compute_salary_on_period reduces the wage), so cutting basic as
             # well would take it twice.
+            #
+            # The same goes for a stated CTC on a contract that also holds a
+            # wage: the package was prorated by the wage's own ratio above, and
+            # that ratio already carries the loss of pay.
             ctc_stated
+            and not pot_prorated_by_wage
             and basic_source == BASIC_FROM_COMPONENT
             and contract.deduct_leave_from_basic_pay
             and not basic_pay_details.get("lop_from_gross")
@@ -419,7 +438,11 @@ def payroll_calculation(employee, start_date, end_date, month_summary=None):
         # thrown away with the basic_pay it never actually reduced.
         # Whatever part of the loss of pay the basic earning could not absorb
         # (it cannot go below zero) is still deducted, separately.
-        if contract.deduct_leave_from_basic_pay and not loss_of_pay_amount:
+        if (
+            contract.deduct_leave_from_basic_pay
+            and not loss_of_pay_amount
+            and not pot_prorated_by_wage
+        ):
             leftover = loss_of_pay - basic_lop_applied
             if leftover > 0.005:
                 loss_of_pay_amount = leftover
@@ -430,7 +453,7 @@ def payroll_calculation(employee, start_date, end_date, month_summary=None):
     lop_reflected_in_basic = (
         contract.deduct_leave_from_basic_pay
         and not basic_pay_details.get("lop_from_gross")
-        and (derived_basic_pay is None or basic_lop_applied > 0)
+        and (derived_basic_pay is None or basic_lop_applied > 0 or pot_prorated_by_wage)
     )
 
     pretax_deductions = calculate_pre_tax_deduction(**kwargs)

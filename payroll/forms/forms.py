@@ -85,6 +85,27 @@ class SalaryStructureSelect(forms.Select):
         return option
 
 
+class UnavailableChoicesSelect(forms.Select):
+    """
+    A select that lists some options but will not let them be picked.
+
+    For choices the product names but cannot honour yet: showing them says what
+    is coming, disabling them says it is not here, and the form refuses a
+    posted value for one regardless, because a disabled option is only a hint
+    to the browser.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.unavailable = set()
+
+    def create_option(self, name, value, *args, **kwargs):
+        option = super().create_option(name, value, *args, **kwargs)
+        if str(value) in self.unavailable:
+            option["attrs"]["disabled"] = True
+        return option
+
+
 class ContractForm(ModelForm):
     """
     ContactForm
@@ -144,7 +165,33 @@ class ContractForm(ModelForm):
         self.fields["contract_document"].widget.attrs[
             "accept"
         ] = ".jpg, .jpeg, .png, .pdf"
+        self._disable_unsupported_pay_frequencies()
         self._label_wage_for_structure()
+
+    # The engine pays monthly. A weekly or semi-monthly contract would be read
+    # as monthly and the amounts would be wrong, so they are listed but cannot
+    # be chosen. A contract that already holds one keeps it, so editing an old
+    # record is not blocked by a choice it made before this existed.
+    UNSUPPORTED_PAY_FREQUENCIES = {"weekly", "semi_monthly"}
+
+    def _disable_unsupported_pay_frequencies(self):
+        field = self.fields.get("pay_frequency")
+        if field is None:
+            return
+        current = getattr(self.instance, "pay_frequency", None)
+        widget = UnavailableChoicesSelect(choices=field.widget.choices)
+        widget.attrs.update(field.widget.attrs)
+        widget.unavailable = self.UNSUPPORTED_PAY_FREQUENCIES - {current}
+        field.widget = widget
+
+    def clean_pay_frequency(self):
+        value = self.cleaned_data.get("pay_frequency")
+        current = getattr(self.instance, "pay_frequency", None)
+        if value in self.UNSUPPORTED_PAY_FREQUENCIES and value != current:
+            raise forms.ValidationError(
+                _("Only monthly pay is supported at the moment.")
+            )
+        return value
 
     def _label_wage_for_structure(self):
         """

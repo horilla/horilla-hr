@@ -8,7 +8,7 @@ hidden from the dropdown, and that the set reviewed is the set generated.
 """
 
 import logging
-from datetime import date
+from datetime import date, timedelta
 from unittest.mock import patch
 
 from django.test import TestCase
@@ -102,12 +102,16 @@ class ListTests(Fixture):
 
 
 class ScopeTests(Fixture):
-    def test_the_dates_are_filled_from_the_pay_period(self):
+    def test_the_dates_default_to_last_months_pay_period(self):
+        """Payroll is run once the month is over, so the finished month is the default."""
         response = self.client.get(reverse("payroll-batch-scope"))
         form = response.context["form"]
-        start, end = PayPeriodSettings().period_for(date.today())
+        last_month_day = date.today().replace(day=1) - timedelta(days=1)
+        start, end = PayPeriodSettings().period_for(last_month_day)
         self.assertEqual(form.initial["period_start"], start)
         self.assertEqual(form.initial["period_end"], end)
+        self.assertEqual(form.initial["batch_name"], start.strftime("%B %Y"))
+        self.assertLess(end, date.today())
 
     def test_choosing_everyone_records_everyone(self):
         self.client.post(
@@ -442,3 +446,41 @@ class PayPeriodTests(Fixture):
         """``for_company`` returns an unsaved default deliberately."""
         self.client.get(reverse("pay-period-settings"))
         self.assertEqual(PayPeriodSettings.objects.entire().count(), 0)
+
+
+class ReopenTests(DeleteTests):
+    """Back to "Check the inputs" from a draft run (inherits its draft run and payslip)."""
+
+    def setUp(self):
+        super().setUp()
+        self.url = reverse("payroll-batch-reopen", args=[self.batch.pk])
+
+    def test_a_draft_run_goes_back_to_the_review_step_with_the_same_people(self):
+        response = self.client.post(self.url)
+
+        self.assertRedirects(
+            response, reverse("payroll-batch-review"), fetch_redirect_response=False
+        )
+        self.assertFalse(PayrollBatch.objects.filter(pk=self.batch.pk).exists())
+        self.assertFalse(Payslip.objects.filter(pk=self.payslip.pk).exists())
+        state = self.client.session[SESSION_KEY]
+        self.assertEqual(state["batch_name"], "April")
+        self.assertEqual(state["period_start"], START.isoformat())
+        self.assertEqual(state["period_end"], END.isoformat())
+        self.assertCountEqual(state["employee_ids"], [e.pk for e in self.people])
+
+    def test_a_run_whose_payslips_moved_on_is_refused(self):
+        Payslip.objects.filter(pk=self.payslip.pk).update(status="confirmed")
+        self.client.post(self.url)
+        self.assertTrue(PayrollBatch.objects.filter(pk=self.batch.pk).exists())
+        self.assertTrue(Payslip.objects.filter(pk=self.payslip.pk).exists())
+
+    def test_a_run_that_is_not_draft_is_refused(self):
+        self.batch.status = PayrollBatch.REVIEW
+        self.batch.save()
+        self.client.post(self.url)
+        self.assertTrue(PayrollBatch.objects.filter(pk=self.batch.pk).exists())
+
+    def test_a_get_changes_nothing(self):
+        self.client.get(self.url)
+        self.assertTrue(PayrollBatch.objects.filter(pk=self.batch.pk).exists())

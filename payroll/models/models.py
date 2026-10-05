@@ -896,17 +896,40 @@ class Contract(HorillaModel):
 
     def set_salary_structure(self, new_structure):
         """
-        Reassign this contract's salary structure, syncing the employee into
-        the new structure's allowances/deductions and out of the old
-        structure's, when this contract is active. Reassigning to a
-        different structure naturally replaces the old one, since a contract
-        can only point to one structure at a time.
+        Reassign this contract's salary structure. ``save()`` does the rest:
+        it syncs the employee into the new structure's allowances/deductions
+        and out of the old structure's, when this contract is active.
         """
-        old_structure = self.salary_structure_id
-        if old_structure == new_structure:
+        if self.salary_structure_id == new_structure:
             return
-        if self.contract_status == "active":
-            if old_structure:
+        self.salary_structure_id = new_structure
+        self.save()
+
+    def _sync_structure_members(self, previous):
+        """
+        Keep the structure's allowances and deductions pointed at this employee.
+
+        Payslip calculation reads ``specific_employees`` on each component, not
+        the contract, so a contract that names a structure but was never added
+        to its components gets a payslip with basic pay and nothing else. That
+        is what happened when the structure was picked in the contract form:
+        the form saves the field, and only ``set_salary_structure`` used to
+        add the employee. Doing it here means every route in -- the form, the
+        API, an import -- ends up the same.
+
+        ``previous`` is the saved ``(structure, status)`` from before this
+        save, or None for a new contract. Adding is idempotent, so it runs on
+        every save of an active contract, which also repairs one that was
+        missed earlier.
+        """
+        if self.contract_status != "active":
+            return
+
+        was_active = bool(previous) and previous["contract_status"] == "active"
+        old_id = previous["salary_structure_id"] if was_active else None
+        if old_id and old_id != self.salary_structure_id_id:
+            old_structure = SalaryStructure.objects.filter(pk=old_id).first()
+            if old_structure is not None:
                 for allowance in old_structure.allowances.all():
                     still_targeted = (
                         allowance.salary_structures.exclude(pk=old_structure.pk)
@@ -923,13 +946,13 @@ class Contract(HorillaModel):
                     )
                     if not still_targeted:
                         deduction.specific_employees.remove(self.employee_id)
-            if new_structure:
-                for allowance in new_structure.allowances.all():
-                    allowance.specific_employees.add(self.employee_id)
-                for deduction in new_structure.deductions.all():
-                    deduction.specific_employees.add(self.employee_id)
-        self.salary_structure_id = new_structure
-        self.save()
+
+        new_structure = self.salary_structure_id
+        if new_structure is not None:
+            for allowance in new_structure.allowances.all():
+                allowance.specific_employees.add(self.employee_id)
+            for deduction in new_structure.deductions.all():
+                deduction.specific_employees.add(self.employee_id)
 
     def __str__(self) -> str:
         return f"{self.contract_name} -{self.contract_start_date} - {self.contract_end_date}"
@@ -971,6 +994,54 @@ class Contract(HorillaModel):
                     raise ValidationError(
                         {"deduction_for_one_leave_amount": _("This field is required")}
                     )
+
+        self._validate_against_salary_structure()
+
+    def _validate_against_salary_structure(self):
+        """
+        The structure decides which figure the contract has to state.
+
+        Checked here, when the contract is saved, rather than discovered when
+        the payroll run reaches it and refuses the payslip.
+
+        Gross Up reads the wage as basic pay, so it needs a basic pay from
+        somewhere: the contract's own wage or hourly rate, or an earning in the
+        structure flagged as basic pay. CTC Down divides the Monthly CTC into
+        components, so that figure has to be stated.
+        """
+        structure = self.salary_structure_id
+        if structure is None:
+            return
+
+        if structure.structure_mode == "ctc_down":
+            if not self.monthly_ctc or self.monthly_ctc <= 0:
+                raise ValidationError(
+                    {
+                        "monthly_ctc": _(
+                            "The %(structure)s structure is CTC Down: it divides "
+                            "the Monthly CTC into components, so enter a Monthly "
+                            "CTC greater than zero."
+                        )
+                        % {"structure": structure}
+                    }
+                )
+            return
+
+        from payroll.methods.basic_pay_source import basic_pay_component
+
+        has_rate = bool(self.pay_rate and self.pay_rate > 0)
+        if not has_rate and basic_pay_component(structure.allowances.all()) is None:
+            raise ValidationError(
+                {
+                    "wage": _(
+                        "The %(structure)s structure is Gross Up: the wage is "
+                        "the basic pay and allowances are added on top. Enter a "
+                        "wage greater than zero, or mark an earning in the "
+                        "structure as basic pay."
+                    )
+                    % {"structure": structure}
+                }
+            )
 
     def save(self, *args, **kwargs):
         if EmployeeWorkInformation.objects.filter(
@@ -1017,7 +1088,15 @@ class Contract(HorillaModel):
             raise forms.ValidationError(
                 _("A draft contract already exists for this employee.")
             )
+        previous = (
+            Contract.objects.filter(pk=self.pk)
+            .values("salary_structure_id", "contract_status")
+            .first()
+            if self.pk
+            else None
+        )
         super().save(*args, **kwargs)
+        self._sync_structure_members(previous)
         if self.contract_status == "active" and self.wage is not None:
             try:
                 wage_int = int(self.wage)
@@ -3121,7 +3200,7 @@ class SalaryStructure(HorillaModel):
                 # hourly contract basic-less.
                 contract.pay_rate,
                 allowances,
-                wage_is_the_pot=ctc_down and not contract.monthly_ctc,
+                wage_is_the_pot=ctc_down,
             )
             # A figure only where one can honestly be given. A monthly wage IS
             # the period's basic pay; an hourly or daily one becomes basic only

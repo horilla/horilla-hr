@@ -380,6 +380,11 @@ urlpatterns = [
         name="payroll-batch-delete",
     ),
     path(
+        "payroll-runs/<int:batch_id>/reopen/",
+        batch_views.batch_reopen,
+        name="payroll-batch-reopen",
+    ),
+    path(
         "payroll-runs/<int:batch_id>/status/",
         batch_views.batch_set_status,
         name="payroll-batch-set-status",

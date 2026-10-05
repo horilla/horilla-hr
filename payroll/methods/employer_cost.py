@@ -13,7 +13,10 @@ while the payslip took it of the figure the deduction is based on (12% of a
 """
 
 from payroll.methods.component_engine import EARNED, component_applies_to
-from payroll.methods.component_formula import ComponentFormulaError, run_component_formula
+from payroll.methods.component_formula import (
+    ComponentFormulaError,
+    run_component_formula,
+)
 
 # Figures an employer rate can be based on while the balance earning is still
 # unknown. Basic pay is already worked out when the balance runs; gross is
@@ -37,7 +40,10 @@ def employer_amount(component, figures, context):
         formula = (component.employer_formula or "").strip()
         if not formula:
             return None
-        return float(run_component_formula(formula, context)), component.employer_formula
+        return (
+            float(run_component_formula(formula, context)),
+            component.employer_formula,
+        )
 
     if not (component.employer_rate or 0) > 0:
         return None

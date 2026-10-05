@@ -513,3 +513,85 @@ class CtcDownPayslipEditTests(CtcDownSetup, TestCase):
             amounts[key] for title, key in keys.items() if title != "Income Tax"
         )
         self.assertAlmostEqual(earnings, PERIOD_CTC, places=2)
+
+
+class WageLeftOnTheContractTests(CtcDownSetup, TestCase):
+    """
+    A contract moved from a Gross Up structure to a CTC Down one still holds its
+    wage. The wage is not basic pay under CTC Down, so it must not stop Basic
+    from being worked out by its component -- it did, and basic, HRA and every
+    percentage of basic came out zero with the balance paying the whole package.
+    """
+
+    def test_a_stated_ctc_with_a_wage_still_works_basic_out_from_the_component(self):
+        self._standard_structure()
+        Contract.objects.filter(pk=self.contract.pk).update(
+            wage=16000.0, monthly_ctc=60000.0
+        )
+        data = self._run()
+
+        self.assertGreater(data["basic_pay"], 0)
+        self.assertAlmostEqual(data["basic_pay"], data["gross_pay"] * 0.50, delta=1.0)
+        self.assertGreater(self._named(data["allowances"], "HRA"), 0)
+
+    def test_the_wage_makes_no_difference_to_the_result(self):
+        self._standard_structure()
+        Contract.objects.filter(pk=self.contract.pk).update(wage=0, monthly_ctc=60000.0)
+        without_wage = self._run()
+        # The figure the mocked day rate makes a full month come to, so the
+        # wage's own proration ratio is 1 and only its presence is being tested.
+        Contract.objects.filter(pk=self.contract.pk).update(wage=PERIOD_CTC)
+        with_wage = self._run()
+
+        self.assertAlmostEqual(
+            with_wage["basic_pay"], without_wage["basic_pay"], places=2
+        )
+        self.assertAlmostEqual(
+            with_wage["gross_pay"], without_wage["gross_pay"], places=2
+        )
+
+    def test_loss_of_pay_is_taken_once_when_the_contract_also_holds_a_wage(self):
+        """
+        The package is prorated by the wage's ratio, which already carries the
+        loss of pay. Deducting the "leftover" as well took it twice.
+        """
+        self._standard_structure()
+        Contract.objects.filter(pk=self.contract.pk).update(
+            wage=PERIOD_CTC,
+            monthly_ctc=60000.0,
+            calculate_daily_leave_amount=True,
+            deduct_leave_from_basic_pay=True,
+        )
+        summary = {
+            "present": 20,
+            "paid_leave": 0,
+            "unpaid_leave": 2,
+            "absent": 0,
+            "week_off": 0,
+            "holiday": 0,
+            "total_working": WORKING_DAYS,
+            "working_days": WORKING_DAYS,
+            "unresolved_conflicts": 0,
+        }
+        with patch(
+            "payroll.methods.methods.months_between_range",
+            return_value=[
+                {"working_days_on_period": WORKING_DAYS, "per_day_amount": PER_DAY}
+            ],
+        ), patch(
+            "payroll.methods.methods.get_daily_salary",
+            return_value={"day_wage": PER_DAY},
+        ), patch(
+            "payroll.methods.methods.get_leaves", return_value=EMPTY_LEAVES
+        ):
+            data = payroll_calculation(
+                self.employee, PERIOD_START, PERIOD_END, month_summary=summary
+            )
+
+        listed = sum(
+            line["amount"]
+            for key in ("pretax_deductions", "post_tax_deductions", "tax_deductions")
+            for line in data.get(key, [])
+        )
+        self.assertAlmostEqual(data["total_deductions"], listed, places=2)
+        self.assertTrue(data["lop_reflected_in_basic"])
