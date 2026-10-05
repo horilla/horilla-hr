@@ -1087,7 +1087,7 @@
       "duration_unit": "months",
       "duration": 1,
       "add_assignees": false,
-      "is_template": true,
+      "is_template": false,
       "archive": false,
       "company_id": null,
       "managers": [
@@ -1118,7 +1118,7 @@
       "duration_unit": "months",
       "duration": 1,
       "add_assignees": false,
-      "is_template": true,
+      "is_template": false,
       "archive": false,
       "company_id": null,
       "managers": [

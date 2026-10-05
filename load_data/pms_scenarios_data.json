@@ -201,12 +201,12 @@
   {
     "model": "pms.objective",
     "pk": 1001,
-    "fields": {"title": "Grow sustainable revenue", "description": "Build predictable growth through qualified pipeline and disciplined account management.", "duration_unit": "months", "duration": 3, "add_assignees": true, "is_template": true, "archive": false, "company_id": 1, "self_employee_progress_update": true, "managers": [37], "assignees": [12, 13, 68], "key_result_id": [1001, 1003]}
+    "fields": {"title": "Grow sustainable revenue", "description": "Build predictable growth through qualified pipeline and disciplined account management.", "duration_unit": "months", "duration": 3, "add_assignees": true, "is_template": false, "archive": false, "company_id": 1, "self_employee_progress_update": true, "managers": [37], "assignees": [12, 13, 68], "key_result_id": [1001, 1003]}
   },
   {
     "model": "pms.objective",
     "pk": 1002,
-    "fields": {"title": "Improve customer retention", "description": "Strengthen customer outcomes, adoption, and renewal readiness.", "duration_unit": "months", "duration": 3, "add_assignees": true, "is_template": true, "archive": false, "company_id": 1, "self_employee_progress_update": true, "managers": [37], "assignees": [12, 13], "key_result_id": [1002]}
+    "fields": {"title": "Improve customer retention", "description": "Strengthen customer outcomes, adoption, and renewal readiness.", "duration_unit": "months", "duration": 3, "add_assignees": true, "is_template": false, "archive": false, "company_id": 1, "self_employee_progress_update": true, "managers": [37], "assignees": [12, 13], "key_result_id": [1002]}
   },
   {
     "model": "pms.objective",
