@@ -1494,40 +1494,6 @@ if apps.is_installed("pms"):
 
 @login_required
 @any_manager_can_enter("offboarding.view_offboarding")
-def dashboard_join_chart(request):
-    """
-    This method is used to render the joining - offboarding chart.
-    """
-
-    employees = Employee.objects.entire()
-    offboarding_employees = OffboardingEmployee.objects.entire()
-    archived_employees = offboarding_employees.filter(stage_id__type="archived")
-    resigning_employees = employees.filter(resignationletter__isnull=False).exclude(
-        offboardingemployee__stage_id__type="archived"
-    )
-
-    labels = ["resigning", "archived"]
-    items = [
-        resigning_employees.count(),
-        archived_employees.count(),
-    ]
-    if apps.is_installed("recruitment"):
-        Candidate = get_horilla_model_class(app_label="recruitment", model="candidate")
-        onboarding_employees = Candidate.objects.filter(
-            onboarding_stage__isnull=False, converted_employee_id__isnull=True
-        )
-        labels.append("New")
-        items.append(onboarding_employees.count())
-
-    response = {
-        "labels": labels,
-        "items": items,
-    }
-    return JsonResponse(response)
-
-
-@login_required
-@any_manager_can_enter("offboarding.view_offboarding")
 def department_job_postion_chart(request):
     """
     This method is used to render the department - job position chart.

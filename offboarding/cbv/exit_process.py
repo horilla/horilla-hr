@@ -70,13 +70,45 @@ from offboarding.templatetags.offboarding_filter import (
 )
 
 
-def offboarding_pipeline_modal_success_response(request) -> HttpResponse:
+def offboarding_pipeline_modal_success_response(
+    request, reload_page=False
+) -> HttpResponse:
     """
     Close modals and refresh the Exit Process pipeline area without a full-page reload.
 
     Uses the pipeline nav filter form's apply button when present (preserves filters
     and active list/card view); otherwise falls back to HTMX-loading the tabs view.
+
+    With reload_page=True (offboarding created/updated, so the tab bar itself
+    changes) the whole Exit Process page content is re-fetched the same way the
+    sidebar link does it, instead of refreshing only the active tab.
     """
+    if reload_page:
+        page_url_lit = f'"{escapejs(reverse("offboarding-pipeline"))}"'
+        snippet = rf"""
+<script>
+(function () {{
+  document.querySelectorAll(".oh-modal--show").forEach(function (el) {{
+    el.classList.remove("oh-modal--show");
+  }});
+  if (typeof htmx !== "undefined") {{
+    htmx.ajax("GET", {page_url_lit}, {{
+      target: "#ohMainContent",
+      select: "#ohMainContent > *",
+      swap: "innerHTML show:window:top",
+    }});
+  }} else {{
+    window.location.reload();
+  }}
+  var msgBtn = document.getElementById("reloadMessagesButton");
+  if (msgBtn) {{
+    msgBtn.click();
+  }}
+}})();
+</script>
+"""
+        return HttpResponse(snippet)
+
     qs = urlparse(request.headers.get("HX-Current-URL", "") or "").query
     tab_url = reverse("get-offboarding-tab")
     if qs:
@@ -256,7 +288,9 @@ class OffboardingCreateFormView(HorillaFormView):
             form.save()
 
             messages.success(self.request, message)
-            return offboarding_pipeline_modal_success_response(self.request)
+            return offboarding_pipeline_modal_success_response(
+                self.request, reload_page=True
+            )
 
         return super().form_valid(form)
 
@@ -396,7 +430,7 @@ class OffboardingPipelineNav(HorillaNavView):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        if self.request.user.has_perm("offboarding.create_offboarding"):
+        if self.request.user.has_perm("offboarding.add_offboarding"):
             self.create_attrs = f"""
                 class="oh-btn oh-btn--secondary"
                 hx-get="{reverse_lazy("create-offboarding")}"
@@ -574,6 +608,16 @@ class PipeLineTabView(HorillaTabView):
             self.tabs.append(tab)
 
         context["tabs"] = self.tabs
+        if self.request.user.has_perm("offboarding.add_offboarding"):
+            context["tab_create_label"] = _("Create")
+            context[
+                "tab_create_attrs"
+            ] = f"""
+                hx-get="{reverse("create-offboarding")}"
+                hx-target="#genericModalBody"
+                data-toggle="oh-modal-toggle"
+                data-target="#genericModal"
+            """
         return context
 
 
@@ -694,6 +738,7 @@ class OffboardingPipelineTabNav(HorillaNavView):
                 .first()
             )
             if first_stage:
+                self.create_label = _("Add")
                 self.create_attrs = f"""
                     data-toggle="oh-modal-toggle"
                     data-target="#genericModal"
@@ -753,17 +798,6 @@ class OffboardingPipelineStage(Pipeline):
                 "offboarding_id={offboarding_id__pk}",
             ],
             "actions": [
-                {
-                    "action": _("Add Employee"),
-                    "accessibility": "offboarding.cbv.accessibility.add_employee_accessibility",
-                    "attrs": """
-                        data-toggle="oh-modal-toggle"
-                        data-target="#genericModal"
-                        hx-get="{get_add_employee_url}"
-                        hx-target="#genericModalBody"
-                        class="oh-dropdown__link"
-                    """,
-                },
                 {
                     "action": _("Edit"),
                     "accessibility": "offboarding.cbv.accessibility.edit_stage_accessibility",
@@ -841,17 +875,6 @@ class OffboardingKanbanView(HorillaKanbanView):
     """
 
     group_actions = [
-        {
-            "action": "Add Employee",
-            "accessibility": "offboarding.cbv.accessibility.add_employee_accessibility",
-            "attrs": """
-                data-toggle="oh-modal-toggle"
-                data-target="#genericModal"
-                hx-get="{get_add_employee_url}"
-                hx-target="#genericModalBody"
-                class="oh-dropdown__link"
-            """,
-        },
         {
             "action": "Edit",
             "accessibility": "offboarding.cbv.accessibility.edit_stage_accessibility",

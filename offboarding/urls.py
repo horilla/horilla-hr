@@ -286,11 +286,6 @@ urlpatterns = [
         name="dashboard-department-chart",
     ),
     path(
-        "dashboard-join-chart/",
-        views.dashboard_join_chart,
-        name="dashboard-join-chart",
-    ),
-    path(
         "list-dashboard-task-status/",
         exit_process.DashboardTaskListview.as_view(),
         name="list-dashboard-task-status",

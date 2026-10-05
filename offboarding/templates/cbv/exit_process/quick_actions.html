@@ -12,12 +12,12 @@
 
 <div class="flex flex-wrap justify-between items-center gap-2 mb-1.5 {{ margin_class|default:'ml-2 mr-2' }} {{ extra_class|default:'' }}">
     {% if bulk_select_option %}
-    <div class="flex flex-nowrap gap-1 items-center flex-shrink-0">
-        <button
-            type="button"
-            class="d-none quick-bulk-action px-4 py-2 bg-transparent border border-primary-600 text-primary-600 rounded-md text-xs hover:bg-primary-600 hover:text-white transition duration-300"
-            id="unselect_{{ view_id }}"
-            onclick="clearSelection('{{ selected_instances_key_id }}');
+        <div class="flex flex-nowrap gap-1 items-center flex-shrink-0">
+            <button
+                type="button"
+                class="d-none quick-bulk-action px-4 py-2 bg-transparent border border-primary-600 text-primary-600 rounded-md text-xs hover:bg-primary-600 hover:text-white transition duration-300"
+                id="unselect_{{ view_id }}"
+                onclick="clearSelection('{{ selected_instances_key_id }}');
         selectSelected('#{{ root_view_id|default:view_id|safe }}','{{ selected_instances_key_id }}');
         reloadSelectedCount($('#count_{{ view_id|safe }}'),'{{ selected_instances_key_id }}');
         reloadSelectedCount($('.count_{{ view_id|safe }}'),'{{ selected_instances_key_id }}');
@@ -25,120 +25,121 @@
         $('#{{ root_view_id|default:view_id|safe }} .highlight-selected').removeClass('highlight-selected');
         $('#{{ root_view_id|default:view_id|safe }} .bulk-list-table-row').prop('checked',false);
         $.ajax({url: '{{ request.path }}?show_all=true', headers: {'HX-Request': 'true'}})"
-        >
-            <span class="label">{% trans 'Unselect' %}</span>
-            (<span id="count_{{ view_id }}">0</span>)
-        </button>
+            >
+                <span class="label">{% trans 'Unselect' %}</span>
+                (<span id="count_{{ view_id }}">0</span>)
+            </button>
 
-        {% if not hide_select and queryset.paginator.count %}
-            <button
-                type="button"
-                id="select_{{ view_id }}"
-                data-total-count="{{ queryset.paginator.count }}"
-                data-select-ids="{{ select_all_ids }}"
-                data-store-key="{{ selected_instances_key_id }}"
-                class="quick-bulk-action px-4 py-2 bg-transparent border border-primary-600 text-primary-600 rounded-md text-xs hover:bg-primary-600 hover:text-white transition duration-300"
-                onclick="hlvSelectAllRecords(this, '#{{ root_view_id|default:view_id|safe }}', '{{ selected_instances_key_id }}')"
-            >
-                <span class="label">{% trans 'Select' %}</span>
-                ({{ queryset.paginator.count }})
-            </button>
-        {% elif group_select and queryset.paginator.count %}
-            <button
-                type="button"
-                id="select_{{ view_id }}"
-                data-total-count="{{ queryset.paginator.count }}"
-                data-select-ids="{{ select_all_ids|default:'[]' }}"
-                data-store-key="{{ selected_instances_key_id }}"
-                class="quick-bulk-action px-4 py-2 bg-transparent border border-primary-600 text-primary-600 rounded-md text-xs hover:bg-primary-600 hover:text-white transition duration-300"
-                onclick="hlvSelectAllRecords(this, '#{{ root_view_id|default:view_id|safe }}', '{{ selected_instances_key_id }}')"
-            >
-                <span class="label">{% trans 'Select' %}</span>
-                ({{ queryset.paginator.count }})
-            </button>
-        {% endif %}
-        {% if quick_export %}
-            <button
-                id="export_{{ view_id }}"
-                class="hlv-export-trigger d-none"
-                hidden
-                data-toggle="oh-modal-toggle"
-                data-target="#exportFields{{ view_id|safe }}"
-                data-view-id="{{ view_id }}"
-                data-selected-key="{{ selected_instances_key_id }}"
-            ></button>
-        {% endif %}
-        {% if bulk_path and bulk_update %}
-            <button
-                id="bulk_udate_{{ view_id }}"
-                class="d-none quick-bulk-action px-4 py-2 bg-transparent border border-success text-success rounded-md text-xs hover:bg-success hover:text-white transition duration-300"
-                data-toggle="oh-modal-toggle"
-                data-target="#bulkUpdateModal{{ view_id|safe }}"
-                onclick="ids = $('#{{ selected_instances_key_id }}').attr('data-ids')
+            {% if not hide_select and queryset.paginator.count %}
+                <button
+                    type="button"
+                    id="select_{{ view_id }}"
+                    data-total-count="{{ queryset.paginator.count }}"
+                    data-select-ids="{{ select_all_ids }}"
+                    data-store-key="{{ selected_instances_key_id }}"
+                    class="quick-bulk-action px-4 py-2 bg-transparent border border-primary-600 text-primary-600 rounded-md text-xs hover:bg-primary-600 hover:text-white transition duration-300"
+                    onclick="hlvSelectAllRecords(this, '#{{ root_view_id|default:view_id|safe }}', '{{ selected_instances_key_id }}')"
+                >
+                    <span class="label">{% trans 'Select' %}</span>
+                    ({{ queryset.paginator.count }})
+                </button>
+            {% elif group_select and queryset.paginator.count %}
+                <button
+                    type="button"
+                    id="select_{{ view_id }}"
+                    data-total-count="{{ queryset.paginator.count }}"
+                    data-select-ids="{{ select_all_ids|default:'[]' }}"
+                    data-store-key="{{ selected_instances_key_id }}"
+                    class="quick-bulk-action px-4 py-2 bg-transparent border border-primary-600 text-primary-600 rounded-md text-xs hover:bg-primary-600 hover:text-white transition duration-300"
+                    onclick="hlvSelectAllRecords(this, '#{{ root_view_id|default:view_id|safe }}', '{{ selected_instances_key_id }}')"
+                >
+                    <span class="label">{% trans 'Select' %}</span>
+                    ({{ queryset.paginator.count }})
+                </button>
+            {% endif %}
+            {% if quick_export %}
+                <button
+                    id="export_{{ view_id }}"
+                    class="hlv-export-trigger d-none"
+                    hidden
+                    data-toggle="oh-modal-toggle"
+                    data-target="#exportFields{{ view_id|safe }}"
+                    data-view-id="{{ view_id }}"
+                    data-selected-key="{{ selected_instances_key_id }}"
+                >
+                </button>
+            {% endif %}
+            {% if bulk_path and bulk_update %}
+                <button
+                    id="bulk_udate_{{ view_id }}"
+                    class="d-none quick-bulk-action px-4 py-2 bg-transparent border border-success text-success rounded-md text-xs hover:bg-success hover:text-white transition duration-300"
+                    data-toggle="oh-modal-toggle"
+                    data-target="#bulkUpdateModal{{ view_id|safe }}"
+                    onclick="ids = $('#{{ selected_instances_key_id }}').attr('data-ids')
         $('#bulk_update_get_form{{ view_id }}').closest('form').find('[name=instance_ids]').val(ids);
         $('#bulk_update_get_form{{ view_id }}').click()"
-            >
-                <span class="label">{% trans 'Update' %}</span>
-                (<span class="count_{{ view_id }}">0</span>)
-            </button>
-            <form hx-post="/{{ bulk_path }}" hx-target="#bulkUpdateModalBody{{ view_id|safe }}">
-                <input type="hidden" name="instance_ids">
-                <button type="submit" id="bulk_update_get_form{{ view_id }}" hidden></button>
-            </form>
-        {% endif %}
-
-        {% if request.session.hlv_selected_ids %}
-            <div
-                hx-get="{{ request.path }}?show_all=true"
-                hx-target="#{{ root_view_id|default:view_id|safe }}"
-                hx-swap="outerHTML"
-                id="show_selected{{ view_id }}"
-                class="oh-checkpoint-badge text-warning quick-bulk-action"
-                style="cursor: pointer; color: hsl(203.16deg 91% 60%) !important"
-            >
-                <span class="label">{% trans 'Show All' %}</span>
-                (<span class="">{{ request.actual_ids|length }}</span>)
-            </div>
-        {% endif %}
-    </div>
-    {% endif %}
-
-    <div class="flex flex-nowrap items-center gap-2 ml-auto flex-shrink-0 self-center">
-    {% if stored_filters or row_status_indications %}
-        <div class="flex flex-wrap gap-2 items-center">
-            {% if stored_filters %}
-                <div class="relative flex-shrink-0" x-data="{ open: false }">
-                    <button
-                        @click="open = !open"
-                        class="px-4 py-2 bg-white border border-[#e6e6e6] rounded-md text-xs flex gap-1 items-center whitespace-nowrap"
-                    >
-                        <ion-icon name="funnel-outline"></ion-icon>
-                        {% blocktrans with counter=stored_filters|length %}Filter ({{ counter }}){% endblocktrans %}
-                        <ion-icon name="chevron-down-outline"></ion-icon>
-                    </button>
-                    <div
-                        x-show="open"
-                        @click.outside="open = false"
-                        class="absolute right-0 mt-1 z-20 bg-white border border-[#e6e6e6] rounded-md shadow-lg p-2 flex flex-col gap-1 min-w-[200px] max-h-64 overflow-y-auto"
-                    >
-                        {% for filter in stored_filters %}
-                            {% include "generic/_saved_filter_chip.html" with filter=filter %}
-                        {% endfor %}
-                    </div>
-                </div>
+                >
+                    <span class="label">{% trans 'Update' %}</span>
+                    (<span class="count_{{ view_id }}">0</span>)
+                </button>
+                <form hx-post="/{{ bulk_path }}" hx-target="#bulkUpdateModalBody{{ view_id|safe }}">
+                    <input type="hidden" name="instance_ids">
+                    <button type="submit" id="bulk_update_get_form{{ view_id }}" hidden></button>
+                </form>
             {% endif %}
-            {% if not hide_row_status_indications %}
-                {% for indication in row_status_indications %}
-                    <button
-                        class="oh-row-status-indication px-4 py-2 bg-[white] border border-primary-500 hover:border-primary-600 rounded-md text-xs flex gap-2 items-center flex-shrink-0 whitespace-nowrap transition duration-300"
-                        {{ indication.2|safe }}
-                    >
-                        <span class="h-3 w-3 rounded-full flex {{ indication.0 }}"></span>{{ indication.1 }}
-                    </button>
-                {% endfor %}
+
+            {% if request.session.hlv_selected_ids %}
+                <div
+                    hx-get="{{ request.path }}?show_all=true"
+                    hx-target="#{{ root_view_id|default:view_id|safe }}"
+                    hx-swap="outerHTML"
+                    id="show_selected{{ view_id }}"
+                    class="oh-checkpoint-badge text-warning quick-bulk-action"
+                    style="cursor: pointer; color: hsl(203.16deg 91% 60%) !important"
+                >
+                    <span class="label">{% trans 'Show All' %}</span>
+                    (<span class="">{{ request.actual_ids|length }}</span>)
+                </div>
             {% endif %}
         </div>
     {% endif %}
+
+    <div class="flex flex-nowrap items-center gap-2 ml-auto flex-shrink-0 self-center">
+        {% if stored_filters or row_status_indications %}
+            <div class="flex flex-wrap gap-2 items-center">
+                {% if stored_filters %}
+                    <div class="relative flex-shrink-0" x-data="{ open: false }">
+                        <button
+                            @click="open = !open"
+                            class="px-4 py-2 bg-white border border-[#e6e6e6] rounded-md text-xs flex gap-1 items-center whitespace-nowrap"
+                        >
+                            <ion-icon name="funnel-outline"></ion-icon>
+                            {% blocktrans with counter=stored_filters|length %}Filter ({{ counter }}){% endblocktrans %}
+                            <ion-icon name="chevron-down-outline"></ion-icon>
+                        </button>
+                        <div
+                            x-show="open"
+                            @click.outside="open = false"
+                            class="absolute right-0 mt-1 z-20 bg-white border border-[#e6e6e6] rounded-md shadow-lg p-2 flex flex-col gap-1 min-w-[200px] max-h-64 overflow-y-auto"
+                        >
+                            {% for filter in stored_filters %}
+                                {% include "generic/_saved_filter_chip.html" with filter=filter %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+                {% if not hide_row_status_indications %}
+                    {% for indication in row_status_indications %}
+                        <button
+                            class="oh-row-status-indication px-4 py-2 bg-[white] border border-primary-500 hover:border-primary-600 rounded-md text-xs flex gap-2 items-center flex-shrink-0 whitespace-nowrap transition duration-300"
+                            {{ indication.2|safe }}
+                        >
+                            <span class="h-3 w-3 rounded-full flex {{ indication.0 }}"></span>{{ indication.1 }}
+                        </button>
+                    {% endfor %}
+                {% endif %}
+            </div>
+        {% endif %}
 
         {# Per-stage Actions (Add Employee/Edit Stage/Delete Stage), scoped  #}
         {# to this stage - see cbv/exit_process/employee_list.html. Placed  #}
@@ -163,41 +164,29 @@
                 </button>
                 <div class="dropdown-content absolute z-10 bg-white rounded-lg [box-shadow:0px_0px_20px_0px_rgb(0_0_0_/_8%)] min-w-[150px] py-2 right-0 font-normal">
                     <ul class="text-sm">
-                        {% if "offboarding.cbv.accessibility.add_employee_accessibility"|accessibility:stage %}
-                        <li>
-                            <a
-                                class="px-4 py-1.5 hover:text-primary-600 transition duration-300 text-xs gap-4 items-center flex w-full"
-                                data-toggle="oh-modal-toggle"
-                                data-target="#genericModal"
-                                hx-get="{{ stage.get_add_employee_url }}"
-                                hx-target="#genericModalBody"
-                                style="cursor: pointer;"
-                            >{% trans "Add Employee" %}</a>
-                        </li>
-                        {% endif %}
                         {% if "offboarding.cbv.accessibility.edit_stage_accessibility"|accessibility:stage %}
-                        <li>
-                            <a
-                                class="px-4 py-1.5 hover:text-primary-600 transition duration-300 text-xs gap-4 items-center flex w-full"
-                                data-toggle="oh-modal-toggle"
-                                data-target="#genericModal"
-                                hx-get="{{ stage.get_update_url }}"
-                                hx-target="#genericModalBody"
-                                style="cursor: pointer;"
-                            >{% trans "Edit" %}</a>
-                        </li>
+                            <li>
+                                <a
+                                    class="px-4 py-1.5 hover:text-primary-600 transition duration-300 text-xs gap-4 items-center flex w-full"
+                                    data-toggle="oh-modal-toggle"
+                                    data-target="#genericModal"
+                                    hx-get="{{ stage.get_update_url }}"
+                                    hx-target="#genericModalBody"
+                                    style="cursor: pointer"
+                                >{% trans "Edit" %}</a>
+                            </li>
                         {% endif %}
                         {% if "offboarding.cbv.accessibility.delete_stage_accessibility"|accessibility:stage %}
-                        <li>
-                            <a
-                                class="px-4 py-1.5 hover:text-red-600 transition duration-300 text-xs gap-4 items-center flex w-full"
-                                data-toggle="oh-modal-toggle"
-                                data-target="#deleteConfirmation"
-                                hx-get="{{ stage.get_delete_url }}"
-                                hx-target="#deleteConfirmationBody"
-                                style="cursor: pointer;"
-                            >{% trans "Delete" %}</a>
-                        </li>
+                            <li>
+                                <a
+                                    class="px-4 py-1.5 hover:text-red-600 transition duration-300 text-xs gap-4 items-center flex w-full"
+                                    data-toggle="oh-modal-toggle"
+                                    data-target="#deleteConfirmation"
+                                    hx-get="{{ stage.get_delete_url }}"
+                                    hx-target="#deleteConfirmationBody"
+                                    style="cursor: pointer"
+                                >{% trans "Delete" %}</a>
+                            </li>
                         {% endif %}
                     </ul>
                 </div>
@@ -210,10 +199,10 @@
                     type="button"
                     class="w-7 h-7 flex items-center justify-center rounded text-xs leading-none transition duration-300 {% if queryset.has_previous %}hover:bg-[#f5f5f5]{% else %}text-[#ccc] cursor-not-allowed{% endif %}"
                     {% if queryset.has_previous %}
-                    hx-target="#{{root_view_id|default:view_id|safe}}"
-                    hx-swap="outerHTML"
-                    hx-get="{{search_url}}?{% if pd %}{{pd}}&{% elif saved_filters.urlencode %}{{saved_filters.urlencode}}&{% endif %}{{ page_param_name|default:'page' }}=1&filter_applied=on"
-                    hx-on:click="htmxLoadIndicator(this);"
+                        hx-target="#{{root_view_id|default:view_id|safe}}"
+                        hx-swap="outerHTML"
+                        hx-get="{{search_url}}?{% if pd %}{{pd}}&{% elif saved_filters.urlencode %}{{saved_filters.urlencode}}&{% endif %}{{ page_param_name|default:'page' }}=1&filter_applied=on"
+                        hx-on:click="htmxLoadIndicator(this);"
                     {% endif %}
                 >
                     <i class="fa-solid fa-angles-left"></i>
@@ -222,10 +211,10 @@
                     type="button"
                     class="w-7 h-7 flex items-center justify-center rounded text-xs leading-none transition duration-300 {% if queryset.has_previous %}hover:bg-[#f5f5f5]{% else %}text-[#ccc] cursor-not-allowed{% endif %}"
                     {% if queryset.has_previous %}
-                    hx-target="#{{root_view_id|default:view_id|safe}}"
-                    hx-swap="outerHTML"
-                    hx-get="{{search_url}}?{% if pd %}{{pd}}&{% elif saved_filters.urlencode %}{{saved_filters.urlencode}}&{% endif %}{{ page_param_name|default:'page' }}={{ queryset.previous_page_number }}&filter_applied=on"
-                    hx-on:click="htmxLoadIndicator(this);"
+                        hx-target="#{{root_view_id|default:view_id|safe}}"
+                        hx-swap="outerHTML"
+                        hx-get="{{search_url}}?{% if pd %}{{pd}}&{% elif saved_filters.urlencode %}{{saved_filters.urlencode}}&{% endif %}{{ page_param_name|default:'page' }}={{ queryset.previous_page_number }}&filter_applied=on"
+                        hx-on:click="htmxLoadIndicator(this);"
                     {% endif %}
                 >
                     <i class="fa-solid fa-angle-left"></i>
@@ -245,16 +234,17 @@
                         hx-trigger="keyup[keyCode==13] changed, blur changed"
                         onclick="this.select()"
                     >
-                    <span class="inline-flex items-center h-6 leading-none whitespace-nowrap">/ {{ queryset.paginator.num_pages }}</span>
+                    <span class="inline-flex items-center h-6 leading-none whitespace-nowrap">/
+                        {{ queryset.paginator.num_pages }}</span>
                 </div>
                 <button
                     type="button"
                     class="w-7 h-7 flex items-center justify-center rounded text-xs leading-none transition duration-300 {% if queryset.has_next %}hover:bg-[#f5f5f5]{% else %}text-[#ccc] cursor-not-allowed{% endif %}"
                     {% if queryset.has_next %}
-                    hx-target="#{{root_view_id|default:view_id|safe}}"
-                    hx-swap="outerHTML"
-                    hx-get="{{search_url}}?{% if pd %}{{pd}}&{% elif saved_filters.urlencode %}{{saved_filters.urlencode}}&{% endif %}{{ page_param_name|default:'page' }}={{ queryset.next_page_number }}&filter_applied=on"
-                    hx-on:click="htmxLoadIndicator(this);"
+                        hx-target="#{{root_view_id|default:view_id|safe}}"
+                        hx-swap="outerHTML"
+                        hx-get="{{search_url}}?{% if pd %}{{pd}}&{% elif saved_filters.urlencode %}{{saved_filters.urlencode}}&{% endif %}{{ page_param_name|default:'page' }}={{ queryset.next_page_number }}&filter_applied=on"
+                        hx-on:click="htmxLoadIndicator(this);"
                     {% endif %}
                 >
                     <i class="fa-solid fa-angle-right"></i>
@@ -263,10 +253,10 @@
                     type="button"
                     class="w-7 h-7 flex items-center justify-center rounded text-xs leading-none transition duration-300 {% if queryset.has_next %}hover:bg-[#f5f5f5]{% else %}text-[#ccc] cursor-not-allowed{% endif %}"
                     {% if queryset.has_next %}
-                    hx-target="#{{root_view_id|default:view_id|safe}}"
-                    hx-swap="outerHTML"
-                    hx-get="{{search_url}}?{% if pd %}{{pd}}&{% elif saved_filters.urlencode %}{{saved_filters.urlencode}}&{% endif %}{{ page_param_name|default:'page' }}={{ queryset.paginator.num_pages }}&filter_applied=on"
-                    hx-on:click="htmxLoadIndicator(this);"
+                        hx-target="#{{root_view_id|default:view_id|safe}}"
+                        hx-swap="outerHTML"
+                        hx-get="{{search_url}}?{% if pd %}{{pd}}&{% elif saved_filters.urlencode %}{{saved_filters.urlencode}}&{% endif %}{{ page_param_name|default:'page' }}={{ queryset.paginator.num_pages }}&filter_applied=on"
+                        hx-on:click="htmxLoadIndicator(this);"
                     {% endif %}
                 >
                     <i class="fa-solid fa-angles-right"></i>

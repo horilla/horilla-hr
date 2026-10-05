@@ -2,436 +2,1156 @@
 {% load static i18n %}
 
 {% block content %}
-<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
-<style>
-    :root { --ob-indigo: var(--primary-600, #E54F38); --ob-green: #22c55e; --ob-amber: #f59e0b; --ob-red: #ef4444; --ob-blue: #3b82f6; --ob-purple: #a855f7; }
-    .ob-dashboard { font-family: inherit; background: #ffffff; margin: -24px; padding: 24px; min-height: calc(100vh - 80px); }
-    .dark .ob-dashboard { background: #000000; }
-    .ob-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    .ob-header h1 { font-size: 22px; font-weight: 700; }
-    .ob-header__date { font-size: 13px; opacity: 0.6; margin-top: 2px; }
-    .ob-btn-back { padding: 6px 14px; border-radius: 8px; border: 1px solid rgba(128,128,128,0.2); font-size: 13px; cursor: pointer; text-decoration: none; color: inherit; transition: all 0.15s; background: none; }
-    .ob-btn-back:hover { border-color: var(--ob-indigo); color: var(--ob-indigo); text-decoration: none; }
-
-    .ob-kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
-    .ob-kpi-card { border-radius: 12px; padding: 18px; background: #ffffff; border: 1px solid rgba(128,128,128,0.12); transition: all 0.2s; text-decoration: none; color: inherit; display: block; }
-    .ob-kpi-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); transform: translateY(-1px); text-decoration: none; color: inherit; }
-    .ob-kpi-card--static:hover { transform: none; box-shadow: none; cursor: default; }
-    .dark .ob-kpi-card { background: #242424; border-color: rgba(255,255,255,0.08); }
-    .ob-kpi-card__icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; margin-bottom: 10px; }
-    .ob-kpi-card__icon--red { background: #fee2e2; color: var(--ob-red); } .ob-kpi-card__icon--amber { background: #fef3c7; color: var(--ob-amber); }
-    .ob-kpi-card__icon--green { background: #dcfce7; color: var(--ob-green); } .ob-kpi-card__icon--blue { background: #dbeafe; color: var(--ob-blue); }
-    .dark .ob-kpi-card__icon--red { background: #7f1d1d; } .dark .ob-kpi-card__icon--amber { background: #78350f; }
-    .dark .ob-kpi-card__icon--green { background: #14532d; } .dark .ob-kpi-card__icon--blue { background: #1e3a5f; }
-    .ob-kpi-card__label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.5; margin-bottom: 6px; }
-    .ob-kpi-card__value { font-size: 28px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
-    .ob-kpi-card__sub { font-size: 12px; opacity: 0.6; }
-    .ob-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
-    .ob-badge--green { background: #dcfce7; color: #166534; } .ob-badge--amber { background: #fef3c7; color: #92400e; } .ob-badge--red { background: #fee2e2; color: #991b1b; } .ob-badge--blue { background: #dbeafe; color: #1e40af; }
-    .dark .ob-badge--green { background: #166534; color: #bbf7d0; } .dark .ob-badge--amber { background: #92400e; color: #fde68a; } .dark .ob-badge--red { background: #7f1d1d; color: #fca5a5; } .dark .ob-badge--blue { background: #1e3a8a; color: #bfdbfe; }
-
-    .ob-layout { display: grid; grid-template-columns: 1fr 300px; gap: 20px; align-items: start; }
-    .ob-main { min-width: 0; }
-    .ob-sidebar { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 90px; max-height: calc(100vh - 90px - 24px); overflow-y: auto; }
-    .ob-sidebar::-webkit-scrollbar { width: 3px; }
-    .ob-sidebar::-webkit-scrollbar-thumb { border-radius: 3px; background: rgba(128,128,128,0.2); }
-
-    .ob-chart-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 20px; }
-    .ob-chart-card { border-radius: 12px; background: #ffffff; border: 1px solid rgba(128,128,128,0.12); overflow: visible; }
-    .dark .ob-chart-card { background: #242424; border-color: rgba(255,255,255,0.08); }
-    .ob-chart-card--wide { grid-column: span 2; }
-    .ob-chart-card__header { padding: 14px 18px 0; display: flex; justify-content: space-between; align-items: center; }
-    .ob-chart-card__title { font-size: 14px; font-weight: 600; }
-    .ob-chart-card__subtitle { font-size: 11px; opacity: 0.5; margin-top: 2px; }
-    .ob-chart-card__body { padding: 6px 10px 10px; }
-    .ob-empty { text-align: center; padding: 30px 0; opacity: 0.6; font-size: 13px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
-    .ob-empty img { width: 100px; opacity: 0.7; }
-    .ob-skeleton { background: linear-gradient(90deg, rgba(128,128,128,0.1) 25%, transparent 50%, rgba(128,128,128,0.1) 75%); background-size: 200% 100%; animation: ob-shimmer 1.5s infinite; border-radius: 12px; }
-    @keyframes ob-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-    .ob-skeleton--kpi { height: 110px; }
-
-    .ob-info-panel { border-radius: 12px; background: #ffffff; border: 1px solid rgba(128,128,128,0.12); overflow: hidden; display: flex; flex-direction: column; flex-shrink: 0; }
-    .dark .ob-info-panel { background: #242424; border-color: rgba(255,255,255,0.08); }
-    .ob-info-panel__header { padding: 14px 16px 10px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; border-bottom: 1px solid rgba(128,128,128,0.08); }
-    .ob-info-panel__title { font-size: 13px; font-weight: 700; }
-    .ob-info-panel__body { padding: 8px 16px 12px; overflow-y: auto; flex: 1; max-height: 350px; }
-    .ob-info-panel__empty { text-align: center; padding: 30px 0; opacity: 0.4; font-size: 12px; }
-
-    .ob-list-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(128,128,128,0.06); text-decoration: none; color: inherit; }
-    .ob-list-item:last-child { border-bottom: none; }
-    .ob-list-item:hover { opacity: 0.8; }
-    .ob-list-item__avatar { width: 32px; height: 32px; border-radius: 50%; background: #fee2e2; color: var(--ob-red); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; overflow: hidden; }
-    .dark .ob-list-item__avatar { background: #7f1d1d; }
-    .ob-list-item__avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .ob-list-item__info { flex: 1; min-width: 0; }
-    .ob-list-item__name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .ob-list-item__detail { font-size: 11px; opacity: 0.5; }
-    .ob-list-item__badge { flex-shrink: 0; }
-
-    /* Pipeline steps */
-    .ob-pipeline { display: flex; gap: 4px; padding: 10px 0; flex-wrap: wrap; }
-    .ob-pipeline-step { flex: 1; min-width: 80px; text-align: center; padding: 12px 8px; border-radius: 8px; }
-    .ob-pipeline-step__count { font-size: 22px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
-    .ob-pipeline-step__label { font-size: 9px; font-weight: 600; text-transform: uppercase; opacity: 0.7; }
-
-    /* Customize Panel */
-    .ob-btn-customize { padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(128,128,128,0.2); font-size: 13px; cursor: pointer; color: inherit; transition: all 0.15s; background: none; display: flex; align-items: center; gap: 5px; }
-    .ob-btn-customize:hover { border-color: var(--ob-indigo); color: var(--ob-indigo); }
-    .ob-customize-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 1050; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
-    .ob-customize-overlay--open { opacity: 1; pointer-events: auto; }
-    .ob-customize-panel { position: fixed; top: 0; right: -420px; width: 400px; height: 100vh; background: #ffffff; box-shadow: -4px 0 24px rgba(0,0,0,0.12); z-index: 1051; display: flex; flex-direction: column; transition: right 0.25s ease; }
-    .dark .ob-customize-panel { background: #242424; }
-    .ob-customize-panel--open { right: 0; }
-    .ob-customize-panel__header { padding: 18px 20px; border-bottom: 1px solid rgba(128,128,128,0.12); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
-    .ob-customize-panel__header h3 { font-size: 16px; font-weight: 700; margin: 0; }
-    .ob-customize-panel__close { width: 32px; height: 32px; border-radius: 8px; border: none; background: rgba(128,128,128,0.08); cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; color: inherit; }
-    .ob-customize-panel__close:hover { background: rgba(128,128,128,0.16); }
-    .ob-customize-panel__body { flex: 1; overflow-y: auto; padding: 12px 20px; }
-    .ob-customize-panel__footer { padding: 14px 20px; border-top: 1px solid rgba(128,128,128,0.12); display: flex; justify-content: space-between; flex-shrink: 0; }
-    .ob-cust-btn { padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; }
-    .ob-cust-btn--primary { background: var(--ob-indigo); color: #fff; }
-    .ob-cust-btn--primary:hover { opacity: 0.9; }
-    .ob-cust-btn--ghost { background: none; color: inherit; opacity: 0.6; }
-    .ob-cust-btn--ghost:hover { opacity: 1; }
-    .ob-cust-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; margin-bottom: 6px; border-radius: 8px; border: 1px solid rgba(128,128,128,0.1); background: rgba(128,128,128,0.02); cursor: grab; user-select: none; }
-    .ob-cust-item:active { cursor: grabbing; }
-    .ob-cust-item.ob-dragging { opacity: 0.85; box-shadow: 0 4px 16px rgba(0,0,0,0.12); border-color: var(--ob-indigo); }
-    .ob-cust-item.ob-drag-over { border-top: 2px solid var(--ob-indigo); }
-    .ob-cust-item__handle { font-size: 16px; opacity: 0.3; cursor: grab; flex-shrink: 0; }
-    .ob-cust-item__label { flex: 1; font-size: 13px; font-weight: 500; }
-    .ob-cust-item__toggle { width: 36px; height: 20px; border-radius: 12px; background: #e2e8f0; position: relative; cursor: pointer; transition: background 0.2s; flex-shrink: 0; border: none; }
-    .dark .ob-cust-item__toggle { background: #334155; }
-    .ob-cust-item__toggle::after { content: ''; position: absolute; width: 16px; height: 16px; border-radius: 50%; top: 2px; left: 2px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.2); transition: transform 0.2s; }
-    .ob-cust-item__toggle--on { background: var(--ob-indigo); }
-    .dark .ob-cust-item__toggle--on { background: var(--ob-indigo); }
-    .ob-cust-item__toggle--on::after { transform: translateX(16px); }
-    @media (max-width: 1024px) { .ob-customize-panel { width: 320px; right: -340px; } }
-    @media (max-width: 640px) { .ob-customize-panel { width: 100%; right: -100%; } }
-
-    /* Period Picker */
-    .ob-period-picker { display: none !important; /* TEMP: hide period picker */ align-items: center; gap: 6px; font-size: 12px; }
-    .ob-period-picker input[type="date"] { padding: 5px 8px; border-radius: 6px; border: 1px solid rgba(128,128,128,0.2); font-size: 12px; background: transparent; color: inherit; outline: none; transition: border-color 0.15s; }
-    .ob-period-picker input[type="date"]:focus { border-color: var(--ob-indigo); }
-    .ob-period-picker__sep { opacity: 0.4; font-size: 11px; }
-    .ob-period-preset { padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(128,128,128,0.15); font-size: 11px; cursor: pointer; background: none; color: inherit; transition: all 0.15s; }
-    .ob-period-preset:hover { border-color: var(--ob-indigo); color: var(--ob-indigo); }
-    .ob-period-preset--active { background: var(--ob-indigo); color: #fff; border-color: var(--ob-indigo); }
-    .ob-period-preset--active:hover { background: var(--ob-indigo); color: #fff; border-color: var(--ob-indigo); }
-    .dark .ob-period-picker input[type="date"] { color-scheme: dark; }
-
-    /* Auto-refresh */
-    .ob-refresh { display: flex; align-items: center; gap: 6px; font-size: 11px; opacity: 0.5; }
-    .ob-refresh__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ob-green); flex-shrink: 0; }
-    .ob-refresh__dot--pulse { animation: ob-pulse 2s infinite; }
-    @keyframes ob-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-    .ob-refresh__toggle { cursor: pointer; opacity: 0.6; font-size: 13px; border: none; background: none; color: inherit; padding: 2px; }
-    .ob-refresh__toggle:hover { opacity: 1; }
-    #chart-resignation .apexcharts-pie-slice-donut { cursor: pointer; }
-
-
-    /* Responsive */
-    @media (max-width: 1280px) { .ob-layout { grid-template-columns: 1fr; } .ob-sidebar { position: static; display: grid; grid-template-columns: 1fr 1fr; max-height: none; overflow-y: visible; } }
-    @media (max-width: 1024px) { .ob-kpi-grid { grid-template-columns: repeat(2, 1fr); } .ob-chart-grid { grid-template-columns: 1fr; } .ob-chart-card--wide { grid-column: span 1; } .ob-sidebar { grid-template-columns: 1fr; } }
-    @media (max-width: 640px) { .ob-kpi-grid { grid-template-columns: 1fr; } }
-</style>
-
-<div class="ob-dashboard">
-
-    <div class="ob-header">
-        <div>
-            <h1>{% trans "Offboarding Dashboard" %}</h1>
-            <div class="ob-header__date" id="ob-date"></div>
-            <div class="ob-refresh"><span class="ob-refresh__dot" id="ob-refresh-dot"></span><span id="ob-refresh-text">{% trans "Just now" %}</span><button class="ob-refresh__toggle" id="ob-refresh-toggle" title="{% trans 'Toggle auto-refresh' %}">⟳</button></div>
-        </div>
-        <div style="display:flex;gap:8px;">
-            <div class="ob-period-picker" hidden>
-                <button class="ob-period-preset" data-preset="this_month">{% trans "This Month" %}</button>
-                <button class="ob-period-preset" data-preset="last_month">{% trans "Last Month" %}</button>
-                <button class="ob-period-preset" data-preset="this_quarter">{% trans "Quarter" %}</button>
-                <input type="date" id="ob-from-date" title="{% trans 'From' %}">
-                <span class="ob-period-picker__sep">&rarr;</span>
-                <input type="date" id="ob-to-date" title="{% trans 'To' %}">
-            </div>
-            <button class="ob-btn-customize" id="ob-open-customize" title="{% trans 'Customize' %}">⚙ {% trans "Customize" %}</button>
-        </div>
-    </div>
-
-    <div class="ob-kpi-grid" id="ob-kpi-grid">
-        <div class="ob-skeleton ob-skeleton--kpi"></div>
-        <div class="ob-skeleton ob-skeleton--kpi"></div>
-        <div class="ob-skeleton ob-skeleton--kpi"></div>
-        <div class="ob-skeleton ob-skeleton--kpi"></div>
-    </div>
-
-    <div class="ob-layout">
-        <div class="ob-main">
-            <div class="ob-chart-grid">
-
-                <div class="ob-chart-card ob-chart-card--wide" data-chart-id="offboarding_pipeline" data-chart-label="{% trans 'Offboarding Pipeline' %}">
-                    <div class="ob-chart-card__header"><div><div class="ob-chart-card__title">{% trans "Offboarding Pipeline" %}</div><div class="ob-chart-card__subtitle">{% trans "Employees by stage" %}</div></div></div>
-                    <div class="ob-chart-card__body"><div id="ob-pipeline"></div></div>
-                </div>
-
-                <div class="ob-chart-card" data-chart-id="resignation_status" data-chart-label="{% trans 'Resignation Status' %}">
-                    <div class="ob-chart-card__header"><div><div class="ob-chart-card__title">{% trans "Resignation Status" %}</div><div class="ob-chart-card__subtitle">{% trans "Letter submissions" %}</div></div></div>
-                    <div class="ob-chart-card__body"><div id="chart-resignation"></div></div>
-                </div>
-
-                <div class="ob-chart-card" data-chart-id="task_completion" data-chart-label="{% trans 'Task Completion' %}">
-                    <div class="ob-chart-card__header"><div><div class="ob-chart-card__title">{% trans "Task Completion" %}</div><div class="ob-chart-card__subtitle">{% trans "All offboarding tasks" %}</div></div></div>
-                    <div class="ob-chart-card__body"><div id="chart-tasks"></div></div>
-                </div>
-
-                <div class="ob-chart-card" data-chart-id="dept_attrition" data-chart-label="{% trans 'Department Attrition' %}">
-                    <div class="ob-chart-card__header"><div><div class="ob-chart-card__title">{% trans "Department Attrition" %}</div><div class="ob-chart-card__subtitle">{% trans "Offboarding by department" %}</div></div></div>
-                    <div class="ob-chart-card__body"><div id="chart-dept-attrition"></div></div>
-                </div>
-
-                <div class="ob-chart-card" data-chart-id="exit_reasons" data-chart-label="{% trans 'Exit Reasons' %}">
-                    <div class="ob-chart-card__header"><div><div class="ob-chart-card__title">{% trans "Exit Reasons" %}</div><div class="ob-chart-card__subtitle">{% trans "Why employees leave" %}</div></div></div>
-                    <div class="ob-chart-card__body"><div id="chart-exit-reasons"></div></div>
-                </div>
-
-                <div class="ob-chart-card ob-chart-card--wide" data-chart-id="join_exit_trend" data-chart-label="{% trans 'Joining vs Exiting' %}">
-                    <div class="ob-chart-card__header"><div><div class="ob-chart-card__title">{% trans "Joining vs Exiting" %}</div><div class="ob-chart-card__subtitle">{% trans "Monthly trend — last 6 months" %}</div></div></div>
-                    <div class="ob-chart-card__body"><div id="chart-join-exit"></div></div>
-                </div>
-
-            </div>
-        </div>
-
-        <div class="ob-sidebar">
-            <div class="ob-info-panel">
-                <div class="ob-info-panel__header">
-                    <div class="ob-info-panel__title">{% trans "Notice Period Tracker" %}</div>
-                </div>
-                <div class="ob-info-panel__body" id="ob-notice">
-                    <div class="ob-info-panel__empty">{% trans "Loading..." %}</div>
-                </div>
-            </div>
-            <div class="ob-info-panel">
-                <div class="ob-info-panel__header">
-                    <div class="ob-info-panel__title">{% trans "Unreturned Assets" %}</div>
-                </div>
-                <div class="ob-info-panel__body" id="ob-assets">
-                    <div class="ob-info-panel__empty">{% trans "Loading..." %}</div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Customize Panel -->
-<div class="ob-customize-overlay" id="ob-customize-overlay"></div>
-<div class="ob-customize-panel" id="ob-customize-panel">
-    <div class="ob-customize-panel__header">
-        <h3>{% trans "Customize Dashboard" %}</h3>
-        <button class="ob-customize-panel__close" id="ob-close-customize">&times;</button>
-    </div>
-    <div class="ob-customize-panel__body" id="ob-customize-list"></div>
-    <div class="ob-customize-panel__footer">
-        <button class="ob-cust-btn ob-cust-btn--ghost" id="ob-reset-customize">{% trans "Reset" %}</button>
-        <button class="ob-cust-btn ob-cust-btn--primary" id="ob-save-customize">{% trans "Save" %}</button>
-    </div>
-</div>
-
-<script>
-(function() {
-    const isDark = document.documentElement.classList.contains('dark') || document.body.classList.contains('dark');
-    const textColor = isDark ? '#e2e8f0' : '#334155';
-    const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
-    const cardBg = isDark ? '#242424' : '#ffffff';
-    const COLORS = ['#E54F38','#22c55e','#f59e0b','#ef4444','#3b82f6','#a855f7','#06b6d4','#ec4899','#14b8a6','#f97316'];
-    const emptyHtml = (msg) => `<div class="ob-empty"><img src="/static/images/ui/no_records.svg" alt="">${msg}</div>`;
-    const resignationUrl = "{% url 'resignation-request-view' %}";
-    const resignationUrlFor = id => id ? `${resignationUrl}?employee_id=${id}` : '#';
-    const assetAllocationUrl = "{% url 'asset-request-allocation-view' %}";
-    const assetAllocationUrlFor = id => id ? `${assetAllocationUrl}?assigned_to_employee_id=${id}&open_tab=2` : '#';
-    // Placeholder-pk trick (only way to get a dynamic-pk Django url tag
-    // into JS): reverse it once with a pk that can never collide with a
-    // real one, then substitute the real id client-side.
-    const offboardingPipelineShellUrlTemplate = "{% url 'offboarding-pipeline-shell' pk=999999999 %}";
-    const offboardingPipelineShellUrl = id => offboardingPipelineShellUrlTemplate.replace('999999999', id);
-    const noticeTrackerUrlFor = row => row.offboarding_id
-        ? `${offboardingPipelineShellUrl(row.offboarding_id)}?employee_id=${row.id}`
-        : resignationUrlFor(row.id);
-
-    // Matches HorillaFilterSet._apply_custom_filters' parallel-array
-    // convention (repeated custom_field/custom_lookup/custom_value keys,
-    // zipped positionally) -- the Advanced filter builder's own format,
-    // reused here so a dashboard-driven date range lands as a real,
-    // durable, chip-visible filter instead of a raw param the target
-    // FilterSet wouldn't recognize.
-    function customRangeParams(field, from, to) {
-        if (!from || !to) return '';
-        return `&custom_field=${field}&custom_lookup=gte&custom_value=${from}` +
-            `&custom_field=${field}&custom_lookup=lte&custom_value=${to}`;
-    }
-    // Dedicated "<field>_from"/"<field>_till" pair (LetterFilter.
-    // created_at_from/_till and friends) instead of the Advanced builder's
-    // custom_field/custom_lookup/custom_value convention above -- that
-    // convention submits gte/lte as two rows sharing the same <select>
-    // names, which the generic filter-tag chip bar can't tell apart and
-    // renders as garbled "Custom field: Created at" / "Custom lookup:
-    // GteLte" tags. A uniquely-named field per direction renders as its
-    // own clean tag instead.
-    function dateRangeParams(field, from, to) {
-        if (!from || !to) return '';
-        return `&${field}_from=${from}&${field}_till=${to}`;
-    }
-
-    document.getElementById('ob-date').textContent = new Date().toLocaleDateString('en-US', {
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-    });
-
-    // ── Period Picker ──
-    const PERIOD_KEY = 'ob_period_v2';
-    const fromInput = document.getElementById('ob-from-date');
-    const toInput = document.getElementById('ob-to-date');
-    function getToday() { return new Date().toISOString().split('T')[0]; }
-    function getFirstOfMonth(d) { const dt = new Date(d || getToday()); dt.setDate(1); return dt.toISOString().split('T')[0]; }
-    function getLastOfMonth(d) { const dt = new Date(d || getToday()); return new Date(dt.getFullYear(), dt.getMonth()+1, 0).toISOString().split('T')[0]; }
-    function initPeriod() {
-        const saved = sessionStorage.getItem(PERIOD_KEY);
-        if (saved) { try { const p = JSON.parse(saved); fromInput.value = p.from; toInput.value = p.to; return; } catch {} }
-        fromInput.value = getFirstOfMonth(); toInput.value = getLastOfMonth();
-    }
-    function savePeriod() { sessionStorage.setItem(PERIOD_KEY, JSON.stringify({ from: fromInput.value, to: toInput.value })); }
-    function periodParams() { const f = fromInput.value, t = toInput.value; return (f && t) ? ("from_date=" + encodeURIComponent(f) + "&to_date=" + encodeURIComponent(t)) : ""; }
-    function urlWithPeriod(u) { return u + (u.includes('?') ? '&' : '?') + periodParams(); }
-    function fetchP(url) { return fetch(urlWithPeriod(url)); }
-    function setPreset(p) {
-        const t = new Date(); let f, to;
-        if (p === 'this_month') { f = new Date(t.getFullYear(), t.getMonth(), 1); to = new Date(t.getFullYear(), t.getMonth()+1, 0); }
-        else if (p === 'last_month') { f = new Date(t.getFullYear(), t.getMonth()-1, 1); to = new Date(t.getFullYear(), t.getMonth(), 0); }
-        else if (p === 'this_quarter') { f = new Date(t.getFullYear(), Math.floor(t.getMonth()/3)*3, 1); to = new Date(t.getFullYear(), Math.floor(t.getMonth()/3)*3+3, 0); }
-        fromInput.value = f.toISOString().split('T')[0]; toInput.value = to.toISOString().split('T')[0];
-        savePeriod(); document.querySelectorAll('.ob-period-preset').forEach(b => b.classList.toggle('ob-period-preset--active', b.dataset.preset === p));
-        location.reload();
-    }
-    document.querySelectorAll('.ob-period-preset').forEach(b => b.addEventListener('click', () => setPreset(b.dataset.preset)));
-    [fromInput, toInput].forEach(i => i.addEventListener('change', () => { savePeriod(); location.reload(); }));
-    initPeriod();
-
-    // ── Chart Customize ──
-    const CUST_KEY = 'ob_chart_prefs';
-    function getDefaultOrder() { return Array.from(document.querySelectorAll('[data-chart-id]')).map(c => ({ id: c.dataset.chartId, visible: true })); }
-    function loadCustPrefs() { try { const r = localStorage.getItem(CUST_KEY); return r ? JSON.parse(r) : null; } catch { return null; } }
-    function saveCustPrefs(p) { localStorage.setItem(CUST_KEY, JSON.stringify(p)); }
-    function applyCustPrefs(p) {
-        if (!p) return;
-        const container = document.querySelector('.ob-chart-grid');
-        const cards = {}; container.querySelectorAll('[data-chart-id]').forEach(c => { cards[c.dataset.chartId] = c; });
-        p.forEach(pr => { const card = cards[pr.id]; if (card) { container.appendChild(card); if (pr.visible === false) card.style.display = 'none'; else card.style.display = ''; } });
-        Object.keys(cards).forEach(id => { if (!p.find(pr => pr.id === id)) { container.appendChild(cards[id]); cards[id].style.display = ''; } });
-    }
-    applyCustPrefs(loadCustPrefs());
-
-    const custOverlay = document.getElementById('ob-customize-overlay');
-    const custPanel = document.getElementById('ob-customize-panel');
-    const custList = document.getElementById('ob-customize-list');
-
-    function openCust() {
-        const prefs = loadCustPrefs() || getDefaultOrder();
-        const allCards = {}; document.querySelectorAll('[data-chart-id]').forEach(c => { allCards[c.dataset.chartId] = { id: c.dataset.chartId, label: c.dataset.chartLabel }; });
-        const ordered = []; prefs.forEach(p => { if (allCards[p.id]) ordered.push({ ...allCards[p.id], visible: p.visible !== false }); });
-        Object.keys(allCards).forEach(id => { if (!ordered.find(o => o.id === id)) ordered.push({ ...allCards[id], visible: true }); });
-        let html = ''; ordered.forEach((item, idx) => {
-            html += `<div class="ob-cust-item" draggable="true" data-cust-id="${item.id}"><span class="ob-cust-item__handle">&#x2630;</span><div class="ob-cust-item__label">${item.label}</div><button class="ob-cust-item__toggle ${item.visible ? 'ob-cust-item__toggle--on' : ''}" data-cust-toggle="${item.id}"></button></div>`;
-        });
-        custList.innerHTML = html;
-        initCustDrag();
-        custOverlay.classList.add('ob-customize-overlay--open'); custPanel.classList.add('ob-customize-panel--open');
-    }
-    function closeCust() { custOverlay.classList.remove('ob-customize-overlay--open'); custPanel.classList.remove('ob-customize-panel--open'); }
-
-    function initCustDrag() {
-        let dragEl = null;
-        custList.querySelectorAll('.ob-cust-item').forEach(item => {
-            item.addEventListener('dragstart', e => { dragEl = item; item.classList.add('ob-dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', ''); });
-            item.addEventListener('dragend', () => { if (dragEl) dragEl.classList.remove('ob-dragging'); custList.querySelectorAll('.ob-cust-item').forEach(i => i.classList.remove('ob-drag-over')); dragEl = null; });
-            item.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (item !== dragEl) item.classList.add('ob-drag-over'); });
-            item.addEventListener('dragleave', () => item.classList.remove('ob-drag-over'));
-            item.addEventListener('drop', e => { e.preventDefault(); item.classList.remove('ob-drag-over'); if (dragEl && item !== dragEl) { const items = Array.from(custList.querySelectorAll('.ob-cust-item')); if (items.indexOf(dragEl) < items.indexOf(item)) item.parentNode.insertBefore(dragEl, item.nextSibling); else item.parentNode.insertBefore(dragEl, item); } });
-        });
-        custList.querySelectorAll('.ob-cust-item__toggle').forEach(btn => btn.addEventListener('click', e => { e.stopPropagation(); btn.classList.toggle('ob-cust-item__toggle--on'); }));
-    }
-
-    function getCustState() { return Array.from(custList.querySelectorAll('.ob-cust-item')).map(item => ({ id: item.dataset.custId, visible: item.querySelector('.ob-cust-item__toggle').classList.contains('ob-cust-item__toggle--on') })); }
-
-    document.getElementById('ob-open-customize').addEventListener('click', openCust);
-    document.getElementById('ob-close-customize').addEventListener('click', closeCust);
-    custOverlay.addEventListener('click', closeCust);
-    document.getElementById('ob-save-customize').addEventListener('click', () => { const p = getCustState(); saveCustPrefs(p); applyCustPrefs(p); closeCust(); });
-    document.getElementById('ob-reset-customize').addEventListener('click', () => { localStorage.removeItem(CUST_KEY); location.reload(); });
-
-    // ── Chart instance registry ──
-    // ApexCharts.render() always appends a new SVG into the target
-    // element rather than replacing it, so calling the same chart
-    // block twice (e.g. on auto-refresh) would stack duplicate
-    // charts on top of each other. Every chart goes through here so
-    // a refresh destroys the previous instance first.
-    const chartInstances = {};
-    function renderChart(key, el, options) {
-        if (!el) return null;
-        if (chartInstances[key]) {
-            chartInstances[key].destroy();
-            chartInstances[key] = null;
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <style>
+        :root {
+            --ob-indigo: var(--primary-600, #e54f38);
+            --ob-green: #22c55e;
+            --ob-amber: #f59e0b;
+            --ob-red: #ef4444;
+            --ob-blue: #3b82f6;
+            --ob-purple: #a855f7;
         }
-        const chart = new ApexCharts(el, options);
-        chartInstances[key] = chart;
-        chart.render();
-        return chart;
-    }
+        .ob-dashboard {
+            min-height: calc(100vh - 80px);
+            margin: -24px;
+            padding: 24px;
+            background: #ffffff;
+            font-family: inherit;
+        }
+        .dark .ob-dashboard {
+            background: #000000;
+        }
+        .ob-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .ob-header h1 {
+            font-weight: 700;
+            font-size: 22px;
+        }
+        .ob-header__date {
+            margin-top: 2px;
+            font-size: 13px;
+            opacity: 0.6;
+        }
+        .ob-btn-back {
+            padding: 6px 14px;
+            border: 1px solid rgba(128, 128, 128, 0.2);
+            border-radius: 8px;
+            background: none;
+            color: inherit;
+            font-size: 13px;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .ob-btn-back:hover {
+            border-color: var(--ob-indigo);
+            color: var(--ob-indigo);
+            text-decoration: none;
+        }
 
-    // ── Auto-refresh ──
-    const REFRESH_INTERVAL = 300000; // 5 minutes
-    const REFRESH_KEY = 'ob_auto_refresh';
-    let refreshTimer = null;
-    let lastRefresh = Date.now();
-    const refreshDot = document.getElementById('ob-refresh-dot');
-    const refreshText = document.getElementById('ob-refresh-text');
-    const refreshToggle = document.getElementById('ob-refresh-toggle');
-    let autoRefreshOn = localStorage.getItem(REFRESH_KEY) !== 'off';
+        .ob-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            margin-bottom: 20px;
+            gap: 14px;
+        }
+        .ob-kpi-card {
+            display: block;
+            padding: 18px;
+            border: 1px solid rgba(128, 128, 128, 0.12);
+            border-radius: 12px;
+            background: #ffffff;
+            color: inherit;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .ob-kpi-card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            color: inherit;
+            text-decoration: none;
+        }
+        .ob-kpi-card--static:hover {
+            transform: none;
+            box-shadow: none;
+            cursor: default;
+        }
+        .dark .ob-kpi-card {
+            border-color: rgba(255, 255, 255, 0.08);
+            background: #242424;
+        }
+        .ob-kpi-card__icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 38px;
+            height: 38px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            font-size: 18px;
+        }
+        .ob-kpi-card__icon--red {
+            background: #fee2e2;
+            color: var(--ob-red);
+        }
+        .ob-kpi-card__icon--amber {
+            background: #fef3c7;
+            color: var(--ob-amber);
+        }
+        .ob-kpi-card__icon--green {
+            background: #dcfce7;
+            color: var(--ob-green);
+        }
+        .ob-kpi-card__icon--blue {
+            background: #dbeafe;
+            color: var(--ob-blue);
+        }
+        .dark .ob-kpi-card__icon--red {
+            background: #7f1d1d;
+        }
+        .dark .ob-kpi-card__icon--amber {
+            background: #78350f;
+        }
+        .dark .ob-kpi-card__icon--green {
+            background: #14532d;
+        }
+        .dark .ob-kpi-card__icon--blue {
+            background: #1e3a5f;
+        }
+        .ob-kpi-card__label {
+            margin-bottom: 6px;
+            font-weight: 600;
+            font-size: 11px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            opacity: 0.5;
+        }
+        .ob-kpi-card__value {
+            margin-bottom: 4px;
+            font-weight: 800;
+            font-size: 28px;
+            line-height: 1;
+        }
+        .ob-kpi-card__sub {
+            font-size: 12px;
+            opacity: 0.6;
+        }
+        .ob-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            gap: 3px;
+            border-radius: 999px;
+            font-weight: 600;
+            font-size: 11px;
+        }
+        .ob-badge--green {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .ob-badge--amber {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .ob-badge--red {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .ob-badge--blue {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .dark .ob-badge--green {
+            background: #166534;
+            color: #bbf7d0;
+        }
+        .dark .ob-badge--amber {
+            background: #92400e;
+            color: #fde68a;
+        }
+        .dark .ob-badge--red {
+            background: #7f1d1d;
+            color: #fca5a5;
+        }
+        .dark .ob-badge--blue {
+            background: #1e3a8a;
+            color: #bfdbfe;
+        }
 
-    function updateRefreshText() {
-        const mins = Math.floor((Date.now() - lastRefresh) / 60000);
-        refreshText.textContent = mins < 1 ? '{% trans "Just now"|escapejs %}' : mins + '{% trans "m ago"|escapejs %}';
-    }
-    registerAutoRefresh(setInterval(updateRefreshText, 30000));
+        .ob-layout {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            align-items: start;
+            gap: 20px;
+        }
+        .ob-main {
+            min-width: 0;
+        }
+        .ob-sidebar {
+            display: flex;
+            position: sticky;
+            top: 90px;
+            flex-direction: column;
+            max-height: calc(100vh - 90px - 24px);
+            overflow-y: auto;
+            gap: 16px;
+        }
+        .ob-sidebar::-webkit-scrollbar {
+            width: 3px;
+        }
+        .ob-sidebar::-webkit-scrollbar-thumb {
+            border-radius: 3px;
+            background: rgba(128, 128, 128, 0.2);
+        }
 
-    function startAutoRefresh() {
-        autoRefreshOn = true;
-        localStorage.setItem(REFRESH_KEY, 'on');
-        refreshDot.classList.add('ob-refresh__dot--pulse');
-        refreshToggle.textContent = '⟳';
-        refreshToggle.title = '{% trans "Auto-refresh ON (5 min)"|escapejs %}';
-        // Wrapped so a hidden tab does not keep fetching; refreshes once on return.
-        const refreshTick = autoRefreshWhenVisible(() => {
-            lastRefresh = Date.now();
-            updateRefreshText();
-            refreshAllData();
-        });
-        refreshTimer = setInterval(refreshTick, REFRESH_INTERVAL);
-        registerAutoRefresh(refreshTimer);
-    }
-    function stopAutoRefresh() {
-        autoRefreshOn = false;
-        localStorage.setItem(REFRESH_KEY, 'off');
-        refreshDot.classList.remove('ob-refresh__dot--pulse');
-        refreshToggle.textContent = '⏸';
-        refreshToggle.title = '{% trans "Auto-refresh OFF"|escapejs %}';
-        if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
-    }
-    refreshToggle.addEventListener('click', () => { if (autoRefreshOn) stopAutoRefresh(); else startAutoRefresh(); });
-    if (autoRefreshOn) startAutoRefresh(); else stopAutoRefresh();
+        .ob-chart-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            margin-bottom: 20px;
+            gap: 16px;
+        }
+        .ob-chart-card {
+            overflow: visible;
+            border: 1px solid rgba(128, 128, 128, 0.12);
+            border-radius: 12px;
+            background: #ffffff;
+        }
+        .dark .ob-chart-card {
+            border-color: rgba(255, 255, 255, 0.08);
+            background: #242424;
+        }
+        .ob-chart-card--wide {
+            grid-column: span 2;
+        }
+        .ob-chart-card__header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 18px 0;
+        }
+        .ob-chart-card__title {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .ob-chart-card__subtitle {
+            margin-top: 2px;
+            font-size: 11px;
+            opacity: 0.5;
+        }
+        .ob-chart-card__body {
+            padding: 6px 10px 10px;
+        }
+        .ob-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 30px 0;
+            gap: 8px;
+            font-size: 13px;
+            text-align: center;
+            opacity: 0.6;
+        }
+        .ob-empty img {
+            width: 100px;
+            opacity: 0.7;
+        }
+        .ob-skeleton {
+            border-radius: 12px;
+            background: linear-gradient(90deg, rgba(128, 128, 128, 0.1) 25%, transparent 50%, rgba(128, 128, 128, 0.1) 75%);
+            background-size: 200% 100%;
+            animation: ob-shimmer 1.5s infinite;
+        }
+        @keyframes ob-shimmer {
+            0% {
+                background-position: 200% 0;
+            }
+            100% {
+                background-position: -200% 0;
+            }
+        }
+        .ob-skeleton--kpi {
+            height: 110px;
+        }
 
-    // ─── KPI CARDS ───
-    function loadKpiCards() {
-    fetchP("{% url 'offboarding-dashboard-kpi' %}")
-        .then(r => r.json())
-        .then(data => {
-            document.getElementById('ob-kpi-grid').innerHTML = `
+        .ob-info-panel {
+            display: flex;
+            flex-shrink: 0;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid rgba(128, 128, 128, 0.12);
+            border-radius: 12px;
+            background: #ffffff;
+        }
+        .dark .ob-info-panel {
+            border-color: rgba(255, 255, 255, 0.08);
+            background: #242424;
+        }
+        .ob-info-panel__header {
+            display: flex;
+            flex-shrink: 0;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px 10px;
+            border-bottom: 1px solid rgba(128, 128, 128, 0.08);
+        }
+        .ob-info-panel__title {
+            font-weight: 700;
+            font-size: 13px;
+        }
+        .ob-info-panel__body {
+            flex: 1;
+            max-height: 350px;
+            padding: 8px 16px 12px;
+            overflow-y: auto;
+        }
+        .ob-info-panel__empty {
+            padding: 30px 0;
+            font-size: 12px;
+            text-align: center;
+            opacity: 0.4;
+        }
+
+        .ob-list-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            gap: 10px;
+            border-bottom: 1px solid rgba(128, 128, 128, 0.06);
+            color: inherit;
+            text-decoration: none;
+        }
+        .ob-list-item:last-child {
+            border-bottom: none;
+        }
+        .ob-list-item:hover {
+            opacity: 0.8;
+        }
+        .ob-list-item__avatar {
+            display: flex;
+            flex-shrink: 0;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            overflow: hidden;
+            border-radius: 50%;
+            background: #fee2e2;
+            color: var(--ob-red);
+            font-weight: 700;
+            font-size: 11px;
+        }
+        .dark .ob-list-item__avatar {
+            background: #7f1d1d;
+        }
+        .ob-list-item__avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .ob-list-item__info {
+            flex: 1;
+            min-width: 0;
+        }
+        .ob-list-item__name {
+            overflow: hidden;
+            font-weight: 600;
+            font-size: 12px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .ob-list-item__detail {
+            font-size: 11px;
+            opacity: 0.5;
+        }
+        .ob-list-item__badge {
+            flex-shrink: 0;
+        }
+
+        /* Pipeline steps */
+        .ob-pipeline {
+            display: flex;
+            flex-wrap: wrap;
+            padding: 10px 0;
+            gap: 4px;
+        }
+        .ob-pipeline-step {
+            flex: 1;
+            min-width: 80px;
+            padding: 12px 8px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .ob-pipeline-step__count {
+            margin-bottom: 4px;
+            font-weight: 800;
+            font-size: 22px;
+            line-height: 1;
+        }
+        .ob-pipeline-step__label {
+            font-weight: 600;
+            font-size: 9px;
+            text-transform: uppercase;
+            opacity: 0.7;
+        }
+
+        /* Customize Panel */
+        .ob-btn-customize {
+            display: flex;
+            align-items: center;
+            padding: 6px 12px;
+            gap: 5px;
+            border: 1px solid rgba(128, 128, 128, 0.2);
+            border-radius: 8px;
+            background: none;
+            color: inherit;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .ob-btn-customize:hover {
+            border-color: var(--ob-indigo);
+            color: var(--ob-indigo);
+        }
+        .ob-customize-overlay {
+            z-index: 1050;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+        .ob-customize-overlay--open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .ob-customize-panel {
+            display: flex;
+            z-index: 1051;
+            position: fixed;
+            top: 0;
+            right: -420px;
+            flex-direction: column;
+            width: 400px;
+            height: 100vh;
+            background: #ffffff;
+            box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
+            transition: right 0.25s ease;
+        }
+        .dark .ob-customize-panel {
+            background: #242424;
+        }
+        .ob-customize-panel--open {
+            right: 0;
+        }
+        .ob-customize-panel__header {
+            display: flex;
+            flex-shrink: 0;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 20px;
+            border-bottom: 1px solid rgba(128, 128, 128, 0.12);
+        }
+        .ob-customize-panel__header h3 {
+            margin: 0;
+            font-weight: 700;
+            font-size: 16px;
+        }
+        .ob-customize-panel__close {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(128, 128, 128, 0.08);
+            color: inherit;
+            font-size: 18px;
+            cursor: pointer;
+        }
+        .ob-customize-panel__close:hover {
+            background: rgba(128, 128, 128, 0.16);
+        }
+        .ob-customize-panel__body {
+            flex: 1;
+            padding: 12px 20px;
+            overflow-y: auto;
+        }
+        .ob-customize-panel__footer {
+            display: flex;
+            flex-shrink: 0;
+            justify-content: space-between;
+            padding: 14px 20px;
+            border-top: 1px solid rgba(128, 128, 128, 0.12);
+        }
+        .ob-cust-btn {
+            padding: 7px 16px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .ob-cust-btn--primary {
+            background: var(--ob-indigo);
+            color: #fff;
+        }
+        .ob-cust-btn--primary:hover {
+            opacity: 0.9;
+        }
+        .ob-cust-btn--ghost {
+            background: none;
+            color: inherit;
+            opacity: 0.6;
+        }
+        .ob-cust-btn--ghost:hover {
+            opacity: 1;
+        }
+        .ob-cust-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 6px;
+            padding: 10px 12px;
+            gap: 10px;
+            border: 1px solid rgba(128, 128, 128, 0.1);
+            border-radius: 8px;
+            background: rgba(128, 128, 128, 0.02);
+            cursor: grab;
+            user-select: none;
+        }
+        .ob-cust-item:active {
+            cursor: grabbing;
+        }
+        .ob-cust-item.ob-dragging {
+            border-color: var(--ob-indigo);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+            opacity: 0.85;
+        }
+        .ob-cust-item.ob-drag-over {
+            border-top: 2px solid var(--ob-indigo);
+        }
+        .ob-cust-item__handle {
+            flex-shrink: 0;
+            font-size: 16px;
+            cursor: grab;
+            opacity: 0.3;
+        }
+        .ob-cust-item__label {
+            flex: 1;
+            font-weight: 500;
+            font-size: 13px;
+        }
+        .ob-cust-item__toggle {
+            position: relative;
+            flex-shrink: 0;
+            width: 36px;
+            height: 20px;
+            border: none;
+            border-radius: 12px;
+            background: #e2e8f0;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .dark .ob-cust-item__toggle {
+            background: #334155;
+        }
+        .ob-cust-item__toggle::after {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+            content: '';
+            transition: transform 0.2s;
+        }
+        .ob-cust-item__toggle--on {
+            background: var(--ob-indigo);
+        }
+        .dark .ob-cust-item__toggle--on {
+            background: var(--ob-indigo);
+        }
+        .ob-cust-item__toggle--on::after {
+            transform: translateX(16px);
+        }
+        @media (max-width: 1024px) {
+            .ob-customize-panel {
+                right: -340px;
+                width: 320px;
+            }
+        }
+        @media (max-width: 640px) {
+            .ob-customize-panel {
+                right: -100%;
+                width: 100%;
+            }
+        }
+
+        /* Period Picker */
+        .ob-period-picker {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+        }
+        .ob-period-picker input[type='date'] {
+            padding: 5px 8px;
+            border: 1px solid rgba(128, 128, 128, 0.2);
+            border-radius: 6px;
+            outline: none;
+            background: transparent;
+            color: inherit;
+            font-size: 12px;
+            transition: border-color 0.15s;
+        }
+        .ob-period-picker input[type='date']:focus {
+            border-color: var(--ob-indigo);
+        }
+        .ob-period-picker__sep {
+            font-size: 11px;
+            opacity: 0.4;
+        }
+        .ob-period-preset {
+            padding: 4px 10px;
+            border: 1px solid rgba(128, 128, 128, 0.15);
+            border-radius: 6px;
+            background: none;
+            color: inherit;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .ob-period-preset:hover {
+            border-color: var(--ob-indigo);
+            color: var(--ob-indigo);
+        }
+        .ob-period-preset--active {
+            border-color: var(--ob-indigo);
+            background: var(--ob-indigo);
+            color: #fff;
+        }
+        .ob-period-preset--active:hover {
+            border-color: var(--ob-indigo);
+            background: var(--ob-indigo);
+            color: #fff;
+        }
+        .dark .ob-period-picker input[type='date'] {
+            color-scheme: dark;
+        }
+
+        /* Auto-refresh */
+        .ob-refresh {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            opacity: 0.5;
+        }
+        .ob-refresh__dot {
+            flex-shrink: 0;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--ob-green);
+        }
+        .ob-refresh__dot--pulse {
+            animation: ob-pulse 2s infinite;
+        }
+        @keyframes ob-pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.3;
+            }
+        }
+        .ob-refresh__toggle {
+            padding: 2px;
+            border: none;
+            background: none;
+            color: inherit;
+            font-size: 13px;
+            cursor: pointer;
+            opacity: 0.6;
+        }
+        .ob-refresh__toggle:hover {
+            opacity: 1;
+        }
+        #chart-resignation .apexcharts-pie-slice-donut {
+            cursor: pointer;
+        }
+
+        /* Responsive */
+        @media (max-width: 1280px) {
+            .ob-layout {
+                grid-template-columns: 1fr;
+            }
+            .ob-sidebar {
+                display: grid;
+                position: static;
+                grid-template-columns: 1fr 1fr;
+                max-height: none;
+                overflow-y: visible;
+            }
+        }
+        @media (max-width: 1024px) {
+            .ob-kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .ob-chart-grid {
+                grid-template-columns: 1fr;
+            }
+            .ob-chart-card--wide {
+                grid-column: span 1;
+            }
+            .ob-sidebar {
+                grid-template-columns: 1fr;
+            }
+        }
+        @media (max-width: 640px) {
+            .ob-kpi-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+
+    <div class="ob-dashboard">
+        <div class="ob-header">
+            <div>
+                <h1>{% trans "Offboarding Dashboard" %}</h1>
+                <div class="ob-header__date" id="ob-date"></div>
+                <div class="ob-refresh">
+                    <span class="ob-refresh__dot" id="ob-refresh-dot"></span><span
+                        id="ob-refresh-text"
+                    >{% trans "Just now" %}</span><button
+                        class="ob-refresh__toggle"
+                        id="ob-refresh-toggle"
+                        title="{% trans 'Toggle auto-refresh' %}"
+                    >
+                        ⟳
+                    </button>
+                </div>
+            </div>
+            <div style="display: flex; gap: 8px">
+                <div class="ob-period-picker">
+                    <button class="ob-period-preset" data-preset="today">{% trans "Today" %}</button>
+                    <button class="ob-period-preset" data-preset="this_week">{% trans "This Week" %}</button>
+                    <button class="ob-period-preset" data-preset="this_month">{% trans "This Month" %}</button>
+                    <button class="ob-period-preset" data-preset="this_year">{% trans "This Year" %}</button>
+                    <input type="date" id="ob-from-date" title="{% trans 'From' %}">
+                    <span class="ob-period-picker__sep">&rarr;</span>
+                    <input type="date" id="ob-to-date" title="{% trans 'To' %}">
+                </div>
+                <button class="ob-btn-customize" id="ob-open-customize" title="{% trans 'Customize' %}">
+                    ⚙ {% trans "Customize" %}
+                </button>
+            </div>
+        </div>
+
+        <div class="ob-kpi-grid" id="ob-kpi-grid">
+            <div class="ob-skeleton ob-skeleton--kpi"></div>
+            <div class="ob-skeleton ob-skeleton--kpi"></div>
+            <div class="ob-skeleton ob-skeleton--kpi"></div>
+            <div class="ob-skeleton ob-skeleton--kpi"></div>
+        </div>
+
+        <div class="ob-layout">
+            <div class="ob-main">
+                <div class="ob-chart-grid">
+                    <div
+                        class="ob-chart-card ob-chart-card--wide"
+                        data-chart-id="offboarding_pipeline"
+                        data-chart-label="{% trans 'Offboarding Pipeline' %}"
+                    >
+                        <div class="ob-chart-card__header">
+                            <div>
+                                <div class="ob-chart-card__title">{% trans "Offboarding Pipeline" %}</div>
+                                <div class="ob-chart-card__subtitle">{% trans "Employees by stage" %}</div>
+                            </div>
+                        </div>
+                        <div class="ob-chart-card__body"><div id="ob-pipeline"></div></div>
+                    </div>
+
+                    {% if enabled_resignation_request %}
+                        <div
+                            class="ob-chart-card"
+                            data-chart-id="resignation_status"
+                            data-chart-label="{% trans 'Resignation Status' %}"
+                        >
+                            <div class="ob-chart-card__header">
+                                <div>
+                                    <div class="ob-chart-card__title">{% trans "Resignation Status" %}</div>
+                                    <div class="ob-chart-card__subtitle">
+                                        {% trans "Letter submissions" %}<span data-period-label></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="ob-chart-card__body"><div id="chart-resignation"></div></div>
+                        </div>
+                    {% endif %}
+
+                    <div
+                        class="ob-chart-card"
+                        data-chart-id="task_completion"
+                        data-chart-label="{% trans 'Task Completion' %}"
+                    >
+                        <div class="ob-chart-card__header">
+                            <div>
+                                <div class="ob-chart-card__title">{% trans "Task Completion" %}</div>
+                                <div class="ob-chart-card__subtitle">
+                                    {% trans "All offboarding tasks" %}<span data-period-label></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ob-chart-card__body"><div id="chart-tasks"></div></div>
+                    </div>
+
+                    <div
+                        class="ob-chart-card"
+                        data-chart-id="dept_attrition"
+                        data-chart-label="{% trans 'Department Attrition' %}"
+                    >
+                        <div class="ob-chart-card__header">
+                            <div>
+                                <div class="ob-chart-card__title">{% trans "Department Attrition" %}</div>
+                                <div class="ob-chart-card__subtitle">
+                                    {% trans "Offboarding by department" %}<span data-period-label></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ob-chart-card__body"><div id="chart-dept-attrition"></div></div>
+                    </div>
+
+                    <div
+                        class="ob-chart-card"
+                        data-chart-id="exit_reasons"
+                        data-chart-label="{% trans 'Exit Reasons' %}"
+                    >
+                        <div class="ob-chart-card__header">
+                            <div>
+                                <div class="ob-chart-card__title">{% trans "Exit Reasons" %}</div>
+                                <div class="ob-chart-card__subtitle">
+                                    {% trans "Why employees leave" %}<span data-period-label></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ob-chart-card__body"><div id="chart-exit-reasons"></div></div>
+                    </div>
+
+                    <div
+                        class="ob-chart-card ob-chart-card--wide"
+                        data-chart-id="join_exit_trend"
+                        data-chart-label="{% trans 'Monthly Exits' %}"
+                    >
+                        <div class="ob-chart-card__header">
+                            <div>
+                                <div class="ob-chart-card__title">{% trans "Monthly Exits" %}</div>
+                                <div class="ob-chart-card__subtitle">
+                                    {% trans "Employees exiting per month" %}<span data-period-label></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ob-chart-card__body"><div id="chart-join-exit"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ob-sidebar">
+                <div class="ob-info-panel">
+                    <div class="ob-info-panel__header">
+                        <div class="ob-info-panel__title">{% trans "Notice Period Tracker" %}</div>
+                    </div>
+                    <div class="ob-info-panel__body" id="ob-notice">
+                        <div class="ob-info-panel__empty">{% trans "Loading..." %}</div>
+                    </div>
+                </div>
+                <div class="ob-info-panel">
+                    <div class="ob-info-panel__header">
+                        <div class="ob-info-panel__title">{% trans "Unreturned Assets" %}</div>
+                    </div>
+                    <div class="ob-info-panel__body" id="ob-assets">
+                        <div class="ob-info-panel__empty">{% trans "Loading..." %}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Customize Panel -->
+    <div class="ob-customize-overlay" id="ob-customize-overlay"></div>
+    <div class="ob-customize-panel" id="ob-customize-panel">
+        <div class="ob-customize-panel__header">
+            <h3>{% trans "Customize Dashboard" %}</h3>
+            <button class="ob-customize-panel__close" id="ob-close-customize">&times;</button>
+        </div>
+        <div class="ob-customize-panel__body" id="ob-customize-list"></div>
+        <div class="ob-customize-panel__footer">
+            <button class="ob-cust-btn ob-cust-btn--ghost" id="ob-reset-customize">{% trans "Reset" %}</button>
+            <button class="ob-cust-btn ob-cust-btn--primary" id="ob-save-customize">{% trans "Save" %}</button>
+        </div>
+    </div>
+
+    <script>
+        function obInitDashboard() {
+            const isDark = document.documentElement.classList.contains('dark') || document.body.classList.contains('dark');
+            const textColor = isDark ? '#e2e8f0' : '#334155';
+            const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+            const cardBg = isDark ? '#242424' : '#ffffff';
+            const COLORS = ['#E54F38','#22c55e','#f59e0b','#ef4444','#3b82f6','#a855f7','#06b6d4','#ec4899','#14b8a6','#f97316'];
+            const emptyHtml = (msg) => `<div class="ob-empty"><img src="/static/images/ui/no_records.svg" alt="">${msg}</div>`;
+            const resignationUrl = "{% url 'resignation-request-view' %}";
+            const resignationUrlFor = id => id ? `${resignationUrl}?employee_id=${id}` : '#';
+            const assetAllocationUrl = "{% url 'asset-request-allocation-view' %}";
+            const assetAllocationUrlFor = id => id ? `${assetAllocationUrl}?assigned_to_employee_id=${id}&open_tab=2` : '#';
+            // Placeholder-pk trick (only way to get a dynamic-pk Django url tag
+            // into JS): reverse it once with a pk that can never collide with a
+            // real one, then substitute the real id client-side.
+            const offboardingPipelineShellUrlTemplate = "{% url 'offboarding-pipeline-shell' pk=999999999 %}";
+            const offboardingPipelineShellUrl = id => offboardingPipelineShellUrlTemplate.replace('999999999', id);
+            const noticeTrackerUrlFor = row => row.offboarding_id
+                ? `${offboardingPipelineShellUrl(row.offboarding_id)}?employee_id=${row.id}`
+                : resignationUrlFor(row.id);
+
+            // Matches HorillaFilterSet._apply_custom_filters' parallel-array
+            // convention (repeated custom_field/custom_lookup/custom_value keys,
+            // zipped positionally) -- the Advanced filter builder's own format,
+            // reused here so a dashboard-driven date range lands as a real,
+            // durable, chip-visible filter instead of a raw param the target
+            // FilterSet wouldn't recognize.
+            function customRangeParams(field, from, to) {
+                if (!from || !to) return '';
+                return `&custom_field=${field}&custom_lookup=gte&custom_value=${from}` +
+                    `&custom_field=${field}&custom_lookup=lte&custom_value=${to}`;
+            }
+            // Dedicated "<field>_from"/"<field>_till" pair (LetterFilter.
+            // created_at_from/_till and friends) instead of the Advanced builder's
+            // custom_field/custom_lookup/custom_value convention above -- that
+            // convention submits gte/lte as two rows sharing the same <select>
+            // names, which the generic filter-tag chip bar can't tell apart and
+            // renders as garbled "Custom field: Created at" / "Custom lookup:
+            // GteLte" tags. A uniquely-named field per direction renders as its
+            // own clean tag instead.
+            function dateRangeParams(field, from, to) {
+                if (!from || !to) return '';
+                return `&${field}_from=${from}&${field}_till=${to}`;
+            }
+
+            document.getElementById('ob-date').textContent = new Date().toLocaleDateString('en-US', {
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+            });
+
+            // ── Period Picker ──
+            const PERIOD_KEY = 'ob_period_v2';
+            const fromInput = document.getElementById('ob-from-date');
+            const toInput = document.getElementById('ob-to-date');
+            // Local-time YYYY-MM-DD (toISOString() would shift the day for non-UTC zones).
+            function ymdLocal(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+            function getFirstOfMonth() { const t = new Date(); return ymdLocal(new Date(t.getFullYear(), t.getMonth(), 1)); }
+            function getLastOfMonth() { const t = new Date(); return ymdLocal(new Date(t.getFullYear(), t.getMonth() + 1, 0)); }
+            function getWeekBounds(today) {
+                const dow = (today.getDay() + 6) % 7; // 0 = Monday
+                const from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - dow);
+                const to = new Date(from.getFullYear(), from.getMonth(), from.getDate() + 6);
+                return [from, to];
+            }
+            function presetRange(p) {
+                const t = new Date();
+                if (p === 'today') return [t, t];
+                if (p === 'this_week') return getWeekBounds(t);
+                if (p === 'this_month') return [new Date(t.getFullYear(), t.getMonth(), 1), new Date(t.getFullYear(), t.getMonth() + 1, 0)];
+                if (p === 'this_year') return [new Date(t.getFullYear(), 0, 1), new Date(t.getFullYear(), 11, 31)];
+                return null;
+            }
+            function highlightPreset(active) {
+                document.querySelectorAll('.ob-period-preset').forEach(b => b.classList.toggle('ob-period-preset--active', b.dataset.preset === active));
+            }
+            function detectPreset() {
+                for (const p of ['today', 'this_week', 'this_month', 'this_year']) {
+                    const [f, t] = presetRange(p);
+                    if (fromInput.value === ymdLocal(f) && toInput.value === ymdLocal(t)) return p;
+                }
+                return '';
+            }
+            function initPeriod() {
+                const saved = sessionStorage.getItem(PERIOD_KEY);
+                if (saved) { try { const p = JSON.parse(saved); fromInput.value = p.from; toInput.value = p.to; highlightPreset(detectPreset()); return; } catch {} }
+                fromInput.value = getFirstOfMonth(); toInput.value = getLastOfMonth();
+                highlightPreset('this_month');
+            }
+            function savePeriod() { sessionStorage.setItem(PERIOD_KEY, JSON.stringify({ from: fromInput.value, to: toInput.value })); }
+            function periodParams() { const f = fromInput.value, t = toInput.value; return (f && t) ? ("from_date=" + encodeURIComponent(f) + "&to_date=" + encodeURIComponent(t)) : ""; }
+            function urlWithPeriod(u) { return u + (u.includes('?') ? '&' : '?') + periodParams(); }
+            function fetchP(url) { return fetch(urlWithPeriod(url)); }
+            function setPreset(p) {
+                const range = presetRange(p);
+                if (!range) return;
+                fromInput.value = ymdLocal(range[0]); toInput.value = ymdLocal(range[1]);
+                savePeriod(); highlightPreset(p);
+                applyPeriodLabels();
+                refreshAllData();
+            }
+            document.querySelectorAll('.ob-period-preset').forEach(b => b.addEventListener('click', () => setPreset(b.dataset.preset)));
+            [fromInput, toInput].forEach(i => i.addEventListener('change', () => {
+                if (!fromInput.value || !toInput.value) return;
+                savePeriod(); highlightPreset(detectPreset()); applyPeriodLabels(); refreshAllData();
+            }));
+            initPeriod();
+
+            // ── Period label shown as subtitle suffix on period-aware charts ──
+            const PRESET_LABELS = {
+                today: '{% trans "Today"|escapejs %}',
+                this_week: '{% trans "This Week"|escapejs %}',
+                this_month: '{% trans "This Month"|escapejs %}',
+                this_year: '{% trans "This Year"|escapejs %}',
+            };
+            function shortDate(d) { return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+            function periodLabel() {
+                const preset = detectPreset();
+                const from = new Date(fromInput.value + 'T00:00:00');
+                const to = new Date(toInput.value + 'T00:00:00');
+                let detail;
+                if (preset === 'this_month') detail = from.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                else if (preset === 'this_year') detail = String(from.getFullYear());
+                else if (preset === 'today') detail = shortDate(from);
+                else detail = shortDate(from) + ' – ' + shortDate(to);
+                return (PRESET_LABELS[preset] || '{% trans "Custom"|escapejs %}') + ' · ' + detail;
+            }
+            function applyPeriodLabels() {
+                const label = ' — ' + periodLabel();
+                document.querySelectorAll('[data-period-label]').forEach(el => { el.textContent = label; });
+            }
+            applyPeriodLabels();
+
+            // ── Chart Customize ──
+            const CUST_KEY = 'ob_chart_prefs';
+            function getDefaultOrder() { return Array.from(document.querySelectorAll('[data-chart-id]')).map(c => ({ id: c.dataset.chartId, visible: true })); }
+            function loadCustPrefs() { try { const r = localStorage.getItem(CUST_KEY); return r ? JSON.parse(r) : null; } catch { return null; } }
+            function saveCustPrefs(p) { localStorage.setItem(CUST_KEY, JSON.stringify(p)); }
+            function applyCustPrefs(p) {
+                if (!p) return;
+                const container = document.querySelector('.ob-chart-grid');
+                const cards = {}; container.querySelectorAll('[data-chart-id]').forEach(c => { cards[c.dataset.chartId] = c; });
+                p.forEach(pr => { const card = cards[pr.id]; if (card) { container.appendChild(card); if (pr.visible === false) card.style.display = 'none'; else card.style.display = ''; } });
+                Object.keys(cards).forEach(id => { if (!p.find(pr => pr.id === id)) { container.appendChild(cards[id]); cards[id].style.display = ''; } });
+            }
+            applyCustPrefs(loadCustPrefs());
+
+            const custOverlay = document.getElementById('ob-customize-overlay');
+            const custPanel = document.getElementById('ob-customize-panel');
+            const custList = document.getElementById('ob-customize-list');
+
+            function openCust() {
+                const prefs = loadCustPrefs() || getDefaultOrder();
+                const allCards = {}; document.querySelectorAll('[data-chart-id]').forEach(c => { allCards[c.dataset.chartId] = { id: c.dataset.chartId, label: c.dataset.chartLabel }; });
+                const ordered = []; prefs.forEach(p => { if (allCards[p.id]) ordered.push({ ...allCards[p.id], visible: p.visible !== false }); });
+                Object.keys(allCards).forEach(id => { if (!ordered.find(o => o.id === id)) ordered.push({ ...allCards[id], visible: true }); });
+                let html = ''; ordered.forEach((item, idx) => {
+                    html += `<div class="ob-cust-item" draggable="true" data-cust-id="${item.id}"><span class="ob-cust-item__handle">&#x2630;</span><div class="ob-cust-item__label">${item.label}</div><button class="ob-cust-item__toggle ${item.visible ? 'ob-cust-item__toggle--on' : ''}" data-cust-toggle="${item.id}"></button></div>`;
+                });
+                custList.innerHTML = html;
+                initCustDrag();
+                custOverlay.classList.add('ob-customize-overlay--open'); custPanel.classList.add('ob-customize-panel--open');
+            }
+            function closeCust() { custOverlay.classList.remove('ob-customize-overlay--open'); custPanel.classList.remove('ob-customize-panel--open'); }
+
+            function initCustDrag() {
+                let dragEl = null;
+                custList.querySelectorAll('.ob-cust-item').forEach(item => {
+                    item.addEventListener('dragstart', e => { dragEl = item; item.classList.add('ob-dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', ''); });
+                    item.addEventListener('dragend', () => { if (dragEl) dragEl.classList.remove('ob-dragging'); custList.querySelectorAll('.ob-cust-item').forEach(i => i.classList.remove('ob-drag-over')); dragEl = null; });
+                    item.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (item !== dragEl) item.classList.add('ob-drag-over'); });
+                    item.addEventListener('dragleave', () => item.classList.remove('ob-drag-over'));
+                    item.addEventListener('drop', e => { e.preventDefault(); item.classList.remove('ob-drag-over'); if (dragEl && item !== dragEl) { const items = Array.from(custList.querySelectorAll('.ob-cust-item')); if (items.indexOf(dragEl) < items.indexOf(item)) item.parentNode.insertBefore(dragEl, item.nextSibling); else item.parentNode.insertBefore(dragEl, item); } });
+                });
+                custList.querySelectorAll('.ob-cust-item__toggle').forEach(btn => btn.addEventListener('click', e => { e.stopPropagation(); btn.classList.toggle('ob-cust-item__toggle--on'); }));
+            }
+
+            function getCustState() { return Array.from(custList.querySelectorAll('.ob-cust-item')).map(item => ({ id: item.dataset.custId, visible: item.querySelector('.ob-cust-item__toggle').classList.contains('ob-cust-item__toggle--on') })); }
+
+            document.getElementById('ob-open-customize').addEventListener('click', openCust);
+            document.getElementById('ob-close-customize').addEventListener('click', closeCust);
+            custOverlay.addEventListener('click', closeCust);
+            document.getElementById('ob-save-customize').addEventListener('click', () => { const p = getCustState(); saveCustPrefs(p); applyCustPrefs(p); closeCust(); });
+            document.getElementById('ob-reset-customize').addEventListener('click', () => { localStorage.removeItem(CUST_KEY); location.reload(); });
+
+            // ── Chart instance registry ──
+            // ApexCharts.render() always appends a new SVG into the target
+            // element rather than replacing it, so calling the same chart
+            // block twice (e.g. on auto-refresh) would stack duplicate
+            // charts on top of each other. Every chart goes through here so
+            // a refresh destroys the previous instance first.
+            const chartInstances = {};
+            function renderChart(key, el, options) {
+                if (!el) return null;
+                if (chartInstances[key]) {
+                    chartInstances[key].destroy();
+                    chartInstances[key] = null;
+                }
+                const chart = new ApexCharts(el, options);
+                chartInstances[key] = chart;
+                chart.render();
+                return chart;
+            }
+
+            // ── Auto-refresh ──
+            const REFRESH_INTERVAL = 300000; // 5 minutes
+            const REFRESH_KEY = 'ob_auto_refresh';
+            let refreshTimer = null;
+            let lastRefresh = Date.now();
+            const refreshDot = document.getElementById('ob-refresh-dot');
+            const refreshText = document.getElementById('ob-refresh-text');
+            const refreshToggle = document.getElementById('ob-refresh-toggle');
+            let autoRefreshOn = localStorage.getItem(REFRESH_KEY) !== 'off';
+
+            function updateRefreshText() {
+                const mins = Math.floor((Date.now() - lastRefresh) / 60000);
+                refreshText.textContent = mins < 1 ? '{% trans "Just now"|escapejs %}' : mins + '{% trans "m ago"|escapejs %}';
+            }
+            registerAutoRefresh(setInterval(updateRefreshText, 30000));
+
+            function startAutoRefresh() {
+                autoRefreshOn = true;
+                localStorage.setItem(REFRESH_KEY, 'on');
+                refreshDot.classList.add('ob-refresh__dot--pulse');
+                refreshToggle.textContent = '⟳';
+                refreshToggle.title = '{% trans "Auto-refresh ON (5 min)"|escapejs %}';
+                // Wrapped so a hidden tab does not keep fetching; refreshes once on return.
+                const refreshTick = autoRefreshWhenVisible(() => {
+                    lastRefresh = Date.now();
+                    updateRefreshText();
+                    refreshAllData();
+                });
+                refreshTimer = setInterval(refreshTick, REFRESH_INTERVAL);
+                registerAutoRefresh(refreshTimer);
+            }
+            function stopAutoRefresh() {
+                autoRefreshOn = false;
+                localStorage.setItem(REFRESH_KEY, 'off');
+                refreshDot.classList.remove('ob-refresh__dot--pulse');
+                refreshToggle.textContent = '⏸';
+                refreshToggle.title = '{% trans "Auto-refresh OFF"|escapejs %}';
+                if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+            }
+            refreshToggle.addEventListener('click', () => { if (autoRefreshOn) stopAutoRefresh(); else startAutoRefresh(); });
+            if (autoRefreshOn) startAutoRefresh(); else stopAutoRefresh();
+
+            // ─── KPI CARDS ───
+            function loadKpiCards() {
+            fetchP("{% url 'offboarding-dashboard-kpi' %}")
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('ob-kpi-grid').innerHTML = `
                 <a href="{% url 'offboarding-pipeline' %}?stage_type_exclude=archived" class="ob-kpi-card">
                     <div class="ob-kpi-card__icon ob-kpi-card__icon--red"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div>
                     <div class="ob-kpi-card__label">{% trans "Active Offboarding"|escapejs %}</div>
@@ -456,210 +1176,206 @@
                     <div class="ob-kpi-card__value">${data.archived}</div>
                     <div class="ob-kpi-card__sub">${data.notice_ending_soon > 0 ? '<span class="ob-badge ob-badge--amber">' + data.notice_ending_soon + ' {% trans "Notice Ending"|escapejs %}</span>' : '<span class="ob-badge ob-badge--green" id="ob-avg-duration">{% trans "Completed Offboarding"|escapejs %}</span>'}</div>
                 </a>`;
-        });
-    }
-    loadKpiCards();
+                });
+            }
+            loadKpiCards();
 
-    // ─── AVG OFFBOARDING DURATION ───
-    function loadAvgDuration() {
-    fetchP("{% url 'offboarding-dashboard-avg-duration' %}")
-        .then(r => r.json())
-        .then(data => {
-            const el = document.getElementById('ob-avg-duration');
-            if (el) el.textContent = data.avg_days !== null ? data.avg_days + ' days avg' : '';
-        });
-    }
-    loadAvgDuration();
+            // ─── AVG OFFBOARDING DURATION ───
+            function loadAvgDuration() {
+            fetchP("{% url 'offboarding-dashboard-avg-duration' %}")
+                .then(r => r.json())
+                .then(data => {
+                    const el = document.getElementById('ob-avg-duration');
+                    if (el) el.textContent = data.avg_days !== null ? data.avg_days + ' days avg' : '';
+                });
+            }
+            loadAvgDuration();
 
-    // ─── OFFBOARDING PIPELINE ───
-    function loadOffboardingPipeline() {
-    fetchP("{% url 'offboarding-dashboard-pipeline' %}")
-        .then(r => r.json())
-        .then(data => {
-            const el = document.getElementById('ob-pipeline');
-            if (!data.stages.length) { el.innerHTML = emptyHtml('{% trans "No offboarding stages"|escapejs %}'); return; }
-            const stageColors = { notice_period: 'rgba(245,158,11,0.15)', interview: 'rgba(99,102,241,0.15)', handover: 'rgba(59,130,246,0.15)', fnf: 'rgba(168,85,247,0.15)', other: 'rgba(148,163,184,0.15)', archived: 'rgba(34,197,94,0.15)' };
-            const stageTextColors = { notice_period: '#d97706', interview: '#4f46e5', handover: '#2563eb', fnf: '#7c3aed', other: '#64748b', archived: '#16a34a' };
-            const pipelineUrl = "{% url 'offboarding-pipeline' %}";
-            el.innerHTML = '<div class="ob-pipeline">' + data.stages.map(s =>
-                `<a href="${pipelineUrl}?stage_type=${encodeURIComponent(s.type)}" class="ob-pipeline-step" style="background:${stageColors[s.type] || 'rgba(148,163,184,0.15)'};text-decoration:none;color:inherit;">
+            // ─── OFFBOARDING PIPELINE ───
+            function loadOffboardingPipeline() {
+            fetchP("{% url 'offboarding-dashboard-pipeline' %}")
+                .then(r => r.json())
+                .then(data => {
+                    const el = document.getElementById('ob-pipeline');
+                    if (!data.stages.length) { el.innerHTML = emptyHtml('{% trans "No offboarding stages"|escapejs %}'); return; }
+                    const stageColors = { notice_period: 'rgba(245,158,11,0.15)', interview: 'rgba(99,102,241,0.15)', handover: 'rgba(59,130,246,0.15)', fnf: 'rgba(168,85,247,0.15)', other: 'rgba(148,163,184,0.15)', archived: 'rgba(34,197,94,0.15)' };
+                    const stageTextColors = { notice_period: '#d97706', interview: '#4f46e5', handover: '#2563eb', fnf: '#7c3aed', other: '#64748b', archived: '#16a34a' };
+                    const pipelineUrl = "{% url 'offboarding-pipeline' %}";
+                    el.innerHTML = '<div class="ob-pipeline">' + data.stages.map(s =>
+                        `<a href="${pipelineUrl}?stage_type=${encodeURIComponent(s.type)}" class="ob-pipeline-step" style="background:${stageColors[s.type] || 'rgba(148,163,184,0.15)'};text-decoration:none;color:inherit;">
                     <div class="ob-pipeline-step__count" style="color:${stageTextColors[s.type] || '#64748b'};">${s.count}</div>
                     <div class="ob-pipeline-step__label">${s.stage}</div>
                 </a>`
-            ).join('<div style="display:flex;align-items:center;opacity:0.3;font-size:18px;">→</div>') + '</div>';
-        });
-    }
-    loadOffboardingPipeline();
+                    ).join('<div style="display:flex;align-items:center;opacity:0.3;font-size:18px;">→</div>') + '</div>';
+                });
+            }
+            loadOffboardingPipeline();
 
-    // ─── RESIGNATION STATUS ───
-    function loadResignationStatus() {
-    fetchP("{% url 'offboarding-dashboard-resignation' %}")
-        .then(r => r.json())
-        .then(data => {
-            const total = data.statuses.reduce((a, s) => a + s.count, 0);
-            if (!total) { document.querySelector("#chart-resignation").innerHTML = emptyHtml('{% trans "No resignations"|escapejs %}'); return; }
-            renderChart('resignation', document.querySelector("#chart-resignation"), {
-                series: data.statuses.map(s => s.count),
-                chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit',
-                    events: { dataPointSelection: (e, ctx, config) => {
-                        const status = data.statuses[config.dataPointIndex].status;
-                        window.location.href = "{% url 'resignation-request-view' %}?status=" + encodeURIComponent(status) +
-                            dateRangeParams('created_at', fromInput.value, toInput.value);
-                    }}
-                },
-                labels: data.statuses.map(s => s.label),
-                colors: ['#f59e0b', '#22c55e', '#ef4444'],
-                plotOptions: { pie: { donut: { size: '65%', labels: { show: true, total: { show: true, label: '{% trans "Total"|escapejs %}', color: textColor, fontSize: '13px', fontWeight: 600, formatter: w => w.globals.seriesTotals.reduce((a,b)=>a+b,0) } } } } },
-                stroke: { width: 2, colors: [cardBg] }, dataLabels: { enabled: false },
-                legend: { position: 'bottom', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
-                tooltip: { theme: isDark ? 'dark' : 'light' },
-            });
-        });
-    }
-    loadResignationStatus();
+            // ─── RESIGNATION STATUS ───
+            function loadResignationStatus() {
+            // Card is only rendered when the resignation letter setting is enabled.
+            if (!document.querySelector("#chart-resignation")) return;
+            fetchP("{% url 'offboarding-dashboard-resignation' %}")
+                .then(r => r.json())
+                .then(data => {
+                    const total = data.statuses.reduce((a, s) => a + s.count, 0);
+                    if (!total) { document.querySelector("#chart-resignation").innerHTML = emptyHtml('{% trans "No resignations"|escapejs %}'); return; }
+                    renderChart('resignation', document.querySelector("#chart-resignation"), {
+                        series: data.statuses.map(s => s.count),
+                        chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit',
+                            events: { dataPointSelection: (e, ctx, config) => {
+                                const status = data.statuses[config.dataPointIndex].status;
+                                window.location.href = "{% url 'resignation-request-view' %}?status=" + encodeURIComponent(status) +
+                                    dateRangeParams('created_at', fromInput.value, toInput.value);
+                            }}
+                        },
+                        labels: data.statuses.map(s => s.label),
+                        colors: ['#f59e0b', '#22c55e', '#ef4444'],
+                        plotOptions: { pie: { donut: { size: '65%', labels: { show: true, total: { show: true, label: '{% trans "Total"|escapejs %}', color: textColor, fontSize: '13px', fontWeight: 600, formatter: w => w.globals.seriesTotals.reduce((a,b)=>a+b,0) } } } } },
+                        stroke: { width: 2, colors: [cardBg] }, dataLabels: { enabled: false },
+                        legend: { position: 'bottom', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
+                        tooltip: { theme: isDark ? 'dark' : 'light' },
+                    });
+                });
+            }
+            loadResignationStatus();
 
-    // ─── TASK COMPLETION ───
-    function loadTaskCompletion() {
-    fetchP("{% url 'offboarding-dashboard-tasks' %}")
-        .then(r => r.json())
-        .then(data => {
-            const total = data.statuses.reduce((a, s) => a + s.count, 0);
-            if (!total) { document.querySelector("#chart-tasks").innerHTML = emptyHtml('{% trans "No tasks"|escapejs %}'); return; }
-            const taskColors = { todo: '#94a3b8', in_progress: '#3b82f6', stuck: '#ef4444', completed: '#22c55e' };
-            // No redirect: EmployeeTask has no list view anywhere in
-            // offboarding to send this to (tasks are only ever visible
-            // embedded inside an individual offboarding employee's own
-            // detail modal) -- same reasoning as the Task Completion KPI
-            // card above, which is deliberately non-clickable too.
-            renderChart('tasks', document.querySelector("#chart-tasks"), {
-                series: data.statuses.map(s => s.count),
-                chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit' },
-                labels: data.statuses.map(s => s.label),
-                colors: data.statuses.map(s => taskColors[s.status] || '#94a3b8'),
-                plotOptions: { pie: { donut: { size: '65%', labels: { show: true, total: { show: true, label: '{% trans "Total"|escapejs %}', color: textColor, fontSize: '13px', fontWeight: 600, formatter: w => w.globals.seriesTotals.reduce((a,b)=>a+b,0) } } } } },
-                stroke: { width: 2, colors: [cardBg] }, dataLabels: { enabled: false },
-                legend: { position: 'bottom', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
-                tooltip: { theme: isDark ? 'dark' : 'light' },
-            });
-        });
-    }
-    loadTaskCompletion();
+            // ─── TASK COMPLETION ───
+            function loadTaskCompletion() {
+            fetchP("{% url 'offboarding-dashboard-tasks' %}")
+                .then(r => r.json())
+                .then(data => {
+                    const total = data.statuses.reduce((a, s) => a + s.count, 0);
+                    if (!total) { document.querySelector("#chart-tasks").innerHTML = emptyHtml('{% trans "No tasks"|escapejs %}'); return; }
+                    const taskColors = { todo: '#94a3b8', in_progress: '#3b82f6', stuck: '#ef4444', completed: '#22c55e' };
+                    // No redirect: EmployeeTask has no list view anywhere in
+                    // offboarding to send this to (tasks are only ever visible
+                    // embedded inside an individual offboarding employee's own
+                    // detail modal) -- same reasoning as the Task Completion KPI
+                    // card above, which is deliberately non-clickable too.
+                    renderChart('tasks', document.querySelector("#chart-tasks"), {
+                        series: data.statuses.map(s => s.count),
+                        chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit' },
+                        labels: data.statuses.map(s => s.label),
+                        colors: data.statuses.map(s => taskColors[s.status] || '#94a3b8'),
+                        plotOptions: { pie: { donut: { size: '65%', labels: { show: true, total: { show: true, label: '{% trans "Total"|escapejs %}', color: textColor, fontSize: '13px', fontWeight: 600, formatter: w => w.globals.seriesTotals.reduce((a,b)=>a+b,0) } } } } },
+                        stroke: { width: 2, colors: [cardBg] }, dataLabels: { enabled: false },
+                        legend: { position: 'bottom', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
+                        tooltip: { theme: isDark ? 'dark' : 'light' },
+                    });
+                });
+            }
+            loadTaskCompletion();
 
-    // ─── DEPARTMENT ATTRITION ───
-    function loadDeptAttrition() {
-    fetchP("{% url 'offboarding-dashboard-dept' %}")
-        .then(r => r.json())
-        .then(data => {
-            if (!data.departments.length) { document.querySelector("#chart-dept-attrition").innerHTML = emptyHtml('{% trans "No data"|escapejs %}'); return; }
-            renderChart('dept-attrition', document.querySelector("#chart-dept-attrition"), {
-                series: [{ name: '{% trans "Exits"|escapejs %}', data: data.departments.map(d => d.count) }],
-                chart: { type: 'bar', height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
-                    events: { dataPointSelection: (e, ctx, config) => {
-                        const d = data.departments[config.dataPointIndex];
-                        const base = "{% url 'resignation-request-view' %}";
-                        if (d && d.dept_id) {
-                            window.location.href = base + "?employee_id__employee_work_info__department_id=" + d.dept_id +
-                                "&has_offboarding=true" +
-                                dateRangeParams('offboarding_created_at', fromInput.value, toInput.value);
-                        } else {
-                            window.location.href = base;
-                        }
-                    }}
-                },
-                colors: COLORS,
-                plotOptions: { bar: { borderRadius: 6, horizontal: true, barHeight: '55%', distributed: true } },
-                xaxis: { categories: data.departments.map(d => d.department), labels: { style: { colors: textColor } } },
-                yaxis: { labels: { style: { colors: textColor, fontSize: '11px' } } },
-                grid: { borderColor: gridColor },
-                dataLabels: { enabled: true, style: { fontSize: '11px' } },
-                legend: { show: false },
-                tooltip: { theme: isDark ? 'dark' : 'light' },
-            });
-        });
-    }
-    loadDeptAttrition();
+            // ─── DEPARTMENT ATTRITION ───
+            function loadDeptAttrition() {
+            fetchP("{% url 'offboarding-dashboard-dept' %}")
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.departments.length) { document.querySelector("#chart-dept-attrition").innerHTML = emptyHtml('{% trans "No data"|escapejs %}'); return; }
+                    renderChart('dept-attrition', document.querySelector("#chart-dept-attrition"), {
+                        series: [{ name: '{% trans "Exits"|escapejs %}', data: data.departments.map(d => d.count) }],
+                        chart: { type: 'bar', height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
+                            events: { dataPointSelection: (e, ctx, config) => {
+                                const d = data.departments[config.dataPointIndex];
+                                const base = "{% url 'resignation-request-view' %}";
+                                if (d && d.dept_id) {
+                                    window.location.href = base + "?employee_id__employee_work_info__department_id=" + d.dept_id +
+                                        "&has_offboarding=true" +
+                                        dateRangeParams('offboarding_created_at', fromInput.value, toInput.value);
+                                } else {
+                                    window.location.href = base;
+                                }
+                            }}
+                        },
+                        colors: COLORS,
+                        plotOptions: { bar: { borderRadius: 6, horizontal: true, barHeight: '55%', distributed: true } },
+                        xaxis: { categories: data.departments.map(d => d.department), labels: { style: { colors: textColor } } },
+                        yaxis: { labels: { style: { colors: textColor, fontSize: '11px' } } },
+                        grid: { borderColor: gridColor },
+                        dataLabels: { enabled: true, style: { fontSize: '11px' } },
+                        legend: { show: false },
+                        tooltip: { theme: isDark ? 'dark' : 'light' },
+                    });
+                });
+            }
+            loadDeptAttrition();
 
-    // ─── EXIT REASONS ───
-    function loadExitReasons() {
-    fetchP("{% url 'offboarding-dashboard-reasons' %}")
-        .then(r => r.json())
-        .then(data => {
-            if (!data.reasons.length) { document.querySelector("#chart-exit-reasons").innerHTML = emptyHtml('{% trans "No exit reasons recorded"|escapejs %}'); return; }
-            renderChart('exit-reasons', document.querySelector("#chart-exit-reasons"), {
-                series: [{ name: '{% trans "Count"|escapejs %}', data: data.reasons.map(r => r.count) }],
-                chart: { type: 'bar', height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
-                    events: { dataPointSelection: (e, ctx, config) => {
-                        const r = data.reasons[config.dataPointIndex];
-                        if (!r) return;
-                        window.location.href = "{% url 'resignation-request-view' %}?exit_reason=" + encodeURIComponent(r.reason) +
-                            dateRangeParams('exit_reason_logged_at', fromInput.value, toInput.value);
-                    }}
-                },
-                colors: COLORS,
-                plotOptions: { bar: { borderRadius: 6, horizontal: true, barHeight: '55%', distributed: true } },
-                xaxis: { categories: data.reasons.map(r => r.reason), labels: { style: { colors: textColor } } },
-                yaxis: { labels: { style: { colors: textColor, fontSize: '11px' } } },
-                grid: { borderColor: gridColor },
-                dataLabels: { enabled: true, style: { fontSize: '11px' } },
-                legend: { show: false },
-                tooltip: { theme: isDark ? 'dark' : 'light' },
-            });
-        });
-    }
-    loadExitReasons();
+            // ─── EXIT REASONS ───
+            function loadExitReasons() {
+            fetchP("{% url 'offboarding-dashboard-reasons' %}")
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.reasons.length) { document.querySelector("#chart-exit-reasons").innerHTML = emptyHtml('{% trans "No exit reasons recorded"|escapejs %}'); return; }
+                    renderChart('exit-reasons', document.querySelector("#chart-exit-reasons"), {
+                        series: [{ name: '{% trans "Count"|escapejs %}', data: data.reasons.map(r => r.count) }],
+                        chart: { type: 'bar', height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
+                            events: { dataPointSelection: (e, ctx, config) => {
+                                const r = data.reasons[config.dataPointIndex];
+                                if (!r) return;
+                                window.location.href = "{% url 'resignation-request-view' %}?exit_reason=" + encodeURIComponent(r.reason) +
+                                    dateRangeParams('exit_reason_logged_at', fromInput.value, toInput.value);
+                            }}
+                        },
+                        colors: COLORS,
+                        plotOptions: { bar: { borderRadius: 6, horizontal: true, barHeight: '55%', distributed: true } },
+                        xaxis: { categories: data.reasons.map(r => r.reason), labels: { style: { colors: textColor } } },
+                        yaxis: { labels: { style: { colors: textColor, fontSize: '11px' } } },
+                        grid: { borderColor: gridColor },
+                        dataLabels: { enabled: true, style: { fontSize: '11px' } },
+                        legend: { show: false },
+                        tooltip: { theme: isDark ? 'dark' : 'light' },
+                    });
+                });
+            }
+            loadExitReasons();
 
-    // ─── JOINING VS EXITING ───
-    function loadJoinExitTrend() {
-    fetchP("{% url 'offboarding-dashboard-join-exit' %}")
-        .then(r => r.json())
-        .then(data => {
-            if (!data.months.length) { document.querySelector("#chart-join-exit").innerHTML = emptyHtml('{% trans "No data"|escapejs %}'); return; }
-            renderChart('join-exit', document.querySelector("#chart-join-exit"), {
-                series: [
-                    { name: '{% trans "Joining"|escapejs %}', data: data.months.map(m => m.joining) },
-                    { name: '{% trans "Exiting"|escapejs %}', data: data.months.map(m => m.exiting) },
-                ],
-                chart: { type: 'bar', height: 280, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
-                    events: { dataPointSelection: (e, ctx, config) => {
-                        const m = data.months[config.dataPointIndex];
-                        if (!m) return;
-                        if (config.seriesIndex === 0) {
-                            window.location.href = "{% url 'employee-view' %}?" +
-                                customRangeParams('date_joining', m.from_date, m.to_date).slice(1);
-                        } else {
-                            window.location.href = "{% url 'resignation-request-view' %}?status_in=requested,approved" +
-                                customRangeParams('planned_to_leave_on', m.from_date, m.to_date);
-                        }
-                    }}
-                },
-                colors: ['#22c55e', '#ef4444'],
-                plotOptions: { bar: { borderRadius: 5, columnWidth: '55%' } },
-                xaxis: { categories: data.months.map(m => m.month), labels: { style: { colors: textColor, fontSize: '11px' } }, axisBorder: { show: false }, axisTicks: { show: false } },
-                yaxis: { labels: { style: { colors: textColor } } },
-                grid: { borderColor: gridColor, strokeDashArray: 4 },
-                dataLabels: { enabled: true, style: { fontSize: '11px', colors: ['#fff'] } },
-                legend: { position: 'top', horizontalAlign: 'right', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
-                tooltip: { theme: isDark ? 'dark' : 'light' },
-            });
-        });
-    }
-    loadJoinExitTrend();
+            // ─── JOINING VS EXITING ───
+            function loadJoinExitTrend() {
+            fetchP("{% url 'offboarding-dashboard-join-exit' %}")
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.months.length) { document.querySelector("#chart-join-exit").innerHTML = emptyHtml('{% trans "No data"|escapejs %}'); return; }
+                    renderChart('join-exit', document.querySelector("#chart-join-exit"), {
+                        series: [
+                            { name: '{% trans "Exiting"|escapejs %}', data: data.months.map(m => m.exiting) },
+                        ],
+                        chart: { type: 'bar', height: 280, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
+                            events: { dataPointSelection: (e, ctx, config) => {
+                                const m = data.months[config.dataPointIndex];
+                                if (!m) return;
+                                window.location.href = "{% url 'resignation-request-view' %}?status_in=requested,approved" +
+                                    customRangeParams('planned_to_leave_on', m.from_date, m.to_date);
+                            }}
+                        },
+                        colors: ['#ef4444'],
+                        plotOptions: { bar: { borderRadius: 5, columnWidth: '45%' } },
+                        xaxis: { categories: data.months.map(m => m.month), labels: { style: { colors: textColor, fontSize: '11px' } }, axisBorder: { show: false }, axisTicks: { show: false } },
+                        yaxis: { labels: { style: { colors: textColor } } },
+                        grid: { borderColor: gridColor, strokeDashArray: 4 },
+                        dataLabels: { enabled: true, style: { fontSize: '11px', colors: ['#fff'] } },
+                        legend: { position: 'top', horizontalAlign: 'right', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
+                        tooltip: { theme: isDark ? 'dark' : 'light' },
+                    });
+                });
+            }
+            loadJoinExitTrend();
 
-    // ─── NOTICE PERIOD TRACKER ───
-    function loadNoticeTracker() {
-    fetchP("{% url 'offboarding-dashboard-notice' %}")
-        .then(r => r.json())
-        .then(data => {
-            const el = document.getElementById('ob-notice');
-            if (!data.employees.length) { el.innerHTML = '<div class="ob-info-panel__empty">{% trans "No active notice periods"|escapejs %}</div>'; return; }
-            el.innerHTML = data.employees.map(e => {
-                const initials = e.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-                const avatarInner = e.avatar ? `<img src="${e.avatar}" alt="">` : initials;
-                let badge = '';
-                if (e.status === 'ended') badge = '<span class="ob-badge ob-badge--red">{% trans "Ended"|escapejs %}</span>';
-                else if (e.status === 'ending') badge = `<span class="ob-badge ob-badge--amber">${e.days_left}d</span>`;
-                else badge = `<span class="ob-badge ob-badge--green">${e.days_left}d</span>`;
-                return `<a href="${noticeTrackerUrlFor(e)}" class="ob-list-item">
+            // ─── NOTICE PERIOD TRACKER ───
+            function loadNoticeTracker() {
+            fetchP("{% url 'offboarding-dashboard-notice' %}")
+                .then(r => r.json())
+                .then(data => {
+                    const el = document.getElementById('ob-notice');
+                    if (!data.employees.length) { el.innerHTML = '<div class="ob-info-panel__empty">{% trans "No active notice periods"|escapejs %}</div>'; return; }
+                    el.innerHTML = data.employees.map(e => {
+                        const initials = e.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+                        const avatarInner = e.avatar ? `<img src="${e.avatar}" alt="">` : initials;
+                        let badge = '';
+                        if (e.status === 'ended') badge = '<span class="ob-badge ob-badge--red">{% trans "Ended"|escapejs %}</span>';
+                        else if (e.status === 'ending') badge = `<span class="ob-badge ob-badge--amber">${e.days_left}d</span>`;
+                        else badge = `<span class="ob-badge ob-badge--green">${e.days_left}d</span>`;
+                        return `<a href="${noticeTrackerUrlFor(e)}" class="ob-list-item">
                     <div class="ob-list-item__avatar">${avatarInner}</div>
                     <div class="ob-list-item__info">
                         <div class="ob-list-item__name">${e.name}</div>
@@ -667,46 +1383,66 @@
                     </div>
                     <div class="ob-list-item__badge">${badge}</div>
                 </a>`;
-            }).join('');
-        }).catch(() => { document.getElementById('ob-notice').innerHTML = '<div class="ob-info-panel__empty">{% trans "No data"|escapejs %}</div>'; });
-    }
-    loadNoticeTracker();
+                    }).join('');
+                }).catch(() => { document.getElementById('ob-notice').innerHTML = '<div class="ob-info-panel__empty">{% trans "No data"|escapejs %}</div>'; });
+            }
+            loadNoticeTracker();
 
-    // ─── UNRETURNED ASSETS ───
-    function loadUnreturnedAssets() {
-    fetchP("{% url 'offboarding-dashboard-assets' %}")
-        .then(r => r.json())
-        .then(data => {
-            const el = document.getElementById('ob-assets');
-            if (!data.assets.length) { el.innerHTML = '<div class="ob-info-panel__empty">{% trans "All assets returned"|escapejs %}</div>'; return; }
-            el.innerHTML = data.assets.map(a => {
-                return `<a href="${assetAllocationUrlFor(a.id)}" class="ob-list-item">
+            // ─── UNRETURNED ASSETS ───
+            function loadUnreturnedAssets() {
+            fetchP("{% url 'offboarding-dashboard-assets' %}")
+                .then(r => r.json())
+                .then(data => {
+                    const el = document.getElementById('ob-assets');
+                    if (!data.assets.length) { el.innerHTML = '<div class="ob-info-panel__empty">{% trans "All assets returned"|escapejs %}</div>'; return; }
+                    el.innerHTML = data.assets.map(a => {
+                        return `<a href="${assetAllocationUrlFor(a.id)}" class="ob-list-item">
                     <div class="ob-list-item__info">
                         <div class="ob-list-item__name">${a.employee}</div>
                         <div class="ob-list-item__detail">${a.asset} · ${a.category}</div>
                     </div>
                     <span class="ob-badge ob-badge--red">{% trans "Not Returned"|escapejs %}</span>
                 </a>`;
-            }).join('');
-        }).catch(() => { document.getElementById('ob-assets').innerHTML = '<div class="ob-info-panel__empty">{% trans "No data"|escapejs %}</div>'; });
-    }
-    loadUnreturnedAssets();
+                    }).join('');
+                }).catch(() => { document.getElementById('ob-assets').innerHTML = '<div class="ob-info-panel__empty">{% trans "No data"|escapejs %}</div>'; });
+            }
+            loadUnreturnedAssets();
 
-    // ── Re-run every load/chart function above in place (used by the
-    // auto-refresh timer instead of location.reload()).
-    function refreshAllData() {
-        loadKpiCards();
-        loadAvgDuration();
-        loadOffboardingPipeline();
-        loadResignationStatus();
-        loadTaskCompletion();
-        loadDeptAttrition();
-        loadExitReasons();
-        loadJoinExitTrend();
-        loadNoticeTracker();
-        loadUnreturnedAssets();
-    }
+            // ── Re-run every load/chart function above in place (used by the
+            // auto-refresh timer instead of location.reload()).
+            function refreshAllData() {
+                loadKpiCards();
+                loadAvgDuration();
+                loadOffboardingPipeline();
+                loadResignationStatus();
+                loadTaskCompletion();
+                loadDeptAttrition();
+                loadExitReasons();
+                loadJoinExitTrend();
+                loadNoticeTracker();
+                loadUnreturnedAssets();
+            }
 
-})();
-</script>
+        }
+
+        // The ApexCharts CDN script can still be loading when this inline script
+        // runs (htmx inserts external scripts asynchronously on partial-page
+        // navigation), so wait for it before initialising.
+        (function () {
+            let started = false;
+            function start() {
+                if (started || typeof ApexCharts === 'undefined') return;
+                started = true;
+                obInitDashboard();
+            }
+            start();
+            if (started) return;
+            const cdn = document.querySelector('script[src*="apexcharts"]');
+            if (cdn) cdn.addEventListener('load', start);
+            const timer = setInterval(function () {
+                start();
+                if (started) clearInterval(timer);
+            }, 50);
+        })();
+    </script>
 {% endblock %}

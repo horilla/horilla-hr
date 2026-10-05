@@ -403,8 +403,7 @@ def offboarding_unreturned_assets(request):
 @login_required
 @permission_required("offboarding.view_offboarding")
 def offboarding_joining_vs_exiting(request):
-    """Monthly joining vs exiting trend within the selected period."""
-    from employee.models import EmployeeWorkInformation
+    """Monthly exiting count within the selected period."""
     from offboarding.models import ResignationLetter
 
     from_date, to_date = _parse_period(request)
@@ -420,11 +419,6 @@ def offboarding_joining_vs_exiting(request):
         month_start = cursor
         month_end = next_month - timedelta(days=1)
 
-        joining = EmployeeWorkInformation.objects.filter(
-            date_joining__gte=month_start,
-            date_joining__lte=month_end,
-        ).count()
-
         exiting = ResignationLetter.objects.filter(
             planned_to_leave_on__gte=month_start,
             planned_to_leave_on__lte=month_end,
@@ -434,7 +428,6 @@ def offboarding_joining_vs_exiting(request):
         months.append(
             {
                 "month": month_start.strftime("%b %Y"),
-                "joining": joining,
                 "exiting": exiting,
                 "from_date": month_start.isoformat(),
                 "to_date": month_end.isoformat(),
