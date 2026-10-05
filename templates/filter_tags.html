@@ -20,7 +20,7 @@
     $(formButton).click();
   }
   function clearAllFilter(element) {
-    $('[role="tooltip"]').remove();
+    $('[role="tooltip"]:not(.apexcharts-tooltip)').remove();
     let field_ids = $("[data-x-field]");
     for (var i = 0; i < field_ids.length; i++) {
       let item_id = field_ids[i].getAttribute("data-x-field");

@@ -59,7 +59,7 @@ function clearFilterFromTag(element) {
 }
 
 function clearAllFilter(element) {
-	$('[role="tooltip"]').remove();
+	$('[role="tooltip"]:not(.apexcharts-tooltip)').remove();
 	let form = $(formButton).closest('form');
 	let search_url = form.attr("hx-get") || "";
 	form.attr("hx-get", search_url.split('?')[0]);

@@ -4065,8 +4065,8 @@ async function loadFromLocalStorage() {
 }
 
 $(document).on("htmx:afterSwap", async function (evt) {
-    if ($('[role="tooltip"]:visible').length) {
-        $('[role="tooltip"]').hide();
+    if ($('[role="tooltip"]:not(.apexcharts-tooltip):visible').length) {
+        $('[role="tooltip"]:not(.apexcharts-tooltip)').hide();
     }
     cachedInstalledApps = await loadFromLocalStorage();
     // Try loading cached data from localStorage first

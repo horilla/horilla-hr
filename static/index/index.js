@@ -1420,8 +1420,8 @@ $(document).on('click', '.oh-kanban__card-body-collapse', function (e) {
 
 
 $(document).on("click", ".select2-selection__choice__remove", function (event) {
-    if ($('[role="tooltip"]:visible').length) {
-        $('[role="tooltip"]').hide();
+    if ($('[role="tooltip"]:not(.apexcharts-tooltip):visible').length) {
+        $('[role="tooltip"]:not(.apexcharts-tooltip)').hide();
     }
 });
 
