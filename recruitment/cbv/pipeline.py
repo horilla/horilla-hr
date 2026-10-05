@@ -36,13 +36,8 @@ from recruitment.templatetags.recruitmentfilters import (
 
 def stage_cache_version(rec_id):
     """
-    Version counter for a recruitment's cached "stages" queryset.
-
-    recruitment/signals.py bumps this on every Stage post_save/post_delete.
-    Folding it into GetStages.cache_key_for (and the page-level pipeline
-    cache below) forces those caches to miss right after a stage is
-    added/removed/reordered, instead of serving whichever "stages" list was
-    computed before the change for up to 600s.
+    Return the cache version number for a recruitment's stages, creating it
+    on first use.
     """
     key = f"stage_cache_version{rec_id}"
     version = CACHE.get(key)
@@ -66,14 +61,9 @@ class PipelineView(TemplateView):
 
 def recruitment_pipeline_actions(request, rec):
     """
-    Recruitment-level actions (Add Stage/Edit/Resume Shortlisting/Manage
-    Stage Order/Close-Reopen/Delete) for the given recruitment - shared
-    between RecruitmentTabView (which used to put these in the tab bar's
-    kebab) and RecruitmentPipelineContentShell (which renders them inline
-    in the pipeline content's own header instead). Each RecruitmentTabView
-    tab is a distinct recruitment record, so these are naturally scoped to
-    that specific record, not to "whichever tab happens to be open" - there
-    is no page-level Actions button that could mean that.
+    Return the actions (Add Stage, Edit, Resume Shortlisting, Manage Stage
+    Order, Close/Reopen, Delete) the user is allowed to perform on the
+    given recruitment.
     """
     change_perm = request.user.has_perm("recruitment.change_recruitment")
     add_cand_perm = request.user.has_perm("recruitment.add_candidate")
@@ -170,10 +160,6 @@ def recruitment_pipeline_actions(request, rec):
             {
                 "model": "recruitment.Recruitment",
                 "pk": rec.pk,
-                # Deleting the recruitment removes its whole tab, which an
-                # in-place reload can't do - the confirmation view's own
-                # POST handler navigates the page here instead once the
-                # delete succeeds.
                 "redirect_url": reverse("cbv-pipeline"),
             }
         )
@@ -202,6 +188,7 @@ class RecruitmentTabView(HorillaTabView):
     """
 
     filter_class = filters.RecruitmentFilter
+    template_name = "cbv/pipeline/recruitment_tabs.html"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -236,13 +223,6 @@ class RecruitmentTabView(HorillaTabView):
         view_perm = self.request.user.has_perm("recruitment.view_recruitment")
         stage_qs = GetStages.filter_class(self.request.GET).qs
 
-        # Building the tab strip used to call `stage_manages()` (2
-        # `.exists()` queries) and `stage_qs.filter(recruitment_id=rec.pk)
-        # .count()` (1 query) per recruitment -- 3N queries before any tab's
-        # content even loads (34 tabs measured -> ~100 queries). Resolve
-        # both in bulk instead: one grouped count query for badges, and two
-        # membership-id queries (reused across every recruitment) in place
-        # of the per-recruitment manager checks.
         stage_counts = dict(
             stage_qs.values("recruitment_id")
             .annotate(count=Count("id"))
@@ -285,14 +265,21 @@ class RecruitmentTabView(HorillaTabView):
             if stage_manage_perm or view_perm:
                 self.tabs.append(tab)
 
-    # This tab BAR is common to every job tab, so a "Filters:" chip row
-    # here would sit above/outside all of them - not any one job's own
-    # filter state. Each job tab's own content (CandidateCard/GetStages)
-    # already renders its own chips next to its own Search+Filter
-    # (RecruitmentCandidateNav), inside that tab. Base HorillaTabView
-    # default is already False; kept explicit since this used to override
-    # it to True.
     show_filter_tags = False
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if self.request.user.has_perm("recruitment.add_recruitment"):
+            context["tab_create_label"] = _("Create")
+            context[
+                "tab_create_attrs"
+            ] = f"""
+                hx-get="{reverse_lazy('recruitment-create')}?{urlencode({'pipeline': 'true'})}"
+                hx-target="#genericModalBody"
+                data-target="#genericModal"
+                data-toggle="oh-modal-toggle"
+            """
+        return context
 
 
 @method_decorator(login_required, name="dispatch")
@@ -301,10 +288,8 @@ class RecruitmentTabView(HorillaTabView):
 )
 class RecruitmentPipelineContentShell(TemplateView):
     """
-    Shell rendered for a single recruitment's pipeline tab - wraps this
-    tab's own Nav (RecruitmentCandidateNav, which carries the Search+Filter
-    and Actions) and an htmx-loaded embed of the existing list/kanban
-    content in the same bordered card the Recruitment Settings tabs use.
+    Render the pipeline tab of a single recruitment: its navigation bar
+    and the candidate list or kanban content.
     """
 
     template_name = "cbv/pipeline/recruitment_pipeline_shell.html"
@@ -319,19 +304,8 @@ class RecruitmentPipelineContentShell(TemplateView):
 
     def saved_view_type(self, rec_id):
         """
-        The list/card choice this user last made, for this job's tab.
-
-        Without this the shell defaulted to card whenever the request had no
-        ?view - which is every plain load of /recruitment/cbv-pipeline/ - so
-        the board came up as cards while the Nav's toggle rendered the SAVED
-        type as highlighted. The two disagreed on first load.
-
-        Read from the same ActiveView row the toggle writes: horilla_nav /
-        inline_nav post `path={{request.path}}`, and for this per-tab Nav
-        that path is `recruitment-pipeline-tab-nav/<rec_id>/`. The
-        page-level PipelineNav that used to own this toggle wrote to
-        `cbv-pipeline-nav` instead, so that path is still honoured as a
-        fallback for users whose last choice predates the per-tab Nav.
+        Return the list/card view type the user last chose for this
+        recruitment, or None if there is none.
         """
         user = self.request.user
         if not (user and user.is_authenticated):
@@ -346,9 +320,6 @@ class RecruitmentPipelineContentShell(TemplateView):
                 )
                 | Q(path=reverse("cbv-pipeline-nav"))
             )
-            # Prefer this tab's own saved choice over the legacy page-level
-            # one when both exist: ordering by path length is enough here,
-            # since the per-tab path is always the longer of the two.
             .order_by("-path")
             .first()
         )
@@ -357,16 +328,6 @@ class RecruitmentPipelineContentShell(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         rec = models.Recruitment.objects.entire().get(pk=self.kwargs.get("rec_id"))
-        # Falls back to "card" (not just None) when neither this request nor
-        # a saved ActiveView row picked a view - content_url below already
-        # defaults to the card endpoint in that case, so the Nav's view-type
-        # toggle must resolve to the same "card" here too. Passing a falsy
-        # view_type through left nav_url without a `?view=`, so on a user's
-        # very first visit (no saved choice yet) HorillaNavView never marked
-        # either toggle button active even though card content was already
-        # on screen - and inline_nav.html's onload script then read "no
-        # button active" as "no filter has run yet" and fired an extra,
-        # redundant full-board resubmit right behind the first load.
         view_type = (
             self.request.GET.get("view") or self.saved_view_type(rec.pk) or "card"
         )
@@ -391,43 +352,15 @@ class RecruitmentPipelineContentShell(TemplateView):
 )
 class RecruitmentCandidateNav(HorillaNavView):
     """
-    Per-job-tab Search+Filter for the Pipeline page.
-
-    The page-level PipelineNav's Search+Filter searches/filters which
-    RECRUITMENTS show up as tabs - it says nothing about any one job's own
-    candidates, and is shared/common across every tab. This Nav is the
-    opposite: one instance per job tab, searching/filtering that job's own
-    candidates (CandidateFilter, same as the standalone Candidates page),
-    so switching stage/list vs kanban and searching one job's pipeline
-    doesn't touch any other job's tab.
+    Navigation bar of a recruitment's pipeline tab, with search, filter,
+    list/card toggle, the Add candidate button and the recruitment actions.
     """
 
     filter_form_context_name = "form"
     filter_body_template = "cbv/candidates/filter.html"
-    # Modern slide-over filter panel (generic/horilla_nav.html's own
-    # {% if modern_filter %} branch) -- same treatment as the page-level
-    # PipelineNav/pipeline_filter.html. CandidateFilter already carries
-    # ajax_fields for the FK/M2M pickers this panel renders.
     modern_filter = True
-    # The shell already fetches this tab's board into
-    # #pipelineTabContent<rec_id> on its own load, so this Nav must not fire
-    # a second `load` fetch at the same target. It used to: the Nav renders
-    # after the board's 33 per-stage requests settle, and its load trigger
-    # then wiped the finished board and re-fetched every stage from scratch
-    # (33 -> 99 requests over three rounds), which read as "the list keeps
-    # reloading". Search/filter still work - those submit.
     apply_first_filter = True
-    # Same compact card-header Nav the Survey Templates tabs use
-    # (SurveyTemplateNavView/SurveyQuestionNavView). Besides matching that
-    # page's look, it ids its search form per swap-target
-    # (filterForm{{search_swap_target}}) rather than a bare #filterForm, so
-    # two job tabs' Navs can coexist without the id collision the default
-    # horilla_nav.html has.
     template_name = "generic/inline_nav.html"
-    # Mirrors the settings page (SkillsNavView et al), where each tab's own
-    # Nav - not a page-level one - carries the title, Create button and
-    # view-type toggles. The Pipeline page dropped its page-level
-    # PipelineNav for the same reason, so those move here.
     nav_title = _("Pipeline")
 
     def __init__(self, **kwargs: Any) -> None:
@@ -444,25 +377,20 @@ class RecruitmentCandidateNav(HorillaNavView):
         self.search_swap_target = f"#pipelineTabContent{rec_id}"
         self.filter_instance = filters.CandidateFilter()
 
-        if self.request.user.has_perm("recruitment.add_recruitment"):
+        rec = models.Recruitment.objects.filter(pk=rec_id).first()
+        if rec and (
+            self.request.user.has_perm("recruitment.add_candidate")
+            or self.request.user.has_perm("recruitment.change_recruitment")
+            or recruitment_manages(self.request.user, rec)
+        ):
+            self.create_label = _("Add")
             self.create_attrs = f"""
-                hx-get="{reverse_lazy('recruitment-create')}?{urlencode({'pipeline': 'true'})}"
+                hx-get="{reverse_lazy('add-candidate-to-stage')}?{urlencode({'rec_id': rec_id})}"
                 hx-target="#genericModalBody"
                 data-target="#genericModal"
                 data-toggle="oh-modal-toggle"
             """
 
-        # These point at THIS tab's own content (the same two endpoints
-        # search_url picks between above), never at `cbv-pipeline-tab`.
-        # PipelineNav could use the tab-view URL because it sat OUTSIDE the
-        # tabs, so re-rendering them was the intended effect. This Nav lives
-        # INSIDE a tab, and horilla_nav.html both rewrites its search form to
-        # the active view type's url (the inline script by `active_view.type`)
-        # and swaps the result into search_swap_target - so a tab-view url
-        # here made the form fetch the whole tab view on load and swap it
-        # into #pipelineTabContent<rec_id>, nesting a second, 1-tab tab view
-        # inside this one. That inner view then claimed the active classes
-        # and hid the real board, leaving the page blank.
         self.view_types = [
             {
                 "type": "list",
@@ -485,16 +413,6 @@ class RecruitmentCandidateNav(HorillaNavView):
             },
         ]
 
-        # This "Actions" dropdown next to Filter carries only the
-        # recruitment-level actions (previously OOB-swapped into the
-        # page-level PipelineNav, which no longer exists). The per-stage
-        # actions (Add Candidate/Edit/Bulk mail/Delete) that used to be
-        # merged in here via stage_pipeline_actions() now render as their
-        # own "Actions" button inside each stage's own body
-        # (cbv/pipeline/candidate_list.html / empty.html), so this dropdown
-        # doesn't grow with the recruitment's stage count and each stage's
-        # actions live with that stage rather than in one combined menu.
-        rec = models.Recruitment.objects.filter(pk=rec_id).first()
         if rec:
             self.actions = recruitment_pipeline_actions(self.request, rec)
 
@@ -517,21 +435,8 @@ class GetStages(TemplateView):
     @staticmethod
     def cache_key_for(session_key, rec_id, querystring=""):
         """
-        Cache key scoped to one recruitment's tab AND its current
-        search/filter querystring - not the whole session. Each job tab
-        now has its own Search+Filter (RecruitmentCandidateNav), so a
-        session-wide key would leak one tab's results into every other
-        tab's, and a key that ignored the querystring would keep serving
-        the FIRST search's results to every later search on that same tab
-        for the rest of the 600s TTL (this cache exists to share one
-        computation across a single search's fan-out of per-stage
-        fetches, not to cache across different searches).
-
-        The recruitment's stage_cache_version is folded in too, so a stage
-        add/delete/reorder (bumped by recruitment/signals.py) always misses
-        this cache instead of reusing a pre-change "stages" queryset for up
-        to 600s - without it, a deleted stage kept showing (with its old
-        candidate count) in an already-cached tab until the TTL expired.
+        Return the cache key for one recruitment's stages, built from the
+        session, recruitment id, query string and stage cache version.
         """
         return (
             f"{session_key}pipeline{rec_id}{querystring}"
@@ -557,14 +462,9 @@ class GetStages(TemplateView):
             cache["candidates"] = CandidateList.filter_class(
                 self.request.GET
             ).qs.filter(is_active=True)
-            # Same 600s as the write above: re-setting without it made the
-            # entry immortal.
             CACHE.set(cache_key, cache, timeout=600)
 
         self.stages = cache["stages"].filter(recruitment_id=rec_id)
-        # Stash the already-fetched cache entry so get_context_data doesn't
-        # need a second CACHE.get() round-trip for the same key on every
-        # request.
         self._candidates_qs = cache.get("candidates")
         return super().get(request, *args, **kwargs)
 
@@ -774,18 +674,6 @@ class CandidateList(HorillaListView):
         context["stage"] = models.Stage.objects.filter(
             pk=self.kwargs.get("stage_id")
         ).first()
-        # `context["queryset"]` is a Django `Page` (from `paginator_qry`),
-        # and templates read `queryset.paginator.count` off it
-        # (horilla_list_table.html's `data-total-count`, which the
-        # stage-count badge's refresh script reads back via
-        # htmx:afterSettle) -- replacing `context["queryset"]` itself with a
-        # plain list silently blanked that badge everywhere this list
-        # renders. `.object_list` is still a lazy QuerySet though, so
-        # materialize *that* in place instead: `.paginator.count` is
-        # unaffected (it comes from a separate COUNT query, not
-        # object_list), and it makes every iteration below and in the
-        # template return the same instances, so the cached_property set
-        # here survives into the render.
         if hasattr(context["queryset"], "object_list"):
             context["queryset"].object_list = list(context["queryset"].object_list)
             self._attach_last_sent_mail(context["queryset"].object_list)
@@ -796,13 +684,8 @@ class CandidateList(HorillaListView):
     @staticmethod
     def _attach_last_sent_mail(candidates: list) -> None:
         """
-        Each visible row calls `get_last_sent_mail` 2-3x (mail_status.html
-        checks it, then reads .subject/.status off it again) -- a
-        `cached_property` handles the repeat calls, but the underlying
-        `EmailLog.objects.filter(to__icontains=...).first()` still runs once
-        per candidate on first access, so one page of N rows costs N table
-        scans. Resolve every visible candidate's latest EmailLog in one
-        query here and pre-set the cached_property so it never fires.
+        Attach the latest sent email log to each candidate, using a single
+        query for all of them.
         """
         from base.models import EmailLog
 
@@ -811,19 +694,10 @@ class CandidateList(HorillaListView):
         emails = {candidate.email for candidate in candidates if candidate.email}
         if not emails:
             return
-        # `EmailLog.to` isn't a clean single address -- depending on which
-        # send path wrote it, it's either the plain address or a stringified
-        # recipient list (e.g. "['a@x.com']"), which is exactly why the
-        # original per-row lookup used `icontains` rather than an exact
-        # match. Preserve that matching semantics here (one OR'd query
-        # instead of one query per candidate) rather than switching to
-        # `to__in=emails`, which would silently miss every list-repr row.
         email_q = Q()
         for email in emails:
             email_q |= Q(to__icontains=email)
         logs_newest_first = EmailLog.objects.filter(email_q).order_by("-created_at")
-        # Newest-first so the first matching log seen per candidate below is
-        # the most recent one -- mirrors the per-row `.order_by("-created_at").first()`.
         latest_by_email = {}
         for log in logs_newest_first:
             for email in emails:
@@ -905,13 +779,6 @@ class CandidateCard(HorillaKanbanView):
         "position": "{job_position_id__job_position}",
     }
 
-    # Empty on purpose: the list view's equivalent per-stage actions (Add
-    # Candidate/Edit/Bulk mail/Delete) render as their own "Actions" button
-    # inside each stage's own body (cbv/pipeline/candidate_list.html /
-    # empty.html) rather than a kebab in the column header. This kanban
-    # view hasn't been given that same per-column control yet. Leaving this
-    # empty is what makes horilla_kanban_view.html skip the in-column
-    # kebab entirely.
     group_actions = []
 
     actions = [
@@ -1038,22 +905,12 @@ class PipelineNav(HorillaNavView):
     HorillaNavView
     """
 
-    # No longer rendered by the Pipeline page itself, which now follows the
-    # Recruitment Settings page and shows its tab view alone - each job
-    # tab's own RecruitmentCandidateNav carries the title, Create button,
-    # view-type toggles, Search+Filter and Actions. Kept only because
-    # `cbv-pipeline-nav` is still routed.
     nav_title = _("Pipeline")
     search_swap_target = "#pipelineContainer"
     filter_body_template = "cbv/pipeline/pipeline_filter.html"
     filter_instance = filters.RecruitmentFilter()
     filter_form_context_name = "form"
     apply_first_filter = False
-    # Modern slide-over filter panel (generic/horilla_nav.html's own
-    # {% if modern_filter %} branch) -- same treatment as every other
-    # panel this session. The three underlying filters
-    # (RecruitmentFilter/StageFilter/CandidateFilter) each carry their own
-    # ajax_fields for the FK/M2M pickers this combined panel renders.
     modern_filter = True
 
     def __init__(self, **kwargs: Any) -> None:
@@ -1119,8 +976,6 @@ class ChangeStage(HorillaFormView):
             return self.HttpResponse()
 
         messages.success(self.request, _("Stage Updated"))
-        # Which stage the candidate is leaving, read before the save
-        # overwrites it - only this one and the destination actually change.
         previous_stage_id = (
             models.Candidate.objects.filter(pk=form.instance.pk)
             .values_list("stage_id", flat=True)
@@ -1131,26 +986,14 @@ class ChangeStage(HorillaFormView):
 
     def reload_stages_response(self, stage_ids):
         """
-        Refetch only the stages whose candidate list actually changed.
+        Build the response returned after a candidate's stage is changed.
 
-        HorillaFormView.HttpResponse hardcodes a page-wide
-        `$('.reload-record').click()`, and on this pipeline EVERY stage that
-        has loaded its table renders its own `.reload-record` (see
-        cbv/pipeline/candidate_list.html) - so moving one candidate kicked
-        off a simultaneous refetch of every open stage on the recruitment,
-        which is what made the dropdown hang on a stage-heavy pipeline.
-        Only two stages ever change here (source and destination), so this
-        returns its own response instead of going through that helper -
-        which is also why the messages button is clicked explicitly, since
-        it normally rides along in the same blanket script.
+        The response script reloads the candidate tables of the given stages,
+        refreshes the messages area and closes the open modal.
 
-        Each stage's table div carries `data-list-path` (its own
-        candidate-lists-cbv url), so the affected two are matched by stage
-        id. Other forms keep using the shared helper untouched.
-
-        Django's HttpResponse is aliased on import here because
-        HorillaFormView has a nested `class HttpResponse`, which shadows the
-        plain name for anything inside this subclass.
+        Args:
+            stage_ids: ids of the stages whose candidate lists changed
+                (the one the candidate left and the one it moved to).
         """
         selectors = ",".join(
             f'[data-list-path*="/candidate-lists-cbv/{stage_id}/"]'

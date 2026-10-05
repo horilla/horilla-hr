@@ -1159,6 +1159,16 @@ urlpatterns = [
         name="recruitment-dashboard-source-quality",
     ),
     path(
+        "dashboard/api/vacancy-vs-hired/",
+        rec_dashboard.recruitment_vacancy_vs_hired,
+        name="recruitment-dashboard-vacancy-hired",
+    ),
+    path(
+        "dashboard/api/talent-pool/",
+        rec_dashboard.recruitment_talent_pool,
+        name="recruitment-dashboard-talent-pool",
+    ),
+    path(
         "dashboard/api/time-to-hire/",
         rec_dashboard.recruitment_time_to_hire,
         name="recruitment-dashboard-time-to-hire",

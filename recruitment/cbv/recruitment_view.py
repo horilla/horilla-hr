@@ -128,15 +128,6 @@ class RecruitmentList(HorillaListView):
                 data-toggle="oh-modal-toggle"
                 """
 
-    # Mirrors RecruitmentNav.nested_group_by_fields below -- List and Nav
-    # are separate classes/templates (see employee/cbv/employees.py's
-    # EmployeesList/EmployeeNav for the same split). "Managers"
-    # (recruitment_managers) and the M2M "Open Positions" (open_positions)
-    # are deliberately left out: they're ManyToManyFields, and the nested
-    # engine's `values(*fields).annotate(Count("pk"))` aggregate would fan
-    # out one row per related manager/position, double-counting
-    # recruitments with more than one assigned. `job_position_id` (a
-    # single FK, distinct from the open_positions M2M) is used instead.
     nested_group_by_fields = [
         ("title", _("Recruitment")),
         ("job_position_id", _("Job Position")),
@@ -177,13 +168,8 @@ class RecruitmentNav(HorillaNavView):
     filter_form_context_name = "form"
     search_swap_target = "#listContainer"
     filter_body_template = "cbv/recruitment/filters.html"
-    # Modern slide-over filter panel (generic/horilla_nav.html's own
-    # {% if modern_filter %} branch) -- same treatment as every other
-    # panel this session. RecruitmentFilter.ajax_fields (Managers,
-    # Company) already exists from the Pipeline panel work.
     modern_filter = True
 
-    # Mirrors RecruitmentList.nested_group_by_fields
     nested_group_by_fields = [
         ("title", _("Recruitment")),
         ("job_position_id", _("Job Position")),
@@ -345,18 +331,9 @@ class RecruitmentForm(HorillaFormView):
             and self.request.resolver_match.url_name == "recruitment-update-pipeline"
         )
         if from_pipeline and is_create:
-            # A brand-new recruitment has no tab yet - the per-tab nav's
-            # #applyFilter only re-fetches the CURRENTLY open tab's content,
-            # it never rebuilds the tab bar itself. Navigate the whole page
-            # instead so RecruitmentTabView re-runs and picks the new
-            # recruitment's tab up; RecruitmentTabView orders tabs newest
-            # first, so with no stored active tab for this fresh load it
-            # opens directly on the recruitment just created.
             script = f"window.location.href = '{reverse('cbv-pipeline')}';"
             return self.HttpResponse(script=script)
         if from_pipeline:
-            # Editing an existing recruitment: its tab already exists and is
-            # the one open, so just refresh that tab's own content.
             targets_to_reload.append("#applyFilter")
 
         return self.HttpResponse(targets_to_reload=targets_to_reload)
@@ -377,11 +354,15 @@ class AddCandidateFormView(HorillaFormView):
     new_display_title = _("Add Candidate")
 
     def dispatch(self, request, *args, **kwargs):
-        # This is a fragment meant to be loaded via htmx into the "Add
-        # Candidate" modal from a specific pipeline stage, always carrying
-        # stage_id. Visited directly/standalone without it, render nothing
-        # rather than the raw, unstyled form fragment.
-        if request.method == "GET" and not request.GET.get("stage_id"):
+        """
+        Return an empty response for a GET request without a stage or
+        recruitment.
+        """
+        if (
+            request.method == "GET"
+            and not request.GET.get("stage_id")
+            and not request.GET.get("rec_id")
+        ):
             return HttpResponse()
         return super().dispatch(request, *args, **kwargs)
 
