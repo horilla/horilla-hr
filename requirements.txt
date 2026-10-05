@@ -118,7 +118,7 @@ APScheduler==3.11.3
 
 # Date & time
 python-dateutil==2.9.0.post0
-pytz==2026.3.post1
+pytz==2026.4
 
 # Internationalization & NLP
 arabic-reshaper==3.0.1
