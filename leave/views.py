@@ -3349,7 +3349,8 @@ def leave_over_period(request):
             bucket = request.GET.get("bucket")
             if bucket not in ("day", "week", "month"):
                 span = len(period_dates)
-                bucket = "day" if span <= 30 else "week" if span <= 180 else "month"
+                # A whole calendar month is at most 31 days and should read day by day.
+                bucket = "day" if span <= 31 else "week" if span <= 180 else "month"
         except ValueError:
             period_dates = None
     if period_dates is None:
@@ -3375,8 +3376,12 @@ def leave_over_period(request):
         | Q(end_date__isnull=True, start_date__gte=period_dates[0])
     )
     by_department = request.GET.get("group") == "department"
+    # ``count=requests`` counts each approved request once per point instead of
+    # adding up the days it covers, so a two-day leave is one, not two.
+    count_requests = request.GET.get("count") == "requests"
     per_day = {}
     per_dept_day = {}
+    request_dates = []  # (department, request pk, its days) -- for count=requests
     for leave in leave_request.select_related(
         "employee_id__employee_work_info__department_id"
     ):
@@ -3385,7 +3390,9 @@ def leave_over_period(request):
             work_info = getattr(leave.employee_id, "employee_work_info", None)
             dept = getattr(work_info, "department_id", None)
             dept_name = dept.department if dept else _("No department")
-        for leave_date in leave.requested_dates():
+        leave_dates = list(leave.requested_dates())
+        request_dates.append((dept_name, leave.pk, leave_dates))
+        for leave_date in leave_dates:
             per_day[leave_date] = per_day.get(leave_date, 0) + 1
             if by_department:
                 days = per_dept_day.setdefault(dept_name, {})
@@ -3413,6 +3420,17 @@ def leave_over_period(request):
                 totals[key] += n
         return list(totals.values())
 
+    def unique_requests(department=None):
+        """Distinct requests with at least one day in each bucket."""
+        seen = {key: set() for key in buckets}
+        for dept_name, pk, days in request_dates:
+            if department is not None and dept_name != department:
+                continue
+            for day in days:
+                if period_dates[0] <= day <= period_dates[-1]:
+                    seen[bucket_key(day)].add(pk)
+        return [len(pks) for pks in seen.values()]
+
     labels = []
     for key, entry in buckets.items():
         if bucket == "week":
@@ -3432,7 +3450,10 @@ def leave_over_period(request):
         for name in Department.objects.values_list("department", flat=True):
             per_dept_day.setdefault(name, {})
         dataset = [
-            {"label": name, "data": bucketed(days)}
+            {
+                "label": name,
+                "data": unique_requests(name) if count_requests else bucketed(days),
+            }
             for name, days in per_dept_day.items()
         ]
         dataset.sort(key=lambda d: (-sum(d["data"]), str(d["label"])))
@@ -3440,12 +3461,18 @@ def leave_over_period(request):
         dataset = (
             {
                 "label": _("Leave Trends"),
-                "data": bucketed(per_day),
+                "data": unique_requests() if count_requests else bucketed(per_day),
             },
         )
 
     response = {
         "labels": labels,
+        # The exact days each bucket covers, so a caller can open the leave
+        # behind a point without parsing the display label back into dates.
+        "ranges": [
+            {"from": entry["first"].isoformat(), "to": entry["last"].isoformat()}
+            for entry in buckets.values()
+        ],
         "dataset": dataset,
     }
     return JsonResponse(response)
