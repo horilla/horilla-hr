@@ -29,9 +29,9 @@ urlpatterns = [
         name="project-dashboard-tasks",
     ),
     path(
-        "dashboard/api/trend/",
-        proj_dashboard.project_monthly_trend,
-        name="project-dashboard-trend",
+        "dashboard/api/timesheet/",
+        proj_dashboard.project_timesheet_trend,
+        name="project-dashboard-timesheet",
     ),
     path(
         "dashboard/api/top/",
