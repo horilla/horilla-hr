@@ -595,6 +595,18 @@
             }
         });
 
+        // Apply closes the panel, on every page that uses it. Bubbles after
+        // the button's own handler, so the filter request is already
+        // underway (the form stays in the DOM, just hidden). Only a real
+        // user click counts: several pages click .filterButton from code
+        // (e.g. on keyup in a field) and that must not slam the panel shut
+        // while someone is still typing in it.
+        $(document).on('click', '#modernFilterPanel .filterButton, #modernFilterPanel .oh-filter-panel__apply', function (e) {
+            if (e.originalEvent && e.originalEvent.isTrusted) {
+                toggleModernFilterPanel(false);
+            }
+        });
+
         // "Find a filter" -- matches the typed text against each field's
         // own <label>, hiding whichever .oh-input-group rows don't match
         // (and, if an entire section has no visible rows left, that
