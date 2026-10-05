@@ -85,10 +85,10 @@ class ResolveHomeRoleTests(SimpleTestCase):
 
 
 class RoleDefaultPrefsTests(SimpleTestCase):
-    def test_manager_default_visible_at_most_six(self):
+    def test_manager_default_visible_at_most_eight(self):
         prefs = role_default_prefs("manager")
         visible = [p["id"] for p in prefs if p["visible"]]
-        self.assertLessEqual(len(visible), 6)
+        self.assertLessEqual(len(visible), 8)
         for demoted in DEMOTED_BY_DEFAULT:
             self.assertNotIn(demoted, visible)
         for expected in ROLE_DEFAULT_VISIBLE["manager"]:
@@ -99,7 +99,7 @@ class RoleDefaultPrefsTests(SimpleTestCase):
         visible = {p["id"] for p in prefs if p["visible"]}
         self.assertIn("employee_turnover", visible)
         self.assertNotIn("payroll_summary", visible)
-        self.assertNotIn("gender_distribution", visible)
+        self.assertIn("gender_distribution", visible)
 
 
 class PrefsMigrationTests(SimpleTestCase):

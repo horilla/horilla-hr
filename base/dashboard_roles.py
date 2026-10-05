@@ -16,13 +16,9 @@ HomeRole = Literal["employee", "manager", "hr", "leadership"]
 
 # Charts demoted from default home (still available via Customize).
 DEMOTED_BY_DEFAULT = (
-    "department_headcount",
     "employee_status",
-    "gender_distribution",
-    "leave_breakdown",
     "leave_by_department",
     "department_leave_days",
-    "leave_trends",
     "hiring_timeline",
     "recruitment_funnel",
 )
@@ -30,6 +26,10 @@ DEMOTED_BY_DEFAULT = (
 # Charts shown by default for manager/HR/leadership when prefs are empty.
 # Employee role does not use the analytics home.
 _BASE_VISIBLE = (
+    "department_headcount",
+    "gender_distribution",
+    "leave_breakdown",
+    "leave_trends",
     "attendance_trend",
     "department_overtime",
     "attendance_overview",

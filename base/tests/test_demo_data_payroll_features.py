@@ -117,15 +117,14 @@ class BackfillPayrollFeatureCoverageCtcDownTests(TestCase):
 
     def test_contracts_default_to_calendar_day_lop(self):
         """
-        Existing demo data predates the model's "calendar_days" default, so
-        its contracts carry "working_days" -- simulated here, since new
-        contracts no longer start there. This backfill is what moves the
-        whole demo dataset onto calendar days, matching the "of <calendar
-        days>" figure the payslip itself now shows.
+        Every make_active_contract() row here starts at the model's own
+        default ("working_days"), same as every fixture contract does --
+        this backfill is what moves the whole demo dataset onto calendar
+        days, matching the "of <calendar days>" figure the payslip itself
+        now shows.
         """
-        Contract.objects.filter(employee_id__in=self.employees).update(
-            daily_leave_amount_divisor="working_days"
-        )
+        for contract in Contract.objects.filter(employee_id__in=self.employees):
+            self.assertEqual(contract.daily_leave_amount_divisor, "working_days")
 
         backfill_payroll_feature_coverage(today=date(2026, 9, 1))
 
