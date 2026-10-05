@@ -11,15 +11,9 @@
             {% if faq_categories %}
                 {% include "helpdesk/faq/faq_category_list.html" %}
             {% else %}
-                <div class="oh-404">
-                    <img
-                        src="{% static 'images/ui/faq.png' %}"
-                        class="mb-4 oh-404__image"
-                        alt=""
-                    >
-                    <h3 style="font-size: 20px" class="oh-404__subtitle">
-                        {% trans "There are no FAQs at the moment." %}
-                    </h3>
+                <div class="flex flex-col items-center justify-center py-10">
+                    <img src="/static/horilla_theme/assets/img/no-records.svg" alt="" width="200" class="mb-4">
+                    <p class="text-[#666]">{% trans "No records available at the moment" %}</p>
                 </div>
             {% endif %}
         </div>
