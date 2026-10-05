@@ -47,16 +47,23 @@ def pms_dashboard_view(request):
 @login_required
 @permission_required("pms.view_employeeobjective")
 def pms_kpi_data(request):
-    """Return PMS KPI summary data as JSON, scoped to objectives/feedback active in the picker range."""
-    from pms.models import EmployeeKeyResult, EmployeeObjective, Feedback
+    """Return PMS KPI summary data as JSON (tile counts match the lists they link to)."""
+    from pms.models import EmployeeKeyResult, EmployeeObjective, Feedback, Objective
 
-    objectives = _period_overlap(
-        EmployeeObjective.objects.filter(archive=False), request
+    # Every tile links to an unfiltered list page, so the counts are not
+    # scoped to the picker range: key results can have no start/end date at
+    # all, and assignments/feedback are often dated outside the current
+    # month, which made these tiles read 0 while the lists were populated.
+    objectives = EmployeeObjective.objects.filter(archive=False)
+    key_results = EmployeeKeyResult.objects.all()
+    feedbacks = Feedback.objects.filter(archive=False)
+
+    total_objectives = (
+        Objective.objects.exclude(is_template=True)
+        .filter(Q(archive=False) | Q(archive__isnull=True))
+        .count()
     )
-    key_results = _period_overlap(EmployeeKeyResult.objects.all(), request)
-    feedbacks = _period_overlap(Feedback.objects.filter(archive=False), request)
-
-    total_objectives = objectives.count()
+    assigned_objectives = objectives.count()
     total_key_results = key_results.count()
     total_feedbacks = feedbacks.count()
 
@@ -75,7 +82,7 @@ def pms_kpi_data(request):
     closed = objectives.filter(status="Closed").count()
 
     completion_rate = (
-        round((closed / total_objectives * 100), 1) if total_objectives > 0 else 0
+        round((closed / assigned_objectives * 100), 1) if assigned_objectives > 0 else 0
     )
 
     # Pending feedback (not started + on track)
@@ -138,9 +145,14 @@ def pms_feedback_status(request):
     feedbacks = _period_overlap(Feedback.objects.filter(archive=False), request)
     statuses = []
 
-    for status, label in Feedback.STATUS_CHOICES:
+    # Same status order as the objective / key result charts (the model's
+    # own STATUS_CHOICES order differs), so the three legends line up.
+    labels = dict(Feedback.STATUS_CHOICES)
+    for status in ("Not Started", "On Track", "Behind", "At Risk", "Closed"):
         count = feedbacks.filter(status=status).count()
-        statuses.append({"status": status, "label": str(label), "count": count})
+        statuses.append(
+            {"status": status, "label": str(labels.get(status, status)), "count": count}
+        )
 
     return JsonResponse({"statuses": statuses})
 
@@ -187,53 +199,6 @@ def pms_department_performance(request):
         pass
 
     return JsonResponse({"departments": departments})
-
-
-@login_required
-@permission_required("pms.view_employeeobjective")
-def pms_at_risk_objectives(request):
-    """Objectives that are at risk or behind, scoped to the picker range."""
-    from pms.models import EmployeeObjective
-
-    objectives = []
-
-    try:
-        qs = (
-            _period_overlap(
-                EmployeeObjective.objects.filter(
-                    archive=False, status__in=["At Risk", "Behind"]
-                ),
-                request,
-            )
-            .select_related("employee_id", "objective_id")
-            .order_by("end_date")[:15]
-        )
-
-        today = date.today()
-        for obj in qs:
-            emp = obj.employee_id
-            days_left = (obj.end_date - today).days if obj.end_date else None
-            objectives.append(
-                {
-                    "id": obj.id,
-                    "employee_id": emp.id if emp else None,
-                    "employee": emp.get_full_name() if emp else "—",
-                    "avatar": emp.get_avatar() if emp else None,
-                    "objective": (
-                        obj.objective_id.title
-                        if obj.objective_id
-                        else obj.objective or "—"
-                    ),
-                    "status": obj.status,
-                    "progress": obj.progress_percentage,
-                    "days_left": days_left,
-                    "end_date": obj.end_date.strftime("%b %d") if obj.end_date else "—",
-                }
-            )
-    except Exception:
-        pass
-
-    return JsonResponse({"objectives": objectives})
 
 
 @login_required
@@ -302,14 +267,19 @@ def pms_top_performers(request):
 @login_required
 @permission_required("pms.view_employeekeyresult")
 def pms_kr_progress_overview(request):
-    """Key result progress grouped by objective, for objectives active in the picker range."""
+    """Key result progress grouped by objective, for open (not Closed) objectives active in the picker range."""
     from pms.models import EmployeeKeyResult, EmployeeObjective
 
     overview = []
 
     try:
         objectives = (
-            _period_overlap(EmployeeObjective.objects.filter(archive=False), request)
+            _period_overlap(
+                EmployeeObjective.objects.filter(archive=False).exclude(
+                    status="Closed"
+                ),
+                request,
+            )
             .select_related("objective_id")
             .order_by("-progress_percentage")[:10]
         )
@@ -358,11 +328,11 @@ def pms_kr_progress_overview(request):
 @login_required
 @permission_required("pms.view_meetings")
 def pms_upcoming_meetings(request):
-    """PMS meetings scheduled within the selected period."""
+    """PMS meetings in the next 14 days (the card's "Next 14 days" label)."""
     from pms.models import Meetings
 
-    from_date, to_date = _parse_period(request)
     today = date.today()
+    from_date, to_date = today, today + timedelta(days=14)
     meetings = []
 
     try:
@@ -386,85 +356,3 @@ def pms_upcoming_meetings(request):
         pass
 
     return JsonResponse({"meetings": meetings})
-
-
-@login_required
-@permission_required("pms.view_employeeobjective")
-def pms_progress_trend(request):
-    """Average objective progress per month within the selected period."""
-    from pms.models import EmployeeObjective
-
-    from_date, to_date = _parse_period(request)
-    months = []
-    try:
-        cursor = from_date.replace(day=1)
-        end_marker = to_date.replace(day=1)
-        while cursor <= end_marker:
-            if cursor.month == 12:
-                next_month = date(cursor.year + 1, 1, 1)
-            else:
-                next_month = date(cursor.year, cursor.month + 1, 1)
-            month_end = next_month - timedelta(days=1)
-            avg = EmployeeObjective.objects.filter(
-                archive=False,
-                updated_at__lte=month_end,
-            ).aggregate(
-                avg=Coalesce(Avg("progress_percentage"), 0.0, output_field=FloatField())
-            )[
-                "avg"
-            ]
-            months.append(
-                {
-                    "month": cursor.strftime("%b %Y"),
-                    "avg_progress": round(float(avg), 1),
-                    "from_date": cursor.isoformat(),
-                    "to_date": month_end.isoformat(),
-                }
-            )
-            cursor = next_month
-    except Exception:
-        pass
-    return JsonResponse({"months": months})
-
-
-@login_required
-@permission_required("pms.view_feedback")
-def pms_feedback_completion(request):
-    """Feedback answer completion rate per feedback cycle active in the picker range."""
-    from pms.models import Answer, Feedback, Question
-
-    completions = []
-    try:
-        feedbacks = _period_overlap(
-            Feedback.objects.filter(
-                archive=False, status__in=["On Track", "Not Started"]
-            ),
-            request,
-        )
-        for fb in feedbacks[:8]:
-            total_questions = Question.objects.filter(
-                template_id=fb.question_template_id
-            ).count()
-            respondents = (
-                fb.colleague_id.count()
-                + fb.subordinate_id.count()
-                + fb.others_id.count()
-                + 1
-            )
-            expected = total_questions * respondents
-            actual = Answer.objects.filter(feedback_id=fb).count()
-            rate = round((actual / expected * 100), 1) if expected > 0 else 0
-            completions.append(
-                {
-                    "cycle": fb.review_cycle,
-                    "employee": (
-                        fb.employee_id.get_full_name() if fb.employee_id else "—"
-                    ),
-                    "expected": expected,
-                    "actual": actual,
-                    "rate": rate,
-                }
-            )
-    except Exception:
-        pass
-    return JsonResponse({"completions": completions})

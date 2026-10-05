@@ -684,7 +684,8 @@
 
         /* Period Picker */
         .pm-period-picker {
-            display: none !important; /* TEMP: hide period picker */
+            display: flex;
+            flex-wrap: wrap;
             align-items: center;
             gap: 6px;
             font-size: 12px;
@@ -830,10 +831,11 @@
                 </div>
             </div>
             <div style="display: flex; gap: 8px">
-                <div class="pm-period-picker" hidden>
+                <div class="pm-period-picker">
+                    <button class="pm-period-preset" data-preset="today">{% trans "Today" %}</button>
+                    <button class="pm-period-preset" data-preset="this_week">{% trans "This Week" %}</button>
                     <button class="pm-period-preset" data-preset="this_month">{% trans "This Month" %}</button>
-                    <button class="pm-period-preset" data-preset="last_month">{% trans "Last Month" %}</button>
-                    <button class="pm-period-preset" data-preset="this_quarter">{% trans "Quarter" %}</button>
+                    <button class="pm-period-preset" data-preset="this_year">{% trans "This Year" %}</button>
                     <input type="date" id="pm-from-date" title="{% trans 'From' %}">
                     <span class="pm-period-picker__sep">&rarr;</span>
                     <input type="date" id="pm-to-date" title="{% trans 'To' %}">
@@ -862,7 +864,7 @@
                         <div class="pm-chart-card__header">
                             <div>
                                 <div class="pm-chart-card__title">{% trans "Objective Status" %}</div>
-                                <div class="pm-chart-card__subtitle">{% trans "All active objectives" %}</div>
+                                <div class="pm-chart-card__subtitle">{% trans "Active objectives" %}<span data-period-label></span></div>
                             </div>
                         </div>
                         <div class="pm-chart-card__body"><div id="chart-obj-status"></div></div>
@@ -876,7 +878,7 @@
                         <div class="pm-chart-card__header">
                             <div>
                                 <div class="pm-chart-card__title">{% trans "Key Result Status" %}</div>
-                                <div class="pm-chart-card__subtitle">{% trans "All key results" %}</div>
+                                <div class="pm-chart-card__subtitle">{% trans "Key results" %}<span data-period-label></span></div>
                             </div>
                         </div>
                         <div class="pm-chart-card__body"><div id="chart-kr-status"></div></div>
@@ -890,7 +892,7 @@
                         <div class="pm-chart-card__header">
                             <div>
                                 <div class="pm-chart-card__title">{% trans "Feedback Status" %}</div>
-                                <div class="pm-chart-card__subtitle">{% trans "360° feedback cycles" %}</div>
+                                <div class="pm-chart-card__subtitle">{% trans "360° feedback cycles" %}<span data-period-label></span></div>
                             </div>
                         </div>
                         <div class="pm-chart-card__body"><div id="chart-fb-status"></div></div>
@@ -905,7 +907,7 @@
                             <div>
                                 <div class="pm-chart-card__title">{% trans "Department Performance" %}</div>
                                 <div class="pm-chart-card__subtitle">
-                                    {% trans "Avg objective progress by department" %}
+                                    {% trans "Avg objective progress by department" %}<span data-period-label></span>
                                 </div>
                             </div>
                         </div>
@@ -921,42 +923,11 @@
                             <div>
                                 <div class="pm-chart-card__title">{% trans "OKR Progress Overview" %}</div>
                                 <div class="pm-chart-card__subtitle">
-                                    {% trans "Top objectives with key result breakdown" %}
+                                    {% trans "Top objectives with key result breakdown" %}<span data-period-label></span>
                                 </div>
                             </div>
                         </div>
                         <div class="pm-chart-card__body"><div id="pm-okr-overview"></div></div>
-                    </div>
-
-                    <div
-                        class="pm-chart-card pm-chart-card--wide"
-                        data-chart-id="progress_trend"
-                        data-chart-label="{% trans 'Progress Trend' %}"
-                    >
-                        <div class="pm-chart-card__header">
-                            <div>
-                                <div class="pm-chart-card__title">{% trans "Progress Trend" %}</div>
-                                <div class="pm-chart-card__subtitle">
-                                    {% trans "Average objective progress — last 6 months" %}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="pm-chart-card__body"><div id="chart-progress-trend"></div></div>
-                    </div>
-                    <div
-                        class="pm-chart-card pm-chart-card--wide"
-                        data-chart-id="fb_completion"
-                        data-chart-label="{% trans 'Feedback Completion' %}"
-                    >
-                        <div class="pm-chart-card__header">
-                            <div>
-                                <div class="pm-chart-card__title">{% trans "Feedback Completion" %}</div>
-                                <div class="pm-chart-card__subtitle">
-                                    {% trans "Answer completion rate per feedback cycle" %}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="pm-chart-card__body"><div id="chart-fb-completion"></div></div>
                     </div>
                 </div>
             </div>
@@ -964,15 +935,7 @@
             <div class="pm-sidebar">
                 <div class="pm-info-panel">
                     <div class="pm-info-panel__header">
-                        <div class="pm-info-panel__title">{% trans "At Risk Objectives" %}</div>
-                    </div>
-                    <div class="pm-info-panel__body" id="pm-at-risk">
-                        <div class="pm-info-panel__empty">{% trans "Loading..." %}</div>
-                    </div>
-                </div>
-                <div class="pm-info-panel">
-                    <div class="pm-info-panel__header">
-                        <div class="pm-info-panel__title">{% trans "Top Performers" %}</div>
+                        <div class="pm-info-panel__title">{% trans "Top Performers" %}<span data-period-label style="font-weight:400;font-size:11px;opacity:0.5"></span></div>
                     </div>
                     <div class="pm-info-panel__body" id="pm-performers">
                         <div class="pm-info-panel__empty">{% trans "Loading..." %}</div>
@@ -1014,10 +977,8 @@
             const COLORS = ['#E54F38','#22c55e','#f59e0b','#ef4444','#3b82f6','#a855f7','#06b6d4','#ec4899','#14b8a6','#f97316'];
             const statusColors = { 'Not Started': '#94a3b8', 'On Track': '#22c55e', 'Behind': '#f59e0b', 'At Risk': '#ef4444', 'Closed': '#E54F38' };
             const emptyHtml = (msg) => `<div class="pm-empty"><img src="/static/images/ui/no_records.svg" alt="">${msg}</div>`;
-            const objectiveDetailUrl = "{% url 'objective-detailed-view' obj_id=0 %}";
-            const objectiveDetailUrlFor = id => id ? objectiveDetailUrl.replace('/0/', '/' + id + '/') : '#';
             const objectiveListUrl = "{% url 'objective-list-view' %}";
-            const objectiveListUrlFor = id => id ? `${objectiveListUrl}?employee_id=${id}` : '#';
+            const objectiveListUrlFor = id => id ? `${objectiveListUrl}?employee_id=${id}&open_tab=2` : '#';
 
             document.getElementById('pm-date').textContent = new Date().toLocaleDateString('en-US', {
                 weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
@@ -1027,9 +988,29 @@
             const PERIOD_KEY = 'pm_period_v2';
             const fromInput = document.getElementById('pm-from-date');
             const toInput = document.getElementById('pm-to-date');
-            function getToday() { return new Date().toISOString().split('T')[0]; }
-            function getFirstOfMonth(d) { const dt = new Date(d || getToday()); dt.setDate(1); return dt.toISOString().split('T')[0]; }
-            function getLastOfMonth(d) { const dt = new Date(d || getToday()); return new Date(dt.getFullYear(), dt.getMonth()+1, 0).toISOString().split('T')[0]; }
+            // Local-time YYYY-MM-DD (toISOString() shifts the day outside UTC).
+            function ymdLocal(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+            function getFirstOfMonth() { const t = new Date(); return ymdLocal(new Date(t.getFullYear(), t.getMonth(), 1)); }
+            function getLastOfMonth() { const t = new Date(); return ymdLocal(new Date(t.getFullYear(), t.getMonth() + 1, 0)); }
+            function presetRange(p) {
+                const t = new Date();
+                if (p === 'today') return [t, t];
+                if (p === 'this_week') {
+                    const dow = (t.getDay() + 6) % 7; // 0 = Monday
+                    const from = new Date(t.getFullYear(), t.getMonth(), t.getDate() - dow);
+                    return [from, new Date(from.getFullYear(), from.getMonth(), from.getDate() + 6)];
+                }
+                if (p === 'this_month') return [new Date(t.getFullYear(), t.getMonth(), 1), new Date(t.getFullYear(), t.getMonth() + 1, 0)];
+                if (p === 'this_year') return [new Date(t.getFullYear(), 0, 1), new Date(t.getFullYear(), 11, 31)];
+                return null;
+            }
+            function syncPresetActive() {
+                document.querySelectorAll('.pm-period-preset').forEach(b => {
+                    const r = presetRange(b.dataset.preset);
+                    const matches = r && fromInput.value === ymdLocal(r[0]) && toInput.value === ymdLocal(r[1]);
+                    b.classList.toggle('pm-period-preset--active', !!matches);
+                });
+            }
             function initPeriod() {
                 const saved = sessionStorage.getItem(PERIOD_KEY);
                 if (saved) { try { const p = JSON.parse(saved); fromInput.value = p.from; toInput.value = p.to; return; } catch {} }
@@ -1039,18 +1020,51 @@
             function periodParams() { const f = fromInput.value, t = toInput.value; return (f && t) ? ("from_date=" + encodeURIComponent(f) + "&to_date=" + encodeURIComponent(t)) : ""; }
             function urlWithPeriod(u) { return u + (u.includes('?') ? '&' : '?') + periodParams(); }
             function fetchP(url) { return fetch(urlWithPeriod(url)); }
+            // ── Period label shown as suffix on period-aware chart subtitles ──
+            const PRESET_LABELS = {
+                today: '{% trans "Today"|escapejs %}',
+                this_week: '{% trans "This Week"|escapejs %}',
+                this_month: '{% trans "This Month"|escapejs %}',
+                this_year: '{% trans "This Year"|escapejs %}',
+            };
+            function shortDate(d) { return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+            function detectPreset() {
+                for (const p of Object.keys(PRESET_LABELS)) {
+                    const r = presetRange(p);
+                    if (r && fromInput.value === ymdLocal(r[0]) && toInput.value === ymdLocal(r[1])) return p;
+                }
+                return '';
+            }
+            function periodLabel() {
+                const preset = detectPreset();
+                const from = new Date(fromInput.value + 'T00:00:00');
+                const to = new Date(toInput.value + 'T00:00:00');
+                let detail;
+                if (preset === 'this_month') detail = from.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                else if (preset === 'this_year') detail = String(from.getFullYear());
+                else if (preset === 'today') detail = shortDate(from);
+                else detail = shortDate(from) + ' – ' + shortDate(to);
+                return (PRESET_LABELS[preset] || '{% trans "Custom"|escapejs %}') + ' · ' + detail;
+            }
+            function applyPeriodLabels() {
+                const label = ' — ' + periodLabel();
+                document.querySelectorAll('[data-period-label]').forEach(el => { el.textContent = label; });
+            }
             function setPreset(p) {
-                const t = new Date(); let f, to;
-                if (p === 'this_month') { f = new Date(t.getFullYear(), t.getMonth(), 1); to = new Date(t.getFullYear(), t.getMonth()+1, 0); }
-                else if (p === 'last_month') { f = new Date(t.getFullYear(), t.getMonth()-1, 1); to = new Date(t.getFullYear(), t.getMonth(), 0); }
-                else if (p === 'this_quarter') { f = new Date(t.getFullYear(), Math.floor(t.getMonth()/3)*3, 1); to = new Date(t.getFullYear(), Math.floor(t.getMonth()/3)*3+3, 0); }
-                fromInput.value = f.toISOString().split('T')[0]; toInput.value = to.toISOString().split('T')[0];
-                savePeriod(); document.querySelectorAll('.pm-period-preset').forEach(b => b.classList.toggle('pm-period-preset--active', b.dataset.preset === p));
-                location.reload();
+                const r = presetRange(p);
+                if (!r) return;
+                fromInput.value = ymdLocal(r[0]); toInput.value = ymdLocal(r[1]);
+                savePeriod(); syncPresetActive(); applyPeriodLabels();
+                refreshAllData();
             }
             document.querySelectorAll('.pm-period-preset').forEach(b => b.addEventListener('click', () => setPreset(b.dataset.preset)));
-            [fromInput, toInput].forEach(i => i.addEventListener('change', () => { savePeriod(); location.reload(); }));
+            [fromInput, toInput].forEach(i => i.addEventListener('change', () => {
+                if (!fromInput.value || !toInput.value) return;
+                savePeriod(); syncPresetActive(); applyPeriodLabels(); refreshAllData();
+            }));
             initPeriod();
+            syncPresetActive();
+            applyPeriodLabels();
 
             // ── Chart Customize ──
             const CUST_KEY = 'pm_chart_prefs';
@@ -1171,7 +1185,7 @@
                 .then(r => r.json())
                 .then(data => {
                     document.getElementById('pm-kpi-grid').innerHTML = `
-                <a href="{% url 'objective-list-view' %}?open_tab=1" class="pm-kpi-card">
+                <a href="{% url 'objective-list-view' %}?open_tab=2" class="pm-kpi-card">
                     <div class="pm-kpi-card__icon pm-kpi-card__icon--indigo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
                     <div class="pm-kpi-card__label">{% trans "Objectives"|escapejs %}</div>
                     <div class="pm-kpi-card__value">${data.total_objectives}</div>
@@ -1183,7 +1197,7 @@
                     <div class="pm-kpi-card__value">${data.avg_progress}%</div>
                     <div class="pm-kpi-card__sub"><span class="pm-badge pm-badge--blue">${data.total_key_results} {% trans "Key Results"|escapejs %}</span></div>
                 </a>
-                <a href="{% url 'objective-list-view' %}?status=At+Risk&open_tab=1" class="pm-kpi-card">
+                <a href="{% url 'objective-list-view' %}?status=At+Risk&open_tab=2" class="pm-kpi-card">
                     <div class="pm-kpi-card__icon pm-kpi-card__icon--red"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
                     <div class="pm-kpi-card__label">{% trans "At Risk"|escapejs %}</div>
                     <div class="pm-kpi-card__value">${data.at_risk}</div>
@@ -1200,6 +1214,22 @@
             loadKpiCards();
 
             // ─── OBJECTIVE STATUS ───
+            // The status donuts start with the "Closed" slice switched off (it
+            // dwarfs the live work), even when it has no items yet so its legend
+            // entry already shows as off. Only the first rendered chart per key:
+            // a later refresh or period change doesn't undo what the user
+            // toggled. (An empty period renders the empty state, not the chart,
+            // so this stays armed until a chart is actually drawn.)
+            const closedHiddenOnce = {};
+            function hideClosedOnFirstLoad(key, statuses) {
+                return (chart) => {
+                    if (closedHiddenOnce[key]) return;
+                    closedHiddenOnce[key] = true;
+                    const closed = statuses.find(s => s.status === 'Closed');
+                    if (closed) chart.toggleSeries(closed.label);
+                };
+            }
+
             function loadObjectiveStatus() {
                 fetchP("{% url 'pms-dashboard-obj-status' %}")
                 .then(r => r.json())
@@ -1209,9 +1239,9 @@
                     renderChart('obj-status', document.querySelector("#chart-obj-status"), {
                         series: data.statuses.map(s => s.count),
                         chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit',
-                            events: { dataPointSelection: (e, ctx, config) => {
+                            events: { mounted: hideClosedOnFirstLoad('obj-status', data.statuses), dataPointSelection: (e, ctx, config) => {
                                 const status = data.statuses[config.dataPointIndex].status;
-                                window.location.href = "{% url 'objective-list-view' %}?status=" + encodeURIComponent(status) + "&open_tab=1";
+                                window.location.href = "{% url 'objective-list-view' %}?status=" + encodeURIComponent(status) + "&open_tab=2";
                             }}
                         },
                         labels: data.statuses.map(s => s.label),
@@ -1236,7 +1266,7 @@
                     renderChart('kr-status', document.querySelector("#chart-kr-status"), {
                         series: data.statuses.map(s => s.count),
                         chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit',
-                            events: { dataPointSelection: (e, ctx, config) => {
+                            events: { mounted: hideClosedOnFirstLoad('kr-status', data.statuses), dataPointSelection: (e, ctx, config) => {
                                 const status = data.statuses[config.dataPointIndex].status;
                                 window.location.href = "{% url 'view-key-result' %}?status=" + encodeURIComponent(status);
                             }}
@@ -1263,7 +1293,7 @@
                     renderChart('fb-status', document.querySelector("#chart-fb-status"), {
                         series: data.statuses.map(s => s.count),
                         chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit',
-                            events: { dataPointSelection: (e, ctx, config) => {
+                            events: { mounted: hideClosedOnFirstLoad('fb-status', data.statuses), dataPointSelection: (e, ctx, config) => {
                                 const status = data.statuses[config.dataPointIndex].status;
                                 window.location.href = "{% url 'feedback-view' %}?status=" + encodeURIComponent(status);
                             }}
@@ -1293,9 +1323,9 @@
                                 const d = data.departments[config.dataPointIndex];
                                 const base = "{% url 'objective-list-view' %}";
                                 if (d && d.dept_id) {
-                                    window.location.href = base + "?employee_id__employee_work_info__department_id=" + d.dept_id + "&open_tab=1";
+                                    window.location.href = base + "?employee_id__employee_work_info__department_id=" + d.dept_id + "&open_tab=2";
                                 } else {
-                                    window.location.href = base + "?open_tab=1";
+                                    window.location.href = base + "?open_tab=2";
                                 }
                             }}
                         },
@@ -1324,9 +1354,8 @@
                         const color = statusColors[o.status] || '#94a3b8';
                         html += `<div style="margin-bottom:16px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-                        <div style="font-size:13px;font-weight:600;">${o.objective}</div>
+                        <div style="font-size:13px;font-weight:600;">${o.objective} -- ${o.employee}</div>
                         <div style="display:flex;align-items:center;gap:6px;">
-                            <span style="font-size:11px;opacity:0.5;">${o.employee}</span>
                             <span class="pm-badge" style="background:${color}20;color:${color};">${o.status}</span>
                         </div>
                     </div>
@@ -1353,83 +1382,6 @@
                 });
             }
             loadOkrOverview();
-
-            // ─── PROGRESS TREND ───
-            function loadProgressTrend() {
-                fetchP("{% url 'pms-dashboard-progress-trend' %}")
-                .then(r => r.json())
-                .then(data => {
-                    if (!data.months.length) { document.querySelector("#chart-progress-trend").innerHTML = emptyHtml('{% trans "No data"|escapejs %}'); return; }
-                    renderChart('progress-trend', document.querySelector("#chart-progress-trend"), {
-                        series: [{ name: '{% trans "Avg Progress"|escapejs %}', data: data.months.map(m => m.avg_progress) }],
-                        chart: { type: 'area', height: 260, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
-                            events: { dataPointSelection: (e, ctx, config) => {
-                                const m = data.months[config.dataPointIndex];
-                                const base = "{% url 'objective-list-view' %}";
-                                if (m && m.from_date) {
-                                    window.location.href = base + "?updated_at__gte=" + m.from_date + "&updated_at__lte=" + m.to_date + "&open_tab=1";
-                                } else {
-                                    window.location.href = base + "?open_tab=1";
-                                }
-                            }}
-                        },
-                        colors: ['#E54F38'],
-                        fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05, stops: [0, 95, 100] } },
-                        stroke: { curve: 'smooth', width: 3 },
-                        dataLabels: { enabled: true, formatter: v => v + '%', style: { fontSize: '11px', colors: ['#E54F38'] }, background: { enabled: false } },
-                        xaxis: { categories: data.months.map(m => m.month), labels: { style: { colors: textColor, fontSize: '11px' } }, axisBorder: { show: false }, axisTicks: { show: false } },
-                        yaxis: { min: 0, max: 100, labels: { style: { colors: textColor }, formatter: v => v + '%' } },
-                        grid: { borderColor: gridColor, strokeDashArray: 4 },
-                        tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: v => v + '%' } },
-                    });
-                });
-            }
-            loadProgressTrend();
-
-            // ─── FEEDBACK COMPLETION ───
-            function loadFeedbackCompletion() {
-                fetchP("{% url 'pms-dashboard-fb-completion' %}")
-                .then(r => r.json())
-                .then(data => {
-                    const el = document.querySelector("#chart-fb-completion");
-                    if (!data.completions.length) { el.innerHTML = emptyHtml('{% trans "No active feedback cycles"|escapejs %}'); return; }
-                    let html = '<div style="padding:8px 8px 0;">';
-                    data.completions.forEach(c => {
-                        const color = c.rate >= 80 ? '#22c55e' : c.rate >= 50 ? '#f59e0b' : '#ef4444';
-                        html += `<div style="margin-bottom:12px;"><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:13px;font-weight:600;">${c.cycle}</span><span style="font-size:11px;opacity:0.5;">${c.employee}</span></div><div style="display:flex;align-items:center;gap:8px;"><div style="flex:1;height:8px;border-radius:4px;background:rgba(128,128,128,0.1);overflow:hidden;"><div style="width:${Math.min(c.rate,100)}%;height:100%;border-radius:4px;background:${color};transition:width 0.5s;"></div></div><span style="font-size:11px;font-weight:700;color:${color};min-width:45px;text-align:right;">${c.rate}%</span></div><div style="font-size:10px;opacity:0.4;margin-top:2px;">${c.actual}/${c.expected} answers</div></div>`;
-                    });
-                    html += '</div>';
-                    el.innerHTML = html;
-                });
-            }
-            loadFeedbackCompletion();
-
-            // ─── AT RISK OBJECTIVES ───
-            function loadAtRiskObjectives() {
-                fetchP("{% url 'pms-dashboard-at-risk' %}")
-                .then(r => r.json())
-                .then(data => {
-                    const el = document.getElementById('pm-at-risk');
-                    if (!data.objectives.length) { el.innerHTML = '<div class="pm-info-panel__empty">{% trans "No at-risk objectives"|escapejs %}</div>'; return; }
-                    el.innerHTML = data.objectives.map(o => {
-                        const initials = o.employee.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-                        const avatarInner = o.avatar ? `<img src="${o.avatar}" alt="">` : initials;
-                        const color = o.status === 'At Risk' ? '#ef4444' : '#f59e0b';
-                        return `<a href="${objectiveDetailUrlFor(o.id)}" class="pm-risk-item">
-                    <div class="pm-risk-item__avatar">${avatarInner}</div>
-                    <div class="pm-risk-item__info">
-                        <div class="pm-risk-item__name">${o.objective}</div>
-                        <div class="pm-risk-item__detail">${o.employee}${o.days_left !== null ? ' · ' + o.days_left + 'd left' : ''}</div>
-                    </div>
-                    <div class="pm-risk-item__progress">
-                        <div class="pm-risk-item__bar"><div class="pm-risk-item__fill" style="width:${o.progress}%;background:${color};"></div></div>
-                        <div class="pm-risk-item__pct" style="color:${color};">${o.progress}%</div>
-                    </div>
-                </a>`;
-                    }).join('');
-                }).catch(() => { document.getElementById('pm-at-risk').innerHTML = '<div class="pm-info-panel__empty">{% trans "No data"|escapejs %}</div>'; });
-            }
-            loadAtRiskObjectives();
 
             // ─── TOP PERFORMERS ───
             function loadTopPerformers() {
@@ -1482,9 +1434,6 @@
                 loadFeedbackStatus();
                 loadDepartmentPerformance();
                 loadOkrOverview();
-                loadProgressTrend();
-                loadFeedbackCompletion();
-                loadAtRiskObjectives();
                 loadTopPerformers();
                 loadUpcomingMeetings();
             }

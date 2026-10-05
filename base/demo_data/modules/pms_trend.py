@@ -16,6 +16,7 @@ from datetime import date, timedelta
 
 from django.apps import apps
 from django.db import transaction
+from django.db.models import Q
 
 logger = logging.getLogger(__name__)
 
@@ -146,6 +147,7 @@ def backfill_pms_objectives(today: date | None = None) -> int:
                 ),
             )
 
+    _date_undated_key_results()
     _reconcile_objective_status(today)
 
     logger.info(
@@ -153,6 +155,32 @@ def backfill_pms_objectives(today: date | None = None) -> int:
         updated,
         TRAILING_DAYS,
     )
+    return updated
+
+
+def _date_undated_key_results() -> int:
+    """Give key results with no start/end date their objective's dates.
+
+    Fixture key results are seeded undated, which makes them invisible to the
+    period-overlap filters the PMS dashboard charts use.
+    """
+    from pms.models import EmployeeKeyResult, EmployeeObjective
+
+    objective_dates = {
+        row["id"]: (row["start_date"], row["end_date"])
+        for row in EmployeeObjective._base_manager.values(
+            "id", "start_date", "end_date"
+        )
+    }
+    updated = 0
+    for kr in EmployeeKeyResult._base_manager.filter(
+        Q(start_date__isnull=True) | Q(end_date__isnull=True)
+    ).values("id", "employee_objective_id", "start_date", "end_date"):
+        start, end = objective_dates.get(kr["employee_objective_id"], (None, None))
+        EmployeeKeyResult._base_manager.filter(pk=kr["id"]).update(
+            start_date=kr["start_date"] or start, end_date=kr["end_date"] or end
+        )
+        updated += 1
     return updated
 
 

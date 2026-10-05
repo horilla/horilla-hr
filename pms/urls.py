@@ -949,11 +949,6 @@ urlpatterns = [
         name="pms-dashboard-dept",
     ),
     path(
-        "dashboard/api/at-risk/",
-        pms_dashboard.pms_at_risk_objectives,
-        name="pms-dashboard-at-risk",
-    ),
-    path(
         "dashboard/api/performers/",
         pms_dashboard.pms_top_performers,
         name="pms-dashboard-performers",
@@ -967,15 +962,5 @@ urlpatterns = [
         "dashboard/api/meetings/",
         pms_dashboard.pms_upcoming_meetings,
         name="pms-dashboard-meetings",
-    ),
-    path(
-        "dashboard/api/progress-trend/",
-        pms_dashboard.pms_progress_trend,
-        name="pms-dashboard-progress-trend",
-    ),
-    path(
-        "dashboard/api/feedback-completion/",
-        pms_dashboard.pms_feedback_completion,
-        name="pms-dashboard-fb-completion",
     ),
 ]
