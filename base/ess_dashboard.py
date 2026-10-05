@@ -149,6 +149,32 @@ def ess_kpi_data(request):
     except Exception:
         pass
 
+    # Open tasks assigned to the employee (project app is optional)
+    assigned_tasks = None
+    assigned_tasks_url = ""
+    try:
+        from django.apps import apps
+        from django.urls import reverse
+
+        if apps.is_installed("project"):
+            from project.models import Task
+
+            assigned_tasks = (
+                Task.objects.filter(
+                    is_active=True,
+                    task_members=employee,
+                    status__in=["to_do", "in_progress"],
+                )
+                .distinct()
+                .count()
+            )
+            assigned_tasks_url = (
+                reverse("task-all")
+                + f"?task_members={employee.pk}&is_open=true&filter_applied=1"
+            )
+    except Exception:
+        assigned_tasks = None
+
     # Latest payslip
     latest_net_pay = None
     latest_payslip_period = ""
@@ -177,6 +203,8 @@ def ess_kpi_data(request):
             "present_this_month": present_count,
             "late_this_month": late_count,
             "open_objectives": open_objectives,
+            "assigned_tasks": assigned_tasks,
+            "assigned_tasks_url": assigned_tasks_url,
             "latest_net_pay": latest_net_pay,
             "latest_payslip_period": latest_payslip_period,
         }
@@ -283,6 +311,27 @@ def ess_leave_requests(request):
         pass
 
     return JsonResponse({"requests": results})
+
+
+# ─── Monthly attendance summary ────────────────────────────────────────────────
+
+
+@login_required
+def ess_monthly_summary(request):
+    """GET /ess/api/monthly-summary/ — the attendance monthly summary calendar for
+    the logged-in employee over the selected period, read-only (no regularising)."""
+    from attendance.views.summary import _build_calendar_context
+
+    employee = _get_employee(request)
+    if not employee:
+        return JsonResponse({"error": "no employee"}, status=403)
+
+    from_date, to_date = _parse_period(request)
+    # Days that haven't happened yet would all read as "Absent"; stop at today.
+    to_date = max(from_date, min(to_date, date.today()))
+    context = _build_calendar_context(employee, from_date, to_date)
+    context["readonly"] = True
+    return render(request, "attendance/monthly_summary/calendar_modal.html", context)
 
 
 # ─── Attendance calendar ───────────────────────────────────────────────────────

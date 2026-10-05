@@ -2,7 +2,7 @@
 
 {% load static i18n horillafilters %}
 {% block content %}
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@7.8.0/dist/apexcharts.min.js"></script>
     <style>
         :root {
             --ess-indigo: var(--primary-600, #e54f38);
@@ -108,7 +108,7 @@
         /* ── KPI Grid ── */
         .ess-kpi-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             margin-bottom: 20px;
             gap: 14px;
         }
@@ -791,45 +791,8 @@
         <div class="ess-layout">
             <!-- Left: charts -->
             <div class="ess-main">
-                <!-- Row 1: Leave balance + Work hours -->
-                <div class="ess-chart-grid">
-                    <div class="ess-chart-card" data-section="leave">
-                        <div class="ess-chart-card__header">
-                            <div>
-                                <div class="ess-chart-card__title">
-                                    {% trans "Leave Balance" %}
-                                </div>
-                                <div class="ess-chart-card__subtitle">
-                                    {% trans "Available days by type" %}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="ess-chart-card__body">
-                            <div id="essLeaveBalanceChart"></div>
-                        </div>
-                    </div>
-
-                    {% if request|is_check_in_enabled %}
-                    <div class="ess-chart-card" data-section="attendance">
-                        <div class="ess-chart-card__header">
-                            <div>
-                                <div class="ess-chart-card__title">
-                                    {% trans "Work Hours This Month" %}
-                                </div>
-                                <div
-                                    class="ess-chart-card__subtitle"
-                                    id="essMonthLabel"
-                                ></div>
-                            </div>
-                        </div>
-                        <div class="ess-chart-card__body">
-                            <div id="essWorkHoursChart"></div>
-                        </div>
-                    </div>
-                    {% endif %}
-                </div>
-
-                <!-- Row 2: Attendance calendar -->
+                <!-- Row 2: Monthly attendance summary (read-only, same calendar as
+                     Attendance > Monthly Summary, for the logged-in employee) -->
                 <div
                     class="ess-chart-card ess-chart-card--wide"
                     data-section="calendar"
@@ -837,57 +800,13 @@
                     <div class="ess-chart-card__header">
                         <div>
                             <div class="ess-chart-card__title">
-                                {% trans "My Attendance" %}
+                                {% trans "Monthly Attendance Summary" %}
                             </div>
-                            <div
-                                class="ess-chart-card__subtitle"
-                                id="essCalMonthLabel"
-                            ></div>
                         </div>
                     </div>
-                    <div style="padding: 6px 14px 4px">
-                        <div class="ess-calendar-legend">
-                            {% if request|is_check_in_enabled %}
-                            <span
-                                ><span
-                                    class="ess-cal-dot"
-                                    style="background: var(--ess-green)"
-                                ></span
-                                >{% trans "Present" %}</span
-                            >
-                            <span
-                                ><span
-                                    class="ess-cal-dot"
-                                    style="background: var(--ess-amber)"
-                                ></span
-                                >{% trans "Late" %}</span
-                            >
-                            <span
-                                ><span
-                                    class="ess-cal-dot"
-                                    style="background: var(--ess-red)"
-                                ></span
-                                >{% trans "Absent" %}</span
-                            >
-                            {% endif %}
-                            <span
-                                ><span
-                                    class="ess-cal-dot"
-                                    style="background: var(--ess-indigo)"
-                                ></span
-                                >{% trans "Leave" %}</span
-                            >
-                            <span
-                                ><span
-                                    class="ess-cal-dot"
-                                    style="background: var(--ess-purple)"
-                                ></span
-                                >{% trans "Holiday" %}</span
-                            >
-                        </div>
+                    <div id="essMonthlySummary">
+                        <div class="ess-empty">{% trans "Loading..." %}</div>
                     </div>
-                    <div id="essAttendanceCalendar" class="ess-calendar-grid"></div>
-                    <div id="essCalSummary" class="ess-cal-summary"></div>
                 </div>
 
                 <!-- Row 3: Payslips + Goals -->
@@ -929,21 +848,6 @@
 
             <!-- Right sidebar -->
             <div class="ess-sidebar">
-                <!-- Recent Leave Requests -->
-                <div class="ess-info-panel">
-                    <div class="ess-info-panel__header">
-                        {% trans "Recent Leave Requests" %}
-                    </div>
-                    <div id="essLeaveRequestsList" class="ess-info-panel__body">
-                        <div class="ess-empty-sm">{% trans "Loading..." %}</div>
-                    </div>
-                    <div class="ess-info-panel__footer">
-                        <a href="{% url 'user-request-view' %}"
-                            >{% trans "View all" %} &rarr;</a
-                        >
-                    </div>
-                </div>
-
                 <!-- Announcements -->
                 <div class="ess-info-panel">
                     <div class="ess-info-panel__header">
@@ -973,8 +877,6 @@
             'use strict';
 
             var today             = new Date();
-            var leaveBalanceChart = null;
-            var workHoursChart    = null;
             var payslipChart      = null;
 
             function isDark() {
@@ -1038,12 +940,9 @@
             function reloadAll() {
                 syncMonthLabels();
                 loadKpi();
-                loadLeaveBalance();
-                loadWorkHours();
-                loadAttendanceCalendar();
+                loadMonthlySummary();
                 loadPayslips();
                 loadObjectives();
-                loadLeaveRequests();
                 loadAnnouncements();
                 loadUpcoming();
             }
@@ -1098,6 +997,7 @@
                     var iconLeave   = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
                     var iconPresent = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>';
                     var iconGoals   = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>';
+                    var iconTask    = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>';
                     var iconPay     = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>';
                     document.getElementById('essKpiGrid').innerHTML =
                     {% if request|is_check_in_enabled %}
@@ -1107,15 +1007,21 @@
                             '{% url "view-my-attendance" %}?attendance_date__gte=' + fromInput.value +
                                 '&attendance_date__lte=' + toInput.value + '&filter_applied=1') +
                     {% endif %}
-                    kpiCard('amber', iconLeave, '{% trans "Pending Leave"|escapejs %}',
+                    kpiCard('amber', iconLeave, '{% trans "Requested Leave"|escapejs %}',
                             d.pending_leave_requests != null ? d.pending_leave_requests : 0,
                             '<span class="ess-badge ess-badge--amber">' + '{% trans "awaiting approval"|escapejs %}' + '</span>',
                             '{% url "user-request-view" %}?status=requested&filter_applied=1') +
-                    kpiCard('indigo', iconLeave, '{% trans "Upcoming Leave"|escapejs %}',
+                    kpiCard('indigo', iconLeave, '{% trans "Approved Leave"|escapejs %}',
                             d.upcoming_leave_count != null ? d.upcoming_leave_count : 0,
                             '<span class="ess-badge ess-badge--green">' + '{% trans "approved & ahead"|escapejs %}' + '</span>',
                             '{% url "user-request-view" %}?status=approved&start_date_gte=' +
                                 new Date().toISOString().slice(0, 10) + '&filter_applied=1') +
+                    (d.assigned_tasks != null
+                        ? kpiCard('green', iconTask, '{% trans "Assigned Tasks"|escapejs %}',
+                            d.assigned_tasks,
+                            '<span class="ess-badge ess-badge--green">' + '{% trans "to do & in progress"|escapejs %}' + '</span>',
+                            d.assigned_tasks_url)
+                        : '') +
                     kpiCard('purple', iconGoals, '{% trans "Open Goals"|escapejs %}',
                             d.open_objectives,
                             '<span class="ess-badge ess-badge--purple">' + '{% trans "active objectives"|escapejs %}' + '</span>',
@@ -1133,159 +1039,18 @@
                 '</a>';
             }
 
-            // ── Leave Balance Chart ───────────────────────────────────────────────────────
-            function loadLeaveBalance() {
-                fetchP('/ess/api/leave-balance/')
-                .then(function (r) { return r.json(); })
-                .then(function (d) {
-                    if (leaveBalanceChart) { leaveBalanceChart.destroy(); leaveBalanceChart = null; }
-                    var el = document.getElementById('essLeaveBalanceChart');
-                    if (!d.balances || !d.balances.length) {
-                    el.innerHTML = '<div class="ess-empty">' + '{% trans "No leave balance data"|escapejs %}' + '</div>';
-                    return;
-                    }
-                    var categories    = d.balances.map(function (b) { return b.type; });
-                    var availableData = d.balances.map(function (b) { return b.available; });
-                    var carryData     = d.balances.map(function (b) { return b.carryforward; });
-                    leaveBalanceChart = new ApexCharts(el, {
-                    chart: {
-                        type: 'bar',
-                        height: Math.max(160, categories.length * 44 + 40),
-                        stacked: true,
-                        toolbar: { show: false },
-                        background: 'transparent',
-                        fontFamily: 'inherit',
-                        events: {
-                        dataPointSelection: function (e, ctx, cfg) {
-                            var balance = d.balances[cfg.dataPointIndex];
-                            var url = '{% url "user-request-view" %}?filter_applied=1';
-                            if (balance && balance.id != null) {
-                            url += '&leave_type_id=' + balance.id;
-                            }
-                            window.location.href = url;
-                        }
-                        }
-                    },
-                    plotOptions: { bar: { horizontal: true, barHeight: '55%', borderRadius: 4 } },
-                    series: [
-                        { name: '{% trans "Available"|escapejs %}',     data: availableData },
-                        { name: '{% trans "Carry Forward"|escapejs %}', data: carryData },
-                    ],
-                    xaxis: { categories: categories, labels: { style: { colors: axisColor(), fontSize: '11px' } } },
-                    yaxis: { labels: { style: { colors: axisColor(), fontSize: '11px' } } },
-                    colors: ['#E54F38', '#22c55e'],
-                    dataLabels: { enabled: false },
-                    legend: { position: 'top', fontSize: '11px' },
-                    theme: { mode: themeMode() },
-                    tooltip: { theme: themeMode(), y: { formatter: function (v) { return v + ' days'; } } },
-                    grid: { borderColor: gridColor() },
-                    });
-                    leaveBalanceChart.render();
+            // ── Monthly Attendance Summary ────────────────────────────────────────────────
+            // Server-rendered calendar (shared with Attendance > Monthly Summary).
+            function loadMonthlySummary() {
+                fetchP('{% url "ess-monthly-summary" %}')
+                .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
+                .then(function (html) {
+                    document.getElementById('essMonthlySummary').innerHTML = html;
                 })
-                .catch(function () {});
-            }
-
-            // ── Work Hours Chart ──────────────────────────────────────────────────────────
-            function loadWorkHours() {
-                if (!document.getElementById('essWorkHoursChart')) return;
-                fetchP('/ess/api/work-hours-month/')
-                .then(function (r) { return r.json(); })
-                .then(function (d) {
-                    if (workHoursChart) { workHoursChart.destroy(); workHoursChart = null; }
-                    document.getElementById('essMonthLabel').textContent = d.month_label || '';
-                    var el = document.getElementById('essWorkHoursChart');
-                    workHoursChart = new ApexCharts(el, {
-                    chart: {
-                        type: 'bar', height: 200, toolbar: { show: false },
-                        background: 'transparent', fontFamily: 'inherit',
-                        events: {
-                        dataPointSelection: function (e, ctx, cfg) {
-                            var day = d.days[cfg.dataPointIndex];
-                            if (day && day.iso_date) {
-                            window.location.href = '{% url "view-my-attendance" %}?attendance_date=' + day.iso_date;
-                            } else {
-                            window.location.href = '{% url "view-my-attendance" %}';
-                            }
-                        }
-                        }
-                    },
-                    series: [{ name: '{% trans "Hours"|escapejs %}', data: d.days.map(function (x) { return x.hours; }) }],
-                    xaxis: {
-                        categories: d.days.map(function (x) { return x.day; }),
-                        labels: { style: { colors: axisColor(), fontSize: '11px' } },
-                        axisBorder: { show: false }, axisTicks: { show: false }
-                    },
-                    yaxis: {
-                        max: 12,
-                        labels: { formatter: function (v) { return v + 'h'; }, style: { colors: axisColor(), fontSize: '11px' } }
-                    },
-                    colors: ['#E54F38'],
-                    plotOptions: { bar: { borderRadius: 5, columnWidth: '55%' } },
-                    dataLabels: { enabled: false },
-                    annotations: { yaxis: [{ y: 8, borderColor: '#f59e0b', strokeDashArray: 4,
-                        label: { text: '{% trans "Target"|escapejs %}' + ': 8h', style: { color: '#f59e0b', fontSize: '10px' } } }] },
-                    theme: { mode: themeMode() },
-                    tooltip: { theme: themeMode(), y: { formatter: function (v) { return v.toFixed(1) + ' ' + '{% trans "hrs"|escapejs %}'; } } },
-                    grid: { borderColor: gridColor(), strokeDashArray: 4 },
-                    });
-                    workHoursChart.render();
-                })
-                .catch(function () {});
-            }
-
-            // ── Attendance Calendar ───────────────────────────────────────────────────────
-            function loadAttendanceCalendar() {
-                fetchP('/ess/api/attendance-calendar/')
-                .then(function (r) { return r.json(); })
-                .then(function (d) {
-                    var container  = document.getElementById('essAttendanceCalendar');
-                    var DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                    var html = DAY_LABELS.map(function (h) {
-                    return '<div class="ess-cal-header">' + h + '</div>';
-                    }).join('');
-
-                    var startDow = (typeof d.start_weekday === 'number')
-                    ? d.start_weekday
-                    : (function () {
-                        var firstDate = new Date(d.year, d.month - 1, 1);
-                        return (firstDate.getDay() + 6) % 7;
-                        }());
-                    for (var p = 0; p < startDow; p++) {
-                    html += '<div class="ess-cal-day ess-cal-day--empty"></div>';
-                    }
-
-                    d.days.forEach(function (day) {
-                    var title = '';
-                    var onClick = '';
-                    if (day.status === 'present' || day.status === 'late') {
-                        title = day.hours.toFixed(1) + ' ' + '{% trans "hrs"|escapejs %}';
-                    }
-                    if (day.status !== 'empty' && day.status !== 'future' && day.status !== 'weekend' && day.status !== 'workday') {
-                        onClick = ' onclick="window.location.href=\'{% url "view-my-attendance" %}?attendance_date=' + day.date + '\'" style="cursor:pointer"';
-                    }
-                    html += '<div class="ess-cal-day ess-cal-day--' + day.status + '"' +
-                            (title ? ' title="' + title + '"' : '') + onClick + '>' +
-                            day.day + '</div>';
-                    });
-                    container.innerHTML = html;
-
-                    var s = d.summary;
-                    document.getElementById('essCalSummary').innerHTML =
-                    {% if request|is_check_in_enabled %}
-                    calSummItem(s.present,  '#22c55e', '{% trans "Present"|escapejs %}') +
-                    calSummItem(s.absent,   '#ef4444', '{% trans "Absent"|escapejs %}')  +
-                    calSummItem(s.late,     '#f59e0b', '{% trans "Late"|escapejs %}')    +
-                    {% endif %}
-                    calSummItem(s.leave,    '#E54F38', '{% trans "Leave"|escapejs %}')   +
-                    calSummItem(s.holiday,  '#a855f7', '{% trans "Holiday"|escapejs %}');
-                })
-                .catch(function () {});
-            }
-
-            function calSummItem(count, color, label) {
-                return '<div class="ess-cal-summary__item">' +
-                '<span class="ess-cal-dot" style="background:' + color + '"></span>' +
-                '<strong>' + count + '</strong>&nbsp;' + label + '</div>';
+                .catch(function () {
+                    document.getElementById('essMonthlySummary').innerHTML =
+                        '<div class="ess-empty">' + '{% trans "Unable to load attendance summary"|escapejs %}' + '</div>';
+                });
             }
 
             // ── Payslip Chart ─────────────────────────────────────────────────────────────
@@ -1360,29 +1125,6 @@
                 .catch(function () {});
             }
 
-            // ── Leave Requests List ───────────────────────────────────────────────────────
-            function loadLeaveRequests() {
-                fetchP('/ess/api/leave-requests/')
-                .then(function (r) { return r.json(); })
-                .then(function (d) {
-                    var container = document.getElementById('essLeaveRequestsList');
-                    if (!d.requests || !d.requests.length) {
-                    container.innerHTML = '<div class="ess-empty-sm">' + '{% trans "No recent requests"|escapejs %}' + '</div>';
-                    return;
-                    }
-                    container.innerHTML = d.requests.map(function (lr) {
-                    return '<div class="ess-list-row" style="cursor:pointer" onclick="window.location.href=\'{% url "user-request-view" %}\'">' +
-                        '<div class="ess-list-row__main">' +
-                        '<span class="ess-list-row__title">' + esc(lr.leave_type)   + '</span>' +
-                        '<span class="ess-badge ess-badge--' + esc(lr.status) + '">' + esc(lr.status_label) + '</span>' +
-                        '</div>' +
-                        '<div class="ess-list-row__sub">' + esc(lr.start) + ' – ' + esc(lr.end) + ' &middot; ' + lr.days + ' days</div>' +
-                        '</div>';
-                    }).join('');
-                })
-                .catch(function () {});
-            }
-
             // ── Announcements ─────────────────────────────────────────────────────────────
             function loadAnnouncements() {
                 fetchP('/ess/api/announcements/')
@@ -1449,12 +1191,9 @@
 
             // ── Initial load ──────────────────────────────────────────────────────────────
             loadKpi();
-            loadLeaveBalance();
-            loadWorkHours();
-            loadAttendanceCalendar();
+            loadMonthlySummary();
             loadPayslips();
             loadObjectives();
-            loadLeaveRequests();
             loadAnnouncements();
             loadUpcoming();
 

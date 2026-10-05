@@ -285,8 +285,10 @@
 <div class="cal-header">
   <ion-icon name="calendar-number-outline" style="font-size:1.3rem;color:#6366f1;flex-shrink:0;"></ion-icon>
   <div>
+    {% if not readonly %}
     <span class="cal-emp-name">{{ employee.employee_first_name }} {{ employee.employee_last_name }}</span>
     {% if employee.badge_id %}<span class="cal-emp-badge">#{{ employee.badge_id }}</span>{% endif %}
+    {% endif %}
     <div style="font-size:.72rem;color:#6c757d;margin-top:1px;">
       {{ from_date|date:"d M Y" }} — {{ to_date|date:"d M Y" }}
     </div>
@@ -364,7 +366,7 @@
 </div>
 
 <!-- ── Calendar body ─────────────────────────────────────────────────────── -->
-<div class="cal-body">
+<div class="cal-body"{% if readonly %} style="max-height:none;overflow:visible;"{% endif %}>
   {% for month in months %}
   <div class="cal-month-label">{{ month.label }}</div>
   <div class="cal-grid">
@@ -387,8 +389,8 @@
         {% else %}
           <div class="cal-cell cal-{{ cell.status }}{% if cell.is_conflict %} cal-has-conflict{% elif cell.resolution %} cal-resolved-conflict{% endif %}"
                data-date="{{ cell.date|date:'Y-m-d' }}"
-               title="{{ cell.date|date:'d M Y' }}{% if cell.detail %} — {{ cell.detail }}{% endif %}{% if cell.conflict_with == 'paid_leave' or cell.conflict_with == 'unpaid_leave' %} ⚠ conflicts with {{ cell.conflict_with }}{% elif cell.conflict_with == 'holiday_ot' %} HO — Holiday Overtime{% elif cell.conflict_with == 'week_off_ot' %} WO — Week Off Overtime{% elif cell.conflict_with == 'regular_ot' %} OT — Overtime{% elif cell.resolution %} ✓ resolved{% endif %}{% trans ' — Ctrl/Shift-click to select multiple days' %}"
-               onclick="msCalCellClick(event, this, '{{ cell.date|date:'Y-m-d' }}', '{{ cell.conflict_with|default:'' }}', '{{ cell.detail|default:''|escapejs }}')">
+               title="{{ cell.date|date:'d M Y' }}{% if cell.detail %} — {{ cell.detail }}{% endif %}{% if cell.conflict_with == 'paid_leave' or cell.conflict_with == 'unpaid_leave' %} ⚠ conflicts with {{ cell.conflict_with }}{% elif cell.conflict_with == 'holiday_ot' %} HO — Holiday Overtime{% elif cell.conflict_with == 'week_off_ot' %} WO — Week Off Overtime{% elif cell.conflict_with == 'regular_ot' %} OT — Overtime{% elif cell.resolution %} ✓ resolved{% endif %}{% if not readonly %}{% trans ' — Ctrl/Shift-click to select multiple days' %}{% endif %}"
+               {% if not readonly %}onclick="msCalCellClick(event, this, '{{ cell.date|date:'Y-m-d' }}', '{{ cell.conflict_with|default:'' }}', '{{ cell.detail|default:''|escapejs }}')"{% else %}style="cursor:default;"{% endif %}>
             <div class="cal-day-num">{{ cell.day }}</div>
             {% if cell.detail %}<div class="cal-day-detail">{{ cell.detail }}</div>{% endif %}
             {% if cell.conflict_with == "paid_leave" or cell.conflict_with == "unpaid_leave" %}
@@ -438,6 +440,7 @@
     <span style="font-size:.62rem;font-weight:800;padding:1px 4px;border-radius:3px;background:#7c3aed;color:#fff;line-height:1.4;">WO</span>
     {% trans "Week Off Overtime" %}
   </div>
+{% if not readonly %}
   <div class="cal-legend-item">
     <div style="width:9px;height:9px;border-radius:50%;background:#e85d04;border:1.5px solid #fff;box-shadow:0 0 0 1px #e85d04;flex-shrink:0;"></div>
     {% trans "Leave Conflict (click to regularize)" %}
@@ -446,4 +449,5 @@
     <div style="width:9px;height:9px;border-radius:50%;background:#10b981;border:1.5px solid #fff;box-shadow:0 0 0 1px #10b981;flex-shrink:0;"></div>
     {% trans "Resolved (click to undo)" %}
   </div>
+{% endif %}
 </div>

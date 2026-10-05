@@ -221,6 +221,11 @@ urlpatterns = [
         name="ess-leave-requests",
     ),
     path(
+        "ess/api/monthly-summary/",
+        ess_dashboard.ess_monthly_summary,
+        name="ess-monthly-summary",
+    ),
+    path(
         "ess/api/attendance-calendar/",
         ess_dashboard.ess_attendance_calendar,
         name="ess-attendance-calendar",
