@@ -2,7 +2,7 @@
 {% load static i18n %}
 
 {% block content %}
-<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@7.8.0/dist/apexcharts.min.js"></script>
 <style>
     :root {
         --pr-indigo: var(--primary-600, #E54F38);
@@ -35,11 +35,21 @@
     .pr-header h1 { font-size: 22px; font-weight: 700; margin: 0; }
     .pr-header__meta { font-size: 13px; opacity: 0.5; margin-top: 2px; }
     .pr-header__controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    /* Period picker — same look as the Offboarding / PMS dashboards' picker */
     .pr-period-picker {
-        display: none !important; /* TEMP: hide period picker, mirrors payroll dashboard */
-        align-items: center; gap: 6px; background: rgba(128,128,128,0.07); border-radius: 8px; padding: 6px 10px; font-size: 12px;
+        display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px;
     }
-    .pr-period-picker input[type="date"] { border: none; font-size: 12px; background: transparent; color: inherit; outline: none; }
+    .pr-period-picker input[type="date"] {
+        padding: 5px 8px;
+        border: 1px solid rgba(128,128,128,0.2);
+        border-radius: 6px;
+        outline: none;
+        background: transparent;
+        color: inherit;
+        font-size: 12px;
+        transition: border-color 0.15s;
+    }
+    .pr-period-picker input[type="date"]:focus { border-color: var(--primary-600, #E54F38); }
     .pr-period-picker__sep { opacity: 0.4; font-size: 11px; }
     .pr-period-preset {
         padding: 4px 10px;
@@ -54,6 +64,7 @@
     .pr-period-preset:hover { border-color: var(--primary-600, #E54F38); color: var(--primary-600, #E54F38); }
     .pr-period-preset--active,
     .pr-period-preset--active:hover { background: var(--primary-600, #E54F38) !important; color: #ffffff !important; border-color: var(--primary-600, #E54F38) !important; }
+    .dark .pr-period-picker input[type="date"] { color-scheme: dark; }
 
     /* KPI grid — sizing/spacing ported from the Payroll dashboard's pd-kpi-* */
     .pr-kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
@@ -155,9 +166,11 @@
             <div class="pr-header__meta" id="pr-last-updated">{% trans "Loading..." %}</div>
         </div>
         <div class="pr-header__controls">
-            <button class="pr-period-preset pr-period-preset--active" onclick="prSetPreset('month',this)">{% trans "This Month" %}</button>
-            <button class="pr-period-preset" onclick="prSetPreset('quarter',this)">{% trans "Quarter" %}</button>
-            <div class="pr-period-picker" hidden>
+            <div class="pr-period-picker">
+                <button class="pr-period-preset" data-preset="today" onclick="prSetPreset('today',this)">{% trans "Today" %}</button>
+                <button class="pr-period-preset" data-preset="week" onclick="prSetPreset('week',this)">{% trans "This Week" %}</button>
+                <button class="pr-period-preset pr-period-preset--active" data-preset="month" onclick="prSetPreset('month',this)">{% trans "This Month" %}</button>
+                <button class="pr-period-preset" data-preset="year" onclick="prSetPreset('year',this)">{% trans "This Year" %}</button>
                 <input type="date" id="pr-from-date" title="{% trans 'From' %}">
                 <span class="pr-period-picker__sep">&rarr;</span>
                 <input type="date" id="pr-to-date" title="{% trans 'To' %}">
@@ -183,21 +196,10 @@
                     <div class="pr-chart-card__header">
                         <div>
                             <div class="pr-chart-card__title">{% trans "Project Pipeline" %}</div>
-                            <div class="pr-chart-card__sub">{% trans "Live status — every active project" %}</div>
+                            <div class="pr-chart-card__sub">{% trans "Status of active projects" %}<span data-period-label></span></div>
                         </div>
                     </div>
                     <div class="pr-chart-card__body"><div id="pr-pipeline"></div></div>
-                </div>
-
-                <!-- Project Activity Trend -->
-                <div class="pr-chart-card pr-chart-card--wide">
-                    <div class="pr-chart-card__header">
-                        <div>
-                            <div class="pr-chart-card__title">{% trans "Project Activity Trend" %}</div>
-                            <div class="pr-chart-card__sub">{% trans "Started, completed & overdue — last 6 months" %}</div>
-                        </div>
-                    </div>
-                    <div class="pr-chart-card__body"><div id="pr-trend-chart"></div></div>
                 </div>
 
                 <!-- Task Status -->
@@ -205,7 +207,7 @@
                     <div class="pr-chart-card__header">
                         <div>
                             <div class="pr-chart-card__title">{% trans "Task Status" %}</div>
-                            <div class="pr-chart-card__sub">{% trans "All active tasks breakdown" %}</div>
+                            <div class="pr-chart-card__sub">{% trans "Active tasks breakdown" %}<span data-period-label></span></div>
                         </div>
                     </div>
                     <div class="pr-chart-card__body">
@@ -219,10 +221,21 @@
                     <div class="pr-chart-card__header">
                         <div>
                             <div class="pr-chart-card__title">{% trans "Top Active Projects" %}</div>
-                            <div class="pr-chart-card__sub">{% trans "In progress — by task count" %}</div>
+                            <div class="pr-chart-card__sub">{% trans "In progress — by task count" %}<span data-period-label></span></div>
                         </div>
                     </div>
                     <div class="pr-chart-card__body"><div id="pr-top-chart"></div></div>
+                </div>
+
+                <!-- Project Timesheet -->
+                <div class="pr-chart-card pr-chart-card--wide">
+                    <div class="pr-chart-card__header">
+                        <div>
+                            <div class="pr-chart-card__title">{% trans "Project Timesheet" %}</div>
+                            <div class="pr-chart-card__sub">{% trans "Hours logged per project" %}<span data-period-label></span></div>
+                        </div>
+                    </div>
+                    <div class="pr-chart-card__body"><div id="pr-timesheet-chart"></div></div>
                 </div>
 
             </div>
@@ -233,7 +246,7 @@
             <div class="pr-info-panel">
                 <div class="pr-info-panel__header">
                     <div class="pr-info-panel__title">{% trans "Top Contributors" %}</div>
-                    <span style="font-size:11px;opacity:0.5;" id="pr-contributors-month">{% trans "This month" %}</span>
+                    <span style="font-size:11px;opacity:0.5;" data-period-label="bare"></span>
                 </div>
                 <div class="pr-info-panel__body" id="pr-contributors">
                     <div class="pr-info-panel__empty">{% trans "Loading..." %}</div>
@@ -266,7 +279,7 @@
         kpi:          "{% url 'project-dashboard-kpi' %}",
         pipeline:     "{% url 'project-dashboard-pipeline' %}",
         tasks:        "{% url 'project-dashboard-tasks' %}",
-        trend:        "{% url 'project-dashboard-trend' %}",
+        timesheet:    "{% url 'project-dashboard-timesheet' %}",
         top:          "{% url 'project-dashboard-top' %}",
         contributors: "{% url 'project-dashboard-contributors' %}",
         deadlines:    "{% url 'project-dashboard-task-deadlines' %}",
@@ -283,13 +296,19 @@
         const today = new Date();
         const pad = n => String(n).padStart(2, "0");
         const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-        if (preset === "month") {
+        if (preset === "today") {
+            prFromDate = prToDate = fmt(today);
+        } else if (preset === "week") {
+            const dow = (today.getDay() + 6) % 7; // 0 = Monday
+            const weekStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() - dow);
+            prFromDate = fmt(weekStart);
+            prToDate = fmt(new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6));
+        } else if (preset === "month") {
             prFromDate = fmt(new Date(today.getFullYear(), today.getMonth(), 1));
             prToDate = fmt(new Date(today.getFullYear(), today.getMonth()+1, 0));
-        } else if (preset === "quarter") {
-            const qStart = new Date(today.getFullYear(), Math.floor(today.getMonth()/3)*3, 1);
-            prFromDate = fmt(qStart);
-            prToDate = fmt(new Date(today.getFullYear(), Math.floor(today.getMonth()/3)*3+3, 0));
+        } else if (preset === "year") {
+            prFromDate = fmt(new Date(today.getFullYear(), 0, 1));
+            prToDate = fmt(new Date(today.getFullYear(), 11, 31));
         }
         document.getElementById("pr-from-date").value = prFromDate;
         document.getElementById("pr-to-date").value = prToDate;
@@ -396,7 +415,7 @@
                 },
                 colors: colors,
                 legend: { show: false },
-                dataLabels: { enabled: true, formatter: (val) => Math.round(val) + '%' },
+                dataLabels: { enabled: false },
                 plotOptions: { pie: { donut: { size: "62%", labels: { show: true, total: { show: true, label: '{% trans "Total"|escapejs %}', color: textColor, fontSize: '12px', fontWeight: 600 } } } } },
                 stroke: { width: 2, colors: [cardBg] },
                 tooltip: { theme: isDark ? 'dark' : 'light' },
@@ -407,28 +426,31 @@
         });
     }
 
-    // ─── PROJECT ACTIVITY TREND ───
-    function prLoadTrend() {
-        prFetch(PR_URLS.trend).then(d => {
-            const el = document.getElementById('pr-trend-chart');
-            const hasData = d.started.some(v => v > 0) || d.completed.some(v => v > 0) || d.overdue.some(v => v > 0);
-            if (!hasData) { el.innerHTML = emptyHtml('{% trans "No project activity yet"|escapejs %}'); return; }
-            renderChart('trend', el, {
-                series: [
-                    { name: "{% trans 'Started'|escapejs %}", data: d.started },
-                    { name: "{% trans 'Completed'|escapejs %}", data: d.completed },
-                    { name: "{% trans 'Overdue'|escapejs %}", data: d.overdue },
-                ],
-                chart: { type: 'area', height: 280, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit' },
-                colors: ['#3b82f6', '#22c55e', '#ef4444'],
-                fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.3, opacityTo: 0.05, stops: [0, 95, 100] } },
-                stroke: { curve: 'smooth', width: 2.5 },
+    // ─── PROJECT TIMESHEET ───
+    function prLoadTimesheet() {
+        prFetch(PR_URLS.timesheet).then(d => {
+            const el = document.getElementById('pr-timesheet-chart');
+            if (!d.entries) { el.innerHTML = emptyHtml('{% trans "No timesheet entries in this period"|escapejs %}'); return; }
+            renderChart('timesheet', el, {
+                series: d.series.map(s => ({ name: s.name, data: s.data })),
+                chart: { type: 'bar', stacked: true, height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
+                    events: { dataPointSelection: (e, ctx, cfg) => {
+                        if (!e || !e.isTrusted) return;
+                        const s = d.series[cfg.seriesIndex];
+                        if (s && s.project_id) window.location.href = PR_URLS.projectDetail.replace('__ID__', s.project_id);
+                    }},
+                },
+                colors: ['#3b82f6', '#22c55e', '#f59e0b', '#a855f7', '#06b6d4', '#ec4899', '#94a3b8'],
+                plotOptions: { bar: { columnWidth: '55%', borderRadius: 3 } },
                 dataLabels: { enabled: false },
-                xaxis: { categories: d.months, labels: { style: { colors: textColor, fontSize: '11px' } }, axisBorder: { show: false }, axisTicks: { show: false } },
-                yaxis: { labels: { style: { colors: textColor }, formatter: v => Math.round(v) } },
+                stroke: { width: 1, colors: [cardBg] },
+                // Every date gets a label (up to ~2 months of daily bars); they're
+                // tilted once there are too many to sit side by side.
+                xaxis: { categories: d.labels, tickAmount: d.labels.length, labels: { rotate: -45, rotateAlways: d.labels.length > 14, hideOverlappingLabels: false, trim: false, style: { colors: textColor, fontSize: d.labels.length > 14 ? '10px' : '11px' } }, axisBorder: { show: false }, axisTicks: { show: false } },
+                yaxis: { min: 0, title: { text: '{% trans "Hours"|escapejs %}', style: { color: textColor, fontSize: '11px' } }, labels: { style: { colors: textColor }, formatter: v => Math.round(v * 10) / 10 } },
                 grid: { borderColor: gridColor, strokeDashArray: 4 },
                 legend: { position: 'top', horizontalAlign: 'right', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
-                tooltip: { theme: isDark ? 'dark' : 'light' },
+                tooltip: { theme: isDark ? 'dark' : 'light', shared: true, intersect: false, y: { formatter: v => v + ' h' } },
             });
         });
     }
@@ -463,7 +485,6 @@
     function prLoadContributors() {
         prFetch(PR_URLS.contributors).then(d => {
             const el = document.getElementById('pr-contributors');
-            document.getElementById('pr-contributors-month').textContent = d.month;
             if (!d.contributors.length) { el.innerHTML = '<div class="pr-info-panel__empty">{% trans "No completed tasks this month"|escapejs %}</div>'; return; }
             el.innerHTML = d.contributors.map(c => {
                 const initials = c.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
@@ -504,11 +525,57 @@
         }).catch(() => { document.getElementById('pr-deadlines').innerHTML = '<div class="pr-info-panel__empty">{% trans "No data"|escapejs %}</div>'; });
     }
 
+    // ── Period label shown on the period-aware charts/panels ──
+    const PR_PRESET_LABELS = {
+        today: '{% trans "Today"|escapejs %}',
+        week: '{% trans "This Week"|escapejs %}',
+        month: '{% trans "This Month"|escapejs %}',
+        year: '{% trans "This Year"|escapejs %}',
+    };
+    function prPad(n) { return String(n).padStart(2, "0"); }
+    function prFmt(d) { return `${d.getFullYear()}-${prPad(d.getMonth()+1)}-${prPad(d.getDate())}`; }
+    function prPresetRange(p) {
+        const t = new Date();
+        if (p === "today") return [t, t];
+        if (p === "week") {
+            const dow = (t.getDay() + 6) % 7;
+            const from = new Date(t.getFullYear(), t.getMonth(), t.getDate() - dow);
+            return [from, new Date(from.getFullYear(), from.getMonth(), from.getDate() + 6)];
+        }
+        if (p === "month") return [new Date(t.getFullYear(), t.getMonth(), 1), new Date(t.getFullYear(), t.getMonth()+1, 0)];
+        if (p === "year") return [new Date(t.getFullYear(), 0, 1), new Date(t.getFullYear(), 11, 31)];
+        return null;
+    }
+    function prShortDate(d) { return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }); }
+    function prPeriodLabel() {
+        let preset = "";
+        for (const p of Object.keys(PR_PRESET_LABELS)) {
+            const r = prPresetRange(p);
+            if (r && prFromDate === prFmt(r[0]) && prToDate === prFmt(r[1])) { preset = p; break; }
+        }
+        const from = new Date(prFromDate + "T00:00:00");
+        const to = new Date(prToDate + "T00:00:00");
+        let detail;
+        if (preset === "month") detail = from.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+        else if (preset === "year") detail = String(from.getFullYear());
+        else if (preset === "today") detail = prShortDate(from);
+        else detail = prShortDate(from) + " – " + prShortDate(to);
+        return (PR_PRESET_LABELS[preset] || '{% trans "Custom"|escapejs %}') + " · " + detail;
+    }
+    function prApplyPeriodLabels() {
+        if (!prFromDate || !prToDate) return;
+        const label = prPeriodLabel();
+        document.querySelectorAll("[data-period-label]").forEach(el => {
+            el.textContent = el.dataset.periodLabel === "bare" ? label : " — " + label;
+        });
+    }
+
     function prLoadAll() {
+        prApplyPeriodLabels();
         prLoadKpi();
         prLoadPipeline();
         prLoadTasks();
-        prLoadTrend();
+        prLoadTimesheet();
         prLoadTop();
         prLoadContributors();
         prLoadDeadlines();

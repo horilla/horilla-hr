@@ -2,7 +2,6 @@
 {% load static i18n %}
 
 {% block content %}
-<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 <style>
     :root {
         --ld-indigo: var(--primary-600, #E54F38);
@@ -91,7 +90,11 @@
     .ld-info-panel { border-radius: 12px; background: #ffffff; border: 1px solid rgba(128,128,128,0.12); overflow: hidden; display: flex; flex-direction: column; flex-shrink: 0; }
     .dark .ld-info-panel { background: #242424; border-color: rgba(255,255,255,0.08); }
     .ld-info-panel__header { padding: 14px 16px 10px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; border-bottom: 1px solid rgba(128,128,128,0.08); }
-    .ld-info-panel__title { font-size: 13px; font-weight: 700; }
+    .ld-info-panel__title { font-size: 13px; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+    .ld-info-panel__header { gap: 8px; }
+    .ld-info-panel__header > span[data-period-label] { text-align: right; min-width: 0; }
+    .ld-count-badge[hidden] { display: none; }
+    .ld-count-badge { min-width: 24px; height: 24px; padding: 0 6px; border-radius: 999px; background: var(--ld-indigo); color: #fff; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
     .ld-info-panel__body { padding: 8px 16px 12px; overflow-y: auto; flex: 1; max-height: 350px; }
     .ld-info-panel__empty { text-align: center; padding: 30px 0; opacity: 0.4; font-size: 12px; }
 
@@ -126,13 +129,6 @@
     .ld-holiday-item__name { font-size: 12px; font-weight: 500; flex: 1; }
     .ld-holiday-item__away { font-size: 10px; opacity: 0.5; flex-shrink: 0; }
 
-    /* Utilization bar */
-    .ld-util-bar { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid rgba(128,128,128,0.04); }
-    .ld-util-bar:last-child { border-bottom: none; }
-    .ld-util-bar__label { font-size: 11px; font-weight: 500; min-width: 100px; }
-    .ld-util-bar__track { flex: 1; height: 8px; border-radius: 4px; background: rgba(128,128,128,0.1); overflow: hidden; }
-    .ld-util-bar__fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
-    .ld-util-bar__pct { font-size: 11px; font-weight: 700; min-width: 40px; text-align: right; }
 
     /* Customize Panel */
     .ld-btn-customize { padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(128,128,128,0.2); font-size: 13px; cursor: pointer; color: inherit; transition: all 0.15s; background: none; display: flex; align-items: center; gap: 5px; }
@@ -169,7 +165,7 @@
     @media (max-width: 640px) { .ld-customize-panel { width: 100%; right: -100%; } }
 
     /* Period Picker */
-    .ld-period-picker { display: none !important; /* TEMP: hide period picker */ align-items: center; gap: 6px; font-size: 12px; }
+    .ld-period-picker { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
     .ld-period-picker input[type="date"] { padding: 5px 8px; border-radius: 6px; border: 1px solid rgba(128,128,128,0.2); font-size: 12px; background: transparent; color: inherit; outline: none; transition: border-color 0.15s; }
     .ld-period-picker input[type="date"]:focus { border-color: var(--ld-indigo); }
     .ld-period-picker__sep { opacity: 0.4; font-size: 11px; }
@@ -186,8 +182,8 @@
     @keyframes ld-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
     .ld-refresh__toggle { cursor: pointer; opacity: 0.6; font-size: 13px; border: none; background: none; color: inherit; padding: 2px; }
     .ld-refresh__toggle:hover { opacity: 1; }
-    #chart-leave-types .apexcharts-pie-slice-donut,
-    #chart-dept-leave .apexcharts-bar-area { cursor: pointer; }
+    #chart-leave-types .apexcharts-pie-area,
+    #chart-paid-unpaid .apexcharts-pie-area { cursor: pointer; }
 
     /* Responsive */
     @media (max-width: 1280px) {
@@ -213,13 +209,14 @@
             <div class="ld-refresh"><span class="ld-refresh__dot" id="ld-refresh-dot"></span><span id="ld-refresh-text">{% trans "Just now" %}</span><button class="ld-refresh__toggle" id="ld-refresh-toggle" title="{% trans 'Toggle auto-refresh' %}">⟳</button></div>
         </div>
         <div style="display:flex;gap:8px;">
-            <div class="ld-period-picker" hidden>
+            <div class="ld-period-picker">
+                <button class="ld-period-preset" data-preset="today">{% trans "Today" %}</button>
+                <button class="ld-period-preset" data-preset="this_week">{% trans "This Week" %}</button>
                 <button class="ld-period-preset" data-preset="this_month">{% trans "This Month" %}</button>
-                <button class="ld-period-preset" data-preset="last_month">{% trans "Last Month" %}</button>
-                <button class="ld-period-preset" data-preset="this_quarter">{% trans "Quarter" %}</button>
-                <input type="date" id="ld-from-date" title="{% trans 'From' %}">
+                <button class="ld-period-preset" data-preset="this_year">{% trans "This Year" %}</button>
+                <input type="date" id="ld-from-date" title="{% trans 'Custom range start' %}">
                 <span class="ld-period-picker__sep">&rarr;</span>
-                <input type="date" id="ld-to-date" title="{% trans 'To' %}">
+                <input type="date" id="ld-to-date" title="{% trans 'Custom range end' %}">
             </div>
             <a href="{% url 'leave-employee-dashboard' %}" class="ld-btn-customize" title="{% trans 'My Dashboard' %}">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -244,40 +241,28 @@
         <div class="ld-main">
             <div class="ld-chart-grid">
 
-                <!-- Monthly Trend -->
-                <div class="ld-chart-card ld-chart-card--wide" data-chart-id="monthly_trend" data-chart-label="{% trans 'Leave Request Trend' %}">
-                    <div class="ld-chart-card__header"><div><div class="ld-chart-card__title">{% trans "Leave Request Trend" %}</div><div class="ld-chart-card__subtitle">{% trans "Stacked status mix — last 6 months" %}</div></div></div>
+                <!-- Department Trend -->
+                <div class="ld-chart-card ld-chart-card--wide" data-chart-id="monthly_trend" data-chart-label="{% trans 'Leave Request Trends' %}">
+                    <div class="ld-chart-card__header"><div><div class="ld-chart-card__title">{% trans "Leave Request Trends" %}</div><div class="ld-chart-card__subtitle">{% trans "Click a status in the legend to show or hide it" %} — <span data-period-label></span></div></div></div>
                     <div class="ld-chart-card__body"><div id="chart-monthly-trend"></div></div>
                 </div>
 
                 <!-- Leave Type Distribution -->
-                <div class="ld-chart-card" data-chart-id="type_distribution" data-chart-label="{% trans 'Leave Type Distribution' %}">
-                    <div class="ld-chart-card__header"><div><div class="ld-chart-card__title">{% trans "Leave Type Distribution" %}</div><div class="ld-chart-card__subtitle" id="lt-month">{% trans "This month" %}</div></div></div>
+                <div class="ld-chart-card" data-chart-id="type_distribution" data-chart-label="{% trans 'Leave Type vs Requested Days' %}">
+                    <div class="ld-chart-card__header"><div><div class="ld-chart-card__title">{% trans "Leave Type vs Requested Days" %}</div><div class="ld-chart-card__subtitle" id="lt-month" data-period-label>{% trans "This month" %}</div></div></div>
                     <div class="ld-chart-card__body"><div id="chart-leave-types"></div></div>
                 </div>
 
                 <!-- Paid vs Unpaid -->
                 <div class="ld-chart-card" data-chart-id="paid_unpaid" data-chart-label="{% trans 'Paid vs Unpaid' %}">
-                    <div class="ld-chart-card__header"><div><div class="ld-chart-card__title">{% trans "Paid vs Unpaid" %}</div><div class="ld-chart-card__subtitle" id="pu-month">{% trans "This month" %}</div></div></div>
+                    <div class="ld-chart-card__header"><div><div class="ld-chart-card__title">{% trans "Paid vs Unpaid" %}</div><div class="ld-chart-card__subtitle" id="pu-month" data-period-label>{% trans "This month" %}</div></div></div>
                     <div class="ld-chart-card__body"><div id="chart-paid-unpaid"></div></div>
-                </div>
-
-                <!-- Department Breakdown -->
-                <div class="ld-chart-card" data-chart-id="dept_leave" data-chart-label="{% trans 'Leave by Department' %}">
-                    <div class="ld-chart-card__header"><div><div class="ld-chart-card__title">{% trans "Leave by Department" %}</div><div class="ld-chart-card__subtitle" id="dept-month">{% trans "This month" %}</div></div></div>
-                    <div class="ld-chart-card__body"><div id="chart-dept-leave"></div></div>
                 </div>
 
                 <!-- Weekly Pattern -->
                 <div class="ld-chart-card" data-chart-id="weekly_pattern" data-chart-label="{% trans 'Leave Day Pattern' %}">
-                    <div class="ld-chart-card__header"><div><div class="ld-chart-card__title">{% trans "Leave Day Pattern" %}</div><div class="ld-chart-card__subtitle">{% trans "Most common leave days — last 3 months" %}</div></div></div>
+                    <div class="ld-chart-card__header"><div><div class="ld-chart-card__title">{% trans "Leave Day Pattern" %}</div><div class="ld-chart-card__subtitle">{% trans "Most common leave days" %} — <span data-period-label></span></div></div></div>
                     <div class="ld-chart-card__body"><div id="chart-weekly-pattern"></div></div>
-                </div>
-
-                <!-- Leave Utilization -->
-                <div class="ld-chart-card ld-chart-card--wide" data-chart-id="leave_utilization" data-chart-label="{% trans 'Leave Utilization' %}">
-                    <div class="ld-chart-card__header"><div><div class="ld-chart-card__title">{% trans "Leave Utilization" %}</div><div class="ld-chart-card__subtitle">{% trans "Used vs remaining by leave type — all employees" %}</div></div></div>
-                    <div class="ld-chart-card__body"><div id="chart-utilization"></div></div>
                 </div>
 
             </div>
@@ -287,7 +272,10 @@
         <div class="ld-sidebar">
             <div class="ld-info-panel">
                 <div class="ld-info-panel__header">
-                    <div class="ld-info-panel__title">{% trans "On Leave Today" %}</div>
+                    <div class="ld-info-panel__title" style="display:flex;align-items:center;gap:8px;">
+                        {% trans "On Leave Today" %}
+                        <span id="ld-on-leave-count" class="ld-count-badge" hidden title="{% trans 'On leave today' %}">0</span>
+                    </div>
                     <a href="{% url 'request-view' %}" style="font-size:11px;color:var(--ld-indigo);text-decoration:none;">{% trans "View all" %}</a>
                 </div>
                 <div class="ld-info-panel__body" id="ld-on-leave">
@@ -296,7 +284,10 @@
             </div>
             <div class="ld-info-panel">
                 <div class="ld-info-panel__header">
-                    <div class="ld-info-panel__title">{% trans "Upcoming Leaves" %}</div>
+                    <div class="ld-info-panel__title" style="display:flex;align-items:center;gap:8px;">
+                        {% trans "Upcoming Leaves" %}
+                        <span id="ld-upcoming-count" class="ld-count-badge" hidden title="{% trans 'Upcoming leaves' %}">0</span>
+                    </div>
                     <span style="font-size:11px;opacity:0.5;">{% trans "Next 7 days" %}</span>
                 </div>
                 <div class="ld-info-panel__body" id="ld-upcoming">
@@ -305,8 +296,11 @@
             </div>
             <div class="ld-info-panel">
                 <div class="ld-info-panel__header">
-                    <div class="ld-info-panel__title">{% trans "Top Leave Takers" %}</div>
-                    <span style="font-size:11px;opacity:0.5;" id="takers-month">{% trans "This month" %}</span>
+                    <div class="ld-info-panel__title" style="display:flex;align-items:center;gap:8px;">
+                        {% trans "Top Leave Takers" %}
+                        <span id="ld-top-takers-count" class="ld-count-badge" hidden title="{% trans 'Top leave takers' %}">0</span>
+                    </div>
+                    <span style="font-size:11px;opacity:0.5;" id="takers-month" data-period-label>{% trans "This month" %}</span>
                 </div>
                 <div class="ld-info-panel__body" id="ld-top-takers">
                     <div class="ld-info-panel__empty">{% trans "Loading..." %}</div>
@@ -314,8 +308,11 @@
             </div>
             <div class="ld-info-panel">
                 <div class="ld-info-panel__header">
-                    <div class="ld-info-panel__title">{% trans "Upcoming Holidays" %}</div>
-                    <span style="font-size:11px;opacity:0.5;">{% trans "Next 30 days" %}</span>
+                    <div class="ld-info-panel__title" style="display:flex;align-items:center;gap:8px;">
+                        {% trans "Upcoming Holidays" %}
+                        <span id="ld-holidays-count" class="ld-count-badge" hidden title="{% trans 'Upcoming holidays' %}">0</span>
+                    </div>
+                    <span style="font-size:11px;opacity:0.5;" data-period-label>{% trans "Next 30 days" %}</span>
                 </div>
                 <div class="ld-info-panel__body" id="ld-holidays">
                     <div class="ld-info-panel__empty">{% trans "Loading..." %}</div>
@@ -359,31 +356,84 @@
     const PERIOD_KEY = 'ld_period_v2';
     const fromInput = document.getElementById('ld-from-date');
     const toInput = document.getElementById('ld-to-date');
-    function getToday() { return new Date().toISOString().split('T')[0]; }
-    function getFirstOfMonth(d) { const dt = new Date(d || getToday()); dt.setDate(1); return dt.toISOString().split('T')[0]; }
-    // For leave, use end-of-month as default upper bound so future approved leaves are visible
-    function getLastOfMonth(d) { const dt = new Date(d || getToday()); return new Date(dt.getFullYear(), dt.getMonth()+1, 0).toISOString().split('T')[0]; }
+    function ymdLocal(d) {
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+    function getWeekBounds(today) {
+        const dow = (today.getDay() + 6) % 7; // 0 = Monday
+        const from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - dow);
+        return [from, new Date(from.getFullYear(), from.getMonth(), from.getDate() + 6)];
+    }
+    function presetRanges() {
+        const t = new Date();
+        const [wf, wt] = getWeekBounds(t);
+        return {
+            today: [t, t],
+            this_week: [wf, wt],
+            this_month: [new Date(t.getFullYear(), t.getMonth(), 1), new Date(t.getFullYear(), t.getMonth() + 1, 0)],
+            this_year: [new Date(t.getFullYear(), 0, 1), new Date(t.getFullYear(), 11, 31)],
+        };
+    }
     function initPeriod() {
         const saved = sessionStorage.getItem(PERIOD_KEY);
         if (saved) { try { const p = JSON.parse(saved); fromInput.value = p.from; toInput.value = p.to; return; } catch {} }
-        fromInput.value = getFirstOfMonth(); toInput.value = getLastOfMonth();
+        // For leave, default to the full month so future approved leaves are visible
+        const [f, t] = presetRanges().this_month;
+        fromInput.value = ymdLocal(f); toInput.value = ymdLocal(t);
     }
     function savePeriod() { sessionStorage.setItem(PERIOD_KEY, JSON.stringify({ from: fromInput.value, to: toInput.value })); }
     function periodParams() { const f = fromInput.value, t = toInput.value; return (f && t) ? ("from_date=" + encodeURIComponent(f) + "&to_date=" + encodeURIComponent(t)) : ""; }
     function urlWithPeriod(u) { return u + (u.includes('?') ? '&' : '?') + periodParams(); }
     function fetchP(url) { return fetch(urlWithPeriod(url)); }
+    function detectPreset() {
+        for (const [key, [f, t]] of Object.entries(presetRanges())) {
+            if (fromInput.value === ymdLocal(f) && toInput.value === ymdLocal(t)) return key;
+        }
+        return '';
+    }
+    function highlightPreset(active) {
+        document.querySelectorAll('.ld-period-preset').forEach(b => b.classList.toggle('ld-period-preset--active', b.dataset.preset === active));
+    }
+    const PRESET_LABELS = {
+        today: '{% trans "Today"|escapejs %}',
+        this_week: '{% trans "This Week"|escapejs %}',
+        this_month: '{% trans "This Month"|escapejs %}',
+        this_year: '{% trans "This Year"|escapejs %}',
+    };
+    function shortDate(d) { return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+    function periodLabel() {
+        const preset = detectPreset();
+        const from = new Date(fromInput.value + 'T00:00:00');
+        const to = new Date(toInput.value + 'T00:00:00');
+        let detail;
+        if (preset === 'this_month') detail = from.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        else if (preset === 'this_year') detail = String(from.getFullYear());
+        else if (preset === 'today') detail = shortDate(from);
+        else detail = shortDate(from) + ' – ' + shortDate(to);
+        return (PRESET_LABELS[preset] || '{% trans "Custom"|escapejs %}') + ' · ' + detail;
+    }
+    function applyPeriodLabels() {
+        document.querySelectorAll('[data-period-label]').forEach(el => { el.textContent = periodLabel(); });
+    }
+    function onPeriodChange(active) {
+        savePeriod();
+        highlightPreset(active);
+        applyPeriodLabels();
+        refreshAllData();
+    }
     function setPreset(p) {
-        const t = new Date(); let f, to;
-        if (p === 'this_month') { f = new Date(t.getFullYear(), t.getMonth(), 1); to = new Date(t.getFullYear(), t.getMonth()+1, 0); }
-        else if (p === 'last_month') { f = new Date(t.getFullYear(), t.getMonth()-1, 1); to = new Date(t.getFullYear(), t.getMonth(), 0); }
-        else if (p === 'this_quarter') { f = new Date(t.getFullYear(), Math.floor(t.getMonth()/3)*3, 1); to = new Date(t.getFullYear(), Math.floor(t.getMonth()/3)*3+3, 0); }
-        fromInput.value = f.toISOString().split('T')[0]; toInput.value = to.toISOString().split('T')[0];
-        savePeriod(); document.querySelectorAll('.ld-period-preset').forEach(b => b.classList.toggle('ld-period-preset--active', b.dataset.preset === p));
-        location.reload();
+        const [f, t] = presetRanges()[p];
+        fromInput.value = ymdLocal(f); toInput.value = ymdLocal(t);
+        onPeriodChange(p);
     }
     document.querySelectorAll('.ld-period-preset').forEach(b => b.addEventListener('click', () => setPreset(b.dataset.preset)));
-    [fromInput, toInput].forEach(i => i.addEventListener('change', () => { savePeriod(); location.reload(); }));
+    [fromInput, toInput].forEach(i => i.addEventListener('change', () => {
+        if (!fromInput.value || !toInput.value) return;
+        onPeriodChange(detectPreset());
+    }));
     initPeriod();
+    highlightPreset(detectPreset());
+    applyPeriodLabels();
 
     // ── Chart Customize ──
     const CUST_KEY = 'ld_chart_prefs';
@@ -444,8 +494,59 @@
     // charts on top of each other. Every chart goes through here so
     // a refresh destroys the previous instance first.
     const chartInstances = {};
-    function renderChart(key, el, options) {
+    // ApexCharts is loaded here rather than with a <script src> in the markup.
+    // The sidebar swaps pages in with htmx, which re-inserts a <script src> and
+    // re-runs the whole library even when it is already loaded, breaking charts
+    // that are mid-render (they come up blank until a reload). Loading it only
+    // when missing avoids that, and a second CDN covers a failed/slow first one.
+    const APEX_CDNS = [
+        'https://cdn.jsdelivr.net/npm/apexcharts@7.8.0/dist/apexcharts.min.js',
+        'https://cdnjs.cloudflare.com/ajax/libs/apexcharts/3.54.1/apexcharts.min.js',
+    ];
+    let apexPromise = null;
+    function ensureApex() {
+        if (typeof ApexCharts !== 'undefined') return Promise.resolve();
+        if (apexPromise) return apexPromise;
+        apexPromise = new Promise((resolve, reject) => {
+            let next = 0;
+            const addScript = () => {
+                if (next >= APEX_CDNS.length) return;
+                const sc = document.createElement('script');
+                sc.src = APEX_CDNS[next++];
+                sc.onerror = addScript;
+                document.head.appendChild(sc);
+            };
+            addScript();
+            const started = Date.now();
+            const timer = setInterval(() => {
+                if (typeof ApexCharts !== 'undefined') { clearInterval(timer); resolve(); return; }
+                if (Date.now() - started > 20000) { clearInterval(timer); apexPromise = null; reject(new Error('ApexCharts failed to load')); }
+            }, 50);
+        });
+        return apexPromise;
+    }
+    ensureApex().catch(() => {});
+    const chartFailHtml = () => emptyHtml('{% trans "Unable to load chart. Please refresh the page."|escapejs %}');
+    // When the page is opened from the sidebar it is swapped into the layout via
+    // htmx, so the data can arrive before the card has any width. Rendering then
+    // gives ApexCharts a NaN width and the chart never draws (a reload fixes it),
+    // so hold each chart until its container is actually laid out.
+    function renderChart(key, el, options, laidOut) {
         if (!el) return null;
+        if (typeof ApexCharts === 'undefined') {
+            ensureApex().then(() => renderChart(key, el, options, laidOut)).catch(() => { el.innerHTML = chartFailHtml(); });
+            return null;
+        }
+        if (!laidOut && !el.clientWidth) {
+            const started = Date.now();
+            const waitForLayout = () => {
+                if (!el.isConnected) return;
+                if (el.clientWidth || Date.now() - started > 5000) renderChart(key, el, options, true);
+                else requestAnimationFrame(waitForLayout);
+            };
+            requestAnimationFrame(waitForLayout);
+            return null;
+        }
         if (chartInstances[key]) {
             chartInstances[key].destroy();
             chartInstances[key] = null;
@@ -512,80 +613,83 @@
             _periodTo   = data.to_date;
             const baseUrl = "{% url 'request-view' %}";
             const pendingUrl = `${baseUrl}?status=requested&filter_applied=on`;
-            const approvedUrl = `${baseUrl}?status=approved&start_date_gte=${data.from_date}&to_date=${data.to_date}&filter_applied=on`;
-            const rejectedUrl = `${baseUrl}?status=rejected&start_date_gte=${data.from_date}&to_date=${data.to_date}&filter_applied=on`;
+            const allocationUrl = "{% url 'leave-allocation-request-view' %}?status=requested&filter_applied=on";
+            const compUrl = "{% url 'view-compensatory-leave' %}?status=requested&filter_applied=on";
             const onLeaveTodayUrl = `${baseUrl}?status=approved&from_date=${data.today}&to_date=${data.today}&filter_applied=on`;
             document.getElementById('ld-kpi-grid').innerHTML = `
                 <a href="${pendingUrl}" class="ld-kpi-card">
                     <div class="ld-kpi-card__icon ld-kpi-card__icon--amber"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/></svg></div>
-                    <div class="ld-kpi-card__label">{% trans "Pending Approval"|escapejs %}</div>
+                    <div class="ld-kpi-card__label">{% trans "Leave Requests"|escapejs %}</div>
                     <div class="ld-kpi-card__value">${data.pending_approval}</div>
-                    <div class="ld-kpi-card__sub">${data.pending_allocations > 0 ? '<span class="ld-badge ld-badge--amber">' + data.pending_allocations + ' {% trans "Allocation Requests"|escapejs %}</span>' : '<span class="ld-badge ld-badge--blue">{% trans "Requests Awaiting Review"|escapejs %}</span>'}</div>
+                    <div class="ld-kpi-card__sub"><span class="ld-badge ld-badge--amber">{% trans "Pending Review"|escapejs %}</span></div>
                 </a>
-                <a href="${approvedUrl}" class="ld-kpi-card">
-                    <div class="ld-kpi-card__icon ld-kpi-card__icon--green"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
-                    <div class="ld-kpi-card__label">{% trans "Approved"|escapejs %}</div>
-                    <div class="ld-kpi-card__value">${data.approved_this_month}</div>
-                    <div class="ld-kpi-card__sub"><span class="ld-badge ld-badge--green">${data.total_days_used} {% trans "Days Used"|escapejs %}</span></div>
+                <a href="${allocationUrl}" class="ld-kpi-card">
+                    <div class="ld-kpi-card__icon ld-kpi-card__icon--green"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg></div>
+                    <div class="ld-kpi-card__label">{% trans "Allocation Requests"|escapejs %}</div>
+                    <div class="ld-kpi-card__value">${data.pending_allocations}</div>
+                    <div class="ld-kpi-card__sub"><span class="ld-badge ld-badge--amber">{% trans "Pending Review"|escapejs %}</span></div>
                 </a>
-                <a href="${rejectedUrl}" class="ld-kpi-card">
-                    <div class="ld-kpi-card__icon ld-kpi-card__icon--red"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
-                    <div class="ld-kpi-card__label">{% trans "Rejected"|escapejs %}</div>
-                    <div class="ld-kpi-card__value">${data.rejected_this_month}</div>
-                    <div class="ld-kpi-card__sub"><span class="ld-badge ld-badge--blue">${data.month}</span></div>
+                <a href="${compUrl}" class="ld-kpi-card">
+                    <div class="ld-kpi-card__icon ld-kpi-card__icon--blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+                    <div class="ld-kpi-card__label">{% trans "Compensatory Requests"|escapejs %}</div>
+                    <div class="ld-kpi-card__value">${data.pending_comp}</div>
+                    <div class="ld-kpi-card__sub"><span class="ld-badge ld-badge--amber">{% trans "Pending Review"|escapejs %}</span></div>
                 </a>
                 <a href="${onLeaveTodayUrl}" class="ld-kpi-card">
                     <div class="ld-kpi-card__icon ld-kpi-card__icon--blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
                     <div class="ld-kpi-card__label">{% trans "On Leave Today"|escapejs %}</div>
                     <div class="ld-kpi-card__value">${data.on_leave_today}</div>
-                    <div class="ld-kpi-card__sub">${data.pending_comp > 0 ? '<span class="ld-badge ld-badge--amber">' + data.pending_comp + ' {% trans "Comp. Requests"|escapejs %}</span>' : '<span class="ld-badge ld-badge--blue">{% trans "Employees Away"|escapejs %}</span>'}</div>
+                    <div class="ld-kpi-card__sub"><span class="ld-badge ld-badge--blue">${Number(data.on_leave_today) === 1 ? "{% trans 'Employee Away'|escapejs %}" : "{% trans 'Employees Away'|escapejs %}"}</span></div>
                 </a>`;
         });
     }
     loadKpiCards();
 
-    // ─── MONTHLY TREND ───
-    function loadMonthlyTrend() {
-        fetchP("{% url 'leave-dashboard-monthly-trend' %}")
+    // ─── DEPARTMENT TREND ───
+    function loadDepartmentTrend() {
+        fetchP("{% url 'leave-dashboard-department-trend' %}")
         .then(r => r.json())
         .then(data => {
-            if (!data.months.length) { document.querySelector("#chart-monthly-trend").innerHTML = emptyHtml('{% trans "No data"|escapejs %}'); return; }
+            if (!data.departments.length) { document.querySelector("#chart-monthly-trend").innerHTML = emptyHtml('{% trans "No data"|escapejs %}'); return; }
             const statusForSeries = ['approved', 'rejected', 'requested'];
+            let defaultsApplied = false;
             renderChart('monthly-trend', document.querySelector("#chart-monthly-trend"), {
                 series: [
-                    { name: '{% trans "Approved"|escapejs %}', data: data.months.map(m => m.approved) },
-                    { name: '{% trans "Rejected"|escapejs %}', data: data.months.map(m => m.rejected) },
-                    { name: '{% trans "Pending"|escapejs %}', data: data.months.map(m => m.pending) },
+                    { name: '{% trans "Approved"|escapejs %}', data: data.departments.map(d => d.approved) },
+                    { name: '{% trans "Rejected"|escapejs %}', data: data.departments.map(d => d.rejected) },
+                    { name: '{% trans "Requested"|escapejs %}', data: data.departments.map(d => d.pending) },
                 ],
                 chart: { type: 'bar', height: 280, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', stacked: true,
-                    events: { dataPointSelection: (e, ctx, config) => {
-                        const m = data.months[config.dataPointIndex];
+                    events: {
+                    // Approved is shown by default; Rejected / Requested can be toggled on from the legend.
+                    mounted: ctx => { if (defaultsApplied) return; defaultsApplied = true; ctx.hideSeries('{% trans "Rejected"|escapejs %}'); ctx.hideSeries('{% trans "Requested"|escapejs %}'); },
+                    dataPointSelection: (e, ctx, config) => {
+                        const d = data.departments[config.dataPointIndex];
                         const status = statusForSeries[config.seriesIndex] || 'approved';
-                        if (m) {
-                            window.location.href = "{% url 'request-view' %}?status=" + status +
-                                "&start_date_gte=" + m.from_date + "&to_date=" + m.to_date + "&filter_applied=on";
+                        if (d) {
+                            window.location.href = "{% url 'request-view' %}?department_name=" + encodeURIComponent(d.department) +
+                                "&status=" + status + "&start_date_gte=" + data.from_date + "&to_date=" + data.to_date + "&filter_applied=on";
                         }
                     }}
                 },
                 colors: ['#22c55e', '#ef4444', '#f59e0b'],
                 plotOptions: { bar: { borderRadius: 4, columnWidth: '55%', borderRadiusApplication: 'end' } },
-                xaxis: { categories: data.months.map(m => m.month), labels: { style: { colors: textColor, fontSize: '11px' } }, axisBorder: { show: false }, axisTicks: { show: false } },
+                xaxis: { categories: data.departments.map(d => d.department), labels: { style: { colors: textColor, fontSize: '11px' } }, axisBorder: { show: false }, axisTicks: { show: false } },
                 yaxis: { labels: { style: { colors: textColor } } },
                 grid: { borderColor: gridColor, strokeDashArray: 4 },
                 dataLabels: { enabled: false },
                 legend: { position: 'top', horizontalAlign: 'right', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
                 tooltip: { theme: isDark ? 'dark' : 'light' },
             });
-        });
+        }).catch(() => { const el = document.querySelector("#chart-monthly-trend"); if (el) el.innerHTML = chartFailHtml(); });
     }
-    loadMonthlyTrend();
+    loadDepartmentTrend();
 
     // ─── LEAVE TYPE DISTRIBUTION ───
     function loadLeaveTypeDistribution() {
         fetchP("{% url 'leave-dashboard-type-dist' %}")
         .then(r => r.json())
         .then(data => {
-            document.getElementById('lt-month').textContent = data.month;
             if (!data.types.length) { document.querySelector("#chart-leave-types").innerHTML = emptyHtml('{% trans "No leave data"|escapejs %}'); return; }
             const colors = data.types.map((t, i) => COLORS[i % COLORS.length]);
             renderChart('leave-types', document.querySelector("#chart-leave-types"), {
@@ -605,7 +709,7 @@
                 legend: { position: 'bottom', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
                 tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: (v, { seriesIndex: i }) => `${v} days (${data.types[i].count} requests)` } },
             });
-        });
+        }).catch(() => { const el = document.querySelector("#chart-leave-types"); if (el) el.innerHTML = chartFailHtml(); });
     }
     loadLeaveTypeDistribution();
 
@@ -614,50 +718,26 @@
         fetchP("{% url 'leave-dashboard-paid-unpaid' %}")
         .then(r => r.json())
         .then(data => {
-            document.getElementById('pu-month').textContent = data.month;
             if (data.paid === 0 && data.unpaid === 0) { document.querySelector("#chart-paid-unpaid").innerHTML = emptyHtml('{% trans "No leave data"|escapejs %}'); return; }
             renderChart('paid-unpaid', document.querySelector("#chart-paid-unpaid"), {
                 series: [data.paid, data.unpaid],
-                chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit' },
+                chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit',
+                    events: { dataPointSelection: (e, ctx, config) => {
+                        const payment = ['paid', 'unpaid'][config.dataPointIndex];
+                        window.location.href = "{% url 'request-view' %}?payment=" + payment + "&status=approved&start_date_gte=" + _periodFrom + "&to_date=" + _periodTo + "&filter_applied=on";
+                    }}
+                },
                 labels: ['{% trans "Paid"|escapejs %}', '{% trans "Unpaid"|escapejs %}'],
                 colors: ['#22c55e', '#ef4444'],
                 plotOptions: { pie: { donut: { size: '70%', labels: { show: true, total: { show: true, label: '{% trans "Total"|escapejs %}', color: textColor, fontSize: '13px', fontWeight: 600, formatter: w => w.globals.seriesTotals.reduce((a,b)=>a+b,0).toFixed(1) + 'd' } } } } },
                 stroke: { width: 2, colors: [cardBg] },
                 dataLabels: { enabled: false },
                 legend: { position: 'bottom', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
-                tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: v => v + ' days' } },
+                tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: (v, { seriesIndex: i }) => `${v} days (${[data.paid_requests, data.unpaid_requests][i] || 0} requests)` } },
             });
-        });
+        }).catch(() => { const el = document.querySelector("#chart-paid-unpaid"); if (el) el.innerHTML = chartFailHtml(); });
     }
     loadPaidVsUnpaid();
-
-    // ─── DEPARTMENT BREAKDOWN ───
-    function loadDeptBreakdown() {
-        fetchP("{% url 'leave-dashboard-dept' %}")
-        .then(r => r.json())
-        .then(data => {
-            document.getElementById('dept-month').textContent = data.month;
-            if (!data.departments.length) { document.querySelector("#chart-dept-leave").innerHTML = emptyHtml('{% trans "No leave data"|escapejs %}'); return; }
-            renderChart('dept-leave', document.querySelector("#chart-dept-leave"), {
-                series: [{ name: '{% trans "Leave Days"|escapejs %}', data: data.departments.map(d => d.days) }],
-                chart: { type: 'bar', height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
-                    events: { dataPointSelection: (e, ctx, config) => {
-                        const dept = data.departments[config.dataPointIndex].department;
-                        window.location.href = "{% url 'request-view' %}?department_name=" + encodeURIComponent(dept) + "&status=approved&start_date_gte=" + _periodFrom + "&to_date=" + _periodTo + "&filter_applied=on";
-                    }}
-                },
-                colors: COLORS,
-                plotOptions: { bar: { borderRadius: 6, horizontal: true, barHeight: '55%', distributed: true } },
-                xaxis: { categories: data.departments.map(d => d.department), labels: { style: { colors: textColor } } },
-                yaxis: { labels: { style: { colors: textColor, fontSize: '11px' } } },
-                grid: { borderColor: gridColor },
-                dataLabels: { enabled: true, formatter: (v, { dataPointIndex: i }) => `${v}d (${data.departments[i].count})`, style: { fontSize: '11px' } },
-                legend: { show: false },
-                tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: (v, { dataPointIndex: i }) => `${v} days (${data.departments[i].count} requests)` } },
-            });
-        });
-    }
-    loadDeptBreakdown();
 
     // ─── WEEKLY PATTERN ───
     function loadWeeklyPattern() {
@@ -677,31 +757,15 @@
                 markers: { size: 4 },
                 tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: v => v + ' leave day(s)' } },
             });
-        });
+        }).catch(() => { const el = document.querySelector("#chart-weekly-pattern"); if (el) el.innerHTML = chartFailHtml(); });
     }
     loadWeeklyPattern();
 
-    // ─── LEAVE UTILIZATION ───
-    function loadLeaveUtilization() {
-        fetchP("{% url 'leave-dashboard-utilization' %}")
-        .then(r => r.json())
-        .then(data => {
-            const el = document.querySelector("#chart-utilization");
-            if (!data.utilization.length) { el.innerHTML = emptyHtml('{% trans "No allocation data"|escapejs %}'); return; }
-            let html = '<div style="padding:8px 8px 0;">';
-            data.utilization.forEach(u => {
-                const color = u.rate >= 80 ? '#ef4444' : u.rate >= 50 ? '#f59e0b' : '#22c55e';
-                html += `<div class="ld-util-bar">
-                    <div class="ld-util-bar__label">${u.type}</div>
-                    <div class="ld-util-bar__track"><div class="ld-util-bar__fill" style="width:${Math.min(u.rate, 100)}%;background:${color};"></div></div>
-                    <div class="ld-util-bar__pct" style="color:${color}">${u.rate}%</div>
-                </div>`;
-            });
-            html += '</div>';
-            el.innerHTML = html;
-        });
+    function setCountBadge(id, n) {
+        const b = document.getElementById(id);
+        b.textContent = n;
+        b.hidden = !n;
     }
-    loadLeaveUtilization();
 
     // ─── ON LEAVE TODAY ───
     function loadOnLeaveToday() {
@@ -709,6 +773,7 @@
         .then(r => r.json())
         .then(data => {
             const el = document.getElementById('ld-on-leave');
+            setCountBadge('ld-on-leave-count', data.employees.length);
             if (!data.employees.length) { el.innerHTML = '<div class="ld-info-panel__empty">{% trans "No one on leave today"|escapejs %}</div>'; return; }
             el.innerHTML = data.employees.map(e => {
                 const initials = e.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
@@ -732,6 +797,8 @@
         .then(r => r.json())
         .then(data => {
             const el = document.getElementById('ld-upcoming');
+            const n = data.upcoming.length;
+            setCountBadge('ld-upcoming-count', n);
             if (!data.upcoming.length) { el.innerHTML = '<div class="ld-info-panel__empty">{% trans "No upcoming leaves"|escapejs %}</div>'; return; }
             el.innerHTML = data.upcoming.map(u => {
                 const initials = u.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
@@ -743,7 +810,7 @@
                     <div class="ld-leave-item__avatar">${avatarInner}</div>
                     <div class="ld-leave-item__info">
                         <div class="ld-leave-item__name">${u.name}</div>
-                        <div class="ld-leave-item__type">${u.leave_type} · ${u.start}${u.start !== u.end ? ' – ' + u.end : ''}</div>
+                        <div class="ld-leave-item__type">${u.leave_type} · ${u.start}${u.start !== u.end ? ' – ' + u.end : ''} · ${u.days} ${u.days === 1 ? '{% trans "day"|escapejs %}' : '{% trans "days"|escapejs %}'}</div>
                     </div>
                     ${badge}
                 </a>`;
@@ -758,8 +825,8 @@
         .then(r => r.json())
         .then(data => {
             const el = document.getElementById('ld-top-takers');
-            document.getElementById('takers-month').textContent = data.month;
-            if (!data.takers.length) { el.innerHTML = '<div class="ld-info-panel__empty">{% trans "No leaves this month"|escapejs %}</div>'; return; }
+            setCountBadge('ld-top-takers-count', data.takers.length);
+            if (!data.takers.length) { el.innerHTML = '<div class="ld-info-panel__empty">{% trans "No leaves in this period"|escapejs %}</div>'; return; }
             el.innerHTML = data.takers.map(t => {
                 const initials = t.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
                 const avatarInner = t.avatar ? `<img src="${t.avatar}" alt="">` : initials;
@@ -772,7 +839,7 @@
                     <div class="ld-leave-item__days" style="font-weight:700;color:var(--ld-amber);">${t.days}d</div>
                 </a>`;
             }).join('');
-        }).catch(() => { document.getElementById('ld-top-takers').innerHTML = '<div class="ld-info-panel__empty">{% trans "No leaves this month"|escapejs %}</div>'; });
+        }).catch(() => { document.getElementById('ld-top-takers').innerHTML = '<div class="ld-info-panel__empty">{% trans "No leaves in this period"|escapejs %}</div>'; });
     }
     loadTopLeaveTakers();
 
@@ -782,6 +849,7 @@
         .then(r => r.json())
         .then(data => {
             const el = document.getElementById('ld-holidays');
+            setCountBadge('ld-holidays-count', data.holidays.length);
             if (!data.holidays.length) { el.innerHTML = '<div class="ld-info-panel__empty">{% trans "No upcoming holidays"|escapejs %}</div>'; return; }
             el.innerHTML = data.holidays.map(h => {
                 const badge = h.days_away === 0 ? '{% trans "Today"|escapejs %}' : h.days_away === 1 ? '{% trans "Tomorrow"|escapejs %}' : h.days_away + 'd';
@@ -799,12 +867,10 @@
     // auto-refresh timer instead of location.reload()).
     function refreshAllData() {
         loadKpiCards();
-        loadMonthlyTrend();
+        loadDepartmentTrend();
         loadLeaveTypeDistribution();
         loadPaidVsUnpaid();
-        loadDeptBreakdown();
         loadWeeklyPattern();
-        loadLeaveUtilization();
         loadOnLeaveToday();
         loadUpcomingLeaves();
         loadTopLeaveTakers();

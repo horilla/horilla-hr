@@ -2,7 +2,7 @@
 {% load static i18n %}
 
 {% block content %}
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@7.8.0/dist/apexcharts.min.js"></script>
     <style>
         :root {
             --pm-indigo: var(--primary-600, #E54F38);
@@ -241,6 +241,18 @@
         }
         .pm-chart-card__body {
             padding: 6px 10px 10px;
+        }
+        .pm-chart-card__body--scroll {
+            max-height: 420px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
+        .pm-chart-card__body--scroll::-webkit-scrollbar {
+            width: 3px;
+        }
+        .pm-chart-card__body--scroll::-webkit-scrollbar-thumb {
+            background: rgba(156, 156, 156, 0.2);
+            border-radius: 4px;
         }
 
         .pm-empty {
@@ -927,7 +939,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="pm-chart-card__body"><div id="pm-okr-overview"></div></div>
+                        <div class="pm-chart-card__body pm-chart-card__body--scroll"><div id="pm-okr-overview"></div></div>
                     </div>
                 </div>
             </div>
@@ -1221,12 +1233,23 @@
             // toggled. (An empty period renders the empty state, not the chart,
             // so this stays armed until a chart is actually drawn.)
             const closedHiddenOnce = {};
+            // Switching a donut slice off programmatically can make ApexCharts
+            // fire dataPointSelection (the click-through that navigates away),
+            // which sent the page to the Feedback list a moment after load. So
+            // only a real, trusted click outside that short window navigates.
+            const selectionBlockedUntil = {};
+            function isRealSelection(key, e) {
+                return !!(e && e.isTrusted) && Date.now() > (selectionBlockedUntil[key] || 0);
+            }
             function hideClosedOnFirstLoad(key, statuses) {
                 return (chart) => {
                     if (closedHiddenOnce[key]) return;
                     closedHiddenOnce[key] = true;
                     const closed = statuses.find(s => s.status === 'Closed');
-                    if (closed) chart.toggleSeries(closed.label);
+                    if (closed) {
+                        selectionBlockedUntil[key] = Date.now() + 1500;
+                        chart.toggleSeries(closed.label);
+                    }
                 };
             }
 
@@ -1240,6 +1263,7 @@
                         series: data.statuses.map(s => s.count),
                         chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit',
                             events: { mounted: hideClosedOnFirstLoad('obj-status', data.statuses), dataPointSelection: (e, ctx, config) => {
+                                if (!isRealSelection('obj-status', e)) return;
                                 const status = data.statuses[config.dataPointIndex].status;
                                 window.location.href = "{% url 'objective-list-view' %}?status=" + encodeURIComponent(status) + "&open_tab=2";
                             }}
@@ -1267,6 +1291,7 @@
                         series: data.statuses.map(s => s.count),
                         chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit',
                             events: { mounted: hideClosedOnFirstLoad('kr-status', data.statuses), dataPointSelection: (e, ctx, config) => {
+                                if (!isRealSelection('kr-status', e)) return;
                                 const status = data.statuses[config.dataPointIndex].status;
                                 window.location.href = "{% url 'view-key-result' %}?status=" + encodeURIComponent(status);
                             }}
@@ -1294,6 +1319,7 @@
                         series: data.statuses.map(s => s.count),
                         chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit',
                             events: { mounted: hideClosedOnFirstLoad('fb-status', data.statuses), dataPointSelection: (e, ctx, config) => {
+                                if (!isRealSelection('fb-status', e)) return;
                                 const status = data.statuses[config.dataPointIndex].status;
                                 window.location.href = "{% url 'feedback-view' %}?status=" + encodeURIComponent(status);
                             }}

@@ -2,7 +2,7 @@
 {% load static i18n %}
 
 {% block content %}
-<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@7.8.0/dist/apexcharts.min.js"></script>
 <style>
     :root { --hd-indigo: var(--primary-600, #E54F38); --hd-green: #22c55e; --hd-amber: #f59e0b; --hd-red: #ef4444; --hd-blue: #3b82f6; --hd-purple: #a855f7; }
     .hd-dashboard { font-family: inherit; background: #ffffff; margin: -24px; padding: 24px; min-height: calc(100vh - 80px); }
@@ -451,12 +451,16 @@
         .then(data => {
             const total = data.statuses.reduce((a, s) => a + s.count, 0);
             if (!total) { document.querySelector("#chart-hd-status").innerHTML = emptyHtml('{% trans "No tickets"|escapejs %}'); return; }
+            let initialising = false;
             renderChart('hd-status', document.querySelector("#chart-hd-status"), {
                 series: data.statuses.map(s => s.count),
                 chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit',
                     events: { mounted: ctx => {
+                        initialising = true;
                         data.statuses.filter(s => s.status === 'resolved' || s.status === 'canceled').forEach(s => ctx.hideSeries(s.label));
+                        initialising = false;
                     }, dataPointSelection: (e, ctx, config) => {
+                        if (initialising) return;
                         const status = data.statuses[config.dataPointIndex].status;
                         window.location.href = "{% url 'ticket-view' %}?ticket_tab=all_tickets&status=" + encodeURIComponent(status) + createdDateRangeParams(data.period_from_date, data.period_to_date);
                     }}

@@ -2,7 +2,7 @@
 {% load static i18n %}
 
 {% block content %}
-<script id="pd-apexcharts" src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
+<script id="pd-apexcharts" src="https://cdn.jsdelivr.net/npm/apexcharts@7.8.0/dist/apexcharts.min.js"></script>
 <style>
     :root {
         --pd-indigo: var(--primary-600, #E54F38);
@@ -50,15 +50,15 @@
     .dark .pd-badge--red { background: #7f1d1d; color: #fca5a5; } .dark .pd-badge--blue { background: #1e3a8a; color: #bfdbfe; }
 
     /* Layout */
-    .pd-layout { display: grid; grid-template-columns: 1fr 300px; gap: 20px; align-items: start; }
+    .pd-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
     .pd-main { min-width: 0; }
     .pd-sidebar { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 90px; max-height: calc(100vh - 90px - 24px); overflow-y: auto; }
     .pd-sidebar::-webkit-scrollbar { width: 3px; }
     .pd-sidebar::-webkit-scrollbar-thumb { border-radius: 3px; background: rgba(128,128,128,0.2); }
 
     /* Chart Grid */
-    .pd-chart-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 20px; }
-    .pd-chart-card { border-radius: 12px; background: #ffffff; border: 1px solid rgba(128,128,128,0.12); overflow: visible; }
+    .pd-chart-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 20px; }
+    .pd-chart-card { min-width: 0; border-radius: 12px; background: #ffffff; border: 1px solid rgba(128,128,128,0.12); overflow: visible; }
     .dark .pd-chart-card { background: #242424; border-color: rgba(255,255,255,0.08); }
     .pd-chart-card--wide { grid-column: span 2; }
     .pd-chart-card__header { padding: 14px 18px 0; display: flex; justify-content: space-between; align-items: center; }
@@ -76,7 +76,10 @@
     .pd-info-panel { border-radius: 12px; background: #ffffff; border: 1px solid rgba(128,128,128,0.12); overflow: hidden; display: flex; flex-direction: column; flex-shrink: 0; }
     .dark .pd-info-panel { background: #242424; border-color: rgba(255,255,255,0.08); }
     .pd-info-panel__header { padding: 14px 16px 10px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; border-bottom: 1px solid rgba(128,128,128,0.08); }
-    .pd-info-panel__title { font-size: 13px; font-weight: 700; }
+    .pd-info-panel__title { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; }
+    /* How many items the panel holds, beside its title. Hidden at zero. */
+    .pd-count-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 999px; background: var(--pd-indigo); color: #fff; font-size: 12px; font-weight: 600; line-height: 1; }
+    .pd-count-badge[hidden] { display: none; }
     .pd-info-panel__body { padding: 8px 16px 12px; overflow-y: auto; flex: 1; max-height: 350px; }
     .pd-info-panel__empty { text-align: center; padding: 30px 0; opacity: 0.4; font-size: 12px; }
 
@@ -193,6 +196,11 @@
     @media (max-width: 1280px) { .pd-kpi-grid { grid-template-columns: repeat(3, 1fr); } .pd-layout { grid-template-columns: 1fr; } .pd-sidebar { position: static; display: grid; grid-template-columns: 1fr 1fr 1fr; max-height: none; overflow-y: visible; } }
     @media (max-width: 1024px) { .pd-kpi-grid { grid-template-columns: repeat(2, 1fr); } .pd-chart-grid { grid-template-columns: 1fr; } .pd-chart-card--wide { grid-column: span 1; } .pd-sidebar { grid-template-columns: 1fr; } .pd-pipeline { flex-wrap: wrap; } .pd-pipeline-step { min-width: 70px; } }
     @media (max-width: 640px) { .pd-kpi-grid { grid-template-columns: 1fr; } }
+    /* Light card tooltip for legend chips (replaces the browser's dark native title box) */
+    .pd-pie-chip[data-tip] { position: relative; }
+    .pd-pie-chip[data-tip]::after { content: attr(data-tip); position: absolute; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%); padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(128,128,128,0.2); background: #fff; color: #334155; box-shadow: 0 4px 16px rgba(0,0,0,0.12); font-size: 11px; font-weight: 500; white-space: nowrap; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity 0.12s; z-index: 50; }
+    .pd-pie-chip[data-tip]:hover::after { opacity: 1; visibility: visible; }
+    .dark .pd-pie-chip[data-tip]::after { background: #242424; color: #e2e8f0; border-color: rgba(255,255,255,0.12); }
 </style>
 
 <div class="pd-dashboard">
@@ -275,7 +283,7 @@
         <div class="pd-sidebar">
             <div class="pd-info-panel">
                 <div class="pd-info-panel__header">
-                    <div class="pd-info-panel__title">{% trans "Contracts Ending" %}</div>
+                    <div class="pd-info-panel__title">{% trans "Contracts Ending" %}<span id="pd-contracts-count" class="pd-count-badge" hidden title="{% trans 'Contracts ending or expired' %}">0</span></div>
                     <span style="font-size:11px;opacity:0.5;">{% trans "Next 60 days" %}</span>
                 </div>
                 <div class="pd-info-panel__body" id="pd-contracts">
@@ -284,7 +292,7 @@
             </div>
             <div class="pd-info-panel">
                 <div class="pd-info-panel__header">
-                    <div class="pd-info-panel__title">{% trans "Active Loans" %}</div>
+                    <div class="pd-info-panel__title">{% trans "Active Loans" %}<span id="pd-loans-count" class="pd-count-badge" hidden title="{% trans 'Active loans' %}">0</span></div>
                 </div>
                 <div class="pd-info-panel__body" id="pd-loans">
                     <div class="pd-info-panel__empty">{% trans "Loading..." %}</div>
@@ -448,7 +456,7 @@ function pdInit() {
     // `intersect: false` + a custom card is what keeps the tooltip reliable:
     // the default one only shows while the pointer is exactly on a thin bar.
     const stdTooltip = ({ rowLabel = '', rows = null, title: titleFor = null, shared = true } = {}) => ({
-        ...TOOLTIP_STYLE, shared, intersect: !shared,
+        ...TOOLTIP_STYLE, shared, intersect: !shared, fillSeriesColor: false,
         custom: ({ series, seriesIndex, dataPointIndex, w }) => {
             const g = w.globals;
             const type = w.config.chart.type;
@@ -483,7 +491,7 @@ function pdInit() {
         let visible = 0;
         const chipsHtml = k => items.slice(0, k).map(it => {
             const on = selected.has(it.name);
-            return `<button type="button" class="pd-pie-chip${on ? '' : ' is-off'}" data-name="${escHtml(it.name)}" title="${escHtml(it.name)}: ${it.detail != null ? escHtml(it.detail) : it.value}">${dot(it.color)}<span class="pd-pie-chip__name">${escHtml(it.name)}</span></button>`;
+            return `<button type="button" class="pd-pie-chip${on ? '' : ' is-off'}" data-name="${escHtml(it.name)}" data-tip="${escHtml(it.name)}: ${it.detail != null ? escHtml(it.detail) : it.value}">${dot(it.color)}<span class="pd-pie-chip__name">${escHtml(it.name)}</span></button>`;
         }).join('');
         function refreshState() {
             const chips = el.querySelector('.pd-pie-chips');
@@ -557,7 +565,12 @@ function pdInit() {
         }
         const chart = new ApexCharts(el, options);
         chartInstances[key] = chart;
-        chart.render();
+        const drawn = chart.render();
+        // A chart replaced while it was still drawing would otherwise land in the page
+        // anyway, as a second copy; the stale one removes itself once it has mounted.
+        if (drawn && drawn.then) {
+            drawn.then(() => { if (chartInstances[key] !== chart) { try { chart.destroy(); } catch (e) { /* already gone */ } } });
+        }
         return chart;
     }
 
@@ -869,6 +882,7 @@ function pdInit() {
         .then(data => {
             const el = document.getElementById('pd-contracts');
             const items = [...data.ending_soon.map(c => ({...c, type: 'ending'})), ...data.expired.map(c => ({...c, type: 'expired'}))];
+            setCountBadge('pd-contracts-count', items.length);
             if (!items.length) { el.innerHTML = '<div class="pd-info-panel__empty">{% trans "No contracts ending soon"|escapejs %}</div>'; return; }
             el.innerHTML = items.map(c => {
                 const badge = c.type === 'ending'
@@ -886,12 +900,21 @@ function pdInit() {
     }
     loadContractsEnding();
 
+    // Count beside a side panel's title; hidden when there is nothing in it.
+    function setCountBadge(id, n) {
+        const badge = document.getElementById(id);
+        if (!badge) return;
+        badge.textContent = n;
+        badge.hidden = !n;
+    }
+
     // ─── ACTIVE LOANS ───
     function loadActiveLoans() {
     fetchP("{% url 'payroll-dashboard-loans' %}")
         .then(r => r.json())
         .then(data => {
             const el = document.getElementById('pd-loans');
+            setCountBadge('pd-loans-count', data.loans.length);
             if (!data.loans.length) { el.innerHTML = '<div class="pd-info-panel__empty">{% trans "No active loans"|escapejs %}</div>'; return; }
             el.innerHTML = data.loans.map(l => {
                 return `<a href="${loanUrlFor(l.employee_id)}" class="pd-list-item" title="{% trans "Remaining"|escapejs %}: ${fmt(l.remaining)} / ${fmt(l.amount)}">

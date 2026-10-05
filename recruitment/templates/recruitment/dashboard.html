@@ -2,7 +2,7 @@
 {% load static i18n %}
 
 {% block content %}
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@7.8.0/dist/apexcharts.min.js"></script>
     <style>
         :root {
             --rd-indigo: var(--primary-600, #E54F38);
@@ -144,6 +144,11 @@
             text-transform: uppercase;
             opacity: 0.5;
         }
+        .rd-kpi-card__period {
+            font-weight: 500;
+            letter-spacing: 0;
+            text-transform: none;
+        }
         .rd-kpi-card__value {
             margin-bottom: 4px;
             font-weight: 800;
@@ -179,6 +184,10 @@
         .rd-badge--purple {
             background: #f3e8ff;
             color: #6b21a8;
+        }
+        .rd-badge--primary {
+            background: var(--primary-600, #E54F38);
+            color: #ffffff;
         }
         .dark .rd-badge--green {
             background: #166534;
@@ -411,6 +420,36 @@
             font-weight: 500;
             font-size: 11px;
             opacity: 0.6;
+        }
+
+        .rd-stage-legend {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 0 18px 14px;
+            gap: 8px;
+        }
+        .rd-stage-chip {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 10px;
+            gap: 6px;
+            border: 1px solid rgba(128, 128, 128, 0.25);
+            border-radius: 999px;
+            background: none;
+            color: inherit;
+            font-size: 11px;
+            cursor: pointer;
+            transition: opacity 0.15s;
+        }
+        .rd-stage-chip__dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 2px;
+        }
+        .rd-stage-chip--off {
+            text-decoration: line-through;
+            opacity: 0.45;
         }
 
         /* Conversion funnel */
@@ -752,7 +791,7 @@
             gap: 6px;
             font-size: 12px;
         }
-        .rd-period-picker input[type='date'] {
+        .rd-period-picker input[type='month'] {
             padding: 5px 8px;
             border: 1px solid rgba(128, 128, 128, 0.2);
             border-radius: 6px;
@@ -762,7 +801,7 @@
             font-size: 12px;
             transition: border-color 0.15s;
         }
-        .rd-period-picker input[type='date']:focus {
+        .rd-period-picker input[type='month']:focus {
             border-color: var(--rd-indigo);
         }
         .rd-period-picker__sep {
@@ -789,7 +828,7 @@
             background: var(--primary-600, #E54F38) !important;
             color: #ffffff !important;
         }
-        .dark .rd-period-picker input[type='date'] {
+        .dark .rd-period-picker input[type='month'] {
             color-scheme: dark;
         }
 
@@ -833,11 +872,10 @@
         }
 
         /* Clickable charts */
-        #chart-stage-summary .apexcharts-bar-area,
-        #chart-source-hire .apexcharts-pie-slice-donut,
         #chart-offer-status .apexcharts-pie-slice-donut,
-        #chart-hire-rate .apexcharts-bar-area,
-        #chart-time-to-hire .apexcharts-bar-area,
+        #chart-conversion-funnel .apexcharts-bar-area,
+        #chart-vacancy-hired .apexcharts-bar-area,
+        #chart-talent-pool .apexcharts-pie-area,
         #chart-joinings .apexcharts-bar-area {
             cursor: pointer;
         }
@@ -897,14 +935,6 @@
                 </div>
             </div>
             <div style="display: flex; gap: 8px">
-                <div class="rd-period-picker">
-                    <button class="rd-period-preset" data-preset="this_month">{% trans "This Month" %}</button>
-                    <button class="rd-period-preset" data-preset="last_month">{% trans "Last Month" %}</button>
-                    <button class="rd-period-preset" data-preset="this_quarter">{% trans "Quarter" %}</button>
-                    <input type="date" id="rd-from-date" title="{% trans 'From' %}">
-                    <span class="rd-period-picker__sep">&rarr;</span>
-                    <input type="date" id="rd-to-date" title="{% trans 'To' %}">
-                </div>
                 <button class="rd-btn-customize" id="rd-open-customize" title="{% trans 'Customize' %}">
                     ⚙ {% trans "Customize" %}
                 </button>
@@ -929,30 +959,16 @@
                     <div
                         class="rd-chart-card rd-chart-card--wide"
                         data-chart-id="stage_conversion"
-                        data-chart-label="{% trans 'Stage Conversion Funnel' %}"
+                        data-chart-label="{% trans 'Candidate By Stage Type' %}"
                     >
                         <div class="rd-chart-card__header">
                             <div>
-                                <div class="rd-chart-card__title">{% trans "Stage Conversion Funnel" %}</div>
-                                <div class="rd-chart-card__subtitle">{% trans "Share of total candidates per stage" %}</div>
+                                <div class="rd-chart-card__title">{% trans "Candidate By Stage Type" %}</div>
+                                <div class="rd-chart-card__subtitle">{% trans "Open recruitments · click a stage to show or hide it" %}</div>
                             </div>
                         </div>
                         <div class="rd-chart-card__body"><div id="chart-conversion-funnel"></div></div>
-                    </div>
-
-                    <!-- Candidates Per Stage -->
-                    <div
-                        class="rd-chart-card"
-                        data-chart-id="stage_summary"
-                        data-chart-label="{% trans 'Candidates by Stage' %}"
-                    >
-                        <div class="rd-chart-card__header">
-                            <div>
-                                <div class="rd-chart-card__title">{% trans "Candidates by Stage" %}</div>
-                                <div class="rd-chart-card__subtitle">{% trans "All active recruitments" %}</div>
-                            </div>
-                        </div>
-                        <div class="rd-chart-card__body"><div id="chart-stage-summary"></div></div>
+                        <div class="rd-stage-legend mb-3" id="rd-stage-legend"></div>
                     </div>
 
                     <!-- Offer Letter Status -->
@@ -970,87 +986,49 @@
                         <div class="rd-chart-card__body"><div id="chart-offer-status"></div></div>
                     </div>
 
-                    <!-- Source of Hire -->
-                    <div
-                        class="rd-chart-card"
-                        data-chart-id="source_hire"
-                        data-chart-label="{% trans 'Source of Hire' %}"
-                    >
-                        <div class="rd-chart-card__header">
-                            <div>
-                                <div class="rd-chart-card__title">{% trans "Source of Hire" %}</div>
-                                <div class="rd-chart-card__subtitle">{% trans "Where candidates come from" %}</div>
-                            </div>
-                        </div>
-                        <div class="rd-chart-card__body"><div id="chart-source-hire"></div></div>
-                    </div>
-
-                    <!-- Open Positions by Department -->
-                    <div
-                        class="rd-chart-card"
-                        data-chart-id="open_by_dept"
-                        data-chart-label="{% trans 'Open Positions by Department' %}"
-                    >
-                        <div class="rd-chart-card__header">
-                            <div>
-                                <div class="rd-chart-card__title">{% trans "Open Positions by Department" %}</div>
-                                <div class="rd-chart-card__subtitle">{% trans "Filled vs open vacancies" %}</div>
-                            </div>
-                        </div>
-                        <div class="rd-chart-card__body"><div id="chart-open-dept"></div></div>
-                    </div>
-
-                    <!-- Hiring Pipeline Table -->
-                    <div
-                        class="rd-chart-card rd-chart-card--wide"
-                        data-chart-id="hiring_pipeline"
-                        data-chart-label="{% trans 'Hiring Pipeline' %}"
-                    >
-                        <div class="rd-chart-card__header">
-                            <div>
-                                <div class="rd-chart-card__title">{% trans "Hiring Pipeline" %}</div>
-                                <div class="rd-chart-card__subtitle">
-                                    {% trans "Candidates per stage per recruitment" %}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="rd-chart-card__body">
-                            <div id="rd-pipeline-table">
-                                <div class="rd-empty">{% trans "Loading..." %}</div>
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- Hire Rate by Recruitment -->
                     <div
                         class="rd-chart-card"
                         data-chart-id="hire_rate"
-                        data-chart-label="{% trans 'Hire Rate by Recruitment' %}"
+                        data-chart-label="{% trans 'Shortlist Rate by Recruitment' %}"
                     >
                         <div class="rd-chart-card__header">
                             <div>
-                                <div class="rd-chart-card__title">{% trans "Hire Rate by Recruitment" %}</div>
+                                <div class="rd-chart-card__title">{% trans "Shortlist Rate by Recruitment" %}</div>
                                 <div class="rd-chart-card__subtitle">{% trans "Conversion efficiency" %}</div>
                             </div>
                         </div>
                         <div class="rd-chart-card__body"><div id="chart-hire-rate"></div></div>
                     </div>
 
-                    <!-- Time to Hire -->
+                    <!-- Vacancy vs Hired -->
                     <div
-                        class="rd-chart-card"
-                        data-chart-id="time_to_hire"
-                        data-chart-label="{% trans 'Time to Hire' %}"
+                        class="rd-chart-card rd-chart-card"
+                        data-chart-id="vacancy_vs_hired"
+                        data-chart-label="{% trans 'Vacancy vs Shortlisted' %}"
                     >
                         <div class="rd-chart-card__header">
                             <div>
-                                <div class="rd-chart-card__title">{% trans "Time to Hire" %}</div>
-                                <div class="rd-chart-card__subtitle">
-                                    {% trans "Average days from application to hire" %}
-                                </div>
+                                <div class="rd-chart-card__title">{% trans "Vacancy vs Shortlisted" %}</div>
+                                <div class="rd-chart-card__subtitle">{% trans "Positions filled per recruitment" %}</div>
                             </div>
                         </div>
-                        <div class="rd-chart-card__body"><div id="chart-time-to-hire"></div></div>
+                        <div class="rd-chart-card__body"><div id="chart-vacancy-hired"></div></div>
+                    </div>
+
+                    <!-- Talent Pool -->
+                    <div
+                        class="rd-chart-card"
+                        data-chart-id="talent_pool"
+                        data-chart-label="{% trans 'Talent Pool' %}"
+                    >
+                        <div class="rd-chart-card__header">
+                            <div>
+                                <div class="rd-chart-card__title">{% trans "Talent Pool" %}</div>
+                                <div class="rd-chart-card__subtitle">{% trans "Active candidates per pool" %}</div>
+                            </div>
+                        </div>
+                        <div class="rd-chart-card__body"><div id="chart-talent-pool"></div></div>
                     </div>
 
                     <!-- Joinings Per Month -->
@@ -1062,45 +1040,15 @@
                         <div class="rd-chart-card__header">
                             <div>
                                 <div class="rd-chart-card__title">{% trans "Joinings Per Month" %}</div>
-                                <div class="rd-chart-card__subtitle">{% trans "In selected period" %}</div>
+                                <div class="rd-chart-card__subtitle">{% trans "Shortlisted candidates by joining date" %}</div>
+                            </div>
+                            <div class="rd-period-picker">
+                                <input type="month" id="rd-join-from" title="{% trans 'From month' %}">
+                                <span class="rd-period-picker__sep">&rarr;</span>
+                                <input type="month" id="rd-join-to" title="{% trans 'To month' %}">
                             </div>
                         </div>
                         <div class="rd-chart-card__body"><div id="chart-joinings"></div></div>
-                    </div>
-
-                    <!-- Ongoing Recruitments & Managers -->
-                    <div
-                        class="rd-chart-card rd-chart-card--wide"
-                        data-chart-id="managers_table"
-                        data-chart-label="{% trans 'Ongoing Recruitments & Managers' %}"
-                    >
-                        <div class="rd-chart-card__header">
-                            <div>
-                                <div class="rd-chart-card__title">{% trans "Ongoing Recruitments & Managers" %}</div>
-                                <div class="rd-chart-card__subtitle">
-                                    {% trans "Active hiring with assigned managers" %}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="rd-chart-card__body">
-                            <div id="rd-managers-table">
-                                <div class="rd-empty">{% trans "Loading..." %}</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div
-                        class="rd-chart-card rd-chart-card--wide"
-                        data-chart-id="source_conversion"
-                        data-chart-label="{% trans 'Source Conversion Rate' %}"
-                    >
-                        <div class="rd-chart-card__header">
-                            <div>
-                                <div class="rd-chart-card__title">{% trans "Source Conversion Rate" %}</div>
-                                <div class="rd-chart-card__subtitle">{% trans "Hire rate per candidate source" %}</div>
-                            </div>
-                        </div>
-                        <div class="rd-chart-card__body"><div id="chart-source-conv"></div></div>
                     </div>
                 </div>
             </div>
@@ -1109,7 +1057,7 @@
             <div class="rd-sidebar">
                 <div class="rd-info-panel">
                     <div class="rd-info-panel__header">
-                        <div class="rd-info-panel__title">{% trans "Interviews" %}</div>
+                        <div class="rd-info-panel__title">{% trans "Interviews" %} <span class="rd-badge rd-badge--primary" id="rd-interviews-count">0</span></div>
                         <a href="{% url 'interview-view' %}" style="font-size: 11px; opacity: 0.7;">{% trans "View all" %} &rarr;</a>
                     </div>
                     <div class="rd-info-panel__body" id="rd-interviews">
@@ -1147,46 +1095,7 @@
                 weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
             });
 
-            // ── Period Picker ──
-            const PERIOD_KEY = 'rd_period_v2';
-            const fromInput = document.getElementById('rd-from-date');
-            const toInput = document.getElementById('rd-to-date');
-            function getToday() { return new Date().toISOString().split('T')[0]; }
-            function getFirstOfMonth(d) { const dt = new Date(d || getToday()); dt.setDate(1); return dt.toISOString().split('T')[0]; }
-            function getLastOfMonth(d) { const dt = new Date(d || getToday()); return new Date(dt.getFullYear(), dt.getMonth()+1, 0).toISOString().split('T')[0]; }
-            function initPeriod() {
-                const saved = sessionStorage.getItem(PERIOD_KEY);
-                if (saved) { try { const p = JSON.parse(saved); fromInput.value = p.from; toInput.value = p.to; return; } catch {} }
-                fromInput.value = getFirstOfMonth(); toInput.value = getLastOfMonth();
-            }
-            function savePeriod() { sessionStorage.setItem(PERIOD_KEY, JSON.stringify({ from: fromInput.value, to: toInput.value })); }
-            function periodParams() { const f = fromInput.value, t = toInput.value; return (f && t) ? ("from_date=" + encodeURIComponent(f) + "&to_date=" + encodeURIComponent(t)) : ""; }
-            function urlWithPeriod(u) { const p = periodParams(); return p ? u + (u.includes('?') ? '&' : '?') + p : u; }
-            function fetchP(url) { return fetch(urlWithPeriod(url)); }
-            function presetRange(p) {
-                const t = new Date();
-                if (p === 'this_month') return [new Date(t.getFullYear(), t.getMonth(), 1), new Date(t.getFullYear(), t.getMonth()+1, 0)];
-                if (p === 'last_month') return [new Date(t.getFullYear(), t.getMonth()-1, 1), new Date(t.getFullYear(), t.getMonth(), 0)];
-                if (p === 'this_quarter') return [new Date(t.getFullYear(), Math.floor(t.getMonth()/3)*3, 1), new Date(t.getFullYear(), Math.floor(t.getMonth()/3)*3+3, 0)];
-                return null;
-            }
-            function syncPresetActive() {
-                document.querySelectorAll('.rd-period-preset').forEach(b => {
-                    const r = presetRange(b.dataset.preset);
-                    const matches = r && fromInput.value === r[0].toISOString().split('T')[0] && toInput.value === r[1].toISOString().split('T')[0];
-                    b.classList.toggle('rd-period-preset--active', !!matches);
-                });
-            }
-            function setPreset(p) {
-                const [f, to] = presetRange(p);
-                fromInput.value = f.toISOString().split('T')[0]; toInput.value = to.toISOString().split('T')[0];
-                savePeriod(); syncPresetActive();
-                location.reload();
-            }
-            document.querySelectorAll('.rd-period-preset').forEach(b => b.addEventListener('click', () => setPreset(b.dataset.preset)));
-            [fromInput, toInput].forEach(i => i.addEventListener('change', () => { savePeriod(); syncPresetActive(); location.reload(); }));
-            initPeriod();
-            syncPresetActive();
+            function fetchP(url) { return fetch(url); }
 
             // ── Chart Customize ──
             const CUST_KEY = 'rd_chart_prefs';
@@ -1241,11 +1150,6 @@
             document.getElementById('rd-reset-customize').addEventListener('click', () => { localStorage.removeItem(CUST_KEY); location.reload(); });
 
             // ── Chart instance registry ──
-            // ApexCharts.render() always appends a new SVG into the target
-            // element rather than replacing it, so calling the same chart
-            // block twice (e.g. on auto-refresh) would stack duplicate
-            // charts on top of each other. Every chart goes through here so
-            // a refresh destroys the previous instance first.
             const chartInstances = {};
             function renderChart(key, el, options) {
                 if (!el) return null;
@@ -1253,6 +1157,7 @@
                     chartInstances[key].destroy();
                     chartInstances[key] = null;
                 }
+                el.innerHTML = '';
                 const chart = new ApexCharts(el, options);
                 chartInstances[key] = chart;
                 chart.render();
@@ -1275,17 +1180,12 @@
             }
             registerAutoRefresh(setInterval(updateRefreshText, 30000));
 
-            // Re-runs every data/chart load in place instead of reloading
-            // the whole document -- refreshAllData() is defined further
-            // down, once every load function it calls exists, but function
-            // declarations are hoisted so referencing it here is safe.
             function startAutoRefresh() {
                 autoRefreshOn = true;
                 localStorage.setItem(REFRESH_KEY, 'on');
                 refreshDot.classList.add('rd-refresh__dot--pulse');
                 refreshToggle.textContent = '⟳';
                 refreshToggle.title = '{% trans "Auto-refresh ON (5 min)"|escapejs %}';
-                // Wrapped so a hidden tab does not keep fetching; refreshes once on return.
                 const refreshTick = autoRefreshWhenVisible(() => {
                     lastRefresh = Date.now();
                     updateRefreshText();
@@ -1325,19 +1225,19 @@
                 </a>
                 <a href="{% url 'candidate-view' %}?hired=true&created_at_from=${data.period_from_date}&created_at_till=${data.period_to_date}&filter_applied=1" class="rd-kpi-card">
                     <div class="rd-kpi-card__icon rd-kpi-card__icon--green"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg></div>
-                    <div class="rd-kpi-card__label">{% trans "Shortlisted"|escapejs %}</div>
+                    <div class="rd-kpi-card__label">{% trans "Shortlisted"|escapejs %} <span class="rd-kpi-card__period">· {% trans "This month"|escapejs %}</span></div>
                     <div class="rd-kpi-card__value">${data.total_hired}</div>
                     <div class="rd-kpi-card__sub"><span class="rd-badge rd-badge--green">{% trans "Of"|escapejs %} ${data.total_candidates} {% trans "Candidates"|escapejs %}</span></div>
                 </a>
-                <div class="rd-kpi-card rd-kpi-card--static" title="{% trans "Conversion Rate"|escapejs %} = {% trans "Hired"|escapejs %} (${data.total_hired}) / {% trans "Total Candidates"|escapejs %} (${data.total_candidates}) × 100 = ${data.conversion_rate}%">
+                <div class="rd-kpi-card rd-kpi-card--static" title="{% trans "Conversion Rate"|escapejs %} = {% trans "Shortlisted"|escapejs %} (${data.total_hired}) / {% trans "Total Candidates"|escapejs %} (${data.total_candidates}) × 100 = ${data.conversion_rate}%">
                     <div class="rd-kpi-card__icon rd-kpi-card__icon--blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
-                    <div class="rd-kpi-card__label">{% trans "Conversion Rate"|escapejs %}</div>
+                    <div class="rd-kpi-card__label">{% trans "Conversion Rate"|escapejs %} <span class="rd-kpi-card__period">· {% trans "This month"|escapejs %}</span></div>
                     <div class="rd-kpi-card__value">${data.conversion_rate}%</div>
-                    <div class="rd-kpi-card__sub"><span class="rd-badge rd-badge--purple">{% trans "Hired / Total"|escapejs %}</span></div>
+                    <div class="rd-kpi-card__sub"><span class="rd-badge rd-badge--purple">{% trans "Shortlisted / Total"|escapejs %}</span></div>
                 </div>
-                <div class="rd-kpi-card rd-kpi-card--static" title="{% trans "Acceptance Rate"|escapejs %} = {% trans "Accepted Offers"|escapejs %} (${data.accepted_count}) / {% trans "Hired"|escapejs %} (${data.total_hired}) × 100 = ${data.acceptance_rate}%">
+                <div class="rd-kpi-card rd-kpi-card--static" title="{% trans "Acceptance Rate"|escapejs %} = {% trans "Accepted Offers"|escapejs %} (${data.accepted_count}) / {% trans "Shortlisted"|escapejs %} (${data.total_hired}) × 100 = ${data.acceptance_rate}%">
                     <div class="rd-kpi-card__icon rd-kpi-card__icon--purple"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="m9 18 2 2 4-4"/></svg></div>
-                    <div class="rd-kpi-card__label">{% trans "Acceptance Rate"|escapejs %}</div>
+                    <div class="rd-kpi-card__label">{% trans "Acceptance Rate"|escapejs %} <span class="rd-kpi-card__period">· {% trans "This month"|escapejs %}</span></div>
                     <div class="rd-kpi-card__value">${data.acceptance_rate}%</div>
                     <div class="rd-kpi-card__sub"><span class="rd-badge rd-badge--green">{% trans "Offer Accepted"|escapejs %}</span></div>
                 </div>`;
@@ -1346,45 +1246,70 @@
             loadKpiCards();
 
             // ─── STAGE CONVERSION FUNNEL ───
+            const stageColors = { initial: '#94a3b8', applied: '#a855f7', test: '#3b82f6', interview: '#f59e0b', hired: '#22c55e', cancelled: '#ef4444' };
+            const stageHidden = new Set(['applied', 'cancelled']);
+            const stageLegend = document.getElementById('rd-stage-legend');
+            let stageData = [];
+            const stageLabel = c => c.type === 'hired' ? '{% trans "Shortlisted"|escapejs %}' : c.stage;
+            function drawStageChart() {
+                stageLegend.innerHTML = stageData.map(c => `<button type="button" class="rd-stage-chip ${stageHidden.has(c.type) ? 'rd-stage-chip--off' : ''}" data-stage-type="${c.type}"><span class="rd-stage-chip__dot" style="background:${stageColors[c.type] || '#E54F38'}"></span>${stageLabel(c)}</button>`).join('');
+                const el = document.querySelector("#chart-conversion-funnel");
+                const visible = stageData.filter(c => !stageHidden.has(c.type));
+                if (!visible.length) {
+                    if (chartInstances['stage-type']) { chartInstances['stage-type'].destroy(); chartInstances['stage-type'] = null; }
+                    el.innerHTML = emptyHtml('{% trans "No stage selected"|escapejs %}');
+                    return;
+                }
+                renderChart('stage-type', el, {
+                    series: [{ name: '{% trans "Candidates"|escapejs %}', data: visible.map(c => c.count) }],
+                    chart: { type: 'bar', height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
+                        events: { dataPointSelection: (e, ctx, config) => {
+                            window.location.href = "{% url 'candidate-view' %}?stage_id__stage_type=" + encodeURIComponent(visible[config.dataPointIndex].type);
+                        }}
+                    },
+                    colors: visible.map(c => stageColors[c.type] || '#E54F38'),
+                    plotOptions: { bar: { borderRadius: 8, columnWidth: '45%', distributed: true } },
+                    xaxis: { categories: visible.map(stageLabel), labels: { style: { colors: textColor, fontSize: '12px' } }, axisBorder: { show: false }, axisTicks: { show: false } },
+                    yaxis: { labels: { style: { colors: textColor }, formatter: v => Math.round(v) }, forceNiceScale: true },
+                    grid: { borderColor: gridColor, strokeDashArray: 4 },
+                    dataLabels: { enabled: true, style: { fontSize: '12px', colors: ['#fff'] } },
+                    legend: { show: false },
+                    tooltip: { theme: isDark ? 'dark' : 'light', custom: ({ dataPointIndex }) => {
+                        const c = visible[dataPointIndex];
+                        const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+                        const entries = Object.entries(c.by_position || {}).sort((a, b) => b[1] - a[1]);
+                        const shown = entries.slice(0, 6);
+                        const rest = entries.slice(6).reduce((sum, e) => sum + e[1], 0);
+                        if (rest) shown.push(['{% trans "Others"|escapejs %}', rest]);
+                        const rows = shown.map(([name, n], i) => `<div style="display:flex;align-items:center;gap:8px;margin-top:4px;"><span style="width:8px;height:8px;border-radius:50%;background:${COLORS[i % COLORS.length]};flex-shrink:0;"></span><span style="flex:1;">${esc(name)}</span><span>${n}</span></div>`).join('');
+                        return `<div style="padding:10px 12px;min-width:220px;font-size:12px;"><div style="font-weight:700;font-size:13px;margin-bottom:6px;">${esc(stageLabel(c))}</div><div style="display:flex;justify-content:space-between;"><span>{% trans "Total candidates"|escapejs %}</span><strong>${c.count}</strong></div>${rows}</div>`;
+                    } },
+                });
+            }
+            stageLegend.addEventListener('click', e => {
+                const chip = e.target.closest('[data-stage-type]');
+                if (!chip) return;
+                const type = chip.dataset.stageType;
+                if (stageHidden.has(type)) stageHidden.delete(type); else stageHidden.add(type);
+                drawStageChart();
+            });
             function loadConversionFunnel() {
                 fetchP("{% url 'recruitment-dashboard-conversion' %}")
                 .then(r => r.json())
                 .then(data => {
-                    const el = document.querySelector("#chart-conversion-funnel");
-                    if (!data.conversions.length) { el.innerHTML = emptyHtml('{% trans "No data"|escapejs %}'); return; }
-                    const maxCount = Math.max(...data.conversions.map(c => c.count), 1);
-                    const funnelColors = { initial: '#94a3b8', test: '#3b82f6', interview: '#f59e0b', hired: '#22c55e', cancelled: '#ef4444' };
-                    let html = '<div class="rd-funnel">';
-                    data.conversions.forEach(c => {
-                        // True-to-value width, not a fixed floor -- a 20%-min
-                        // floor made every small count (e.g. 0 vs 1 out of a
-                        // max of 7) render as the same-length bar. Only a
-                        // real zero collapses to 0; any actual count still
-                        // gets a thin sliver (via the CSS min-width) so it
-                        // stays visible instead of vanishing at very low %.
-                        const pct = c.count > 0 ? (c.count / maxCount) * 100 : 0;
-                        const color = funnelColors[c.type] || '#E54F38';
-                        const url = "{% url 'candidate-view' %}?stage_id__stage_type=" + encodeURIComponent(c.type);
-                        html += `<div class="rd-funnel-step" onclick="window.location.href='${url}'" title="{% trans 'View ${c.stage} candidates'|escapejs %}">
-                    <div class="rd-funnel-step__label">${c.stage}</div>
-                    <div class="rd-funnel-step__bar" style="width:${pct}%;background:${color};">${c.count}</div>
-                    <div class="rd-funnel-step__rate">${c.conversion_rate}%</div>
-                </div>`;
-                    });
-                    html += '</div>';
-                    el.innerHTML = html;
+                    stageData = data.conversions || [];
+                    if (!stageData.length) { document.querySelector("#chart-conversion-funnel").innerHTML = emptyHtml('{% trans "No data"|escapejs %}'); return; }
+                    requestAnimationFrame(() => requestAnimationFrame(drawStageChart));
                 });
             }
             loadConversionFunnel();
 
+            /* ===== legacy =====
             // ─── SOURCE OF HIRE ───
             function loadSourceOfHire() {
                 fetchP("{% url 'recruitment-dashboard-source' %}")
                 .then(r => r.json())
                 .then(data => {
-                    // A single "not_set" slice isn't real signal -- every candidate's
-                    // source is simply unrecorded -- so treat it the same as no data,
-                    // rather than rendering a misleading 100% pie.
                     const hasRealSource = data.sources.some(s => s.key !== 'not_set');
                     if (!data.sources.length || !hasRealSource) { document.querySelector("#chart-source-hire").innerHTML = emptyHtml('{% trans "No source data available yet"|escapejs %}'); return; }
                     const sourceColors = { 'Application Form': '#3b82f6', 'Inside Software': '#E54F38', 'Referral': '#22c55e', 'Other': '#94a3b8' };
@@ -1438,7 +1363,9 @@
                 });
             }
             loadOpenPositionsByDept();
+            */
 
+            /* ===== legacy =====
             // ─── SOURCE CONVERSION ───
             function loadSourceConversion() {
                 fetchP("{% url 'recruitment-dashboard-source-conv' %}")
@@ -1464,6 +1391,7 @@
                 });
             }
             loadSourceConversion();
+            */
 
             // ─── INTERVIEWS IN PERIOD ───
             function loadInterviews() {
@@ -1471,6 +1399,7 @@
                 .then(r => r.json())
                 .then(data => {
                     const el = document.getElementById('rd-interviews');
+                    document.getElementById('rd-interviews-count').textContent = data.interviews.length;
                     if (!data.interviews.length) { el.innerHTML = '<div class="rd-info-panel__empty">{% trans "No interviews scheduled"|escapejs %}</div>'; return; }
                     el.innerHTML = data.interviews.map(iv => `
                 <div class="rd-interview-item">
@@ -1485,6 +1414,7 @@
             }
             loadInterviews();
 
+            /* ===== legacy =====
             // ─── CANDIDATES BY STAGE ───
             function loadStageSummary() {
                 fetchP("{% url 'recruitment-dashboard-stage-summary' %}")
@@ -1512,6 +1442,7 @@
                 });
             }
             loadStageSummary();
+            */
 
             // ─── OFFER LETTER STATUS ───
             function loadOfferStatus() {
@@ -1541,6 +1472,7 @@
             }
             loadOfferStatus();
 
+            /* ===== legacy =====
             // ─── HIRING PIPELINE TABLE ───
             function loadPipelineTable() {
                 fetchP("{% url 'recruitment-dashboard-pipeline' %}")
@@ -1565,6 +1497,67 @@
                 });
             }
             loadPipelineTable();
+            */
+
+            // ─── VACANCY VS HIRED ───
+            function loadVacancyVsHired() {
+                fetchP("{% url 'recruitment-dashboard-vacancy-hired' %}")
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.recruitments || !data.recruitments.length) { document.querySelector("#chart-vacancy-hired").innerHTML = emptyHtml('{% trans "No ongoing recruitments"|escapejs %}'); return; }
+                    renderChart('vacancy-hired', document.querySelector("#chart-vacancy-hired"), {
+                        series: [
+                            { name: '{% trans "Shortlisted"|escapejs %}', data: data.recruitments.map(r => r.hired) },
+                            { name: '{% trans "Remaining"|escapejs %}', data: data.recruitments.map(r => Math.max(r.vacancy - r.hired, 0)) },
+                        ],
+                        chart: { type: 'bar', height: 300, stacked: true, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
+                            events: { dataPointSelection: (e, ctx, config) => {
+                                const rec = data.recruitments[config.dataPointIndex]?.recruitment || '';
+                                window.location.href = "{% url 'candidate-view' %}?recruitment=" + encodeURIComponent(rec) + "&hired=true";
+                            }}
+                        },
+                        colors: ['#22c55e', '#f59e0b'],
+                        plotOptions: { bar: { borderRadius: 4, columnWidth: '45%' } },
+                        xaxis: { categories: data.recruitments.map(r => r.recruitment), labels: { style: { colors: textColor, fontSize: '11px' }, rotate: -30, trim: true }, axisBorder: { show: false }, axisTicks: { show: false } },
+                        yaxis: { labels: { style: { colors: textColor }, formatter: v => Math.round(v) }, forceNiceScale: true },
+                        grid: { borderColor: gridColor, strokeDashArray: 4 },
+                        dataLabels: { enabled: true, style: { fontSize: '11px', colors: ['#fff'] }, formatter: v => v || '' },
+                        legend: { position: 'top', horizontalAlign: 'right', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
+                        tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: (v, { seriesIndex: si, dataPointIndex: i }) => {
+                            const r = data.recruitments[i];
+                            return si === 0 ? `${v} {% trans "shortlisted of"|escapejs %} ${r.vacancy} (${r.fill_rate}%)` : `${v} {% trans "remaining"|escapejs %} (${r.applied} {% trans "applied"|escapejs %})`;
+                        } } },
+                    });
+                });
+            }
+            loadVacancyVsHired();
+
+            // ─── TALENT POOL ───
+            function loadTalentPool() {
+                fetchP("{% url 'recruitment-dashboard-talent-pool' %}")
+                .then(r => r.json())
+                .then(data => {
+                    const el = document.querySelector("#chart-talent-pool");
+                    if (!data.pools || !data.pools.length) {
+                        if (chartInstances['talent-pool']) { chartInstances['talent-pool'].destroy(); chartInstances['talent-pool'] = null; }
+                        el.innerHTML = emptyHtml('{% trans "No talent pools yet"|escapejs %}');
+                        return;
+                    }
+                    renderChart('talent-pool', el, {
+                        series: data.pools.map(p => p.count),
+                        labels: data.pools.map(p => p.pool),
+                        chart: { type: 'pie', height: 300, background: 'transparent', fontFamily: 'inherit',
+                            events: { dataPointSelection: () => { window.location.href = "{% url 'skill-zone-view' %}"; } }
+                        },
+                        colors: COLORS,
+                        stroke: { width: 2, colors: [isDark ? '#242424' : '#ffffff'] },
+                        dataLabels: { enabled: true, style: { fontSize: '12px', colors: ['#fff'] }, dropShadow: { enabled: false } },
+                        legend: { position: 'bottom', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
+                        tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: v => v + ' candidate(s)' } },
+                    });
+                });
+            }
+            loadTalentPool();
 
             // ─── HIRE RATE ───
             function loadHireRate() {
@@ -1573,13 +1566,8 @@
                 .then(data => {
                     if (!data.sources.length) { document.querySelector("#chart-hire-rate").innerHTML = emptyHtml('{% trans "No data"|escapejs %}'); return; }
                     renderChart('hire-rate', document.querySelector("#chart-hire-rate"), {
-                        series: [{ name: '{% trans "Hire Rate"|escapejs %}', data: data.sources.map(s => s.rate) }],
-                        chart: { type: 'bar', height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
-                            events: { dataPointSelection: (e, ctx, config) => {
-                                const rec = data.sources[config.dataPointIndex]?.recruitment || '';
-                                window.location.href = "{% url 'candidate-view' %}?recruitment=" + encodeURIComponent(rec);
-                            }}
-                        },
+                        series: [{ name: '{% trans "Shortlist Rate"|escapejs %}', data: data.sources.map(s => s.rate) }],
+                        chart: { type: 'bar', height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit' },
                         colors: ['#22c55e'],
                         plotOptions: { bar: { borderRadius: 6, horizontal: true, barHeight: '55%' } },
                         xaxis: { categories: data.sources.map(s => s.recruitment), labels: { style: { colors: textColor } } },
@@ -1592,6 +1580,7 @@
             }
             loadHireRate();
 
+            /* ===== legacy =====
             // ─── TIME TO HIRE ───
             function loadTimeToHire() {
                 fetchP("{% url 'recruitment-dashboard-time-to-hire' %}")
@@ -1617,13 +1606,35 @@
                 });
             }
             loadTimeToHire();
+            */
 
             // ─── JOININGS PER MONTH (period-driven) ───
+            const joinFrom = document.getElementById('rd-join-from');
+            const joinTo = document.getElementById('rd-join-to');
+            const pad2 = n => String(n).padStart(2, '0');
+            (function initJoinRange() {
+                const t = new Date();
+                const start = new Date(t.getFullYear(), t.getMonth() - 5, 1);
+                joinFrom.value = `${start.getFullYear()}-${pad2(start.getMonth() + 1)}`;
+                joinTo.value = `${t.getFullYear()}-${pad2(t.getMonth() + 1)}`;
+            })();
+            function joiningsUrl() {
+                const [fy, fm] = joinFrom.value.split('-').map(Number);
+                const [ty, tm] = joinTo.value.split('-').map(Number);
+                const lastDay = new Date(ty, tm, 0).getDate();
+                return "{% url 'recruitment-dashboard-joinings' %}?from_date=" + fy + '-' + pad2(fm) + '-01&to_date=' + ty + '-' + pad2(tm) + '-' + pad2(lastDay);
+            }
+            [joinFrom, joinTo].forEach(i => i.addEventListener('change', () => { if (joinFrom.value && joinTo.value && joinFrom.value <= joinTo.value) loadJoinings(); }));
+            let joinRequest = 0;
             function loadJoinings() {
-                fetchP("{% url 'recruitment-dashboard-joinings' %}")
+                if (!joinFrom.value || !joinTo.value || joinFrom.value > joinTo.value) return;
+                const requestId = ++joinRequest;
+                fetchP(joiningsUrl())
                 .then(r => r.json())
                 .then(data => {
+                    if (requestId !== joinRequest) return;
                     if (!data.data || !data.data.length || !data.data.some(v => v > 0)) {
+                        if (chartInstances['joinings']) { chartInstances['joinings'].destroy(); chartInstances['joinings'] = null; }
                         document.querySelector("#chart-joinings").innerHTML = emptyHtml('{% trans "No joinings in this period"|escapejs %}');
                         return;
                     }
@@ -1646,12 +1657,13 @@
                         yaxis: { labels: { style: { colors: textColor } } },
                         grid: { borderColor: gridColor, strokeDashArray: 4 },
                         dataLabels: { enabled: true, style: { fontSize: '11px', colors: ['#fff'] } },
-                        tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: v => v + ' employee(s)' } },
+                        tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: v => v + ' candidate(s)' } },
                     });
                 });
             }
             loadJoinings();
 
+            /* ===== legacy =====
             // ─── ONGOING RECRUITMENTS & MANAGERS ───
             function loadManagersTable() {
                 fetchP("{% url 'recruitment-dashboard-managers' %}")
@@ -1674,23 +1686,18 @@
                 });
             }
             loadManagersTable();
+            */
 
-            // ── Re-run every load/chart function above in place (used by the
-            // auto-refresh timer instead of location.reload()).
+            // ── Refresh all data ──
             function refreshAllData() {
                 loadKpiCards();
                 loadConversionFunnel();
-                loadSourceOfHire();
-                loadOpenPositionsByDept();
-                loadSourceConversion();
                 loadInterviews();
-                loadStageSummary();
                 loadOfferStatus();
-                loadPipelineTable();
+                loadVacancyVsHired();
+                loadTalentPool();
                 loadHireRate();
-                loadTimeToHire();
                 loadJoinings();
-                loadManagersTable();
             }
 
         })();
