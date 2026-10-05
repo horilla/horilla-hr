@@ -61,6 +61,31 @@ if app_installed("payroll"):
 logger = logging.getLogger(__name__)
 
 
+class _KeepInstanceIdMixin:
+    """
+    The allocation lists are always scoped by ``?instance_id=<employee>``, and
+    ``allocation_manager_can_enter`` rejects any request without it. The list
+    template builds its reload/search/pagination URLs from ``saved_filters``,
+    which can come back empty (e.g. when the list has no rows), so a reload
+    after adding something hit the list without ``instance_id`` and failed
+    with "You don't have permission" even for an admin. Keep it in
+    ``saved_filters``.
+    """
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        instance_id = self.request.GET.get("instance_id") or self.request.POST.get(
+            "instance_id"
+        )
+        saved_filters = context.get("saved_filters")
+        if instance_id and saved_filters is not None:
+            if not saved_filters.get("instance_id"):
+                saved_filters = saved_filters.copy()
+                saved_filters["instance_id"] = instance_id
+                context["saved_filters"] = saved_filters
+        return context
+
+
 @method_decorator(login_required, name="dispatch")
 class AllocationView(HorillaDetailedView):
     """
@@ -497,7 +522,7 @@ if app_installed("leave"):
     @method_decorator(login_required, name="dispatch")
     @method_decorator(hx_request_required, name="dispatch")
     @method_decorator(allocation_manager_can_enter(), name="dispatch")
-    class LeaveTypeAllocationList(LeaveTypeListView):
+    class LeaveTypeAllocationList(_KeepInstanceIdMixin, LeaveTypeListView):
         """
         LeaveTypeAllocationList
         """
@@ -647,7 +672,7 @@ if app_installed("asset"):
 
     @method_decorator(login_required, name="dispatch")
     @method_decorator(allocation_manager_can_enter(), name="dispatch")
-    class AssetAllocationList(HorillaListView):
+    class AssetAllocationList(_KeepInstanceIdMixin, HorillaListView):
         """
         AssetAllocationLists
         """
@@ -812,7 +837,7 @@ if app_installed("asset"):
 
     @method_decorator(login_required, name="dispatch")
     @method_decorator(allocation_manager_can_enter(), name="dispatch")
-    class AssetCategoryAllocationList(HorillaListView):
+    class AssetCategoryAllocationList(_KeepInstanceIdMixin, HorillaListView):
         """
         Lists asset categories for the employee and lets managers raise an
         AssetRequest for the selected categories instead of allocating an
@@ -1093,7 +1118,7 @@ if app_installed("payroll"):
         template_name = "cbv/allocations/payroll/allowance/allowance_view.html"
 
     @method_decorator(login_required, name="dispatch")
-    class AllowanceList(AllowanceListView):
+    class AllowanceList(_KeepInstanceIdMixin, AllowanceListView):
         """
         AllowanceList
         """
@@ -1211,7 +1236,7 @@ if app_installed("payroll"):
 
     @method_decorator(login_required, name="dispatch")
     @method_decorator(allocation_manager_can_enter(), name="dispatch")
-    class DeductionList(DeductionListView):
+    class DeductionList(_KeepInstanceIdMixin, DeductionListView):
         """
         AllowanceList
         """
