@@ -382,6 +382,20 @@ def build_monthly_summary(from_date, to_date, employee_qs):
                 elif bucket == "week_off":
                     week_off += val
 
+                # A regularised half day is half a day present and half a day
+                # absent, the same as a half day that came from the clock. The
+                # absent half was missing here, so the day counted 0.5 paid and
+                # 0.5 nothing -- paid plus unpaid fell short of the month, and
+                # the missing half was never deducted from pay.
+                if (
+                    bucket == "present"
+                    and val < 1.0
+                    and d not in off_set
+                    and d not in holiday_dates_set
+                    and d not in _emp_off
+                ):
+                    absent += 1.0 - val
+
                 # Hours for regularized present days (per-day manual override wins)
                 if bucket == "present":
                     _day_name = _DAY_NAMES[d.weekday()]
