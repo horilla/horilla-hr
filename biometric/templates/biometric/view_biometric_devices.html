@@ -1,48 +1,55 @@
-{% extends 'index.html' %} {% block content %} {% load static %} {% load i18n %}
-{% include 'generic/components.html' %}
-<style>
-    /* Status colors (red/blue/orange) stay distinct so device connection
-       state is still readable at a glance, but each is tinted toward the
-       company's selected theme color so they feel part of the same palette
-       instead of clashing with it. */
-    .notconnected--dot{
-        background-color: color-mix(in srgb, red 75%, var(--primary-600, #E54F38) 25%);
-      }
-      .sheduled--dot{
-        background-color: color-mix(in srgb, rgb(103, 171, 238) 75%, var(--primary-600, #E54F38) 25%);
-      }
-      .live--dot{
-        background-color: color-mix(in srgb, orange 75%, var(--primary-600, #E54F38) 25%);
-      }
-      .is_live-False{
-        border-left: 3.4px solid color-mix(in srgb, red 75%, var(--primary-600, #E54F38) 25%) !important;
-        border-radius: 4px 0 0 4px;
-      }
-      .is_scheduler-True{
-        border-left: 3.4px solid color-mix(in srgb, rgb(103, 171, 238) 75%, var(--primary-600, #E54F38) 25%) !important;
-        border-radius: 4px 0 0 4px;
-      }
-      .is_live-True{
-        border-left: 4px solid color-mix(in srgb, orange 75%, var(--primary-600, #E54F38) 25%) !important;
-        border-radius: 4    px 0 0 4px;
-      }
+{% extends 'index.html' %}
+{% block content %}
+    {% load static %}
+    {% load i18n %}
+    {% include 'generic/components.html' %}
+    <style>
+        /* Status colors (red/blue/orange) stay distinct so device connection
+           state is still readable at a glance, but each is tinted toward the
+           company's selected theme color so they feel part of the same palette
+           instead of clashing with it. */
+        .notconnected--dot {
+            background-color: color-mix(in srgb, red 75%, var(--primary-600, #e54f38) 25%);
+        }
+        .sheduled--dot {
+            background-color: color-mix(in srgb, rgb(103, 171, 238) 75%, var(--primary-600, #e54f38) 25%);
+        }
+        .live--dot {
+            background-color: color-mix(in srgb, orange 75%, var(--primary-600, #e54f38) 25%);
+        }
+        .is_live-False {
+            border-left: 3.4px solid color-mix(in srgb, red 75%, var(--primary-600, #e54f38) 25%) !important;
+            border-radius: 4px 0 0 4px;
+        }
+        .is_scheduler-True {
+            border-left: 3.4px solid color-mix(in srgb, rgb(103, 171, 238) 75%, var(--primary-600, #e54f38) 25%) !important;
+            border-radius: 4px 0 0 4px;
+        }
+        .is_live-True {
+            border-left: 4px solid color-mix(in srgb, orange 75%, var(--primary-600, #e54f38) 25%) !important;
+            border-radius: 4 px 0 0 4px;
+        }
     </style>
-    <div class="oh-modal" id="BiometricDeviceTestModal" role="dialog" aria-labelledby="BiometricDeviceTestModal"
-        aria-hidden="true">
+    <div
+        class="oh-modal"
+        id="BiometricDeviceTestModal"
+        role="dialog"
+        aria-labelledby="BiometricDeviceTestModal"
+        aria-hidden="true"
+    >
         <div class="oh-modal__dialog" style="max-width: 550px" id="BiometricDeviceTestFormTarget">
             {% include "animation.html" %}
         </div>
     </div>
-<div class="oh-wrapper">
-    <div  hx-get="{% url "biometric-navbar" %}" hx-trigger="load">
-    </div>
+    <div class="oh-wrapper">
+        <div hx-get='{% url "biometric-navbar" %}' hx-trigger="load"></div>
 
+        {% comment %} {% include 'biometric/nav_biometric_devices.html' %} {% endcomment %}
+        <div id="selectedDevicesContainer"></div>
+        <div class="oh-checkpoint-badge mb-2" id="selectedDevices" data-ids="[]" data-clicked="" style="display: none">
+        </div>
 
-    {% comment %} {% include 'biometric/nav_biometric_devices.html' %} {% endcomment %}
-    <div class="oh-checkpoint-badge mb-2" id="selectedDevices" data-ids="[]" data-clicked="" style="display: none">
-    </div>
-
-    {% comment %} <div class="d-flex flex-row-reverse">
+        {% comment %} <div class="d-flex flex-row-reverse">
         <span class="m-3"
             onclick="$('[name=hired]').val('false'); $('[name=hired]').first().change(); $('.filterButton').click()"
             style="cursor: pointer">
@@ -63,68 +70,75 @@
         </span>
     </div> {% endcomment %}
 
-    <div id="biometricDeviceList">
-        <div class="oh-wrapper" hx-get="{% url "biometric-card-view" %}?is_active=True" hx-trigger="load" id="listContainer">
+        <div id="biometricDeviceList">
+            <div
+                class="oh-wrapper"
+                hx-get='{% url "biometric-card-view" %}?is_active=True'
+                hx-trigger="load"
+                id="listContainer"
+            >
+            </div>
+        </div>
+        <div
+            class="oh-modal"
+            id="BiometricDeviceModal"
+            role="dialog"
+            aria-labelledby="BiometricDeviceModal"
+            aria-hidden="true"
+        >
+            <div class="oh-modal__dialog" style="max-width: 550px" id="BiometricDeviceFormTarget"></div>
         </div>
     </div>
-    <div class="oh-modal" id="BiometricDeviceModal" role="dialog" aria-labelledby="BiometricDeviceModal"
-        aria-hidden="true">
-        <div class="oh-modal__dialog" style="max-width: 550px" id="BiometricDeviceFormTarget"></div>
-    </div>
-</div>
-<script>
-    function machineTypeChange(selectElement) {
-        var machineType = selectElement.val();
-        var allElements = [
-            "#zkPassword", "#machinIpInput", "#machinUserName", "#machinPassword",
-            "#machinPortInput", "#apiUrlInput", "#apiKeyInput", "#apiSecretInput",
-            "#apiRequestIDInput"
-        ];
+    <script>
+        function machineTypeChange(selectElement) {
+            var machineType = selectElement.val();
+            var allElements = [
+                "#zkPassword", "#machinIpInput", "#machinUserName", "#machinPassword",
+                "#machinPortInput", "#apiUrlInput", "#apiKeyInput", "#apiSecretInput",
+                "#apiRequestIDInput"
+            ];
 
-        // Hide all elements initially
-        $(allElements.join(', ')).hide();
+            // Hide all elements initially
+            $(allElements.join(', ')).hide();
 
-        // Show relevant elements based on the selected machine type
-        switch (machineType) {
-            case "anviz":
-                $("input[name='api_url']").val("");
-                $("#apiUrlInput, #apiKeyInput, #apiSecretInput, #apiRequestIDInput").show();
-                break;
-            case "zk":
-                $("#zkPassword, #machinIpInput, #machinPortInput").show();
-                break;
-            case "cosec":
-            case "dahua":
-                $("#machinIpInput, #machinUserName, #machinPassword, #machinPortInput").show();
-                break;
-            case "etimeoffice":
-                $("#apiUrlInput, #machinUserName, #machinPassword").show();
-                if (!$("input[name='api_url']").val()) {
-                    $("input[name='api_url']").val("https://api.etimeoffice.com/api/");
-                }
+            // Show relevant elements based on the selected machine type
+            switch (machineType) {
+                case "anviz":
+                    $("input[name='api_url']").val("");
+                    $("#apiUrlInput, #apiKeyInput, #apiSecretInput, #apiRequestIDInput").show();
+                    break;
+                case "zk":
+                    $("#zkPassword, #machinIpInput, #machinPortInput").show();
+                    break;
+                case "cosec":
+                case "dahua":
+                    $("#machinIpInput, #machinUserName, #machinPassword, #machinPortInput").show();
+                    break;
+                case "etimeoffice":
+                    $("#apiUrlInput, #machinUserName, #machinPassword").show();
+                    if (!$("input[name='api_url']").val()) {
+                        $("input[name='api_url']").val("https://api.etimeoffice.com/api/");
+                    }
 
-                break;
-            default:
-                // No elements need to be shown for unknown machine types
-                break;
+                    break;
+                default:
+                    // No elements need to be shown for unknown machine types
+                    break;
+            }
         }
-    }
-    function updateSelectedDevices(el) {
-        let container = $('#selectedDevicesContainer');
-        container.empty();
-        $('.oh-kanban-card--biometric').each(function () {
-            $(this).find('.biometric-device-instance:checked').each(function () {
-                let deviceId = $(this).val();
-                $('<input>', {
-                    type: 'hidden',
-                    name: 'selected_device_ids',
-                    value: deviceId
-                }).appendTo(container);
+        function updateSelectedDevices(el) {
+            let container = $('#selectedDevicesContainer');
+            container.empty();
+            $('.oh-kanban-card--biometric').each(function () {
+                $(this).find('.biometric-device-instance:checked').each(function () {
+                    let deviceId = $(this).val();
+                    $('<input>', {
+                        type: 'hidden',
+                        name: 'selected_device_ids',
+                        value: deviceId
+                    }).appendTo(container);
+                });
             });
-        });
-    }
-
-
-</script>
-
+        }
+    </script>
 {% endblock %}

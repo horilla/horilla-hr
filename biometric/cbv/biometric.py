@@ -52,6 +52,22 @@ class BiometricNavBar(HorillaNavView):
                                 hx-target="#genericModalBody"
                                 hx-get="{reverse('biometric-device-add')}"
                                 """
+        self.actions = [
+            {
+                "action": _("Fetch Logs"),
+                "attrs": f"""
+                    hx-on:click="updateSelectedDevices()"
+                    hx-get="{reverse('biometric-device-bulk-fetch-logs')}"
+                    hx-include="#selectedDevicesContainer"
+                    hx-trigger="click delay:1s"
+                    hx-target="#BiometricDeviceTestFormTarget"
+                    hx-request='{{"timeout": 60000}}'
+                    data-toggle="oh-modal-toggle"
+                    data-target="#BiometricDeviceTestModal"
+                    style="cursor: pointer;"
+                    """,
+            },
+        ]
 
     nav_title = _("Biometric Devices")
     filter_body_template = "cbv/biometric_filter.html"
@@ -138,7 +154,9 @@ class BiometricCardView(HorillaCardView):
         ),
     }
 
-    card_status_class = "is_scheduler-{is_scheduler} is_live-{is_live}"
+    card_status_class = (
+        "oh-kanban-card--biometric is_scheduler-{is_scheduler} is_live-{is_live}"
+    )
 
     card_status_indications = [
         (

@@ -3,55 +3,64 @@
 {% if device.machine_type == "anviz" or device.machine_type == "cosec" %}
     <style>
         .oh-kanban-card__biometric-actions {
-            margin-top:0px !important;
+            margin-top: 0px !important;
         }
     </style>
 {% endif %}
 
 <div
-	class="d-block oh-kanban-card__biometric-actions"
-	style="display: flex; gap: 10px"
+    class="d-block oh-kanban-card__biometric-actions"
+    style="display: flex !important; justify-content: space-between"
 >
-	<!-- Test -->
-	<a
-		hx-get="{% url 'biometric-device-test' device.id %}"
-		data-toggle="oh-modal-toggle"
-		data-target="#BiometricDeviceTestModal"
-		hx-target="#BiometricDeviceTestFormTarget"
-		class="oh-checkpoint-badge text-success mr-2"
-	>
-		{% trans "Test" %}
-	</a>
+    <div>
+        <!-- Test -->
+        <a
+            hx-get="{% url 'biometric-device-test' device.id %}"
+            data-toggle="oh-modal-toggle"
+            data-target="#BiometricDeviceTestModal"
+            hx-target="#BiometricDeviceTestFormTarget"
+            class="oh-checkpoint-badge text-success mr-2"
+        >
+            {% trans "Test" %}
+        </a>
 
-	<!-- Schedule / Unschedule -->
-	{% if device.is_scheduler %}
-	<a
-		hx-confirm="{% trans 'Do you want to unschedule the device attendance fetching?' %}"
-		hx-post="{% url 'biometric-device-unschedule' device.id %}"
-		hx-target="#biometricDeviceList"
-		class="oh-checkpoint-badge text-info"
-	>
-		{% trans "Unschedule" %}
-	</a>
-	{% else %}
-	<a
-		hx-get="{% url 'biometric-device-schedule' device.id %}"
-		data-toggle="oh-modal-toggle"
-		data-target="#BiometricDeviceModal"
-		hx-target="#BiometricDeviceFormTarget"
-		class="oh-checkpoint-badge text-info"
-	>
-		{% trans "Schedule" %}
-	</a>
-	{% endif %}
+        <!-- Schedule / Unschedule -->
+        {% if device.is_scheduler %}
+            <a
+                hx-confirm="{% trans 'Do you want to unschedule the device attendance fetching?' %}"
+                hx-post="{% url 'biometric-device-unschedule' device.id %}"
+                hx-target="#biometricDeviceList"
+                class="oh-checkpoint-badge text-info"
+            >
+                {% trans "Unschedule" %}
+            </a>
+        {% else %}
+            <a
+                hx-get="{% url 'biometric-device-schedule' device.id %}"
+                data-toggle="oh-modal-toggle"
+                data-target="#BiometricDeviceModal"
+                hx-target="#BiometricDeviceFormTarget"
+                class="oh-checkpoint-badge text-info"
+            >
+                {% trans "Schedule" %}
+            </a>
+        {% endif %}
 
-	<!-- Employees -->
-	{% if device.machine_type == "zk" or device.machine_type == "cosec" %}
-	<a
-		href="{% url 'biometric-device-employees' device.id %}"
-		class="oh-checkpoint-badge text-secondary bio-user-list ml-4"
-	>
-		{% trans "Employee" %}
-	</a>
-	{% endif %}
+        <!-- Employees -->
+        {% if device.machine_type == "zk" or device.machine_type == "cosec" %}
+            <a
+                href="{% url 'biometric-device-employees' device.id %}"
+                class="oh-checkpoint-badge text-secondary bio-user-list ml-4"
+            >
+                {% trans "Employee" %}
+            </a>
+        {% endif %}
+    </div>
+    <input
+        type="checkbox"
+        class="oh-input oh-input__checkbox biometric-device-instance w-fit"
+        value="{{ device.id }}"
+        onclick="event.stopPropagation()"
+        hx-on:click="this.closest('.oh-kanban-card--biometric').classList.toggle('highlight-selected')"
+    >
 </div>
