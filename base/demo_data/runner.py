@@ -50,6 +50,7 @@ from base.demo_data.modules.pms_trend import (
 )
 from base.demo_data.modules.project_trend import (
     backfill_project_trend,
+    backfill_task_deadlines,
     reanchor_project_scenarios,
 )
 from base.demo_data.modules.recruitment import seed_recruitment_catalog
@@ -126,6 +127,7 @@ def run_enterprise_demo_seeder(
     result["employee_lifecycle"] = employee_lifecycle
     result["project_backfill"] = backfill_project_trend(today)
     result["project_scenarios_reanchor"] = reanchor_project_scenarios(today)
+    result["project_task_deadlines"] = backfill_task_deadlines(today)
     result["onboarding_backfill"] = backfill_onboarding_pipeline(today)
     result["offboarding_backfill"] = backfill_offboarding_letters(
         today, employee_lifecycle.get("exit_employee_ids")

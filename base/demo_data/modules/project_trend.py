@@ -128,6 +128,107 @@ def backfill_project_trend(today: date | None = None) -> int:
 
 SCENARIO_PK_FLOOR = 1001
 
+# Due-date offsets (days from today) for the demo "Task Deadlines" panel:
+# three coming up within its 14-day window and two already overdue.
+DEADLINE_OFFSETS = (2, 5, 9, -3, -8)
+FOLLOW_UP_TASK_TITLES = (
+    "Review open items with stakeholders",
+    "Hand over project documentation",
+    "Confirm sign-off with the client",
+    "Close out remaining action items",
+    "Archive project files",
+)
+
+
+@transaction.atomic
+def backfill_task_deadlines(today: date | None = None) -> int:
+    """Give every company a handful of open tasks due around `today`.
+
+    The dashboard's Task Deadlines panel lists open tasks due in the next 14
+    days plus overdue ones. The shifted fixture dates rarely put any open task
+    in that window (and only for the company that owns it), so the panel came
+    up empty. For each company, re-date its first few open tasks relative to
+    `today`; fresh on every run, so reloads stay consistent.
+    """
+    if not apps.is_installed("project"):
+        return 0
+
+    today = today or date.today()
+
+    from project.models import Task
+
+    open_tasks = Task._base_manager.filter(
+        is_active=True,
+        status__in=["to_do", "in_progress"],
+        project__isnull=False,
+    ).order_by("pk")
+
+    # Projects with no company show up for every company's users, so count
+    # them with the first company rather than as a group of their own (which
+    # would double the rows a user sees). The named scenario tasks go first.
+    tasks_all = list(open_tasks.select_related("project"))
+    company_ids = sorted(
+        {t.project.company_id_id for t in tasks_all if t.project.company_id_id}
+    )
+    default_company = company_ids[0] if company_ids else None
+    tasks_all.sort(key=lambda t: (t.pk < SCENARIO_PK_FLOOR, t.pk))
+    by_company: dict = {}
+    for task in tasks_all:
+        key = task.project.company_id_id or default_company
+        by_company.setdefault(key, []).append(task)
+
+    # A company whose projects are all finished/cancelled has no open task to
+    # re-date (its users would see an empty panel), so top it up with a few
+    # follow-up tasks on its first project -- idempotent via title.
+    from project.models import Project, ProjectStage
+
+    for company_id in sorted(
+        {p for p in Project._base_manager.values_list("company_id_id", flat=True) if p}
+    ):
+        tasks = by_company.setdefault(company_id, [])
+        missing = len(DEADLINE_OFFSETS) - len(tasks)
+        if missing <= 0:
+            continue
+        project = (
+            Project._base_manager.filter(company_id_id=company_id)
+            .order_by("pk")
+            .first()
+        )
+        stage = (
+            ProjectStage._base_manager.filter(project=project)
+            .order_by("sequence", "pk")
+            .first()
+        )
+        seed_task = Task._base_manager.filter(project=project).order_by("pk").first()
+        for title in FOLLOW_UP_TASK_TITLES[:missing]:
+            task, created = Task._base_manager.get_or_create(
+                project=project,
+                title=title,
+                defaults={
+                    "stage": stage,
+                    "status": "to_do",
+                    "description": "Follow-up item after the main delivery.",
+                },
+            )
+            if created and seed_task is not None:
+                task.task_managers.set(seed_task.task_managers.all())
+                task.task_members.set(seed_task.task_members.all())
+            if task.status in ("to_do", "in_progress"):
+                tasks.append(task)
+
+    updated = 0
+    for tasks in by_company.values():
+        for task, offset in zip(tasks, DEADLINE_OFFSETS):
+            end = today + timedelta(days=offset)
+            start = task.start_date
+            if start is None or start > end:
+                start = end - timedelta(days=10)
+            Task._base_manager.filter(pk=task.pk).update(start_date=start, end_date=end)
+            updated += 1
+
+    logger.info("Task deadlines backfill: re-dated %s open task(s)", updated)
+    return updated
+
 
 @transaction.atomic
 def reanchor_project_scenarios(today: date | None = None) -> int:
