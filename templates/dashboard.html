@@ -722,6 +722,31 @@
         .md-pie-chip:hover {
             border-color: var(--md-indigo);
         }
+        /* Light card tooltip for legend chips (replaces the browser's dark native title box) */
+        .md-pie-chip[data-tip] { position: relative; }
+        .md-pie-chip[data-tip]::after {
+            content: attr(data-tip);
+            position: absolute;
+            left: 50%;
+            bottom: calc(100% + 8px);
+            transform: translateX(-50%);
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(128, 128, 128, 0.2);
+            background: #ffffff;
+            color: #334155;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+            font-size: 11px;
+            font-weight: 500;
+            white-space: nowrap;
+            pointer-events: none;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.12s;
+            z-index: 50;
+        }
+        .md-pie-chip[data-tip]:hover::after { opacity: 1; visibility: visible; }
+        .dark .md-pie-chip[data-tip]::after { background: #242424; color: #e2e8f0; border-color: rgba(255, 255, 255, 0.12); }
         .md-pie-chip.is-off {
             opacity: 0.45;
         }
@@ -1776,69 +1801,12 @@
             <!-- Left: Charts (single flat grid for reordering) -->
             <div class="md-main">
                 <div class="md-chart-grid" id="md-charts-container">
-                    {% if perms.helpdesk.view_ticket or request.user.is_superuser %}
-                        <!-- Ticket Priority (open tickets) -->
-                        <div
-                            class="md-chart-card"
-                            data-chart-id="ticket_priority"
-                            data-chart-section="helpdesk"
-                            data-chart-label="{% trans 'Open Tickets by Priority' %}"
-                        >
-                            <div class="md-chart-card__header">
-                                <div>
-                                    <div class="md-chart-card__title">{% trans "Open Tickets by Priority" %}</div>
-                                    <div class="md-chart-card__subtitle">
-                                        {% trans "Closed tickets excluded" %}<span data-period-label></span>
-                                    </div>
-                                </div>
-                                <a
-                                    class="md-card-link"
-                                    id="ticket-priority-link"
-                                    href="{% url 'ticket-view' %}"
-                                    title="{% trans 'Open tickets' %}"
-                                    aria-label="{% trans 'Open tickets' %}"
-                                ><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7" /><path d="M8 7h9v9" /></svg></a>
-                            </div>
-                            <div class="md-chart-card__body"><div id="chart-ticket-priority"></div></div>
-                        </div>
-
-                        <!-- Overdue tickets list -->
-                        <div
-                            class="md-chart-card"
-                            data-chart-id="overdue_tickets"
-                            data-chart-section="helpdesk"
-                            data-chart-label="{% trans 'Overdue Tickets' %}"
-                        >
-                            <div class="md-chart-card__header">
-                                <div>
-                                    <div class="md-chart-card__title">
-                                        {% trans "Overdue Tickets" %}
-                                        <span class="md-badge md-badge--red" id="overdue-tickets-count" style="margin-left: 6px; display: none"></span>
-                                    </div>
-                                    <div class="md-chart-card__subtitle">
-                                        {% trans "Open and past deadline, most overdue first" %}<span data-period-label></span>
-                                    </div>
-                                </div>
-                                <a
-                                    class="md-card-link"
-                                    id="overdue-tickets-link"
-                                    href="{% url 'ticket-view' %}"
-                                    title="{% trans 'Open overdue tickets' %}"
-                                    aria-label="{% trans 'Open overdue tickets' %}"
-                                ><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7" /><path d="M8 7h9v9" /></svg></a>
-                            </div>
-                            <div class="md-chart-card__body md-tkt-body" id="overdue-tickets-list">
-                                <div class="md-info-panel__empty">{% trans "Loading..." %}</div>
-                            </div>
-                        </div>
-                    {% endif %}
                     <!-- Department Headcount -->
                     <div
                         class="md-chart-card"
                         data-chart-id="department_headcount"
                         data-chart-section="overview"
                         data-chart-label="{% trans 'Department Headcount' %}"
-                        data-chart-default="hidden"
                     >
                         <div class="md-chart-card__header">
                             <div>
@@ -1859,7 +1827,6 @@
                             data-chart-id="leave_trends"
                             data-chart-section="overview"
                             data-chart-label="{% trans 'Leave Trends' %}"
-                            data-chart-default="hidden"
                         >
                             <div class="md-chart-card__header">
                                 <div>
@@ -1889,7 +1856,6 @@
                         data-chart-id="gender_distribution"
                         data-chart-section="overview"
                         data-chart-label="{% trans 'Gender Distribution' %}"
-                        data-chart-default="hidden"
                     >
                         <div class="md-chart-card__header">
                             <div>
@@ -1910,7 +1876,6 @@
                             data-chart-id="leave_breakdown"
                             data-chart-section="overview"
                             data-chart-label="{% trans 'Leave Type Breakdown' %}"
-                            data-chart-default="hidden"
                         >
                             <div class="md-chart-card__header">
                                 <div>
@@ -2026,6 +1991,63 @@
                                 </a>
                             </div>
                             <div class="md-chart-card__body"><div id="chart-turnover"></div></div>
+                        </div>
+                    {% endif %}
+
+                    {% if perms.helpdesk.view_ticket or request.user.is_superuser %}
+                        <!-- Ticket Priority (open tickets) -->
+                        <div
+                            class="md-chart-card"
+                            data-chart-id="ticket_priority"
+                            data-chart-section="helpdesk"
+                            data-chart-label="{% trans 'Open Tickets by Priority' %}"
+                        >
+                            <div class="md-chart-card__header">
+                                <div>
+                                    <div class="md-chart-card__title">{% trans "Open Tickets by Priority" %}</div>
+                                    <div class="md-chart-card__subtitle">
+                                        {% trans "Closed tickets excluded" %}<span data-period-label></span>
+                                    </div>
+                                </div>
+                                <a
+                                    class="md-card-link"
+                                    id="ticket-priority-link"
+                                    href="{% url 'ticket-view' %}"
+                                    title="{% trans 'Open tickets' %}"
+                                    aria-label="{% trans 'Open tickets' %}"
+                                ><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7" /><path d="M8 7h9v9" /></svg></a>
+                            </div>
+                            <div class="md-chart-card__body"><div id="chart-ticket-priority"></div></div>
+                        </div>
+
+                        <!-- Overdue tickets list -->
+                        <div
+                            class="md-chart-card"
+                            data-chart-id="overdue_tickets"
+                            data-chart-section="helpdesk"
+                            data-chart-label="{% trans 'Overdue Tickets' %}"
+                        >
+                            <div class="md-chart-card__header">
+                                <div>
+                                    <div class="md-chart-card__title">
+                                        {% trans "Overdue Tickets" %}
+                                        <span class="md-badge md-badge--red" id="overdue-tickets-count" style="margin-left: 6px; display: none"></span>
+                                    </div>
+                                    <div class="md-chart-card__subtitle">
+                                        {% trans "Open and past deadline, most overdue first" %}<span data-period-label></span>
+                                    </div>
+                                </div>
+                                <a
+                                    class="md-card-link"
+                                    id="overdue-tickets-link"
+                                    href="{% url 'ticket-view' %}"
+                                    title="{% trans 'Open overdue tickets' %}"
+                                    aria-label="{% trans 'Open overdue tickets' %}"
+                                ><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7" /><path d="M8 7h9v9" /></svg></a>
+                            </div>
+                            <div class="md-chart-card__body md-tkt-body" id="overdue-tickets-list">
+                                <div class="md-info-panel__empty">{% trans "Loading..." %}</div>
+                            </div>
                         </div>
                     {% endif %}
 
@@ -2145,7 +2167,7 @@
             const LEGEND_STYLE = { position: 'bottom', labels: { colors: textColor }, fontSize: '11px', fontWeight: 500, markers: { width: 8, height: 8, radius: 3 }, itemMargin: { horizontal: 8 } };
             const XAXIS_STYLE = { labels: { style: { colors: textColor, fontSize: '11px', fontWeight: 500 } }, axisBorder: { show: false }, axisTicks: { show: false } };
             const YAXIS_STYLE = { labels: { style: { colors: textColor, fontSize: '11px' } } };
-            const STORAGE_KEY = 'md_dashboard_prefs_v2';
+            const STORAGE_KEY = 'md_dashboard_prefs_v3';
 
             const SECTION_LABELS = {
                 overview: "{% trans 'Overview'|escapejs %}",
@@ -2850,7 +2872,7 @@
                 function chipsHtml(k) {
                     return items.slice(0, k).map(it => {
                         const on = selected.has(it.name);
-                        return `<button type="button" class="md-pie-chip${on ? '' : ' is-off'}" data-name="${escHtml(it.name)}" title="${escHtml(it.name)}: ${it.detail != null ? escHtml(it.detail) : it.value}">${dot(it.color)}<span class="md-pie-chip__name">${escHtml(it.name)}</span></button>`;
+                        return `<button type="button" class="md-pie-chip${on ? '' : ' is-off'}" data-name="${escHtml(it.name)}" data-tip="${escHtml(it.name)}: ${it.detail != null ? escHtml(it.detail) : it.value}">${dot(it.color)}<span class="md-pie-chip__name">${escHtml(it.name)}</span></button>`;
                     }).join('');
                 }
                 // Toggling only touches the chips and checkbox states, never the
@@ -2916,7 +2938,10 @@
                     clear() { items = []; el.innerHTML = ''; },
                 };
             }
-            const deptColor = (i) => COLORS[i % COLORS.length];
+            // One colour per department, never reused: ten well-separated base colours,
+            // then golden-angle hues so any number of departments stays distinct.
+            const DEPT_PALETTE = ['#3b82f6','#22c55e','#f59e0b','#ef4444','#a855f7','#06b6d4','#ec4899','#84cc16','#f97316','#14b8a6'];
+            const deptColor = (i) => i < DEPT_PALETTE.length ? DEPT_PALETTE[i] : `hsl(${Math.round((i * 137.508) % 360)}, 65%, ${i % 2 ? 45 : 58}%)`;
             const deptLegend = createPieLegend({
                 el: document.getElementById('md-pie-legend-departments'),
                 chartKey: 'departments',
@@ -3164,6 +3189,10 @@
             function drawLeaveTrend() {
                 const names = new Set(leaveTrendLegend.selectedNames());
                 const lines = leaveTrendData.dataset.map((d, i) => ({ ...d, color: deptColor(i) })).filter(d => names.has(d.label));
+                // Axis tops out one step above the highest point, so the peak never sits on the top edge.
+                const peak = Math.max(1, ...lines.flatMap(d => d.data));
+                const yStep = peak <= 8 ? 1 : Math.ceil(peak / 5);
+                const yMax = (Math.ceil(peak / yStep) + 1) * yStep;
                 renderChart('leave-trend', document.querySelector("#chart-leave-trend"), {
                     series: lines.map(d => ({ name: d.label, data: d.data })),
                     chart: { type: 'line', height: 300, toolbar: { show: false }, zoom: { enabled: false }, background: 'transparent', fontFamily: 'inherit',
@@ -3173,8 +3202,8 @@
                     markers: { size: 0, hover: { size: 5 } },
                     dataLabels: { enabled: false },
                     legend: { show: false },
-                    xaxis: { ...XAXIS_STYLE, categories: leaveTrendData.labels },
-                    yaxis: { ...YAXIS_STYLE, min: 0, forceNiceScale: true, labels: { style: { colors: textColor, fontSize: '11px' }, formatter: v => Number.isInteger(+v) ? v : '' } },
+                    xaxis: { ...XAXIS_STYLE, categories: leaveTrendData.labels.map(l => { const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(l); return m ? `${+m[1]} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m[2] - 1]}` : l; }) },
+                    yaxis: { ...YAXIS_STYLE, min: 0, max: yMax, tickAmount: yMax / yStep, labels: { style: { colors: textColor, fontSize: '11px' }, formatter: v => Number.isInteger(+v) ? v : '' } },
                     grid: GRID,
                     tooltip: { ...TOOLTIP_STYLE, shared: true, intersect: false, custom: ({ series, dataPointIndex, w }) => {
                         const rows = lines.map((d, i) => ({ color: d.color, label: d.label, value: series[i][dataPointIndex] + ' {% trans "leave(s)"|escapejs %}', n: series[i][dataPointIndex] }));
@@ -3192,7 +3221,7 @@
                 onChange: drawLeaveTrend,
             });
             function loadLeaveOverPeriod() {
-                fetchP("{% url 'dashboard-leave-trends' %}?group=department" + (detectPreset() === 'this_month' ? '&bucket=week' : ''))
+                fetchP("{% url 'dashboard-leave-trends' %}?group=department")
                 .then(r => r.json())
                 .then(data => {
                     if (data.no_permission) { hideCard('leave_trends'); return; }
