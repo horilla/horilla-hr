@@ -1003,6 +1003,19 @@ class AssetServiceRequest(HorillaModel):
     def __str__(self):
         return f"{self.assignment_id.asset_id} --- {self.requested_employee_id} --- {self.status}"
 
+    def row_status_class(self):
+        """
+        Row colour class matching the status legend on the service request list.
+        """
+
+        return {
+            "Requested": "row-status--blue",
+            "In Progress": "row-status--orange",
+            "Completed": "row-status--yellow",
+            "Rejected": "row-status--red",
+            "Returned": "row-status--gray",
+        }.get(self.status, "")
+
     def status_col(self):
         """
         This method for get custom column for status.

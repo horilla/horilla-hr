@@ -28,17 +28,6 @@ def _parse_period(request):
     return from_date, to_date
 
 
-def _assets_in_period(request):
-    """Return Asset queryset filtered to assets purchased in the current month."""
-    from asset.models import Asset
-
-    from_date, to_date = _parse_period(request)
-    return Asset.objects.filter(
-        asset_purchase_date__gte=from_date,
-        asset_purchase_date__lte=to_date,
-    )
-
-
 @login_required
 @permission_required("asset.view_assetcategory")
 def asset_dashboard_view(request):
@@ -50,14 +39,13 @@ def asset_dashboard_view(request):
 def asset_kpi_data(request):
     """Return asset KPI summary data as JSON.
 
-    Assets purchased / total value / pending requests reflect the current
-    month. Pure inventory-state KPIs (total / in-use / available counts,
-    return requests, expiring soon) are live snapshots, independent of month.
+    Pending requests reflect the current month. Pure inventory-state KPIs
+    (total / in-use / available counts, service requests, expiring soon) are
+    live snapshots, independent of month.
     """
     from asset.models import Asset, AssetRequest, AssetServiceRequest
 
     from_date, to_date = _parse_period(request)
-    period_assets = _assets_in_period(request)
 
     # Total assets reflects the full inventory, not the current-month filter
     total_assets = Asset.objects.count()
@@ -74,10 +62,6 @@ def asset_kpi_data(request):
         asset_request_date__lte=to_date,
     ).count()
 
-    total_value = period_assets.aggregate(
-        total=Coalesce(Sum("asset_purchase_cost"), 0, output_field=DecimalField())
-    )["total"]
-
     # Expiring soon (next 30 days) — forward-looking, independent of month
     today = timezone.now().date()
     expiring_soon_from_date = today
@@ -87,9 +71,7 @@ def asset_kpi_data(request):
         expiry_date__lte=expiring_soon_to_date,
     ).count()
 
-    service_requests = AssetServiceRequest.objects.filter(
-        status__in=["Requested", "In Progress"],
-    ).count()
+    service_requests = AssetServiceRequest.objects.filter(status="Requested").count()
 
     return JsonResponse(
         {
@@ -98,12 +80,8 @@ def asset_kpi_data(request):
             "available": available,
             "not_available": not_available,
             "pending_requests": pending_requests,
-            "total_value": float(total_value),
             "expiring_soon": expiring_soon,
             "service_requests": service_requests,
-            # Echoed back so the "Total Value" card's click-through can
-            # filter to the exact same purchase-date range the sum above
-            # was computed from, instead of showing every asset.
             "period_from_date": from_date.isoformat(),
             "period_to_date": to_date.isoformat(),
             # Echoed back so the "Expiring Soon" card's click-through uses
@@ -144,14 +122,16 @@ def asset_status_distribution(request):
 
 @login_required
 def asset_by_category(request):
-    """Asset count by category with in-use breakdown, for assets purchased in the current month."""
+    """Asset count by category with in-use breakdown, across all assets."""
+    from asset.models import Asset
+
     categories = []
-    from_date, to_date = _parse_period(request)
 
     try:
         data = (
-            _assets_in_period(request)
-            .values("asset_category_id", "asset_category_id__asset_category_name")
+            Asset.objects.values(
+                "asset_category_id", "asset_category_id__asset_category_name"
+            )
             .annotate(
                 total=Count("id"),
                 in_use=Count("id", filter=Q(asset_status="In use")),
@@ -175,34 +155,15 @@ def asset_by_category(request):
     except Exception:
         pass
 
-    # Echoed back so this chart's click-through can filter to the exact
-    # same purchase-date range the counts above were computed from --
-    # without it, "category=<id>" alone shows every asset in that
-    # category ever purchased, not just the "4" this bar actually counted.
-    return JsonResponse(
-        {
-            "categories": categories,
-            "period_from_date": from_date.isoformat(),
-            "period_to_date": to_date.isoformat(),
-        }
-    )
+    return JsonResponse({"categories": categories})
 
 
 @login_required
 def asset_request_status(request):
-    """Asset request status breakdown for the current month.
-
-    Scoped by asset_request_date (the actual request date, not created_at)
-    so this agrees with the KPI tile's "Pending Requests" count, which is
-    scoped to the same month/field.
-    """
+    """Asset request status breakdown across all requests."""
     from asset.models import AssetRequest
 
-    from_date, to_date = _parse_period(request)
-    requests_qs = AssetRequest.objects.filter(
-        asset_request_date__gte=from_date,
-        asset_request_date__lte=to_date,
-    )
+    requests_qs = AssetRequest.objects.all()
     statuses = [
         {
             "status": "Requested",
@@ -221,29 +182,21 @@ def asset_request_status(request):
         },
     ]
 
-    return JsonResponse(
-        {
-            "statuses": statuses,
-            # Echoed back so the chart's click-through can filter to the
-            # exact same asset_request_date range these counts were
-            # computed from, instead of showing every request with that
-            # status regardless of month.
-            "period_from_date": from_date.isoformat(),
-            "period_to_date": to_date.isoformat(),
-        }
-    )
+    return JsonResponse({"statuses": statuses})
 
 
 @login_required
 def asset_value_by_category(request):
-    """Total asset value by category, for assets purchased in the current month."""
+    """Total asset value by category, across all assets."""
+    from asset.models import Asset
+
     categories = []
-    from_date, to_date = _parse_period(request)
 
     try:
         data = (
-            _assets_in_period(request)
-            .values("asset_category_id", "asset_category_id__asset_category_name")
+            Asset.objects.values(
+                "asset_category_id", "asset_category_id__asset_category_name"
+            )
             .annotate(
                 total_value=Coalesce(
                     Sum("asset_purchase_cost"), 0, output_field=DecimalField()
@@ -267,13 +220,7 @@ def asset_value_by_category(request):
     except Exception:
         pass
 
-    return JsonResponse(
-        {
-            "categories": categories,
-            "period_from_date": from_date.isoformat(),
-            "period_to_date": to_date.isoformat(),
-        }
-    )
+    return JsonResponse({"categories": categories})
 
 
 @login_required
@@ -419,16 +366,7 @@ def asset_department_distribution(request):
 
 @login_required
 def asset_age_distribution(request):
-    """Age distribution of the entire current asset fleet.
-
-    Same fix as asset_department_distribution: this is a snapshot of how
-    old the assets we currently own are, not "assets purchased this
-    period" activity. Scoping it to _assets_in_period made it collapse to
-    a single "< 1 year" bucket every month by construction -- anything
-    bought in the current period is by definition under a month old, so
-    the fleet's real age spread (most assets purchased years ago) never
-    showed up at all.
-    """
+    """Age distribution of the entire current asset fleet."""
     from asset.models import Asset
 
     today = timezone.now().date()

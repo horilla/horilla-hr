@@ -334,6 +334,60 @@ class AssetServiceRequestList(HorillaListView):
         ("Status", "status_col"),
     ]
 
+    row_status_indications = [
+        (
+            "blue--dot",
+            _("Requested"),
+            """
+            onclick="
+                $('#applyFilter').closest('form').find('[name=status]').val('Requested');
+                $('#applyFilter').click();
+            "
+            """,
+        ),
+        (
+            "orange--dot",
+            _("In Progress"),
+            """
+            onclick="
+                $('#applyFilter').closest('form').find('[name=status]').val('In Progress');
+                $('#applyFilter').click();
+            "
+            """,
+        ),
+        (
+            "yellow--dot",
+            _("Completed"),
+            """
+            onclick="
+                $('#applyFilter').closest('form').find('[name=status]').val('Completed');
+                $('#applyFilter').click();
+            "
+            """,
+        ),
+        (
+            "red--dot",
+            _("Rejected"),
+            """
+            onclick="
+                $('#applyFilter').closest('form').find('[name=status]').val('Rejected');
+                $('#applyFilter').click();
+            "
+            """,
+        ),
+        (
+            "gray--dot",
+            _("Returned"),
+            """
+            onclick="
+                $('#applyFilter').closest('form').find('[name=status]').val('Returned');
+                $('#applyFilter').click();
+            "
+            """,
+        ),
+    ]
+    row_status_class = "{row_status_class}"
+
     row_attrs = """
         hx-get='{detail_view_url}'
         hx-target="#genericModalBody"
