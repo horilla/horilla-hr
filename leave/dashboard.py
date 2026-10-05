@@ -131,62 +131,47 @@ def leave_kpi_data(request):
 
 @login_required
 @permission_required("leave.view_leaverequest")
-def leave_monthly_trend(request):
-    """Monthly leave request counts for the last 6 months."""
+def leave_department_trend(request):
+    """Leave request counts per department, split by status, for the selected period."""
     from leave.models import LeaveRequest
 
-    _, to_date = _parse_period(request)
-    today = to_date
-    months = []
-
-    base = today.replace(day=1)
-    for i in range(5, -1, -1):
-        year = base.year
-        month = base.month - i
-        while month <= 0:
-            month += 12
-            year -= 1
-        month_start = date(year, month, 1)
-        if month_start.month == 12:
-            month_end = date(month_start.year + 1, 1, 1) - timedelta(days=1)
-        else:
-            month_end = date(month_start.year, month_start.month + 1, 1) - timedelta(
-                days=1
-            )
-
-        approved = LeaveRequest.objects.filter(
-            status="approved",
-            start_date__gte=month_start,
-            start_date__lte=month_end,
+    from_date, to_date = _parse_period(request)
+    dept_field = "employee_id__employee_work_info__department_id__department"
+    rows = (
+        LeaveRequest.objects.filter(
+            status__in=["approved", "rejected", "requested"],
+            start_date__gte=from_date,
+            start_date__lte=to_date,
             employee_id__is_active=True,
-        ).count()
-
-        rejected = LeaveRequest.objects.filter(
-            status="rejected",
-            start_date__gte=month_start,
-            start_date__lte=month_end,
-            employee_id__is_active=True,
-        ).count()
-
-        pending = LeaveRequest.objects.filter(
-            status="requested",
-            start_date__gte=month_start,
-            start_date__lte=month_end,
-            employee_id__is_active=True,
-        ).count()
-
-        months.append(
-            {
-                "month": month_start.strftime("%b %Y"),
-                "approved": approved,
-                "rejected": rejected,
-                "pending": pending,
-                "from_date": month_start.isoformat(),
-                "to_date": month_end.isoformat(),
-            }
         )
+        .values(dept_field, "status")
+        .annotate(count=Count("id"))
+    )
 
-    return JsonResponse({"months": months})
+    by_dept = {}
+    for row in rows:
+        dept = row[dept_field] or _("No Department")
+        entry = by_dept.setdefault(
+            dept, {"department": dept, "approved": 0, "rejected": 0, "pending": 0}
+        )
+        key = "pending" if row["status"] == "requested" else row["status"]
+        entry[key] += row["count"]
+
+    departments = sorted(
+        by_dept.values(),
+        key=lambda d: (
+            -d["approved"],
+            -(d["rejected"] + d["pending"]),
+            d["department"],
+        ),
+    )
+    return JsonResponse(
+        {
+            "departments": departments,
+            "from_date": from_date.isoformat(),
+            "to_date": to_date.isoformat(),
+        }
+    )
 
 
 @login_required
@@ -344,6 +329,8 @@ def leave_paid_unpaid_split(request):
 
     paid = 0
     unpaid = 0
+    paid_requests = 0
+    unpaid_requests = 0
 
     try:
         data = (
@@ -354,15 +341,17 @@ def leave_paid_unpaid_split(request):
                 employee_id__is_active=True,
             )
             .values("leave_type_id__payment")
-            .annotate(total_days=Sum("requested_days"))
+            .annotate(total_days=Sum("requested_days"), requests=Count("id"))
         )
 
         for item in data:
             days = float(item["total_days"] or 0)
             if item["leave_type_id__payment"] == "paid":
                 paid += days
+                paid_requests += item["requests"]
             else:
                 unpaid += days
+                unpaid_requests += item["requests"]
     except Exception:
         pass
 
@@ -370,6 +359,8 @@ def leave_paid_unpaid_split(request):
         {
             "paid": round(paid, 1),
             "unpaid": round(unpaid, 1),
+            "paid_requests": paid_requests,
+            "unpaid_requests": unpaid_requests,
             "month": today.strftime("%B %Y"),
         }
     )
@@ -563,7 +554,7 @@ def leave_weekly_pattern(request):
 @login_required
 @permission_required("leave.view_leaverequest")
 def leave_upcoming(request):
-    """Approved leaves starting within next 7 days from today."""
+    """Approved leaves starting within the next 7 days, excluding today."""
     from datetime import timedelta
 
     from leave.models import LeaveRequest
@@ -577,7 +568,7 @@ def leave_upcoming(request):
         qs = (
             LeaveRequest.objects.filter(
                 status="approved",
-                start_date__gte=today,
+                start_date__gt=today,
                 start_date__lte=next_week,
                 employee_id__is_active=True,
             )

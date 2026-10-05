@@ -726,9 +726,9 @@ urlpatterns = [
         name="leave-dashboard-kpi",
     ),
     path(
-        "dashboard/api/monthly-trend/",
-        leave_dashboard.leave_monthly_trend,
-        name="leave-dashboard-monthly-trend",
+        "dashboard/api/department-trend/",
+        leave_dashboard.leave_department_trend,
+        name="leave-dashboard-department-trend",
     ),
     path(
         "dashboard/api/type-distribution/",
