@@ -69,8 +69,14 @@ class LeaveTypeListView(HorillaListView):
     filter_class = LeaveTypeFilter
     model = LeaveType
 
-    def get_queryset(self):
-        return _exclude_disabled_compensatory_leave(super().get_queryset())
+    def get_queryset(self, queryset=None, filtered=False, *args, **kwargs):
+        # Same signature as HorillaListView.get_queryset: subclasses (e.g. the
+        # employee Allocations "Add types" list) call it with extra arguments.
+        queryset = super().get_queryset(queryset, filtered, *args, **kwargs)
+        # Assigned back so callers that read self.queryset afterwards (like
+        # LeaveTypeAllocationList) also get the filtered queryset.
+        self.queryset = _exclude_disabled_compensatory_leave(queryset)
+        return self.queryset
 
     columns = [
         (_("Leave Type"), "name", "get_avatar"),
