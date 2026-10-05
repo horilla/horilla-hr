@@ -186,14 +186,20 @@ the pay was worked out from. Everything below is the caveats.
      avoiding here too, and this content needs real layout (rows, a rule,
      tabular numbers) a plain title string cannot give it anyway. */
   .ps__info { position: relative; display: inline-block; }
+  /* position: fixed with no offsets sits where the popover would have been in
+     the flow -- just under its icon -- but, unlike absolute, is not clipped by
+     the payslip body's scroll container. That clipping cut the popovers off at
+     the container's right edge. */
   .ps__pop {
-    position: absolute; z-index: 30; top: 100%; left: 0;
-    margin-top: 6px;
+    position: fixed; z-index: 1000; top: auto; left: auto;
+    margin-top: 6px; max-width: calc(100vw - 24px);
     width: 270px; border: 1px solid #e6e7eb; border-radius: 10px;
     background: #fff; box-shadow: 0 6px 20px rgba(17, 24, 39, .14);
     padding: 10px 12px; font-size: 11.5px; font-weight: 400;
     color: #1f2430; text-align: left; white-space: normal;
   }
+  /* Opens leftwards from its icon, for an icon near the right-hand edge. */
+  .ps__pop--end { transform: translateX(calc(-100% + 18px)); }
   .ps__pop-title {
     font-size: 9.5px; font-weight: 700; letter-spacing: .06em;
     text-transform: uppercase; color: #8b90a0; margin-bottom: 6px;
@@ -540,7 +546,7 @@ the pay was worked out from. Everything below is the caveats.
             <img src="{% static 'horilla_theme/assets/img/icons/info.svg' %}"
                  alt="{% trans 'Info' %}" class="cursor-pointer"
                  style="display:inline;vertical-align:-2px;">
-            <div class="ps__pop" x-show="open" x-cloak style="left:auto; right:0;">
+            <div class="ps__pop ps__pop--end" x-show="open" x-cloak>
               <div class="ps__pop-title">{% trans "What isn't in this total" %}</div>
               <p class="ps__pop-note" style="margin:0; padding:0; border:0; color:#1f2430;">
                 {% trans "A component marked off basic, gross or net pay is not added in here: it has already changed the figure it names." %}
