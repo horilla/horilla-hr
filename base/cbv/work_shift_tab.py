@@ -84,17 +84,17 @@ class WorkAndShiftTabView(HorillaTabView):
         # first paint.
         context["tabs"] = [
             {
-                "title": _("Work type request"),
+                "title": _("Work Type Request"),
                 "url": f"{reverse('employee-worktype-tab-shell',kwargs={'pk': pk})}",
                 "badge": WorkTypeRequest.objects.filter(employee_id=pk).count(),
             },
             {
-                "title": _("Rotating work type"),
+                "title": _("Rotating Work Type"),
                 "url": f"{reverse('employee-rotating-work-tab-shell',kwargs={'pk': pk})}",
                 "badge": RotatingWorkTypeAssign.objects.filter(employee_id=pk).count(),
             },
             {
-                "title": _("Shift request"),
+                "title": _("Shift Request"),
                 "url": f"{reverse('shift-request-individual-tab-shell',kwargs={'pk': pk})}",
                 # Matches ShiftRequestIndividualTabView.get_queryset(), which
                 # replaces the base ShiftRequestList queryset entirely with a

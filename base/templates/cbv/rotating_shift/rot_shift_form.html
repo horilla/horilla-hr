@@ -42,7 +42,12 @@
         anchorElement.innerText = 'Add more shift..';
 
         divElement.appendChild(anchorElement);
-        var parentDiv = document.getElementById(parentDivId);
+        // "Add more shift.." always goes under the LAST shift field. The loop
+        // above leaves parentDivId on the second-to-last one (and unset when
+        // the form first loads with no shifts), so a re-render after a
+        // validation error put it under Shift 1.
+        var lastShift = Math.max(shiftCounts, 2);
+        var parentDiv = document.getElementById("id_shift" + lastShift + "_parent_div");
         if (!document.getElementById('addshift')) {
         if (parentDiv) {
 

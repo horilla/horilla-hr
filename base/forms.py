@@ -7,6 +7,7 @@ This module is used to register forms for base module
 import calendar
 import ipaddress
 import os
+import re
 import uuid
 from datetime import date, datetime, timedelta
 from typing import Any
@@ -1334,7 +1335,7 @@ class RotatingWorkTypeAssignForm(ModelForm):
         ).first()
 
         self.errors.pop("employee_id", None)
-        if self.data.getlist("employee_id"):
+        if not self.data.getlist("employee_id"):
             raise ValidationError({"employee_id": _("This field is required")})
         super().clean()
         cleaned_data = super().clean()
@@ -1874,8 +1875,24 @@ class RotatingShiftForm(ModelForm):
             "base/rotating_shift/htmx/rotating_shift_as_p.html", context
         )
 
+    def _validate_consecutive_shifts(self):
+        """Back-to-back shifts in the rotation must differ (shift N != N+1)."""
+        shifts = []
+        for key, value in self.data.items():
+            match = re.fullmatch(r"shift(\d+)", key)
+            if match and value:
+                shifts.append((int(match.group(1)), key, str(value)))
+        shifts.sort()
+        for (_n, _prev_key, prev_value), (_m, key, value) in zip(shifts, shifts[1:]):
+            if value == prev_value:
+                self.add_error(
+                    key,
+                    _("The next shift must be different from the previous shift."),
+                )
+
     def clean(self):
         cleaned_data = super().clean()
+        self._validate_consecutive_shifts()
         additional_shifts = []
         model_fields = list(self.instance.__dict__.keys())
 
