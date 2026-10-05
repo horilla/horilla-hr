@@ -72,7 +72,12 @@ function refreshShiftRequestList() {
     // the correct current request.path, so reuse that instead of guessing
     // the endpoint - it reloads just the list, which is all a single
     // approve/reject/delete actually needs to refresh.
-    var $reloadBtn = $("#listContainer .reload-record").first();
+    // Embedded in the employee detail "Work Type & Shift" tab: reload that
+    // tab's own list, not the employee list that owns #listContainer there.
+    var $reloadBtn = $("#shift-reques-individual-divReload");
+    if (!$reloadBtn.length) {
+        $reloadBtn = $("#listContainer .reload-record").first();
+    }
     if ($reloadBtn.length) {
         $reloadBtn.one("htmx:afterRequest", doneMessages);
         $reloadBtn.trigger("click");

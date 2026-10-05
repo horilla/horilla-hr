@@ -60,6 +60,17 @@ function refreshWorkTypeRequestList() {
             $("#reloadMessagesButton").click();
         }
     };
+    // Embedded in the employee detail "Work Type & Shift" tab: reload just
+    // that tab's own list through its hidden reload button. The standalone
+    // page's "/work-list-view/" + "#listContainer" below would instead pull
+    // the whole requests page into the employee list container.
+    var $profileReload = $("#work_targetReload");
+    if ($profileReload.length) {
+        $profileReload.one("htmx:afterRequest", doneMessages);
+        $profileReload.trigger("click");
+        return;
+    }
+
     var listUrl = workTypeRequestListUrl();
 
     if (typeof htmx !== "undefined" && typeof htmx.ajax === "function") {
@@ -115,7 +126,20 @@ function workTypeRequestRowApprove(url, confirmText) {
                     "X-Requested-With": "XMLHttpRequest",
                 },
                 dataType: "json",
-                success: function () {
+                success: function (response) {
+                    // Approved/rejected from the employee detail view: click
+                    // its "Work Type & Shift" tab button so the tab content
+                    // reloads in place, instead of loading the standalone
+                    // requests list over the page.
+                    var $profileTab = $('[data-target="#work-shift1"]');
+                    if (response && response.result === true && $profileTab.length) {
+                        // The tab only refetches when it isn't marked loaded.
+                        $profileTab.first().removeAttr("data-loaded").click();
+                        if (typeof jQuery !== "undefined" && $("#reloadMessagesButton").length) {
+                            $("#reloadMessagesButton").click();
+                        }
+                        return;
+                    }
                     refreshWorkTypeRequestList();
                 },
                 error: function () {

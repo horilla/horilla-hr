@@ -1,4 +1,10 @@
+{% load static %}
 <div hx-get="{% url nav_url_name pk=emp_id %}" hx-trigger="load"></div>
 <div id="{{ shell_target_id }}" class="oh-wrapper">
     <div class="animated-background"></div>
 </div>
+{# Row Approve/Reject handlers (workTypeRequestRowApprove, shiftRequestRowApprove, ...) #}
+{# are called from the lists' confirmation columns but only loaded by the standalone #}
+{# request pages, so load them for the profile sub-tabs too. #}
+<script src="{% static 'cbv/work_type_request/work_request_bulk_action.js' %}"></script>
+<script src="{% static 'cbv/shift_request/shift_request_bulk_actions.js' %}"></script>
