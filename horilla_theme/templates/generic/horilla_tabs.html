@@ -55,6 +55,14 @@
 
     <div class="bg-white p-3 rounded-md shadow-card oh-tabs">
         {% if not tabs %}
+            {% if tab_create_attrs %}
+                <div class="flex justify-end">
+                    <button type="button" class="oh-btn oh-btn--secondary" {{ tab_create_attrs|safe }}>
+                        <ion-icon name="add-outline"></ion-icon>
+                        {{ tab_create_label|default:_("Create") }}
+                    </button>
+                </div>
+            {% endif %}
             <div class="flex flex-col items-center justify-center py-10">
                 <img src="/static/horilla_theme/assets/img/no-records.svg" alt="" width="200" class="mb-4">
                 <p class="text-[#666]">{% trans "No records available at the moment" %}</p>
@@ -102,6 +110,14 @@
                     </div>
                 {% endfor %}
             </div>
+            {% if tab_create_attrs %}
+                <div class="flex items-start">
+                    <button type="button" class="oh-btn oh-btn--secondary" {{ tab_create_attrs|safe }}>
+                        <ion-icon name="add-outline"></ion-icon>
+                        {{ tab_create_label|default:_("Create") }}
+                    </button>
+                </div>
+            {% endif %}
         </div>
 
         <div class="oh-tabs__contents">

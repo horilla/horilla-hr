@@ -281,11 +281,16 @@ the pay was worked out from. Everything below is the caveats.
   {% else %}
     <div class="ps__facts">
       <div>
-        <div class="ps__fact-label">
-          {% if structure_mode == "gross_up" %}{% trans "Contract Basic" %}
-          {% else %}{% trans "Contract wage" %}{% endif %}
-        </div>
-        <div class="ps__fact-value">{{ contract_wage|currency_symbol_position }}</div>
+        {% if structure_mode == "ctc_down" and monthly_ctc %}
+          <div class="ps__fact-label">{% trans "Monthly CTC" %}</div>
+          <div class="ps__fact-value">{{ monthly_ctc|floatformat:2|currency_symbol_position }}</div>
+        {% else %}
+          <div class="ps__fact-label">
+            {% if structure_mode == "gross_up" %}{% trans "Contract Basic" %}
+            {% else %}{% trans "Contract wage" %}{% endif %}
+          </div>
+          <div class="ps__fact-value">{{ contract_wage|currency_symbol_position }}</div>
+        {% endif %}
       </div>
       <div>
         <div class="ps__fact-label">

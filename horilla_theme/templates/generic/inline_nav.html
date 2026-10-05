@@ -97,6 +97,7 @@
                 <input type="text" name="nav_url" value="{{ request.path }}" hidden>
                 <input type="hidden" name="filter_applied" value="on">
 
+                {% if not hide_search %}
                 <div class="relative">
                     <input
                         type="text"
@@ -131,6 +132,7 @@
                     </div>
                     {% endif %}
                 </div>
+                {% endif %}
 
                 {% if view_types %}
                     <div class="flex gap-1 text-[#000]">
@@ -500,7 +502,7 @@
                     width="13"
                     class="filter brightness-0 invert"
                 >
-                {% trans "Create" %}
+                {% if create_label %}{{ create_label }}{% else %}{% trans "Create" %}{% endif %}
             </a>
         {% endif %}
     </div>

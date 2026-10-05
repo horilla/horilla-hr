@@ -224,69 +224,6 @@
            outright, so the corner-masking behavior is otherwise unchanged. */
         overflow: visible;
     }
-
-    /* Dark mode. The rules above are scoped to the view id and some use
-       !important, so the body.dark rules in dark.css don't reach them.
-       Colors match the regular list view in dark mode. */
-    body.dark #{{ view_id|safe }} .oh-nested-accordion.bg-\[\#F7F6F3\] {
-        background-color: #1a1a1a;
-    }
-    body.dark #{{ view_id|safe }} .oh-nested-accordion .ngb-leaf-table {
-        background: transparent;
-        border-top-color: #444444;
-    }
-    body.dark #{{ view_id|safe }} thead th {
-        color: #ffffff;
-    }
-    body.dark #{{ view_id|safe }} .oh-nested-accordion > .oh-accordion > .oh-accordion-header {
-        background: #2b201d !important;
-    }
-    body.dark #{{ view_id|safe }} .oh-nested-accordion > .oh-accordion > .oh-accordion-header:hover {
-        background: #34261f !important;
-    }
-    body.dark #{{ view_id|safe }} .oh-nested-accordion > .oh-accordion.oh-accordion--show > .oh-accordion-header {
-        border-bottom-color: #5a3b31;
-    }
-    body.dark #{{ view_id|safe }} .oh-nested-accordion .oh-accordion-body .oh-accordion-header {
-        background: #1a1a1a !important;
-    }
-    body.dark #{{ view_id|safe }} .oh-nested-accordion .oh-accordion-body .oh-accordion-header:hover {
-        background: #222222 !important;
-    }
-    body.dark #{{ view_id|safe }} .oh-nested-accordion .oh-accordion-body .oh-accordion.oh-accordion--show > .oh-accordion-header {
-        border-bottom-color: #444444;
-    }
-    body.dark #{{ view_id|safe }} .border-\[\#EAE8E3\],
-    body.dark #{{ view_id|safe }} .border-\[\#DEDBD4\] {
-        border-color: #444444;
-    }
-    body.dark #{{ view_id|safe }} .border-black\/10 {
-        border-color: rgba(255, 255, 255, 0.12);
-    }
-    body.dark #{{ view_id|safe }} .text-\[\#4B4A45\] {
-        color: #dddddd;
-    }
-    body.dark #{{ view_id|safe }} .text-\[\#6F6D66\],
-    body.dark #{{ view_id|safe }} .text-gray-600 {
-        color: #bbbbbb;
-    }
-    body.dark #{{ view_id|safe }} .text-\[\#C7C4BA\] {
-        color: #777777;
-    }
-    body.dark #{{ view_id|safe }} .bg-\[\#F6F5F1\] {
-        background-color: #2e2e2e;
-    }
-    body.dark #{{ view_id|safe }} .bg-white\/70,
-    body.dark #{{ view_id|safe }} .hover\:bg-\[\#F7F6F3\]:hover,
-    body.dark #{{ view_id|safe }} .hover\:bg-\[\#F3F2EE\]:hover {
-        background-color: rgba(255, 255, 255, 0.08);
-    }
-    body.dark #{{ view_id|safe }} .ngb-crumb-option:not(:disabled):hover {
-        background: #2e2e2e;
-    }
-    body.dark #{{ view_id|safe }} .ngb-hscroll:hover::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.2);
-    }
 </style>
 
 <div id="{{view_id|safe}}" class="hlv-container relative" data-list-path="{{request.path}}" data-selected-instances-key="{{selected_instances_key_id}}"{% if show_toggle_form %} x-data="{ open: false }"{% endif %}>
