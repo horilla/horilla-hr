@@ -170,6 +170,70 @@ def employee_by_job_position(request):
     return JsonResponse({"positions": positions})
 
 
+@login_required
+def employee_attendance_by_shift(request):
+    from attendance.models import Attendance
+
+    month_start = date.today().replace(day=1)
+    rows = (
+        Attendance.objects.filter(
+            attendance_date__gte=month_start,
+            attendance_date__lte=date.today(),
+            employee_id__is_active=True,
+            employee_id__employee_work_info__shift_id__isnull=False,
+        )
+        .order_by()
+        .values(
+            "employee_id__employee_work_info__shift_id",
+            "employee_id__employee_work_info__shift_id__employee_shift",
+        )
+        .annotate(count=Count("id"))
+        .order_by("-count")
+    )
+    shifts = [
+        {
+            "id": r["employee_id__employee_work_info__shift_id"],
+            "shift": r["employee_id__employee_work_info__shift_id__employee_shift"],
+            "count": r["count"],
+        }
+        for r in rows
+    ]
+    return JsonResponse({"shifts": shifts, "month": month_start.strftime("%B %Y")})
+
+
+@login_required
+def employee_attendance_by_work_type(request):
+    from attendance.models import Attendance
+
+    month_start = date.today().replace(day=1)
+    rows = (
+        Attendance.objects.filter(
+            attendance_date__gte=month_start,
+            attendance_date__lte=date.today(),
+            employee_id__is_active=True,
+            employee_id__employee_work_info__work_type_id__isnull=False,
+        )
+        .order_by()
+        .values(
+            "employee_id__employee_work_info__work_type_id",
+            "employee_id__employee_work_info__work_type_id__work_type",
+        )
+        .annotate(count=Count("id"))
+        .order_by("-count")
+    )
+    work_types = [
+        {
+            "id": r["employee_id__employee_work_info__work_type_id"],
+            "work_type": r["employee_id__employee_work_info__work_type_id__work_type"],
+            "count": r["count"],
+        }
+        for r in rows
+    ]
+    return JsonResponse(
+        {"work_types": work_types, "month": month_start.strftime("%B %Y")}
+    )
+
+
 def _month_offset(d, months_back):
     """Return the first day of the month that is `months_back` months before d."""
     year = d.year

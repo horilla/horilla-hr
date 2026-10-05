@@ -320,6 +320,21 @@
             padding: 4px 12px 12px;
         }
 
+        .am-chart-card__body--tight {
+            height: 320px;
+            padding: 0 4px 6px;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+        .am-dimension-select {
+            padding: 4px 8px;
+            border: 1px solid rgba(128, 128, 128, 0.35);
+            border-radius: 6px;
+            background: transparent;
+            color: inherit;
+            font-size: 12px;
+        }
+
         /* ── Skeleton ── */
         .am-skeleton {
             border-radius: 12px;
@@ -487,7 +502,8 @@
 
         /* ── Period picker (mirrors onboarding/recruitment) ── */
         .am-period-picker {
-            display: none !important; /* TEMP: hide period picker */
+            display: flex;
+            flex-wrap: wrap;
             align-items: center;
             gap: 6px;
             font-size: 12px;
@@ -749,12 +765,13 @@
         }
 
         /* ── Cursor on clickable chart areas ── */
-        #chart-dept-attendance .apexcharts-bar-area,
         #chart-late-early .apexcharts-bar-area,
         #chart-overtime .apexcharts-pie-slice-donut,
         #chart-att-overview .apexcharts-bar-area,
         #chart-avg-hours .apexcharts-bar-area,
         #chart-hours .apexcharts-bar-area,
+        #chart-absenteeism .apexcharts-bar-area,
+        #chart-absence-pct .apexcharts-bar-area,
         #chart-shifts .apexcharts-pie-slice-donut,
         #chart-work-types .apexcharts-pie-slice-donut,
         #chart-calendar .apexcharts-bar-area {
@@ -846,15 +863,18 @@
                 class="am-header__actions"
                 style="display: flex; align-items: center; gap: 8px"
             >
-                <div class="am-period-picker" hidden>
+                <div class="am-period-picker">
+                    <button class="am-period-preset" data-preset="today">
+                        {% trans "Today" %}
+                    </button>
+                    <button class="am-period-preset" data-preset="this_week">
+                        {% trans "This Week" %}
+                    </button>
                     <button class="am-period-preset" data-preset="this_month">
                         {% trans "This Month" %}
                     </button>
-                    <button class="am-period-preset" data-preset="last_month">
-                        {% trans "Last Month" %}
-                    </button>
-                    <button class="am-period-preset" data-preset="this_quarter">
-                        {% trans "Quarter" %}
+                    <button class="am-period-preset" data-preset="this_year">
+                        {% trans "This Year" %}
                     </button>
                     <input
                         type="date"
@@ -908,56 +928,6 @@
             <!-- Left: Charts -->
             <div class="am-main">
                 <div class="am-chart-grid" id="am-charts-container">
-                    <!-- Clock-in Distribution -->
-                    <div
-                        class="am-chart-card"
-                        data-chart-id="clockin_distribution"
-                        data-chart-section="overview"
-                        data-chart-label="{% trans 'Clock-in Distribution' %}"
-                    >
-                        <div class="am-chart-card__header">
-                            <div>
-                                <div class="am-chart-card__title">
-                                    {% trans "Clock-in Distribution" %}
-                                </div>
-                                <div
-                                    class="am-chart-card__subtitle"
-                                    id="clockin-subtitle"
-                                >
-                                    {% trans "When employees clock in today" %}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="am-chart-card__body">
-                            <div id="chart-clockin-dist"></div>
-                        </div>
-                    </div>
-
-                    <!-- Department Attendance -->
-                    <div
-                        class="am-chart-card"
-                        data-chart-id="dept_attendance"
-                        data-chart-section="attendance"
-                        data-chart-label="{% trans 'Department Attendance' %}"
-                    >
-                        <div class="am-chart-card__header">
-                            <div>
-                                <div class="am-chart-card__title">
-                                    {% trans "Department Attendance" %}
-                                </div>
-                                <div
-                                    class="am-chart-card__subtitle"
-                                    id="dept-attendance-subtitle"
-                                >
-                                    {% trans "Today's attendance rate by department" %}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="am-chart-card__body">
-                            <div id="chart-dept-attendance"></div>
-                        </div>
-                    </div>
-
                     <!-- Daily attendance rate (colored bar; id kept for prefs) -->
                     <div
                         class="am-chart-card am-chart-card--wide"
@@ -981,32 +951,6 @@
                         </div>
                         <div class="am-chart-card__body">
                             <div id="chart-calendar"></div>
-                        </div>
-                    </div>
-
-                    <!-- Weekly Trend -->
-                    <div
-                        class="am-chart-card am-chart-card--wide"
-                        data-chart-id="weekly_trend"
-                        data-chart-section="attendance"
-                        data-chart-label="{% trans 'Attendance Trend' %}"
-                        data-chart-wide="1"
-                    >
-                        <div class="am-chart-card__header">
-                            <div>
-                                <div class="am-chart-card__title">
-                                    {% trans "Attendance Trend" %}
-                                </div>
-                                <div
-                                    class="am-chart-card__subtitle"
-                                    id="weekly-trend-subtitle"
-                                >
-                                    {% trans "Headcount across the selected period" %}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="am-chart-card__body">
-                            <div id="chart-weekly-trend"></div>
                         </div>
                     </div>
 
@@ -1036,26 +980,71 @@
                         </div>
                     </div>
 
-                    <!-- Absenteeism Rate Trend -->
+                    <!-- Attendance % (Shift / Department / Work Type) -->
                     <div
-                        class="am-chart-card am-chart-card--wide"
+                        class="am-chart-card"
                         data-chart-id="absenteeism_trend"
                         data-chart-section="alerts"
-                        data-chart-label="{% trans 'Absenteeism Rate' %}"
-                        data-chart-wide="1"
+                        data-chart-label="{% trans 'Attendance %' %}"
                     >
                         <div class="am-chart-card__header">
                             <div>
                                 <div class="am-chart-card__title">
-                                    {% trans "Absenteeism Rate" %}
+                                    {% trans "Attendance %" %}
                                 </div>
-                                <div class="am-chart-card__subtitle">
-                                    {% trans "Monthly trend — last 6 months" %}
+                                <div
+                                    class="am-chart-card__subtitle"
+                                    id="absenteeism-subtitle"
+                                >
+                                    {% trans "Attendance % by shift" %}
                                 </div>
                             </div>
+                            <select
+                                id="attendance-dimension"
+                                class="am-dimension-select"
+                                aria-label="{% trans 'Group attendance % by' %}"
+                            >
+                                <option value="shift">{% trans "Shift-wise" %}</option>
+                                <option value="department">{% trans "Department-wise" %}</option>
+                                <option value="work_type">{% trans "Work Type-wise" %}</option>
+                            </select>
                         </div>
-                        <div class="am-chart-card__body">
+                        <div class="am-chart-card__body am-chart-card__body--tight">
                             <div id="chart-absenteeism"></div>
+                        </div>
+                    </div>
+
+                    <!-- Absence % (Shift / Department / Work Type) -->
+                    <div
+                        class="am-chart-card"
+                        data-chart-id="absence_pct"
+                        data-chart-section="alerts"
+                        data-chart-label="{% trans 'Absence %' %}"
+                    >
+                        <div class="am-chart-card__header">
+                            <div>
+                                <div class="am-chart-card__title">
+                                    {% trans "Absence %" %}
+                                </div>
+                                <div
+                                    class="am-chart-card__subtitle"
+                                    id="absence-pct-subtitle"
+                                >
+                                    {% trans "Absence % by shift" %}
+                                </div>
+                            </div>
+                            <select
+                                id="absence-dimension"
+                                class="am-dimension-select"
+                                aria-label="{% trans 'Group absence % by' %}"
+                            >
+                                <option value="shift">{% trans "Shift-wise" %}</option>
+                                <option value="department">{% trans "Department-wise" %}</option>
+                                <option value="work_type">{% trans "Work Type-wise" %}</option>
+                            </select>
+                        </div>
+                        <div class="am-chart-card__body am-chart-card__body--tight">
+                            <div id="chart-absence-pct"></div>
                         </div>
                     </div>
 
@@ -1100,7 +1089,7 @@
                                     class="am-chart-card__subtitle"
                                     id="avg-hours-month"
                                 >
-                                    {% trans "Per day by department — this month" %}
+                                    {% trans "Per day by department" %}
                                 </div>
                             </div>
                         </div>
@@ -1147,7 +1136,7 @@
                                     <span id="ot-month"
                                         >{% trans "This month" %}</span
                                     >
-                                    — {% trans "Approved vs other hours" %}
+                                    — {% trans "Approved vs pending hours" %}
                                 </div>
                             </div>
                         </div>
@@ -1169,7 +1158,7 @@
                                     {% trans "Hours Distribution" %}
                                 </div>
                                 <div class="am-chart-card__subtitle">
-                                    {% trans "Worked vs pending hours by department" %}
+                                    {% trans "Employees with pending hours, by department" %}
                                 </div>
                             </div>
                         </div>
@@ -1207,7 +1196,7 @@
                 <div class="am-info-panel">
                     <div class="am-info-panel__header">
                         <div class="am-info-panel__title">
-                            {% trans "Top Absentees" %}
+                            {% trans "Frequent Absentees" %}
                         </div>
                         <span
                             style="font-size: 11px; opacity: 0.5"
@@ -1320,8 +1309,6 @@
             const attendanceUrlFor = (id) =>
                 id ? `${attendanceUrl}?employee_id=${id}` : "#";
 
-            const todayISO = new Date().toISOString().split("T")[0];
-
             function navigate(url, params) {
                 const qs = new URLSearchParams();
                 qs.set("filter_applied", "true");
@@ -1330,23 +1317,6 @@
                 });
                 const sep = url.includes("?") ? "&" : "?";
                 window.location.href = url + sep + qs.toString();
-            }
-            function asOfLabel(dateISO, defaultLabel) {
-                if (!dateISO) return defaultLabel;
-                if (dateISO === todayISO) return defaultLabel;
-                const d = new Date(dateISO + "T00:00:00");
-                const formatted = d.toLocaleDateString(uiLocale, {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                });
-                return (
-                    '{% trans "As of"|escapejs %}' +
-                    " " +
-                    formatted +
-                    " — " +
-                    defaultLabel
-                );
             }
 
             document.getElementById("am-date").textContent =
@@ -1694,32 +1664,57 @@
                 return fetch(urlWithPeriod(url));
             }
 
-            function amSetPreset(p) {
+            function _weekBounds(t) {
+                const dow = (t.getDay() + 6) % 7; // 0 = Monday
+                const f = new Date(t.getFullYear(), t.getMonth(), t.getDate() - dow);
+                return [f, new Date(f.getFullYear(), f.getMonth(), f.getDate() + 6)];
+            }
+            function _presetRanges() {
                 const t = new Date();
-                let f, to;
-                if (p === "this_month") {
-                    f = new Date(t.getFullYear(), t.getMonth(), 1);
-                    to = new Date(t.getFullYear(), t.getMonth() + 1, 0);
-                } else if (p === "last_month") {
-                    f = new Date(t.getFullYear(), t.getMonth() - 1, 1);
-                    to = new Date(t.getFullYear(), t.getMonth(), 0);
-                } else if (p === "this_quarter") {
-                    const q = Math.floor(t.getMonth() / 3) * 3;
-                    f = new Date(t.getFullYear(), q, 1);
-                    to = new Date(t.getFullYear(), q + 3, 0);
-                } else return;
-                amFromInput.value = _ymd(f);
-                amToInput.value = _ymd(to);
-                amSavePeriod();
+                const [wf, wt] = _weekBounds(t);
+                return {
+                    today: [_ymd(t), _ymd(t)],
+                    this_week: [_ymd(wf), _ymd(wt)],
+                    this_month: [
+                        _ymd(_firstOfMonth(t)),
+                        _ymd(_lastOfMonth(t)),
+                    ],
+                    this_year: [
+                        _ymd(new Date(t.getFullYear(), 0, 1)),
+                        _ymd(new Date(t.getFullYear(), 11, 31)),
+                    ],
+                };
+            }
+            function amHighlightPreset() {
+                const ranges = _presetRanges();
+                let active = "";
+                for (const k in ranges) {
+                    if (
+                        amFromInput.value === ranges[k][0] &&
+                        amToInput.value === ranges[k][1]
+                    )
+                        active = k;
+                }
                 document
                     .querySelectorAll(".am-period-preset")
                     .forEach((b) =>
                         b.classList.toggle(
                             "am-period-preset--active",
-                            b.dataset.preset === p,
+                            b.dataset.preset === active,
                         ),
                     );
-                location.reload();
+            }
+            function amPeriodChanged() {
+                amSavePeriod();
+                amHighlightPreset();
+                refreshAllData();
+            }
+            function amSetPreset(p) {
+                const r = _presetRanges()[p];
+                if (!r) return;
+                amFromInput.value = r[0];
+                amToInput.value = r[1];
+                amPeriodChanged();
             }
             document
                 .querySelectorAll(".am-period-preset")
@@ -1730,23 +1725,15 @@
                 );
             [amFromInput, amToInput].forEach((i) =>
                 i.addEventListener("change", () => {
-                    if (
-                        amFromInput.value &&
-                        amToInput.value &&
-                        amToInput.value < amFromInput.value
-                    ) {
+                    if (!amFromInput.value || !amToInput.value) return;
+                    if (amToInput.value < amFromInput.value) {
                         amToInput.value = amFromInput.value;
                     }
-                    amSavePeriod();
-                    document
-                        .querySelectorAll(".am-period-preset")
-                        .forEach((b) =>
-                            b.classList.remove("am-period-preset--active"),
-                        );
-                    location.reload();
+                    amPeriodChanged();
                 }),
             );
             amInitPeriod();
+            amHighlightPreset();
 
             // ═══════════════════════════════════════════
             //  DATA FETCHES
@@ -1788,7 +1775,7 @@
                     </a>
                     <a href="{% url 'employee-view' %}?expected_to_check_in=${data.date}&is_active=True&filter_applied=on" class="am-kpi-card">
                         <div class="am-kpi-card__icon am-kpi-card__icon--red"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M9 14l2 2 4-4"/></svg></div>
-                        <div class="am-kpi-card__label">{% trans "Pending"|escapejs %}</div>
+                        <div class="am-kpi-card__label">{% trans "Not Checked In Today"|escapejs %}</div>
                         <div class="am-kpi-card__value">${data.expected_to_check_in}</div>
                         <div class="am-kpi-card__sub"><span class="am-badge am-badge--amber">{% trans "Not Present, Not On Leave"|escapejs %}</span></div>
                     </a>
@@ -1805,266 +1792,6 @@
                     });
             }
             loadKpiCards();
-
-            // ─── ATTENDANCE TREND ───
-            function loadAttendanceTrend() {
-                fetchP("{% url 'attendance-dashboard-weekly' %}")
-                    .then((r) => r.json())
-                    .then((data) => {
-                        const subEl = document.getElementById(
-                            "weekly-trend-subtitle",
-                        );
-                        if (subEl) {
-                            const mode =
-                                data.aggregate === "weekly"
-                                    ? '{% trans "Weekly average headcount"|escapejs %}'
-                                    : '{% trans "Daily headcount"|escapejs %}';
-                            subEl.textContent = data.period_label
-                                ? mode + " — " + data.period_label
-                                : mode;
-                        }
-                        if (!data.days || !data.days.length) {
-                            document.querySelector(
-                                "#chart-weekly-trend",
-                            ).innerHTML = emptyHtml(
-                                '{% trans "No data"|escapejs %}',
-                            );
-                            return;
-                        }
-                        const dense = data.days.length > 14;
-                        renderChart(
-                            "weekly-trend",
-                            document.querySelector("#chart-weekly-trend"),
-                            {
-                                series: [
-                                    {
-                                        name: '{% trans "Present"|escapejs %}',
-                                        data: data.days.map((d) => d.count),
-                                    },
-                                ],
-                                chart: {
-                                    type: "area",
-                                    height: 280,
-                                    toolbar: { show: false },
-                                    background: "transparent",
-                                    fontFamily: "inherit",
-                                    animations: ANIM,
-                                    dropShadow: {
-                                        enabled: true,
-                                        top: 4,
-                                        blur: 10,
-                                        opacity: 0.12,
-                                        color: "#E54F38",
-                                    },
-                                },
-                                colors: ["#E54F38"],
-                                fill: {
-                                    type: "gradient",
-                                    gradient: {
-                                        type: "vertical",
-                                        shadeIntensity: 1,
-                                        opacityFrom: 0.45,
-                                        opacityTo: 0.02,
-                                        stops: [0, 90, 100],
-                                        colorStops: [
-                                            {
-                                                offset: 0,
-                                                color: "#E54F38",
-                                                opacity: 0.4,
-                                            },
-                                            {
-                                                offset: 100,
-                                                color: "#a855f7",
-                                                opacity: 0.02,
-                                            },
-                                        ],
-                                    },
-                                },
-                                stroke: { curve: "smooth", width: 3 },
-                                markers: {
-                                    size: dense ? 0 : 5,
-                                    colors: ["#E54F38"],
-                                    strokeColors: cardBg,
-                                    strokeWidth: 2,
-                                    hover: { size: 7 },
-                                },
-                                dataLabels: {
-                                    enabled: !dense,
-                                    offsetY: -10,
-                                    style: {
-                                        fontSize: "11px",
-                                        fontWeight: 700,
-                                        colors: ["#fff"],
-                                    },
-                                    background: {
-                                        enabled: true,
-                                        foreColor: "#fff",
-                                        borderRadius: 4,
-                                        padding: 4,
-                                        borderWidth: 0,
-                                        fillColors: ["#E54F38"],
-                                    },
-                                },
-                                xaxis: {
-                                    ...XAXIS_STYLE,
-                                    categories: data.days.map((d) => d.day),
-                                    tickAmount: Math.min(data.days.length, 10),
-                                    labels: {
-                                        ...XAXIS_STYLE.labels,
-                                        rotate: dense ? -45 : 0,
-                                        hideOverlappingLabels: true,
-                                    },
-                                },
-                                yaxis: { ...YAXIS_STYLE, min: 0 },
-                                grid: GRID,
-                                tooltip: {
-                                    ...TOOLTIP_STYLE,
-                                    y: {
-                                        formatter: (v) =>
-                                            v +
-                                            " " +
-                                            '{% trans "employees"|escapejs %}',
-                                    },
-                                },
-                                annotations: {
-                                    xaxis: data.days
-                                        .filter((d) => d.is_today)
-                                        .map((d) => ({
-                                            x: d.day,
-                                            borderColor: "#22c55e",
-                                            label: {
-                                                text: '{% trans "Today"|escapejs %}',
-                                                style: {
-                                                    color: "#fff",
-                                                    background: "#22c55e",
-                                                    fontSize: "10px",
-                                                },
-                                            },
-                                        })),
-                                },
-                            },
-                        );
-                    })
-                    .catch(() => {
-                        document.querySelector("#chart-weekly-trend").innerHTML =
-                            emptyHtml('{% trans "Unable to load"|escapejs %}');
-                    });
-            }
-            loadAttendanceTrend();
-
-            // ─── DEPARTMENT ATTENDANCE ───
-            function loadDeptAttendance() {
-                fetchP("{% url 'attendance-dashboard-dept' %}")
-                    .then((r) => r.json())
-                    .then((data) => {
-                        const subEl = document.getElementById(
-                            "dept-attendance-subtitle",
-                        );
-                        if (subEl)
-                            subEl.textContent = asOfLabel(
-                                data.date,
-                                '{% trans "Attendance rate by department"|escapejs %}',
-                            );
-                        if (!data.departments.length) {
-                            document.querySelector(
-                                "#chart-dept-attendance",
-                            ).innerHTML = emptyHtml(
-                                '{% trans "No data"|escapejs %}',
-                            );
-                            return;
-                        }
-                        renderChart(
-                            "dept-attendance",
-                            document.querySelector("#chart-dept-attendance"),
-                            {
-                                series: [
-                                    {
-                                        name: '{% trans "Rate"|escapejs %}',
-                                        data: data.departments.map((d) => d.rate),
-                                    },
-                                ],
-                                chart: {
-                                    type: "bar",
-                                    height: 300,
-                                    toolbar: { show: false },
-                                    background: "transparent",
-                                    fontFamily: "inherit",
-                                    animations: ANIM,
-                                    events: {
-                                        dataPointSelection: (e, ctx, config) => {
-                                            const dept =
-                                                data.departments[
-                                                    config.dataPointIndex
-                                                ]?.department;
-                                            if (!dept) return;
-                                            navigate(
-                                                "{% url 'attendance-view' %}",
-                                                {
-                                                    department: dept,
-                                                    attendance_date: data.date,
-                                                },
-                                            );
-                                        },
-                                    },
-                                },
-                                colors: data.departments.map((d) =>
-                                    d.rate >= 80
-                                        ? "#22c55e"
-                                        : d.rate >= 50
-                                            ? "#f59e0b"
-                                            : "#ef4444",
-                                ),
-                                plotOptions: {
-                                    bar: {
-                                        borderRadius: 8,
-                                        borderRadiusApplication: "end",
-                                        horizontal: true,
-                                        barHeight: "55%",
-                                        distributed: true,
-                                    },
-                                },
-                                xaxis: {
-                                    ...XAXIS_STYLE,
-                                    categories: data.departments.map(
-                                        (d) => d.department,
-                                    ),
-                                    max: 100,
-                                },
-                                yaxis: {
-                                    labels: {
-                                        style: {
-                                            colors: textColor,
-                                            fontSize: "11px",
-                                            fontWeight: 500,
-                                        },
-                                    },
-                                },
-                                grid: GRID,
-                                dataLabels: {
-                                    enabled: true,
-                                    formatter: (v, { dataPointIndex: i }) =>
-                                        `${v}% (${data.departments[i].present}/${data.departments[i].total})`,
-                                    style: { fontSize: "11px", fontWeight: 600 },
-                                },
-                                legend: { show: false },
-                                tooltip: {
-                                    ...TOOLTIP_STYLE,
-                                    y: { formatter: (v) => v + "%" },
-                                },
-                                states: {
-                                    hover: {
-                                        filter: { type: "darken", value: 0.85 },
-                                    },
-                                },
-                            },
-                        );
-                    })
-                    .catch(() => {
-                        document.querySelector("#chart-dept-attendance").innerHTML =
-                            emptyHtml('{% trans "Unable to load"|escapejs %}');
-                    });
-            }
-            loadDeptAttendance();
 
             // ─── LATE COME & EARLY OUT ───
             function loadLateEarly() {
@@ -2216,14 +1943,9 @@
                                         ),
                                     },
                                     {
-                                        name: '{% trans "Other"|escapejs %}',
-                                        data: data.departments.map((d) =>
-                                            Math.max(
-                                                0,
-                                                +(
-                                                    d.total_hours - d.approved_hours
-                                                ).toFixed(1),
-                                            ),
+                                        name: '{% trans "Pending"|escapejs %}',
+                                        data: data.departments.map(
+                                            (d) => d.pending_hours,
                                         ),
                                     },
                                 ],
@@ -2326,15 +2048,9 @@
                             {
                                 series: [
                                     {
-                                        name: '{% trans "Worked"|escapejs %}',
-                                        data: data.departments.map(
-                                            (d) => d.worked_hours,
-                                        ),
-                                    },
-                                    {
                                         name: '{% trans "Pending"|escapejs %}',
                                         data: data.departments.map(
-                                            (d) => d.pending_hours,
+                                            (d) => d.pending_employees,
                                         ),
                                     },
                                 ],
@@ -2344,10 +2060,9 @@
                                     toolbar: { show: false },
                                     background: "transparent",
                                     fontFamily: "inherit",
-                                    stacked: true,
                                     animations: ANIM,
                                 },
-                                colors: ["#22c55e", "#f59e0b"],
+                                colors: ["#f59e0b"],
                                 fill: {
                                     type: "gradient",
                                     gradient: {
@@ -2373,23 +2088,29 @@
                                 },
                                 yaxis: {
                                     ...YAXIS_STYLE,
+                                    min: 0,
+                                    forceNiceScale: true,
                                     labels: {
                                         ...YAXIS_STYLE.labels,
-                                        formatter: (v) => v + "h",
+                                        formatter: (v) => Math.round(v),
                                     },
                                 },
                                 grid: GRID,
-                                dataLabels: { enabled: false },
-                                legend: {
-                                    ...LEGEND_STYLE,
-                                    position: "top",
-                                    horizontalAlign: "right",
+                                dataLabels: {
+                                    enabled: true,
+                                    style: {
+                                        fontSize: "11px",
+                                        fontWeight: 700,
+                                        colors: ["#fff"],
+                                    },
+                                    background: { enabled: false },
                                 },
+                                legend: { show: false },
                                 tooltip: {
                                     ...TOOLTIP_STYLE,
                                     y: {
                                         formatter: (v) =>
-                                            v + " " + '{% trans "hrs"|escapejs %}',
+                                            v + " " + '{% trans "employee(s)"|escapejs %}',
                                     },
                                 },
                                 states: {
@@ -2488,129 +2209,6 @@
                     });
             }
             loadShiftDistribution();
-
-            // ─── CLOCK-IN DISTRIBUTION ───
-            function loadClockinDist() {
-                fetchP("{% url 'attendance-dashboard-clockin' %}")
-                    .then((r) => r.json())
-                    .then((data) => {
-                        const subEl = document.getElementById("clockin-subtitle");
-                        if (subEl)
-                            subEl.textContent = asOfLabel(
-                                data.date,
-                                '{% trans "When employees clock in"|escapejs %}',
-                            );
-                        if (!data.hours.length) {
-                            document.querySelector(
-                                "#chart-clockin-dist",
-                            ).innerHTML = emptyHtml(
-                                '{% trans "No clock-in data"|escapejs %}',
-                            );
-                            return;
-                        }
-                        renderChart(
-                            "clockin-dist",
-                            document.querySelector("#chart-clockin-dist"),
-                            {
-                                series: [
-                                    {
-                                        name: '{% trans "Employees"|escapejs %}',
-                                        data: data.counts,
-                                    },
-                                ],
-                                chart: {
-                                    type: "bar",
-                                    height: 280,
-                                    toolbar: { show: false },
-                                    background: "transparent",
-                                    fontFamily: "inherit",
-                                    animations: ANIM,
-                                    events: {
-                                        dataPointSelection: (e, ctx, config) => {
-                                            const hourLabel =
-                                                data.hours[config.dataPointIndex];
-                                            if (!hourLabel) return;
-                                            const hour = parseInt(
-                                                hourLabel.split(":")[0],
-                                                10,
-                                            );
-                                            const pad = (n) =>
-                                                String(n).padStart(2, "0");
-                                            navigate(
-                                                "{% url 'attendance-view' %}",
-                                                {
-                                                    attendance_clock_in__gte: `${pad(hour)}:00`,
-                                                    attendance_clock_in__lte: `${pad(hour)}:59`,
-                                                    attendance_date: data.date,
-                                                },
-                                            );
-                                        },
-                                    },
-                                },
-                                colors: ["#E54F38"],
-                                fill: {
-                                    type: "gradient",
-                                    gradient: {
-                                        type: "vertical",
-                                        shadeIntensity: 0.4,
-                                        opacityFrom: 1,
-                                        opacityTo: 0.75,
-                                        colorStops: [
-                                            {
-                                                offset: 0,
-                                                color: "#E54F38",
-                                                opacity: 1,
-                                            },
-                                            {
-                                                offset: 100,
-                                                color: "#a855f7",
-                                                opacity: 0.8,
-                                            },
-                                        ],
-                                    },
-                                },
-                                plotOptions: {
-                                    bar: {
-                                        borderRadius: 8,
-                                        borderRadiusApplication: "end",
-                                        columnWidth: "52%",
-                                    },
-                                },
-                                xaxis: { ...XAXIS_STYLE, categories: data.hours },
-                                yaxis: { ...YAXIS_STYLE },
-                                grid: GRID,
-                                dataLabels: {
-                                    enabled: true,
-                                    style: {
-                                        fontSize: "11px",
-                                        fontWeight: 700,
-                                        colors: ["#fff"],
-                                    },
-                                    background: { enabled: false },
-                                },
-                                tooltip: {
-                                    ...TOOLTIP_STYLE,
-                                    y: {
-                                        formatter: (v) =>
-                                            v +
-                                            " " +
-                                            '{% trans "employee(s)"|escapejs %}',
-                                    },
-                                },
-                                states: {
-                                    hover: {
-                                        filter: { type: "darken", value: 0.85 },
-                                    },
-                                },
-                            },
-                        );
-                    })
-                    .catch(() => {
-                        document.querySelector("#chart-clockin-dist").innerHTML =
-                            emptyHtml('{% trans "Unable to load"|escapejs %}');
-                    });
-            }
-            loadClockinDist();
 
             // ─── DAILY ATTENDANCE RATE ───
             function loadCalendarHeatmap() {
@@ -2731,111 +2329,197 @@
             }
             loadCalendarHeatmap();
 
-            // ─── ABSENTEEISM RATE TREND ───
-            function loadAbsenteeismTrend() {
-                fetchP("{% url 'attendance-dashboard-absenteeism' %}")
+            // ─── ATTENDANCE % (SHIFT / DEPARTMENT / WORK TYPE) ───
+            // Shared horizontal-bar renderer: one row per group, coloured by
+            // `colorFor(rate)`, label "rate% (days)" from the backend payload.
+            function loadRateChart(cfg) {
+                const el = document.querySelector(cfg.el);
+                fetchP(cfg.url)
                     .then((r) => r.json())
                     .then((data) => {
-                        if (!data.months.length) {
-                            document.querySelector("#chart-absenteeism").innerHTML =
-                                emptyHtml('{% trans "No data"|escapejs %}');
+                        const items = data[cfg.listKey] || [];
+                        const subEl = document.getElementById(cfg.subtitleId);
+                        if (subEl && data.month)
+                            subEl.textContent = cfg.subtitle + " — " + data.month;
+                        // Reset before redraw so switching between a dimension
+                        // with data and one without never leaves stale content.
+                        if (chartInstances[cfg.key]) {
+                            chartInstances[cfg.key].destroy();
+                            chartInstances[cfg.key] = null;
+                        }
+                        el.innerHTML = "";
+                        if (!items.length) {
+                            el.innerHTML = emptyHtml(
+                                '{% trans "No data"|escapejs %}',
+                            );
                             return;
                         }
-                        renderChart(
-                            "absenteeism",
-                            document.querySelector("#chart-absenteeism"),
-                            {
-                                series: [
-                                    {
-                                        name: '{% trans "Absenteeism Rate"|escapejs %}',
-                                        data: data.months.map((m) => m.rate),
-                                    },
-                                ],
-                                chart: {
-                                    type: "area",
-                                    height: 280,
-                                    toolbar: { show: false },
-                                    background: "transparent",
-                                    fontFamily: "inherit",
-                                    animations: ANIM,
-                                    dropShadow: {
-                                        enabled: true,
-                                        top: 4,
-                                        blur: 10,
-                                        opacity: 0.1,
-                                        color: "#ef4444",
-                                    },
+                        // Size rows to the category count so few groups get
+                        // fat bars and many groups stay compact, and shrink
+                        // text on narrow cards.
+                        const n = items.length;
+                        const narrow = el.clientWidth < 380;
+                        // Fixed card height: the chart always fills it so both
+                        // cards match; only very long lists grow and scroll.
+                        const CHART_H = 306;
+                        const chartH = Math.max(CHART_H, n * 28 + 34);
+                        const maxRate = Math.max(...items.map((d) => d.rate));
+                        const axisMax = cfg.fitAxis
+                            ? Math.min(100, Math.max(10, Math.ceil((maxRate * 1.6) / 10) * 10))
+                            : 100;
+                        renderChart(cfg.key, el, {
+                            series: [
+                                {
+                                    name: cfg.seriesName,
+                                    data: items.map((d) => d.rate),
                                 },
-                                colors: ["#ef4444"],
-                                fill: {
-                                    type: "gradient",
-                                    gradient: {
-                                        type: "vertical",
-                                        shadeIntensity: 1,
-                                        opacityFrom: 0.4,
-                                        opacityTo: 0.02,
-                                        stops: [0, 90, 100],
-                                    },
+                            ],
+                            chart: {
+                                type: "bar",
+                                height: chartH,
+                                toolbar: { show: false },
+                                background: "transparent",
+                                fontFamily: "inherit",
+                                animations: ANIM,
+                            },
+                            colors: items.map((d) => cfg.colorFor(d.rate)),
+                            plotOptions: {
+                                bar: {
+                                    borderRadius: 8,
+                                    borderRadiusApplication: "end",
+                                    horizontal: true,
+                                    barHeight: n <= 3 ? "40%" : n <= 6 ? "60%" : "70%",
+                                    distributed: true,
                                 },
-                                stroke: { curve: "smooth", width: 3 },
-                                markers: {
-                                    size: 5,
-                                    colors: ["#ef4444"],
-                                    strokeColors: cardBg,
-                                    strokeWidth: 2,
-                                    hover: { size: 7 },
+                            },
+                            xaxis: {
+                                ...XAXIS_STYLE,
+                                categories: items.map((d) => d[cfg.labelKey]),
+                                min: 0,
+                                max: axisMax,
+                                tickAmount: axisMax <= 20 ? axisMax / 5 : 5,
+                                labels: {
+                                    ...XAXIS_STYLE.labels,
+                                    formatter: (v) => Math.round(v) + "%",
                                 },
-                                dataLabels: {
-                                    enabled: true,
-                                    offsetY: -10,
-                                    formatter: (v) => v + "%",
+                            },
+                            yaxis: {
+                                labels: {
+                                    maxWidth: narrow ? 70 : 120,
                                     style: {
-                                        fontSize: "11px",
-                                        fontWeight: 700,
-                                        colors: ["#fff"],
-                                    },
-                                    background: {
-                                        enabled: true,
-                                        foreColor: "#fff",
-                                        borderRadius: 4,
-                                        padding: 4,
-                                        borderWidth: 0,
-                                        fillColors: ["#ef4444"],
-                                    },
-                                },
-                                xaxis: {
-                                    ...XAXIS_STYLE,
-                                    categories: data.months.map((m) => m.month),
-                                },
-                                yaxis: {
-                                    ...YAXIS_STYLE,
-                                    min: 0,
-                                    labels: {
-                                        ...YAXIS_STYLE.labels,
-                                        formatter: (v) => v + "%",
-                                    },
-                                },
-                                grid: GRID,
-                                tooltip: {
-                                    ...TOOLTIP_STYLE,
-                                    y: {
-                                        formatter: (v) =>
-                                            v +
-                                            "% " +
-                                            '{% trans "absenteeism"|escapejs %}',
+                                        colors: textColor,
+                                        fontSize: narrow ? "10px" : "11px",
+                                        fontWeight: 500,
                                     },
                                 },
                             },
-                        );
+                            grid: {
+                                ...GRID,
+                                padding: { left: 0, right: 8, top: -12, bottom: -4 },
+                            },
+                            dataLabels: {
+                                enabled: true,
+                                textAnchor: cfg.fitAxis ? "start" : "middle",
+                                offsetX: cfg.fitAxis ? 4 : 0,
+                                formatter: (v, { dataPointIndex: i }) =>
+                                    narrow
+                                        ? `${v}%`
+                                        : `${v}% (${items[i][cfg.countKey]}/${items[i].expected_days})`,
+                                style: {
+                                    fontSize: "11px",
+                                    fontWeight: 600,
+                                    colors: [cfg.fitAxis ? textColor : "#ffffff"],
+                                },
+                                dropShadow: {
+                                    enabled: !cfg.fitAxis,
+                                    top: 1,
+                                    left: 0,
+                                    blur: 2,
+                                    opacity: 0.45,
+                                },
+                            },
+                            legend: { show: false },
+                            tooltip: {
+                                ...TOOLTIP_STYLE,
+                                y: {
+                                    formatter: (v, { dataPointIndex: i }) =>
+                                        `${v}% (${items[i][cfg.countKey]}/${items[i].expected_days} ${cfg.countLabel})`,
+                                },
+                            },
+                            states: {
+                                hover: {
+                                    filter: { type: "darken", value: 0.85 },
+                                },
+                            },
+                        });
                     })
                     .catch(() => {
-                        document.querySelector("#chart-absenteeism").innerHTML =
-                            emptyHtml('{% trans "Unable to load"|escapejs %}');
+                        el.innerHTML = emptyHtml(
+                            '{% trans "Unable to load"|escapejs %}',
+                        );
                     });
             }
-            loadAbsenteeismTrend();
+            const attendanceColor = (r) =>
+                r >= 90 ? "#22c55e" : r >= 75 ? "#f59e0b" : "#ef4444";
+            const ATTENDANCE_SUBTITLES = {
+                shift: '{% trans "Attendance % by shift"|escapejs %}',
+                department: '{% trans "Attendance % by department"|escapejs %}',
+                work_type: '{% trans "Attendance % by work type"|escapejs %}',
+            };
+            const attendanceSelect = document.getElementById("attendance-dimension");
+            function loadAttendancePct() {
+                const dimension = attendanceSelect.value;
+                loadRateChart({
+                    url:
+                        "{% url 'attendance-dashboard-percentage' %}?dimension=" +
+                        encodeURIComponent(dimension),
+                    el: "#chart-absenteeism",
+                    key: "absenteeism",
+                    listKey: "items",
+                    labelKey: "label",
+                    countKey: "present_days",
+                    subtitleId: "absenteeism-subtitle",
+                    subtitle: ATTENDANCE_SUBTITLES[dimension],
+                    seriesName: '{% trans "Attendance %"|escapejs %}',
+                    countLabel: '{% trans "days present"|escapejs %}',
+                    colorFor: attendanceColor,
+                });
+            }
+            attendanceSelect.addEventListener("change", loadAttendancePct);
+            loadAttendancePct();
 
-            // ─── AVG WORKING HOURS ───
+            // ─── ABSENCE % (SHIFT / DEPARTMENT / WORK TYPE) ───
+            const absenceColor = (r) =>
+                r <= 10 ? "#22c55e" : r <= 25 ? "#f59e0b" : "#ef4444";
+            const ABSENCE_SUBTITLES = {
+                shift: '{% trans "Absence % by shift"|escapejs %}',
+                department: '{% trans "Absence % by department"|escapejs %}',
+                work_type: '{% trans "Absence % by work type"|escapejs %}',
+            };
+            const absenceSelect = document.getElementById("absence-dimension");
+            function loadAbsencePct() {
+                const dimension = absenceSelect.value;
+                loadRateChart({
+                    url:
+                        "{% url 'attendance-dashboard-absence-percentage' %}?dimension=" +
+                        encodeURIComponent(dimension),
+                    el: "#chart-absence-pct",
+                    key: "absence_pct",
+                    listKey: "items",
+                    labelKey: "label",
+                    countKey: "absent_days",
+                    subtitleId: "absence-pct-subtitle",
+                    subtitle: ABSENCE_SUBTITLES[dimension],
+                    seriesName: '{% trans "Absence %"|escapejs %}',
+                    countLabel: '{% trans "days absent"|escapejs %}',
+                    colorFor: absenceColor,
+                    fitAxis: true,
+                });
+            }
+            absenceSelect.addEventListener("change", loadAbsencePct);
+            loadAbsencePct();
+
+                        // ─── AVG WORKING HOURS ───
             function loadAvgHours() {
                 fetchP("{% url 'attendance-dashboard-avg-hours' %}")
                     .then((r) => r.json())
@@ -3077,7 +2761,7 @@
                         if (!data.absentees.length) {
                             el.innerHTML =
                                 '<div class="am-info-panel__empty">' +
-                                '{% trans "No absences this month"|escapejs %}' +
+                                '{% trans "No absences in this period"|escapejs %}' +
                                 "</div>";
                             return;
                         }
@@ -3107,7 +2791,7 @@
                     .catch(() => {
                         document.getElementById("am-absentees").innerHTML =
                             '<div class="am-info-panel__empty">' +
-                            '{% trans "No absences this month"|escapejs %}' +
+                            '{% trans "No absences in this period"|escapejs %}' +
                             "</div>";
                     });
             }
@@ -3238,15 +2922,13 @@
             // auto-refresh timer instead of location.reload()).
             function refreshAllData() {
                 loadKpiCards();
-                loadAttendanceTrend();
-                loadDeptAttendance();
                 loadLateEarly();
                 loadOvertimeDept();
                 loadHoursDistribution();
                 loadShiftDistribution();
-                loadClockinDist();
                 loadCalendarHeatmap();
-                loadAbsenteeismTrend();
+                loadAttendancePct();
+                loadAbsencePct();
                 loadAvgHours();
                 loadWorkTypeDistribution();
                 loadTopAbsentees();

@@ -673,6 +673,28 @@
                     </div>
                 </div>
 
+                <!-- Attendance count charts -->
+                <div class="em-chart-grid">
+                    <div class="em-chart-card" data-accent="green">
+                        <div class="em-chart-card__header">
+                            <div>
+                                <div class="em-chart-card__title">{% trans "Shift-wise Attendance Count" %}</div>
+                                <div class="em-chart-card__subtitle">{% trans "Attendance records by shift — this month" %}</div>
+                            </div>
+                        </div>
+                        <div class="em-chart-card__body"><div id="chart-em-att-shift"></div></div>
+                    </div>
+                    <div class="em-chart-card" data-accent="blue">
+                        <div class="em-chart-card__header">
+                            <div>
+                                <div class="em-chart-card__title">{% trans "Work Type-wise Attendance Count" %}</div>
+                                <div class="em-chart-card__subtitle">{% trans "Attendance records by work type — this month" %}</div>
+                            </div>
+                        </div>
+                        <div class="em-chart-card__body"><div id="chart-em-att-work-type"></div></div>
+                    </div>
+                </div>
+
                 <!-- Wide charts -->
                 <div class="em-chart-grid">
                     <div class="em-chart-card em-chart-card--wide" data-accent="indigo">
@@ -845,6 +867,28 @@
                         tooltip: { theme: isDark ? 'dark' : 'light' },
                     }).render();
                 });
+
+            // ─── ATTENDANCE COUNT: SHIFT / WORK TYPE ───
+            function attendanceCountChart(url, listKey, labelKey, el, emptyMsg) {
+                fetchP(url).then(r => r.json()).then(data => {
+                    const items = data[listKey] || [];
+                    if (!items.length) { document.querySelector(el).innerHTML = emptyHtml(emptyMsg); return; }
+                    new ApexCharts(document.querySelector(el), {
+                        series: [{ name: '{% trans "Attendance"|escapejs %}', data: items.map(i => i.count) }],
+                        chart: { type: 'bar', height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit' },
+                        colors: COLORS,
+                        plotOptions: { bar: { borderRadius: 6, columnWidth: '55%', distributed: true } },
+                        xaxis: { categories: items.map(i => i[labelKey]), labels: { style: { colors: textColor, fontSize: '11px' }, rotate: -30 }, axisBorder: { show: false }, axisTicks: { show: false } },
+                        yaxis: { labels: { style: { colors: textColor }, formatter: v => Math.round(v) } },
+                        grid: { borderColor: gridColor, strokeDashArray: 4 },
+                        dataLabels: { enabled: true, style: { fontSize: '11px', colors: ['#fff'] } },
+                        legend: { show: false },
+                        tooltip: { theme: isDark ? 'dark' : 'light' },
+                    }).render();
+                });
+            }
+            attendanceCountChart("{% url 'employee-dashboard-attendance-shift' %}", 'shifts', 'shift', '#chart-em-att-shift', '{% trans "No shift attendance data"|escapejs %}');
+            attendanceCountChart("{% url 'employee-dashboard-attendance-work-type' %}", 'work_types', 'work_type', '#chart-em-att-work-type', '{% trans "No work type attendance data"|escapejs %}');
 
             // ─── MONTHLY JOININGS ───
             fetchP("{% url 'employee-dashboard-joining-trend' %}")

@@ -307,6 +307,16 @@ urlpatterns = [
         name="employee-dashboard-type",
     ),
     path(
+        "dashboard/api/attendance-shift/",
+        emp_dashboard.employee_attendance_by_shift,
+        name="employee-dashboard-attendance-shift",
+    ),
+    path(
+        "dashboard/api/attendance-work-type/",
+        emp_dashboard.employee_attendance_by_work_type,
+        name="employee-dashboard-attendance-work-type",
+    ),
+    path(
         "dashboard/api/position/",
         emp_dashboard.employee_by_job_position,
         name="employee-dashboard-position",
@@ -394,6 +404,16 @@ urlpatterns = [
         kwargs={"model": Employee},
     ),
     path("document-tab/<int:pk>/", views.document_tab, name="document-tab"),
+    path(
+        "employee-document-tab-shell/<int:pk>/",
+        document_request.DocumentIndividualTabShell.as_view(),
+        name="employee-document-tab-shell",
+    ),
+    path(
+        "employee-document-tab-nav/<int:pk>/",
+        document_request.DocumentIndividualNav.as_view(),
+        name="employee-document-tab-nav",
+    ),
     path(
         "employee-document-tab-list/<int:pk>/",
         document_request.DocumentIndividualTabList.as_view(),
