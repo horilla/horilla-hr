@@ -122,6 +122,105 @@ class CtcDownTests(CtcDownSetup, TestCase):
         total = data["basic_pay"] + sum(line["amount"] for line in data["allowances"])
         self.assertAlmostEqual(total, PERIOD_CTC, places=2)
 
+    def test_an_employer_contribution_on_basic_comes_out_of_the_package(self):
+        """
+        CTC is the whole cost to the employer, so gross plus what the employer
+        adds on top equals it. The balance used to absorb all of CTC and the
+        contribution went over the top.
+        """
+        self._standard_structure()
+        pf = Deduction.objects.create(
+            title="PF",
+            code="PF",
+            sequence=50,
+            is_fixed=False,
+            based_on="basic_pay",
+            rate=12.0,
+            employer_rate=12.0,
+            is_pretax=True,
+        )
+        pf.specific_employees.add(self.employee)
+        data = self._run()
+
+        employer = EXPECTED_BASIC * 0.12
+        self.assertAlmostEqual(data["gross_pay"] + employer, PERIOD_CTC, places=2)
+        self.assertAlmostEqual(data["gross_pay"], PERIOD_CTC - employer, places=2)
+
+    def test_an_employer_contribution_on_gross_is_solved_for(self):
+        """Gross moves with the balance, so the share is solved, not guessed."""
+        self._standard_structure()
+        pf = Deduction.objects.create(
+            title="Gross levy",
+            code="GL",
+            sequence=50,
+            is_fixed=False,
+            based_on="gross_pay",
+            rate=1.0,
+            employer_rate=10.0,
+            is_pretax=True,
+        )
+        pf.specific_employees.add(self.employee)
+        data = self._run()
+
+        self.assertAlmostEqual(data["gross_pay"] * 1.10, PERIOD_CTC, places=2)
+
+    def test_loss_of_pay_comes_off_basic_and_everything_follows(self):
+        """
+        With "deduct leave from basic pay" on, the earning that IS basic pay is
+        cut by the loss of pay where it is worked out, so HRA (a percentage of
+        BASIC) follows the adjusted figure, and gross falls by the loss of pay
+        rather than the balance winning it back.
+        """
+        self._standard_structure()
+        # The package stated outright on the contract, not the wage divided up.
+        Contract.objects.filter(pk=self.contract.pk).update(
+            monthly_ctc=60000.0,
+            wage=0,
+            daily_leave_amount_base="monthly_ctc",
+            calculate_daily_leave_amount=True,
+            deduct_leave_from_basic_pay=True,
+        )
+        ctc = 60000.0
+        summary = {
+            "present": 20,
+            "paid_leave": 0,
+            "unpaid_leave": 2,
+            "absent": 0,
+            "week_off": 0,
+            "holiday": 0,
+            "total_working": WORKING_DAYS,
+            "working_days": WORKING_DAYS,
+            "unresolved_conflicts": 0,
+        }
+        with patch(
+            "payroll.methods.methods.months_between_range",
+            return_value=[
+                {"working_days_on_period": WORKING_DAYS, "per_day_amount": PER_DAY}
+            ],
+        ), patch(
+            "payroll.methods.methods.get_daily_salary",
+            return_value={"day_wage": PER_DAY},
+        ), patch(
+            "payroll.methods.methods.get_leaves", return_value=EMPTY_LEAVES
+        ):
+            data = payroll_calculation(
+                self.employee, PERIOD_START, PERIOD_END, month_summary=summary
+            )
+
+        lop = data["loss_of_pay"]
+        self.assertGreater(lop, 0)
+        self.assertTrue(data["lop_reflected_in_basic"])
+        self.assertAlmostEqual(data["basic_pay"], ctc * 0.50 - lop, places=2)
+        self.assertAlmostEqual(
+            self._named(data["allowances"], "HRA"), (ctc * 0.50 - lop) * 0.40, places=2
+        )
+        self.assertAlmostEqual(data["gross_pay"], ctc - lop, places=2)
+
+    def test_no_employer_contribution_leaves_the_balance_as_it_was(self):
+        self._standard_structure()
+        data = self._run()
+        self.assertAlmostEqual(data["gross_pay"], PERIOD_CTC, places=2)
+
     def test_basic_pay_is_stored_once_not_twice(self):
         """
         It used to be in both places at once: the payslip's basic_pay and its

@@ -624,7 +624,8 @@ class PayslipHelpTextTests(Fixture):
         "horilla_theme/templates/payroll/payslip/_loss_of_pay_row.html"
     )
 
-    # The Loss of Pay breakdown popover is its own include as well.
+    # The icon and its breakdown popover are a partial shared by that row and
+    # the Salary Adjustments table, so they live in their own file as well.
     LOP_POPOVER = pathlib.Path(
         "horilla_theme/templates/payroll/payslip/_loss_of_pay_popover.html"
     )

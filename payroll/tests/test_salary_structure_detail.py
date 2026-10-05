@@ -513,22 +513,29 @@ class ExamplePreviewTests(TestCase):
         """
         It is a company cost, not money taken from the employee, so it must not
         land in the deduction total or reduce net pay.
+
+        And it is a percentage of the figure the deduction is based on -- basic
+        pay here -- exactly as a payslip works it out, not of the employee's own
+        deduction: 10% of a 50,000 basic is 5,000, where 10% of the 6,000 PF
+        would have been 600.
         """
         self.structure.deductions.add(
             Deduction.objects.create(
                 title="PF",
                 sequence=100,
-                is_fixed=True,
-                amount=1800.0,
-                employer_rate=100.0,
+                is_fixed=False,
+                based_on="basic_pay",
+                rate=12.0,
+                employer_rate=10.0,
                 maximum_unit="full_period",
             )
         )
-        data = self._run()
+        data = self._run(basic=50000)
 
-        self.assertEqual(data["deduction_lines"][0]["employer"], 1800.0)
-        self.assertEqual(data["employer_total"], 1800.0)
-        self.assertEqual(data["deductions_total"], 1800.0)
+        self.assertEqual(data["deduction_lines"][0]["amount"], 6000.0)
+        self.assertEqual(data["deduction_lines"][0]["employer"], 5000.0)
+        self.assertEqual(data["employer_total"], 5000.0)
+        self.assertEqual(data["deductions_total"], 6000.0)
 
     def test_the_sample_period_is_thirty_calendar_days(self):
         """

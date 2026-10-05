@@ -145,6 +145,20 @@ class CtcDownTests(Fixture):
         ]
         return gross_up, ctc_down
 
+    def a_ctc_down_payslip_without_loss_of_pay(self):
+        """
+        The CTC Down payslip that lost the least pay. Loss of pay comes off the
+        basic earning on a stated Monthly CTC, so for someone with most of the
+        month unpaid basic is rightly nothing -- not what these checks are
+        about, and the demo attendance gives most of them a lot of unpaid days.
+        """
+        _gross_up, ctc_down = self.contracts_by_mode()
+        payslips = [
+            Payslip.objects.get(employee_id=contract.employee_id)
+            for contract in ctc_down
+        ]
+        return min(payslips, key=lambda p: p.pay_head_data.get("loss_of_pay") or 0)
+
     def test_both_structures_have_contracts_on_them(self):
         self.build()
         gross_up, ctc_down = self.contracts_by_mode()
@@ -167,8 +181,7 @@ class CtcDownTests(Fixture):
         pay would tax nothing.
         """
         self.build()
-        _gross_up, ctc_down = self.contracts_by_mode()
-        payslip = Payslip.objects.get(employee_id=ctc_down[0].employee_id)
+        payslip = self.a_ctc_down_payslip_without_loss_of_pay()
 
         self.assertGreater(payslip.basic_pay, 0)
 
@@ -182,8 +195,7 @@ class CtcDownTests(Fixture):
         at 0 while looking perfectly configured.
         """
         self.build()
-        _gross_up, ctc_down = self.contracts_by_mode()
-        payslip = Payslip.objects.get(employee_id=ctc_down[0].employee_id)
+        payslip = self.a_ctc_down_payslip_without_loss_of_pay()
 
         hra = next(
             a
