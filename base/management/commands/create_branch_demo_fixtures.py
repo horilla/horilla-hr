@@ -36,18 +36,23 @@ import calendar
 import contextlib
 import datetime
 import random
+import re
 
+from django.core.files.base import ContentFile
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 
 EMPLOYEES_PER_COMPANY = 30
-WAGE_BY_COMPANY = {"Branch A": 30000.0, "Branch B": 28000.0}
+NORTHWIND = "Northwind Technologies Inc."
+MERIDIAN = "Meridian Industries GmbH"
+# Monthly gross wage per company, in that company's own market (USD / EUR).
+WAGE_BY_COMPANY = {NORTHWIND: 6500.0, MERIDIAN: 5200.0}
 # Real files already on disk under media/base/icon/ -- the same ones
 # load_data/base_data.json points its own demo companies at -- so each
 # branch gets a distinct, real icon rather than the "no icon" fallback.
 ICON_BY_COMPANY = {
-    "Branch A": "base/icon/Horilla_1.png",
-    "Branch B": "base/icon/Horilla_2.png",
+    NORTHWIND: "base/icon/Horilla_1.png",
+    MERIDIAN: "base/icon/Horilla_2.png",
 }
 WEEKEND_CHECKINS_PER_COMPANY = 6
 # Employees per branch left out of the payroll run, so the dashboard has
@@ -67,38 +72,83 @@ CTC_DOWN_INDEXES = set(range(21, 30))
 LEAVE_DAYS_BY_INDEX = [0, 1, 2, 3, 4, 0, 1, 2, 3, 4]
 OLDER_MONTH_LEAVE_OFFSET = 3
 
-EMPLOYEE_NAMES = [
-    ("Olivia", "Bennett"),
-    ("Ethan", "Brooks"),
-    ("Sophia", "Ramirez"),
-    ("Liam", "Foster"),
-    ("Ava", "Whitfield"),
-    ("Noah", "Griffin"),
-    ("Isabella", "Park"),
-    ("Mason", "Delgado"),
-    ("Mia", "Sullivan"),
-    ("Lucas", "Whitaker"),
-    ("Emma", "Coleman"),
-    ("James", "Carter"),
-    ("Charlotte", "Reyes"),
-    ("Benjamin", "Hayes"),
-    ("Amelia", "Torres"),
-    ("Henry", "Mitchell"),
-    ("Harper", "Simmons"),
-    ("Alexander", "Price"),
-    ("Evelyn", "Russell"),
-    ("Sebastian", "Ward"),
-    ("Abigail", "Fox"),
-    ("Jack", "Chambers"),
-    ("Emily", "Nash"),
-    ("Daniel", "Holloway"),
-    ("Elizabeth", "Marsh"),
-    ("Matthew", "Pratt"),
-    ("Sofia", "Lane"),
-    ("David", "Osborne"),
-    ("Victoria", "Hale"),
-    ("Joseph", "Doyle"),
-]
+# (first, last, gender) per company -- an internationally mixed workforce
+# whose names fit where each company is based.
+EMPLOYEE_NAMES = {
+    NORTHWIND: [
+        ("Emily", "Carter", "female"),
+        ("Daniel", "Nguyen", "male"),
+        ("Priya", "Raman", "female"),
+        ("Marcus", "Johnson", "male"),
+        ("Sofia", "Hernandez", "female"),
+        ("Wei", "Zhang", "male"),
+        ("Olivia", "Bennett", "female"),
+        ("Ahmed", "Hassan", "male"),
+        ("Hannah", "Kim", "female"),
+        ("Jacob", "Rosenberg", "male"),
+        ("Aisha", "Okafor", "female"),
+        ("Liam", "O'Connor", "male"),
+        ("Isabella", "Rossi", "female"),
+        ("Raj", "Patel", "male"),
+        ("Chloe", "Dubois", "female"),
+        ("Tyler", "Brooks", "male"),
+        ("Maria", "Gonzalez", "female"),
+        ("Kenji", "Tanaka", "male"),
+        ("Grace", "Sullivan", "female"),
+        ("Omar", "Farouk", "male"),
+        ("Natalie", "Cohen", "female"),
+        ("Andre", "Williams", "male"),
+        ("Lucia", "Fernandez", "female"),
+        ("Ethan", "Park", "male"),
+        ("Zoe", "Anderson", "female"),
+        ("Samuel", "Adeyemi", "male"),
+        ("Mei Lin", "Chen", "female"),
+        ("Brandon", "Foster", "male"),
+        ("Fatima", "Khan", "female"),
+        ("Noah", "Mitchell", "male"),
+    ],
+    MERIDIAN: [
+        ("Anna", "Schneider", "female"),
+        ("Lukas", "Weber", "male"),
+        ("Camille", "Laurent", "female"),
+        ("Matteo", "Ricci", "male"),
+        ("Sara", "Lindqvist", "female"),
+        ("Jan", "de Vries", "male"),
+        ("Elena", "Popescu", "female"),
+        ("Pavel", "Novak", "male"),
+        ("Katarzyna", "Nowak", "female"),
+        ("Hugo", "Martin", "male"),
+        ("Amelie", "Fischer", "female"),
+        ("Oliver", "Hughes", "male"),
+        ("Ingrid", "Johansson", "female"),
+        ("Mohammed", "Al-Farsi", "male"),
+        ("Yuki", "Sato", "female"),
+        ("Diego", "Alvarez", "male"),
+        ("Anika", "Sharma", "female"),
+        ("Thomas", "Becker", "male"),
+        ("Zainab", "Malik", "female"),
+        ("Felix", "Hoffmann", "male"),
+        ("Clara", "Moreau", "female"),
+        ("Nikolai", "Petrov", "male"),
+        ("Giulia", "Bianchi", "female"),
+        ("Arjun", "Menon", "male"),
+        ("Sophie", "van Dijk", "female"),
+        ("Stefan", "Kovacs", "male"),
+        ("Leila", "Haddad", "female"),
+        ("Erik", "Nilsson", "male"),
+        ("Marta", "Silva", "female"),
+        ("Julia", "Wagner", "female"),
+    ],
+}
+EMAIL_DOMAIN_BY_COMPANY = {
+    NORTHWIND: "northwind-tech.com",
+    MERIDIAN: "meridian-industries.de",
+}
+PHONE_PREFIX_BY_COMPANY = {NORTHWIND: "+1 512 555", MERIDIAN: "+49 89 5550"}
+EMPLOYEE_LOCATION_BY_COMPANY = {
+    NORTHWIND: ("United States", "Texas", "Austin", "78701"),
+    MERIDIAN: ("Germany", "Bavaria", "Munich", "80331"),
+}
 
 # Extra shifts per branch (name, start, end) beside the 09:00-18:00 default,
 # and the work types employees are spread across -- so the attendance
@@ -106,18 +156,30 @@ EMPLOYEE_NAMES = [
 EXTRA_SHIFTS = [
     ("Morning Shift", datetime.time(7, 0), datetime.time(16, 0)),
     ("Evening Shift", datetime.time(12, 0), datetime.time(21, 0)),
+    ("Night Shift", datetime.time(14, 0), datetime.time(23, 0)),
 ]
 DEFAULT_SHIFT_HOURS = (datetime.time(9, 0), datetime.time(18, 0))
 # Chart variety: share of attendance days dropped (i.e. absences) per shift
 # slot, and per-department tweaks to lateness and worked hours, so the
 # attendance dashboard's bars sit at clearly different levels.
-SHIFT_ABSENCE_PERCENT = [5, 5, 18, 35]  # default, default, morning, evening
+# default, default, morning, evening, early, late, half day
+SHIFT_ABSENCE_PERCENT = [5, 5, 18, 35, 12, 25, 8]
 DEPARTMENT_LATE_EVERY = {
     "Engineering": 3,
     "Sales": 4,
     "Human Resources": 9,
     "Marketing": 6,
     "Finance": 14,
+    "Operations": 5,
+    "Customer Support": 4,
+    "Legal": 12,
+    "Product": 7,
+    "IT Support": 6,
+    "Production": 5,
+    "Logistics & Supply Chain": 4,
+    "Quality Assurance": 10,
+    "Research & Development": 8,
+    "Procurement": 11,
 }
 DEPARTMENT_EARLY_EVERY = {
     "Engineering": 12,
@@ -125,6 +187,16 @@ DEPARTMENT_EARLY_EVERY = {
     "Human Resources": 6,
     "Marketing": 3,
     "Finance": 9,
+    "Operations": 8,
+    "Customer Support": 5,
+    "Legal": 10,
+    "Product": 6,
+    "IT Support": 7,
+    "Production": 6,
+    "Logistics & Supply Chain": 5,
+    "Quality Assurance": 9,
+    "Research & Development": 7,
+    "Procurement": 8,
 }
 # Minutes added to (or removed from) clock-out, so avg working hours differ.
 DEPARTMENT_HOURS_OFFSET = {
@@ -133,26 +205,42 @@ DEPARTMENT_HOURS_OFFSET = {
     "Human Resources": 0,
     "Marketing": -35,
     "Finance": -60,
+    "Operations": 30,
+    "Customer Support": 15,
+    "Legal": -20,
+    "Product": 45,
+    "IT Support": 10,
+    "Production": 40,
+    "Logistics & Supply Chain": 20,
+    "Quality Assurance": -10,
+    "Research & Development": 55,
+    "Procurement": -25,
 }
-WORK_TYPE_NAMES = ["Work From Office", "Work From Home", "Hybrid"]
-
-FEMALE_FIRST_NAMES = {
-    "Olivia",
-    "Sophia",
-    "Ava",
-    "Isabella",
-    "Mia",
-    "Emma",
-    "Charlotte",
-    "Amelia",
-    "Harper",
-    "Evelyn",
-    "Abigail",
-    "Emily",
-    "Elizabeth",
-    "Sofia",
-    "Victoria",
-}
+EMPLOYEE_TYPE_NAMES = ["Full-Time", "Part-Time", "Contract", "Intern", "Consultant"]
+# (title, color) -- EmployeeTag is global, not per-company.
+EMPLOYEE_TAG_SPECS = [
+    ("High Performer", "#16a34a"),
+    ("New Joiner", "#2563eb"),
+    ("Mentor", "#9333ea"),
+    ("Remote Eligible", "#0891b2"),
+    ("Key Resource", "#dc2626"),
+    ("On Probation", "#f59e0b"),
+]
+# RotatingWorkType.name is unique, so each company draws its own pair.
+ROTATING_WORK_TYPE_SPECS = [
+    ("Office / Home Rotation", "Work From Office", "Work From Home"),
+    ("Office / Hybrid Rotation", "Work From Office", "Hybrid"),
+    ("Home / Remote Rotation", "Work From Home", "Remote"),
+    ("Client Site / Office Rotation", "On-site (Client)", "Work From Office"),
+]
+WORK_TYPE_NAMES = [
+    "Work From Office",
+    "Work From Home",
+    "Hybrid",
+    "Remote",
+    "On-site (Client)",
+    "Field Work",
+]
 
 # Employee dashboard: request counts per branch.
 DASHBOARD_PENDING_SHIFT_REQUESTS = 4
@@ -181,35 +269,84 @@ DASHBOARD_DOCUMENT_TITLES = [
 TURNOVER_HIRE_MONTHS_AGO = [5, 5, 4, 3, 3, 2, 1, 1]
 TURNOVER_EXIT_MONTHS_AGO = [4, 3, 2, 2, 1, 0]
 
-PROJECT_SPECS = [
-    # (title, status, start offset, end offset, task status cycle)
-    ("Website Revamp", "in_progress", -60, 30, ["completed", "in_progress", "to_do"]),
-    (
-        "Mobile App",
-        "in_progress",
-        -40,
-        -5,
-        ["completed", "in_progress", "in_progress", "to_do"],
-    ),
-    ("HR Portal Migration", "completed", -120, -20, ["completed"]),
-    ("Q4 Marketing Campaign", "new", 5, 90, ["to_do"]),
-    ("Data Warehouse", "on_hold", -75, 45, ["completed", "in_progress", "to_do"]),
-]
-
-PROJECT_TASK_TITLES = [
-    "Requirements gathering",
-    "UX wireframes",
-    "Database schema",
-    "API development",
-    "Frontend build",
-    "Integration testing",
-    "Security review",
-    "Performance tuning",
-    "User acceptance testing",
-    "Documentation",
-    "Deployment plan",
-    "Training session",
-]
+# (title, status, start offset, end offset, task status cycle) per company --
+# Northwind is a software company, Meridian a manufacturer.
+PROJECT_SPECS_BY_COMPANY = {
+    NORTHWIND: [
+        (
+            "Website Revamp",
+            "in_progress",
+            -60,
+            30,
+            ["completed", "in_progress", "to_do"],
+        ),
+        (
+            "Mobile App",
+            "in_progress",
+            -40,
+            -5,
+            ["completed", "in_progress", "in_progress", "to_do"],
+        ),
+        ("HR Portal Migration", "completed", -120, -20, ["completed"]),
+        ("Q4 Marketing Campaign", "new", 5, 90, ["to_do"]),
+        ("Data Warehouse", "on_hold", -75, 45, ["completed", "in_progress", "to_do"]),
+    ],
+    MERIDIAN: [
+        (
+            "Assembly Line Automation",
+            "in_progress",
+            -80,
+            40,
+            ["completed", "in_progress", "to_do"],
+        ),
+        (
+            "ISO 9001 Recertification",
+            "in_progress",
+            -35,
+            25,
+            ["completed", "completed", "in_progress", "to_do"],
+        ),
+        ("Warehouse Management Rollout", "completed", -130, -15, ["completed"]),
+        ("Supplier Consolidation Programme", "new", 7, 100, ["to_do"]),
+        (
+            "Energy Efficiency Retrofit",
+            "on_hold",
+            -60,
+            60,
+            ["completed", "in_progress", "to_do"],
+        ),
+    ],
+}
+PROJECT_TASK_TITLES_BY_COMPANY = {
+    NORTHWIND: [
+        "Requirements gathering",
+        "UX wireframes",
+        "Database schema",
+        "API development",
+        "Frontend build",
+        "Integration testing",
+        "Security review",
+        "Performance tuning",
+        "User acceptance testing",
+        "Documentation",
+        "Deployment plan",
+        "Training session",
+    ],
+    MERIDIAN: [
+        "Process mapping",
+        "Equipment specification",
+        "Supplier quotation review",
+        "Safety assessment",
+        "Pilot run",
+        "Quality audit",
+        "Operator training",
+        "Maintenance schedule",
+        "Cost-benefit analysis",
+        "Compliance documentation",
+        "Commissioning plan",
+        "Handover to production",
+    ],
+}
 
 PROJECT_STAGES = [("In Progress", False), ("Review", False), ("Done", True)]
 
@@ -218,7 +355,11 @@ WEEKDAY_NAMES = ["monday", "tuesday", "wednesday", "thursday", "friday"]
 # The same department/job-position taxonomy base/demo_data/catalog.py already
 # standardises the main demo dataset onto -- reused rather than invented a
 # second time, so this dataset's org chart reads like the rest of the app's.
-DEPARTMENT_STRUCTURE = [
+# Core departments every company has (helpdesk routing, recruitment plans and
+# payroll all reference these), plus a company-specific set so the two org
+# charts genuinely differ: Northwind is a software/services firm, Meridian a
+# manufacturing and logistics group.
+CORE_DEPARTMENTS = [
     ("Engineering", ["Software Engineer", "Backend Engineer", "Frontend Engineer"]),
     (
         "Sales",
@@ -228,14 +369,40 @@ DEPARTMENT_STRUCTURE = [
     ("Marketing", ["Marketing Specialist", "Digital Marketing Specialist"]),
     ("Finance", ["Financial Analyst", "Accounts Payable Clerk"]),
 ]
+EXTRA_DEPARTMENTS = {
+    NORTHWIND: [
+        ("Product", ["Product Manager", "UX Designer"]),
+        ("Customer Support", ["Support Agent", "Support Team Lead"]),
+        ("IT Support", ["System Administrator", "Helpdesk Technician"]),
+        ("Legal", ["Legal Counsel", "Compliance Officer"]),
+        ("Operations", ["Operations Manager", "Business Analyst"]),
+    ],
+    MERIDIAN: [
+        ("Production", ["Production Supervisor", "Machine Operator"]),
+        ("Logistics & Supply Chain", ["Logistics Coordinator", "Warehouse Manager"]),
+        ("Quality Assurance", ["Quality Engineer", "Quality Inspector"]),
+        ("Research & Development", ["R&D Engineer", "Materials Scientist"]),
+        ("Procurement", ["Procurement Specialist", "Purchasing Manager"]),
+    ],
+}
 
 COMPANIES = [
-    {"name": "Branch A"},
     {
-        "name": "Branch B",
-        "address": "88 Secondary Ave",
-        "city": "Riverside",
-        "zip": "94022",
+        "name": NORTHWIND,
+        "address": "500 West 2nd Street, Suite 1200",
+        "country": "United States",
+        "state": "Texas",
+        "city": "Austin",
+        "zip": "78701",
+    },
+    {
+        "name": MERIDIAN,
+        "hq": False,
+        "address": "Leopoldstrasse 42",
+        "country": "Germany",
+        "state": "Bavaria",
+        "city": "Munich",
+        "zip": "80331",
     },
 ]
 
@@ -390,15 +557,15 @@ ASSET_CATALOG = [
     (
         "Laptops",
         [
-            ("Dell Latitude 5440", 82000),
-            ("MacBook Air M3", 124000),
-            ("Lenovo ThinkPad E14", 68000),
+            ("Dell Latitude 5450", 1250),
+            ("MacBook Air M3", 1599),
+            ("Lenovo ThinkPad E14", 950),
         ],
     ),
-    ("Phones", [("iPhone 15", 79000), ("Samsung Galaxy S24", 74000)]),
-    ("Headphones", [("Sony WH-1000XM5", 29000), ("Bose QuietComfort 45", 27000)]),
-    ("Monitors", [("Dell U2723QE", 45000), ("LG UltraFine 27", 38000)]),
-    ("Accessories", [("Logitech MX Master 3S", 9500), ("Laptop Backpack", 3200)]),
+    ("Phones", [("iPhone 15", 899), ("Samsung Galaxy S24", 849)]),
+    ("Headphones", [("Sony WH-1000XM5", 349), ("Bose QuietComfort 45", 329)]),
+    ("Monitors", [("Dell U2723QE", 589), ("LG UltraFine 27", 449)]),
+    ("Accessories", [("Logitech MX Master 3S", 109), ("Laptop Backpack", 59)]),
 ]
 ASSET_MONTH_BUCKETS = [-5, -4, -3, -3, -2, -2, -1, -1, 0, 0, 0, 0]
 ASSET_RETURN_STATUSES = ["Healthy", "Minor damage", "Healthy", "Major damage"]
@@ -424,37 +591,66 @@ ASSET_SERVICE_ISSUES = [
     "Charging port is loose.",
 ]
 
-RECRUITMENT_PLANS = [
-    ("Software Engineer", 3, 2),
-    ("Sales Representative", 2, 1),
-    ("HR Business Partner", 1, 0),
-    ("Marketing Specialist", 2, 2),
-    ("Financial Analyst", 2, 1),
-]
+RECRUITMENT_PLANS_BY_COMPANY = {
+    NORTHWIND: [
+        ("Software Engineer", 3, 2),
+        ("Sales Representative", 2, 1),
+        ("HR Business Partner", 1, 0),
+        ("Marketing Specialist", 2, 2),
+        ("Financial Analyst", 2, 1),
+    ],
+    MERIDIAN: [
+        ("Production Supervisor", 2, 1),
+        ("Quality Engineer", 2, 2),
+        ("Logistics Coordinator", 3, 1),
+        ("R&D Engineer", 1, 0),
+        ("Procurement Specialist", 2, 1),
+    ],
+}
 RECRUITMENT_EXTRA_STAGES = [
     ("Technical Test", "test", 2),
     ("Interview", "interview", 3),
     ("Hired", "hired", 4),
     ("Cancelled Candidates", "cancelled", 50),
 ]
-RECRUITMENT_STAGE_PATTERN = [
+# Candidates per stage for each recruitment, so the dashboard's Recruitment
+# Pipeline Trend lines take visibly different shapes instead of overlapping.
+# Order: applied, initial, test, interview, hired, cancelled (16 each).
+RECRUITMENT_STAGE_MIX = {
+    "Software Engineer": (2, 5, 3, 3, 2, 1),
+    "Sales Representative": (6, 2, 1, 4, 1, 2),
+    "HR Business Partner": (3, 3, 6, 2, 0, 2),
+    "Marketing Specialist": (4, 1, 2, 6, 2, 1),
+    "Financial Analyst": (5, 3, 1, 5, 1, 1),
+    "Production Supervisor": (3, 4, 2, 4, 1, 2),
+    "Quality Engineer": (1, 2, 5, 4, 3, 1),
+    "Logistics Coordinator": (5, 1, 2, 3, 2, 3),
+    "R&D Engineer": (2, 6, 4, 2, 0, 2),
+    "Procurement Specialist": (4, 2, 1, 6, 2, 1),
+}
+RECRUITMENT_STAGE_ORDER = [
     "applied",
-    "applied",
-    "applied",
-    "initial",
     "initial",
     "test",
-    "test",
     "interview",
-    "interview",
-    "interview",
-    "hired",
-    "cancelled",
-    "applied",
-    "initial",
     "hired",
     "cancelled",
 ]
+
+
+def _recruitment_stage_pattern(position_name, offset):
+    """Expand a stage mix into a 16-long, interleaved list of stage types."""
+    pool = [
+        stage_type
+        for stage_type, count in zip(
+            RECRUITMENT_STAGE_ORDER, RECRUITMENT_STAGE_MIX[position_name]
+        )
+        for _ in range(count)
+    ]
+    step = 5  # coprime with 16, so every slot is visited once
+    return [pool[(offset + k * step) % len(pool)] for k in range(len(pool))]
+
+
 RECRUITMENT_MONTH_BUCKETS = [0, 0, -1, 0, -1, -2, 0, -1, 0, -1, 0, -2, 0, -1, 0, -2]
 RECRUITMENT_SOURCES = [
     "application",
@@ -476,44 +672,62 @@ RECRUITMENT_REFERRAL_SOURCES = [
 ]
 CANDIDATE_FIRST_NAMES = [
     "Emma",
-    "Liam",
+    "Mateo",
     "Sofia",
     "Noah",
-    "Olivia",
-    "Ethan",
+    "Aarav",
+    "Lena",
     "Mia",
     "Lucas",
     "Chloe",
-    "Mason",
+    "Yusuf",
     "Grace",
     "Oliver",
     "Nora",
-    "Elijah",
+    "Ravi",
     "Hannah",
-    "James",
-    "Lily",
+    "Kenji",
+    "Amara",
     "Henry",
-    "Leah",
+    "Leila",
     "Daniel",
 ]
 CANDIDATE_LAST_NAMES = [
     "Walker",
-    "Brooks",
+    "Müller",
     "Fisher",
-    "Hayes",
+    "Silva",
     "Morgan",
-    "Bennett",
+    "Iyer",
     "Carter",
     "Dawson",
-    "Ellis",
-    "Foster",
-    "Gray",
-    "Harper",
+    "Rossi",
+    "Kowalski",
+    "Okonkwo",
+    "Haddad",
     "Jensen",
     "Keller",
-    "Lawson",
+    "Tanaka",
 ]
-CANDIDATE_CITIES = ["Austin", "Denver", "Seattle", "Boston", "Chicago", "Portland"]
+# (city, country, mobile prefix) -- each company recruits in its own market.
+CANDIDATE_LOCATIONS = {
+    NORTHWIND: [
+        ("Austin", "United States", "+1512555"),
+        ("Dallas", "United States", "+1214555"),
+        ("Denver", "United States", "+1303555"),
+        ("Seattle", "United States", "+1206555"),
+        ("Toronto", "Canada", "+1416555"),
+        ("London", "United Kingdom", "+4420795"),
+    ],
+    MERIDIAN: [
+        ("Munich", "Germany", "+4989555"),
+        ("Berlin", "Germany", "+4930555"),
+        ("Vienna", "Austria", "+4315550"),
+        ("Zurich", "Switzerland", "+4144555"),
+        ("Warsaw", "Poland", "+4822555"),
+        ("Amsterdam", "Netherlands", "+3120555"),
+    ],
+}
 TALENT_POOLS = [
     (
         "Engineering Bench",
@@ -567,55 +781,81 @@ ONBOARDING_PROGRESS_PLAN = [
     ("Initial", "todo", None),
 ]
 
-PERFORMANCE_OBJECTIVES = [
-    (
-        "Improve customer satisfaction",
-        ["Raise CSAT score", "Cut ticket response time", "Close escalations"],
-    ),
-    (
-        "Grow quarterly revenue",
-        ["New accounts signed", "Upsell conversions", "Pipeline coverage"],
-    ),
-    (
-        "Strengthen engineering quality",
-        ["Reduce open bugs", "Raise test coverage", "Shorten release cycle"],
-    ),
-    ("Upskill the team", ["Complete certifications", "Run knowledge-sharing talks"]),
-    (
-        "Streamline internal operations",
-        ["Automate manual reports", "Reduce onboarding time"],
-    ),
-    ("Improve employee engagement", ["Run pulse surveys", "Lift eNPS score"]),
-    (
-        "Expand into new markets",
-        ["Launch regional pilots", "Sign channel partners", "Localise product pages"],
-    ),
-    (
-        "Reduce operating costs",
-        ["Renegotiate vendor contracts", "Cut cloud spend", "Consolidate tooling"],
-    ),
-    (
-        "Accelerate product delivery",
-        ["Ship roadmap milestones", "Lower cycle time", "Cut review backlog"],
-    ),
-    (
-        "Strengthen security posture",
-        ["Close audit findings", "Complete access reviews", "Run phishing drills"],
-    ),
-    (
-        "Improve talent acquisition",
-        ["Fill open roles", "Shorten time to hire", "Raise offer acceptance"],
-    ),
-    (
-        "Boost customer retention",
-        ["Lower churn rate", "Launch loyalty program", "Run renewal outreach"],
-    ),
-    (
-        "Enhance data and analytics",
-        ["Build KPI dashboards", "Improve data quality", "Train teams on reporting"],
-    ),
-]
-PERFORMANCE_OBJECTIVES_PER_COMPANY = [8, 5]
+PERFORMANCE_OBJECTIVES_BY_COMPANY = {
+    NORTHWIND: [
+        (
+            "Improve customer satisfaction",
+            ["Raise CSAT score", "Cut ticket response time", "Close escalations"],
+        ),
+        (
+            "Grow quarterly revenue",
+            ["New accounts signed", "Upsell conversions", "Pipeline coverage"],
+        ),
+        (
+            "Strengthen engineering quality",
+            ["Reduce open bugs", "Raise test coverage", "Shorten release cycle"],
+        ),
+        (
+            "Accelerate product delivery",
+            ["Ship roadmap milestones", "Lower cycle time", "Cut review backlog"],
+        ),
+        (
+            "Strengthen security posture",
+            ["Close audit findings", "Complete access reviews", "Run phishing drills"],
+        ),
+        (
+            "Boost customer retention",
+            ["Lower churn rate", "Launch loyalty program", "Run renewal outreach"],
+        ),
+        (
+            "Enhance data and analytics",
+            [
+                "Build KPI dashboards",
+                "Improve data quality",
+                "Train teams on reporting",
+            ],
+        ),
+        (
+            "Upskill the team",
+            ["Complete certifications", "Run knowledge-sharing talks"],
+        ),
+    ],
+    MERIDIAN: [
+        (
+            "Raise production yield",
+            [
+                "Cut scrap rate",
+                "Improve first-pass quality",
+                "Reduce unplanned downtime",
+            ],
+        ),
+        (
+            "Improve workplace safety",
+            [
+                "Zero lost-time incidents",
+                "Complete safety drills",
+                "Close audit findings",
+            ],
+        ),
+        (
+            "Reduce operating costs",
+            [
+                "Renegotiate supplier contracts",
+                "Lower energy use per unit",
+                "Consolidate vendors",
+            ],
+        ),
+        (
+            "Strengthen supply chain reliability",
+            [
+                "Improve on-time delivery",
+                "Qualify backup suppliers",
+                "Cut inventory days",
+            ],
+        ),
+        ("Improve employee engagement", ["Run pulse surveys", "Lift eNPS score"]),
+    ],
+}
 PERFORMANCE_STATUSES = [
     "On Track",
     "On Track",
@@ -698,7 +938,1016 @@ def _weekdays(start, end):
         day += datetime.timedelta(days=1)
 
 
-class Command(BaseCommand):
+# ---- extra demo data: settings / request / comment tabs ----------------------
+
+_PDF = b"%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n"
+
+DOCUMENT_REQUESTS = [
+    ("Government ID Proof", "pdf", "A scan of a valid government-issued photo ID."),
+    (
+        "Address Proof",
+        "pdf",
+        "Utility bill or rental agreement from the last three months.",
+    ),
+    (
+        "Educational Certificates",
+        "pdf",
+        "Highest qualification certificate and mark sheet.",
+    ),
+    (
+        "Bank Account Details",
+        "pdf",
+        "Cancelled cheque or bank statement header for payroll.",
+    ),
+    (
+        "Signed Confidentiality Agreement",
+        "pdf",
+        "Signed copy of the confidentiality agreement.",
+    ),
+]
+
+HOLIDAYS = {
+    NORTHWIND: [
+        ("New Year's Day", (1, 1), None),
+        ("Martin Luther King Jr. Day", (1, 19), None),
+        ("Memorial Day", (5, 25), None),
+        ("Juneteenth", (6, 19), None),
+        ("Independence Day", (7, 3), None),
+        ("Labor Day", (9, 7), None),
+        ("Thanksgiving Day", (11, 26), (11, 27)),
+        ("Christmas Break", (12, 24), (12, 25)),
+    ],
+    MERIDIAN: [
+        ("New Year's Day", (1, 1), None),
+        ("Good Friday", (4, 3), None),
+        ("Easter Monday", (4, 6), None),
+        ("Labour Day", (5, 1), None),
+        ("Whit Monday", (5, 25), None),
+        ("German Unity Day", (10, 3), None),
+        ("Christmas Day", (12, 25), None),
+        ("St. Stephen's Day", (12, 26), None),
+    ],
+}
+
+# (name, payment, total days, reset month) -- limited yearly entitlements.
+LEAVE_TYPES = [
+    ("Annual Leave", "paid", 20.0, 3),
+    ("Sick Leave", "paid", 10.0, 2),
+    ("Casual Leave", "paid", 6.0, 1),
+]
+
+OFFBOARDING_STAGES = [
+    ("Notice Period", "notice_period"),
+    ("Exit Interview", "interview"),
+    ("Handover", "handover"),
+    ("Full & Final Settlement", "fnf"),
+    ("Archived", "archived"),
+]
+OFFBOARDING_TASKS = {
+    "notice_period": ["Acknowledge resignation", "Share notice period terms"],
+    "interview": ["Schedule exit interview"],
+    "handover": ["Transfer ongoing work", "Return laptop and access card"],
+    "fnf": ["Clear pending reimbursements", "Prepare final settlement"],
+    "archived": ["Archive employee records"],
+}
+EXIT_REASONS = [
+    ("Better Opportunity", "Accepted a role with a larger scope elsewhere."),
+    ("Relocation", "Moving to another city for family reasons."),
+    ("Higher Studies", "Pursuing a postgraduate programme."),
+    ("Career Change", "Moving into a different line of work."),
+    ("Compensation", "Received an offer with a higher package."),
+    ("Personal Reasons", "Needs time away for personal commitments."),
+]
+
+REJECT_REASONS = [
+    ("Skills Mismatch", "The candidate's skills do not match the role requirements."),
+    ("Salary Expectation", "Expected compensation is beyond the approved budget."),
+    ("Failed Technical Round", "Did not clear the technical assessment."),
+    (
+        "Not Available to Join",
+        "Notice period or availability does not fit the hiring timeline.",
+    ),
+    ("Culture Fit", "Interview feedback indicated a weak fit with the team."),
+]
+SKILLS = [
+    "Python",
+    "Django",
+    "JavaScript",
+    "SQL",
+    "Cloud Computing",
+    "Financial Modelling",
+    "Sales Negotiation",
+    "Digital Marketing",
+    "Talent Acquisition",
+    "Communication",
+    "Project Management",
+    "Data Analysis",
+]
+SURVEY_QUESTIONS = [
+    ("How many years of relevant experience do you have?", "number", ""),
+    (
+        "What is your current notice period?",
+        "options",
+        "Immediate,15 days,30 days,60 days",
+    ),
+    ("Are you willing to relocate?", "checkbox", ""),
+    ("Tell us why you want to join us.", "textarea", ""),
+    ("Rate your proficiency in the core skill for this role.", "rating", ""),
+]
+CANDIDATE_DOCUMENT_REQUESTS = [
+    ("Latest Payslip", "pdf", "Most recent payslip from your current employer."),
+    ("Identity Proof", "pdf", "Passport or national ID copy."),
+]
+ANONYMOUS_FEEDBACK = [
+    (
+        "Cafeteria menu variety",
+        "general",
+        "Could we add more vegetarian options to the weekly menu?",
+    ),
+    (
+        "Meeting-free afternoons",
+        "general",
+        "A meeting-free Wednesday afternoon would help focused work.",
+    ),
+    (
+        "Team onboarding experience",
+        "department",
+        "The onboarding checklist for new joiners was very helpful.",
+    ),
+    (
+        "Workload distribution",
+        "department",
+        "Workload peaks at month end; extra support would help.",
+    ),
+    (
+        "Role clarity",
+        "job_position",
+        "Responsibilities between the two roles overlap on client calls.",
+    ),
+]
+BANKS = {
+    NORTHWIND: [
+        ("Chase Bank", "Austin", "Texas", "United States", "CHASUS33"),
+        ("Bank of America", "Dallas", "Texas", "United States", "BOFAUS3N"),
+        ("Wells Fargo", "Denver", "Colorado", "United States", "WFBIUS6S"),
+    ],
+    MERIDIAN: [
+        ("Deutsche Bank", "Munich", "Bavaria", "Germany", "DEUTDEMM"),
+        ("Commerzbank", "Berlin", "Berlin", "Germany", "COBADEFF"),
+        ("Sparkasse", "Hamburg", "Hamburg", "Germany", "HASPDEHH"),
+    ],
+}
+EMPLOYEE_NOTES = [
+    "Completed the quarterly compliance training ahead of schedule.",
+    "Discussed a growth path towards a team lead role in the next review cycle.",
+    "Recognised by the client for a smooth project handover.",
+    "Agreed on a flexible schedule for the next two months.",
+]
+ANNOUNCEMENT_COMMENTS = [
+    "Thanks for sharing, this is really helpful.",
+    "Is there a deadline for this?",
+    "Great initiative, looking forward to it.",
+]
+REQUEST_COMMENTS = [
+    "Please attach the supporting details so this can be approved.",
+    "Looks fine from my side, approving.",
+    "Can you confirm the dates with your team before we proceed?",
+    "Thanks, shared the details with the team.",
+]
+OBJECTIVE_COMMENTS = [
+    "Good progress this month, keep the momentum going.",
+    "Let's review the blockers in the next one-to-one.",
+    "Great result on the key results so far.",
+]
+
+
+def _file(name):
+    return ContentFile(_PDF, name=name)
+
+
+class ExtrasMixin:
+    """Methods mixed into the create_branch_demo_fixtures Command."""
+
+    def _extras_for(self, company, employees, today, default_shift):
+        from django.db import transaction
+
+        with transaction.atomic(), _as_request():
+            self._document_requests_for(company, employees, today)
+            self._holidays_for(company, today)
+            self._leave_extras_for(company, employees, today)
+            self._offboarding_for(company, employees, today)
+            self._recruitment_extras_for(company, employees, today)
+            self._attendance_extras_for(company, employees, today)
+            self._pms_extras_for(company, employees, today)
+            self._employee_extras_for(company, employees, today)
+            self._base_extras_for(company, employees, today, default_shift)
+            self._misc_extras_for(company, employees, today)
+
+    # -- documents -----------------------------------------------------------
+
+    def _document_requests_for(self, company, employees, today):
+        """5 document requests in total, sent to 10 employees (5 per company),
+        with a mix of request statuses."""
+        from horilla_documents.models import Document, DocumentRequest
+
+        statuses = ["approved", "requested", "rejected", "approved", "requested"]
+        group = employees[:5]
+        total = 0
+        for r, (title, fmt, description) in enumerate(DOCUMENT_REQUESTS):
+            # DocumentRequest isn't company-scoped, so both branches share it.
+            request, _created = DocumentRequest.objects.get_or_create(
+                title=title,
+                defaults={"format": fmt, "max_size": 5, "description": description},
+            )
+            request.employee_id.add(*group)
+            # Adding employees to the request makes a "requested" Document per
+            # employee (m2m_changed signal); move each one to its final state.
+            for i, employee in enumerate(group):
+                status = statuses[(i + r) % len(statuses)]
+                document = Document.objects.get(
+                    document_request_id=request, employee_id=employee
+                )
+                document.status = status
+                document.issue_date = today - datetime.timedelta(days=30 + i * 9)
+                document.expiry_date = today + datetime.timedelta(days=300 + r * 30)
+                if status == "rejected":
+                    document.reject_reason = (
+                        "The scan is blurred; please upload a clearer copy."
+                    )
+                if status != "requested":
+                    document.document.save(
+                        f"{title.lower().replace(' ', '_')}_{employee.pk}.pdf",
+                        _file("doc.pdf"),
+                        save=False,
+                    )
+                document.save()
+                total += 1
+        self.stdout.write(
+            f"  Documents: {len(DOCUMENT_REQUESTS)} requests, {total} documents"
+        )
+
+    # -- holidays ------------------------------------------------------------
+
+    def _holidays_for(self, company, today):
+        from base.models import Holidays
+
+        for name, (month, day), end in HOLIDAYS[company.company]:
+            start = datetime.date(today.year, month, day)
+            Holidays.objects.create(
+                name=name,
+                start_date=start,
+                end_date=datetime.date(today.year, *end) if end else start,
+                recurring=True,
+                company_id=company,
+            )
+        self.stdout.write(f"  Holidays: {len(HOLIDAYS[company.company])}")
+
+    # -- leave ---------------------------------------------------------------
+
+    def _leave_extras_for(self, company, employees, today):
+        from base.models import Department
+        from leave.models import (
+            AvailableLeave,
+            CompensatoryLeaveRequest,
+            CompensatoryLeaverequestComment,
+            LeaveAllocationRequest,
+            LeaveallocationrequestComment,
+            LeaveRequest,
+            LeaverequestComment,
+            LeaveType,
+            RestrictLeave,
+        )
+
+        year_start = datetime.date(today.year, 1, 1)
+        types = []
+        for name, payment, total, reset_month in LEAVE_TYPES:
+            leave_type, _c = LeaveType.objects.get_or_create(
+                name=name,
+                defaults={
+                    "payment": payment,
+                    "limit_leave": True,
+                    "total_days": total,
+                    "count": total,
+                    "period_in": "year",
+                    "reset": True,
+                    "reset_based": "yearly",
+                    "reset_month": str(reset_month),
+                    "reset_day": "1",
+                    "require_approval": "yes",
+                    "carryforward_type": (
+                        "carryforward" if name == "Annual Leave" else "no carryforward"
+                    ),
+                    "carryforward_max": 5.0 if name == "Annual Leave" else None,
+                },
+            )
+            types.append(leave_type)
+
+        # A few approved current-month leaves of the new types, so balances
+        # have real usage behind them (never in last month: payroll is closed).
+        month_start = today.replace(day=1)
+        used = {}
+        if today.day >= 3:
+            for i, employee in enumerate(employees[:12]):
+                leave_type = types[1 + i % 2]  # sick / casual
+                day = month_start + datetime.timedelta(days=(i % (today.day - 1)))
+                while day.weekday() >= 5:
+                    day += datetime.timedelta(days=1)
+                if day > today:
+                    continue
+                leave = _create_leave(
+                    employee_id=employee,
+                    leave_type_id=leave_type,
+                    start_date=day,
+                    end_date=day,
+                    status="approved",
+                    start_date_breakdown="full_day",
+                    end_date_breakdown="full_day",
+                    description=(
+                        "Feeling unwell, resting at home."
+                        if leave_type is types[1]
+                        else "Personal errand."
+                    ),
+                )
+                if leave:
+                    used[(employee.pk, leave_type.pk)] = 1.0
+
+        for employee in employees:
+            for leave_type in types:
+                total = leave_type.total_days
+                taken = used.get((employee.pk, leave_type.pk), 0.0)
+                carry = (
+                    3.0
+                    if leave_type.name == "Annual Leave" and employee.pk % 3 == 0
+                    else 0.0
+                )
+                available, created = AvailableLeave.objects.get_or_create(
+                    employee_id=employee,
+                    leave_type_id=leave_type,
+                    defaults={
+                        "available_days": total - taken + carry,
+                        "carryforward_days": carry,
+                        "total_leave_days": total + carry,
+                        "assigned_date": year_start,
+                        "reset_date": datetime.date(today.year + 1, 1, 1),
+                    },
+                )
+                if not created:
+                    AvailableLeave.objects.filter(pk=available.pk).update(
+                        available_days=available.available_days - taken
+                    )
+
+        # A leave-freeze window for the busiest department in this branch.
+        department = (
+            Department.objects.filter(company_id=company, department="Sales").first()
+            or Department.objects.filter(company_id=company).first()
+        )
+        if department:
+            freeze = RestrictLeave.objects.create(
+                title="Quarter-end Sales Freeze",
+                department=department,
+                start_date=datetime.date(today.year, 12, 22),
+                end_date=datetime.date(today.year, 12, 31),
+                include_all=False,
+                description="Leave is restricted while the quarter is being closed.",
+                company_id=company,
+            )
+            freeze.spesific_leave_types.set(types[:1])
+
+        # Comments on a few existing requests.
+        managers = employees[:3]
+        leaves = list(LeaveRequest.objects.filter(employee_id__in=employees)[:6])
+        for i, leave in enumerate(leaves):
+            LeaverequestComment.objects.create(
+                request_id=leave,
+                employee_id=managers[i % 3],
+                comment=REQUEST_COMMENTS[i % len(REQUEST_COMMENTS)],
+            )
+        for i, request in enumerate(
+            LeaveAllocationRequest.objects.filter(employee_id__in=employees)[:4]
+        ):
+            LeaveallocationrequestComment.objects.create(
+                request_id=request,
+                employee_id=managers[i % 3],
+                comment=REQUEST_COMMENTS[(i + 1) % len(REQUEST_COMMENTS)],
+            )
+        for i, request in enumerate(
+            CompensatoryLeaveRequest.objects.filter(employee_id__in=employees)[:3]
+        ):
+            CompensatoryLeaverequestComment.objects.create(
+                request_id=request,
+                employee_id=managers[i % 3],
+                comment=REQUEST_COMMENTS[(i + 2) % len(REQUEST_COMMENTS)],
+            )
+        self.stdout.write(
+            f"  Leave: {len(types)} limited types, balances for {len(employees)} employees, "
+            f"{len(used)} current-month leaves, 1 restricted period"
+        )
+
+    # -- offboarding ---------------------------------------------------------
+
+    def _offboarding_for(self, company, employees, today):
+        from attendance.models import Attendance, AttendanceLateComeEarlyOut
+        from employee.models import Employee, EmployeeWorkInformation
+        from leave.models import LeaveRequest
+        from offboarding.models import (
+            EmployeeTask,
+            ExitReason,
+            Offboarding,
+            OffboardingEmployee,
+            OffboardingNote,
+            OffboardingStage,
+            OffboardingTask,
+            ResignationLetter,
+        )
+
+        managers = employees[:3]
+        offboarding = Offboarding.objects.create(
+            title="Voluntary Exit",
+            description="Standard process for employees who resign.",
+            status="ongoing",
+            company_id=company,
+        )
+        offboarding.managers.set(managers)
+        stages = []
+        for sequence, (title, stage_type) in enumerate(OFFBOARDING_STAGES):
+            stage = OffboardingStage.objects.create(
+                title=title,
+                type=stage_type,
+                offboarding_id=offboarding,
+                sequence=sequence,
+            )
+            stage.managers.set(managers)
+            stages.append(stage)
+        tasks = {}
+        for stage in stages:
+            for title in OFFBOARDING_TASKS[stage.type]:
+                task = OffboardingTask.objects.create(
+                    title=title,
+                    stage_id=stage,
+                    is_required=True,
+                )
+                task.managers.set(managers)
+                tasks.setdefault(stage.pk, []).append(task)
+
+        # Employees whose resignation was approved in the turnover step; the
+        # ones with the nearest exit dates are the ones still in the process.
+        letters = list(
+            ResignationLetter.objects.filter(
+                employee_id__in=employees, status="approved"
+            ).order_by("-planned_to_leave_on")[:5]
+        )
+        statuses_by_stage = ["completed", "in_progress", "todo", "stuck", "todo"]
+        for i, letter in enumerate(letters):
+            employee = letter.employee_id
+            stage = stages[min(i, 3)]
+            starts = max(
+                letter.planned_to_leave_on - datetime.timedelta(days=60),
+                today - datetime.timedelta(days=90),
+            )
+            off_employee = OffboardingEmployee.objects.create(
+                employee_id=employee,
+                stage_id=stage,
+                notice_period=60,
+                unit="day",
+                notice_period_starts=starts,
+                notice_period_ends=starts + datetime.timedelta(days=60),
+            )
+            ExitReason.objects.create(
+                title=EXIT_REASONS[i % len(EXIT_REASONS)][0],
+                description=EXIT_REASONS[i % len(EXIT_REASONS)][1],
+                offboarding_employee_id=off_employee,
+            )
+            for done_stage in stages[: stages.index(stage) + 1]:
+                is_current = done_stage == stage
+                for task in tasks.get(done_stage.pk, []):
+                    EmployeeTask.objects.create(
+                        employee_id=off_employee,
+                        task_id=task,
+                        status=(
+                            statuses_by_stage[(i + len(task.title)) % 4]
+                            if is_current
+                            else "completed"
+                        ),
+                    )
+            OffboardingNote.objects.create(
+                employee_id=off_employee,
+                stage_id=stage,
+                note_by=managers[i % 3],
+                description="Reviewed the pending items and agreed on the handover plan.",
+            )
+
+        # Leavers: employees who have finished the whole process. Same steps as
+        # moving someone to the archived stage in the offboarding pipeline --
+        # the employee is deactivated and their login revoked. They left only
+        # in the last few days, after the closed payroll month, so no payslip
+        # or past attendance changes.
+        leaver_indexes = [i for i in (17, 19, 21) if i < len(employees)]
+        for k, index in enumerate(leaver_indexes):
+            employee = employees[index]
+            left_on = today - datetime.timedelta(days=2 + k * 2)
+            starts = left_on - datetime.timedelta(days=60)
+            off_employee = OffboardingEmployee.objects.create(
+                employee_id=employee,
+                stage_id=stages[-1],
+                notice_period=60,
+                unit="day",
+                notice_period_starts=starts,
+                notice_period_ends=left_on,
+            )
+            reason_title, reason_text = EXIT_REASONS[(k + 3) % len(EXIT_REASONS)]
+            ExitReason.objects.create(
+                title=reason_title,
+                description=reason_text,
+                offboarding_employee_id=off_employee,
+            )
+            for stage_tasks in tasks.values():
+                for task in stage_tasks:
+                    EmployeeTask.objects.create(
+                        employee_id=off_employee, task_id=task, status="completed"
+                    )
+            OffboardingNote.objects.create(
+                employee_id=off_employee,
+                stage_id=stages[-1],
+                note_by=managers[k % 3],
+                description="All exit formalities completed; records archived.",
+            )
+            ResignationLetter.objects.create(
+                employee_id=employee,
+                title="Resignation",
+                status="approved",
+                description=reason_text,
+                planned_to_leave_on=left_on,
+                offboarding_employee_id=off_employee,
+            )
+            # Nothing is scheduled for someone who has already left.
+            after = Attendance.objects.filter(
+                employee_id=employee, attendance_date__gt=left_on
+            )
+            AttendanceLateComeEarlyOut.objects.filter(attendance_id__in=after).delete()
+            after.delete()
+            LeaveRequest.objects.filter(
+                employee_id=employee, start_date__gt=left_on
+            ).delete()
+            # queryset update: Employee.save() refuses to archive anyone who
+            # still manages people, and the seeder's fake request trips that.
+            EmployeeWorkInformation.objects.filter(
+                reporting_manager_id=employee
+            ).update(reporting_manager_id=managers[0])
+            Employee._base_manager.filter(pk=employee.pk).update(is_active=False)
+            employee.refresh_from_db()
+            employee.sync_login_access()
+        self.stdout.write(
+            f"  Offboarding: 1 process, {len(stages)} stages, {len(letters)} in progress, {len(leaver_indexes)} leavers"
+        )
+
+    # -- recruitment ---------------------------------------------------------
+
+    def _recruitment_extras_for(self, company, employees, today):
+        from base.models import JobPosition
+        from recruitment.models import (
+            Candidate,
+            CandidateDocument,
+            CandidateDocumentRequest,
+            CandidateRating,
+            Recruitment,
+            RecruitmentSurvey,
+            RecruitmentSurveyAnswer,
+            RejectedCandidate,
+            RejectReason,
+            Skill,
+            StageNote,
+            SurveyTemplate,
+        )
+
+        for title in SKILLS:
+            Skill.objects.get_or_create(title=title)
+
+        reasons = [
+            RejectReason.objects.create(title=t, description=d, company_id=company)
+            for t, d in REJECT_REASONS
+        ]
+        recruitments = list(Recruitment._base_manager.filter(company_id=company))
+        candidates = list(
+            Candidate._base_manager.filter(
+                recruitment_id__in=recruitments
+            ).select_related("stage_id")
+        )
+        cancelled = [c for c in candidates if c.stage_id.stage_type == "cancelled"]
+        for i, candidate in enumerate(cancelled):
+            rejected = RejectedCandidate.objects.create(
+                candidate_id=candidate,
+                description="Not moving forward after the evaluation.",
+            )
+            rejected.reject_reason_id.set([reasons[i % len(reasons)]])
+
+        # Survey: one general template plus one tied to each recruitment.
+        # SurveyTemplate.title is unique, so both branches share one template.
+        template, template_created = SurveyTemplate.objects.get_or_create(
+            title="Candidate Screening Questions",
+            defaults={
+                "description": "Short pre-screening questions asked to every applicant.",
+                "is_general_template": True,
+            },
+        )
+        if template_created:
+            for sequence, (question, kind, options) in enumerate(
+                SURVEY_QUESTIONS, start=1
+            ):
+                survey = RecruitmentSurvey.objects.create(
+                    question=question,
+                    type=kind,
+                    options=options,
+                    sequence=sequence,
+                    is_mandatory=sequence <= 2,
+                )
+                survey.template_id.add(template)
+        for survey in RecruitmentSurvey.objects.filter(template_id=template):
+            survey.recruitment_ids.add(*recruitments)
+        for i, candidate in enumerate(candidates[::4]):
+            RecruitmentSurveyAnswer.objects.create(
+                candidate_id=candidate,
+                recruitment_id=candidate.recruitment_id,
+                job_position_id=candidate.job_position_id,
+                answer_json={
+                    SURVEY_QUESTIONS[0][0]: str(2 + i % 6),
+                    SURVEY_QUESTIONS[1][0]: [
+                        "Immediate",
+                        "15 days",
+                        "30 days",
+                        "60 days",
+                    ][i % 4],
+                    SURVEY_QUESTIONS[2][0]: "yes" if i % 2 else "no",
+                },
+            )
+
+        managers = employees[:3]
+        notes = [
+            "Strong communicator, good grasp of the fundamentals.",
+            "Needs a follow-up round on system design.",
+            "Salary expectations are within range.",
+            "Impressive portfolio; recommend moving ahead.",
+        ]
+        for i, candidate in enumerate(candidates):
+            if i % 3 == 0:
+                StageNote.objects.create(
+                    candidate_id=candidate,
+                    stage_id=candidate.stage_id,
+                    description=notes[i % len(notes)],
+                    updated_by=managers[i % 3],
+                )
+            if i % 2 == 0:
+                CandidateRating.objects.create(
+                    candidate_id=candidate,
+                    employee_id=managers[i % 3],
+                    rating=2 + i % 4,
+                )
+
+        for t, (title, fmt, description) in enumerate(CANDIDATE_DOCUMENT_REQUESTS):
+            interviewing = [
+                c for c in candidates if c.stage_id.stage_type in ("interview", "hired")
+            ][:10]
+            request = CandidateDocumentRequest.objects.create(
+                title=title,
+                format=fmt,
+                max_size=5,
+                description=description,
+            )
+            request.candidate_id.set(interviewing)
+            for i, candidate in enumerate(interviewing):
+                status = ["approved", "requested", "approved", "rejected"][(i + t) % 4]
+                document = CandidateDocument(
+                    title=title,
+                    candidate_id=candidate,
+                    document_request_id=request,
+                    status=status,
+                    reject_reason=(
+                        "Document is expired." if status == "rejected" else ""
+                    ),
+                )
+                if status != "requested":
+                    document.document.save(
+                        f"candidate_{candidate.pk}_{t}.pdf",
+                        _file("doc.pdf"),
+                        save=False,
+                    )
+                document.save()
+        self.stdout.write(
+            f"  Recruitment extras: {len(reasons)} reject reasons, {len(cancelled)} rejected, "
+            f"{len(SKILLS)} skills, 1 survey template, notes/ratings/documents"
+        )
+
+    # -- attendance ----------------------------------------------------------
+
+    def _attendance_extras_for(self, company, employees, today):
+        from attendance.models import (
+            Attendance,
+            AttendanceActivity,
+            AttendanceRequestComment,
+            AttendanceValidationCondition,
+            BatchAttendance,
+            GraceTime,
+        )
+        from base.models import EmployeeShiftDay
+
+        grace = GraceTime.objects.create(
+            allowed_time="00:15:00",
+            allowed_time_in_secs=900,
+            allowed_clock_in=True,
+            allowed_clock_out=True,
+            is_default=True,
+        )
+        grace.company_id.add(company)
+        condition = AttendanceValidationCondition.objects.create(
+            validation_at_work="09:00",
+            minimum_overtime_to_approve="00:30",
+            overtime_cutoff="02:00",
+            auto_approve_ot=False,
+        )
+        condition.company_id.add(company)
+
+        rows = Attendance.objects.filter(
+            employee_id__in=employees,
+            attendance_date__gte=today - datetime.timedelta(days=14),
+            attendance_clock_in__isnull=False,
+        ).select_related("employee_id")
+        days = {d.day: d for d in EmployeeShiftDay.objects.all()}
+        batch_ids, created = [], 0
+        for attendance in rows:
+            clock_out = attendance.attendance_clock_out
+            AttendanceActivity.objects.create(
+                employee_id=attendance.employee_id,
+                attendance_date=attendance.attendance_date,
+                shift_day=days.get(attendance.attendance_date.strftime("%A").lower()),
+                clock_in_date=attendance.attendance_date,
+                clock_in=attendance.attendance_clock_in,
+                clock_out_date=attendance.attendance_date if clock_out else None,
+                clock_out=clock_out,
+            )
+            created += 1
+            if len(batch_ids) < 12 and attendance.attendance_date.weekday() == 0:
+                batch_ids.append(attendance.pk)
+        batch = BatchAttendance.objects.create(title="Monday Check-ins")
+        Attendance.objects.filter(pk__in=batch_ids).update(batch_attendance_id=batch)
+
+        for i, row in enumerate(
+            Attendance.objects.filter(
+                employee_id__in=employees, is_validate_request=True
+            )[:3]
+        ):
+            AttendanceRequestComment.objects.create(
+                request_id=row,
+                employee_id=employees[i % 3],
+                comment=REQUEST_COMMENTS[i % len(REQUEST_COMMENTS)],
+            )
+        self.stdout.write(
+            f"  Attendance: {created} clock activities, grace time, validation rule"
+        )
+
+    # -- performance ---------------------------------------------------------
+
+    def _pms_extras_for(self, company, employees, today):
+        from base.models import Department, JobPosition
+        from pms.models import (
+            AnonymousFeedback,
+            BonusPointSetting,
+            Comment,
+            EmployeeObjective,
+            Period,
+        )
+
+        for q, (name, start_month) in enumerate(
+            [("Q1", 1), ("Q2", 4), ("Q3", 7), ("Q4", 10)]
+        ):
+            start = datetime.date(today.year, start_month, 1)
+            end = (
+                datetime.date(today.year, start_month + 3, 1)
+                - datetime.timedelta(days=1)
+                if start_month < 10
+                else datetime.date(today.year, 12, 31)
+            )
+            # period_name is unique, so both branches share each period.
+            period, _created = Period.objects.get_or_create(
+                period_name=f"{name} {today.year}",
+                defaults={"start_date": start, "end_date": end},
+            )
+            period.company_id.add(company)
+
+        BonusPointSetting.objects.create(
+            model="pms.models.EmployeeObjective",
+            applicable_for="owner",
+            bonus_for="completed",
+            field_1="complition_date",
+            conditions="<=",
+            field_2="end_date",
+            points=10,
+            company_id=company,
+        )
+        BonusPointSetting.objects.create(
+            model="project.models.Task",
+            applicable_for="members",
+            bonus_for="completed",
+            field_1="complition_date",
+            conditions="<=",
+            field_2="end_date",
+            points=5,
+            company_id=company,
+        )
+
+        departments = list(Department.objects.filter(company_id=company)[:3])
+        positions = list(JobPosition.objects.filter(company_id=company)[:3])
+        statuses = ["On Track", "Not Started", "Behind", "Closed", "At Risk"]
+        for i, (subject, based_on, description) in enumerate(ANONYMOUS_FEEDBACK):
+            AnonymousFeedback.objects.create(
+                feedback_subject=subject,
+                based_on=based_on,
+                employee_id=employees[i + 3] if based_on == "employee" else None,
+                department_id=(
+                    departments[i % len(departments)]
+                    if based_on == "department"
+                    else None
+                ),
+                job_position_id=(
+                    positions[i % len(positions)]
+                    if based_on == "job_position"
+                    else None
+                ),
+                status=statuses[i % len(statuses)],
+                feedback_description=description,
+                anonymous_feedback_id=f"{company.pk}{i}{today:%y%m%d}",
+            )
+
+        for i, objective in enumerate(
+            EmployeeObjective.objects.filter(employee_id__in=employees)[:8]
+        ):
+            Comment.objects.create(
+                comment=OBJECTIVE_COMMENTS[i % len(OBJECTIVE_COMMENTS)],
+                employee_id=employees[i % 3],
+                employee_objective_id=objective,
+            )
+        self.stdout.write(
+            "  Performance extras: periods, bonus settings, anonymous feedback, comments"
+        )
+
+    # -- employee ------------------------------------------------------------
+
+    def _employee_extras_for(self, company, employees, today):
+        from employee.models import EmployeeBankDetails, EmployeeNote
+
+        banks = BANKS[company.company]
+        for i, employee in enumerate(employees):
+            bank, city, state, country, code = banks[i % len(banks)]
+            EmployeeBankDetails.objects.update_or_create(
+                employee_id=employee,
+                defaults=dict(
+                    bank_name=bank,
+                    account_number=f"{52000000 + employee.pk * 137:012d}",
+                    branch=f"{city} Main Branch",
+                    address=f"{10 + i} Financial District, {city}",
+                    country=country,
+                    state=state,
+                    city=city,
+                    any_other_code1=code,
+                    any_other_code2=f"{company.pk}{i:04d}",
+                ),
+            )
+        managers = employees[:3]
+        for i, employee in enumerate(employees[3:15]):
+            EmployeeNote.objects.create(
+                employee_id=employee,
+                updated_by=managers[i % 3],
+                description=EMPLOYEE_NOTES[i % len(EMPLOYEE_NOTES)],
+            )
+        self.stdout.write(f"  Employees: {len(employees)} bank accounts, 12 notes")
+
+    # -- base ---------------------------------------------------------------
+
+    def _base_extras_for(self, company, employees, today, default_shift):
+        from base.models import (
+            Announcement,
+            AnnouncementComment,
+            AnnouncementView,
+            Roster,
+            ShiftRequest,
+            ShiftRequestComment,
+            TrackLateComeEarlyOut,
+            WorkTypeRequest,
+            WorkTypeRequestComment,
+        )
+        from employee.models import EmployeeWorkInformation
+
+        TrackLateComeEarlyOut.objects.get_or_create(
+            company_id=company, defaults={"is_enable": True}
+        )
+
+        announcements = list(Announcement.objects.filter(company_id=company))
+        for a, announcement in enumerate(announcements):
+            for i, employee in enumerate(employees[:10]):
+                AnnouncementView.objects.get_or_create(
+                    user=employee.employee_user_id,
+                    announcement=announcement,
+                    defaults={"viewed": i % 4 != 3},
+                )
+            for i, text in enumerate(ANNOUNCEMENT_COMMENTS):
+                AnnouncementComment.objects.create(
+                    announcement_id=announcement,
+                    employee_id=employees[(a + i + 4) % len(employees)],
+                    comment=text,
+                )
+
+        for i, request in enumerate(
+            ShiftRequest.objects.filter(employee_id__in=employees)[:5]
+        ):
+            ShiftRequestComment.objects.create(
+                request_id=request,
+                employee_id=employees[i % 3],
+                comment=REQUEST_COMMENTS[i % len(REQUEST_COMMENTS)],
+            )
+        for i, request in enumerate(
+            WorkTypeRequest.objects.filter(employee_id__in=employees)[:5]
+        ):
+            WorkTypeRequestComment.objects.create(
+                request_id=request,
+                employee_id=employees[i % 3],
+                comment=REQUEST_COMMENTS[(i + 1) % len(REQUEST_COMMENTS)],
+            )
+
+        # Next week's roster for the first 12 employees on their own shift.
+        works = {
+            w.employee_id_id: w
+            for w in EmployeeWorkInformation.objects.filter(employee_id__in=employees)
+        }
+        monday = today + datetime.timedelta(days=7 - today.weekday())
+        count = 0
+        for employee in employees[:12]:
+            work = works.get(employee.pk)
+            if not work or not work.department_id:
+                continue
+            for offset in range(7):
+                day = monday + datetime.timedelta(days=offset)
+                Roster.objects.create(
+                    employee=employee,
+                    date=day,
+                    shift=work.shift_id,
+                    department=work.department_id,
+                    is_published=True,
+                    is_off=day.weekday() >= 5,
+                    notes="Weekly off" if day.weekday() >= 5 else "",
+                )
+                count += 1
+        self.stdout.write(
+            f"  Base extras: announcement views/comments, request comments, {count} roster rows"
+        )
+
+    # -- assets / payroll ----------------------------------------------------
+
+    def _misc_extras_for(self, company, employees, today):
+        from asset.models import Asset, AssetLot
+        from payroll.models.models import (
+            PayPeriodSettings,
+            Reimbursement,
+            ReimbursementrequestComment,
+        )
+
+        assets = list(
+            Asset.objects.filter(asset_category_id__company_id=company).distinct()
+        )
+        lots = []
+        for i, name in enumerate(
+            ["Q1 Hardware Purchase", "Q2 Hardware Purchase", "Refurbished Stock"]
+        ):
+            lot = AssetLot.objects.create(
+                lot_number=f"LOT-{company.pk}-{today.year}-{i + 1:02d}",
+                lot_description=name,
+            )
+            lot.company_id.add(company)
+            lots.append(lot)
+        for i, asset in enumerate(assets):
+            Asset.objects.filter(pk=asset.pk).update(
+                asset_lot_number_id=lots[i % len(lots)]
+            )
+
+        PayPeriodSettings.objects.get_or_create(
+            company_id=company,
+            defaults={
+                "boundary": "calendar_month",
+                "pay_day_offset": 5,
+                "input_cutoff_days": 3,
+            },
+        )
+        for i, reimbursement in enumerate(
+            Reimbursement.objects.filter(employee_id__in=employees)[:5]
+        ):
+            ReimbursementrequestComment.objects.create(
+                request_id=reimbursement,
+                employee_id=employees[i % 3],
+                comment=REQUEST_COMMENTS[i % len(REQUEST_COMMENTS)],
+            )
+        self.stdout.write(
+            f"  Assets/payroll extras: {len(lots)} lots, pay period, reimbursement comments"
+        )
+
+
+class Command(ExtrasMixin, BaseCommand):
     help = (
         "Replace all data with a two-company, 60-employee demo dataset: "
         "attendance to date, leave into the future, payroll for last month."
@@ -741,6 +1990,7 @@ class Command(BaseCommand):
         pools_created = pool_members_created = 0
         onboarded_created = portals_sent = portals_incomplete = 0
         performance_totals = [0] * 6
+        extras_queue = []
         for company_spec in COMPANIES:
             self.stdout.write(f"\n=== {company_spec['name']} ===")
             company, shift = self._scaffolding(company_spec)
@@ -796,6 +2046,8 @@ class Command(BaseCommand):
             self._pending_leave_for(employees, today, unpaid_type)
             with _as_request():
                 self._employee_dashboard_for(company, employees, shift, today)
+                self._rotating_shifts_for(employees, shift, today)
+                self._leave_allocation_requests_for(employees, today, paid_type)
                 self._loans_for(employees, today)
                 self._reimbursements_for(employees, today)
                 self._policy_and_discipline(company, employees)
@@ -840,6 +2092,12 @@ class Command(BaseCommand):
             runs_created += 1
 
             self._turnover_for(company, employees, today)
+            extras_queue.append((company, employees, shift))
+
+        # Holidays and the like are deliberately seeded only after every
+        # branch's payslips exist, so they can't shift the closed month.
+        for company, employees, shift in extras_queue:
+            self._extras_for(company, employees, today, shift)
 
         self.stdout.write(self.style.SUCCESS("\nDone."))
         self.stdout.write(
@@ -931,7 +2189,7 @@ class Command(BaseCommand):
             company.icon = icon_path
             company.save(update_fields=["icon"])
 
-        shift = EmployeeShift.objects.create(employee_shift=f"{name} Shift (Mon-Fri)")
+        shift = EmployeeShift.objects.create(employee_shift="Regular Shift")
         shift.company_id.add(company)
         for day_name in WEEKDAY_NAMES:
             day, _created = EmployeeShiftDay.objects.get_or_create(day=day_name)
@@ -950,7 +2208,7 @@ class Command(BaseCommand):
         self._shift_hours = {shift.pk: DEFAULT_SHIFT_HOURS}
         self._extra_shifts = {}
         for shift_name, start, end in EXTRA_SHIFTS:
-            extra = EmployeeShift.objects.create(employee_shift=f"{name} {shift_name}")
+            extra = EmployeeShift.objects.create(employee_shift=shift_name)
             extra.company_id.add(company)
             for day_name in WEEKDAY_NAMES:
                 day, _created = EmployeeShiftDay.objects.get_or_create(day=day_name)
@@ -1022,11 +2280,11 @@ class Command(BaseCommand):
             sequence=20,
             company_id=company,
             is_fixed=True,
-            amount=2000.0,
+            amount=300.0,
             is_taxable=True,
         )
         pf = Deduction.objects.create(
-            title="Provident Fund (PF)",
+            title="Pension Contribution",
             code="PF",
             sequence=10,
             company_id=company,
@@ -1037,16 +2295,16 @@ class Command(BaseCommand):
             is_pretax=True,
         )
         pt = Deduction.objects.create(
-            title="Professional Tax",
+            title="Payroll Tax",
             code="PT",
             sequence=20,
             company_id=company,
             is_fixed=True,
-            amount=200.0,
+            amount=120.0,
             is_pretax=False,
         )
         gross_up = SalaryStructure.objects.create(
-            title=f"{company.company} — Standard",
+            title="Standard",
             company_id=company,
             structure_mode="gross_up",
         )
@@ -1085,7 +2343,7 @@ class Command(BaseCommand):
             is_taxable=True,
         )
         ctc_down = SalaryStructure.objects.create(
-            title=f"{company.company} — CTC Down",
+            title="CTC Down",
             company_id=company,
             structure_mode="ctc_down",
         )
@@ -1111,7 +2369,8 @@ class Command(BaseCommand):
         from base.models import Department, JobPosition, JobRole
 
         pool = []
-        for department_name, position_names in DEPARTMENT_STRUCTURE:
+        structure = CORE_DEPARTMENTS + EXTRA_DEPARTMENTS.get(company.company, [])
+        for department_name, position_names in structure:
             department = Department.objects.create(department=department_name)
             department.company_id.add(company)
             for position_name in position_names:
@@ -1127,9 +2386,7 @@ class Command(BaseCommand):
                 role.company_id.add(company)
                 pool.append((department, position, role))
 
-        self.stdout.write(
-            f"  {len(DEPARTMENT_STRUCTURE)} departments, {len(pool)} job positions"
-        )
+        self.stdout.write(f"  {len(structure)} departments, {len(pool)} job positions")
         return pool
 
     # -- people ----------------------------------------------------------------
@@ -1149,7 +2406,9 @@ class Command(BaseCommand):
         from horilla.testkit import make_employee
         from payroll.models.models import Contract
 
-        domain = company.company.lower().replace(" ", "-")
+        domain = EMAIL_DOMAIN_BY_COMPANY[company.company]
+        names = EMPLOYEE_NAMES[company.company]
+        country, state, city, zip_code = EMPLOYEE_LOCATION_BY_COMPANY[company.company]
         # Adam Admin as the chart's root, one employee per department
         # promoted to that department's head (reporting to Admin) the first
         # time that department is seen, everyone else in it reporting to
@@ -1158,17 +2417,26 @@ class Command(BaseCommand):
         dept_heads = {}
         employees = []
         for i in range(EMPLOYEES_PER_COMPANY):
-            first, last = EMPLOYEE_NAMES[i % len(EMPLOYEE_NAMES)]
+            first, last, gender = names[i % len(names)]
+            slug = lambda text: re.sub(r"[^a-z]", "", text.lower())
             is_ctc_down = i in CTC_DOWN_INDEXES
             employee = make_employee(
                 company=company,
-                email=f"{first.lower()}.{last.lower()}{i}@{domain}.payroll.test",
+                email=f"{slug(first)}.{slug(last)}@{domain}",
+                phone=f"{PHONE_PREFIX_BY_COMPANY[company.company]}{i:03d}",
                 first_name=first,
                 last_name=last,
                 shift=shift,
             )
             Employee.objects.filter(pk=employee.pk).update(
-                gender="female" if first in FEMALE_FIRST_NAMES else "male"
+                gender=gender,
+                dob=datetime.date(
+                    1972 + (i * 7) % 29, 1 + (i * 5) % 12, 1 + (i * 11) % 28
+                ),
+                country=country,
+                state=state,
+                city=city,
+                zip=zip_code,
             )
             Contract.objects.filter(employee_id=employee).delete()
             contract = Contract.objects.create(
@@ -1244,11 +2512,11 @@ class Command(BaseCommand):
         from leave.models import LeaveType
 
         paid_type, _created = LeaveType.objects.get_or_create(
-            name="Fixture Paid Leave",
+            name="Paid Leave",
             defaults={"payment": "paid", "limit_leave": False},
         )
         unpaid_type, _created = LeaveType.objects.get_or_create(
-            name="Fixture Unpaid Leave",
+            name="Unpaid Leave",
             defaults={"payment": "unpaid", "limit_leave": False},
         )
         return paid_type, unpaid_type
@@ -1259,7 +2527,7 @@ class Command(BaseCommand):
         from base.models import Announcement
 
         announcement = Announcement.objects.create(
-            title=f"Welcome to {company.company}",
+            title="Welcome Aboard",
             description="Welcome aboard! Check the Policies page for everything you need to know.",
             expire_date=today + datetime.timedelta(days=30),
         )
@@ -1327,7 +2595,7 @@ class Command(BaseCommand):
                 status="approved",
                 start_date_breakdown="full_day",
                 end_date_breakdown="full_day",
-                description="Branch demo — prior month",
+                description="Personal leave taken last month.",
             )
 
         # Current month to date: present every weekday, except a light
@@ -1345,7 +2613,7 @@ class Command(BaseCommand):
                 status="approved",
                 start_date_breakdown="full_day",
                 end_date_breakdown="full_day",
-                description="Branch demo — current month",
+                description="Personal day off.",
             )
         for day in current_weekdays:
             if day == skip_day:
@@ -1380,7 +2648,7 @@ class Command(BaseCommand):
                     status="approved",
                     start_date_breakdown="full_day",
                     end_date_breakdown="full_day",
-                    description="Branch demo — upcoming leave",
+                    description="Planned time off.",
                 )
 
     # -- the one month a payslip actually reads ---------------------------------
@@ -1443,7 +2711,7 @@ class Command(BaseCommand):
                 status="approved",
                 start_date_breakdown="full_day",
                 end_date_breakdown="full_day",
-                description="Branch demo — payroll month",
+                description="Personal leave.",
             )
 
         # Balanced by construction: present + paid_leave + unpaid_leave +
@@ -1460,7 +2728,7 @@ class Command(BaseCommand):
                 "paid_leave": float(paid_leave_count),
                 "unpaid_leave": float(unpaid_leave_count),
                 "absent": 0.0,
-                "note": "Branch demo — stated totals",
+                "note": "Attendance totals as stated for the period",
             },
         )
 
@@ -1508,7 +2776,7 @@ class Command(BaseCommand):
         from payroll.models.payroll_batch import PayrollBatch
 
         batch = batch_run.create_batch(
-            name=f"{company.company} — {start.strftime('%b %Y')}",
+            name=f"{start.strftime('%b %Y')} Payroll",
             start_date=start,
             end_date=end,
             employees=employees,
@@ -1564,10 +2832,10 @@ class Command(BaseCommand):
                 employee_id=employee,
                 title="Staff loan" if is_loan else "Salary advance",
                 type="loan" if is_loan else "advanced_salary",
-                loan_amount=60000 if is_loan else 20000,
+                loan_amount=7500 if is_loan else 2500,
                 provided_date=today - datetime.timedelta(days=10),
                 installments=12 if is_loan else 4,
-                installment_amount=5000,
+                installment_amount=625,
                 installment_start_date=today + datetime.timedelta(days=20),
                 description="Approved by HR.",
             )
@@ -1587,7 +2855,7 @@ class Command(BaseCommand):
                 status="requested",
                 start_date_breakdown="full_day",
                 end_date_breakdown="full_day",
-                description="Branch demo — awaiting approval",
+                description="Awaiting manager approval.",
             )
 
     def _ongoing_leave_for(self, employees, today, paid_type, unpaid_type):
@@ -1621,7 +2889,7 @@ class Command(BaseCommand):
                 status="approved",
                 start_date_breakdown="full_day",
                 end_date_breakdown="full_day",
-                description="Branch demo — currently on leave",
+                description="Currently on approved leave.",
             )
 
     def _today_attendance_for(self, employees, today, shift):
@@ -1705,11 +2973,10 @@ class Command(BaseCommand):
 
         work_types = []
         for wt_name in WORK_TYPE_NAMES:
-            work_type = WorkType.objects.create(
-                work_type=f"{wt_name} ({company.company})"
-            )
+            work_type = WorkType.objects.create(work_type=wt_name)
             work_type.company_id.add(company)
             work_types.append(work_type)
+        self._work_masters_for(company, employees, work_types)
 
         shifts = [default_shift, default_shift, *self._extra_shifts.values()]
         departments = {
@@ -1790,6 +3057,160 @@ class Command(BaseCommand):
         )
 
     # -- employee dashboard ------------------------------------------------------
+
+    def _work_masters_for(self, company, employees, work_types):
+        """Employee types, employee tags and rotating work types for the
+        Work Type settings tabs, and assign them across the branch."""
+        from base.models import EmployeeType, RotatingWorkType, RotatingWorkTypeAssign
+        from employee.models import EmployeeTag, EmployeeWorkInformation
+
+        types = []
+        for type_name in EMPLOYEE_TYPE_NAMES:
+            employee_type = EmployeeType.objects.create(employee_type=type_name)
+            employee_type.company_id.add(company)
+            types.append(employee_type)
+        tags = [
+            EmployeeTag.objects.get_or_create(title=title, defaults={"color": color})[0]
+            for title, color in EMPLOYEE_TAG_SPECS
+        ]
+        for index, employee in enumerate(employees):
+            # Mostly full-time, with a realistic tail of the other types.
+            employee_type = types[0 if index % 5 < 3 else (index % 4) + 1]
+            EmployeeWorkInformation.objects.filter(employee_id=employee).update(
+                employee_type_id=employee_type
+            )
+            if index % 3 != 2:
+                employee.employee_work_info.tags.set([tags[index % len(tags)]])
+
+        by_name = {wt.work_type: wt for wt in work_types}
+        slot = getattr(self, "_rotation_slot", 0)
+        self._rotation_slot = slot + 1
+        today = datetime.date.today()
+        specs = [
+            ROTATING_WORK_TYPE_SPECS[(slot * 2 + k) % len(ROTATING_WORK_TYPE_SPECS)]
+            for k in range(2)
+        ]
+        for k, (title, first, second) in enumerate(specs):
+            rotation = RotatingWorkType.objects.create(
+                name=title, work_type1=by_name[first], work_type2=by_name[second]
+            )
+            for employee in employees[k * 6 : k * 6 + 4]:
+                RotatingWorkTypeAssign.objects.create(
+                    employee_id=employee,
+                    rotating_work_type_id=rotation,
+                    start_date=today - datetime.timedelta(days=3),
+                    next_change_date=today + datetime.timedelta(days=4 + k),
+                    current_work_type=by_name[first],
+                    next_work_type=by_name[second],
+                    based_on="after",
+                    rotate_after_day=7,
+                )
+
+    def _rotating_shifts_for(self, employees, default_shift, today):
+        """Two rotating shifts, each assigned to a few employees."""
+        from base.models import RotatingShift, RotatingShiftAssign
+
+        extra = self._extra_shifts
+        specs = [
+            ("Regular / Evening Rotation", default_shift, extra["Evening Shift"]),
+            ("Morning / Night Rotation", extra["Morning Shift"], extra["Night Shift"]),
+        ]
+        for k, (title, first, second) in enumerate(specs):
+            rotation = RotatingShift.objects.create(
+                name=title, shift1=first, shift2=second
+            )
+            for employee in employees[8 + k * 5 : 8 + k * 5 + 4]:
+                RotatingShiftAssign.objects.create(
+                    employee_id=employee,
+                    rotating_shift_id=rotation,
+                    start_date=today - datetime.timedelta(days=3),
+                    next_change_date=today + datetime.timedelta(days=4 + k),
+                    current_shift=first,
+                    next_shift=second,
+                    based_on="after",
+                    rotate_after_day=7,
+                )
+
+    def _leave_allocation_requests_for(self, employees, today, paid_type):
+        """Leave allocation requests and compensatory leave requests in
+        every status, for the Leave Requests > Allocation / Compensatory tabs."""
+        from attendance.models import Attendance
+        from leave.models import (
+            CompensatoryLeaveRequest,
+            LeaveAllocationRequest,
+            LeaveType,
+        )
+
+        comp_type, _created = LeaveType.objects.get_or_create(
+            name="Compensatory Off",
+            defaults={
+                "payment": "paid",
+                "limit_leave": False,
+                "is_compensatory_leave": True,
+            },
+        )
+        statuses = [
+            "requested",
+            "requested",
+            "approved",
+            "rejected",
+            "approved",
+            "requested",
+        ]
+        reasons = [
+            "Extra days needed for a family event.",
+            "Carry-over adjustment from last year.",
+            "Additional leave for a planned relocation.",
+            "Balance top-up after a long project.",
+        ]
+        for i, status in enumerate(statuses):
+            LeaveAllocationRequest.objects.create(
+                leave_type_id=paid_type,
+                employee_id=employees[10 + i],
+                requested_days=float(1 + i % 4),
+                status=status,
+                requested_date=today - datetime.timedelta(days=2 + i * 3),
+                description=reasons[i % len(reasons)],
+                reject_reason=(
+                    "Not enough balance in the leave pool."
+                    if status == "rejected"
+                    else ""
+                ),
+            )
+
+        comp_reasons = [
+            "Worked on a weekend to meet a release deadline.",
+            "Covered an on-call shift over the weekend.",
+            "Attended a client workshop on a day off.",
+        ]
+        created = 0
+        for i, status in enumerate(
+            ["requested", "requested", "approved", "rejected", "approved"]
+        ):
+            employee = employees[16 + i]
+            attendance = (
+                Attendance.objects.filter(employee_id=employee)
+                .order_by("-attendance_date")
+                .first()
+            )
+            if attendance is None:
+                continue
+            request = CompensatoryLeaveRequest.objects.create(
+                leave_type_id=comp_type,
+                employee_id=employee,
+                requested_days=1.0,
+                status=status,
+                requested_date=today - datetime.timedelta(days=1 + i * 4),
+                description=comp_reasons[i % len(comp_reasons)],
+                reject_reason=(
+                    "Overtime was not pre-approved." if status == "rejected" else ""
+                ),
+            )
+            request.attendance_id.add(attendance)
+            created += 1
+        self.stdout.write(
+            f"  Leave: {len(statuses)} allocation requests, {created} compensatory requests"
+        )
 
     def _employee_dashboard_for(self, company, employees, default_shift, today):
         """
@@ -1960,7 +3381,7 @@ class Command(BaseCommand):
                 title="Travel claim" if offset % 2 else "Medical claim",
                 type="reimbursement",
                 allowance_on=today - datetime.timedelta(days=10),
-                amount=2500 if offset % 2 else 4000,
+                amount=320 if offset % 2 else 500,
                 status="approved",
             )
             claim.attachment.save(
@@ -1976,7 +3397,7 @@ class Command(BaseCommand):
                 title="Client visit travel" if offset % 2 else "Team offsite meals",
                 type="reimbursement",
                 allowance_on=today - datetime.timedelta(days=12),
-                amount=1800 if offset % 2 else 950,
+                amount=230 if offset % 2 else 120,
                 status="requested",
             )
             claim.attachment.save(
@@ -2223,18 +3644,20 @@ class Command(BaseCommand):
             if d.weekday() < 5
         ]
         tasks_created = timesheets_created = 0
+        project_specs = PROJECT_SPECS_BY_COMPANY[company.company]
+        task_titles = PROJECT_TASK_TITLES_BY_COMPANY[company.company]
         for p_index, (name, status, start_off, end_off, task_cycle) in enumerate(
-            PROJECT_SPECS
+            project_specs
         ):
             start = today + datetime.timedelta(days=start_off)
             end = today + datetime.timedelta(days=end_off)
             manager = employees[(p_index * 4) % len(employees)]
             project = Project.objects.create(
-                title=f"{company.company} - {name}",
+                title=name,
                 status=status,
                 start_date=start,
                 end_date=end,
-                description=f"{name} for {company.company}.",
+                description=f"{name} project.",
                 company_id=company,
             )
             project.managers.add(manager)
@@ -2261,16 +3684,14 @@ class Command(BaseCommand):
                     for k in range(3)
                 ]
                 task = Task.objects.create(
-                    title=PROJECT_TASK_TITLES[
-                        (p_index * 3 + t_index) % len(PROJECT_TASK_TITLES)
-                    ],
+                    title=task_titles[(p_index * 3 + t_index) % len(task_titles)],
                     project=project,
                     stage=stage_for[t_status],
                     status=t_status,
                     start_date=t_start,
                     end_date=t_end,
                     allocated_hours=f"{16 + 8 * (t_index % 4):02d}:00",
-                    description=f"{PROJECT_TASK_TITLES[(p_index * 3 + t_index) % len(PROJECT_TASK_TITLES)]} for {name}.",
+                    description=f"{task_titles[(p_index * 3 + t_index) % len(task_titles)]} for {name}.",
                     sequence=t_index,
                 )
                 task.task_managers.add(manager)
@@ -2297,10 +3718,10 @@ class Command(BaseCommand):
                     timesheets_created += 1
 
         self.stdout.write(
-            f"  Projects: {len(PROJECT_SPECS)} projects, {tasks_created} tasks, "
+            f"  Projects: {len(project_specs)} projects, {tasks_created} tasks, "
             f"{timesheets_created} timesheets"
         )
-        return len(PROJECT_SPECS)
+        return len(project_specs)
 
     # -- turnover ----------------------------------------------------------------
 
@@ -2365,11 +3786,12 @@ class Command(BaseCommand):
 
         categories = {}
         for name, _entries in ASSET_CATALOG:
-            category = AssetCategory.objects.create(
-                asset_category_name=f"{name} ({company.company})",
-                asset_category_description=f"{name} issued to {company.company} employees.",
+            # asset_category_name is unique, so both companies share one row.
+            category, _created = AssetCategory.objects.get_or_create(
+                asset_category_name=name,
+                defaults={"asset_category_description": f"{name} issued to employees."},
             )
-            category.company_id.set([company])
+            category.company_id.add(company)
             categories[name] = category
 
         flat = [
@@ -2529,11 +3951,12 @@ class Command(BaseCommand):
         candidates_created = interviews_created = hired_total = 0
         pool_candidates = []
 
-        for r, (position_name, vacancy, hire_target) in enumerate(RECRUITMENT_PLANS):
+        recruitment_plans = RECRUITMENT_PLANS_BY_COMPANY[company.company]
+        for r, (position_name, vacancy, hire_target) in enumerate(recruitment_plans):
             position = positions[position_name]
             recruitment = Recruitment.default.create(
                 title=f"{position_name} Hiring",
-                description=f"Open hiring for {vacancy} {position_name} position(s) at {company.company}.",
+                description=f"Open hiring for {vacancy} {position_name} position(s) at the company.",
                 vacancy=vacancy,
                 company_id=company,
                 job_position_id=position,
@@ -2557,14 +3980,9 @@ class Command(BaseCommand):
             for stage in stages.values():
                 stage.stage_managers.set(managers)
 
-            hires_left = hire_target
-            for i, stage_type in enumerate(RECRUITMENT_STAGE_PATTERN):
-                if stage_type == "hired":
-                    if hires_left == 0:
-                        stage_type = "interview"
-                    else:
-                        hires_left -= 1
-
+            for i, stage_type in enumerate(
+                _recruitment_stage_pattern(position_name, r)
+            ):
                 first = CANDIDATE_FIRST_NAMES[(r * 7 + i) % len(CANDIDATE_FIRST_NAMES)]
                 last = CANDIDATE_LAST_NAMES[(r * 3 + i * 5) % len(CANDIDATE_LAST_NAMES)]
                 referral_source = RECRUITMENT_REFERRAL_SOURCES[
@@ -2579,13 +3997,14 @@ class Command(BaseCommand):
                 else:
                     offer_status = "not_sent"
 
+                location = CANDIDATE_LOCATIONS[company.company][(r + i) % 6]
                 candidate = Candidate._base_manager.create(
                     name=f"{first} {last}",
                     recruitment_id=recruitment,
                     job_position_id=position,
                     stage_id=stages[stage_type],
                     email=f"{first}.{last}.{recruitment.pk}.{i}@example.com".lower(),
-                    mobile=f"+1555{recruitment.pk % 100:02d}{i:02d}{(i * 37) % 1000:03d}",
+                    mobile=f"{location[2]}{recruitment.pk % 100:02d}{i:02d}{(i * 37) % 1000:03d}",
                     gender="female" if (i + r) % 2 else "male",
                     source=RECRUITMENT_SOURCES[(i + r) % len(RECRUITMENT_SOURCES)],
                     referral_source=referral_source,
@@ -2595,8 +4014,8 @@ class Command(BaseCommand):
                         else None
                     ),
                     offer_letter_status=offer_status,
-                    city=CANDIDATE_CITIES[(r + i) % len(CANDIDATE_CITIES)],
-                    country="United States",
+                    city=location[0],
+                    country=location[1],
                 )
 
                 bucket = RECRUITMENT_MONTH_BUCKETS[i]
@@ -2657,13 +4076,13 @@ class Command(BaseCommand):
                 pool_members += 1
 
         self.stdout.write(
-            f"  Recruitment: {len(RECRUITMENT_PLANS)} recruitments, "
+            f"  Recruitment: {len(recruitment_plans)} recruitments, "
             f"{candidates_created} candidates ({hired_total} hired), "
             f"{interviews_created} interviews, "
             f"{len(TALENT_POOLS)} talent pools ({pool_members} members)"
         )
         return (
-            len(RECRUITMENT_PLANS),
+            len(recruitment_plans),
             candidates_created,
             hired_total,
             interviews_created,
@@ -2691,26 +4110,23 @@ class Command(BaseCommand):
         staff = employees[:PERFORMANCE_EMPLOYEES_PER_COMPANY]
         month_start = today.replace(day=1)
 
-        template = QuestionTemplate.objects.create(
-            question_template=f"{company.company} Performance Review"
+        # question_template is unique, so both companies share one template.
+        template, template_created = QuestionTemplate.objects.get_or_create(
+            question_template="Performance Review"
         )
         template.company_id.add(company)
-        for text, kind in PERFORMANCE_QUESTIONS:
-            Question.objects.create(
-                question=text, question_type=kind, template_id=template
-            )
+        if template_created:
+            for text, kind in PERFORMANCE_QUESTIONS:
+                Question.objects.create(
+                    question=text, question_type=kind, template_id=template
+                )
 
-        first = sum(PERFORMANCE_OBJECTIVES_PER_COMPANY[:slot])
-        count = PERFORMANCE_OBJECTIVES_PER_COMPANY[
-            slot % len(PERFORMANCE_OBJECTIVES_PER_COMPANY)
-        ]
+        company_objectives = PERFORMANCE_OBJECTIVES_BY_COMPANY[company.company]
         objectives = []
-        for index, (title, kr_titles) in enumerate(
-            PERFORMANCE_OBJECTIVES[first : first + count]
-        ):
+        for index, (title, kr_titles) in enumerate(company_objectives):
             objective = Objective.objects.create(
                 title=title,
-                description=f"{title} across {company.company}.",
+                description=f"{title} across the organization.",
                 company_id=company,
             )
             objective.managers.add(
