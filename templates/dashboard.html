@@ -551,6 +551,15 @@
             font-size: 13px;
         }
 
+        /* Right of a side panel's title: which records it lists (same as the Leave dashboard). */
+        .md-info-panel__header { gap: 8px; }
+        .md-info-panel__basis {
+            min-width: 0;
+            text-align: right;
+            font-size: 11px;
+            opacity: 0.5;
+        }
+
         /* How many items the panel holds, beside its title. Hidden at zero. */
         .md-count-badge {
             display: inline-flex;
@@ -1767,6 +1776,29 @@
                     <span class="md-period-picker__sep">→</span>
                     <input type="date" id="md-to-date" title="{% trans 'Custom range end' %}">
                 </div>
+                {% if request.user.employee_get %}
+                    <a
+                        href="{% url 'ess-dashboard' %}"
+                        class="oh-btn oh-btn--secondary"
+                        title="{% trans 'Switch to My Dashboard' %}"
+                        style="display: flex; align-items: center; gap: 5px; font-size: 13px"
+                    >
+                        <svg
+                            width="15"
+                            height="15"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                            <circle cx="12" cy="7" r="4" />
+                        </svg>
+                        {% trans "My Dashboard" %}
+                    </a>
+                {% endif %}
                 <button
                     class="oh-btn oh-btn--secondary"
                     id="md-open-customize"
@@ -2086,6 +2118,7 @@
                 <div class="md-info-panel">
                     <div class="md-info-panel__header">
                         <div class="md-info-panel__title">{% trans "Announcements" %}<span id="md-announcements-count" class="md-count-badge" hidden title="{% trans 'Announcements' %}">0</span></div>
+                        <span class="md-info-panel__basis" title="{% trans "Announcements still active, newest first" %}">{% trans "Not Expired" %}</span>
                         {% if perms.base.add_announcement %}
                             <button
                                 class="md-btn-add"
@@ -2108,6 +2141,7 @@
                 <div class="md-info-panel">
                     <div class="md-info-panel__header">
                         <div class="md-info-panel__title">{% trans "Birthdays & Anniversaries" %}<span id="md-birthdays-count" class="md-count-badge" hidden title="{% trans 'This month' %}">0</span></div>
+                        <span class="md-info-panel__basis" title="{% trans "Birthdays and work anniversaries this month, closest to today first" %}">{% trans "This Month" %}</span>
                     </div>
                     <div class="md-info-panel__body" id="md-birthdays">
                         <div class="md-info-panel__empty">{% trans "Loading..." %}</div>
@@ -2116,21 +2150,9 @@
                 <div class="md-info-panel">
                     <div class="md-info-panel__header">
                         <div class="md-info-panel__title">{% trans "Pending Approvals" %}<span id="md-pending-count" class="md-count-badge" hidden title="{% trans 'Waiting for approval' %}">0</span></div>
+                        <span class="md-info-panel__basis" title="{% trans "Everything awaiting your approval, whatever dates the period filter covers" %}">{% trans "All Dates" %}</span>
                     </div>
                     <div class="md-info-panel__body" id="md-pending-approvals">
-                        <div class="md-info-panel__empty">{% trans "Loading..." %}</div>
-                    </div>
-                </div>
-                <div class="md-info-panel">
-                    <div class="md-info-panel__header">
-                        <div class="md-info-panel__title">{% trans "Upcoming Holidays" %}<span id="md-holidays-count" class="md-count-badge" hidden title="{% trans 'Upcoming holidays' %}">0</span></div>
-                        <a
-                            id="md-holidays-viewall"
-                            href="{% url 'holiday-view' %}"
-                            class="md-link-subtle"
-                        >{% trans "View all" %}</a>
-                    </div>
-                    <div class="md-info-panel__body" id="md-holidays">
                         <div class="md-info-panel__empty">{% trans "Loading..." %}</div>
                     </div>
                 </div>
@@ -2651,9 +2673,13 @@
             //  PERIOD-AWARE RELOAD
             // ═══════════════════════════════════════════
             function loadAllData() {
+                // Apply the period in place: keep the address shareable, then re-run every load.
                 const params = periodParams();
-                const newUrl = location.pathname + (params ? '?' + params : '');
-                location.assign(newUrl);
+                history.replaceState(null, '', location.pathname + (params ? '?' + params : ''));
+                applyPeriodLabels();
+                lastRefresh = Date.now();
+                updateRefreshText();
+                refreshAllData();
             }
 
             // Helper: fetch with period params for period-sensitive endpoints
@@ -2684,7 +2710,14 @@
                     },
                     theme: options.theme || { mode: isDark ? 'dark' : 'light' },
                 };
-                const chart = new ApexCharts(el, options);
+                // A draw can still be mounting when the next one replaces it (two loads close
+                // together, a tab coming back from the background). destroy() on a chart that has
+                // not mounted yet leaves its drawing behind and it lands in the page anyway: the same
+                // chart, twice. So each draw gets its own holder, and putting that holder in place
+                // throws away whatever the previous draw left, finished or not.
+                const holder = document.createElement('div');
+                el.replaceChildren(holder);
+                const chart = new ApexCharts(holder, options);
                 chartInstances[key] = chart;
                 const drawn = chart.render();
                 // render() finishes asynchronously. If this chart was replaced while it was
@@ -3317,9 +3350,10 @@
                 const names = new Set(pipelineLegend.selectedNames());
                 const recs = pipelineData.dataSet.filter(r => names.has(r.label));
                 renderChart('pipeline', document.querySelector("#chart-pipeline"), {
-                    // y = share of each recruitment's candidates sitting at that stage (each line sums to 100%).
+                    // One thin column per recruitment inside every stage: y = share of that
+                    // recruitment's candidates sitting at the stage (each recruitment sums to 100%).
                     series: recs.map(r => { const t = r.data.reduce((a, b) => a + b, 0); return { name: r.label, data: r.data.map(n => t ? Math.round(n / t * 1000) / 10 : 0) }; }),
-                    chart: { type: 'line', height: 320, toolbar: { show: false }, zoom: { enabled: false }, background: 'transparent', fontFamily: 'inherit',
+                    chart: { type: 'bar', height: 320, toolbar: { show: false }, zoom: { enabled: false }, background: 'transparent', fontFamily: 'inherit',
                         animations: { enabled: false },
                         events: {
                             // A click anywhere on a stage's column opens that stage's candidates:
@@ -3335,19 +3369,26 @@
                         }
                     },
                     colors: recs.map(r => pipelineColor(r.label)),
-                    stroke: { curve: 'smooth', width: 3 },
-                    markers: { size: 4, strokeWidth: 2, strokeColors: cardBg, hover: { size: 6 } },
+                    plotOptions: { bar: { columnWidth: Math.min(70, 12 * Math.max(recs.length, 1) + 10) + '%', borderRadius: 4, borderRadiusApplication: 'end', dataLabels: { position: 'top' } } },
+                    stroke: { show: true, width: 2, colors: ['transparent'] },
                     xaxis: { ...XAXIS_STYLE, categories: pipelineData.labels },
-                    yaxis: { min: 0, max: 100, tickAmount: 5, labels: { style: { colors: textColor, fontSize: '11px' }, formatter: v => Math.round(v) + '%' } },
+                    // Scaled to the tallest column (capped at 100%) so small shares stay readable.
+                    yaxis: (() => {
+                        const peak = Math.max(1, ...recs.map(r => { const t = r.data.reduce((x, y) => x + y, 0); return t ? Math.max(...r.data) / t * 100 : 0; }));
+                        const max = Math.min(100, Math.max(10, Math.ceil(peak * 1.2 / 10) * 10));
+                        return { min: 0, max, tickAmount: max <= 50 ? max / 10 : 5,
+                            labels: { style: { colors: textColor, fontSize: '11px' }, formatter: v => Math.round(v) + '%' } };
+                    })(),
                     grid: GRID,
-                    dataLabels: { enabled: false },
+                    dataLabels: { enabled: true, offsetY: -18, style: { fontSize: '10px', fontWeight: 600, colors: [textColor] }, formatter: v => v ? Math.round(v) + '%' : '' },
+                    states: { hover: { filter: { type: 'none' } } },
                     legend: { show: false },
                     // Fixed to the chart's top-right rather than following the pointer. This
                     // tooltip lists every recruitment and its job positions, which at a busy
                     // stage is taller than the chart: following the pointer it was placed
                     // above the top of the screen, under the page header, and so "sometimes"
                     // did not appear at all.
-                    tooltip: { ...TOOLTIP_STYLE, shared: true, intersect: false, fixed: { enabled: true, position: 'topRight', offsetX: 0, offsetY: 0 }, custom: ({ dataPointIndex }) => {
+                    tooltip: { ...TOOLTIP_STYLE, shared: true, intersect: false, custom: ({ dataPointIndex }) => {
                         pipelineHoverIndex = dataPointIndex;
                         const rows = [];
                         let total = 0;
@@ -3483,40 +3524,6 @@
 
             // ─── DEPARTMENT LEAVE DAYS ───
             {% endif %}
-
-            // ─── UPCOMING HOLIDAYS ───
-            function loadUpcomingHolidays() {
-                fetch("{% url 'dashboard-upcoming-holidays' %}")
-                .then(r => r.json())
-                .then(data => {
-                    const el = document.getElementById('md-holidays');
-                    if (!el) return;
-                    const viewAllLink = document.getElementById('md-holidays-viewall');
-                    if (viewAllLink) viewAllLink.href = `{% url 'holiday-view' %}`;
-                    setMdCount('md-holidays-count', data.holidays.length);
-
-                    if (!data.holidays.length) { el.innerHTML = '<div class="md-info-panel__empty">{% trans "No holidays this month"|escapejs %}</div>'; return; }
-                    el.innerHTML = data.holidays.map(h => {
-                        const badge = h.days_away === 0
-                            ? '<span class="md-bday-item__badge md-bday-item__badge--today">{% trans "Today"|escapejs %}</span>'
-                            : `<span class="md-bday-item__badge md-bday-item__badge--soon">${h.start_date}</span>`;
-                        const dateRange = h.end_date && h.end_date !== h.start_date ? `${h.start_date} – ${h.end_date}` : h.start_date;
-                        return `
-                    <div class="md-bday-item">
-                        <div class="md-bday-item__avatar" style="background:#fef3c7;color:#92400e;">H</div>
-                        <div class="md-bday-item__info">
-                            <div class="md-bday-item__name">${h.name}</div>
-                            <div class="md-bday-item__detail">${dateRange}</div>
-                        </div>
-                        ${badge}
-                    </div>`;
-                    }).join('');
-                }).catch(() => {
-                    const el = document.getElementById('md-holidays');
-                    if (el) el.innerHTML = '<div class="md-info-panel__empty">{% trans "No holidays this month"|escapejs %}</div>';
-                });
-            }
-            loadUpcomingHolidays();
 
             // ─── BIRTHDAYS & ANNIVERSARIES ───
             function loadBirthdaysAnniversaries() {
@@ -3654,7 +3661,12 @@
                         fill: { type: 'gradient', gradient: { type: 'vertical', shadeIntensity: 0.3, opacityFrom: 1, opacityTo: 0.8 } },
                         plotOptions: { bar: { borderRadius: 6, borderRadiusApplication: 'end', columnWidth: '52%', grouped: true } },
                         xaxis: { ...XAXIS_STYLE, categories: data.months.map(m => m.month) },
-                        yaxis: { ...YAXIS_STYLE },
+                        // Whole people only: one tick per integer while the counts are small.
+                        yaxis: (() => {
+                            const peak = Math.max(1, ...data.months.map(m => Math.max(m.hires, m.exits)));
+                            return { ...YAXIS_STYLE, min: 0, ...(peak <= 5 ? { max: peak, tickAmount: peak } : { forceNiceScale: true }),
+                                labels: { ...YAXIS_STYLE.labels, formatter: v => Math.round(v) } };
+                        })(),
                         grid: GRID,
                         dataLabels: { enabled: true, style: { fontSize: '11px', fontWeight: 700, colors: ['#fff'] }, background: { enabled: false } },
                         legend: { ...LEGEND_STYLE, position: 'top', horizontalAlign: 'right' },
@@ -3686,7 +3698,6 @@
                 if (typeof loadLeaveOverPeriod === 'function') loadLeaveOverPeriod();
                 if (typeof loadRecruitmentPipeline === 'function') loadRecruitmentPipeline();
                 if (typeof loadHiringTimeline === 'function') loadHiringTimeline();
-                loadUpcomingHolidays();
                 if (typeof loadBirthdaysAnniversaries === 'function') loadBirthdaysAnniversaries();
                 loadPendingApprovals();
                 if (typeof loadEmployeeTurnover === 'function') loadEmployeeTurnover();
