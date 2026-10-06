@@ -143,15 +143,21 @@ def empl_scheduled_interview_accessibility(
     """
     sheduled interview tab accessibility for candidate individual view, employee individual view and employee profile
     """
-    employee = Employee.objects.get(id=instance.pk)
-    if (
-        request.user.has_perm("recruitment.view_interviewschedule")
-        or check_manager(request.user.employee_get, instance)
-        or request.user == employee.employee_user_id
-        or is_recruitmentmanager(request)
-    ):
+    if request.user.has_perm(
+        "recruitment.view_interviewschedule"
+    ) or is_recruitmentmanager(request):
         return True
-    return False
+    # This is also the Scheduled Interviews tab of the *candidate* profile.
+    # A candidate's pk is not an employee id, so looking an Employee up by it
+    # either raised (tab missing) or matched an unrelated employee -- which is
+    # why only the first few candidates showed the tab. Only the employee
+    # checks below need an Employee.
+    if not isinstance(instance, Employee):
+        return is_stagemanager(request)
+    return bool(
+        check_manager(request.user.employee_get, instance)
+        or request.user == instance.employee_user_id
+    )
 
 
 def view_candidate_self_tracking(request, instance, *args, **kwargs):

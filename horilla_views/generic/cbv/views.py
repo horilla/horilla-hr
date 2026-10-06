@@ -5,6 +5,7 @@ horilla/generic/views.py
 import io
 import json
 import logging
+import re
 import traceback
 from typing import Any
 from urllib.parse import parse_qs, parse_qsl, urlencode, urlparse, urlunparse
@@ -23,6 +24,7 @@ from django.http import Http404, HttpRequest, HttpResponse, JsonResponse, QueryD
 from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
 from django.urls import resolve, reverse
+from django.utils import translation
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
 from django.views.generic import DetailView, FormView, ListView, TemplateView
@@ -2738,6 +2740,20 @@ class HorillaProfileView(DetailView):
         ).first()
         if active_tab:
             context["active_target"] = active_tab.tab_target
+
+        # ?open_tab=<tab title, in English> opens that tab on load, overriding the
+        # last-active tab (e.g. a dashboard row linking to a candidate's
+        # "Scheduled Interviews"). Matched against the untranslated titles so the
+        # link works in any language; the button itself carries the translated one.
+        open_tab = self.request.GET.get("open_tab")
+        if open_tab:
+            for tab in self.tabs:
+                with translation.override("en"):
+                    english_title = str(tab["title"])
+                local_title = str(tab["title"])
+                if english_title == open_tab and not re.search(r'["\`$]', local_title):
+                    context["active_target"] = f'[data-tab="{local_title}"]'
+                    break
 
         instance_ids = self.request.session.get(self.ordered_ids_key, [])
 

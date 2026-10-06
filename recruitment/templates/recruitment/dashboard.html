@@ -374,7 +374,46 @@
             color: #cbd5e1;
         }
 
+        .rd-info-panel__subtitle { font-size: 11px; opacity: 0.5; margin-top: 2px; }
+        .rd-card-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            border: 1px solid color-mix(in srgb, var(--primary-600, #E54F38) 25%, transparent);
+            background: color-mix(in srgb, var(--primary-600, #E54F38) 8%, transparent);
+            color: var(--primary-600, #E54F38);
+            text-decoration: none;
+            transition: background 0.15s, color 0.15s, transform 0.15s;
+        }
+        .rd-card-link:hover {
+            background: var(--primary-600, #E54F38);
+            color: #fff;
+            transform: translate(1px, -1px);
+        }
+        /* Date and time as one tag on the right of each interview row */
+        .rd-interview-item__when {
+            flex-shrink: 0;
+            margin-left: auto;
+            padding: 6px 10px;
+            border-radius: 8px;
+            background: color-mix(in srgb, var(--primary-600, #E54F38) 12%, transparent);
+            color: var(--primary-600, #E54F38);
+            font-weight: 700;
+            font-size: 11px;
+            white-space: nowrap;
+        }
+        .dark .rd-interview-item__when {
+            background: color-mix(in srgb, var(--primary-600, #E54F38) 25%, transparent);
+            color: var(--primary-300, #fcedeb);
+        }
+
         /* Interview list */
+        a.rd-interview-item { color: inherit; text-decoration: none; cursor: pointer; border-radius: 8px; transition: background 0.15s; }
+        a.rd-interview-item:hover { background: rgba(128, 128, 128, 0.08); }
         .rd-interview-item {
             display: flex;
             align-items: center;
@@ -935,7 +974,7 @@
                 </div>
             </div>
             <div style="display: flex; gap: 8px">
-                <button class="rd-btn-customize" id="rd-open-customize" title="{% trans 'Customize' %}">
+                <button class="oh-btn oh-btn--secondary" id="rd-open-customize" style="display: flex; align-items: center; gap: 5px; font-size: 13px" title="{% trans 'Customize' %}">
                     ⚙ {% trans "Customize" %}
                 </button>
             </div>
@@ -980,7 +1019,7 @@
                         <div class="rd-chart-card__header">
                             <div>
                                 <div class="rd-chart-card__title">{% trans "Offer Letter Status" %}</div>
-                                <div class="rd-chart-card__subtitle">{% trans "All candidates" %}</div>
+                                <div class="rd-chart-card__subtitle">{% trans "Ongoing Recruitment Candidates" %}</div>
                             </div>
                         </div>
                         <div class="rd-chart-card__body"><div id="chart-offer-status"></div></div>
@@ -1057,8 +1096,13 @@
             <div class="rd-sidebar">
                 <div class="rd-info-panel">
                     <div class="rd-info-panel__header">
-                        <div class="rd-info-panel__title">{% trans "Interviews" %} <span class="rd-badge rd-badge--primary" id="rd-interviews-count">0</span></div>
-                        <a href="{% url 'interview-view' %}" style="font-size: 11px; opacity: 0.7;">{% trans "View all" %} &rarr;</a>
+                        <div>
+                            <div class="rd-info-panel__title">{% trans "Interviews" %} <span class="rd-badge rd-badge--primary" id="rd-interviews-count">0</span></div>
+                            <div class="rd-info-panel__subtitle">{% trans "Scheduled this period" %}</div>
+                        </div>
+                        <a class="rd-card-link" href="{% url 'interview-view' %}" title="{% trans 'View all interviews' %}">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7"></path><path d="M8 7h9v9"></path></svg>
+                        </a>
                     </div>
                     <div class="rd-info-panel__body" id="rd-interviews">
                         <div class="rd-info-panel__empty">{% trans "Loading..." %}</div>
@@ -1395,6 +1439,10 @@
             */
 
             // ─── INTERVIEWS IN PERIOD ───
+            const candidateDetailUrl = "{% url 'candidate-view-individual' 0 %}";
+            // Opens the candidate page straight on its "Scheduled Interviews" tab.
+            const candidateInterviewsTab = "?open_tab=Scheduled%20Interviews";
+            const interviewListUrl = "{% url 'interview-view' %}";
             function loadInterviews() {
                 fetchP("{% url 'recruitment-dashboard-interviews' %}")
                 .then(r => r.json())
@@ -1403,14 +1451,13 @@
                     document.getElementById('rd-interviews-count').textContent = data.interviews.length;
                     if (!data.interviews.length) { el.innerHTML = '<div class="rd-info-panel__empty">{% trans "No interviews scheduled"|escapejs %}</div>'; return; }
                     el.innerHTML = data.interviews.map(iv => `
-                <div class="rd-interview-item">
-                    <div class="rd-interview-item__date">${iv.date}</div>
+                <a class="rd-interview-item" title="{% trans 'Open candidate'|escapejs %}" href="${iv.candidate_id ? candidateDetailUrl.replace('/0/', '/' + iv.candidate_id + '/') + candidateInterviewsTab : interviewListUrl}">
                     <div class="rd-interview-item__info">
                         <div class="rd-interview-item__name">${iv.candidate}</div>
                         <div class="rd-interview-item__stage">${iv.stage}</div>
                     </div>
-                    <div class="rd-interview-item__time">${iv.time}</div>
-                </div>`).join('');
+                    <div class="rd-interview-item__when">${iv.date}${iv.time ? ' · ' + iv.time : ''}</div>
+                </a>`).join('');
                 }).catch(() => { document.getElementById('rd-interviews').innerHTML = '<div class="rd-info-panel__empty">{% trans "No interviews scheduled"|escapejs %}</div>'; });
             }
             loadInterviews();
@@ -1561,23 +1608,30 @@
             }
             loadTalentPool();
 
-            // ─── HIRE RATE ───
+            // ─── SHORTLIST RATE BY RECRUITMENT ───
+            // Donut: one slice per recruitment, sized by its shortlisted candidates;
+            // the tooltip carries the rate (shortlisted / total candidates).
             function loadHireRate() {
                 fetchP("{% url 'recruitment-dashboard-source-quality' %}")
                 .then(r => r.json())
                 .then(data => {
-                    if (!data.sources.length) { document.querySelector("#chart-hire-rate").innerHTML = emptyHtml('{% trans "No data"|escapejs %}'); return; }
-                    renderChart('hire-rate', document.querySelector("#chart-hire-rate"), {
-                        series: [{ name: '{% trans "Shortlist Rate"|escapejs %}', data: data.sources.map(s => s.rate) }],
-                        chart: { type: 'bar', height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit' },
-                        colors: ['#22c55e'],
-                        plotOptions: { bar: { borderRadius: 6, horizontal: true, barHeight: '55%' } },
-                        xaxis: { categories: data.sources.map(s => s.recruitment), labels: { style: { colors: textColor } } },
-                        yaxis: { labels: { style: { colors: textColor, fontSize: '11px' } }, max: 100 },
-                        grid: { borderColor: gridColor },
-                        dataLabels: { enabled: true, formatter: v => v + '%', style: { fontSize: '11px' } },
-                        tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: (v, { dataPointIndex: i }) => `${v}% (${data.sources[i].hired}/${data.sources[i].total})` } },
-                    });
+                    const el = document.querySelector("#chart-hire-rate");
+                    const total = data.sources.reduce((a, s) => a + s.hired, 0);
+                    if (!data.sources.length || !total) { PieLegend.clearFor(el); el.innerHTML = emptyHtml('{% trans "No shortlisted candidates yet"|escapejs %}'); return; }
+                    renderChart('hire-rate', el, PieLegend.options(el, () => chartInstances['hire-rate'], 'recruitments', {
+                        series: data.sources.map(s => s.hired),
+                        chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit' },
+                        labels: data.sources.map(s => s.recruitment),
+                        colors: COLORS,
+                        plotOptions: { pie: { donut: { size: '65%', labels: { show: true, total: { show: true, label: '{% trans "Shortlisted"|escapejs %}', color: textColor, fontSize: '13px', fontWeight: 600, formatter: w => w.globals.seriesTotals.reduce((a, b) => a + b, 0) } } } } },
+                        stroke: { width: 2, colors: [isDark ? '#242424' : '#ffffff'] },
+                        dataLabels: { enabled: false },
+                        legend: { position: 'bottom', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
+                        tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: (v, { seriesIndex: i }) => {
+                            const s = data.sources[i];
+                            return s ? `${v} {% trans "shortlisted"|escapejs %} · ${s.rate}% (${s.hired}/${s.total})` : v;
+                        } } },
+                    }));
                 });
             }
             loadHireRate();
