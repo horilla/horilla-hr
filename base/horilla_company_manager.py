@@ -207,7 +207,21 @@ class HorillaCompanyManager(models.Manager):
             model_name = queryset.model._meta.model_name
 
             if model_name == "employee":
-                queryset = queryset.filter(is_active=self._get_is_active_filter())
+                # ?is_active=all asks for active and inactive together (a chart
+                # that counts both kinds of people opens its list this way).
+                # A window of exits or joins (the dashboard's Hire vs Turnover chart) is
+                # about people who may have left, so it is not narrowed to active ones.
+                everyone = request.GET.get("is_active") == "all" or any(
+                    request.GET.get(k)
+                    for k in (
+                        "exited_from",
+                        "exited_till",
+                        "joined_from",
+                        "joined_till",
+                    )
+                )
+                if not everyone:
+                    queryset = queryset.filter(is_active=self._get_is_active_filter())
 
             elif model_name == "offboardingemployee":
                 return queryset
