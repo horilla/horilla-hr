@@ -335,11 +335,6 @@ urlpatterns = [
         RedirectView.as_view(pattern_name="leave-dashboard"),
         name="leave-dashboard-legacy",
     ),
-    path(
-        "leave-employee-dashboard/",
-        views.employee_dashboard,
-        name="leave-employee-dashboard",
-    ),
     path("available-leaves/", views.available_leave_chart, name="available-leaves"),
     path(
         "dashboard-leave-requests/",
@@ -774,31 +769,6 @@ urlpatterns = [
         "dashboard/api/upcoming/",
         leave_dashboard.leave_upcoming,
         name="leave-dashboard-upcoming",
-    ),
-    path(
-        "employee-dashboard/api/kpi/",
-        leave_dashboard.employee_kpi_data,
-        name="leave-employee-dashboard-kpi",
-    ),
-    path(
-        "employee-dashboard/api/balance/",
-        leave_dashboard.employee_leave_balance,
-        name="employee-dashboard-balance",
-    ),
-    path(
-        "employee-dashboard/api/trend/",
-        leave_dashboard.employee_monthly_trend,
-        name="employee-dashboard-trend",
-    ),
-    path(
-        "employee-dashboard/api/upcoming/",
-        leave_dashboard.employee_upcoming_leaves,
-        name="employee-dashboard-upcoming",
-    ),
-    path(
-        "employee-dashboard/api/history/",
-        leave_dashboard.employee_leave_history,
-        name="employee-dashboard-history",
     ),
 ]
 

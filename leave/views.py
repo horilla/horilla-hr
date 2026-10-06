@@ -3020,44 +3020,6 @@ def dashboard(request):
 
 
 @login_required
-def employee_dashboard(request):
-    """
-    function used to view Employee dashboard in the leave module.
-
-    Parameters:
-    request (HttpRequest): The HTTP request object.
-
-    Returns:
-    GET : return Employee dasboard template.
-    """
-    today = date.today()
-    # Use reverse OneToOne — Employee.objects is company-filtered and would
-    # raise DoesNotExist when the selected company is not the user's work company.
-    user = request.user.employee_get
-    leave_requests = LeaveRequest.objects.filter(employee_id=user)
-    requested = leave_requests.filter(status="requested")
-    approved = leave_requests.filter(status="approved")
-    rejected = leave_requests.filter(status="rejected")
-
-    holidays = Holidays.objects.filter(
-        Q(is_specific=False) | Q(employees=user), start_date__gte=today
-    )
-    next_holiday = (
-        holidays.order_by("start_date").first() if holidays.exists() else None
-    )
-
-    context = {
-        "leave_requests": leave_requests,
-        "requested": requested,
-        "approved": approved,
-        "rejected": rejected,
-        "next_holiday": next_holiday,
-        "dashboard": "dashboard",
-    }
-    return render(request, "leave/employee_dashboard.html", context)
-
-
-@login_required
 @hx_request_required
 def dashboard_leave_request(request):
     """
