@@ -218,10 +218,6 @@
                 <span class="ld-period-picker__sep">&rarr;</span>
                 <input type="date" id="ld-to-date" title="{% trans 'Custom range end' %}">
             </div>
-            <a href="{% url 'leave-employee-dashboard' %}" class="ld-btn-customize" title="{% trans 'My Dashboard' %}">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                {% trans "My Dashboard" %}
-            </a>
             <button class="ld-btn-customize" id="ld-open-customize" title="{% trans 'Customize' %}">⚙ {% trans "Customize" %}</button>
         </div>
     </div>
@@ -337,6 +333,7 @@
     </div>
 </div>
 
+{% include "components/pie_legend.html" %}
 <script>
 (function() {
     const isDark = document.documentElement.classList.contains('dark') || document.body.classList.contains('dark');
@@ -690,10 +687,13 @@
         fetchP("{% url 'leave-dashboard-type-dist' %}")
         .then(r => r.json())
         .then(data => {
-            if (!data.types.length) { document.querySelector("#chart-leave-types").innerHTML = emptyHtml('{% trans "No leave data"|escapejs %}'); return; }
-            const colors = data.types.map((t, i) => COLORS[i % COLORS.length]);
-            renderChart('leave-types', document.querySelector("#chart-leave-types"), {
-                series: data.types.map(t => t.days),
+            const typesEl = document.querySelector("#chart-leave-types");
+            const typesLegend = PieLegend.forChart(typesEl, () => chartInstances['leave-types'], '{% trans "types"|escapejs %}');
+            if (!data.types.length) { typesLegend.clear(); typesEl.innerHTML = emptyHtml('{% trans "No leave data"|escapejs %}'); return; }
+            const colors = data.types.map((t, i) => PieLegend.color(i, COLORS));
+            typesLegend.set(data.types.map((t, i) => ({ name: t.type, value: t.days, color: colors[i] })));
+            renderChart('leave-types', typesEl, {
+                series: typesLegend.series(),
                 chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit',
                     events: { dataPointSelection: (e, ctx, config) => {
                         const t = data.types[config.dataPointIndex];
@@ -706,7 +706,7 @@
                 plotOptions: { pie: { donut: { size: '65%', labels: { show: true, total: { show: true, label: '{% trans "Total Days"|escapejs %}', color: textColor, fontSize: '12px', fontWeight: 600, formatter: w => w.globals.seriesTotals.reduce((a,b)=>a+b,0).toFixed(1) } } } } },
                 stroke: { width: 2, colors: [cardBg] },
                 dataLabels: { enabled: false },
-                legend: { position: 'bottom', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
+                legend: { show: false },
                 tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: (v, { seriesIndex: i }) => `${v} days (${data.types[i].count} requests)` } },
             });
         }).catch(() => { const el = document.querySelector("#chart-leave-types"); if (el) el.innerHTML = chartFailHtml(); });
@@ -718,9 +718,15 @@
         fetchP("{% url 'leave-dashboard-paid-unpaid' %}")
         .then(r => r.json())
         .then(data => {
-            if (data.paid === 0 && data.unpaid === 0) { document.querySelector("#chart-paid-unpaid").innerHTML = emptyHtml('{% trans "No leave data"|escapejs %}'); return; }
-            renderChart('paid-unpaid', document.querySelector("#chart-paid-unpaid"), {
-                series: [data.paid, data.unpaid],
+            const paidEl = document.querySelector("#chart-paid-unpaid");
+            const paidLegend = PieLegend.forChart(paidEl, () => chartInstances['paid-unpaid'], '{% trans "more"|escapejs %}');
+            if (data.paid === 0 && data.unpaid === 0) { paidLegend.clear(); paidEl.innerHTML = emptyHtml('{% trans "No leave data"|escapejs %}'); return; }
+            paidLegend.set([
+                { name: '{% trans "Paid"|escapejs %}', value: data.paid, color: '#22c55e' },
+                { name: '{% trans "Unpaid"|escapejs %}', value: data.unpaid, color: '#ef4444' },
+            ]);
+            renderChart('paid-unpaid', paidEl, {
+                series: paidLegend.series(),
                 chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit',
                     events: { dataPointSelection: (e, ctx, config) => {
                         const payment = ['paid', 'unpaid'][config.dataPointIndex];
@@ -732,7 +738,7 @@
                 plotOptions: { pie: { donut: { size: '70%', labels: { show: true, total: { show: true, label: '{% trans "Total"|escapejs %}', color: textColor, fontSize: '13px', fontWeight: 600, formatter: w => w.globals.seriesTotals.reduce((a,b)=>a+b,0).toFixed(1) + 'd' } } } } },
                 stroke: { width: 2, colors: [cardBg] },
                 dataLabels: { enabled: false },
-                legend: { position: 'bottom', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
+                legend: { show: false },
                 tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: (v, { seriesIndex: i }) => `${v} days (${[data.paid_requests, data.unpaid_requests][i] || 0} requests)` } },
             });
         }).catch(() => { const el = document.querySelector("#chart-paid-unpaid"); if (el) el.innerHTML = chartFailHtml(); });
