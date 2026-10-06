@@ -14,6 +14,7 @@ from django.shortcuts import render
 from django.utils.translation import gettext as _
 
 from base.decorators import manager_can_enter
+from base.models import Department, EmployeeShift, WorkType
 
 
 def _parse_period(request):
@@ -443,36 +444,6 @@ def attendance_hours_distribution(request):
     return JsonResponse({"departments": departments[:10]})
 
 
-@login_required
-def attendance_shift_distribution(request):
-    """Employee distribution by shift type."""
-    shifts = []
-
-    try:
-        data = (
-            _scoped_employees(request)
-            .exclude(employee_work_info__shift_id__isnull=True)
-            .values(
-                "employee_work_info__shift_id",
-                "employee_work_info__shift_id__employee_shift",
-            )
-            .annotate(count=Count("id"))
-            .order_by("-count")
-        )
-
-        for item in data:
-            shift = item["employee_work_info__shift_id__employee_shift"]
-            shift_id = item["employee_work_info__shift_id"]
-            if shift:
-                shifts.append(
-                    {"shift": shift, "shift_id": shift_id, "count": item["count"]}
-                )
-    except Exception:
-        pass
-
-    return JsonResponse({"shifts": shifts})
-
-
 def _group_attendance_stats(request, group_field):
     """Expected vs. attended employee-days per group, current month so far.
 
@@ -590,6 +561,13 @@ ATTENDANCE_DIMENSIONS = {
 }
 
 
+ATTENDANCE_DIMENSION_MODELS = {
+    "shift": (EmployeeShift, "employee_shift"),
+    "department": (Department, "department"),
+    "work_type": (WorkType, "work_type"),
+}
+
+
 def _rate_by_dimension(request, rate_of):
     """Shared body of the Attendance % / Absence % endpoints.
 
@@ -608,6 +586,15 @@ def _rate_by_dimension(request, rate_of):
         stats = _group_attendance_stats(request, group_field)
         items, meta = _group_rate_payload(request, stats, "label", rate_of)
         items.sort(key=lambda x: x["rate"], reverse=True)
+        # Ids let the chart redirect to the attendance list filtered on the group.
+        model, name_field = ATTENDANCE_DIMENSION_MODELS[dimension]
+        ids = dict(
+            model.objects.filter(
+                **{f"{name_field}__in": [i["label"] for i in items]}
+            ).values_list(name_field, "id")
+        )
+        for item in items:
+            item["id"] = ids.get(item["label"])
     except Exception:
         pass
     return JsonResponse({"dimension": dimension, "items": items, **meta})
@@ -625,45 +612,6 @@ def absence_percentage_by_dimension(request):
     """Absence rate (%) for the current month, grouped by ?dimension=
     (shift | department | work_type; default shift)."""
     return _rate_by_dimension(request, lambda pct: pct)
-
-
-@login_required
-def attendance_work_type_distribution(request):
-    """Employee distribution by work type (remote, on-site, hybrid, etc.)."""
-    work_types = []
-    employees = _scoped_employees(request)
-
-    try:
-        data = (
-            employees.exclude(employee_work_info__work_type_id__isnull=True)
-            .values(
-                "employee_work_info__work_type_id",
-                "employee_work_info__work_type_id__work_type",
-            )
-            .annotate(count=Count("id"))
-            .order_by("-count")
-        )
-
-        for item in data:
-            wt = item["employee_work_info__work_type_id__work_type"]
-            wt_id = item["employee_work_info__work_type_id"]
-            if wt:
-                work_types.append(
-                    {"work_type": wt, "work_type_id": wt_id, "count": item["count"]}
-                )
-
-        # Count employees with no work type assigned
-        no_wt = employees.filter(
-            employee_work_info__work_type_id__isnull=True,
-        ).count()
-        if no_wt > 0:
-            work_types.append(
-                {"work_type": _("Not Assigned"), "work_type_id": None, "count": no_wt}
-            )
-    except Exception:
-        pass
-
-    return JsonResponse({"work_types": work_types})
 
 
 @login_required
@@ -811,6 +759,7 @@ def attendance_calendar_heatmap(request):
                 Attendance.objects.filter(
                     attendance_date__gte=from_date,
                     attendance_date__lte=to_date,
+                    attendance_validated=True,
                     employee_id__is_active=True,
                     employee_id__in=employees,
                 )
@@ -828,6 +777,8 @@ def attendance_calendar_heatmap(request):
                 days.append(
                     {
                         "date": d.isoformat(),
+                        "from_date": d.isoformat(),
+                        "to_date": d.isoformat(),
                         "day": d.strftime("%a"),
                         "dom": d.day,
                         "label": (
@@ -862,6 +813,8 @@ def attendance_calendar_heatmap(request):
                 days.append(
                     {
                         "date": actual_start.isoformat(),
+                        "from_date": actual_start.isoformat(),
+                        "to_date": actual_end.isoformat(),
                         "day": actual_start.strftime("%b %d"),
                         "dom": actual_start.day,
                         "label": actual_start.strftime("%b %d"),

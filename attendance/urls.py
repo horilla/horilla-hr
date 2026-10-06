@@ -1021,11 +1021,6 @@ urlpatterns = [
         name="attendance-dashboard-hours",
     ),
     path(
-        "dashboard/api/shifts/",
-        att_dashboard.attendance_shift_distribution,
-        name="attendance-dashboard-shifts",
-    ),
-    path(
         "dashboard/api/attendance-percentage/",
         att_dashboard.attendance_percentage_by_dimension,
         name="attendance-dashboard-percentage",
@@ -1034,11 +1029,6 @@ urlpatterns = [
         "dashboard/api/absence-percentage/",
         att_dashboard.absence_percentage_by_dimension,
         name="attendance-dashboard-absence-percentage",
-    ),
-    path(
-        "dashboard/api/work-types/",
-        att_dashboard.attendance_work_type_distribution,
-        name="attendance-dashboard-work-types",
     ),
     path(
         "dashboard/api/avg-hours/",
