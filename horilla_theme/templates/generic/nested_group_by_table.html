@@ -609,10 +609,22 @@
         }
         function ngbCrumbRemove(btn) {
             var $container = $('#ngbBreadcrumbLevels');
-            if ($container.find('.ngb-crumb-row').length <= 1) return;
+            var isLastLevel = $container.find('.ngb-crumb-row').length <= 1;
             $(btn).closest('.ngb-crumb-row').remove();
-            ngbCrumbRenumber();
-            ngbCrumbUpdateDisabled();
+            if (isLastLevel) {
+                // Removing the only level ungroups the list. The Filter dropdown keeps its own
+                // copy of the levels, still showing the one just removed -- cleared here too, or
+                // the next filter applied would quietly group the list again.
+                var $levels = $('#nestedGroupByLevels');
+                $levels.find('select').val('');
+                $levels.find('.nested-group-by-row:gt(0)').remove();
+                if (typeof ngbRenumber === 'function') ngbRenumber();
+                if (typeof ngbUpdatePreview === 'function') ngbUpdatePreview();
+                if (typeof ngbUpdateDisabledOptions === 'function') ngbUpdateDisabledOptions();
+            } else {
+                ngbCrumbRenumber();
+                ngbCrumbUpdateDisabled();
+            }
             ngbDisableOtherGroupBySource('ngbBreadcrumbLevels');
             $('#applyFilter').click();
         }

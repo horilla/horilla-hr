@@ -654,8 +654,9 @@ def asset_category_view(request):
         None
     """
 
-    if not AssetCategory.objects.exists():
-        return render(request, "category/asset_empty.html")
+    # Always the list page, even with no categories yet: an asset's category is
+    # chosen (or created) in the asset form now, so the page has to be there to
+    # start from.
     return render(
         request,
         "category/asset_category_view.html",

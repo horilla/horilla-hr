@@ -55,6 +55,11 @@ urlpatterns = [
     #     name="asset-creation",
     # ),
     path(
+        "asset-creation/",
+        asset_category.AssetFormView.as_view(),
+        name="asset-creation-new",
+    ),
+    path(
         "asset-creation/<int:asset_category_id>/",
         asset_category.AssetFormView.as_view(),
         name="asset-creation",

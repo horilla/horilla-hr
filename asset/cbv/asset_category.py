@@ -62,6 +62,26 @@ class AssetCategoryFormView(HorillaFormView):
 
 
 @method_decorator(login_required, name="dispatch")
+@method_decorator(permission_required("asset.add_assetcategory"), name="dispatch")
+class DynamicCreateAssetCategory(AssetCategoryFormView):
+    """
+    Creates a category from inside the asset form ("create new" on the Category
+    field). Unlike the category page's own form it must not close the modal or
+    reload the list: it hands the new category back to the select it came from.
+    """
+
+    is_dynamic_create_view = True
+    new_display_title = _("Create Asset Category")
+
+    def form_valid(self, form: AssetCategoryForm) -> HttpResponse:
+        if form.is_valid():
+            form.save()
+            messages.success(self.request, _("Asset category created successfully"))
+            return self.HttpResponse()
+        return super(AssetCategoryFormView, self).form_valid(form)
+
+
+@method_decorator(login_required, name="dispatch")
 @method_decorator(permission_required("asset.add_asset"), name="dispatch")
 class AssetFormView(HorillaFormView):
     """
@@ -71,17 +91,26 @@ class AssetFormView(HorillaFormView):
     form_class = AssetForm
     model = Asset
     new_display_title = _("Asset Creation")
-    dynamic_create_fields = [("asset_lot_number_id", DynamicCreateBatchNo)]
+    # Category and batch number each offer "create new" beside the existing ones, so an
+    # asset can be added without first leaving the form to make its category.
+    dynamic_create_fields = [
+        ("asset_category_id", DynamicCreateAssetCategory),
+        ("asset_lot_number_id", DynamicCreateBatchNo),
+    ]
     template_name = "cbv/asset/asset_form.html"
+
+    def get_initial(self):
+        """Opened from a category's own "add asset" action: that category is pre-selected."""
+        initial = super().get_initial()
+        category_id = self.kwargs.get("asset_category_id")
+        if category_id:
+            initial["asset_category_id"] = category_id
+        return initial
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        asset_category_id = self.kwargs.get("asset_category_id")
-        self.form.fields["asset_category_id"].initial = asset_category_id
         if self.form.instance.pk:
             self.form_class.verbose_name = _("Asset Update")
-        else:
-            self.form.fields["asset_category_id"].widget = forms.HiddenInput()
         return context
 
     def form_valid(self, form: AssetForm) -> HttpResponse:
@@ -230,6 +259,7 @@ class AssetCategoryListView(HorillaListView):
     view_id = "asset-category-grouped-list"
     columns = [
         (_("Asset Name"), "asset_name_display"),
+        (_("Category"), "asset_category_id"),
         (_("Status"), "asset_status_col"),
         "asset_tracking_id",
         "asset_lot_number_id",
@@ -239,9 +269,14 @@ class AssetCategoryListView(HorillaListView):
     quick_export = True
     action_method = "action_column"
     accordian_action = "cbv/asset_category/accordion_actions.html"
-    # Only this page's grouped view changes -- the shared generic/group_by_table.html
-    # stays untouched for every other page that uses the app-wide "Group By" feature.
-    group_by_template_name = "cbv/asset_category/asset_category_group_by.html"
+    # The standard nested group-by (the "Grouped by 1 Category > 2 ..." bar every list in
+    # the app uses), over the plain list of assets. Mirrors AssetCategoryNav's own list --
+    # the List and the Nav are separate classes, see leave/cbv/leave_requests.py.
+    nested_group_by_fields = [
+        ("asset_category_id", _("Category")),
+        ("asset_status", _("Status")),
+        ("asset_lot_number_id", _("Batch Number")),
+    ]
     header_attrs = {
         "asset_name": "style='width:200px !important;'",
         "action": "style='width:130px !important;'",
@@ -320,25 +355,59 @@ class AssetCategoryNav(HorillaNavView):
     # panel this session. AssetFilter.ajax_fields carries the
     # AJAX-loaded comboboxes this needs.
     modern_filter = True
-    group_by_fields = [
+    # The page opens as the list of assets grouped by Category with the standard nested
+    # group-by: levels can be added, changed or removed from the "Grouped by" bar. It is
+    # built from the full asset list (the same rows the dashboard counts), not from
+    # per-category loads.
+    nested_group_by_fields = [
         ("asset_category_id", _("Category")),
         ("asset_status", _("Status")),
         ("asset_lot_number_id", _("Batch Number")),
     ]
     default_group_by = "asset_category_id"
 
+    # Query parameters that are about how the page is laid out, not about what to show.
+    NON_FILTER_PARAMS = {
+        "nested_fields",
+        "field",
+        "page",
+        "dashboard",
+        "filter_applied",
+    }
+
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.search_url = reverse("asset-category-list")
+        # Opened with a filter already in the address (the dashboard's KPI cards and charts
+        # link here that way): show just the filtered assets. The default grouping is for
+        # opening the page on its own.
+        if any(
+            self.request.GET.get(key)
+            for key in self.request.GET
+            if key not in self.NON_FILTER_PARAMS
+        ):
+            self.default_group_by = ""
         self.actions = []
-        if self.request.user.has_perm("asset.add_assetcategory"):
+        if self.request.user.has_perm("asset.add_asset"):
             self.create_attrs = f"""
+                            data-toggle="oh-modal-toggle"
+                            data-target="#genericModal"
+                            hx-get="{reverse('asset-creation-new')}"
+                            hx-target="#genericModalBody"
+                            """
+        if self.request.user.has_perm("asset.add_assetcategory"):
+            self.actions.append(
+                {
+                    "action": _("Create Category"),
+                    "attrs": f"""
                             data-toggle="oh-modal-toggle"
                             data-target="#genericModal"
                             hx-get="{reverse('asset-category-creation')}"
                             hx-target="#genericModalBody"
-                            """
-        if self.request.user.has_perm("asset.add_assetcategory"):
+                            style="cursor: pointer;"
+                        """,
+                },
+            )
             self.actions.append(
                 {
                     "action": _("Import"),
