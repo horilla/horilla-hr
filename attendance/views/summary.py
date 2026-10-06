@@ -1428,9 +1428,12 @@ def attendance_monthly_summary_detail(request):
     return render(request, "attendance/monthly_summary/detail_popover.html", context)
 
 
-def _build_calendar_context(emp, from_date, to_date):
+def _build_calendar_context(emp, from_date, to_date, show_future_leave=False):
     """
     Build the full context dict for the calendar modal template.
+    With show_future_leave, approved leave dated after today (up to the end of
+    the month of to_date) is drawn on the grid too; those days stay out of the
+    summary counts and every other future day stays blank.
     Shared by the calendar view and the conflict-resolve POST handler.
     Loads existing AttendanceConflictResolution records and applies them
     so that resolved days are counted in the correct bucket.
@@ -1465,22 +1468,27 @@ def _build_calendar_context(emp, from_date, to_date):
     # -- Leave date maps ------------------------------------------------------
     paid_map = {}
     unpaid_map = {}
+    leave_to = to_date
+    if show_future_leave:
+        leave_to = to_date.replace(
+            day=calendar.monthrange(to_date.year, to_date.month)[1]
+        )
     qs_range = LeaveRequest.objects.filter(
         employee_id=emp,
         status="approved",
-        start_date__lte=to_date,
+        start_date__lte=leave_to,
         end_date__isnull=False,
         end_date__gte=from_date,
     ).select_related("leave_type_id")
     qs_single = LeaveRequest.objects.filter(
         employee_id=emp,
         status="approved",
-        start_date__range=(from_date, to_date),
+        start_date__range=(from_date, leave_to),
         end_date__isnull=True,
     ).select_related("leave_type_id")
     for lr in chain(qs_range, qs_single):
         s = max(lr.start_date, from_date)
-        e = min(lr.end_date or lr.start_date, to_date)
+        e = min(lr.end_date or lr.start_date, leave_to)
         name = lr.leave_type_id.name
         for d in _iter_dates(s, e):
             if lr.leave_type_id.payment == "paid":
@@ -1690,8 +1698,9 @@ def _build_calendar_context(emp, from_date, to_date):
 
     # -- Build month grid structures ------------------------------------------
     months = []
+    today = datetime.date.today()
     cur = from_date.replace(day=1)
-    last = to_date.replace(day=1)
+    last = leave_to.replace(day=1)
     while cur <= last:
         yr, mo = cur.year, cur.month
         weeks = []
@@ -1702,7 +1711,13 @@ def _build_calendar_context(emp, from_date, to_date):
                     cells.append(None)
                 else:
                     d = datetime.date(yr, mo, n)
-                    if d < from_date or d > to_date:
+                    future_leave = (
+                        show_future_leave
+                        and d > to_date
+                        and d > today
+                        and (d in paid_map or d in unpaid_map)
+                    )
+                    if d < from_date or (d > to_date and not future_leave):
                         cells.append(
                             {
                                 "day": n,
@@ -1791,7 +1806,7 @@ def _build_calendar_context(emp, from_date, to_date):
     for _m in months:
         for _w in _m["weeks"]:
             for _c in _w:
-                if _c is None or _c["status"] == "out_of_range":
+                if _c is None or _c["status"] == "out_of_range" or _c["date"] > to_date:
                     continue
                 _s = _c["status"]
                 if _s == "present":
