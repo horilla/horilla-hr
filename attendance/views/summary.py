@@ -1431,9 +1431,9 @@ def attendance_monthly_summary_detail(request):
 def _build_calendar_context(emp, from_date, to_date, show_future_leave=False):
     """
     Build the full context dict for the calendar modal template.
-    With show_future_leave, approved leave dated after today (up to the end of
-    the month of to_date) is drawn on the grid too; those days stay out of the
-    summary counts and every other future day stays blank.
+    With show_future_leave, approved leave, holidays and week-offs dated after
+    today (up to the end of the month of to_date) are drawn on the grid too;
+    every other future day stays blank, so nothing reads as a false Absent.
     Shared by the calendar view and the conflict-resolve POST handler.
     Loads existing AttendanceConflictResolution records and applies them
     so that resolved days are counted in the correct bucket.
@@ -1498,15 +1498,15 @@ def _build_calendar_context(emp, from_date, to_date, show_future_leave=False):
 
     # -- Holiday dates --------------------------------------------------------
     holiday_map = {}
-    for h in Holidays.objects.filter(start_date__lte=to_date, end_date__gte=from_date):
-        for d in _iter_dates(max(h.start_date, from_date), min(h.end_date, to_date)):
+    for h in Holidays.objects.filter(start_date__lte=leave_to, end_date__gte=from_date):
+        for d in _iter_dates(max(h.start_date, from_date), min(h.end_date, leave_to)):
             holiday_map[d] = h.name
 
     # -- Week-off dates -------------------------------------------------------
     roster_entries = list(
-        Roster.objects.filter(employee_id=emp, date__range=(from_date, to_date)).values(
-            "date", "is_off"
-        )
+        Roster.objects.filter(
+            employee_id=emp, date__range=(from_date, leave_to)
+        ).values("date", "is_off")
     )
     if roster_entries:
         week_off_dates = {e["date"] for e in roster_entries if e["is_off"]}
@@ -1514,10 +1514,10 @@ def _build_calendar_context(emp, from_date, to_date, show_future_leave=False):
         raw_cl = list(
             set(
                 get_company_leave_dates(from_date.year)
-                + get_company_leave_dates(to_date.year)
+                + get_company_leave_dates(leave_to.year)
             )
         )
-        week_off_dates = {d for d in raw_cl if from_date <= d <= to_date}
+        week_off_dates = {d for d in raw_cl if from_date <= d <= leave_to}
 
     # -- Existing resolutions {date: "attendance"|"leave"} -------------------
     resolutions_map = {
@@ -1715,7 +1715,12 @@ def _build_calendar_context(emp, from_date, to_date, show_future_leave=False):
                         show_future_leave
                         and d > to_date
                         and d > today
-                        and (d in paid_map or d in unpaid_map)
+                        and (
+                            d in paid_map
+                            or d in unpaid_map
+                            or d in holiday_map
+                            or d in week_off_dates
+                        )
                     )
                     if d < from_date or (d > to_date and not future_leave):
                         cells.append(
@@ -1806,7 +1811,10 @@ def _build_calendar_context(emp, from_date, to_date, show_future_leave=False):
     for _m in months:
         for _w in _m["weeks"]:
             for _c in _w:
-                if _c is None or _c["status"] == "out_of_range" or _c["date"] > to_date:
+                # Cells past to_date are only ever the scheduled leave, holiday
+                # and week-off days drawn by show_future_leave, so they count
+                # in those buckets while present/absent stay limited to the range.
+                if _c is None or _c["status"] == "out_of_range":
                     continue
                 _s = _c["status"]
                 if _s == "present":
