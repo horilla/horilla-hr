@@ -188,9 +188,9 @@ class Command(BaseCommand):
         )
         from horilla.testkit import make_company
 
-        company = make_company("Precise Fixture Co")
+        company = make_company("Precise Payroll Co")
 
-        shift = EmployeeShift.objects.create(employee_shift="Fixture Shift (Mon-Fri)")
+        shift = EmployeeShift.objects.create(employee_shift="Regular Shift (Mon-Fri)")
         shift.company_id.add(company)
         for day_name in WEEKDAY_NAMES:
             day, _created = EmployeeShiftDay.objects.get_or_create(day=day_name)
@@ -256,7 +256,7 @@ class Command(BaseCommand):
             is_pretax=False,
         )
         gross_up = SalaryStructure.objects.create(
-            title="Precise Fixture — Standard",
+            title="Standard",
             company_id=company,
             structure_mode="gross_up",
         )
@@ -292,7 +292,7 @@ class Command(BaseCommand):
             is_taxable=True,
         )
         ctc_down = SalaryStructure.objects.create(
-            title="Precise Fixture — CTC Down",
+            title="CTC Down",
             company_id=company,
             structure_mode="ctc_down",
         )
@@ -379,11 +379,11 @@ class Command(BaseCommand):
         from leave.models import LeaveType
 
         paid_type, _created = LeaveType.objects.get_or_create(
-            name="Fixture Paid Leave",
+            name="Paid Leave",
             defaults={"payment": "paid", "limit_leave": False},
         )
         unpaid_type, _created = LeaveType.objects.get_or_create(
-            name="Fixture Unpaid Leave",
+            name="Unpaid Leave",
             defaults={"payment": "unpaid", "limit_leave": False},
         )
         return paid_type, unpaid_type
@@ -515,6 +515,6 @@ class Command(BaseCommand):
             result,
             employee,
             status="paid",
-            group_name=f"Precise Fixture — {start.strftime('%b %Y')}",
+            group_name=f"{start.strftime('%b %Y')} Payroll",
         )
         save_payslip(**fields)

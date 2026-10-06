@@ -54,9 +54,7 @@ def backfill_company_asset_pools(today: date | None = None) -> int:
     ) in NEW_COMPANY_ASSET_POOLS:
         category, _ = AssetCategory.objects.get_or_create(
             asset_category_name=category_name,
-            defaults={
-                "asset_category_description": f"Demo asset category for company {company_id}."
-            },
+            defaults={"asset_category_description": "Assets issued to employees."},
         )
         if set(category.company_id.values_list("pk", flat=True)) != {company_id}:
             category.company_id.set(Company.objects.filter(pk=company_id))

@@ -107,7 +107,7 @@ def backfill_company_recruitment_pipelines(today: date | None = None) -> int:
         recruitment, _ = Recruitment._base_manager.get_or_create(
             title=title,
             defaults={
-                "description": f"Demo recruitment pipeline for company {company_id}.",
+                "description": "Open hiring pipeline.",
                 "job_position_id_id": job_position_id,
                 "company_id_id": company_id,
                 "vacancy": 2,
