@@ -377,6 +377,11 @@ class EmployeeWorkInformationForm(ModelForm):
             self.fields[field].widget.attrs["placeholder"] = self.fields[field].label
             if disable:
                 self.fields[field].disabled = True
+        # Pay is kept on the contract. A disabled field ignores what is posted and
+        # keeps the stored value, so saving this form never changes the old copy.
+        for name in ("basic_salary", "salary_hour"):
+            if name in self.fields:
+                self.fields[name].disabled = True
         field_names = {
             "Department": "department",
             "Job Position": "job_position",

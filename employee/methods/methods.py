@@ -55,6 +55,7 @@ error_data_template = {
         "Contract End Date",
         "Basic Salary",
         "Salary Hour",
+        "CTC",
         "Email Error",
         "First Name Error",
         "Name and Email Error",
@@ -65,6 +66,7 @@ error_data_template = {
         "Badge ID Error",
         "Basic Salary Error",
         "Salary Hour Error",
+        "CTC Error",
         "User ID Error",
         "Company Error",
     ]
@@ -303,6 +305,7 @@ def process_employee_records(data_frame):
         company = emp.get("Company")
         basic_salary = emp.get("Basic Salary")
         salary_hour = emp.get("Salary Hour")
+        monthly_ctc = emp.get("CTC")
 
         # Date validation
         joining_date = import_valid_date(
@@ -403,6 +406,14 @@ def process_employee_records(data_frame):
                 errors["Salary Hour Error"] = (
                     "Salary hour must be a non-negative number."
                 )
+                save = False
+
+        if monthly_ctc not in [None, ""] and not pd.isnull(monthly_ctc):
+            try:
+                if float(monthly_ctc) <= 0:
+                    raise ValueError
+            except (ValueError, TypeError):
+                errors["CTC Error"] = "CTC must be a positive number."
                 save = False
 
         # Final processing
@@ -768,31 +779,92 @@ def bulk_create_employee_types(success_lists):
             )
 
 
-def create_contracts_in_thread(new_work_info_list, update_work_info_list):
+def _import_number(value):
+    """A pay figure from the sheet, or None when the cell is empty."""
+    if value in (None, "") or pd.isnull(value):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def import_contract_salaries(success_lists, employees_by_badge, work_infos):
     """
-    Creates employee contracts in bulk based on provided work information.
+    Put the imported pay on each employee's contract.
+
+    Pay lives on the contract, not on the employee: the sheet's CTC, Basic
+    Salary and Salary Hour columns go to the employee's active contract, or the
+    latest one when none is active, and only the cells that were filled in are
+    written, so an empty cell never wipes a figure already there. An employee
+    with no contract at all gets one, so there is somewhere to keep the pay.
     """
     from payroll.models.models import Contract
 
-    contracts_list = [
-        Contract(
-            contract_name=f"{work_info.employee_id}'s Contract",
-            employee_id=work_info.employee_id,
-            contract_start_date=(
-                work_info.date_joining if work_info.date_joining else datetime.today()
-            ),
-            department=work_info.department_id,
-            job_position=work_info.job_position_id,
-            job_role=work_info.job_role_id,
-            shift=work_info.shift_id,
-            work_type=work_info.work_type_id,
-            wage=work_info.basic_salary or 0,
-        )
-        for work_info in new_work_info_list + update_work_info_list
-        if work_info.employee_id
-    ]
+    work_info_by_employee = {
+        w.employee_id_id: w for w in work_infos if w.employee_id_id
+    }
+    to_update, to_create = [], []
 
-    Contract.objects.bulk_create(contracts_list)
+    for row in success_lists:
+        employee = employees_by_badge.get(row.get("Badge ID"))
+        if employee is None:
+            continue
+        basic = _import_number(row.get("Basic Salary"))
+        hourly = _import_number(row.get("Salary Hour"))
+        ctc = _import_number(row.get("CTC"))
+
+        contracts = Contract.objects.entire().filter(employee_id=employee)
+        contract = (
+            contracts.filter(contract_status="active")
+            .order_by("-contract_start_date", "-id")
+            .first()
+            or contracts.order_by("-contract_start_date", "-id").first()
+        )
+        if contract is not None:
+            changed = False
+            if basic:
+                contract.wage, changed = basic, True
+            if hourly:
+                contract.hourly_wage, changed = hourly, True
+            if ctc:
+                contract.monthly_ctc, changed = ctc, True
+            if changed:
+                to_update.append(contract)
+            continue
+
+        work_info = work_info_by_employee.get(employee.pk)
+        if work_info is None:
+            continue
+        to_create.append(
+            Contract(
+                contract_name=f"{employee}'s Contract",
+                employee_id=employee,
+                contract_start_date=(
+                    work_info.date_joining
+                    if work_info.date_joining
+                    else datetime.today()
+                ),
+                department=work_info.department_id,
+                job_position=work_info.job_position_id,
+                job_role=work_info.job_role_id,
+                shift=work_info.shift_id,
+                work_type=work_info.work_type_id,
+                wage_type="hourly" if hourly and not basic else "monthly",
+                wage=basic or 0,
+                hourly_wage=hourly,
+                monthly_ctc=ctc,
+            )
+        )
+
+    if to_update:
+        Contract.objects.bulk_update(
+            to_update,
+            ["wage", "hourly_wage", "monthly_ctc"],
+            batch_size=None if is_postgres else 999,
+        )
+    if to_create:
+        Contract.objects.bulk_create(to_create, batch_size=None if is_postgres else 999)
 
 
 def bulk_create_work_info_import(success_lists):
@@ -925,13 +997,6 @@ def bulk_create_work_info_import(success_lists):
             if not pd.isnull(work_info["Contract End Date"])
             else None
         )
-        basic_salary = (
-            work_info.get("Basic Salary") if work_info.get("Basic Salary") else 0
-        )
-        salary_hour = (
-            work_info.get("Salary Hour") if work_info.get("Salary Hour") else 0
-        )
-
         if employee_work_info is None:
             # Create a new instance
             employee_work_info = EmployeeWorkInformation(
@@ -952,8 +1017,6 @@ def bulk_create_work_info_import(success_lists):
                 contract_end_date=(
                     contract_end_date if not pd.isnull(contract_end_date) else None
                 ),
-                basic_salary=basic_salary,
-                salary_hour=salary_hour,
             )
             new_work_info_list.append(employee_work_info)
         else:
@@ -974,8 +1037,6 @@ def bulk_create_work_info_import(success_lists):
             employee_work_info.contract_end_date = (
                 contract_end_date if not pd.isnull(contract_end_date) else None
             )
-            employee_work_info.basic_salary = basic_salary
-            employee_work_info.salary_hour = salary_hour
             update_work_info_list.append(employee_work_info)
     if new_work_info_list:
         EmployeeWorkInformation.objects.bulk_create(
@@ -997,15 +1058,12 @@ def bulk_create_work_info_import(success_lists):
                 "location",
                 "date_joining",
                 "contract_end_date",
-                "basic_salary",
-                "salary_hour",
             ],
             batch_size=None if is_postgres else 999,
         )
     if apps.is_installed("payroll"):
-
-        contract_creation_thread = threading.Thread(
-            target=create_contracts_in_thread,
-            args=(new_work_info_list, update_work_info_list),
+        import_contract_salaries(
+            success_lists,
+            existing_employees,
+            new_work_info_list + update_work_info_list,
         )
-        contract_creation_thread.start()

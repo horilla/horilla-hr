@@ -346,17 +346,28 @@
                             </div>
                             <div class="flex items-baseline justify-between gap-3 py-2">
                                 <dt class="text-xs font-medium text-color-600">{% trans "Salary" %}</dt>
-                                <dd class="text-right text-sm {% if work_info.basic_salary %}font-medium text-dark-500{% else %}italic text-dark-100{% endif %}">
-                                    {% if work_info.basic_salary %}
-                                        {% if perms.employee.view_employee or request.user == employee.employee_user_id %}
-                                            {{ work_info.basic_salary }}
+                                {% with pay=employee.get_pay_summary %}
+                                <dd class="text-right text-sm {% if pay and pay.amount %}font-medium text-dark-500{% else %}italic text-dark-100{% endif %}">
+                                    {% if not pay %}
+                                        {% trans "No active contract" %}
+                                    {% elif perms.employee.view_employee or request.user == employee.employee_user_id %}
+                                        {% if pay.amount %}
+                                            <span class="text-xs font-normal text-dark-100 mr-1">{{ pay.label }}</span>{{ pay.amount|floatformat:"-2" }}
                                         {% else %}
-                                            **********
+                                            {% trans "Not set" %}
+                                        {% endif %}
+                                        {% if perms.payroll.view_contract %}
+                                            <a href="{{ employee.get_pay_contract_url }}"
+                                               class="ml-1 inline-flex align-middle text-primary-600 hover:text-primary-700"
+                                               title="{% trans 'Open the contract' %}">
+                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="h-3 w-3" aria-hidden="true"><path d="M3.5 8.5 8.5 3.5M4.5 3.5h4v4"/></svg>
+                                            </a>
                                         {% endif %}
                                     {% else %}
-                                        {% trans "Not set" %}
+                                        **********
                                     {% endif %}
                                 </dd>
+                                {% endwith %}
                             </div>
                             <div class="flex items-baseline justify-between gap-3 py-2">
                                 <dt class="text-xs font-medium text-color-600">{% trans "Company" %}</dt>

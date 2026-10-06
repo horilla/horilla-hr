@@ -592,6 +592,57 @@ class Employee(models.Model):
         url = reverse_lazy("employee-view-individual", kwargs={"obj_id": self.pk})
         return url
 
+    def get_pay_contract(self):
+        """
+        The contract this employee's pay is read from: the active one, and
+        nothing when there is none. Pay lives on the contract; the salary fields
+        on the work information are the old copy and are no longer shown or
+        edited.
+        """
+        if not apps.is_installed("payroll"):
+            return None
+        return (
+            self.contract_set.filter(contract_status="active")
+            .order_by("-contract_start_date", "-id")
+            .first()
+        )
+
+    def get_pay_summary(self):
+        """
+        The one figure to show for this employee's pay, and what it is called:
+        the monthly CTC when the contract is on a CTC Down structure (that is
+        the number the structure divides), the hourly rate for an hourly
+        contract, the basic salary otherwise. None when there is no active
+        contract.
+        """
+        contract = self.get_pay_contract()
+        if contract is None:
+            return None
+        structure = contract.salary_structure_id
+        if structure is not None and (structure.structure_mode or "") == "ctc_down":
+            return {
+                "label": _("CTC"),
+                "amount": contract.monthly_ctc or contract.wage,
+                "contract": contract,
+            }
+        if contract.wage_type == "hourly":
+            return {
+                "label": _("Hourly"),
+                "amount": contract.hourly_wage or contract.wage,
+                "contract": contract,
+            }
+        return {"label": _("Basic"), "amount": contract.wage, "contract": contract}
+
+    def get_pay_contract_url(self):
+        """
+        Where the pay is changed: the edit form of the active contract, or, with
+        no active contract, the contracts list showing just this employee's.
+        """
+        contract = self.get_pay_contract()
+        if contract is not None:
+            return reverse("update-contract", kwargs={"contract_id": contract.pk})
+        return f"{reverse('view-contract')}?employee_id={self.pk}&filter_applied=true"
+
     def get_profile_url(self):
         """
         This method to get individual  url

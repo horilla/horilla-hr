@@ -141,17 +141,43 @@
                         {{ work_form.contract_end_date|add_class:"emp-input w-full h-9 px-3 text-xs border border-secondary-200 rounded-md bg-white text-dark-500" }}
                         {{ work_form.contract_end_date.errors }}
                     </div>
-                    <div>
-                        <label class="block text-xs font-medium text-color-600 mb-1" for="id_basic_salary">{% trans "Basic Salary" %}</label>
-                        {{ work_form.basic_salary|add_class:"emp-input w-full h-9 px-3 text-xs border border-secondary-200 rounded-md bg-white text-dark-500" }}
-                        {{ work_form.basic_salary.errors }}
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-color-600 mb-1" for="id_salary_hour">{% trans "Salary Per Hour" %}</label>
-                        {{ work_form.salary_hour|add_class:"emp-input w-full h-9 px-3 text-xs border border-secondary-200 rounded-md bg-white text-dark-500" }}
-                        {{ work_form.salary_hour.errors }}
-                    </div>
                 </div>
+                {% comment %}
+                Pay is kept on the contract. These are its figures, shown read-only,
+                with a link to where they are changed.
+                {% endcomment %}
+                {% with pay_employee=work_form.instance.employee_id %}
+                {% with pay_contract=pay_employee.get_pay_contract %}
+                <div class="px-3 pb-3">
+                    <div class="flex items-center justify-between gap-2 mb-2">
+                        <span class="text-xs font-medium text-color-600">{% trans "Salary (from the contract)" %}</span>
+                        {% if pay_contract and perms.payroll.view_contract %}
+                            <a href="{{ pay_employee.get_pay_contract_url }}" class="inline-flex items-center gap-1 text-xs font-medium text-primary-600 hover:text-primary-700 no-underline" title="{% trans 'Open the contract' %}">
+                                {% trans "Edit in contract" %}
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="h-3 w-3" aria-hidden="true"><path d="M3.5 8.5 8.5 3.5M4.5 3.5h4v4"/></svg>
+                            </a>
+                        {% endif %}
+                    </div>
+                    <div class="grid grid-cols-3 gap-x-4 gap-y-2 emp-grid-3">
+                        <div>
+                            <label class="block text-xs font-medium text-color-600 mb-1">{% trans "Basic Salary" %}</label>
+                            <input type="text" disabled value="{% if pay_contract and pay_contract.wage %}{{ pay_contract.wage|floatformat:'-2' }}{% else %}-{% endif %}" class="emp-input w-full h-9 px-3 text-xs border border-secondary-200 rounded-md bg-secondary-50 text-dark-300 cursor-not-allowed">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-color-600 mb-1">{% trans "Monthly CTC" %}</label>
+                            <input type="text" disabled value="{% if pay_contract and pay_contract.monthly_ctc %}{{ pay_contract.monthly_ctc|floatformat:'-2' }}{% else %}-{% endif %}" class="emp-input w-full h-9 px-3 text-xs border border-secondary-200 rounded-md bg-secondary-50 text-dark-300 cursor-not-allowed">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-color-600 mb-1">{% trans "Salary Per Hour" %}</label>
+                            <input type="text" disabled value="{% if pay_contract and pay_contract.hourly_wage %}{{ pay_contract.hourly_wage|floatformat:'-2' }}{% else %}-{% endif %}" class="emp-input w-full h-9 px-3 text-xs border border-secondary-200 rounded-md bg-secondary-50 text-dark-300 cursor-not-allowed">
+                        </div>
+                    </div>
+                    {% if not pay_contract %}
+                        <p class="text-xs text-dark-100 mt-2 mb-0">{% trans "No active contract. Pay is set on the employee's contract." %}</p>
+                    {% endif %}
+                </div>
+                {% endwith %}
+                {% endwith %}
             </div>
 
             <!-- Action Buttons -->

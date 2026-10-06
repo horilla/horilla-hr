@@ -2989,6 +2989,7 @@ def work_info_import_file(request):
             "Date Joining",
             "Basic Salary",
             "Salary Hour",
+            "CTC",
             "Contract End Date",
             "Company",
         ]
