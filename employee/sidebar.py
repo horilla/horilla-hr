@@ -20,7 +20,7 @@ SUBMENUS = [
     {
         "menu": _("Dashboard"),
         "redirect": reverse_lazy("employee-dashboard"),
-        "accessibility": "employee.sidebar.employee_accessibility",
+        "accessibility": "employee.sidebar.dashboard_accessibility",
     },
     {
         "menu": _("Employees"),
@@ -115,6 +115,16 @@ def employee_settings_accessibility(request, submenu, user_perms, *args, **kwarg
         )
         or employee_type_accessibility(request, submenu, user_perms, *args, **kwargs)
         or employee_tag_accessibility(request, submenu, user_perms, *args, **kwargs)
+    )
+
+
+def dashboard_accessibility(request, submenu, user_perms, *args, **kwargs):
+    """
+    Employee dashboard is limited to what the dashboard views allow:
+    employee view permission holders and reporting managers.
+    """
+    return request.user.has_perm("employee.view_employee") or is_reportingmanager(
+        request.user
     )
 
 
