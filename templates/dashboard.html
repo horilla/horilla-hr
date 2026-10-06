@@ -3298,14 +3298,18 @@
                     markers: { size: 0, hover: { size: 5 } },
                     dataLabels: { enabled: false },
                     legend: { show: false },
-                    xaxis: { ...XAXIS_STYLE, categories: leaveTrendData.labels.map(l => { const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(l); return m ? `${+m[1]} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m[2] - 1]}` : l; }) },
+                    // A week reads "05 Oct - 11 Oct": split over two lines (start, then "– end") so every
+                    // label fits upright, instead of tilting and running off the chart's edges.
+                    xaxis: { ...XAXIS_STYLE, categories: leaveTrendData.labels.map(l => { const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(l); if (m) return `${+m[1]} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m[2] - 1]}`; const range = String(l).split(/\s+[-–]\s+/); return range.length === 2 ? [range[0], '– ' + range[1]] : l; }),
+                        labels: { ...XAXIS_STYLE.labels, rotate: 0, rotateAlways: false, hideOverlappingLabels: false, trim: false, maxHeight: 44, style: { ...XAXIS_STYLE.labels.style, fontSize: '10px' } } },
                     yaxis: { ...YAXIS_STYLE, min: 0, max: yMax, tickAmount: yMax / yStep, labels: { style: { colors: textColor, fontSize: '11px' }, formatter: v => Number.isInteger(+v) ? v : '' } },
-                    grid: GRID,
+                    grid: { ...GRID, padding: { left: 18, right: 22 } },
                     tooltip: { ...TOOLTIP_STYLE, shared: true, intersect: false, custom: ({ series, dataPointIndex, w }) => {
                         leaveTrendHoverIndex = dataPointIndex;
                         const rows = lines.map((d, i) => ({ color: d.color, label: d.label, value: series[i][dataPointIndex] + ' {% trans "leave(s)"|escapejs %}', n: series[i][dataPointIndex] }));
                         const total = rows.reduce((a, r) => a + r.n, 0);
-                        const title = (w.globals.categoryLabels && w.globals.categoryLabels[dataPointIndex]) || w.globals.labels[dataPointIndex] || '';
+                        const raw = (w.globals.categoryLabels && w.globals.categoryLabels[dataPointIndex]) || w.globals.labels[dataPointIndex] || '';
+                        const title = Array.isArray(raw) ? raw.join(' ') : raw;
                         return tipCard(title, [{ total: true, label: '{% trans "Total"|escapejs %}', value: total + ' {% trans "leave(s)"|escapejs %}' }, ...rows]);
                     } },
                 });
