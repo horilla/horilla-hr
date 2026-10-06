@@ -1733,9 +1733,15 @@ class EmployeeShiftScheduleForm(ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         if apps.is_installed("attendance"):
-            auto_punch_out_enabled = self.cleaned_data["is_auto_punch_out_enabled"]
-            auto_punch_out_time = self.cleaned_data["auto_punch_out_time"]
-            end_time = self.cleaned_data["end_time"]
+            # .get(), not [...] -- a required field left blank (e.g. end_time)
+            # is already invalid and removed from cleaned_data by Django's own
+            # per-field validation at this point, so a direct lookup raises
+            # KeyError here instead of letting that field's own "required"
+            # error reach the form -- silently dropping every error alongside
+            # it instead of displaying them.
+            auto_punch_out_enabled = self.cleaned_data.get("is_auto_punch_out_enabled")
+            auto_punch_out_time = self.cleaned_data.get("auto_punch_out_time")
+            end_time = self.cleaned_data.get("end_time")
             if auto_punch_out_enabled:
                 if not auto_punch_out_time:
                     raise ValidationError(
