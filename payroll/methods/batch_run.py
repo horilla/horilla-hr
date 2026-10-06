@@ -64,6 +64,11 @@ def eligible_employees(employees, start_date, end_date):
 
     ok, excluded = [], []
     for employee in employees:
+        # Payroll is for people who work here now, and on a contract that is in
+        # force: an inactive employee or one with no active contract is left out.
+        if not employee.is_active:
+            excluded.append((employee, _("Employee is inactive")))
+            continue
         contract = employee.contract_set.filter(contract_status="active").first()
         if contract is None:
             excluded.append((employee, _("No active contract")))
@@ -346,6 +351,14 @@ def _generate_one(
 ):
     """One payslip, attached to the batch."""
     from payroll.models.models import PayrollBatchLine
+
+    # Checked again here, not only when the run was scoped: someone can be
+    # deactivated, or their contract ended, between reviewing and generating.
+    if not employee.is_active:
+        line.status = PayrollBatchLine.SKIPPED
+        line.message = str(_("Employee is inactive"))
+        line.save(update_fields=["status", "message"])
+        return
 
     contract = employee.contract_set.filter(contract_status="active").first()
     if contract is None:
