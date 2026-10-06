@@ -136,6 +136,7 @@ def asset_by_category(request):
                 total=Count("id"),
                 in_use=Count("id", filter=Q(asset_status="In use")),
                 available_count=Count("id", filter=Q(asset_status="Available")),
+                not_available_count=Count("id", filter=Q(asset_status="Not-Available")),
             )
             .order_by("-total")
         )
@@ -150,6 +151,10 @@ def asset_by_category(request):
                         "total": item["total"],
                         "in_use": item["in_use"],
                         "available": item["available_count"],
+                        # The third status. Left out, the stacked columns summed to less
+                        # than "total", and the list the column opens showed more assets
+                        # than the column did.
+                        "not_available": item["not_available_count"],
                     }
                 )
     except Exception:

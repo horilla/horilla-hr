@@ -549,6 +549,14 @@ class AssetAllocationFilter(CustomFilterSet):
         )
     )
 
+    # Assets still out, not yet returned. The Assets by Department chart counts exactly
+    # these, so its click-through asks for them; without it the list also showed returned
+    # assignments and ran higher than the bar it was opened from.
+    held = django_filters.BooleanFilter(method="filter_held", label=_("Currently held"))
+
+    def filter_held(self, queryset, _name, value):
+        return queryset.filter(return_status__isnull=True) if value else queryset
+
     # HorillaFilterSet.ajax_fields (generic AJAX-loaded combobox mechanism)
     # -- Allocated User, Asset, and Allocated By opt into AJAX-searched
     # comboboxes instead of pre-rendering their whole queryset as

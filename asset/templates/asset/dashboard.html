@@ -656,9 +656,20 @@
         #chart-value-category .apexcharts-pie-slice-donut,
         #chart-dept-assets .apexcharts-pie-slice-donut,
         #chart-by-category .apexcharts-bar-area,
+        #chart-by-category .apexcharts-grid,
+        #chart-by-category .apexcharts-xaxis-label,
+        #chart-dept-assets .apexcharts-bar-area,
         #chart-age-dist .apexcharts-bar-area {
             cursor: pointer;
         }
+
+        /* The tooltip card every dashboard chart shares: bold title, a coloured-dot row per value. */
+        .as-tip { min-width: 150px; padding: 10px 12px; font-size: 12px; }
+        .as-tip__title { margin-bottom: 4px; font-size: 12px; font-weight: 700; }
+        .as-tip__row { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 4px; }
+        .as-tip__label { display: inline-flex; align-items: center; gap: 6px; }
+        .as-tip__dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .as-tip__sub { font-weight: 400; opacity: 0.65; }
 
         .as-pie-legend {
             display: flex;
@@ -903,11 +914,12 @@
                             <div>
                                 <div class="as-chart-card__title">{% trans "Assets by Category" %}</div>
                                 <div class="as-chart-card__subtitle">
-                                    {% trans "In use vs available per category" %}
+                                    {% trans "Share of in use, available and not available per category" %}
                                 </div>
                             </div>
                         </div>
                         <div class="as-chart-card__body"><div id="chart-by-category"></div></div>
+                        <div class="as-pie-legend" id="as-pie-legend-category"></div>
                     </div>
                     <div
                         class="as-chart-card"
@@ -937,6 +949,7 @@
                             </div>
                         </div>
                         <div class="as-chart-card__body"><div id="chart-dept-assets"></div></div>
+                        <div class="as-pie-legend" id="as-pie-legend-dept"></div>
                     </div>
                     <div
                         class="as-chart-card"
@@ -999,6 +1012,44 @@
             const COLORS = ['#E54F38','#22c55e','#f59e0b','#ef4444','#3b82f6','#a855f7','#06b6d4','#ec4899','#14b8a6','#f97316'];
             const emptyHtml = (msg) => `<div class="as-empty"><img src="/static/images/ui/no_records.svg" alt="">${msg}</div>`;
             const fmt = v => Number(v).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+            const TOOLTIP_STYLE = { theme: isDark ? 'dark' : 'light', style: { fontSize: '12px' } };
+            const tipEsc = v => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+            const tipCard = (title, rows) => `<div class="as-tip"><div class="as-tip__title">${tipEsc(title)}</div>`
+                + rows.map(r => `<div class="as-tip__row"><span class="as-tip__label">${r.color ? `<i class="as-tip__dot" style="background:${r.color}"></i>` : ''}${tipEsc(r.label)}</span><span${r.total ? ' style="font-weight:700"' : ''}>${tipEsc(String(r.value))}${r.sub ? ` <span class="as-tip__sub">${tipEsc(r.sub)}</span>` : ''}</span></div>`).join('')
+                + '</div>';
+            // One tooltip for every chart. `total` adds a Total row to a stacked chart; `sub` names
+            // something to show beside a donut slice instead of its share.
+            const stdTooltip = ({ rowLabel = '', total = false, percent = false, sub = null, format = v => fmt(v), onHover = null } = {}) => ({
+                ...TOOLTIP_STYLE, shared: true, intersect: false,
+                // A pie/donut tooltip is otherwise painted in the slice colour with white text.
+                fillSeriesColor: false,
+                custom: ({ series, seriesIndex, dataPointIndex, w }) => {
+                    const g = w.globals;
+                    const type = w.config.chart.type;
+                    if (type === 'pie' || type === 'donut') {
+                        const sum = g.seriesTotals.reduce((a, b) => a + b, 0);
+                        const v = series[seriesIndex];
+                        return tipCard(g.labels[seriesIndex], [{ color: g.colors[seriesIndex], label: rowLabel, value: format(v),
+                            sub: sub ? sub(seriesIndex) : (sum ? Math.round(v / sum * 100) + '%' : '') }]);
+                    }
+                    if (onHover) onHover(dataPointIndex);
+                    const raw = (g.categoryLabels && g.categoryLabels[dataPointIndex]) || g.labels[dataPointIndex] || '';
+                    const title = Array.isArray(raw) ? raw.join(' ') : raw;
+                    const distributed = w.config.plotOptions.bar && w.config.plotOptions.bar.distributed;
+                    const stackTotal = series.reduce((a, s) => a + (+s[dataPointIndex] || 0), 0);
+                    const rows = series.map((s, i) => ({
+                        color: distributed ? g.colors[dataPointIndex] : g.colors[i],
+                        label: g.seriesNames[i] || rowLabel,
+                        value: format(s[dataPointIndex]),
+                        // each part's share of the whole column, for a chart drawn in percent
+                        sub: percent && stackTotal ? '(' + Math.round((+s[dataPointIndex] || 0) / stackTotal * 100) + '%)' : '',
+                    }));
+                    if (total && series.length > 1) {
+                        rows.unshift({ total: true, label: '{% trans "Total"|escapejs %}', value: format(stackTotal) });
+                    }
+                    return tipCard(title, rows);
+                },
+            });
             const assetAllocationUrl = "{% url 'asset-request-allocation-view' %}";
             const assetAllocationUrlFor = id => id ? `${assetAllocationUrl}?assigned_to_employee_id=${id}&open_tab=2` : '#';
 
@@ -1100,9 +1151,21 @@
                     chartInstances[key].destroy();
                     chartInstances[key] = null;
                 }
-                const chart = new ApexCharts(el, options);
+                // A draw can still be mounting when the next one replaces it (two loads close
+                // together, a tab coming back from the background). destroy() on a chart that has
+                // not mounted yet leaves its drawing behind and it lands in the page anyway: the same
+                // chart, twice. So each draw gets its own holder, and putting that holder in place
+                // throws away whatever the previous draw left, finished or not.
+                const holder = document.createElement('div');
+                el.replaceChildren(holder);
+                const chart = new ApexCharts(holder, options);
                 chartInstances[key] = chart;
-                chart.render();
+                const drawn = chart.render();
+                // A chart replaced while still drawing would otherwise land in the page anyway,
+                // as a second copy; the stale one removes itself once it has mounted.
+                if (drawn && drawn.then) {
+                    drawn.then(() => { if (chartInstances[key] !== chart) { try { chart.destroy(); } catch (e) { /* already gone */ } } });
+                }
                 return chart;
             }
 
@@ -1154,7 +1217,7 @@
                 .then(r => r.json())
                 .then(data => {
                     document.getElementById('as-kpi-grid').innerHTML = `
-                <a href="{% url 'asset-category-view' %}" class="as-kpi-card">
+                <a href="{% url 'asset-category-view' %}?nested_fields=" class="as-kpi-card">
                     <div class="as-kpi-card__icon as-kpi-card__icon--blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
                     <div class="as-kpi-card__label">{% trans "Total Assets"|escapejs %}</div>
                     <div class="as-kpi-card__value">${data.total_assets}</div>
@@ -1203,7 +1266,7 @@
                         plotOptions: { pie: { donut: { size: '65%', labels: { show: true, total: { show: true, label: '{% trans "Total"|escapejs %}', color: textColor, fontSize: '13px', fontWeight: 600, formatter: w => w.globals.seriesTotals.reduce((a,b)=>a+b,0) } } } } },
                         stroke: { width: 2, colors: [cardBg] }, dataLabels: { enabled: false },
                         legend: { position: 'bottom', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
-                        tooltip: { theme: isDark ? 'dark' : 'light' },
+                        tooltip: stdTooltip({ rowLabel: '{% trans "Assets"|escapejs %}' }),
                     });
                 })
                 .catch(() => { document.querySelector("#chart-asset-status").innerHTML = emptyHtml('{% trans "Could not load data"|escapejs %}'); });
@@ -1230,53 +1293,15 @@
                         plotOptions: { pie: { donut: { size: '65%', labels: { show: true, total: { show: true, label: '{% trans "Total"|escapejs %}', color: textColor, fontSize: '13px', fontWeight: 600, formatter: w => w.globals.seriesTotals.reduce((a,b)=>a+b,0) } } } } },
                         stroke: { width: 2, colors: [cardBg] }, dataLabels: { enabled: false },
                         legend: { position: 'bottom', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
-                        tooltip: { theme: isDark ? 'dark' : 'light' },
+                        tooltip: stdTooltip({ rowLabel: '{% trans "Requests"|escapejs %}' }),
                     });
                 })
                 .catch(() => { document.querySelector("#chart-request-status").innerHTML = emptyHtml('{% trans "Could not load data"|escapejs %}'); });
             }
             loadRequestStatus();
 
-            // ─── ASSETS BY CATEGORY ───
-            function loadByCategory() {
-            fetchP("{% url 'asset-dashboard-category' %}")
-                .then(r => r.json())
-                .then(data => {
-                    if (!data.categories.length) { document.querySelector("#chart-by-category").innerHTML = emptyHtml('{% trans "No data"|escapejs %}'); return; }
-                    renderChart('by-category', document.querySelector("#chart-by-category"), {
-                        series: [
-                            { name: '{% trans "In Use"|escapejs %}', data: data.categories.map(c => c.in_use) },
-                            { name: '{% trans "Available"|escapejs %}', data: data.categories.map(c => c.available) },
-                        ],
-                        chart: { type: 'bar', height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', stacked: true,
-                            events: { dataPointSelection: (e, ctx, config) => {
-                                const cat = data.categories[config.dataPointIndex];
-                                const base = "{% url 'asset-category-view' %}";
-                                // "category" is an exact asset_category_id match; the
-                                // free-text "search" field this used to send matches
-                                // asset_name/asset_tracking_id too, so e.g. "Car" also
-                                // caught a laptop named "...X1 Carbon".
-                                window.location.href = cat && cat.category_id != null
-                                    ? base + "?category=" + cat.category_id + "&filter_applied=1"
-                                    : base;
-                            }}
-                        },
-                        colors: ['#3b82f6', '#22c55e'],
-                        plotOptions: { bar: { borderRadius: 4, horizontal: true, barHeight: '55%' } },
-                        xaxis: { categories: data.categories.map(c => c.category), labels: { style: { colors: textColor } } },
-                        yaxis: { labels: { style: { colors: textColor, fontSize: '11px' } } },
-                        grid: { borderColor: gridColor },
-                        dataLabels: { enabled: true, style: { fontSize: '11px' } },
-                        legend: { position: 'top', horizontalAlign: 'right', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
-                        tooltip: { theme: isDark ? 'dark' : 'light' },
-                    });
-                })
-                .catch(() => { document.querySelector("#chart-by-category").innerHTML = emptyHtml('{% trans "Could not load data"|escapejs %}'); });
-            }
-            loadByCategory();
-
             const escHtml = (v) => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-            function createPieLegend({ el, chartKey, noun, topN = 5, format = v => v }) {
+            function createPieLegend({ el, chartKey, noun, topN = 5, format = v => v, onChange = null }) {
                 let items = [];
                 let selected = null;
                 let visible = 0;
@@ -1288,7 +1313,7 @@
                 function chipsHtml(k) {
                     return items.slice(0, k).map(it => {
                         const on = selected.has(it.name);
-                        return `<button type="button" class="as-pie-chip${on ? '' : ' is-off'}" data-name="${escHtml(it.name)}" title="${escHtml(it.name)}: ${escHtml(format(it.value))}">${dot(it.color)}<span class="as-pie-chip__name">${escHtml(it.name)}</span></button>`;
+                        return `<button type="button" class="as-pie-chip${on ? '' : ' is-off'}" data-name="${escHtml(it.name)}" title="${escHtml(it.name)}: ${escHtml(it.detail != null ? it.detail : format(it.value))}">${dot(it.color)}<span class="as-pie-chip__name">${escHtml(it.name)}</span></button>`;
                     }).join('');
                 }
                 function refreshState() {
@@ -1305,6 +1330,8 @@
                         selected.add(name);
                     }
                     refreshState();
+                    // A chart whose columns come and go redraws itself; a donut just re-weights.
+                    if (onChange) { onChange(); return; }
                     const chart = chartInstances[chartKey];
                     if (chart) chart.updateSeries(series());
                 }
@@ -1353,6 +1380,7 @@
                         render();
                     },
                     series,
+                    selectedNames() { return items.filter(it => selected.has(it.name)).map(it => it.name); },
                     clear() { items = []; el.innerHTML = ''; },
                 };
             }
@@ -1362,6 +1390,82 @@
                 noun: '{% trans "categories"|escapejs %}',
                 format: fmt,
             });
+
+            // ─── ASSETS BY CATEGORY ───
+            // Vertical stacked columns, one per category. The chips under the chart are the
+            // categories (the same chip legend as the dashboards elsewhere): click one to take
+            // its column out of the chart, the "+N" chip lists the rest. In use / available is
+            // the legend at the top.
+            const categoryColor = i => COLORS[i % COLORS.length];
+            let categoryData = null;
+            const categoryLegend = createPieLegend({
+                el: document.getElementById('as-pie-legend-category'),
+                chartKey: 'by-category',
+                noun: '{% trans "categories"|escapejs %}',
+                onChange: () => drawByCategory(),
+            });
+            let categoryHoverIndex = -1;
+            function openCategory(rows, index) {
+                const cat = index != null && index >= 0 ? rows[index] : null;
+                if (!cat) return;
+                const base = "{% url 'asset-category-view' %}";
+                // "category" is an exact asset_category_id match; the free-text "search" field this
+                // used to send matches asset_name/asset_tracking_id too, so e.g. "Car" also caught
+                // a laptop named "...X1 Carbon".
+                window.location.href = cat.category_id != null
+                    ? base + "?category=" + cat.category_id + "&nested_fields=asset_status&filter_applied=1"
+                    : base;
+            }
+            function drawByCategory() {
+                if (!categoryData) return;
+                const names = new Set(categoryLegend.selectedNames());
+                const rows = categoryData.categories.filter(c => names.has(c.category));
+                renderChart('by-category', document.querySelector("#chart-by-category"), {
+                    series: [
+                        { name: '{% trans "In Use"|escapejs %}', data: rows.map(c => c.in_use) },
+                        { name: '{% trans "Available"|escapejs %}', data: rows.map(c => c.available) },
+                        { name: '{% trans "Not Available"|escapejs %}', data: rows.map(c => c.not_available) },
+                    ],
+                    // 100% stacked: every column is the same height and the y axis reads in percent,
+                    // so categories of different sizes compare by their mix. The counts stay as the
+                    // labels in the segments and in the tooltip.
+                    chart: { type: 'bar', height: 300, toolbar: { show: false }, zoom: { enabled: false }, background: 'transparent', fontFamily: 'inherit', stacked: true, stackType: '100%',
+                        events: {
+                            // A click anywhere on a column (not only on a segment) opens that
+                            // category's assets grouped by status -- the groups are the segments the
+                            // column is made of, and each group's count is the segment's number.
+                            // The column is the one the pointer is over (tracked by the tooltip).
+                            click: (e, ctx, cfg) => openCategory(rows, categoryHoverIndex >= 0 ? categoryHoverIndex : (cfg && cfg.dataPointIndex)),
+                            xAxisLabelClick: (e, ctx, { labelIndex }) => openCategory(rows, labelIndex),
+                            mouseLeave: () => { categoryHoverIndex = -1; },
+                        }
+                    },
+                    colors: ['#3b82f6', '#22c55e', '#94a3b8'],
+                    plotOptions: { bar: { borderRadius: 4, horizontal: false, columnWidth: '45%' } },
+                    xaxis: { categories: rows.map(c => c.category), labels: { rotate: 0, trim: true, hideOverlappingLabels: true, style: { colors: textColor, fontSize: '11px' } }, axisBorder: { show: false }, axisTicks: { show: false } },
+                    yaxis: { min: 0, max: 100, tickAmount: 5, labels: { style: { colors: textColor, fontSize: '11px' }, formatter: v => Math.round(v) + '%' } },
+                    grid: { borderColor: gridColor, strokeDashArray: 4 },
+                    // In a 100% chart the label value is the percentage; the segment shows its count.
+                    dataLabels: { enabled: true, style: { fontSize: '11px' }, formatter: (val, { seriesIndex, dataPointIndex, w }) => w.config.series[seriesIndex].data[dataPointIndex] || '' },
+                    legend: { position: 'top', horizontalAlign: 'right', labels: { colors: textColor }, fontSize: '11px', fontWeight: 500, markers: { width: 8, height: 8, radius: 3 }, itemMargin: { horizontal: 8 } },
+                    tooltip: stdTooltip({ total: true, percent: true, rowLabel: '{% trans "Assets"|escapejs %}', onHover: i => { categoryHoverIndex = i; } }),
+                });
+            }
+            function loadByCategory() {
+            fetchP("{% url 'asset-dashboard-category' %}")
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.categories.length) { document.querySelector("#chart-by-category").innerHTML = emptyHtml('{% trans "No data"|escapejs %}'); categoryLegend.clear(); return; }
+                    categoryData = data;
+                    categoryLegend.set(data.categories.map((c, i) => ({
+                        name: c.category, value: c.total, color: categoryColor(i),
+                        detail: c.in_use + ' {% trans "in use"|escapejs %} · ' + c.available + ' {% trans "available"|escapejs %} · ' + c.not_available + ' {% trans "not available"|escapejs %}',
+                    })));
+                    drawByCategory();
+                })
+                .catch(() => { document.querySelector("#chart-by-category").innerHTML = emptyHtml('{% trans "Could not load data"|escapejs %}'); });
+            }
+            loadByCategory();
 
             // ─── VALUE BY CATEGORY ───
             function loadValueCategory() {
@@ -1387,7 +1491,7 @@
                         plotOptions: { pie: { donut: { size: '65%', labels: { show: true, total: { show: true, label: '{% trans "Total"|escapejs %}', color: textColor, fontSize: '12px', fontWeight: 600, formatter: w => fmt(w.globals.seriesTotals.reduce((a,b)=>a+b,0)) } } } } },
                         stroke: { width: 2, colors: [cardBg] }, dataLabels: { enabled: false },
                         legend: { show: false },
-                        tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: (v, { seriesIndex: i }) => `${fmt(v)} (${data.categories[i].count} assets)` } },
+                        tooltip: stdTooltip({ rowLabel: '{% trans "Value"|escapejs %}', sub: i => data.categories[i].count + ' {% trans "assets"|escapejs %}' }),
                     });
                 })
                 .catch(() => { document.querySelector("#chart-value-category").innerHTML = emptyHtml('{% trans "Could not load data"|escapejs %}'); });
@@ -1395,36 +1499,56 @@
             loadValueCategory();
 
             // ─── ASSETS BY DEPARTMENT ───
+            // Vertical columns, one per department, each in its own colour; the chips under the
+            // chart name them and take a department out of the chart when clicked.
+            let deptData = null;
+            const deptColor = i => COLORS[i % COLORS.length];
+            const deptLegend = createPieLegend({
+                el: document.getElementById('as-pie-legend-dept'),
+                chartKey: 'dept-assets',
+                noun: '{% trans "departments"|escapejs %}',
+                onChange: () => drawDeptAssets(),
+            });
+            function drawDeptAssets() {
+                if (!deptData) return;
+                const names = new Set(deptLegend.selectedNames());
+                const rows = deptData.departments
+                    .map((d, i) => ({ ...d, color: deptColor(i) }))
+                    .filter(d => names.has(d.department));
+                renderChart('dept-assets', document.querySelector("#chart-dept-assets"), {
+                    series: [{ name: '{% trans "Assets"|escapejs %}', data: rows.map(d => d.count) }],
+                    chart: { type: 'bar', height: 300, toolbar: { show: false }, zoom: { enabled: false }, background: 'transparent', fontFamily: 'inherit',
+                        events: { dataPointSelection: (e, ctx, config) => {
+                            const deptId = rows[config.dataPointIndex] && rows[config.dataPointIndex].department_id;
+                            const url = "{% url 'asset-request-allocation-view' %}";
+                            // open_tab=3 -- "Asset Allocation" is the destination's 3rd tab; without
+                            // it, whichever tab was last active there (persisted per user) wins
+                            // instead, landing on "Asset" or "Asset Request" where this filter means
+                            // nothing.
+                            // held=true: the bar counts assets still out, not returned ones.
+                            window.location.href = deptId
+                                ? url + "?open_tab=3&assigned_to_employee_id__employee_work_info__department_id=" + deptId + "&held=true&filter_applied=1"
+                                : url + "?open_tab=3&held=true";
+                        }}
+                    },
+                    colors: rows.map(d => d.color),
+                    plotOptions: { bar: { borderRadius: 6, horizontal: false, columnWidth: '45%', distributed: true } },
+                    xaxis: { categories: rows.map(d => d.department), labels: { rotate: 0, trim: true, hideOverlappingLabels: true, style: { colors: textColor, fontSize: '11px' } }, axisBorder: { show: false }, axisTicks: { show: false } },
+                    yaxis: { min: 0, forceNiceScale: true, labels: { style: { colors: textColor, fontSize: '11px' }, formatter: v => Number.isInteger(+v) ? v : '' } },
+                    grid: { borderColor: gridColor, strokeDashArray: 4 },
+                    dataLabels: { enabled: true, style: { fontSize: '11px' } },
+                    legend: { show: false },
+                    tooltip: stdTooltip({ rowLabel: '{% trans "Assets"|escapejs %}' }),
+                });
+            }
             function loadDeptAssets() {
             fetchP("{% url 'asset-dashboard-dept' %}")
                 .then(r => r.json())
                 .then(data => {
-                    if (!data.departments.length) { document.querySelector("#chart-dept-assets").innerHTML = emptyHtml('{% trans "No allocated assets"|escapejs %}'); return; }
-                    renderChart('dept-assets', document.querySelector("#chart-dept-assets"), {
-                        series: [{ name: '{% trans "Assets"|escapejs %}', data: data.departments.map(d => d.count) }],
-                        chart: { type: 'bar', height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
-                            events: { dataPointSelection: (e, ctx, config) => {
-                                const deptId = data.departments[config.dataPointIndex] && data.departments[config.dataPointIndex].department_id;
-                                const url = "{% url 'asset-request-allocation-view' %}";
-                                // open_tab=3 -- "Asset Allocation" is the destination's
-                                // 3rd tab; without it, whichever tab was last active
-                                // there (persisted per user) wins instead, landing on
-                                // "Asset" or "Asset Request" where this filter means
-                                // nothing.
-                                window.location.href = deptId
-                                    ? url + "?open_tab=3&assigned_to_employee_id__employee_work_info__department_id=" + deptId + "&filter_applied=1"
-                                    : url + "?open_tab=3";
-                            }}
-                        },
-                        colors: COLORS,
-                        plotOptions: { bar: { borderRadius: 6, horizontal: true, barHeight: '55%', distributed: true } },
-                        xaxis: { categories: data.departments.map(d => d.department), labels: { style: { colors: textColor } } },
-                        yaxis: { labels: { style: { colors: textColor, fontSize: '11px' } } },
-                        grid: { borderColor: gridColor },
-                        dataLabels: { enabled: true, style: { fontSize: '11px' } },
-                        legend: { show: false },
-                        tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: v => v + ' {% trans "asset(s)"|escapejs %}' } },
-                    });
+                    if (!data.departments.length) { document.querySelector("#chart-dept-assets").innerHTML = emptyHtml('{% trans "No allocated assets"|escapejs %}'); deptLegend.clear(); return; }
+                    deptData = data;
+                    deptLegend.set(data.departments.map((d, i) => ({ name: d.department, value: d.count, color: deptColor(i), detail: d.count + ' {% trans "assets"|escapejs %}' })));
+                    drawDeptAssets();
                 })
                 .catch(() => { document.querySelector("#chart-dept-assets").innerHTML = emptyHtml('{% trans "Could not load data"|escapejs %}'); });
             }
@@ -1474,7 +1598,7 @@
                         grid: { borderColor: gridColor, strokeDashArray: 4 },
                         dataLabels: { enabled: true, style: { fontSize: '12px', colors: ['#fff'] } },
                         legend: { show: false },
-                        tooltip: { theme: isDark ? 'dark' : 'light' },
+                        tooltip: stdTooltip({ rowLabel: '{% trans "Assets"|escapejs %}' }),
                     });
                 })
                 .catch(() => { document.querySelector("#chart-age-dist").innerHTML = emptyHtml('{% trans "Could not load data"|escapejs %}'); });
