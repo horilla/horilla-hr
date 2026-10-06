@@ -105,6 +105,49 @@
             color-scheme: dark;
         }
 
+        /* Month filter on the Monthly Attendance Summary card */
+        .ess-month-filter {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .ess-month-filter input[type="month"] {
+            padding: 5px 8px;
+            border: 1px solid rgba(128, 128, 128, 0.2);
+            border-radius: 6px;
+            outline: none;
+            background: transparent;
+            color: inherit;
+            font-size: 12px;
+            transition: border-color 0.15s;
+        }
+        .ess-month-filter input[type="month"]:focus {
+            border-color: var(--ess-indigo);
+        }
+        .ess-month-filter button {
+            width: 28px;
+            height: 28px;
+            border: 1px solid rgba(128, 128, 128, 0.2);
+            border-radius: 6px;
+            background: none;
+            color: inherit;
+            font-size: 16px;
+            line-height: 1;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .ess-month-filter button:hover:not(:disabled) {
+            border-color: var(--ess-indigo);
+            color: var(--ess-indigo);
+        }
+        .ess-month-filter button:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+        .dark .ess-month-filter input[type="month"] {
+            color-scheme: dark;
+        }
+
         /* ── KPI Grid ── */
         .ess-kpi-grid {
             display: grid;
@@ -590,6 +633,27 @@
             font-weight: 700;
             font-size: 13px;
         }
+        .ess-info-panel__title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .ess-count-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 24px;
+            height: 24px;
+            padding: 0 6px;
+            border-radius: 999px;
+            background: var(--ess-indigo);
+            color: #fff;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .ess-count-badge[hidden] {
+            display: none;
+        }
         .ess-info-panel__body {
             flex: 1;
             max-height: 240px;
@@ -714,6 +778,51 @@
             color: var(--ess-purple);
         }
 
+        /* Birthdays card */
+        #essBirthdaysList {
+            max-height: 260px;
+            overflow-y: auto;
+        }
+        .ess-bday-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 14px;
+            border-bottom: 1px solid rgba(128, 128, 128, 0.07);
+            font-size: 12px;
+        }
+        .ess-bday-row:last-child {
+            border-bottom: none;
+        }
+        .ess-bday-row img {
+            flex-shrink: 0;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        .ess-bday-row__name {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            font-weight: 500;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .ess-bday-row__date {
+            flex-shrink: 0;
+            font-size: 11px;
+            opacity: 0.55;
+        }
+        .ess-bday-row--today .ess-bday-row__date {
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: var(--ess-pink);
+            color: #fff;
+            font-weight: 600;
+            opacity: 1;
+        }
+
         /* Empty / skeleton */
         .ess-empty {
             padding: 28px 16px;
@@ -758,6 +867,31 @@
                 <div class="ess-header__date" id="essHeaderDate"></div>
             </div>
             <div class="ess-header__actions">
+                {% if can_switch_to_main_dashboard %}
+                    <a
+                        href="{% url 'dashboard' %}"
+                        class="oh-btn oh-btn--secondary"
+                        title="{% trans 'Switch to the main dashboard' %}"
+                        style="display: flex; align-items: center; gap: 5px; font-size: 13px"
+                    >
+                        <svg
+                            width="15"
+                            height="15"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+                            <rect x="3" y="3" width="7" height="7" />
+                            <rect x="14" y="3" width="7" height="7" />
+                            <rect x="14" y="14" width="7" height="7" />
+                            <rect x="3" y="14" width="7" height="7" />
+                        </svg>
+                        {% trans "Admin Dashboard" %}
+                    </a>
+                {% endif %}
                 <div class="ess-period-picker" hidden>
                     <button class="ess-period-preset" data-preset="this_month">
                         {% trans "This Month" %}
@@ -803,44 +937,14 @@
                                 {% trans "Monthly Attendance Summary" %}
                             </div>
                         </div>
+                        <div class="ess-month-filter">
+                            <button type="button" id="essCalPrev" title="{% trans 'Previous month' %}">&lsaquo;</button>
+                            <input type="month" id="essCalMonth" title="{% trans 'Month' %}" />
+                            <button type="button" id="essCalNext" title="{% trans 'Next month' %}">&rsaquo;</button>
+                        </div>
                     </div>
                     <div id="essMonthlySummary">
                         <div class="ess-empty">{% trans "Loading..." %}</div>
-                    </div>
-                </div>
-
-                <!-- Row 3: Payslips + Goals -->
-                <div class="ess-chart-grid">
-                    <div class="ess-chart-card" data-section="payroll">
-                        <div class="ess-chart-card__header">
-                            <div>
-                                <div class="ess-chart-card__title">
-                                    {% trans "Recent Payslips" %}
-                                </div>
-                                <div class="ess-chart-card__subtitle">
-                                    {% trans "Net pay vs gross pay — click to view" %}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="ess-chart-card__body">
-                            <div id="essPayslipChart"></div>
-                        </div>
-                    </div>
-
-                    <div class="ess-chart-card" data-section="goals">
-                        <div class="ess-chart-card__header">
-                            <div>
-                                <div class="ess-chart-card__title">
-                                    {% trans "My Goals" %}
-                                </div>
-                                <div class="ess-chart-card__subtitle">
-                                    {% trans "Active objectives and progress" %}
-                                </div>
-                            </div>
-                        </div>
-                        <div id="essGoalsContainer" class="ess-empty">
-                            {% trans "Loading..." %}
-                        </div>
                     </div>
                 </div>
             </div>
@@ -851,16 +955,38 @@
                 <!-- Announcements -->
                 <div class="ess-info-panel">
                     <div class="ess-info-panel__header">
-                        {% trans "Announcements" %}
+                        <div class="ess-info-panel__title">
+                            {% trans "Announcements" %}
+                            <span id="essAnnouncementsCount" class="ess-count-badge" hidden title="{% trans 'Announcements' %}">0</span>
+                        </div>
                     </div>
                     <div id="essAnnouncementsList" class="ess-info-panel__body">
                         <div class="ess-empty-sm">{% trans "Loading..." %}</div>
                     </div>
                 </div>
 
+                <!-- Birthdays: today and the rest of this month, all employees -->
+                <div class="ess-info-panel">
+                    <div class="ess-info-panel__header">
+                        <div class="ess-info-panel__title">
+                            {% trans "Birthdays" %}
+                            <span id="essBirthdaysCount" class="ess-count-badge" hidden title="{% trans 'Birthdays this month' %}">0</span>
+                        </div>
+                        <span style="font-size:11px;font-weight:400;opacity:0.5;">{% trans "This month" %}</span>
+                    </div>
+                    <div id="essBirthdaysList" class="ess-info-panel__body">
+                        <div class="ess-empty-sm">{% trans "Loading..." %}</div>
+                    </div>
+                </div>
+
                 <!-- Upcoming -->
                 <div class="ess-info-panel">
-                    <div class="ess-info-panel__header">{% trans "Upcoming" %}</div>
+                    <div class="ess-info-panel__header">
+                        <div class="ess-info-panel__title">
+                            {% trans "Upcoming" %}
+                            <span id="essUpcomingCount" class="ess-count-badge" hidden title="{% trans 'Upcoming' %}">0</span>
+                        </div>
+                    </div>
                     <div id="essUpcomingList" class="ess-info-panel__body">
                         <div class="ess-empty-sm">{% trans "Loading..." %}</div>
                     </div>
@@ -877,7 +1003,6 @@
             'use strict';
 
             var today             = new Date();
-            var payslipChart      = null;
 
             function isDark() {
                 return document.documentElement.classList.contains('dark');
@@ -941,8 +1066,6 @@
                 syncMonthLabels();
                 loadKpi();
                 loadMonthlySummary();
-                loadPayslips();
-                loadObjectives();
                 loadAnnouncements();
                 loadUpcoming();
             }
@@ -991,7 +1114,7 @@
 
             // ── KPI Cards ────────────────────────────────────────────────────────────────
             function loadKpi() {
-                fetchP('/ess/api/kpi/')
+                fetchP('/my-dashboard/api/kpi/')
                 .then(function (r) { return r.json(); })
                 .then(function (d) {
                     var iconLeave   = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
@@ -1011,11 +1134,6 @@
                             d.pending_leave_requests != null ? d.pending_leave_requests : 0,
                             '<span class="ess-badge ess-badge--amber">' + '{% trans "awaiting approval"|escapejs %}' + '</span>',
                             '{% url "user-request-view" %}?status=requested&filter_applied=1') +
-                    kpiCard('indigo', iconLeave, '{% trans "Approved Leave"|escapejs %}',
-                            d.upcoming_leave_count != null ? d.upcoming_leave_count : 0,
-                            '<span class="ess-badge ess-badge--green">' + '{% trans "approved & ahead"|escapejs %}' + '</span>',
-                            '{% url "user-request-view" %}?status=approved&start_date_gte=' +
-                                new Date().toISOString().slice(0, 10) + '&filter_applied=1') +
                     (d.assigned_tasks != null
                         ? kpiCard('green', iconTask, '{% trans "Assigned Tasks"|escapejs %}',
                             d.assigned_tasks,
@@ -1041,8 +1159,32 @@
 
             // ── Monthly Attendance Summary ────────────────────────────────────────────────
             // Server-rendered calendar (shared with Attendance > Monthly Summary).
+            // The month filter drives this card on its own; the page-wide period
+            // does not apply to it.
+            var calMonthInput = document.getElementById('essCalMonth');
+            var calPrevBtn    = document.getElementById('essCalPrev');
+            var calNextBtn    = document.getElementById('essCalNext');
+            var curMonth      = today.getFullYear() + '-' + pad2(today.getMonth() + 1);
+            calMonthInput.max   = curMonth;
+            calMonthInput.value = curMonth;
+
+            function shiftCalMonth(delta) {
+                var p = (calMonthInput.value || curMonth).split('-');
+                var d = new Date(+p[0], +p[1] - 1 + delta, 1);
+                calMonthInput.value = d.getFullYear() + '-' + pad2(d.getMonth() + 1);
+                loadMonthlySummary();
+            }
+            calPrevBtn.addEventListener('click', function () { shiftCalMonth(-1); });
+            calNextBtn.addEventListener('click', function () { shiftCalMonth(1); });
+            calMonthInput.addEventListener('change', function () {
+                if (!calMonthInput.value || calMonthInput.value > curMonth) calMonthInput.value = curMonth;
+                loadMonthlySummary();
+            });
+
             function loadMonthlySummary() {
-                fetchP('{% url "ess-monthly-summary" %}')
+                if (calMonthInput.value > curMonth) calMonthInput.value = curMonth;
+                calNextBtn.disabled = calMonthInput.value >= curMonth;
+                fetch('{% url "ess-monthly-summary" %}?month=' + encodeURIComponent(calMonthInput.value || curMonth))
                 .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
                 .then(function (html) {
                     document.getElementById('essMonthlySummary').innerHTML = html;
@@ -1053,84 +1195,13 @@
                 });
             }
 
-            // ── Payslip Chart ─────────────────────────────────────────────────────────────
-            function loadPayslips() {
-                fetchP('/ess/api/payslips/')
-                .then(function (r) { return r.json(); })
-                .then(function (d) {
-                    if (payslipChart) { payslipChart.destroy(); payslipChart = null; }
-                    var el = document.getElementById('essPayslipChart');
-                    if (!d.payslips || !d.payslips.length) {
-                    el.innerHTML = '<div class="ess-empty">' + '{% trans "No payslips available"|escapejs %}' + '</div>';
-                    return;
-                    }
-                    var reversed = d.payslips.slice().reverse();
-                    payslipChart = new ApexCharts(el, {
-                    chart: {
-                        type: 'bar', height: 220, toolbar: { show: false },
-                        background: 'transparent', fontFamily: 'inherit',
-                        events: {
-                        dataPointSelection: function (e, ctx, cfg) {
-                            window.location.href = '{% url "view-payslip" %}';
-                        }
-                        }
-                    },
-                    series: [
-                        { name: '{% trans "Gross Pay"|escapejs %}', data: reversed.map(function (p) { return p.gross_pay; }) },
-                        { name: '{% trans "Net Pay"|escapejs %}',   data: reversed.map(function (p) { return p.net_pay; }) },
-                    ],
-                    xaxis: {
-                        categories: reversed.map(function (p) { return p.period; }),
-                        labels: { style: { colors: axisColor(), fontSize: '11px' } },
-                        axisBorder: { show: false }, axisTicks: { show: false }
-                    },
-                    yaxis: { labels: { formatter: function (v) { return v.toLocaleString(); }, style: { colors: axisColor(), fontSize: '10px' } } },
-                    colors: ['#E54F38', '#22c55e'],
-                    plotOptions: { bar: { borderRadius: 5, columnWidth: '60%' } },
-                    dataLabels: { enabled: false },
-                    legend: { position: 'top', fontSize: '11px' },
-                    theme: { mode: themeMode() },
-                    tooltip: { theme: themeMode(), y: { formatter: function (v) { return v.toLocaleString(); } } },
-                    grid: { borderColor: gridColor(), strokeDashArray: 4 },
-                    });
-                    payslipChart.render();
-                })
-                .catch(function () {});
-            }
-
-            // ── Goals ─────────────────────────────────────────────────────────────────────
-            function loadObjectives() {
-                fetchP('/ess/api/objectives/')
-                .then(function (r) { return r.json(); })
-                .then(function (d) {
-                    var container = document.getElementById('essGoalsContainer');
-                    if (!d.objectives || !d.objectives.length) {
-                    container.innerHTML = '<div class="ess-empty">' + '{% trans "No active goals"|escapejs %}' + '</div>';
-                    return;
-                    }
-                    container.className = '';
-                    container.id = 'essGoalsContainer';
-                    var goalsUrl = '{% url "objective-list-view" %}?open_tab=1&archive=false';
-                    container.innerHTML = d.objectives.map(function (obj) {
-                    return '<div class="ess-goal-row" onclick="window.location.href=\'' + goalsUrl + '\'">' +
-                        '<div class="ess-goal-row__header">' +
-                        '<span class="ess-goal-row__title">'  + esc(obj.title)  + '</span>' +
-                        '<span class="ess-badge ess-badge--' + esc(obj.status) + '">' + esc(obj.status) + '</span>' +
-                        '</div>' +
-                        '<div class="ess-progress"><div class="ess-progress__bar" style="width:' + obj.progress + '%"></div></div>' +
-                        '<div class="ess-goal-row__meta">' + obj.progress + '% &middot; ' + obj.key_results_count + ' KRs</div>' +
-                        '</div>';
-                    }).join('');
-                })
-                .catch(function () {});
-            }
-
             // ── Announcements ─────────────────────────────────────────────────────────────
             function loadAnnouncements() {
-                fetchP('/ess/api/announcements/')
+                fetchP('/my-dashboard/api/announcements/')
                 .then(function (r) { return r.json(); })
                 .then(function (d) {
                     var container = document.getElementById('essAnnouncementsList');
+                    setCountBadge('essAnnouncementsCount', (d.announcements || []).length);
                     if (!d.announcements || !d.announcements.length) {
                     container.innerHTML = '<div class="ess-empty-sm">' + '{% trans "No announcements"|escapejs %}' + '</div>';
                     return;
@@ -1147,9 +1218,33 @@
                 .catch(function () {});
             }
 
+            // ── Birthdays ─────────────────────────────────────────────────────────────────
+            function loadBirthdays() {
+                fetch('{% url "ess-birthdays" %}')
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    var container = document.getElementById('essBirthdaysList');
+                    setCountBadge('essBirthdaysCount', (d.birthdays || []).length);
+                    if (!d.birthdays || !d.birthdays.length) {
+                    container.innerHTML = '<div class="ess-empty-sm">' + '{% trans "No more birthdays this month"|escapejs %}' + '</div>';
+                    return;
+                    }
+                    container.innerHTML = d.birthdays.map(function (b) {
+                    var isToday = b.days_away === 0;
+                    return '<div class="ess-bday-row' + (isToday ? ' ess-bday-row--today' : '') + '">' +
+                        '<img src="' + esc(b.avatar) + '" alt="">' +
+                        '<span class="ess-bday-row__name">' + esc(b.name) + '</span>' +
+                        '<span class="ess-bday-row__date">' +
+                        (isToday ? '{% trans "Today"|escapejs %}' : esc(b.date)) + '</span>' +
+                        '</div>';
+                    }).join('');
+                })
+                .catch(function () {});
+            }
+
             // ── Upcoming ──────────────────────────────────────────────────────────────────
             function loadUpcoming() {
-                fetchP('/ess/api/upcoming/')
+                fetchP('/my-dashboard/api/upcoming/')
                 .then(function (r) { return r.json(); })
                 .then(function (d) {
                     var container = document.getElementById('essUpcomingList');
@@ -1173,6 +1268,7 @@
                             (h.end !== h.start ? ' to ' + esc(h.end) : '') +
                             ' (' + h.days_away + ' days)</span></div>';
                     });
+                    setCountBadge('essUpcomingCount', (d.birthday ? 1 : 0) + (d.anniversary ? 1 : 0) + d.holidays.length);
                     if (!html) html = '<div class="ess-empty-sm">' + '{% trans "Nothing upcoming this month"|escapejs %}' + '</div>';
                     container.innerHTML = html;
                 })
@@ -1180,6 +1276,12 @@
             }
 
             // ── Utilities ─────────────────────────────────────────────────────────────────
+            function setCountBadge(id, n) {
+                var b = document.getElementById(id);
+                b.textContent = n;
+                b.hidden = !n;
+            }
+
             function esc(str) {
                 return String(str)
                 .replace(/&/g,  '&amp;')
@@ -1192,9 +1294,8 @@
             // ── Initial load ──────────────────────────────────────────────────────────────
             loadKpi();
             loadMonthlySummary();
-            loadPayslips();
-            loadObjectives();
             loadAnnouncements();
+            loadBirthdays();
             loadUpcoming();
 
         }());
