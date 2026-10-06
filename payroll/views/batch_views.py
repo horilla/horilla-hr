@@ -102,7 +102,14 @@ def _kpis(batches):
         failed=Sum("failed_count"),
         unpaid=Count("id", filter=~Q(status=PayrollBatch.PAID)),
     )
-    return {key: value or 0 for key, value in figures.items()}
+    figures = {key: value or 0 for key, value in figures.items()}
+    # Payslips counted for active employees only, as each run shows them.
+    from payroll.models.models import Payslip
+
+    figures["employees"] = Payslip.objects.filter(
+        payroll_batch__in=batches, employee_id__is_active=True
+    ).count()
+    return figures
 
 
 @login_required
@@ -110,9 +117,6 @@ def _kpis(batches):
 def batch_detail(request, batch_id):
     """One run: its payslips, the ones that failed, and where it can go next."""
     batch = get_object_or_404(PayrollBatch, pk=batch_id)
-    payslips = batch.payslips.select_related("employee_id").order_by(
-        "employee_id__employee_first_name"
-    )
     problems = batch.lines.filter(
         status__in=[PayrollBatchLine.FAILED, PayrollBatchLine.SKIPPED]
     ).select_related("employee_id")
@@ -122,7 +126,6 @@ def batch_detail(request, batch_id):
         "payroll/batch/batch_detail.html",
         {
             "batch": batch,
-            "payslips": paginator_qry(payslips, request.GET.get("page")),
             "problems": problems,
             "next_statuses": _next_statuses(batch),
         },

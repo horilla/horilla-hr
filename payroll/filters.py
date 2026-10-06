@@ -37,6 +37,7 @@ from payroll.models.models import (
     Reimbursement,
     SalaryStructure,
 )
+from payroll.models.payroll_batch import PayrollBatch
 from payroll.models.tax_models import TaxBracket
 
 
@@ -505,6 +506,8 @@ class PayslipFilter(HorillaFilterSet):
     )
     month = django_filters.CharFilter(field_name="start_date", lookup_expr="month")
     year = django_filters.CharFilter(field_name="start_date", lookup_expr="year")
+    # One payroll run's payslips: the run page lists them with the payslip list itself.
+    payroll_batch = django_filters.NumberFilter(field_name="payroll_batch_id")
 
     allowance_title = django_filters.CharFilter(
         method="filter_by_allowance_title", label="Allowance Title"
@@ -1045,3 +1048,37 @@ class PayslipAutoGenerateFilter(HorillaFilterSet):
         """
 
         return ((queryset.filter(company_id__company__icontains=value))).distinct()
+
+
+class PayrollBatchFilter(HorillaFilterSet):
+    """Filter set for the payroll runs list."""
+
+    search = django_filters.CharFilter(method="filter_search")
+    status = django_filters.ChoiceFilter(choices=PayrollBatch.STATUS_CHOICES)
+    period_start_from = django_filters.DateFilter(
+        field_name="period_start",
+        lookup_expr="gte",
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+    period_end_till = django_filters.DateFilter(
+        field_name="period_end",
+        lookup_expr="lte",
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+    pay_date_from = django_filters.DateFilter(
+        field_name="pay_date",
+        lookup_expr="gte",
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+    pay_date_till = django_filters.DateFilter(
+        field_name="pay_date",
+        lookup_expr="lte",
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+
+    class Meta:
+        model = PayrollBatch
+        fields = ["status"]
+
+    def filter_search(self, queryset, name, value):
+        return queryset.filter(batch_name__icontains=value)

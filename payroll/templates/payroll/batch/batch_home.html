@@ -7,6 +7,11 @@
 <main :class="sidebarOpen ? 'oh-main__sidebar-visible' : ''">
   {% include "payroll/batch/_batch.css.html" %}
 
+  <style>
+    .pb__titlebar-nav h3 { display: none; }
+    .pb__titlebar-nav .justify-between { justify-content: flex-end; }
+  </style>
+
   <section class="oh-wrapper pb">
 
     <div class="oh-main__titlebar oh-main__titlebar--left mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -18,12 +23,9 @@
           <a href="{% url 'pay-period-settings' %}">{% trans "Change" %}</a>
         </div>
       </div>
-      {% if perms.payroll.add_payslip %}
-      <a href="{% url 'payroll-batch-scope' %}" class="oh-btn oh-btn--secondary">
-        <ion-icon name="play-outline" class="me-1"></ion-icon>
-        {% trans "New payroll run" %}
-      </a>
-      {% endif %}
+      {% comment %} Search, filter and Generate from the standard nav, in the title bar. {% endcomment %}
+      <div class="pb__titlebar-nav" style="flex:1 1 420px;min-width:0;"
+           hx-get="{% url 'payroll-batch-navbar' %}?{{ request.GET.urlencode }}" hx-trigger="load"></div>
     </div>
 
     {% comment %}
@@ -59,86 +61,15 @@
       </div>
     </div>
 
-    {% include "payroll/batch/_pagination.html" with page=batches %}
+    {% comment %}
+      The runs are the standard list: search, the slide-over filter, sorting
+      and grouping come from the list/nav views, as on every other list page.
+    {% endcomment %}
+    {% include "generic/components.html" %}
 
-    <div class="pb__panel">
-      <div class="pb__panel-head">
-        <span>{% trans "All runs" %}</span>
-      </div>
-      {% if batches %}
-      <div class="pb__scroll">
-        <table class="pb__table">
-          <thead>
-            <tr>
-              <th>{% trans "Run" %}</th>
-              <th>{% trans "Period" %}</th>
-              <th>{% trans "Pay date" %}</th>
-              <th class="pb__num">{% trans "People" %}</th>
-              <th class="pb__num">{% trans "Gross" %}</th>
-              <th class="pb__num">{% trans "Deductions" %}</th>
-              <th class="pb__num">{% trans "Net" %}</th>
-              <th>{% trans "Status" %}</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for batch in batches %}
-            <tr style="cursor:pointer;"
-                onclick="window.location.href='{% url 'payroll-batch-detail' batch.pk %}'">
-              <td>
-                <div style="font-weight:600;">{{ batch.batch_name }}</div>
-                {% if not batch.is_finished %}
-                  <span class="pb__problem pb__problem--warning">
-                    {% blocktrans with done=batch.processed_count total=batch.employee_count %}Generating — {{ done }} of {{ total }}{% endblocktrans %}
-                  </span>
-                {% elif batch.failed_count %}
-                  <span class="pb__problem pb__problem--blocking">
-                    {% blocktrans count n=batch.failed_count %}{{ n }} failed{% plural %}{{ n }} failed{% endblocktrans %}
-                  </span>
-                {% endif %}
-              </td>
-              <td>{{ batch.period_start|date:"j M" }} &ndash; {{ batch.period_end|date:"j M Y" }}</td>
-              <td>{{ batch.pay_date|date:"j M Y"|default:"—" }}</td>
-              <td class="pb__num">{{ batch.generated_count }}</td>
-              <td class="pb__num">{{ batch.total_gross|floatformat:2|currency_symbol_position }}</td>
-              <td class="pb__num">{{ batch.total_deductions|floatformat:2|currency_symbol_position }}</td>
-              <td class="pb__num" style="font-weight:600;">{{ batch.total_net|floatformat:2|currency_symbol_position }}</td>
-              <td><span class="pb__pill pb__pill--{{ batch.status }}">{{ batch.get_status_display }}</span></td>
-              <td style="width:1%;white-space:nowrap;">
-                {% comment %}
-                  The row is a link to the run, so this stops the click before
-                  it navigates -- otherwise the confirm would be answered on a
-                  page that was already leaving.
-                {% endcomment %}
-                {% if perms.payroll.delete_payslip and batch.status != "paid" %}
-                <form method="post" action="{% url 'payroll-batch-delete' batch.pk %}"
-                      onclick="event.stopPropagation();"
-                      onsubmit="return confirm('{% blocktrans with name=batch.batch_name count=batch.generated_count %}Delete the run {{ name }} and its {{ count }} payslip(s)? This cannot be undone.{% endblocktrans %}');">
-                  {% csrf_token %}
-                  <button type="submit" class="pb__rowbtn"
-                          title="{% trans 'Delete this run' %}"
-                          aria-label="{% trans 'Delete this run' %}">
-                    <ion-icon name="trash-outline"></ion-icon>
-                  </button>
-                </form>
-                {% endif %}
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% else %}
-      <div class="pb__empty">
-        {% trans "No payroll has been run yet." %}
-        {% if perms.payroll.add_payslip %}
-        <div class="mt-2">
-          <a href="{% url 'payroll-batch-scope' %}" class="oh-btn oh-btn--secondary">{% trans "Run payroll" %}</a>
-        </div>
-        {% endif %}
-      </div>
-      {% endif %}
-    </div>
+    <div class="oh-checkpoint-badge mb-2" id="selectedInstances" data-ids="[]" data-clicked="" style="display: none"></div>
+
+    <div id="listContainer"></div>
 
   </section>
 </main>

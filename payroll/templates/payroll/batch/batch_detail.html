@@ -7,13 +7,27 @@
 <main :class="sidebarOpen ? 'oh-main__sidebar-visible' : ''">
   {% include "payroll/batch/_batch.css.html" %}
 
+  <style>
+    /* The run's page carries the title; the embedded payslip nav shows none. */
+    .pb__head-actions h3 { display: none; }
+    .pb__head-actions .justify-between { justify-content: flex-end; }
+    /* Status dots of the payslip list's quick filters, and the row status edges: the
+       Payslips page defines them in its own page style, which this page does not load. */
+    .draft--dot { background-color: grey; }
+    .review_ongoing--dot { background-color: orange; }
+    .confirmed--dot { background-color: rgb(103, 171, 238); }
+    .paid--dot { background-color: green; }
+    .status-draft { border-left: 3.4px solid grey !important; border-radius: 4px 0 0 4px; }
+    .status-review_ongoing { border-left: 3.4px solid orange !important; border-radius: 4px 0 0 4px; }
+    .status-confirmed { border-left: 3.4px solid rgb(103, 171, 238) !important; border-radius: 4px 0 0 4px; }
+    .status-paid { border-left: 3.4px solid green !important; border-radius: 4px 0 0 4px; }
+    .sent-to-employee { background-color: yellowgreen; color: white; }
+  </style>
+
   <section class="oh-wrapper pb">
 
     <div class="pb__head">
       <div>
-        <a href="{% url 'payroll-batch-home' %}" class="pb__back">
-          <ion-icon name="arrow-back-outline"></ion-icon>{% trans "Payroll runs" %}
-        </a>
         <div class="pb__title-row">
           <h1 class="oh-main__titlebar-title fw-bold">{{ batch.batch_name }}</h1>
           <span class="pb__pill pb__pill--lg pb__pill--{{ batch.status }}">{{ batch.get_status_display }}</span>
@@ -41,7 +55,8 @@
         </div>
       </div>
 
-      <div class="pb__head-actions">
+      <div class="pb__head-actions" style="flex:1 1 520px;justify-content:flex-end;align-items:flex-start;">
+        <div style="flex:1 1 auto;min-width:0;" hx-get="{% url 'payslip-run-navbar' batch.pk %}" hx-trigger="load"></div>
         {% if batch.status == "draft" and perms.payroll.add_payslip and perms.payroll.delete_payslip %}
         <form method="post" action="{% url 'payroll-batch-reopen' batch.pk %}"
               onsubmit="return confirm('{% trans "Go back to Check the inputs? The draft payslips of this run are discarded and made again when you generate." %}');">
@@ -119,8 +134,8 @@
     <div class="pb__kpis">
       <div class="pb__kpi">
         <div class="pb__kpi-label">{% trans "Payslips" %}</div>
-        <div class="pb__kpi-value">{{ batch.generated_count }}</div>
-        <div class="pb__kpi-note">{% blocktrans with n=batch.employee_count %}of {{ n }} in the run{% endblocktrans %}</div>
+        <div class="pb__kpi-value">{{ batch.active_payslip_count }}</div>
+        <div class="pb__kpi-note">{% trans "active employees" %}</div>
       </div>
       <div class="pb__kpi">
         <div class="pb__kpi-label">{% trans "Gross" %}</div>
@@ -166,43 +181,39 @@
     </div>
     {% endif %}
 
-    {% include "payroll/batch/_pagination.html" with page=payslips %}
+    {% comment %}
+      The run's payslips are the payslip list itself, filtered to this run:
+      the same search, filter panel, grouping and actions as the Payslips page.
+    {% endcomment %}
+    {% include "generic/components.html" %}
 
-    <div class="pb__panel">
-      <div class="pb__panel-head">{% trans "Payslips in this run" %}</div>
-      {% if payslips %}
-      <div class="pb__scroll">
-        <table class="pb__table">
-          <thead>
-            <tr>
-              <th>{% trans "Employee" %}</th>
-              <th class="pb__num">{% trans "Basic" %}</th>
-              <th class="pb__num">{% trans "Gross" %}</th>
-              <th class="pb__num">{% trans "Deductions" %}</th>
-              <th class="pb__num">{% trans "Net" %}</th>
-              <th>{% trans "Status" %}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for payslip in payslips %}
-            <tr style="cursor:pointer;"
-                onclick="window.location.href='{% url 'view-created-payslip' payslip.pk %}'"
-                class="{% if payslip.net_pay <= 0 %}pb__row--blocked{% endif %}">
-              <td>{{ payslip.employee_id }}</td>
-              <td class="pb__num">{{ payslip.basic_pay|floatformat:2|currency_symbol_position }}</td>
-              <td class="pb__num">{{ payslip.gross_pay|floatformat:2|currency_symbol_position }}</td>
-              <td class="pb__num">{{ payslip.deduction|floatformat:2|currency_symbol_position }}</td>
-              <td class="pb__num" style="font-weight:600;">{{ payslip.net_pay|floatformat:2|currency_symbol_position }}</td>
-              <td>{{ payslip.get_status_display }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% else %}
-      <div class="pb__empty">{% trans "No payslips yet." %}</div>
-      {% endif %}
+    <div class="oh-checkpoint-badge mb-2" id="selectedInstances" data-ids="[]" data-clicked="" style="display: none"></div>
+
+    <div id="listContainer"></div>
+
+    <div class="oh-modal" id="payslipExport" role="dialog" aria-labelledby="payslipExport" aria-hidden="true">
+        <div class="oh-modal__dialog">
+            <div class="oh-modal__dialog-header">
+                <h2 class="oh-modal__dialog-title" id="employeeExportLavel">{% trans "Export Payslips" %}</h2>
+                <button class="oh-modal__close" aria-label="{% trans 'Close' %}">
+                    <ion-icon name="close-outline"></ion-icon>
+                </button>
+                <div class="oh-modal__dialog-body p-0 pt-2" id="payslipExportModalBody">
+                    <form
+                        action="{% url 'payslip-info-export' %}"
+                        method="get"
+                        onsubmit="event.stopPropagation();
+                            $(this).find('[name=instance_ids]').val($('#selectedInstances').attr('data-ids') || '[]');
+                            $(this).parents().find('.oh-modal--show').last().toggleClass('oh-modal--show')"
+                        id="payslipExportForm"
+                    >
+                        {% csrf_token %}
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
+    <script src="{% static 'cbv/payslip.js' %}"></script>
 
   </section>
 </main>

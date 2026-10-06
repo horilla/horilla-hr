@@ -282,6 +282,59 @@ class PayrollBatch(HorillaModel):
     def is_finished(self):
         return self.progress_state in (self.DONE, self.FAILED)
 
+    @property
+    def active_payslip_count(self):
+        """Payslips of employees who are still active -- the count a run shows."""
+        return self.payslips.filter(employee_id__is_active=True).count()
+
+    # -- columns of the runs list (payroll.cbv.payroll_batch) --------------
+    def period_display(self):
+        start, end = self.period_start, self.period_end
+        return f"{start.day} {start:%b} – {end.day} {end:%b %Y}"
+
+    def get_detail_url(self):
+        from django.urls import reverse
+
+        return reverse("payroll-batch-detail", args=[self.pk])
+
+    def run_actions(self):
+        from horilla_views.cbv_methods import render_template
+
+        return render_template(
+            path="payroll/batch/_run_actions.html", context={"instance": self}
+        )
+
+    def people_display(self):
+        return self.active_payslip_count
+
+    def pay_date_display(self):
+        return f"{self.pay_date:%d %b %Y}" if self.pay_date else "—"
+
+    def _money(self, amount):
+        from horilla_views.cbv_methods import render_template
+
+        return render_template(
+            path="cbv/payslip/pay_display.html", context={"amount": amount}
+        )
+
+    def gross_display(self):
+        return self._money(self.total_gross)
+
+    def deductions_display(self):
+        return self._money(self.total_deductions)
+
+    def net_display(self):
+        return self._money(self.total_net)
+
+    def status_pill(self):
+        from django.utils.html import format_html
+
+        return format_html(
+            '<span class="pb__pill pb__pill--{}">{}</span>',
+            self.status,
+            self.get_status_display(),
+        )
+
     def refresh_totals(self):
         """
         Recompute the counters from the payslips actually attached.

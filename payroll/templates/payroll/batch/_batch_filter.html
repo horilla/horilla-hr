@@ -1,0 +1,55 @@
+{% load i18n %}
+<div class="oh-dropdown__filter-body">
+	<div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+		<div class="oh-accordion-header">
+			<span class="oh-filter-section-icon"><ion-icon name="play-outline"></ion-icon></span>
+			{% trans "Run" %}
+		</div>
+		<div class="oh-accordion-body">
+			<div class="row">
+				<div class="col-sm-12">
+					<div class="oh-input-group">
+						<label class="oh-label" for="{{ form.status.id_for_label }}">{% trans "Status" %}</label>
+						{{ form.status }}
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+		<div class="oh-accordion-header">
+			<span class="oh-filter-section-icon"><ion-icon name="calendar-outline"></ion-icon></span>
+			{% trans "Dates" %}
+		</div>
+		<div class="oh-accordion-body">
+			<div class="row">
+				<div class="col-sm-6">
+					<div class="oh-input-group">
+						<label class="oh-label" for="{{ form.period_start_from.id_for_label }}">{% trans "Period from" %}</label>
+						{{ form.period_start_from }}
+					</div>
+				</div>
+				<div class="col-sm-6">
+					<div class="oh-input-group">
+						<label class="oh-label" for="{{ form.period_end_till.id_for_label }}">{% trans "Period to" %}</label>
+						{{ form.period_end_till }}
+					</div>
+				</div>
+			</div>
+			<div class="row">
+				<div class="col-sm-6">
+					<div class="oh-input-group">
+						<label class="oh-label" for="{{ form.pay_date_from.id_for_label }}">{% trans "Pay date from" %}</label>
+						{{ form.pay_date_from }}
+					</div>
+				</div>
+				<div class="col-sm-6">
+					<div class="oh-input-group">
+						<label class="oh-label" for="{{ form.pay_date_till.id_for_label }}">{% trans "Pay date to" %}</label>
+						{{ form.pay_date_till }}
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>

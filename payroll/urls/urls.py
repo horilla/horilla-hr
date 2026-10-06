@@ -8,7 +8,13 @@ from django.urls import include, path
 from django.views.generic import RedirectView
 
 from payroll import dashboard as pay_dashboard
-from payroll.cbv import contracts, dashboard, payslip_automation, settings_tabs
+from payroll.cbv import (
+    contracts,
+    dashboard,
+    payroll_batch,
+    payslip_automation,
+    settings_tabs,
+)
 from payroll.models.models import Contract, Payslip
 from payroll.views import (
     batch_views,
@@ -369,6 +375,16 @@ urlpatterns = [
     # pay period that fills the wizard's dates.
     # ------------------------------------------------------------------
     path("payroll-runs/", batch_views.batch_home, name="payroll-batch-home"),
+    path(
+        "payroll-runs-list/",
+        payroll_batch.PayrollBatchList.as_view(),
+        name="payroll-batch-list",
+    ),
+    path(
+        "payroll-runs-navbar/",
+        payroll_batch.PayrollBatchNav.as_view(),
+        name="payroll-batch-navbar",
+    ),
     path(
         "payroll-runs/<int:batch_id>/",
         batch_views.batch_detail,
