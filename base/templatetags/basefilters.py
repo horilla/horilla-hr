@@ -235,6 +235,31 @@ def filtersubordinates(user):
     return employee_manages.exists()
 
 
+@register.filter(name="tag_label")
+def tag_label(field, labels):
+    """Filter-tag label: the display-ready one from humanize_filter_tags if
+    it has one, else the generic key-derived label."""
+    if labels and field in labels:
+        return labels[field]
+    return filter_field(field)
+
+
+@register.filter(name="tag_value")
+def tag_value(value):
+    """Filter-tag value: leave display-ready text (FriendlyTagText) as is."""
+    from base.methods import FriendlyTagText
+
+    if isinstance(value, FriendlyTagText):
+        return str(value)
+    return filter_field(value)
+
+
+@register.filter(name="tag_extra")
+def tag_extra(field, extras):
+    """Extra query key(s) a merged tag's clear (x) must also clear."""
+    return (extras or {}).get(field, "")
+
+
 @register.filter(name="filter_field")
 def filter_field(value):
     if value.endswith("_id"):
@@ -242,6 +267,10 @@ def filter_field(value):
     if value.endswith("_ids"):
         value = value[:-4]
     splitted = value.split("__")
+    if splitted[-1] in ("gte", "lte", "gt", "lt") and len(splitted) > 1:
+        # never surface the lookup operator itself as the label
+        suffix = {"gte": "From", "gt": "From", "lte": "To", "lt": "To"}[splitted[-1]]
+        return f"{splitted[-2].replace('_', ' ').capitalize()} ({suffix})"
 
     return splitted[-1].replace("_", " ").capitalize()
 

@@ -54,7 +54,7 @@
         {% for field, values in filter_dict.items %}
             {% if values and field != "path" %}
                 <span class="oh-titlebar__tag filter-field" data-field="{{ field }}">
-                    {% if field == "field" %}{% trans "Group by" %}{% else %}{{ field|filter_field }}{% endif %}: &nbsp
+                    {% if field == "field" %}{% trans "Group by" %}{% else %}{{ field|tag_label:filter_tag_labels }}{% endif %}: &nbsp
                     {% if values|length > 3 %}
                         {% comment %}
                             A deep link (e.g. a dashboard tile) can pre-select
@@ -67,19 +67,20 @@
                         {% endcomment %}
                         <span
                             class="filter-value"
-                            title="{% for value in values %}{{ value|filter_field }}{% if not forloop.last %}, {% endif %}{% endfor %}"
+                            title="{% for value in values %}{{ value|tag_value }}{% if not forloop.last %}, {% endif %}{% endfor %}"
                         >
                             {% blocktrans count counter=values|length %}{{ counter }} selected{% plural %}{{ counter }} selected{% endblocktrans %}
                         </span>
                     {% else %}
                         {% for value in values %}
-                            <span class="filter-value" data-value="{{value|filter_field}}">
-                            {{value|filter_field}}{% if not forloop.last %},{% endif %}
+                            <span class="filter-value" data-value="{{value|tag_value}}">
+                            {{value|tag_value}}{% if not forloop.last %},{% endif %}
                             </span>
                         {% endfor %}
                     {% endif %}
                     <button class="oh-titlebar__tag-close"
                         data-x-field="{{ field }}"
+                        data-x-extra="{{ field|tag_extra:filter_tag_extras }}"
                     >
                         <ion-icon name="close-outline" class="close-icon"></ion-icon>
                     </button>

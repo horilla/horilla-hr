@@ -1,6 +1,18 @@
 var formButton = "#applyFilter";
 
 function clearFilterFromTag(element) {
+	// A merged tag (e.g. a date range built from __gte + __lte) also carries
+	// the extra query key it stands for -- clear that one first, then fall
+	// through to clear the tag's own key as usual.
+	let extra = element.attr("data-x-extra");
+	if (extra) {
+		element.removeAttr("data-x-extra");
+		extra.split(",").forEach(function (key) {
+			clearFilterFromTag(
+				$("<span>").attr("data-x-field", key.trim())
+			);
+		});
+	}
 	let form = $(formButton).closest('form');
 	let search_url = form.attr("hx-get") || "";
 	let urlParts = search_url.split('?');

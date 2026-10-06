@@ -34,6 +34,7 @@ from base.methods import (
     get_key_instances,
     get_pagination,
     has_export_access,
+    humanize_filter_tags,
 )
 
 # from horilla.http import HorillaRedirect
@@ -480,7 +481,10 @@ class HorillaListView(ListView):
             for key in remove_keys:
                 data_dict.pop(key, None)
 
+            data_dict, tag_labels, tag_extras = humanize_filter_tags(data_dict)
             context["filter_dict"] = data_dict
+            context["filter_tag_labels"] = tag_labels
+            context["filter_tag_extras"] = tag_extras
             context["keys_to_remove"] = keys_to_remove
 
         request = self.request
@@ -1963,7 +1967,10 @@ class HorillaCardView(ListView):
             for key in remove_keys:
                 data_dict.pop(key, None)
 
+            data_dict, tag_labels, tag_extras = humanize_filter_tags(data_dict)
             context["filter_dict"] = data_dict
+            context["filter_tag_labels"] = tag_labels
+            context["filter_tag_extras"] = tag_extras
             context["keys_to_remove"] = keys_to_remove
 
         ordered_ids = list(queryset.values_list("id", flat=True))
