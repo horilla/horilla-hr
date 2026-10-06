@@ -177,6 +177,28 @@ one shadowed the other; the page now lives in one place.
       font-size: .72rem; max-height: 14rem; overflow: auto; white-space: pre;
       max-width: 44rem;
     }
+
+    /* Header controls: one height, one look. */
+    .fs__tools { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+    .fs__search { position: relative; margin: 0; }
+    .fs__search ion-icon {
+      position: absolute; left: .7rem; top: 50%; transform: translateY(-50%);
+      color: var(--pb-muted); pointer-events: none;
+    }
+    .fs__search input {
+      height: 38px; width: 260px; padding: 0 .75rem 0 2.1rem;
+      border: 1px solid var(--pb-line); border-radius: 8px; background: #fff;
+      font-size: .85rem; color: var(--pb-ink);
+    }
+    .fs__search input:focus { outline: none; border-color: var(--pb-accent); }
+    .fs__btn {
+      display: inline-flex; align-items: center; gap: .4rem; height: 38px;
+      padding: 0 1rem; border: 1px solid var(--pb-line); border-radius: 8px;
+      background: #fff; color: var(--pb-ink); font-size: .85rem; font-weight: 500;
+      cursor: pointer; transition: border-color .15s, color .15s;
+    }
+    .fs__btn:hover { border-color: var(--pb-accent); color: var(--pb-accent); }
+    .fs__empty td { text-align: center; color: var(--pb-muted); padding: 1.25rem; }
   </style>
 
   <section class="oh-wrapper pb">
@@ -188,9 +210,15 @@ one shadowed the other; the page now lives in one place.
           {% trans "How income tax is worked out, and who it applies to." %}
         </div>
       </div>
-      <div class="d-flex align-items-center gap-2">
+      <div class="fs__tools">
+        <label class="fs__search">
+          <ion-icon name="search-outline"></ion-icon>
+          <input type="search" id="fsSearch" autocomplete="off"
+                 placeholder="{% trans 'Search filing statuses' %}"
+                 aria-label="{% trans 'Search filing statuses' %}">
+        </label>
         {% if perms.payroll.add_filingstatus %}
-        <button type="button" class="oh-btn oh-btn--light"
+        <button type="button" class="fs__btn"
                 data-toggle="oh-modal-toggle" data-target="#objectCreateModal"
                 hx-get="{% url 'tax-pack-picker' %}"
                 hx-target="#objectCreateModalTarget">
@@ -293,7 +321,7 @@ one shadowed the other; the page now lives in one place.
         </thead>
         <tbody>
           {% for row in rows %}
-          <tr>
+          <tr data-fs-name="{{ row.status.filing_status|lower }}">
             <td style="font-weight:600;">{{ row.status.filing_status }}</td>
             <td>
               {% if row.status.use_py %}
@@ -330,7 +358,7 @@ one shadowed the other; the page now lives in one place.
               {% endif %}
             </td>
           </tr>
-          <tr>
+          <tr data-fs-name="{{ row.status.filing_status|lower }}">
             <td colspan="6" style="padding:0;">
               <details class="fs__more">
                 <summary>
@@ -451,6 +479,9 @@ one shadowed the other; the page now lives in one place.
             </td>
           </tr>
           {% endfor %}
+          <tr class="fs__empty" id="fsNoMatch" hidden>
+            <td colspan="6">{% trans "No filing status matches your search." %}</td>
+          </tr>
         </tbody>
       </table>
       {% else %}
@@ -465,4 +496,23 @@ one shadowed the other; the page now lives in one place.
 
   </section>
 </main>
+<script>
+  // Search by name: a status is two rows (the summary and its working), shown
+  // or hidden together.
+  (function () {
+    var box = document.getElementById("fsSearch");
+    if (!box) return;
+    box.addEventListener("input", function () {
+      var term = box.value.trim().toLowerCase();
+      var shown = 0;
+      document.querySelectorAll("tr[data-fs-name]").forEach(function (row) {
+        var match = !term || row.dataset.fsName.indexOf(term) !== -1;
+        row.hidden = !match;
+        if (match && row.querySelector("td[style*='font-weight']")) shown++;
+      });
+      var none = document.getElementById("fsNoMatch");
+      if (none) none.hidden = shown > 0;
+    });
+  })();
+</script>
 {% endblock content %}
