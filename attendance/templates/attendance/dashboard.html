@@ -818,7 +818,7 @@
 
         /* ── Cursor on clickable chart areas ── */
         #chart-late-early .apexcharts-bar-area,
-        #chart-overtime .apexcharts-pie-slice-donut,
+        #chart-overtime .apexcharts-bar-area,
         #chart-att-overview .apexcharts-bar-area,
         #chart-avg-hours .apexcharts-bar-area,
         #chart-hours .apexcharts-bar-area,
@@ -2228,9 +2228,24 @@
                                                     config.dataPointIndex
                                                 ]?.department;
                                             if (!dept) return;
+                                            // Series order: 0 Approved, 1 Pending
+                                            // (see the `series` array above).
+                                            // open_tab: 2 = "OT Attendances" (see
+                                            // AttendancesTabView), which already
+                                            // scopes to validated rows with
+                                            // overtime > 0 -- the natural landing
+                                            // spot for this chart, not the plain
+                                            // Attendance list's default tab.
+                                            // field: "employee_id" pre-applies
+                                            // the list's own Group By so the
+                                            // destination reads as a per-
+                                            // employee breakdown within that
+                                            // department, not one flat table.
                                             navigate(
                                                 "{% url 'attendance-view' %}",
                                                 {
+                                                    open_tab: 2,
+                                                    field: "employee_id",
                                                     department: dept,
                                                     attendance_date__gte:
                                                         data.from_date,
@@ -2238,6 +2253,10 @@
                                                         data.to_date,
                                                     overtime_second__gte:
                                                         "00:00:01",
+                                                    attendance_overtime_approve:
+                                                        config.seriesIndex === 0
+                                                            ? "True"
+                                                            : "False",
                                                 },
                                             );
                                         },
@@ -2340,6 +2359,27 @@
                                     background: "transparent",
                                     fontFamily: "inherit",
                                     animations: ANIM,
+                                    events: {
+                                        dataPointSelection: (e, ctx, config) => {
+                                            const dept =
+                                                data.departments[
+                                                    config.dataPointIndex
+                                                ]?.department;
+                                            if (!dept) return;
+                                            // This chart counts the Hour
+                                            // Account balance (AttendanceOverTime),
+                                            // not Attendance rows -- a different
+                                            // page/filter set than every other
+                                            // chart on this dashboard.
+                                            navigate(
+                                                "{% url 'attendance-overtime-view' %}",
+                                                {
+                                                    department_name: dept,
+                                                    pending_hours__gte: "00:00:01",
+                                                },
+                                            );
+                                        },
+                                    },
                                 },
                                 colors: ["#f59e0b"],
                                 fill: {
