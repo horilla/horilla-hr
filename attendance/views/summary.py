@@ -1738,6 +1738,11 @@ def _build_calendar_context(emp, from_date, to_date, show_future_leave=False):
                         status, detail, conflict_with, resolution_badge, is_conflict = (
                             day_info(d)
                         )
+                        # A day that has not happened yet with nothing on it is not
+                        # absence: it is drawn greyed out and left out of the counts.
+                        # Leave, holidays and week-offs dated ahead keep their colour.
+                        if status == "absent" and d > today:
+                            status, detail = "future", ""
 
                         # Per-day hours computation
                         _show_hours = status in (

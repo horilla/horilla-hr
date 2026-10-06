@@ -224,6 +224,9 @@
 .cal-partial_hours  { background: linear-gradient(135deg, #cffafe 60%, #f0fdf4 100%); color: #0e7490; }
 .cal-short        { background: #ede9fe; color: #3730a3; }
 .cal-absent       { background: #fee2e2; color: #991b1b; }
+/* Not happened yet and nothing recorded: greyed, not counted, not clickable. */
+.cal-future       { background: #f1f5f9; color: #94a3b8; opacity: .75; cursor: not-allowed !important; pointer-events: none; }
+.dark .cal-future { background: #2a2a2a; color: #6b7280; }
 .cal-paid_leave   { background: #dbeafe; color: #1e40af; }
 .cal-unpaid_leave { background: #fef08a; color: #713f12; }
 .cal-week_off     { background: #f3e8ff; color: #6b21a8; }
@@ -428,6 +431,7 @@
   <div class="cal-legend-item"><div class="cal-legend-dot" style="background:linear-gradient(135deg,#cffafe 60%,#f0fdf4 100%);border:1px solid #67e8f9;"></div> {% trans "Partial Hours" %}</div>
   <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#ede9fe;border:1px solid #c4b5fd;"></div> {% trans "Short Hours" %}</div>
   <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#fee2e2;border:1px solid #fca5a5;"></div> {% trans "Absent / Missing Out" %}</div>
+  <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#f1f5f9;border:1px solid #cbd5e1;"></div> {% trans "Upcoming (not counted)" %}</div>
   <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#dbeafe;border:1px solid #93c5fd;"></div> {% trans "Paid Leave" %}</div>
   <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#fef08a;border:1px solid #facc15;"></div> {% trans "Unpaid Leave" %}</div>
   <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#f3e8ff;border:1px solid #d8b4fe;"></div> {% trans "Week Off" %}</div>
