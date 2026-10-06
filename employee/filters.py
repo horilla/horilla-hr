@@ -54,6 +54,57 @@ class EmployeeFilter(HorillaFilterSet):
         FilterSet (class): custom filter set class to apply styling
     """
 
+    # People who left in a window, by the same exit sources the turnover report
+    # uses (archived offboarding, approved resignation, inactive with an end date).
+    joined_from = django_filters.DateFilter(
+        field_name="employee_work_info__date_joining",
+        lookup_expr="gte",
+        label=_("Joined from"),
+    )
+    joined_till = django_filters.DateFilter(
+        field_name="employee_work_info__date_joining",
+        lookup_expr="lte",
+        label=_("Joined till"),
+    )
+    exited_from = django_filters.DateFilter(
+        method="filter_exited", label=_("Exited from")
+    )
+    exited_till = django_filters.DateFilter(
+        method="filter_exited", label=_("Exited till")
+    )
+
+    def filter_exited(self, queryset, name, value):
+        # Both ends arrive together; the first call does the work.
+        if getattr(self, "_exit_ids_applied", False):
+            return queryset
+        self._exit_ids_applied = True
+        from datetime import date
+
+        from report.engine import ReportFilters
+        from report.metrics._exits import iter_exits
+
+        def parse(key):
+            raw = self.data.get(key)
+            try:
+                return date.fromisoformat(str(raw)) if raw else None
+            except ValueError:
+                return None
+
+        start, end = parse("exited_from"), parse("exited_till")
+        if not (start or end):
+            return queryset
+        start = start or date.min
+        end = end or date.max
+        ids = [
+            row["employee_id"]
+            for row in iter_exits(
+                ReportFilters(from_date=start, to_date=end),
+                from_date=start,
+                to_date=end,
+            )
+        ]
+        return queryset.filter(pk__in=ids)
+
     search = django_filters.CharFilter(method="filter_by_name")
     search_field = django_filters.CharFilter(method="search_in")
     selected_search_field = django_filters.ChoiceFilter(

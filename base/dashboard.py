@@ -1526,6 +1526,8 @@ def dashboard_turnover(request):
             months.append(
                 {
                     "month": month_start.strftime("%b %Y"),
+                    "from": month_start.isoformat(),
+                    "to": month_end.isoformat(),
                     "hires": hires,
                     "exits": exits,
                     "net": hires - exits,
