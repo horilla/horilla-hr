@@ -154,7 +154,67 @@
         .sr-kpi-grid { grid-template-columns: 1fr 1fr; }
         .sr-preset-row { grid-template-columns: 1fr; }
     }
-</style>
+
+    /* ── Turnover (All Exits) ─────────────────────────────────────────── */
+    .sr-page--turnover .sr-letterhead { padding: 14px 18px; }
+    .sr-page--turnover .sr-letterhead__line { display: none; }
+    .sr-page--turnover .sr-letterhead__desc { font-size: 12.5px; max-width: none; }
+    .sr-page--turnover .sr-letterhead__logo { width: 34px; height: 34px; }
+    .tr-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+    @media (max-width: 1280px) { .tr-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    @media (max-width: 760px) { .tr-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .tr-kpi {
+        display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 12px;
+        background: #fff; border: 1px solid rgba(128,128,128,.14); border-left: 4px solid var(--tone);
+    }
+    .dark .tr-kpi, .dark .tr-card { background: #242424; border-color: rgba(255,255,255,.08); }
+    .tr-kpi--click { cursor: pointer; transition: box-shadow .15s, transform .15s; }
+    .tr-kpi--click:hover { box-shadow: 0 6px 18px rgba(0,0,0,.08); transform: translateY(-1px); }
+    .tr-kpi__icon {
+        width: 38px; height: 38px; border-radius: 10px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center;
+        font-size: 20px; color: var(--tone); background: color-mix(in srgb, var(--tone) 14%, transparent);
+    }
+    .tr-kpi__label { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; opacity: .6; }
+    .tr-kpi__value { font-size: 24px; font-weight: 700; line-height: 1.15; color: var(--tone); }
+    .tr-kpi__hint { font-size: 11px; opacity: .55; margin-top: 1px; }
+    .tr-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 14px; margin-bottom: 14px; }
+    @media (max-width: 1100px) { .tr-grid { grid-template-columns: 1fr; } }
+    .tr-card { background: #fff; border: 1px solid rgba(128,128,128,.14); border-radius: 12px; padding: 16px 18px; margin-bottom: 14px; }
+    .tr-grid .tr-card { margin-bottom: 0; }
+    .tr-card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+    .tr-card__title { font-size: 14px; font-weight: 650; }
+    .tr-card__sub { font-size: 12px; opacity: .55; margin-top: 2px; }
+    .tr-legend { display: flex; gap: 12px; font-size: 12px; }
+    .tr-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; }
+    .tr-rank { display: flex; flex-direction: column; gap: 4px; }
+    .tr-rank__row {
+        display: grid; grid-template-columns: minmax(90px, 1.2fr) 2fr 28px; align-items: center; gap: 10px;
+        padding: 7px 8px; border: 0; background: none; border-radius: 8px; text-align: left; cursor: pointer; font-size: 12.5px;
+    }
+    .tr-rank__row:hover { background: rgba(128,128,128,.08); }
+    .tr-rank__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tr-rank__bar { height: 8px; border-radius: 6px; background: rgba(128,128,128,.12); overflow: hidden; }
+    .tr-rank__bar i { display: block; height: 100%; border-radius: 6px; background: #ef4444; }
+    .tr-rank__n { font-weight: 700; text-align: right; }
+    .tr-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .tr-table th { text-align: left; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; opacity: .6; padding: 8px 10px; border-bottom: 1px solid rgba(128,128,128,.18); }
+    .tr-table td { padding: 9px 10px; border-bottom: 1px solid rgba(128,128,128,.1); }
+    .tr-table tr:last-child td { border-bottom: 0; }
+    .tr-num { text-align: right !important; font-variant-numeric: tabular-nums; }
+    .tr-count { min-width: 30px; padding: 2px 9px; border: 0; border-radius: 999px; font-weight: 700; font-size: 12.5px; cursor: pointer; }
+    .tr-count--hire { background: rgba(34,197,94,.14); color: #15803d; }
+    .tr-count--exit { background: rgba(239,68,68,.14); color: #b91c1c; }
+    .tr-count:hover { filter: brightness(.95); }
+    .tr-zero { opacity: .35; }
+    .tr-net { font-weight: 700; opacity: .6; }
+    .tr-net.is-up { color: #15803d; opacity: 1; }
+    .tr-net.is-down { color: #b91c1c; opacity: 1; }
+    .tr-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; }
+    .tr-open { font-size: 12px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+    .tr-close { border: 0; background: none; font-size: 22px; line-height: 1; cursor: pointer; opacity: .55; }
+    .tr-close:hover { opacity: 1; }
+    .tr-empty { padding: 20px; text-align: center; opacity: .55; font-size: 13px; }
+    </style>
 
 <section class="oh-wrapper oh-main__topbar">
     <div class="oh-main__titlebar oh-main__titlebar--left">
@@ -290,7 +350,8 @@
     </div>
 </section>
 
-<div class="oh-wrapper mt-3 sr-page" id="sr-page"
+<div class="oh-wrapper mt-3 sr-page{% if slug == 'turnover-attrition' %} sr-page--turnover{% endif %}" id="sr-page"
+     data-slug="{{ slug }}"
      data-url="{{ data_url }}"
      data-domain="{{ domain }}"
      data-export-xlsx="{{ export_xlsx_url }}"
@@ -1041,6 +1102,191 @@
         });
     }
 
+    // ───────────────────────────────────────────────────────────────────────
+    //  Turnover (All Exits): its own layout. Same data, same drill-down
+    //  endpoint, arranged for the question the page answers: how many came,
+    //  how many left, where from, and who.
+    // ───────────────────────────────────────────────────────────────────────
+    const IS_TURNOVER = page.dataset.slug === "turnover-attrition";
+    const TR = { root: null, charts: [], selected: null };
+    const trEsc = (v) => String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    const GREEN = "#22c55e", RED = "#ef4444", AMBER = "#f59e0b";
+
+    function trRoot() {
+        if (TR.root) return TR.root;
+        TR.root = document.createElement("div");
+        TR.root.id = "tr-root";
+        statusEl.insertAdjacentElement("afterend", TR.root);
+        return TR.root;
+    }
+
+    function trResetCharts() {
+        TR.charts.forEach((c) => { try { c.destroy(); } catch (e) { /* gone */ } });
+        TR.charts = [];
+    }
+
+    function trRateTone(text) {
+        const n = parseFloat(String(text).replace("%", ""));
+        if (isNaN(n)) return AMBER;
+        return n < 10 ? GREEN : n < 20 ? AMBER : RED;
+    }
+
+    function renderTurnover(data) {
+        // The generic sections give way to this layout.
+        kpiSection.hidden = true;
+        chartSection.hidden = true;
+        tableSection.hidden = true;
+        trResetCharts();
+        const root = trRoot();
+
+        const kpis = data.kpis || [];
+        const chart = (data.charts || [])[0] || { categories: [], series: [] };
+        const months = chart.categories || [];
+        const hires = ((chart.series || []).find((s) => /hire/i.test(s.name)) || { data: [] }).data;
+        const exits = ((chart.series || []).find((s) => /exit/i.test(s.name)) || { data: [] }).data;
+        const rows = ((data.table || {}).rows || []);
+        const depts = rows.filter((r) => String(r.month).indexOf("Dept exit:") === 0)
+            .map((r) => ({ name: String(r.month).replace("Dept exit:", "").trim(), n: Number(r.exits) || 0 }))
+            .sort((a, b) => b.n - a.n);
+        const totalHires = hires.reduce((a, b) => a + (Number(b) || 0), 0);
+        const totalExits = exits.reduce((a, b) => a + (Number(b) || 0), 0);
+        const net = totalHires - totalExits;
+        const rate = (kpis[0] || {}).value;
+
+        const kpi = (icon, tone, label, value, hint, click) => `
+            <div class="tr-kpi${click ? " tr-kpi--click" : ""}" style="--tone:${tone}" ${click ? `data-open="${click}"` : ""}>
+                <div class="tr-kpi__icon"><ion-icon name="${icon}"></ion-icon></div>
+                <div class="tr-kpi__body">
+                    <div class="tr-kpi__label">${trEsc(label)}</div>
+                    <div class="tr-kpi__value">${trEsc(value)}</div>
+                    <div class="tr-kpi__hint">${trEsc(hint)}</div>
+                </div>
+            </div>`;
+
+        root.innerHTML = `
+            <div class="tr-kpis">
+                ${kpi("pulse-outline", trRateTone(rate), (kpis[0] || {}).label, rate, (kpis[0] || {}).hint)}
+                ${kpi("log-out-outline", RED, (kpis[1] || {}).label, (kpis[1] || {}).value, "{% trans 'Click to see who'|escapejs %}", "exits|")}
+                ${kpi("person-add-outline", GREEN, (kpis[2] || {}).label, (kpis[2] || {}).value, "{% trans 'Click to see who'|escapejs %}", "hires|")}
+                ${kpi("swap-vertical-outline", net >= 0 ? GREEN : RED, "{% trans 'Net change'|escapejs %}", (net > 0 ? "+" : "") + net, "{% trans 'Hires minus exits'|escapejs %}")}
+                ${kpi("hourglass-outline", AMBER, (kpis[3] || {}).label, (kpis[3] || {}).value, (kpis[3] || {}).hint)}
+            </div>
+            <div class="tr-grid">
+                <div class="tr-card tr-card--chart">
+                    <div class="tr-card__head">
+                        <div><div class="tr-card__title">{% trans "Hires vs exits" %}</div>
+                        <div class="tr-card__sub">{% trans "By month. Click a column to see the people." %}</div></div>
+                        <div class="tr-legend"><span><i style="background:${GREEN}"></i>{% trans "Hires" %}</span><span><i style="background:${RED}"></i>{% trans "Exits" %}</span></div>
+                    </div>
+                    <div id="tr-chart" class="tr-card__plot"></div>
+                </div>
+                <div class="tr-card">
+                    <div class="tr-card__head"><div><div class="tr-card__title">{% trans "Exits by department" %}</div>
+                        <div class="tr-card__sub">{% trans "Click a department to see who left." %}</div></div></div>
+                    <div class="tr-rank">
+                        ${depts.length ? depts.map((d, i) => `
+                            <button type="button" class="tr-rank__row" data-open="department|${trEsc(d.name)}">
+                                <span class="tr-rank__name">${trEsc(d.name)}</span>
+                                <span class="tr-rank__bar"><i style="width:${Math.max(6, d.n / depts[0].n * 100)}%"></i></span>
+                                <span class="tr-rank__n">${d.n}</span>
+                            </button>`).join("") : `<div class="tr-empty">{% trans "No exits in this window." %}</div>`}
+                    </div>
+                </div>
+            </div>
+            <div class="tr-card">
+                <div class="tr-card__head"><div><div class="tr-card__title">{% trans "Month by month" %}</div></div></div>
+                <table class="tr-table">
+                    <thead><tr><th>{% trans "Month" %}</th><th class="tr-num">{% trans "Hires" %}</th><th class="tr-num">{% trans "Exits" %}</th><th class="tr-num">{% trans "Net" %}</th></tr></thead>
+                    <tbody>
+                        ${months.map((m, i) => {
+                            const h = Number(hires[i]) || 0, x = Number(exits[i]) || 0, nt = h - x;
+                            return `<tr>
+                                <td>${trEsc(m)}</td>
+                                <td class="tr-num">${h ? `<button type="button" class="tr-count tr-count--hire" data-open="hires|${trEsc(m)}">${h}</button>` : `<span class="tr-zero">0</span>`}</td>
+                                <td class="tr-num">${x ? `<button type="button" class="tr-count tr-count--exit" data-open="exits|${trEsc(m)}">${x}</button>` : `<span class="tr-zero">0</span>`}</td>
+                                <td class="tr-num"><span class="tr-net ${nt > 0 ? "is-up" : nt < 0 ? "is-down" : ""}">${nt > 0 ? "+" : ""}${nt}</span></td>
+                            </tr>`;
+                        }).join("")}
+                    </tbody>
+                </table>
+            </div>
+            <div class="tr-card" id="tr-result" hidden></div>`;
+
+        // The chart: two thin columns per month, green and red.
+        const plot = document.getElementById("tr-chart");
+        const instance = new ApexCharts(plot, {
+            chart: { type: "bar", height: 300, toolbar: { show: false }, background: "transparent", fontFamily: "inherit",
+                animations: { enabled: false },
+                events: { dataPointSelection: (e, ctx, cfg) => {
+                    const month = months[cfg.dataPointIndex];
+                    if (month) trOpen(cfg.seriesIndex === 0 ? "hires" : "exits", month);
+                } } },
+            series: [{ name: "{% trans 'Hires'|escapejs %}", data: hires }, { name: "{% trans 'Exits'|escapejs %}", data: exits }],
+            colors: [GREEN, RED],
+            plotOptions: { bar: { columnWidth: "46%", borderRadius: 5, borderRadiusApplication: "end", dataLabels: { position: "top" } } },
+            dataLabels: { enabled: true, offsetY: -18, style: { fontSize: "11px", fontWeight: 600, colors: [isDark ? "#e5e7eb" : "#374151"] }, formatter: (v) => v || "" },
+            stroke: { show: true, width: 2, colors: ["transparent"] },
+            xaxis: { categories: months, labels: { style: { fontSize: "11px" } }, axisBorder: { show: false }, axisTicks: { show: false } },
+            yaxis: (() => { const peak = Math.max(1, ...hires.map(Number), ...exits.map(Number));
+                return { min: 0, max: peak + 1, tickAmount: peak + 1, labels: { formatter: (v) => Math.round(v), style: { fontSize: "11px" } } }; })(),
+            grid: { borderColor: isDark ? "rgba(255,255,255,.08)" : "#eee", strokeDashArray: 3 },
+            legend: { show: false },
+            states: { hover: { filter: { type: "none" } } },
+            theme: { mode: isDark ? "dark" : "light" },
+            tooltip: { theme: isDark ? "dark" : "light", shared: true, intersect: false },
+        });
+        instance.render();
+        TR.charts.push(instance);
+
+        root.querySelectorAll("[data-open]").forEach((el) => {
+            el.addEventListener("click", () => {
+                const [dim, val] = el.dataset.open.split("|");
+                trOpen(dim, val);
+            });
+        });
+
+        // ?focus=hires|exits&month=Sep 2026 -- the dashboard's chart lands here.
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("focus") && !TR.focusDone) {
+            TR.focusDone = true;
+            trOpen(params.get("focus"), params.get("month") || "");
+        } else if (TR.selected) {
+            trOpen(TR.selected.dim, TR.selected.val, true);
+        }
+    }
+
+    async function trOpen(dimension, value, quiet) {
+        const box = document.getElementById("tr-result");
+        if (!box) return;
+        TR.selected = { dim: dimension, val: value };
+        box.hidden = false;
+        box.innerHTML = `<div class="tr-card__head"><div class="tr-card__title">{% trans "Loading…" %}</div></div>`;
+        if (!quiet) box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        try {
+            const q = new URLSearchParams(queryString());
+            q.set("dimension", dimension || "");
+            q.set("value", value || "");
+            const res = await fetch(page.dataset.drilldownUrl + "?" + q.toString(), { headers: { "X-Requested-With": "XMLHttpRequest" } });
+            const d = await res.json();
+            if (!res.ok) throw new Error(d.error || "Failed to load");
+            const cols = d.columns || [];
+            const tone = dimension === "hires" ? GREEN : RED;
+            box.innerHTML = `
+                <div class="tr-card__head">
+                    <div><div class="tr-card__title">${trEsc(d.title || "")}</div>
+                    <div class="tr-card__sub">${d.count != null ? d.count + " {% trans 'people'|escapejs %}" : ""}${d.message ? " · " + trEsc(d.message) : ""}</div></div>
+                    <button type="button" class="tr-close" aria-label="{% trans 'Close' %}">&times;</button>
+                </div>
+                ${(d.rows || []).length ? `<table class="tr-table"><thead><tr>${cols.map((c) => `<th>${trEsc(c.label)}</th>`).join("")}<th></th></tr></thead>
+                <tbody>${d.rows.map((r) => `<tr>${cols.map((c, i) => `<td>${i === 0 ? `<span class="tr-dot" style="background:${tone}"></span>` : ""}${trEsc(r[c.key])}</td>`).join("")}
+                    <td class="tr-num">${r.url ? `<a class="tr-open" href="${trEsc(r.url)}" target="_blank" rel="noopener">{% trans "Open" %} <ion-icon name="open-outline"></ion-icon></a>` : ""}</td></tr>`).join("")}</tbody></table>`
+                  : `<div class="tr-empty">{% trans "No matching records." %}</div>`}`;
+            box.querySelector(".tr-close").addEventListener("click", () => { box.hidden = true; TR.selected = null; });
+        } catch (err) {
+            box.innerHTML = `<div class="tr-card__head"><div class="tr-card__title">${trEsc(err.message || err)}</div></div>`;
+        }
+    }
+
     async function load() {
         statusEl.className = "sr-status";
         statusText.textContent = "{% trans 'Loading…'|escapejs %}";
@@ -1075,9 +1321,13 @@
             setPeriodLabel(data.period, data.compare);
             setPeriodNote(data.period_note);
             renderChips(data.filters || []);
-            renderKpis(data.kpis);
-            renderCharts(data.charts);
-            renderTable(data.table);
+            if (IS_TURNOVER) {
+                renderTurnover(data);
+            } else {
+                renderKpis(data.kpis);
+                renderCharts(data.charts);
+                renderTable(data.table);
+            }
         } catch (err) {
             statusEl.className = "sr-status sr-status--error";
             if (statusDot) statusDot.hidden = true;

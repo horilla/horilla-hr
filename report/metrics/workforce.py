@@ -1151,13 +1151,99 @@ def turnover_attrition_drilldown(
     """
     from report.metrics._exits import exit_drilldown
 
+    dimension = (params.get("dimension") or "").strip().lower()
+    if dimension == "hires":
+        return _turnover_hires_drilldown(filters, params, request)
+
+    value = (params.get("value") or "").strip()
     return exit_drilldown(
         filters,
-        params,
+        # The chart and the page ask for a month ("Sep 2026") of exits; anything
+        # else (a department, a source) narrows as before.
+        {
+            **params,
+            "dimension": "month" if dimension == "exits" else params.get("dimension"),
+        },
         request,
-        title=_("Exits · Rolling 6 months"),
+        title=(
+            _("Exits · %(month)s") % {"month": value}
+            if dimension == "exits" and value
+            else _("Exits · Rolling 6 months")
+        ),
         from_date=month_offset(filters.to_date, 5),
         to_date=filters.to_date,
+    )
+
+
+def _turnover_hires_drilldown(
+    filters: ReportFilters, params: dict, request=None
+) -> dict:
+    """Who joined in one month of the same rolling window the chart shows."""
+    from employee.models import EmployeeWorkInformation
+    from report.drilldown import (
+        apply_subordinate_scope,
+        drilldown_payload,
+        employee_link,
+        empty_drilldown,
+    )
+
+    value = (params.get("value") or "").strip()
+    title = _("Hires · %(month)s") % {"month": value} if value else _("Hires")
+    window = None
+    for month_start, month_end, label in iter_months(filters.to_date, 6):
+        if label == value:
+            window = (month_start, min(month_end, filters.to_date))
+    if window is None:
+        return empty_drilldown(title, "hires", value)
+
+    qs = apply_org_filters(
+        EmployeeWorkInformation.objects.filter(
+            date_joining__gte=window[0], date_joining__lte=window[1]
+        ),
+        filters,
+        prefix="",
+        employee_prefix="employee_id",
+    ).select_related("employee_id", "department_id")
+    if request is not None:
+        from employee.models import Employee
+
+        allowed = apply_subordinate_scope(
+            request,
+            Employee.objects.filter(id__in=[w.employee_id_id for w in qs]),
+            perm="employee.view_employee",
+            field="id",
+        )
+        allowed_ids = set(allowed.values_list("id", flat=True))
+        qs = [w for w in qs if w.employee_id_id in allowed_ids]
+    rows_in = list(qs)
+    if not rows_in:
+        return empty_drilldown(title, "hires", value)
+
+    limit = int(params.get("limit") or filters.extra.get("row_limit") or 200)
+    rows = [
+        {
+            "employee": str(w.employee_id),
+            "department": getattr(w.department_id, "department", "") or "",
+            "joined": w.date_joining.isoformat() if w.date_joining else "",
+            "status": _("Active") if w.employee_id.is_active else _("Inactive"),
+            "url": employee_link(w.employee_id_id),
+        }
+        for w in sorted(rows_in, key=lambda w: (w.date_joining, w.employee_id_id))[
+            :limit
+        ]
+    ]
+    return drilldown_payload(
+        title=title,
+        dimension="hires",
+        value=value,
+        columns=[
+            {"key": "employee", "label": _("Employee")},
+            {"key": "department", "label": _("Department")},
+            {"key": "joined", "label": _("Joined")},
+            {"key": "status", "label": _("Status")},
+        ],
+        rows=rows,
+        truncated=len(rows_in) > len(rows),
     )
 
 

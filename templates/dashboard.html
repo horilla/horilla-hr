@@ -561,6 +561,11 @@
         }
 
         /* How many items the panel holds, beside its title. Hidden at zero. */
+        /* A light symbol before the line: a gift for a birthday, a ribbon for a work anniversary. */
+        .md-bday-item__kind { font-size: 13px; vertical-align: -2px; margin-right: 4px; opacity: .75; }
+        .md-bday-item__kind--birthday { color: #ec4899; }
+        .md-bday-item__kind--anniversary { color: #6366f1; }
+
         .md-count-badge {
             display: inline-flex;
             align-items: center;
@@ -964,6 +969,9 @@
         #chart-leave-trend .apexcharts-xaxis-label,
         #chart-leave-trend .apexcharts-grid,
         #chart-leave-trend .apexcharts-line-series { cursor: pointer; }
+        #chart-turnover .apexcharts-bar-area { cursor: pointer; }
+        /* The tooltip sits over the bar being hovered; it must not swallow the click. */
+        #chart-turnover .apexcharts-tooltip { pointer-events: none; }
         .md-tip {
             min-width: 150px;
             padding: 10px 12px;
@@ -2038,16 +2046,6 @@
                                         {% trans "New hires vs exits — last 6 months" %}
                                     </div>
                                 </div>
-                                <a
-                                    class="md-card-link"
-                                    id="turnover-report-link"
-                                    href="#"
-                                    style="display: none"
-                                    title="{% trans 'Open turnover report' %}"
-                                    aria-label="{% trans 'Open turnover report' %}"
-                                >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7" /><path d="M8 7h9v9" /></svg>
-                                </a>
                             </div>
                             <div class="md-chart-card__body"><div id="chart-turnover"></div></div>
                         </div>
@@ -3541,6 +3539,7 @@
                         items.push({
                             name: b.name,
                             detail: '{% trans "Birthday"|escapejs %}',
+                            kind: 'birthday',
                             date: b.date,
                             days_away: b.days_away,
                             avatar: b.avatar,
@@ -3550,6 +3549,7 @@
                         items.push({
                             name: a.name,
                             detail: (a.years || 0) + ' {% trans "yr anniversary"|escapejs %}',
+                            kind: 'anniversary',
                             date: a.date,
                             days_away: a.days_away,
                             avatar: a.avatar,
@@ -3573,7 +3573,7 @@
                         <div class="md-bday-item__avatar">${avatar}</div>
                         <div class="md-bday-item__info">
                             <div class="md-bday-item__name">${item.name}</div>
-                            <div class="md-bday-item__detail">${item.detail}</div>
+                            <div class="md-bday-item__detail"><ion-icon name="${item.kind === 'birthday' ? 'gift-outline' : 'ribbon-outline'}" class="md-bday-item__kind md-bday-item__kind--${item.kind}"></ion-icon>${item.detail}</div>
                         </div>
                         ${badge}
                     </div>`;
@@ -3648,19 +3648,25 @@
                     const rateEl = document.getElementById('turnover-rate');
                     const rateTxt = `{% trans "6-month turnover rate"|escapejs %}: ${data.turnover_rate_6m}%`;
                     rateEl.textContent = rateTxt;
-                    const reportLink = document.getElementById('turnover-report-link');
-                    if (data.report_url) {
-                        reportLink.href = data.report_url;
-                        reportLink.style.display = '';
-                    } else {
-                        reportLink.style.display = 'none';
-                    }
                     renderChart('turnover', document.querySelector("#chart-turnover"), {
                         series: [
                             { name: '{% trans "New Hires"|escapejs %}', data: data.months.map(m => m.hires) },
                             { name: '{% trans "Exits"|escapejs %}', data: data.months.map(m => m.exits) },
                         ],
-                        chart: { type: 'bar', height: 290, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', animations: ANIM },
+                        chart: { type: 'bar', height: 290, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', animations: ANIM,
+                            // A column opens the people behind it. Green: the candidates hired in
+                            // that month. Red: the employees who are no longer active.
+                            events: { dataPointSelection: (e, ctx, config) => {
+                                const m = data.months[config.dataPointIndex];
+                                if (!m || !m.from) return;
+                                if (!PERM.employee) return;
+                                // Same people the chart counted: those who joined, or those who left,
+                                // in that month -- active or not.
+                                const range = config.seriesIndex === 0
+                                    ? "joined_from=" + m.from + "&joined_till=" + m.to
+                                    : "exited_from=" + m.from + "&exited_till=" + m.to;
+                                window.location.href = "{% url 'employee-view' %}?is_active=all&" + range + "&filter_applied=on";
+                            } } },
                         colors: ['#22c55e', '#ef4444'],
                         fill: { type: 'gradient', gradient: { type: 'vertical', shadeIntensity: 0.3, opacityFrom: 1, opacityTo: 0.8 } },
                         plotOptions: { bar: { borderRadius: 6, borderRadiusApplication: 'end', columnWidth: '52%', grouped: true } },
