@@ -1,0 +1,288 @@
+{% comment %}
+Shared donut/pie chart legend, the same one the main dashboard uses for
+Department Headcount: one row of chips, then a "+N" chip whose hover popover
+lists the rest with checkboxes. The first `topN` items start selected;
+unselected ones are zeroed out of the series, so the donut only carries
+what is ticked.
+
+Include once per dashboard page, before the page's chart script:
+    {% include "components/pie_legend.html" %}
+
+Usage:
+    const legend = PieLegend.forChart(chartEl, () => chartInstances[key], 'types');
+    legend.set(items.map((x, i) => ({ name: x.label, value: x.count, color: c })));
+    ... new ApexCharts(chartEl, { series: legend.series(), legend: { show: false }, ... })
+    legend.clear();   // when there is no data
+{% endcomment %}
+<style>
+    .pl-legend {
+        --pl-accent: var(--primary-600, #e54f38);
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 6px 12px 14px;
+        /* Take the width of the card, never widen it: the chips are nowrap, so
+           without this they would stretch the card's grid column. */
+        box-sizing: border-box;
+        width: 100%;
+        min-width: 0;
+        contain: inline-size;
+    }
+    .pl-chips { display: contents; }
+    .pl-chip__name {
+        max-width: 130px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .pl-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 10px;
+        border: 1px solid rgba(128, 128, 128, 0.2);
+        border-radius: 999px;
+        background: none;
+        color: inherit;
+        font-size: 11px;
+        font-weight: 500;
+        white-space: nowrap;
+        flex-shrink: 0;
+        cursor: pointer;
+        transition: opacity 0.15s, border-color 0.15s;
+    }
+    .pl-chip:hover { border-color: var(--pl-accent); }
+    /* Light card tooltip for legend chips (replaces the browser's dark native title box) */
+    .pl-chip[data-tip] { position: relative; }
+    .pl-chip[data-tip]::after {
+        content: attr(data-tip);
+        position: absolute;
+        left: 50%;
+        bottom: calc(100% + 8px);
+        transform: translateX(-50%);
+        padding: 6px 10px;
+        border-radius: 8px;
+        border: 1px solid rgba(128, 128, 128, 0.2);
+        background: #ffffff;
+        color: #334155;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+        font-size: 11px;
+        font-weight: 500;
+        white-space: nowrap;
+        pointer-events: none;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.12s;
+        z-index: 50;
+    }
+    .pl-chip[data-tip]:hover::after { opacity: 1; visibility: visible; }
+    .dark .pl-chip[data-tip]::after { background: #242424; color: #e2e8f0; border-color: rgba(255, 255, 255, 0.12); }
+    .pl-chip.is-off { opacity: 0.45; }
+    .pl-chip.is-off .pl-chip__dot { filter: grayscale(1); }
+    .pl-chip__dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+    .pl-chip--more {
+        text-transform: capitalize;
+        color: var(--pl-accent);
+        font-weight: 600;
+        border-style: dashed;
+    }
+    .pl-more { position: relative; display: inline-block; }
+    .pl-pop {
+        display: none;
+        position: absolute;
+        right: 0;
+        bottom: 100%;
+        padding-bottom: 8px;
+        z-index: 40;
+    }
+    .pl-more:hover .pl-pop,
+    .pl-more:focus-within .pl-pop { display: block; }
+    .pl-pop__box {
+        width: max-content;
+        min-width: 230px;
+        max-width: 340px;
+        border: 1px solid rgba(128, 128, 128, 0.15);
+        border-radius: 10px;
+        background: #fff;
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.15);
+        padding: 8px 4px 6px;
+    }
+    .dark .pl-pop__box { background: #242424; }
+    .pl-pop__list { max-height: 190px; overflow-y: auto; }
+    .pl-pop__row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        cursor: pointer;
+    }
+    .pl-pop__row:hover { background: rgba(128, 128, 128, 0.1); }
+    .pl-pop__text {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        min-width: 0;
+        line-height: 1.25;
+    }
+    .pl-pop__text > span {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .pl-pop__row input { accent-color: var(--pl-accent); margin: 0; }
+    .pl-pop__count { font-size: 11px; font-weight: 600; opacity: 0.7; }
+</style>
+<script>
+    window.PieLegend = window.PieLegend || (function () {
+        var esc = function (v) {
+            return String(v).replace(/[&<>"']/g, function (c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+            });
+        };
+
+        function create(opts) {
+            var el = opts.el, getChart = opts.getChart, noun = opts.noun || 'more', topN = opts.topN || 5;
+            var items = [], selected = null, visible = 0;
+            var dot = function (c) { return '<span class="pl-chip__dot" style="background:' + c + '"></span>'; };
+            var series = function () {
+                return items.map(function (it) { return selected.has(it.name) ? it.value : 0; });
+            };
+            function syncChart() {
+                var chart = getChart && getChart();
+                if (chart) chart.updateSeries(series());
+            }
+            function chipsHtml(k) {
+                return items.slice(0, k).map(function (it) {
+                    var on = selected.has(it.name);
+                    return '<button type="button" class="pl-chip' + (on ? '' : ' is-off') + '" data-name="' + esc(it.name)
+                        + '" data-tip="' + esc(it.name) + ': ' + esc(it.value) + '">' + dot(it.color)
+                        + '<span class="pl-chip__name">' + esc(it.name) + '</span></button>';
+                }).join('');
+            }
+            // Toggling only touches chips and checkbox states, never the popover
+            // element, so it stays open while items are ticked.
+            function refreshState() {
+                var chips = el.querySelector('.pl-chips');
+                if (chips) chips.innerHTML = chipsHtml(visible);
+                el.querySelectorAll('input[data-name]').forEach(function (cb) {
+                    cb.checked = selected.has(cb.dataset.name);
+                });
+            }
+            function toggle(name) {
+                if (selected.has(name)) {
+                    if (selected.size > 1) selected.delete(name);
+                } else {
+                    selected.add(name);
+                }
+                refreshState();
+                syncChart();
+            }
+            function build(k) {
+                visible = k;
+                var rest = items.slice(k);
+                var html = '<span class="pl-chips">' + chipsHtml(k) + '</span>';
+                if (rest.length) {
+                    html += '<span class="pl-more"><button type="button" class="pl-chip pl-chip--more">+' + rest.length + ' ' + esc(noun) + '</button>'
+                        + '<div class="pl-pop"><div class="pl-pop__box"><div class="pl-pop__list">'
+                        + rest.map(function (it) {
+                            return '<label class="pl-pop__row"><input type="checkbox" data-name="' + esc(it.name) + '"'
+                                + (selected.has(it.name) ? ' checked' : '') + '>' + dot(it.color)
+                                + '<span class="pl-pop__text"><span>' + esc(it.name) + '</span></span>'
+                                + '<span class="pl-pop__count">' + esc(it.value) + '</span></label>';
+                        }).join('')
+                        + '</div></div></div></span>';
+                }
+                el.innerHTML = html;
+            }
+            function render() {
+                var k = Math.min(topN, items.length);
+                build(k);
+                while (k > 1 && el.scrollWidth > el.clientWidth + 1) {
+                    k--;
+                    build(k);
+                }
+            }
+            el.addEventListener('click', function (e) {
+                var chip = e.target.closest('.pl-chip[data-name]');
+                if (chip) toggle(chip.dataset.name);
+            });
+            el.addEventListener('change', function (e) {
+                if (e.target.matches('input[data-name]')) toggle(e.target.dataset.name);
+            });
+            var resizeTimer = null;
+            window.addEventListener('resize', function () {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(function () { if (items.length && el.isConnected) render(); }, 150);
+            });
+            return {
+                // `initiallyOff` names start unticked; only applies the first time
+                // (a refresh keeps whatever the user toggled).
+                set: function (newItems, initiallyOff) {
+                    items = newItems;
+                    var names = items.map(function (i) { return i.name; });
+                    if (selected) selected = new Set(Array.from(selected).filter(function (n) { return names.indexOf(n) >= 0; }));
+                    if (!selected || !selected.size) {
+                        var off = initiallyOff || [];
+                        selected = new Set(names.filter(function (n) { return off.indexOf(n) < 0; }).slice(0, topN));
+                        if (!selected.size) selected = new Set(names.slice(0, 1));
+                    }
+                    render();
+                },
+                series: series,
+                clear: function () { items = []; el.innerHTML = ''; },
+            };
+        }
+
+        // Legend container placed right under the chart element, created once.
+        function forChart(chartEl, getChart, noun, topN) {
+            if (chartEl._pieLegend) return chartEl._pieLegend;
+            var box = document.createElement('div');
+            box.className = 'pl-legend';
+            chartEl.insertAdjacentElement('afterend', box);
+            chartEl._pieLegend = create({ el: box, getChart: getChart, noun: noun, topN: topN });
+            return chartEl._pieLegend;
+        }
+
+        // One colour per slice, never reused: the base palette first, then
+        // golden-angle hues so any number of slices stays distinct.
+        function color(i, palette) {
+            return i < palette.length
+                ? palette[i]
+                : 'hsl(' + Math.round((i * 137.508) % 360) + ', 65%, ' + (i % 2 ? 45 : 58) + '%)';
+        }
+
+        // Wraps an ApexCharts donut/pie options object: builds the legend from
+        // its labels/series/colors, then hands back the options with the
+        // legend-driven series and Apex's own legend switched off.
+        //   renderChart(key, el, PieLegend.options(el, () => chartInstances[key], 'noun', { ...apexOptions }))
+        // `initiallyOff` (optional): labels that start unticked.
+        var DEFAULT_COLORS = ['#E54F38', '#22c55e', '#f59e0b', '#3b82f6', '#a855f7', '#06b6d4', '#ec4899', '#ef4444', '#84cc16', '#0ea5e9'];
+        function options(chartEl, getChart, noun, opts) {
+            var legend = forChart(chartEl, getChart, noun);
+            var labels = opts.labels || [];
+            var palette = (opts.colors && opts.colors.length) ? opts.colors : DEFAULT_COLORS;
+            var colors = labels.map(function (l, i) { return color(i, palette); });
+            legend.set(labels.map(function (l, i) {
+                return { name: l, value: opts.series[i], color: colors[i] };
+            }), opts.initiallyOff);
+            var out = Object.assign({}, opts, { series: legend.series(), colors: colors, legend: { show: false } });
+            delete out.initiallyOff;
+            return out;
+        }
+
+        // Empty state: drop any stale chips.
+        function clearFor(chartEl) {
+            if (chartEl && chartEl._pieLegend) chartEl._pieLegend.clear();
+        }
+
+        return { create: create, forChart: forChart, color: color, options: options, clearFor: clearFor };
+    })();
+</script>
