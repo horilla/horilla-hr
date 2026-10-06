@@ -4761,3 +4761,62 @@ textarea[data-summernote]:has(+ .note-editor) {
   justify-content: flex-end;
   margin-bottom: 0px;
 }
+
+/* ---- "Dynamic create" entry of a select ----
+   Every form that lets a select create a new option (asset category, batch number,
+   ...) ends the list with a "dynamic_create" entry. It is an action, not a value, so
+   it is set apart from the real choices: a divider above, the theme colour, and a
+   plus badge, instead of reading like one more option. Select2 gives each result an
+   id ending in the option's value, which is what is matched. */
+.select2-results__option[id$="-dynamic_create"] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 9px 12px;
+  border-top: 1px dashed rgba(128, 128, 128, 0.35);
+  font-weight: 600;
+  color: var(--primary-600, #e54f38);
+  /* Pinned to the bottom of the dropdown, so it is in view without scrolling a
+     long list of real choices to find it. */
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  background: #fff;
+}
+
+.dark .select2-results__option[id$="-dynamic_create"] {
+  background: #242424;
+}
+
+.select2-results__option[id$="-dynamic_create"]::before {
+  content: "+";
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--primary-600, #e54f38);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.select2-container--default .select2-results__option--highlighted[id$="-dynamic_create"] {
+  background-color: var(--primary-600, #e54f38) !important;
+  color: #fff !important;
+}
+
+.select2-container--default .select2-results__option--highlighted[id$="-dynamic_create"]::before {
+  background: #fff;
+  color: var(--primary-600, #e54f38);
+}
+
+/* The plain <select> (no Select2): the same entry, as far as <option> can be styled. */
+option[value="dynamic_create"] {
+  font-weight: 600;
+  color: var(--primary-600, #e54f38);
+}
