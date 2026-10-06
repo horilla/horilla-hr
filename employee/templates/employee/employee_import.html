@@ -46,7 +46,8 @@
                     </label>
                     <input type="file" name="file"/ required style="margin-bottom: 0;">
                     <div class="d-inline float-end mb-2">
-                        <a href="{% static 'employee/work_info_import.xlsx' %}"
+                        {# ?v= : a browser keeps a downloaded template for good, so a changed one needs a new address #}
+                        <a href="{% static 'employee/work_info_import.xlsx' %}?v=2"
                             class="oh-dropdown__link"
                             id="workInfoImportButton"
                             style="text-decoration:none; display:inline-block;"
