@@ -8,7 +8,9 @@ the future, and Payslips for the one most-recently-closed calendar month
 only. Helpdesk tickets are spread over the last six months and routed through
 each branch's department / job position hierarchy. Each branch also gets its
 own asset inventory with allocations, requests and service requests, and
-its own recruitments with stage pipelines, candidates and interviews.
+its own recruitments with stage pipelines, candidates and interviews, and
+its own performance data: objectives with key results, employee objectives,
+360 feedback, meetings and bonus points.
 
 Built on the same two-layer trick as create_precise_payroll_fixtures.py:
 real Attendance/LeaveRequest rows for a calendar that looks genuine, plus an
@@ -33,6 +35,7 @@ Run:
 import calendar
 import contextlib
 import datetime
+import random
 
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
@@ -97,6 +100,42 @@ EMPLOYEE_NAMES = [
     ("Joseph", "Doyle"),
 ]
 
+# Extra shifts per branch (name, start, end) beside the 09:00-18:00 default,
+# and the work types employees are spread across -- so the attendance
+# dashboard's shift / work-type breakdowns have more than one bucket.
+EXTRA_SHIFTS = [
+    ("Morning Shift", datetime.time(7, 0), datetime.time(16, 0)),
+    ("Evening Shift", datetime.time(12, 0), datetime.time(21, 0)),
+]
+DEFAULT_SHIFT_HOURS = (datetime.time(9, 0), datetime.time(18, 0))
+# Chart variety: share of attendance days dropped (i.e. absences) per shift
+# slot, and per-department tweaks to lateness and worked hours, so the
+# attendance dashboard's bars sit at clearly different levels.
+SHIFT_ABSENCE_PERCENT = [5, 5, 18, 35]  # default, default, morning, evening
+DEPARTMENT_LATE_EVERY = {
+    "Engineering": 3,
+    "Sales": 4,
+    "Human Resources": 9,
+    "Marketing": 6,
+    "Finance": 14,
+}
+DEPARTMENT_EARLY_EVERY = {
+    "Engineering": 12,
+    "Sales": 4,
+    "Human Resources": 6,
+    "Marketing": 3,
+    "Finance": 9,
+}
+# Minutes added to (or removed from) clock-out, so avg working hours differ.
+DEPARTMENT_HOURS_OFFSET = {
+    "Engineering": 70,
+    "Sales": 25,
+    "Human Resources": 0,
+    "Marketing": -35,
+    "Finance": -60,
+}
+WORK_TYPE_NAMES = ["Work From Office", "Work From Home", "Hybrid"]
+
 FEMALE_FIRST_NAMES = {
     "Olivia",
     "Sophia",
@@ -114,6 +153,33 @@ FEMALE_FIRST_NAMES = {
     "Sofia",
     "Victoria",
 }
+
+# Employee dashboard: request counts per branch.
+DASHBOARD_PENDING_SHIFT_REQUESTS = 4
+DASHBOARD_PENDING_WORK_TYPE_REQUESTS = 4
+DASHBOARD_PENDING_SHIFT_ALLOCATIONS = 3
+DASHBOARD_PENDING_DOCUMENT_REQUESTS = 5
+DASHBOARD_REQUEST_REASONS = [
+    "Commute timing has changed.",
+    "Need a quieter setup for focused work.",
+    "Temporary family commitment.",
+    "Team coverage adjustment.",
+]
+DASHBOARD_DOCUMENT_TITLES = [
+    "Address Proof",
+    "Educational Certificate",
+    "Previous Employment Letter",
+    "Passport Copy",
+    "Bank Account Details",
+    "Medical Fitness Certificate",
+]
+
+# Hire vs Turnover chart: how many months back each hire joined / each exit
+# falls. Joins stop short of the current month, which the Birthdays &
+# Anniversaries widget reads as anniversaries (a hire this month would show as
+# a "0 yr anniversary").
+TURNOVER_HIRE_MONTHS_AGO = [5, 5, 4, 3, 3, 2, 1, 1]
+TURNOVER_EXIT_MONTHS_AGO = [4, 3, 2, 2, 1, 0]
 
 PROJECT_SPECS = [
     # (title, status, start offset, end offset, task status cycle)
@@ -146,13 +212,6 @@ PROJECT_TASK_TITLES = [
 ]
 
 PROJECT_STAGES = [("In Progress", False), ("Review", False), ("Done", True)]
-
-# Hire vs Turnover chart: how many months back each hire joined / each exit
-# falls. Joins stop short of the current month, which the Birthdays &
-# Anniversaries widget reads as anniversaries (a hire this month would show as
-# a "0 yr anniversary").
-TURNOVER_HIRE_MONTHS_AGO = [5, 5, 4, 3, 3, 2, 1, 1]
-TURNOVER_EXIT_MONTHS_AGO = [4, 3, 2, 2, 1, 0]
 
 WEEKDAY_NAMES = ["monday", "tuesday", "wednesday", "thursday", "friday"]
 
@@ -477,12 +536,158 @@ TALENT_POOL_REASONS = [
 ]
 TALENT_POOL_MEMBERS = 6
 
+# One shared 5-stage onboarding pipeline (+ one task per stage) is built per
+# recruitment that has hired candidates; "Initial" is skipped here since the
+# Recruitment post_save signal already creates it.
+ONBOARDING_STAGE_TITLES = [
+    "Initial",
+    "Introduction & Orientation",
+    "Technical Setup",
+    "Training & Knowledge Transfer",
+    "First Task Assignment",
+]
+ONBOARDING_STAGE_TASKS = {
+    "Initial": "Complete Employment Paperwork",
+    "Introduction & Orientation": "Attend Orientation Session",
+    "Technical Setup": "Set Up Laptop and Accounts",
+    "Training & Knowledge Transfer": "Complete Onboarding Training Modules",
+    "First Task Assignment": "Submit First Assignment",
+}
+# (stage the candidate currently sits at, that stage's own task status,
+# whether the onboarding portal has been sent and, if so, whether it has
+# been used) -- cycled across each recruitment's hired candidates so every
+# company gets a realistic mix: a couple finished, a couple mid-pipeline,
+# one with a stuck task, one brand new hire nothing has been sent to yet.
+ONBOARDING_PROGRESS_PLAN = [
+    ("First Task Assignment", "done", True),
+    ("First Task Assignment", "done", True),
+    ("Technical Setup", "ongoing", False),
+    ("Technical Setup", "stuck", False),
+    ("Introduction & Orientation", "ongoing", False),
+    ("Initial", "todo", None),
+]
+
+PERFORMANCE_OBJECTIVES = [
+    (
+        "Improve customer satisfaction",
+        ["Raise CSAT score", "Cut ticket response time", "Close escalations"],
+    ),
+    (
+        "Grow quarterly revenue",
+        ["New accounts signed", "Upsell conversions", "Pipeline coverage"],
+    ),
+    (
+        "Strengthen engineering quality",
+        ["Reduce open bugs", "Raise test coverage", "Shorten release cycle"],
+    ),
+    ("Upskill the team", ["Complete certifications", "Run knowledge-sharing talks"]),
+    (
+        "Streamline internal operations",
+        ["Automate manual reports", "Reduce onboarding time"],
+    ),
+    ("Improve employee engagement", ["Run pulse surveys", "Lift eNPS score"]),
+    (
+        "Expand into new markets",
+        ["Launch regional pilots", "Sign channel partners", "Localise product pages"],
+    ),
+    (
+        "Reduce operating costs",
+        ["Renegotiate vendor contracts", "Cut cloud spend", "Consolidate tooling"],
+    ),
+    (
+        "Accelerate product delivery",
+        ["Ship roadmap milestones", "Lower cycle time", "Cut review backlog"],
+    ),
+    (
+        "Strengthen security posture",
+        ["Close audit findings", "Complete access reviews", "Run phishing drills"],
+    ),
+    (
+        "Improve talent acquisition",
+        ["Fill open roles", "Shorten time to hire", "Raise offer acceptance"],
+    ),
+    (
+        "Boost customer retention",
+        ["Lower churn rate", "Launch loyalty program", "Run renewal outreach"],
+    ),
+    (
+        "Enhance data and analytics",
+        ["Build KPI dashboards", "Improve data quality", "Train teams on reporting"],
+    ),
+]
+PERFORMANCE_OBJECTIVES_PER_COMPANY = [8, 5]
+PERFORMANCE_STATUSES = [
+    "On Track",
+    "On Track",
+    "Closed",
+    "Behind",
+    "On Track",
+    "At Risk",
+    "Not Started",
+    "Closed",
+]
+PERFORMANCE_FEEDBACK_STATUSES = [
+    "Not Started",
+    "On Track",
+    "On Track",
+    "Behind",
+    "At Risk",
+    "Closed",
+]
+PERFORMANCE_PROGRESS_RANGE = {
+    "Not Started": (0, 0),
+    "On Track": (45, 90),
+    "Behind": (20, 50),
+    "At Risk": (5, 30),
+    "Closed": (100, 100),
+}
+PERFORMANCE_FEEDBACK_CYCLES = [
+    "Quarterly Review",
+    "Mid-year Check-in",
+    "Peer Feedback Round",
+]
+PERFORMANCE_QUESTIONS = [
+    ("How would you rate this person's overall performance?", "2"),
+    ("What are this person's biggest strengths?", "1"),
+    ("Does this person collaborate well with the team?", "3"),
+]
+PERFORMANCE_MEETING_TITLES = [
+    "Monthly one-on-one",
+    "Goal alignment sync",
+    "Performance check-in",
+    "Quarterly review prep",
+]
+# Days from today, so the dashboard's next-14-days window has meetings in it.
+PERFORMANCE_MEETING_DAY_OFFSETS = [-12, 1, 3, 6, 9, 12]
+PERFORMANCE_EMPLOYEES_PER_COMPANY = 16
+PERFORMANCE_MANAGERS_PER_OBJECTIVE = 2
+PERFORMANCE_FEEDBACKS_PER_COMPANY = 6
+
 
 def _add_months(d, delta):
     m = d.month - 1 + delta
     y = d.year + m // 12
     m = m % 12 + 1
     return datetime.date(y, m, 1)
+
+
+def _create_leave(**fields):
+    """
+    LeaveRequest.objects.create that never lets one employee hold two leaves
+    over the same day. The ORM bypasses the form's overlap validation, so the
+    generator has to enforce it: a leave that would overlap an existing one
+    (any status but rejected/cancelled) is skipped.
+    """
+    from leave.models import LeaveRequest
+
+    clash = LeaveRequest.objects.filter(
+        employee_id=fields["employee_id"],
+        start_date__lte=fields["end_date"],
+        end_date__gte=fields["start_date"],
+    ).exclude(status__in=["rejected", "cancelled"])
+    if clash.exists():
+        return None
+    return LeaveRequest.objects.create(**fields)
 
 
 def _weekdays(start, end):
@@ -534,6 +739,8 @@ class Command(BaseCommand):
             interviews_created
         ) = 0
         pools_created = pool_members_created = 0
+        onboarded_created = portals_sent = portals_incomplete = 0
+        performance_totals = [0] * 6
         for company_spec in COMPANIES:
             self.stdout.write(f"\n=== {company_spec['name']} ===")
             company, shift = self._scaffolding(company_spec)
@@ -585,8 +792,10 @@ class Command(BaseCommand):
             self._ongoing_leave_for(employees, today, paid_type, unpaid_type)
             self._today_attendance_for(employees, today, shift)
             self._pending_attendance_request_for(employees, older_month_start)
+            self._shifts_worktypes_punctuality_for(company, employees, shift)
             self._pending_leave_for(employees, today, unpaid_type)
             with _as_request():
+                self._employee_dashboard_for(company, employees, shift, today)
                 self._loans_for(employees, today)
                 self._reimbursements_for(employees, today)
                 self._policy_and_discipline(company, employees)
@@ -607,6 +816,19 @@ class Command(BaseCommand):
                 interviews_created += interviews
                 pools_created += pools
                 pool_members_created += pool_members
+                onboarded, sent, incomplete = self._onboarding_for(
+                    company, employees, today
+                )
+                onboarded_created += onboarded
+                portals_sent += sent
+                portals_incomplete += incomplete
+                performance = self._performance_for(
+                    company, employees, today, COMPANIES.index(company_spec)
+                )
+                performance_totals = [
+                    total + added
+                    for total, added in zip(performance_totals, performance)
+                ]
 
             batch = self._run_payroll_batch(
                 employees[:-UNRUN_PER_COMPANY],
@@ -659,6 +881,27 @@ class Command(BaseCommand):
                 f"Talent pool: {pools_created} pools ({pool_members_created} members)"
             )
         )
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Onboarding:  {onboarded_created} candidates in the pipeline, "
+                f"{portals_sent} portals sent ({portals_incomplete} incomplete)"
+            )
+        )
+        (
+            objectives_total,
+            emp_objectives_total,
+            krs_total,
+            feedbacks_total,
+            meetings_total,
+            bonus_total,
+        ) = performance_totals
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Performance: {objectives_total} objectives, {emp_objectives_total} employee "
+                f"objectives, {krs_total} key results, {feedbacks_total} feedbacks, "
+                f"{meetings_total} meetings, {bonus_total} bonus awards"
+            )
+        )
 
     # -- scaffolding ---------------------------------------------------------
 
@@ -702,6 +945,27 @@ class Command(BaseCommand):
                 based_on_week_day=week_day,
             )
             weekly_off.company_id.add(company)
+
+        # Same weekday schedule as the default shift, with its own hours.
+        self._shift_hours = {shift.pk: DEFAULT_SHIFT_HOURS}
+        self._extra_shifts = {}
+        for shift_name, start, end in EXTRA_SHIFTS:
+            extra = EmployeeShift.objects.create(employee_shift=f"{name} {shift_name}")
+            extra.company_id.add(company)
+            for day_name in WEEKDAY_NAMES:
+                day, _created = EmployeeShiftDay.objects.get_or_create(day=day_name)
+                EmployeeShiftSchedule.objects.create(
+                    day=day,
+                    shift_id=extra,
+                    start_time=start,
+                    end_time=end,
+                )
+            self._shift_hours[extra.pk] = (start, end)
+            self._extra_shifts[shift_name] = extra
+        EmployeeShiftSchedule.objects.filter(shift_id=shift).update(
+            start_time=DEFAULT_SHIFT_HOURS[0],
+            end_time=DEFAULT_SHIFT_HOURS[1],
+        )
 
         self.stdout.write(f"  Company: {company}, shift: {shift.employee_shift}")
         return company, shift
@@ -1055,7 +1319,7 @@ class Command(BaseCommand):
             )
         for position, day in enumerate(older_leave_days):
             leave_type = paid_type if position % 2 == 0 else unpaid_type
-            LeaveRequest.objects.create(
+            _create_leave(
                 employee_id=employee,
                 leave_type_id=leave_type,
                 start_date=day,
@@ -1073,7 +1337,7 @@ class Command(BaseCommand):
         skip_day = None
         if current_weekdays and index % 5 == 0:
             skip_day = current_weekdays[-1]
-            LeaveRequest.objects.create(
+            _create_leave(
                 employee_id=employee,
                 leave_type_id=unpaid_type,
                 start_date=skip_day,
@@ -1108,7 +1372,7 @@ class Command(BaseCommand):
                     future_start + datetime.timedelta(days=1), leave_horizon_end
                 )
                 leave_type = paid_type if index % 2 == 0 else unpaid_type
-                LeaveRequest.objects.create(
+                _create_leave(
                     employee_id=employee,
                     leave_type_id=leave_type,
                     start_date=future_start,
@@ -1171,7 +1435,7 @@ class Command(BaseCommand):
                 paid_leave_count += 1
             else:
                 unpaid_leave_count += 1
-            LeaveRequest.objects.create(
+            _create_leave(
                 employee_id=employee,
                 leave_type_id=leave_type,
                 start_date=day,
@@ -1315,7 +1579,7 @@ class Command(BaseCommand):
 
         for employee in employees[8:10]:
             start = today + datetime.timedelta(days=5)
-            LeaveRequest.objects.create(
+            _create_leave(
                 employee_id=employee,
                 leave_type_id=unpaid_type,
                 start_date=start,
@@ -1346,7 +1610,10 @@ class Command(BaseCommand):
                 employee_id=employee, attendance_date__range=(start, end)
             ).delete()
             leave_type = paid_type if offset % 2 == 0 else unpaid_type
-            LeaveRequest.objects.create(
+            LeaveRequest.objects.filter(
+                employee_id=employee, start_date__lte=end, end_date__gte=start
+            ).delete()
+            _create_leave(
                 employee_id=employee,
                 leave_type_id=leave_type,
                 start_date=start,
@@ -1418,14 +1685,244 @@ class Command(BaseCommand):
                 minimum_hour="08:00",
                 attendance_validated=True,
             )
-            if kind:
-                # .save() not .create(): the model's save() runs super().save() twice,
-                # which a create()'s force_insert turns into a duplicate-pk error.
-                AttendanceLateComeEarlyOut(
-                    attendance_id=attendance,
-                    employee_id=employee,
-                    type=kind,
-                ).save()
+
+    def _shifts_worktypes_punctuality_for(self, company, employees, default_shift):
+        """
+        Spread employees over three shifts and three work types, then rewrite
+        every existing Attendance row to match: shift_id/work_type_id follow
+        the employee, clock-in/out follow that shift's hours, and a
+        deterministic subset of days is made a late arrival (clock-in 15-70
+        minutes after shift start) or an early departure (clock-out 30-90
+        minutes before shift end), each with its AttendanceLateComeEarlyOut
+        row -- the table the attendance dashboard's Late Arrival / Early
+        Out cards and per-department chart count. Every 4th employee is
+        deliberately chronically late so departments differ in the chart.
+        Rows are written with .update() so no clock-in/out side effects fire.
+        """
+        from attendance.models import Attendance, AttendanceLateComeEarlyOut
+        from base.models import WorkType
+        from employee.models import EmployeeWorkInformation
+
+        work_types = []
+        for wt_name in WORK_TYPE_NAMES:
+            work_type = WorkType.objects.create(
+                work_type=f"{wt_name} ({company.company})"
+            )
+            work_type.company_id.add(company)
+            work_types.append(work_type)
+
+        shifts = [default_shift, default_shift, *self._extra_shifts.values()]
+        departments = {
+            w.employee_id_id: w.department_id.department if w.department_id else None
+            for w in EmployeeWorkInformation.objects.filter(
+                employee_id__in=employees
+            ).select_related("department_id")
+        }
+        late_total = early_total = absent_total = 0
+        for index, employee in enumerate(employees):
+            shift_slot = index % len(shifts)
+            shift = shifts[shift_slot]
+            department = departments.get(employee.pk)
+            work_type = work_types[index % len(work_types)]
+            EmployeeWorkInformation.objects.filter(employee_id=employee).update(
+                shift_id=shift,
+                work_type_id=work_type,
+            )
+            start, end = self._shift_hours[shift.pk]
+            late_every = DEPARTMENT_LATE_EVERY.get(department, 7)
+            early_every = DEPARTMENT_EARLY_EVERY.get(department, 9)
+            if index % 4 == 0:  # chronically late regardless of department
+                late_every = min(late_every, 3)
+            hours_offset = DEPARTMENT_HOURS_OFFSET.get(department, 0)
+            # Shift-level absence rate, nudged per employee so it isn't flat.
+            absence_percent = SHIFT_ABSENCE_PERCENT[shift_slot] + (index % 4) * 3
+
+            for attendance in Attendance.objects.filter(employee_id=employee):
+                day = attendance.attendance_date
+                # Today is left alone so the Checked In Today tile is unchanged.
+                if day != datetime.date.today() and (
+                    (index * 31 + day.toordinal() * 17) % 100 < absence_percent
+                ):
+                    attendance.delete()
+                    absent_total += 1
+                    continue
+                seed = index * 3 + day.toordinal()
+                clock_in = datetime.datetime.combine(day, start)
+                clock_out = datetime.datetime.combine(day, end) + datetime.timedelta(
+                    minutes=hours_offset
+                )
+                is_late = seed % late_every == 0
+                is_early = (seed + 2) % early_every == 0 and not is_late
+                if is_late:
+                    clock_in += datetime.timedelta(minutes=15 + (seed * 11) % 56)
+                if is_early:
+                    clock_out -= datetime.timedelta(minutes=30 + (seed * 7) % 61)
+                # Today may still be mid-shift; don't punch out in the future.
+                now = datetime.datetime.now()
+                if clock_out > now and day == now.date():
+                    clock_out = max(clock_in, now.replace(second=0, microsecond=0))
+
+                worked = int((clock_out - clock_in).total_seconds())
+                Attendance.objects.filter(pk=attendance.pk).update(
+                    shift_id=shift,
+                    work_type_id=work_type,
+                    attendance_clock_in=clock_in.time(),
+                    attendance_clock_out=clock_out.time(),
+                    attendance_worked_hour=f"{worked // 3600:02d}:{worked % 3600 // 60:02d}",
+                    at_work_second=worked,
+                )
+                for flag, kind in ((is_late, "late_come"), (is_early, "early_out")):
+                    if flag:
+                        # Plain save(), not create()/get_or_create(): the
+                        # model's save() saves twice (to fill employee_id),
+                        # and create()'s force_insert would make the second
+                        # save a duplicate INSERT on the same id.
+                        AttendanceLateComeEarlyOut(
+                            attendance_id=attendance,
+                            type=kind,
+                        ).save()
+                late_total += is_late
+                early_total += is_early
+
+        self.stdout.write(
+            f"  Shifts/work types assigned; {late_total} late arrivals, "
+            f"{early_total} early departures, {absent_total} absences"
+        )
+
+    # -- employee dashboard ------------------------------------------------------
+
+    def _employee_dashboard_for(self, company, employees, default_shift, today):
+        """
+        Data for the Employee dashboard (employee/dashboard.py), dated inside
+        the current month because that is the period the dashboard opens on:
+
+        * New joiners -- the employees left out of the payroll run (the last
+          UNRUN_PER_COMPANY) get a date_joining in this month. Employees in
+          the payroll run keep their old joining date, so payslips are
+          unaffected.
+        * Shift requests, shift allocations, work type requests and document
+          requests (the four KPI cards): mostly pending, plus a few approved /
+          canceled / rejected so each count differs from the list total.
+
+        Needs the branch's extra shifts and work types, so it must run after
+        _shifts_worktypes_punctuality_for.
+        """
+        from django.utils import timezone
+
+        from base.models import ShiftRequest, WorkType, WorkTypeRequest
+        from employee.models import EmployeeWorkInformation
+        from horilla_documents.models import Document
+
+        month_start = today.replace(day=1)
+
+        def stamp(model, obj, day):
+            # created_at is auto-set on save and is what the KPI cards filter on.
+            model._base_manager.filter(pk=obj.pk).update(
+                created_at=timezone.make_aware(
+                    datetime.datetime.combine(day, datetime.time(11, 0))
+                )
+            )
+
+        def month_day(i):
+            return month_start + datetime.timedelta(days=(i * 2) % today.day)
+
+        def reason(i):
+            return DASHBOARD_REQUEST_REASONS[i % len(DASHBOARD_REQUEST_REASONS)]
+
+        joiners = employees[-UNRUN_PER_COMPANY:]
+        for i, employee in enumerate(joiners):
+            EmployeeWorkInformation.objects.filter(employee_id=employee).update(
+                date_joining=month_day(i + 1)
+            )
+
+        shifts = [default_shift, *self._extra_shifts.values()]
+        work_types = list(WorkType.objects.filter(company_id=company).order_by("pk"))
+        works = {
+            w.employee_id_id: w
+            for w in EmployeeWorkInformation.objects.filter(employee_id__in=employees)
+        }
+
+        def other_shift(employee):
+            current = works[employee.pk].shift_id
+            return next((s for s in shifts if s != current), shifts[0])
+
+        def other_work_type(employee):
+            current = works[employee.pk].work_type_id
+            return next((w for w in work_types if w != current), work_types[0])
+
+        requesters = employees[14:]
+
+        shift_states = [{}] * DASHBOARD_PENDING_SHIFT_REQUESTS + [
+            {"approved": True},
+            {"canceled": True},
+        ]
+        for i, state in enumerate(shift_states):
+            employee = requesters[i % len(requesters)]
+            request = ShiftRequest.objects.create(
+                employee_id=employee,
+                shift_id=other_shift(employee),
+                previous_shift_id=works[employee.pk].shift_id,
+                requested_date=month_day(i) + datetime.timedelta(days=3),
+                requested_till=month_day(i) + datetime.timedelta(days=30),
+                description=reason(i),
+                **state,
+            )
+            stamp(ShiftRequest, request, month_day(i))
+
+        # Allocations are ShiftRequests with reallocate_to set.
+        allocation_states = [{}] * DASHBOARD_PENDING_SHIFT_ALLOCATIONS + [
+            {"reallocate_approved": True}
+        ]
+        for i, state in enumerate(allocation_states):
+            employee = requesters[(i + 6) % len(requesters)]
+            request = ShiftRequest.objects.create(
+                employee_id=employee,
+                reallocate_to=requesters[(i + 7) % len(requesters)],
+                shift_id=other_shift(employee),
+                previous_shift_id=works[employee.pk].shift_id,
+                requested_date=month_day(i + 2) + datetime.timedelta(days=2),
+                requested_till=month_day(i + 2) + datetime.timedelta(days=14),
+                description=reason(i + 1),
+                **state,
+            )
+            stamp(ShiftRequest, request, month_day(i + 2))
+
+        work_type_states = [{}] * DASHBOARD_PENDING_WORK_TYPE_REQUESTS + [
+            {"approved": True},
+            {"canceled": True},
+        ]
+        for i, state in enumerate(work_type_states):
+            employee = requesters[(i + 3) % len(requesters)]
+            request = WorkTypeRequest.objects.create(
+                employee_id=employee,
+                work_type_id=other_work_type(employee),
+                previous_work_type_id=works[employee.pk].work_type_id,
+                requested_date=month_day(i + 1) + datetime.timedelta(days=2),
+                requested_till=month_day(i + 1) + datetime.timedelta(days=20),
+                description=reason(i + 2),
+                **state,
+            )
+            stamp(WorkTypeRequest, request, month_day(i + 1))
+
+        document_statuses = ["requested"] * DASHBOARD_PENDING_DOCUMENT_REQUESTS + [
+            "approved",
+            "rejected",
+        ]
+        for i, status in enumerate(document_statuses):
+            document = Document.objects.create(
+                title=DASHBOARD_DOCUMENT_TITLES[i % len(DASHBOARD_DOCUMENT_TITLES)],
+                employee_id=requesters[(i + 5) % len(requesters)],
+                status=status,
+                reject_reason="Image is not legible." if status == "rejected" else None,
+            )
+            stamp(Document, document, month_day(i))
+
+        self.stdout.write(
+            f"  Employee dashboard: {len(joiners)} new joiners, "
+            f"{len(shift_states)} shift requests, {len(allocation_states)} shift "
+            f"allocations, {len(work_type_states)} work type requests, "
+            f"{len(document_statuses)} documents"
+        )
 
     def _pending_attendance_request_for(self, employees, older_month_start):
         """One attendance-correction request left pending, for the
@@ -2173,6 +2670,317 @@ class Command(BaseCommand):
             len(TALENT_POOLS),
             pool_members,
         )
+
+    def _performance_for(self, company, employees, today, slot):
+        """Objectives, employee key results, 360 feedback, meetings and bonus points for the branch."""
+        from django.utils import timezone
+
+        from pms.models import (
+            EmployeeBonusPoint,
+            EmployeeKeyResult,
+            EmployeeObjective,
+            Feedback,
+            KeyResult,
+            Meetings,
+            Objective,
+            Question,
+            QuestionTemplate,
+        )
+
+        rng = random.Random(7 + slot)
+        staff = employees[:PERFORMANCE_EMPLOYEES_PER_COMPANY]
+        month_start = today.replace(day=1)
+
+        template = QuestionTemplate.objects.create(
+            question_template=f"{company.company} Performance Review"
+        )
+        template.company_id.add(company)
+        for text, kind in PERFORMANCE_QUESTIONS:
+            Question.objects.create(
+                question=text, question_type=kind, template_id=template
+            )
+
+        first = sum(PERFORMANCE_OBJECTIVES_PER_COMPANY[:slot])
+        count = PERFORMANCE_OBJECTIVES_PER_COMPANY[
+            slot % len(PERFORMANCE_OBJECTIVES_PER_COMPANY)
+        ]
+        objectives = []
+        for index, (title, kr_titles) in enumerate(
+            PERFORMANCE_OBJECTIVES[first : first + count]
+        ):
+            objective = Objective.objects.create(
+                title=title,
+                description=f"{title} across {company.company}.",
+                company_id=company,
+            )
+            objective.managers.add(
+                *[
+                    staff[(index + step) % len(staff)]
+                    for step in range(PERFORMANCE_MANAGERS_PER_OBJECTIVE)
+                ]
+            )
+            key_results = [
+                KeyResult.objects.create(
+                    title=kr_title,
+                    description=kr_title,
+                    progress_type="%",
+                    target_value=100,
+                    company_id=company,
+                )
+                for kr_title in kr_titles
+            ]
+            objective.key_result_id.add(*key_results)
+            objectives.append((objective, key_results))
+
+        employee_objectives = employee_key_results = 0
+        for index, employee in enumerate(staff):
+            objective, key_results = objectives[index % len(objectives)]
+            status = PERFORMANCE_STATUSES[index % len(PERFORMANCE_STATUSES)]
+            low, high = PERFORMANCE_PROGRESS_RANGE[status]
+            progress = rng.randint(low, high)
+            start = month_start - datetime.timedelta(days=rng.randint(5, 45))
+            end = today + datetime.timedelta(days=rng.randint(20, 90))
+            if status == "Closed":
+                end = max(
+                    month_start, today - datetime.timedelta(days=rng.randint(0, 6))
+                )
+
+            employee_objective = EmployeeObjective.objects.create(
+                employee_id=employee,
+                objective_id=objective,
+                objective=objective.title,
+                objective_description=objective.description,
+                start_date=start,
+                end_date=end,
+                status=status,
+                progress_percentage=progress,
+            )
+            employee_objective.key_result_id.add(*key_results)
+            employee_objectives += 1
+            for key_result in key_results:
+                if status == "Closed":
+                    kr_progress = 100
+                elif status == "Not Started":
+                    kr_progress = 0
+                else:
+                    kr_progress = max(0, min(100, progress + rng.randint(-12, 12)))
+                EmployeeKeyResult.objects.create(
+                    key_result=key_result.title,
+                    key_result_description=key_result.description,
+                    employee_objective_id=employee_objective,
+                    key_result_id=key_result,
+                    progress_type="%",
+                    status=status,
+                    start_value=0,
+                    current_value=kr_progress,
+                    target_value=100,
+                    start_date=start,
+                    end_date=end,
+                    progress_percentage=kr_progress,
+                )
+                employee_key_results += 1
+            EmployeeObjective.objects.filter(pk=employee_objective.pk).update(
+                end_date=end
+            )
+
+        feedbacks = 0
+        for index, employee in enumerate(staff[:PERFORMANCE_FEEDBACKS_PER_COMPANY]):
+            feedback = Feedback.objects.create(
+                review_cycle=PERFORMANCE_FEEDBACK_CYCLES[
+                    index % len(PERFORMANCE_FEEDBACK_CYCLES)
+                ],
+                employee_id=employee,
+                manager_id=staff[(index + 1) % len(staff)],
+                question_template_id=template,
+                status=PERFORMANCE_FEEDBACK_STATUSES[
+                    index % len(PERFORMANCE_FEEDBACK_STATUSES)
+                ],
+                start_date=month_start - datetime.timedelta(days=rng.randint(0, 20)),
+                end_date=today + datetime.timedelta(days=rng.randint(10, 40)),
+            )
+            feedback.colleague_id.add(
+                *[staff[(index + step) % len(staff)] for step in (2, 3)]
+            )
+            feedbacks += 1
+
+        now = timezone.make_aware(
+            datetime.datetime.combine(today, datetime.time(11, 0))
+        )
+        meetings = 0
+        for index, offset in enumerate(PERFORMANCE_MEETING_DAY_OFFSETS):
+            meeting = Meetings.objects.create(
+                title=PERFORMANCE_MEETING_TITLES[
+                    index % len(PERFORMANCE_MEETING_TITLES)
+                ],
+                date=now + datetime.timedelta(days=offset, hours=index % 4),
+                company_id=company,
+            )
+            meeting.employee_id.add(
+                staff[index % len(staff)], staff[(index + 5) % len(staff)]
+            )
+            meeting.manager.add(staff[-(index + 1) % len(staff)])
+            meetings += 1
+
+        bonus_awards = 0
+        for employee_objective in EmployeeObjective.objects.filter(
+            status="Closed", employee_id__in=[employee.pk for employee in staff]
+        ).select_related("employee_id"):
+            EmployeeBonusPoint.objects.create(
+                employee_id=employee_objective.employee_id,
+                bonus_point=rng.choice([10, 15, 20]),
+                instance=employee_objective.objective,
+                based_on="objective",
+            )
+            bonus_awards += 1
+        for employee in staff[:3]:
+            EmployeeBonusPoint.objects.create(
+                employee_id=employee,
+                bonus_point=rng.choice([5, 10]),
+                instance="Key result milestone",
+                based_on="key result",
+            )
+            bonus_awards += 1
+
+        self.stdout.write(
+            f"  Performance: {len(objectives)} objectives, {employee_objectives} employee "
+            f"objectives, {employee_key_results} key results, {feedbacks} feedbacks, "
+            f"{meetings} meetings, {bonus_awards} bonus awards"
+        )
+        return (
+            len(objectives),
+            employee_objectives,
+            employee_key_results,
+            feedbacks,
+            meetings,
+            bonus_awards,
+        )
+
+    def _onboarding_for(self, company, employees, today):
+        """Branch-scoped onboarding pipeline for this company's hired candidates.
+
+        Walks every candidate _recruitment_for() left at the "hired" stage
+        through ONBOARDING_PROGRESS_PLAN, cycling that plan across them so
+        the onboarding dashboard has real pipeline/task/portal data to show
+        instead of starting empty. None of these candidates get a
+        converted_employee_id -- that flag marks a candidate as having left
+        the pipeline for good, which the dashboard and pipeline board both
+        treat as "no longer onboarding" and would just make them disappear.
+        """
+        import secrets
+
+        from employee.models import Employee
+        from onboarding.models import (
+            CandidateStage,
+            CandidateTask,
+            OnboardingPortal,
+            OnboardingStage,
+            OnboardingTask,
+        )
+        from recruitment.models import Candidate
+
+        managers = employees[:3]
+        # The superuser (only ever on COMPANIES[0] -- see _superuser()) is
+        # who actually logs in to check the dashboard, so their own "Managing
+        # Tasks" sidebar panel (which reads OnboardingTask.employee_id, not
+        # any stage/recruitment manager list) needs to carry at least some of
+        # these tasks too, or it's empty for the one person demoing this.
+        admin_employee = Employee._base_manager.filter(
+            employee_user_id__username="admin"
+        ).first()
+        task_managers = managers + [admin_employee] if admin_employee else managers
+        hired_candidates = list(
+            Candidate._base_manager.filter(
+                recruitment_id__company_id=company,
+                stage_id__stage_type="hired",
+            ).order_by("id")
+        )
+        if not hired_candidates:
+            return 0, 0, 0
+
+        onboarded = portal_sent = portal_incomplete = stuck_tasks = 0
+        # recruitment_id -> ({stage_title: OnboardingStage}, {stage_title: OnboardingTask})
+        pipeline_cache = {}
+
+        for i, candidate in enumerate(hired_candidates):
+            recruitment = candidate.recruitment_id
+            if recruitment.pk not in pipeline_cache:
+                stages = {
+                    "Initial": OnboardingStage._base_manager.get(
+                        recruitment_id=recruitment, stage_title="Initial"
+                    )
+                }
+                for seq, stage_title in enumerate(ONBOARDING_STAGE_TITLES[1:], start=1):
+                    stages[stage_title] = OnboardingStage._base_manager.create(
+                        stage_title=stage_title,
+                        recruitment_id=recruitment,
+                        sequence=seq,
+                        is_final_stage=(stage_title == ONBOARDING_STAGE_TITLES[-1]),
+                    )
+                for stage in stages.values():
+                    stage.employee_id.set(managers)
+
+                tasks = {}
+                for stage_title, task_title in ONBOARDING_STAGE_TASKS.items():
+                    task = OnboardingTask._base_manager.create(
+                        task_title=task_title,
+                        stage_id=stages[stage_title],
+                        is_required=True,
+                    )
+                    task.employee_id.set(task_managers)
+                    tasks[stage_title] = task
+                pipeline_cache[recruitment.pk] = (stages, tasks)
+
+            stages, tasks = pipeline_cache[recruitment.pk]
+            current_stage_title, current_status, portal_used = ONBOARDING_PROGRESS_PLAN[
+                i % len(ONBOARDING_PROGRESS_PLAN)
+            ]
+            current_index = ONBOARDING_STAGE_TITLES.index(current_stage_title)
+
+            CandidateStage._base_manager.create(
+                candidate_id=candidate,
+                onboarding_stage_id=stages[current_stage_title],
+            )
+            onboarded += 1
+
+            for stage_title in ONBOARDING_STAGE_TITLES[:current_index]:
+                CandidateTask._base_manager.create(
+                    candidate_id=candidate,
+                    stage_id=stages[stage_title],
+                    onboarding_task_id=tasks[stage_title],
+                    status="done",
+                )
+            CandidateTask._base_manager.create(
+                candidate_id=candidate,
+                stage_id=stages[current_stage_title],
+                onboarding_task_id=tasks[current_stage_title],
+                status=current_status,
+            )
+            if current_status == "stuck":
+                stuck_tasks += 1
+
+            if portal_used is not None:
+                OnboardingPortal._base_manager.create(
+                    candidate_id=candidate,
+                    token=secrets.token_hex(15),
+                    used=portal_used,
+                )
+                # Mirrors what the real "Send Portal" action does (see
+                # email_send in onboarding/views.py) -- flips once a portal
+                # is actually sent, not just because the candidate is in the
+                # pipeline.
+                Candidate._base_manager.filter(pk=candidate.pk).update(
+                    start_onboard=True
+                )
+                portal_sent += 1
+                if not portal_used:
+                    portal_incomplete += 1
+
+        self.stdout.write(
+            f"  Onboarding:  {onboarded} candidates in the pipeline, "
+            f"{portal_sent} portals sent ({portal_incomplete} incomplete), "
+            f"{stuck_tasks} stuck task(s)"
+        )
+        return onboarded, portal_sent, portal_incomplete
 
 
 @contextlib.contextmanager
