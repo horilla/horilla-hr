@@ -27,6 +27,7 @@ from django.views.generic import RedirectView
 from django.views.i18n import JavaScriptCatalog
 
 import notifications.urls
+from horilla_crumbs.views import breadcrumbs_fragment
 
 from . import settings
 from .__version__ import API_VERSION
@@ -145,6 +146,7 @@ urlpatterns = [
         name="accounts-login-redirect",
     ),
     path("accounts/", include("django.contrib.auth.urls")),
+    path("breadcrumbs-fragment/", breadcrumbs_fragment, name="breadcrumbs-fragment"),
     path("", include("base.urls")),
     path("", include("horilla_automations.urls")),
     path("", include("horilla_views.urls")),

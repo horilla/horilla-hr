@@ -1235,6 +1235,44 @@
           } catch (_) {}
         });
 
+        // A page opened by swapping a fragment in place (a row opening a record,
+        // say) carries no header, so its crumb was never shown. Ask the server
+        // for the bar at the address the browser has just been pushed to.
+        function refreshCrumbsFor(path) {
+          var bar = document.getElementById("breadcrumbs-container");
+          if (!bar || !path) return;
+          fetch("{% url 'breadcrumbs-fragment' %}?path=" + encodeURIComponent(path), {
+            credentials: "same-origin",
+          })
+            .then(function (r) { return r.ok ? r.text() : ""; })
+            .then(function (html) { if (html) bar.innerHTML = html; })
+            .catch(function () {});
+        }
+        // Every in-place move that changes the address goes through pushState --
+        // htmx's own, and the hand-written ones such as a profile's Back button --
+        // so the bar follows the address there, whoever made the move.
+        (function () {
+          var original = window.history.pushState;
+          window.history.pushState = function (state, title, url) {
+            var result = original.apply(this, arguments);
+            try {
+              if (url) refreshCrumbsFor(new URL(url, window.location.href).pathname);
+            } catch (_) {}
+            return result;
+          };
+        })();
+        // The browser's own back/forward, whether htmx restores the page from
+        // its cache or the entry was pushed by hand (a popstate with no htmx).
+        window.addEventListener("popstate", function () {
+          refreshCrumbsFor(window.location.pathname);
+        });
+        window.addEventListener("pageshow", function (evt) {
+          if (evt.persisted) refreshCrumbsFor(window.location.pathname);
+        });
+        document.addEventListener("htmx:historyRestore", function (evt) {
+          refreshCrumbsFor((evt && evt.detail && evt.detail.path) || window.location.pathname);
+        });
+
         document.addEventListener("htmx:beforeSwap", function (evt) {
           try {
             var trigger = evt && evt.detail && evt.detail.elt;

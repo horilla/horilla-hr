@@ -5,6 +5,7 @@ This module is used to map url path with view methods.
 """
 
 from django.urls import path
+from django.utils.translation import gettext_lazy as _
 
 from base.templatetags.horillafilters import app_installed
 from base.views import object_delete, object_duplicate
@@ -146,7 +147,7 @@ urlpatterns = [
         "employee-view-update/<int:obj_id>/",
         views.employee_view_update,
         name="employee-view-update",
-        kwargs={"model": Employee},
+        kwargs={"model": Employee, "crumb_label": _("Edit")},
     ),
     path(
         "employee-create-personal-info/",
