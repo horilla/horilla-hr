@@ -748,6 +748,16 @@ class EmployeeObjectiveFilter(HorillaFilterSet):
     )
     kr_progress_percentage__gte = django_filters.NumberFilter(method="kr_progress_gte")
     kr_progress_percentage__lte = django_filters.NumberFilter(method="kr_progress_lte")
+    employee_id__employee_work_info__department_id = django_filters.NumberFilter(
+        field_name="employee_id__employee_work_info__department_id"
+    )
+    exclude_status = django_filters.CharFilter(method="exclude_status_method")
+
+    def exclude_status_method(self, queryset, name, value):
+        """
+        Hide employee objectives having the given status
+        """
+        return queryset.exclude(status=value)
 
     def kr_start_date_from_method(self, queryset, name, value):
         """
@@ -832,6 +842,39 @@ class EmployeeObjectiveFilter(HorillaFilterSet):
                 | (queryset.filter(employee_id__employee_last_name__icontains=split))
                 | (queryset.filter(objective__icontains=split))
                 | (queryset.filter(employee_key_result__key_result__icontains=split))
+            )
+
+        return empty.distinct()
+
+
+class EmployeeKeyResultListFilter(HorillaFilterSet):
+    """
+    Filter through EmployeeKeyResult model for the standalone list page
+    """
+
+    search = django_filters.CharFilter(method="search_method")
+
+    class Meta:
+        model = EmployeeKeyResult
+        fields = ["status"]
+
+    def search_method(self, queryset, _, value: str):
+        """
+        This method is used to search key result, employee and objective
+        """
+        values = value.split(" ")
+        empty = queryset.model.objects.none()
+        for split in values:
+            empty = (
+                empty
+                | queryset.filter(key_result__icontains=split)
+                | queryset.filter(
+                    employee_objective_id__employee_id__employee_first_name__icontains=split
+                )
+                | queryset.filter(
+                    employee_objective_id__employee_id__employee_last_name__icontains=split
+                )
+                | queryset.filter(employee_objective_id__objective__icontains=split)
             )
 
         return empty.distinct()

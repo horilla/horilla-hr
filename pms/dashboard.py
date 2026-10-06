@@ -11,6 +11,7 @@ from django.db.models import Avg, Count, F, FloatField, Q, Sum
 from django.db.models.functions import Coalesce
 from django.http import JsonResponse
 from django.shortcuts import render
+from django.utils import timezone
 
 from horilla.decorators import permission_required
 
@@ -48,7 +49,7 @@ def pms_dashboard_view(request):
 @permission_required("pms.view_employeeobjective")
 def pms_kpi_data(request):
     """Return PMS KPI summary data as JSON (tile counts match the lists they link to)."""
-    from pms.models import EmployeeKeyResult, EmployeeObjective, Feedback, Objective
+    from pms.models import EmployeeKeyResult, EmployeeObjective, Feedback
 
     # Every tile links to an unfiltered list page, so the counts are not
     # scoped to the picker range: key results can have no start/end date at
@@ -58,12 +59,7 @@ def pms_kpi_data(request):
     key_results = EmployeeKeyResult.objects.all()
     feedbacks = Feedback.objects.filter(archive=False)
 
-    total_objectives = (
-        Objective.objects.exclude(is_template=True)
-        .filter(Q(archive=False) | Q(archive__isnull=True))
-        .count()
-    )
-    assigned_objectives = objectives.count()
+    total_objectives = objectives.exclude(status="Closed").count()
     total_key_results = key_results.count()
     total_feedbacks = feedbacks.count()
 
@@ -78,13 +74,6 @@ def pms_kpi_data(request):
     # At-risk count
     at_risk = objectives.filter(status="At Risk").count()
 
-    # Closed objectives
-    closed = objectives.filter(status="Closed").count()
-
-    completion_rate = (
-        round((closed / assigned_objectives * 100), 1) if assigned_objectives > 0 else 0
-    )
-
     # Pending feedback (not started + on track)
     pending_feedback = feedbacks.filter(status__in=["Not Started", "On Track"]).count()
 
@@ -95,8 +84,6 @@ def pms_kpi_data(request):
             "total_feedbacks": total_feedbacks,
             "avg_progress": round(float(avg_progress), 1),
             "at_risk": at_risk,
-            "closed": closed,
-            "completion_rate": completion_rate,
             "pending_feedback": pending_feedback,
         }
     )
@@ -331,7 +318,7 @@ def pms_upcoming_meetings(request):
     """PMS meetings in the next 14 days (the card's "Next 14 days" label)."""
     from pms.models import Meetings
 
-    today = date.today()
+    today = timezone.localdate()
     from_date, to_date = today, today + timedelta(days=14)
     meetings = []
 
@@ -342,13 +329,14 @@ def pms_upcoming_meetings(request):
         ).order_by("date")[:10]
 
         for m in qs:
+            local_dt = timezone.localtime(m.date)
             meetings.append(
                 {
                     "id": m.id,
                     "title": m.title,
-                    "date": m.date.strftime("%b %d"),
-                    "time": m.date.strftime("%I:%M %p"),
-                    "days_away": (m.date.date() - today).days,
+                    "date": local_dt.strftime("%b %d"),
+                    "time": local_dt.strftime("%I:%M %p"),
+                    "days_away": (local_dt.date() - today).days,
                     "attendees": m.employee_id.count() + m.manager.count(),
                 }
             )

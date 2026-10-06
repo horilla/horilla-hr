@@ -1,0 +1,21 @@
+{% load i18n %}
+{{ form.employee_id.as_hidden }}
+{{ form.employee_id__employee_work_info__department_id.as_hidden }}
+<div class="oh-dropdown__filter-body">
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header">
+            <span class="oh-filter-section-icon"><ion-icon name="flag-outline"></ion-icon></span>
+            {% trans "Employee Objective" %}
+        </div>
+        <div class="oh-accordion-body">
+            <div class="row">
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label class="oh-label">{% trans "Status" %}</label>
+                        {{ form.status }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

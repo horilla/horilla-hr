@@ -242,6 +242,126 @@
         .pm-chart-card__body {
             padding: 6px 10px 10px;
         }
+        .pm-pill-legend {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 8px 0;
+        }
+        .pm-pill-chips {
+            display: contents;
+        }
+        .pm-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 10px;
+            border: 1px solid rgba(128, 128, 128, 0.2);
+            border-radius: 999px;
+            background: none;
+            color: inherit;
+            font-size: 11px;
+            font-weight: 500;
+            white-space: nowrap;
+            flex-shrink: 0;
+            cursor: pointer;
+            transition: opacity 0.15s, border-color 0.15s;
+        }
+        .pm-pill:hover {
+            border-color: #6366f1;
+        }
+        .pm-pill__dot {
+            width: 8px;
+            height: 8px;
+            flex-shrink: 0;
+            border-radius: 50%;
+        }
+        .pm-pill__name {
+            max-width: 130px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .pm-pill--off {
+            opacity: 0.45;
+        }
+        .pm-pill--off .pm-pill__dot {
+            filter: grayscale(1);
+        }
+        .pm-pill--more {
+            border-style: dashed;
+            color: #6366f1;
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+        .pm-pill-more {
+            position: relative;
+            display: inline-block;
+        }
+        .pm-pill-pop {
+            display: none;
+            position: absolute;
+            right: 0;
+            bottom: 100%;
+            padding-bottom: 8px;
+            z-index: 40;
+        }
+        .pm-pill-more:hover .pm-pill-pop,
+        .pm-pill-more:focus-within .pm-pill-pop {
+            display: block;
+        }
+        .pm-pill-pop__box {
+            width: max-content;
+            min-width: 200px;
+            max-width: 320px;
+            padding: 8px 4px 6px;
+            border: 1px solid rgba(128, 128, 128, 0.15);
+            border-radius: 10px;
+            background: #ffffff;
+            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.15);
+        }
+        .dark .pm-pill-pop__box {
+            background: #242424;
+        }
+        .pm-pill-pop__list {
+            max-height: 190px;
+            overflow-y: auto;
+        }
+        .pm-pill-pop__row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .pm-pill-pop__row:hover {
+            background: rgba(128, 128, 128, 0.1);
+        }
+        .pm-pill-pop__row input {
+            margin: 0;
+            accent-color: #6366f1;
+        }
+        .pm-pill-pop__text {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .pm-pill-pop__count {
+            margin-left: auto;
+            flex-shrink: 0;
+            font-size: 11px;
+            opacity: 0.55;
+        }
+        .pm-chart-card:has(.pm-pill-more:hover),
+        .pm-chart-card:has(.pm-pill-more:focus-within) {
+            position: relative;
+            z-index: 30;
+        }
         .pm-chart-card__body--scroll {
             max-height: 420px;
             overflow-y: auto;
@@ -501,19 +621,8 @@
         .pm-btn-customize {
             display: flex;
             align-items: center;
-            padding: 6px 12px;
             gap: 5px;
-            border: 1px solid rgba(128, 128, 128, 0.2);
-            border-radius: 8px;
-            background: none;
-            color: inherit;
             font-size: 13px;
-            cursor: pointer;
-            transition: all 0.15s;
-        }
-        .pm-btn-customize:hover {
-            border-color: var(--pm-indigo);
-            color: var(--pm-indigo);
         }
         .pm-customize-overlay {
             z-index: 1050;
@@ -829,7 +938,7 @@
         <div class="pm-header">
             <div>
                 <h1>{% trans "Performance Dashboard" %}</h1>
-                <div class="pm-header__date" id="pm-date"></div>
+                <div class="pm-header__date"><span data-period-label-pm></span></div>
                 <div class="pm-refresh">
                     <span class="pm-refresh__dot" id="pm-refresh-dot"></span><span
                         id="pm-refresh-text"
@@ -852,12 +961,17 @@
                     <span class="pm-period-picker__sep">&rarr;</span>
                     <input type="date" id="pm-to-date" title="{% trans 'To' %}">
                 </div>
-                <button class="pm-btn-customize" id="pm-open-customize" title="{% trans 'Customize' %}">
+                <button class="oh-btn oh-btn--secondary" id="pm-open-customize" title="{% trans 'Customize' %}">
                     ⚙ {% trans "Customize" %}
                 </button>
             </div>
         </div>
 
+        <div style="display:flex;justify-content:flex-end;margin-bottom:6px;">
+            <span tabindex="0" role="img" style="display:inline-flex;cursor:help;opacity:0.5;" title="{% trans 'Summary tiles show all-time totals and do not follow the selected period.' %}" aria-label="{% trans 'Summary tiles show all-time totals and do not follow the selected period.' %}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            </span>
+        </div>
         <div class="pm-kpi-grid" id="pm-kpi-grid">
             <div class="pm-skeleton pm-skeleton--kpi"></div>
             <div class="pm-skeleton pm-skeleton--kpi"></div>
@@ -879,7 +993,7 @@
                                 <div class="pm-chart-card__subtitle">{% trans "Active objectives" %}<span data-period-label></span></div>
                             </div>
                         </div>
-                        <div class="pm-chart-card__body"><div id="chart-obj-status"></div></div>
+                        <div class="pm-chart-card__body"><div id="chart-obj-status"></div><div id="legend-obj-status" class="pm-pill-legend"></div></div>
                     </div>
 
                     <div
@@ -893,7 +1007,7 @@
                                 <div class="pm-chart-card__subtitle">{% trans "Key results" %}<span data-period-label></span></div>
                             </div>
                         </div>
-                        <div class="pm-chart-card__body"><div id="chart-kr-status"></div></div>
+                        <div class="pm-chart-card__body"><div id="chart-kr-status"></div><div id="legend-kr-status" class="pm-pill-legend"></div></div>
                     </div>
 
                     <div
@@ -907,7 +1021,7 @@
                                 <div class="pm-chart-card__subtitle">{% trans "360° feedback cycles" %}<span data-period-label></span></div>
                             </div>
                         </div>
-                        <div class="pm-chart-card__body"><div id="chart-fb-status"></div></div>
+                        <div class="pm-chart-card__body"><div id="chart-fb-status"></div><div id="legend-fb-status" class="pm-pill-legend"></div></div>
                     </div>
 
                     <div
@@ -923,7 +1037,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="pm-chart-card__body"><div id="chart-dept-perf"></div></div>
+                        <div class="pm-chart-card__body"><div id="chart-dept-perf"></div><div id="legend-dept-perf" class="pm-pill-legend"></div></div>
                     </div>
 
                     <div
@@ -988,13 +1102,10 @@
             const cardBg = isDark ? '#242424' : '#ffffff';
             const COLORS = ['#E54F38','#22c55e','#f59e0b','#ef4444','#3b82f6','#a855f7','#06b6d4','#ec4899','#14b8a6','#f97316'];
             const statusColors = { 'Not Started': '#94a3b8', 'On Track': '#22c55e', 'Behind': '#f59e0b', 'At Risk': '#ef4444', 'Closed': '#E54F38' };
+            const esc = (v) => String(v ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
             const emptyHtml = (msg) => `<div class="pm-empty"><img src="/static/images/ui/no_records.svg" alt="">${msg}</div>`;
-            const objectiveListUrl = "{% url 'objective-list-view' %}";
-            const objectiveListUrlFor = id => id ? `${objectiveListUrl}?employee_id=${id}&open_tab=2` : '#';
-
-            document.getElementById('pm-date').textContent = new Date().toLocaleDateString('en-US', {
-                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-            });
+            const objectiveListUrl = "{% url 'employee-objective-list-view' %}";
+            const objectiveListUrlFor = id => id ? `${objectiveListUrl}?employee_id=${id}` : '#';
 
             // ── Period Picker ──
             const PERIOD_KEY = 'pm_period_v2';
@@ -1061,6 +1172,7 @@
             function applyPeriodLabels() {
                 const label = ' — ' + periodLabel();
                 document.querySelectorAll('[data-period-label]').forEach(el => { el.textContent = label; });
+                document.querySelectorAll('[data-period-label-pm]').forEach(el => { el.textContent = periodLabel(); });
             }
             function setPreset(p) {
                 const r = presetRange(p);
@@ -1197,25 +1309,25 @@
                 .then(r => r.json())
                 .then(data => {
                     document.getElementById('pm-kpi-grid').innerHTML = `
-                <a href="{% url 'objective-list-view' %}?open_tab=2" class="pm-kpi-card">
+                <a href="{% url 'employee-objective-list-view' %}?exclude_status=Closed" class="pm-kpi-card">
                     <div class="pm-kpi-card__icon pm-kpi-card__icon--indigo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
                     <div class="pm-kpi-card__label">{% trans "Objectives"|escapejs %}</div>
                     <div class="pm-kpi-card__value">${data.total_objectives}</div>
-                    <div class="pm-kpi-card__sub"><span class="pm-badge pm-badge--green">${data.completion_rate}% {% trans "Completed"|escapejs %}</span></div>
+                    <div class="pm-kpi-card__sub"><span class="pm-badge pm-badge--green">{% trans "Open Assignments"|escapejs %}</span></div>
                 </a>
-                <a href="{% url 'view-key-result' %}" class="pm-kpi-card">
+                <div class="pm-kpi-card" title="{% trans "Average progress across all employee key results,"|escapejs %}&#10;{% trans "Avg Progress"|escapejs %} = {% trans "Total Key Result Progress"|escapejs %} / {% trans "Total Key Results"|escapejs %} = ${data.avg_progress}%">
                     <div class="pm-kpi-card__icon pm-kpi-card__icon--green"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
                     <div class="pm-kpi-card__label">{% trans "Avg Progress"|escapejs %}</div>
                     <div class="pm-kpi-card__value">${data.avg_progress}%</div>
                     <div class="pm-kpi-card__sub"><span class="pm-badge pm-badge--blue">${data.total_key_results} {% trans "Key Results"|escapejs %}</span></div>
-                </a>
-                <a href="{% url 'objective-list-view' %}?status=At+Risk&open_tab=2" class="pm-kpi-card">
+                </div>
+                <a href="{% url 'employee-objective-list-view' %}?status=At+Risk" class="pm-kpi-card">
                     <div class="pm-kpi-card__icon pm-kpi-card__icon--red"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
                     <div class="pm-kpi-card__label">{% trans "At Risk"|escapejs %}</div>
                     <div class="pm-kpi-card__value">${data.at_risk}</div>
                     <div class="pm-kpi-card__sub"><span class="pm-badge pm-badge--red">{% trans "Objectives Need Attention"|escapejs %}</span></div>
                 </a>
-                <a href="{% url 'feedback-view' %}" class="pm-kpi-card">
+                <a href="{% url 'feedback-view' %}?open_tab=3" class="pm-kpi-card">
                     <div class="pm-kpi-card__icon pm-kpi-card__icon--amber"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></div>
                     <div class="pm-kpi-card__label">{% trans "Feedback"|escapejs %}</div>
                     <div class="pm-kpi-card__value">${data.total_feedbacks}</div>
@@ -1226,31 +1338,68 @@
             loadKpiCards();
 
             // ─── OBJECTIVE STATUS ───
-            // The status donuts start with the "Closed" slice switched off (it
-            // dwarfs the live work), even when it has no items yet so its legend
-            // entry already shows as off. Only the first rendered chart per key:
-            // a later refresh or period change doesn't undo what the user
-            // toggled. (An empty period renders the empty state, not the chart,
-            // so this stays armed until a chart is actually drawn.)
-            const closedHiddenOnce = {};
-            // Switching a donut slice off programmatically can make ApexCharts
-            // fire dataPointSelection (the click-through that navigates away),
-            // which sent the page to the Feedback list a moment after load. So
-            // only a real, trusted click outside that short window navigates.
-            const selectionBlockedUntil = {};
+            // Only a real, trusted click on a slice navigates to its list.
             function isRealSelection(key, e) {
-                return !!(e && e.isTrusted) && Date.now() > (selectionBlockedUntil[key] || 0);
+                return !!(e && e.isTrusted);
             }
-            function hideClosedOnFirstLoad(key, statuses) {
-                return (chart) => {
-                    if (closedHiddenOnce[key]) return;
-                    closedHiddenOnce[key] = true;
-                    const closed = statuses.find(s => s.status === 'Closed');
-                    if (closed) {
-                        selectionBlockedUntil[key] = Date.now() + 1500;
-                        chart.toggleSeries(closed.label);
+
+            const PILL_LEGEND_LIMIT = 5;
+
+            function makeOverflowLegend(el, { items, noun, isOff, onToggle }) {
+                el.style.color = textColor;
+                let visible = items.length;
+                const dot = (color) => `<span class="pm-pill__dot" style="background:${color};"></span>`;
+                const chipsHtml = (k) => items.slice(0, k).map((item, i) => `<button type="button" class="pm-pill${isOff(i) ? ' pm-pill--off' : ''}" data-idx="${i}" title="${esc(item.label)}">${dot(item.color)}<span class="pm-pill__name">${esc(item.label)}</span></button>`).join('');
+                const build = (k) => {
+                    visible = k;
+                    const rest = items.slice(k);
+                    let html = `<span class="pm-pill-chips">${chipsHtml(k)}</span>`;
+                    if (rest.length) {
+                        html += `<span class="pm-pill-more"><button type="button" class="pm-pill pm-pill--more">+${rest.length} ${esc(noun)}</button><div class="pm-pill-pop"><div class="pm-pill-pop__box"><div class="pm-pill-pop__list">`
+                            + rest.map((item, j) => `<label class="pm-pill-pop__row"><input type="checkbox" data-idx="${k + j}"${isOff(k + j) ? '' : ' checked'}>${dot(item.color)}<span class="pm-pill-pop__text">${esc(item.label)}</span>${item.count != null ? `<span class="pm-pill-pop__count">${esc(item.count)}</span>` : ''}</label>`).join('')
+                            + '</div></div></div></span>';
                     }
+                    el.innerHTML = html;
                 };
+                const render = () => build(Math.min(items.length, PILL_LEGEND_LIMIT));
+                const refresh = () => {
+                    const chips = el.querySelector('.pm-pill-chips');
+                    if (chips) chips.innerHTML = chipsHtml(visible);
+                    el.querySelectorAll('input[data-idx]').forEach(cb => { cb.checked = !isOff(Number(cb.dataset.idx)); });
+                };
+                el.onclick = (e) => {
+                    const chip = e.target.closest('button.pm-pill[data-idx]');
+                    if (!chip) return;
+                    onToggle(Number(chip.dataset.idx));
+                    refresh();
+                };
+                el.onchange = (e) => {
+                    if (!e.target.matches('input[data-idx]')) return;
+                    onToggle(Number(e.target.dataset.idx));
+                    refresh();
+                };
+                render();
+                return { render, refresh };
+            }
+
+            const hiddenSlices = {};
+            function makeStatusLegend(el, key, statuses, noun) {
+                if (!hiddenSlices[key]) hiddenSlices[key] = new Set(statuses.filter(s => s.status === 'Closed').map(s => s.status));
+                const hidden = hiddenSlices[key];
+                let chart = null;
+                const series = () => statuses.map(s => hidden.has(s.status) ? 0 : s.count);
+                const legend = makeOverflowLegend(el, {
+                    items: statuses.map(s => ({ label: s.label, color: statusColors[s.status] || '#94a3b8', count: s.count })),
+                    noun,
+                    isOff: (i) => hidden.has(statuses[i].status),
+                    onToggle: (i) => {
+                        const status = statuses[i].status;
+                        if (hidden.has(status)) hidden.delete(status);
+                        else if (hidden.size < statuses.length - 1) hidden.add(status);
+                        if (chart) chart.updateSeries(series());
+                    },
+                });
+                return { series, attach: (c) => { chart = c; legend.render(); } };
             }
 
             function loadObjectiveStatus() {
@@ -1259,13 +1408,14 @@
                 .then(data => {
                     const total = data.statuses.reduce((a, s) => a + s.count, 0);
                     if (!total) { document.querySelector("#chart-obj-status").innerHTML = emptyHtml('{% trans "No objectives"|escapejs %}'); return; }
+                    const pills = makeStatusLegend(document.getElementById('legend-obj-status'), 'obj-status', data.statuses, '{% trans "statuses"|escapejs %}');
                     renderChart('obj-status', document.querySelector("#chart-obj-status"), {
-                        series: data.statuses.map(s => s.count),
+                        series: pills.series(),
                         chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit',
-                            events: { mounted: hideClosedOnFirstLoad('obj-status', data.statuses), dataPointSelection: (e, ctx, config) => {
+                            events: { mounted: (chart) => pills.attach(chart), dataPointSelection: (e, ctx, config) => {
                                 if (!isRealSelection('obj-status', e)) return;
                                 const status = data.statuses[config.dataPointIndex].status;
-                                window.location.href = "{% url 'objective-list-view' %}?status=" + encodeURIComponent(status) + "&open_tab=2";
+                                window.location.href = "{% url 'employee-objective-list-view' %}?status=" + encodeURIComponent(status);
                             }}
                         },
                         labels: data.statuses.map(s => s.label),
@@ -1273,7 +1423,7 @@
                         plotOptions: { pie: { donut: { size: '65%', labels: { show: true, total: { show: true, label: '{% trans "Total"|escapejs %}', color: textColor, fontSize: '13px', fontWeight: 600, formatter: w => w.globals.seriesTotals.reduce((a,b)=>a+b,0) } } } } },
                         stroke: { width: 2, colors: [cardBg] },
                         dataLabels: { enabled: false },
-                        legend: { position: 'bottom', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
+                        legend: { show: false },
                         tooltip: { theme: isDark ? 'dark' : 'light' },
                     });
                 });
@@ -1287,13 +1437,14 @@
                 .then(data => {
                     const total = data.statuses.reduce((a, s) => a + s.count, 0);
                     if (!total) { document.querySelector("#chart-kr-status").innerHTML = emptyHtml('{% trans "No key results"|escapejs %}'); return; }
+                    const pills = makeStatusLegend(document.getElementById('legend-kr-status'), 'kr-status', data.statuses, '{% trans "statuses"|escapejs %}');
                     renderChart('kr-status', document.querySelector("#chart-kr-status"), {
-                        series: data.statuses.map(s => s.count),
+                        series: pills.series(),
                         chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit',
-                            events: { mounted: hideClosedOnFirstLoad('kr-status', data.statuses), dataPointSelection: (e, ctx, config) => {
+                            events: { mounted: (chart) => pills.attach(chart), dataPointSelection: (e, ctx, config) => {
                                 if (!isRealSelection('kr-status', e)) return;
                                 const status = data.statuses[config.dataPointIndex].status;
-                                window.location.href = "{% url 'view-key-result' %}?status=" + encodeURIComponent(status);
+                                window.location.href = "{% url 'employee-key-result-list-view' %}?status=" + encodeURIComponent(status);
                             }}
                         },
                         labels: data.statuses.map(s => s.label),
@@ -1301,7 +1452,7 @@
                         plotOptions: { pie: { donut: { size: '65%', labels: { show: true, total: { show: true, label: '{% trans "Total"|escapejs %}', color: textColor, fontSize: '13px', fontWeight: 600, formatter: w => w.globals.seriesTotals.reduce((a,b)=>a+b,0) } } } } },
                         stroke: { width: 2, colors: [cardBg] },
                         dataLabels: { enabled: false },
-                        legend: { position: 'bottom', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
+                        legend: { show: false },
                         tooltip: { theme: isDark ? 'dark' : 'light' },
                     });
                 });
@@ -1315,13 +1466,14 @@
                 .then(data => {
                     const total = data.statuses.reduce((a, s) => a + s.count, 0);
                     if (!total) { document.querySelector("#chart-fb-status").innerHTML = emptyHtml('{% trans "No feedback"|escapejs %}'); return; }
+                    const pills = makeStatusLegend(document.getElementById('legend-fb-status'), 'fb-status', data.statuses, '{% trans "statuses"|escapejs %}');
                     renderChart('fb-status', document.querySelector("#chart-fb-status"), {
-                        series: data.statuses.map(s => s.count),
+                        series: pills.series(),
                         chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit',
-                            events: { mounted: hideClosedOnFirstLoad('fb-status', data.statuses), dataPointSelection: (e, ctx, config) => {
+                            events: { mounted: (chart) => pills.attach(chart), dataPointSelection: (e, ctx, config) => {
                                 if (!isRealSelection('fb-status', e)) return;
                                 const status = data.statuses[config.dataPointIndex].status;
-                                window.location.href = "{% url 'feedback-view' %}?status=" + encodeURIComponent(status);
+                                window.location.href = "{% url 'feedback-view' %}?status=" + encodeURIComponent(status) + "&open_tab=3";
                             }}
                         },
                         labels: data.statuses.map(s => s.label),
@@ -1329,7 +1481,7 @@
                         plotOptions: { pie: { donut: { size: '65%', labels: { show: true, total: { show: true, label: '{% trans "Total"|escapejs %}', color: textColor, fontSize: '13px', fontWeight: 600, formatter: w => w.globals.seriesTotals.reduce((a,b)=>a+b,0) } } } } },
                         stroke: { width: 2, colors: [cardBg] },
                         dataLabels: { enabled: false },
-                        legend: { position: 'bottom', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
+                        legend: { show: false },
                         tooltip: { theme: isDark ? 'dark' : 'light' },
                     });
                 });
@@ -1342,27 +1494,49 @@
                 .then(r => r.json())
                 .then(data => {
                     if (!data.departments.length) { document.querySelector("#chart-dept-perf").innerHTML = emptyHtml('{% trans "No data"|escapejs %}'); return; }
-                    renderChart('dept-perf', document.querySelector("#chart-dept-perf"), {
-                        series: [{ name: '{% trans "Avg Progress"|escapejs %}', data: data.departments.map(d => d.avg_progress) }],
-                        chart: { type: 'bar', height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
+                    const hiddenDepts = new Set();
+                    let shown = data.departments;
+                    const buildSeries = () => [
+                        { name: '{% trans "On Track"|escapejs %}', data: shown.map(d => d.avg_progress >= 70 ? d.avg_progress : null) },
+                        { name: '{% trans "Needs Attention"|escapejs %}', data: shown.map(d => d.avg_progress >= 40 && d.avg_progress < 70 ? d.avg_progress : null) },
+                        { name: '{% trans "At Risk"|escapejs %}', data: shown.map(d => d.avg_progress < 40 ? d.avg_progress : null) },
+                    ];
+                    const deptChart = renderChart('dept-perf', document.querySelector("#chart-dept-perf"), {
+                        series: buildSeries(),
+                        chart: { type: 'bar', stacked: true, height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
                             events: { dataPointSelection: (e, ctx, config) => {
-                                const d = data.departments[config.dataPointIndex];
-                                const base = "{% url 'objective-list-view' %}";
+                                const d = shown[config.dataPointIndex];
+                                const base = "{% url 'employee-objective-list-view' %}";
                                 if (d && d.dept_id) {
-                                    window.location.href = base + "?employee_id__employee_work_info__department_id=" + d.dept_id + "&open_tab=2";
+                                    window.location.href = base + "?employee_id__employee_work_info__department_id=" + d.dept_id;
                                 } else {
-                                    window.location.href = base + "?open_tab=2";
+                                    window.location.href = base;
                                 }
                             }}
                         },
-                        colors: data.departments.map(d => d.avg_progress >= 70 ? '#22c55e' : d.avg_progress >= 40 ? '#f59e0b' : '#ef4444'),
-                        plotOptions: { bar: { borderRadius: 6, horizontal: true, barHeight: '55%', distributed: true } },
-                        xaxis: { categories: data.departments.map(d => d.department), labels: { style: { colors: textColor } }, max: 100 },
+                        colors: ['#22c55e', '#f59e0b', '#ef4444'],
+                        plotOptions: { bar: { borderRadius: 6, horizontal: true, barHeight: '55%' } },
+                        xaxis: { categories: shown.map(d => d.department), labels: { style: { colors: textColor } }, max: 100 },
                         yaxis: { labels: { style: { colors: textColor, fontSize: '11px' } } },
                         grid: { borderColor: gridColor },
-                        dataLabels: { enabled: true, formatter: (v, { dataPointIndex: i }) => `${v}% (${data.departments[i].closed}/${data.departments[i].total})`, style: { fontSize: '11px' } },
-                        legend: { show: false },
-                        tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: (v, { dataPointIndex: i }) => `${v}% avg · ${data.departments[i].at_risk} at risk` } },
+                        dataLabels: { enabled: true, formatter: (v, { dataPointIndex: i }) => v === null || !shown[i] ? '' : `${v}% (${shown[i].closed}/${shown[i].total})`, style: { fontSize: '11px' } },
+                        legend: { position: 'top', horizontalAlign: 'right', labels: { colors: textColor }, fontSize: '11px', fontWeight: 500, markers: { width: 8, height: 8, radius: 3 }, itemMargin: { horizontal: 8 } },
+                        tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: (v, { dataPointIndex: i }) => v === null || !shown[i] ? '' : `${v}% avg · ${shown[i].at_risk} at risk` } },
+                    });
+                    makeOverflowLegend(document.getElementById('legend-dept-perf'), {
+                        items: data.departments.map(d => ({
+                            label: d.department,
+                            color: d.avg_progress >= 70 ? '#22c55e' : d.avg_progress >= 40 ? '#f59e0b' : '#ef4444',
+                            count: `${d.avg_progress}%`,
+                        })),
+                        noun: '{% trans "departments"|escapejs %}',
+                        isOff: (i) => hiddenDepts.has(i),
+                        onToggle: (i) => {
+                            if (hiddenDepts.has(i)) hiddenDepts.delete(i);
+                            else if (hiddenDepts.size < data.departments.length - 1) hiddenDepts.add(i);
+                            shown = data.departments.filter((d, k) => !hiddenDepts.has(k));
+                            deptChart.updateOptions({ series: buildSeries(), xaxis: { categories: shown.map(d => d.department) } });
+                        },
                     });
                 });
             }
@@ -1380,9 +1554,9 @@
                         const color = statusColors[o.status] || '#94a3b8';
                         html += `<div style="margin-bottom:16px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-                        <div style="font-size:13px;font-weight:600;">${o.objective} -- ${o.employee}</div>
+                        <div style="font-size:13px;font-weight:600;">${esc(o.objective)} -- ${esc(o.employee)}</div>
                         <div style="display:flex;align-items:center;gap:6px;">
-                            <span class="pm-badge" style="background:${color}20;color:${color};">${o.status}</span>
+                            <span class="pm-badge" style="background:${color}20;color:${color};">${esc(o.status)}</span>
                         </div>
                     </div>
                     <div style="width:100%;height:8px;border-radius:4px;background:rgba(128,128,128,0.1);margin-bottom:8px;">
@@ -1394,7 +1568,7 @@
                                 const krColor = statusColors[kr.status] || '#94a3b8';
                                 html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
                             <div style="width:6px;height:6px;border-radius:50%;background:${krColor};flex-shrink:0;"></div>
-                            <div style="font-size:11px;flex:1;opacity:0.7;">${kr.title}</div>
+                            <div style="font-size:11px;flex:1;opacity:0.7;">${esc(kr.title)}</div>
                             <div style="font-size:11px;font-weight:600;">${kr.current}/${kr.target}</div>
                             <div style="font-size:10px;font-weight:700;color:${krColor};">${kr.progress}%</div>
                         </div>`;
@@ -1417,12 +1591,12 @@
                     const el = document.getElementById('pm-performers');
                     if (!data.performers.length) { el.innerHTML = '<div class="pm-info-panel__empty">{% trans "No data"|escapejs %}</div>'; return; }
                     el.innerHTML = data.performers.map(p => {
-                        const initials = p.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-                        const avatarInner = p.avatar ? `<img src="${p.avatar}" alt="">` : initials;
+                        const initials = esc(String(p.name).split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase());
+                        const avatarInner = p.avatar ? `<img src="${esc(p.avatar)}" alt="">` : initials;
                         return `<a href="${objectiveListUrlFor(p.id)}" class="pm-performer-item">
                     <div class="pm-performer-item__avatar">${avatarInner}</div>
                     <div class="pm-performer-item__info">
-                        <div class="pm-performer-item__name">${p.name}</div>
+                        <div class="pm-performer-item__name">${esc(p.name)}</div>
                         <div class="pm-performer-item__detail">${p.completed}/${p.objectives} {% trans "completed"|escapejs %}${p.bonus_points > 0 ? ' · ' + p.bonus_points + ' pts' : ''}</div>
                     </div>
                     <div class="pm-performer-item__score">${p.avg_progress}%</div>
@@ -1441,10 +1615,10 @@
                     if (!data.meetings.length) { el.innerHTML = '<div class="pm-info-panel__empty">{% trans "No upcoming meetings"|escapejs %}</div>'; return; }
                     el.innerHTML = data.meetings.map(m => `
                 <div class="pm-meeting-item">
-                    <div class="pm-meeting-item__date">${m.date}</div>
+                    <div class="pm-meeting-item__date">${esc(m.date)}</div>
                     <div class="pm-meeting-item__info">
-                        <div class="pm-meeting-item__title">${m.title}</div>
-                        <div class="pm-meeting-item__meta">${m.time} · ${m.attendees} {% trans "attendees"|escapejs %}</div>
+                        <div class="pm-meeting-item__title">${esc(m.title)}</div>
+                        <div class="pm-meeting-item__meta">${esc(m.time)} · ${esc(m.attendees)} {% trans "attendees"|escapejs %}</div>
                     </div>
                 </div>`).join('');
                 }).catch(() => { document.getElementById('pm-meetings').innerHTML = '<div class="pm-info-panel__empty">{% trans "No upcoming meetings"|escapejs %}</div>'; });

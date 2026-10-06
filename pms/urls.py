@@ -7,6 +7,7 @@ from pms import cbvs
 from pms import dashboard as pms_dashboard
 from pms.cbv import (
     dashboard,
+    employee_objectives,
     feedback,
     key_result,
     meetings,
@@ -738,6 +739,36 @@ urlpatterns = [
         "list-objective-templates-view/",
         objectives.ObjectiveTemplateList.as_view(),
         name="list-objective-templates-view",
+    ),
+    path(
+        "employee-objective-list-view/",
+        employee_objectives.EmployeeObjectivesPage.as_view(),
+        name="employee-objective-list-view",
+    ),
+    path(
+        "employee-objectives-nav/",
+        employee_objectives.EmployeeObjectivesNav.as_view(),
+        name="employee-objectives-nav",
+    ),
+    path(
+        "employee-objectives-list/",
+        employee_objectives.EmployeeObjectivesList.as_view(),
+        name="employee-objectives-list",
+    ),
+    path(
+        "employee-key-result-list-view/",
+        employee_objectives.EmployeeKeyResultsPage.as_view(),
+        name="employee-key-result-list-view",
+    ),
+    path(
+        "employee-key-results-nav/",
+        employee_objectives.EmployeeKeyResultsNav.as_view(),
+        name="employee-key-results-nav",
+    ),
+    path(
+        "employee-key-results-list/",
+        employee_objectives.EmployeeKeyResultsList.as_view(),
+        name="employee-key-results-list",
     ),
     path("view-meetings/", meetings.MeetingsView.as_view(), name="view-meetings"),
     path("meetings-list/", meetings.MeetingsList.as_view(), name="meetings-list"),

@@ -1,0 +1,12 @@
+{% extends "index.html" %}
+{% load i18n %}
+{% block content %}
+    <div hx-get='{% url "employee-objectives-nav" %}?{{request.GET.urlencode}}' hx-trigger="load"></div>
+
+    {% include "generic/components.html" %}
+    <div class="oh-checkpoint-badge mb-2" id="selectedInstances" data-ids="[]" data-clicked="" style="display: none">
+    </div>
+
+    <div class="oh-wrapper" id="listContainer">
+    </div>
+{% endblock content %}
