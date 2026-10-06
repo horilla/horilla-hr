@@ -2411,6 +2411,8 @@ class HorillaNavView(TemplateView):
     view_types: list = []
     create_attrs: str = """"""
     create_label: str = ""
+    # An ion-icon name shown on the create button in place of the "+" glyph.
+    create_icon: str = ""
     # Hide the search box in generic/inline_nav.html; the form (which also
     # auto-loads the list) is still rendered.
     hide_search: bool = False
@@ -2557,6 +2559,7 @@ class HorillaNavView(TemplateView):
         context["custom_filter_rows"] = []
         context["create_attrs"] = self.create_attrs
         context["create_label"] = self.create_label
+        context["create_icon"] = self.create_icon
         context["hide_search"] = self.hide_search
         context["search_in"] = self.search_in
         context["apply_first_filter"] = self.apply_first_filter

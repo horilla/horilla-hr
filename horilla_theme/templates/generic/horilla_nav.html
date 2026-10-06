@@ -524,13 +524,17 @@
                 class="px-4 py-2 bg-brand-600 text-white rounded-md text-xs flex items-center gap-2 hover:bg-brand-800 transition duration-300 cursor-pointer"
                 {{create_attrs|safe}}
             >
-                <img
-                    src="{% static 'horilla_theme/assets/img/icons/more.svg' %}"
-                    alt="{% trans 'Create' %}"
-                    width="13"
-                    class="filter brightness-0 invert"
-                >
-                {% trans "Create" %}
+                {% if create_icon %}
+                    <ion-icon name="{{ create_icon }}"></ion-icon>
+                {% else %}
+                    <img
+                        src="{% static 'horilla_theme/assets/img/icons/more.svg' %}"
+                        alt="{% trans 'Create' %}"
+                        width="13"
+                        class="filter brightness-0 invert"
+                    >
+                {% endif %}
+                {% if create_label %}{{ create_label }}{% else %}{% trans "Create" %}{% endif %}
             </a>
         {% endif %}
     </div>

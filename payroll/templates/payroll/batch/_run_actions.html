@@ -1,0 +1,12 @@
+{% load i18n %}
+{% if instance.status != "paid" %}
+<form method="post" action="{% url 'payroll-batch-delete' instance.pk %}" class="w-100"
+      onclick="event.stopPropagation();"
+      onsubmit="return confirm('{% trans "Delete this run and its payslips? This cannot be undone." %}');">
+  {% csrf_token %}
+  <button type="submit" title="{% trans 'Delete this run' %}"
+          class="oh-btn oh-btn--danger-outline oh-btn--light-bkg w-100">
+    <ion-icon name="trash-outline"></ion-icon>
+  </button>
+</form>
+{% endif %}
