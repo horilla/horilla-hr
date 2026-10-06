@@ -159,9 +159,16 @@ class ContractForm(ModelForm):
                     "hx-swap": "beforebegin",
                 }
             )
-        first = PayrollGeneralSetting.objects.first()
-        if first and self.instance.pk is None:
-            self.initial["notice_period_in_days"] = first.notice_period
+        # The notice period is not asked for on the contract. A new contract
+        # starts from the payroll setting's default (30 days when there is none),
+        # and an existing one keeps what it has: the field is left off the form,
+        # so saving never touches it.
+        if self.instance.pk is None:
+            first = PayrollGeneralSetting.objects.first()
+            self.instance.notice_period_in_days = (
+                first.notice_period if first and first.notice_period is not None else 30
+            )
+        self.fields.pop("notice_period_in_days", None)
         self.fields["contract_document"].widget.attrs[
             "accept"
         ] = ".jpg, .jpeg, .png, .pdf"
