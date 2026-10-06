@@ -1,7 +1,26 @@
 {% load static i18n basefilters %}
+<style>
+    /* A long crumb (a record's own title) is cut to one line; the whole text is
+       in a light popover on hover, so the trail never wraps onto a second row. */
+    .breadcrumb li > a, .breadcrumb li > span {
+        display: inline-block; max-width: 280px; overflow: hidden;
+        text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom;
+    }
+    .breadcrumb li.crumb-has-tip { position: relative; }
+    .breadcrumb li.crumb-has-tip:hover::after {
+        content: attr(data-full);
+        position: absolute; top: calc(100% + 6px); left: 0; z-index: 60;
+        max-width: 420px; width: max-content; white-space: normal;
+        padding: 6px 10px; border-radius: 6px;
+        background: #fff; color: #1f2430; font-size: 12px; font-weight: 500;
+        border: 1px solid rgba(128, 128, 128, 0.25);
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+    }
+    .dark .breadcrumb li.crumb-has-tip:hover::after { background: #242424; color: #e2e8f0; }
+</style>
 <ul class="breadcrumb ms-4">
     {% for breadcrumb in breadcrumbs|unique_breadcrumbs %}
-        <li {% if request.path in breadcrumb.url %} class="oh-breadcrumb-current"{% endif %} >
+        <li class="{% if request.path in breadcrumb.url %}oh-breadcrumb-current{% endif %}{% if breadcrumb.name|length > 30 %} crumb-has-tip{% endif %}"{% if breadcrumb.name|length > 30 %} data-full="{{ breadcrumb.name }}"{% endif %}>
                 {% if breadcrumb.clickable and breadcrumb.found %}
                     <a href="{{breadcrumb.url}}">{% trans breadcrumb.name %}</a>
                 {% elif not breadcrumb.clickable %}

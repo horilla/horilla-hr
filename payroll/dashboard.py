@@ -75,6 +75,7 @@ def payroll_kpi_data(request):
     # Only paid payslips count: a draft or unconfirmed one is not money
     # that has gone out.
     current_qs = Payslip.objects.filter(
+        employee_id__is_active=True,
         start_date__gte=first_of_month,
         start_date__lte=today,
         status="paid",
@@ -101,6 +102,7 @@ def payroll_kpi_data(request):
     prev_month_end = first_of_month - timedelta(days=1)
     prev_month_start = prev_month_end.replace(day=1)
     prev_net = Payslip.objects.filter(
+        employee_id__is_active=True,
         start_date__gte=prev_month_start,
         start_date__lte=prev_month_end,
         status="paid",
@@ -117,7 +119,9 @@ def payroll_kpi_data(request):
     try:
         # Loans only: salary advances and fines are separate tabs on the loans
         # page, so counting them here made the card disagree with its own list.
-        loans = LoanAccount.objects.filter(settled=False, type="loan")
+        loans = LoanAccount.objects.filter(
+            employee_id__is_active=True, settled=False, type="loan"
+        )
         active_loans = loans.count()
         loan_amount = loans.aggregate(
             total=Coalesce(Sum("loan_amount"), 0.0, output_field=FloatField())
@@ -129,7 +133,7 @@ def payroll_kpi_data(request):
     pending_reimbursements = 0
     try:
         pending_reimbursements = Reimbursement.objects.filter(
-            status="requested"
+            employee_id__is_active=True, status="requested"
         ).count()
     except Exception:
         pass
@@ -178,6 +182,7 @@ def payroll_monthly_trend(request):
             )
 
         qs = Payslip.objects.filter(
+            employee_id__is_active=True,
             start_date__gte=month_start,
             start_date__lte=month_end,
             status="paid",
@@ -216,6 +221,7 @@ def payroll_department_cost(request):
     try:
         data = (
             Payslip.objects.filter(
+                employee_id__is_active=True,
                 start_date__gte=first_of_month,
                 start_date__lte=today,
                 status="paid",
@@ -261,7 +267,11 @@ def payroll_status_pipeline(request):
     today = to_date
     first_of_month = from_date
 
-    qs = Payslip.objects.filter(start_date__gte=first_of_month, start_date__lte=today)
+    qs = Payslip.objects.filter(
+        employee_id__is_active=True,
+        start_date__gte=first_of_month,
+        start_date__lte=today,
+    )
 
     statuses = [
         {
@@ -304,6 +314,7 @@ def payroll_top_earners(request):
     try:
         data = (
             Payslip.objects.filter(
+                employee_id__is_active=True,
                 start_date__gte=first_of_month,
                 start_date__lte=to_date,
                 status="paid",
@@ -364,6 +375,7 @@ def payroll_contract_status(request):
         # Still active and ending on or after today.
         ending_qs = (
             Contract.objects.filter(
+                employee_id__is_active=True,
                 contract_end_date__gte=today,
                 contract_end_date__lte=max(to_date, today + horizon),
                 contract_status="active",
@@ -388,6 +400,7 @@ def payroll_contract_status(request):
         # Already ended, within the same 60-day outlook looking backwards.
         expired_qs = (
             Contract.objects.filter(
+                employee_id__is_active=True,
                 contract_end_date__gte=min(from_date, today - horizon),
                 contract_end_date__lte=today - timedelta(days=1),
             )
@@ -429,6 +442,7 @@ def payroll_loan_summary(request):
     try:
         qs = (
             LoanAccount.objects.filter(
+                employee_id__is_active=True,
                 settled=False,
                 type="loan",
                 provided_date__gte=from_date,
@@ -487,6 +501,7 @@ def payroll_reimbursement_summary(request):
 
     try:
         qs = Reimbursement.objects.filter(
+            employee_id__is_active=True,
             allowance_on__gte=from_date,
             allowance_on__lte=to_date,
         )
@@ -571,7 +586,10 @@ def payroll_contribution_cost(request):
     totals = {"employee_amount": 0, "employer_amount": 0, "total": 0}
     try:
         payslips = Payslip.objects.filter(
-            start_date__gte=from_date, end_date__lte=to_date, status="paid"
+            employee_id__is_active=True,
+            start_date__gte=from_date,
+            end_date__lte=to_date,
+            status="paid",
         )
         rows, totals = contributions.summarise(payslips)
         components = [
@@ -635,6 +653,7 @@ def payroll_run_coverage(request):
         total = len(employee_ids)
         stage = {}
         for employee_id, status in Payslip.objects.filter(
+            employee_id__is_active=True,
             start_date__gte=from_date,
             end_date__lte=to_date,
             employee_id__in=employee_ids,
