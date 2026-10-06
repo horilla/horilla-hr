@@ -2899,7 +2899,11 @@ class SalaryStructure(HorillaModel):
         super().save(*args, **kwargs)
 
     def _active_contracts(self):
-        return self.contracts.filter(contract_status="active")
+        # Active contracts of people who still work here: an archived employee's
+        # contract does not count towards the structure.
+        return self.contracts.filter(
+            contract_status="active", employee_id__is_active=True
+        )
 
     def add_allowance(self, allowance):
         """

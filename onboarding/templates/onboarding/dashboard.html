@@ -147,7 +147,7 @@
                 <span class="on-period-picker__sep">&rarr;</span>
                 <input type="date" id="on-to-date" title="{% trans 'To' %}">
             </div>
-            <button class="on-btn-customize" id="on-open-customize" title="{% trans 'Customize' %}">⚙ {% trans "Customize" %}</button>
+            <button class="oh-btn oh-btn--secondary" id="on-open-customize" style="display: flex; align-items: center; gap: 5px; font-size: 13px" title="{% trans 'Customize' %}">⚙ {% trans "Customize" %}</button>
         </div>
     </div>
 
@@ -372,7 +372,7 @@
         .then(r => r.json())
         .then(data => {
             document.getElementById('on-kpi-grid').innerHTML = `
-                <a href="{% url 'cbv-pipeline-onboarding' %}" class="on-kpi-card">
+                <a href="{% url 'candidates-view' %}" class="on-kpi-card">
                     <div class="on-kpi-card__icon on-kpi-card__icon--blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg></div>
                     <div class="on-kpi-card__label">{% trans "Onboarding Candidates"|escapejs %}</div>
                     <div class="on-kpi-card__value">${data.total_candidates}</div>

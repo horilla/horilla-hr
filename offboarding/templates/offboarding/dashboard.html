@@ -688,6 +688,7 @@
         .ob-refresh__toggle:hover {
             opacity: 1;
         }
+        #chart-exit-reasons .apexcharts-pie-slice-donut,
         #chart-resignation .apexcharts-pie-slice-donut {
             cursor: pointer;
         }
@@ -753,7 +754,7 @@
                     <span class="ob-period-picker__sep">&rarr;</span>
                     <input type="date" id="ob-to-date" title="{% trans 'To' %}">
                 </div>
-                <button class="ob-btn-customize" id="ob-open-customize" title="{% trans 'Customize' %}">
+                <button class="oh-btn oh-btn--secondary" id="ob-open-customize" style="display: flex; align-items: center; gap: 5px; font-size: 13px" title="{% trans 'Customize' %}">
                     ⚙ {% trans "Customize" %}
                 </button>
             </div>
@@ -914,7 +915,7 @@
             const resignationUrl = "{% url 'resignation-request-view' %}";
             const resignationUrlFor = id => id ? `${resignationUrl}?employee_id=${id}` : '#';
             const assetAllocationUrl = "{% url 'asset-request-allocation-view' %}";
-            const assetAllocationUrlFor = id => id ? `${assetAllocationUrl}?assigned_to_employee_id=${id}&open_tab=2` : '#';
+            const assetAllocationUrlFor = id => id ? `${assetAllocationUrl}?assigned_to_employee_id=${id}&open_tab=3&filter_applied=on` : '#';
             // Placeholder-pk trick (only way to get a dynamic-pk Django url tag
             // into JS): reverse it once with a pk that can never collide with a
             // real one, then substitute the real id client-side.
@@ -1152,6 +1153,12 @@
             fetchP("{% url 'offboarding-dashboard-kpi' %}")
                 .then(r => r.json())
                 .then(data => {
+                    // Notice periods ending between today and 7 days from now (the same
+                    // window the count uses), as the pipeline's own notice-end filter.
+                    const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                    const noticeFrom = new Date(), noticeTill = new Date();
+                    noticeTill.setDate(noticeTill.getDate() + 7);
+                    const noticeEndingParams = customRangeParams('notice_period_ends', ymd(noticeFrom), ymd(noticeTill));
                     document.getElementById('ob-kpi-grid').innerHTML = `
                 <a href="{% url 'offboarding-pipeline' %}?stage_type_exclude=archived" class="ob-kpi-card">
                     <div class="ob-kpi-card__icon ob-kpi-card__icon--red"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div>
@@ -1171,11 +1178,11 @@
                     <div class="ob-kpi-card__value">${data.task_completion}%</div>
                     <div class="ob-kpi-card__sub"><span class="ob-badge ob-badge--blue">${data.completed_tasks}/${data.total_tasks} {% trans "Tasks Done"|escapejs %}</span></div>
                 </div>
-                <a href="{% url 'offboarding-pipeline' %}?stage_type=archived" class="ob-kpi-card">
-                    <div class="ob-kpi-card__icon ob-kpi-card__icon--blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
-                    <div class="ob-kpi-card__label">{% trans "Archived"|escapejs %}</div>
-                    <div class="ob-kpi-card__value">${data.archived}</div>
-                    <div class="ob-kpi-card__sub">${data.notice_ending_soon > 0 ? '<span class="ob-badge ob-badge--amber">' + data.notice_ending_soon + ' {% trans "Notice Ending"|escapejs %}</span>' : '<span class="ob-badge ob-badge--green" id="ob-avg-duration">{% trans "Completed Offboarding"|escapejs %}</span>'}</div>
+                <a href="{% url 'offboarding-pipeline' %}?stage_type_exclude=archived${noticeEndingParams}" class="ob-kpi-card">
+                    <div class="ob-kpi-card__icon ob-kpi-card__icon--blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+                    <div class="ob-kpi-card__label">{% trans "Notice Ending Soon"|escapejs %}</div>
+                    <div class="ob-kpi-card__value">${data.notice_ending_soon}</div>
+                    <div class="ob-kpi-card__sub"><span class="ob-badge ob-badge--amber">{% trans "Next 7 days"|escapejs %}</span></div>
                 </a>`;
                 });
             }
@@ -1307,10 +1314,13 @@
             fetchP("{% url 'offboarding-dashboard-reasons' %}")
                 .then(r => r.json())
                 .then(data => {
-                    if (!data.reasons.length) { document.querySelector("#chart-exit-reasons").innerHTML = emptyHtml('{% trans "No exit reasons recorded"|escapejs %}'); return; }
-                    renderChart('exit-reasons', document.querySelector("#chart-exit-reasons"), {
-                        series: [{ name: '{% trans "Count"|escapejs %}', data: data.reasons.map(r => r.count) }],
-                        chart: { type: 'bar', height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
+                    const el = document.querySelector("#chart-exit-reasons");
+                    if (!data.reasons.length) { PieLegend.clearFor(el); el.innerHTML = emptyHtml('{% trans "No exit reasons recorded"|escapejs %}'); return; }
+                    // Donut with the reasons as legend chips (same legend as the other
+                    // donuts here: a row of chips plus a "+N" popover for the rest).
+                    renderChart('exit-reasons', el, PieLegend.options(el, () => chartInstances['exit-reasons'], 'reasons', {
+                        series: data.reasons.map(r => r.count),
+                        chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit',
                             events: { dataPointSelection: (e, ctx, config) => {
                                 const r = data.reasons[config.dataPointIndex];
                                 if (!r) return;
@@ -1318,15 +1328,14 @@
                                     dateRangeParams('exit_reason_logged_at', fromInput.value, toInput.value);
                             }}
                         },
+                        labels: data.reasons.map(r => r.reason),
                         colors: COLORS,
-                        plotOptions: { bar: { borderRadius: 6, horizontal: true, barHeight: '55%', distributed: true } },
-                        xaxis: { categories: data.reasons.map(r => r.reason), labels: { style: { colors: textColor } } },
-                        yaxis: { labels: { style: { colors: textColor, fontSize: '11px' } } },
-                        grid: { borderColor: gridColor },
-                        dataLabels: { enabled: true, style: { fontSize: '11px' } },
+                        plotOptions: { pie: { donut: { size: '65%', labels: { show: true, total: { show: true, label: '{% trans "Total"|escapejs %}', color: textColor, fontSize: '13px', fontWeight: 600, formatter: w => w.globals.seriesTotals.reduce((a, b) => a + b, 0) } } } } },
+                        stroke: { width: 2, colors: [cardBg] },
+                        dataLabels: { enabled: false },
                         legend: { show: false },
                         tooltip: { theme: isDark ? 'dark' : 'light' },
-                    });
+                    }));
                 });
             }
             loadExitReasons();

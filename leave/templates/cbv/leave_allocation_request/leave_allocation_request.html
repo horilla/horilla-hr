@@ -47,7 +47,7 @@
 <div
 	class="oh-wrapper"
 	id="listContainer"
-	hx-get="{% url 'leave-allocation-request-filter' %}"
+	hx-get="{% url 'leave-allocation-request-filter' %}?{{ request.GET.urlencode }}"
 	hx-trigger="load"
 >
 	<div class="animated-background"></div>

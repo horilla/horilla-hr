@@ -476,15 +476,27 @@ class RequestAndAllocationTab(HorillaTabView):
             self.request.GET, queryset=AssetServiceRequest.objects.all()
         ).qs.count()
 
+        # Each tab's shell hands its query string on to its own nav and list. Without
+        # it they only had HX-Current-Url to go on, which is stale when the page was
+        # reached by a boosted (htmx) navigation -- so a deep link such as
+        # ?assigned_to_employee_id=<id> filtered the first time and not after.
+        extra_params = self.request.GET.copy()
+        extra_params.pop("open_tab", None)
+        extra_params.pop("view", None)
+        query_string = extra_params.urlencode()
+
+        def with_query(url):
+            return f"{url}?{query_string}" if query_string else url
+
         self.tabs = [
             {
                 "title": _("Asset"),
-                "url": f"{reverse('req-alloc-asset-tab-shell')}",
+                "url": with_query(reverse("req-alloc-asset-tab-shell")),
                 "badge": asset_count,
             },
             {
                 "title": _("Asset Request"),
-                "url": f"{reverse('req-alloc-asset-request-tab-shell')}",
+                "url": with_query(reverse("req-alloc-asset-request-tab-shell")),
                 "badge": request_count,
             },
         ]
@@ -492,7 +504,7 @@ class RequestAndAllocationTab(HorillaTabView):
             self.tabs.append(
                 {
                     "title": _("Asset Allocation"),
-                    "url": f"{reverse('req-alloc-asset-allocation-tab-shell')}",
+                    "url": with_query(reverse("req-alloc-asset-allocation-tab-shell")),
                     "badge": allocation_count,
                 },
             )
@@ -500,7 +512,7 @@ class RequestAndAllocationTab(HorillaTabView):
             self.tabs.append(
                 {
                     "title": _("Service Request"),
-                    "url": f"{reverse('req-alloc-service-request-tab-shell')}",
+                    "url": with_query(reverse("req-alloc-service-request-tab-shell")),
                     "badge": service_request_count,
                 },
             )

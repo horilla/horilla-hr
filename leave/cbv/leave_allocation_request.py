@@ -165,10 +165,21 @@ class LeaveAllocationRequestTab(HorillaTabView):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.view_id = "leave-allocation"
+        # Pass the page's own filters on to each tab's shell/nav/list (minus the
+        # tab-picking params), so a deep link like ?status=requested applies
+        # regardless of HX-Current-Url.
+        extra_params = self.request.GET.copy()
+        extra_params.pop("open_tab", None)
+        extra_params.pop("view", None)
+        query_string = extra_params.urlencode()
+
+        def with_query(url):
+            return f"{url}?{query_string}" if query_string else url
+
         self.tabs = [
             {
-                "title": _("My Leave allocation request"),
-                "url": f"{reverse('my-leave-allocation-tab-shell')}",
+                "title": _("My Leave Allocation Request"),
+                "url": with_query(reverse("my-leave-allocation-tab-shell")),
             },
         ]
         if self.request.user.has_perm(
@@ -177,8 +188,8 @@ class LeaveAllocationRequestTab(HorillaTabView):
 
             self.tabs.append(
                 {
-                    "title": _("Leave allocation requests"),
-                    "url": f"{reverse('leave-allocation-requests-tab-shell')}",
+                    "title": _("Leave Allocation Requests"),
+                    "url": with_query(reverse("leave-allocation-requests-tab-shell")),
                 },
             )
 

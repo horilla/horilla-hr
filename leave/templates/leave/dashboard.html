@@ -218,7 +218,7 @@
                 <span class="ld-period-picker__sep">&rarr;</span>
                 <input type="date" id="ld-to-date" title="{% trans 'Custom range end' %}">
             </div>
-            <button class="ld-btn-customize" id="ld-open-customize" title="{% trans 'Customize' %}">⚙ {% trans "Customize" %}</button>
+            <button class="oh-btn oh-btn--secondary" id="ld-open-customize" style="display: flex; align-items: center; gap: 5px; font-size: 13px" title="{% trans 'Customize' %}">⚙ {% trans "Customize" %}</button>
         </div>
     </div>
 
@@ -610,7 +610,7 @@
             _periodTo   = data.to_date;
             const baseUrl = "{% url 'request-view' %}";
             const pendingUrl = `${baseUrl}?status=requested&filter_applied=on`;
-            const allocationUrl = "{% url 'leave-allocation-request-view' %}?status=requested&filter_applied=on";
+            const allocationUrl = "{% url 'leave-allocation-request-view' %}?status=requested&filter_applied=on&open_tab=2";
             const compUrl = "{% url 'view-compensatory-leave' %}?status=requested&filter_applied=on";
             const onLeaveTodayUrl = `${baseUrl}?status=approved&from_date=${data.today}&to_date=${data.today}&filter_applied=on`;
             document.getElementById('ld-kpi-grid').innerHTML = `
