@@ -3107,6 +3107,20 @@ def work_info_import(request):
     )
 
 
+def _to_excel_bold_header(data_frame, response):
+    """Write `data_frame` to `response` as xlsx with a bold header row.
+
+    Newer pandas no longer styles the header row, so bold it with openpyxl.
+    """
+    from openpyxl.styles import Font
+
+    with pd.ExcelWriter(response, engine="openpyxl") as writer:
+        data_frame.to_excel(writer, index=False)
+        bold = Font(bold=True)
+        for cell in writer.sheets["Sheet1"][1]:
+            cell.font = bold
+
+
 @login_required
 @manager_can_enter("employee.view_employee")
 def work_info_export(request):
@@ -3146,6 +3160,15 @@ def work_info_export(request):
         selected_fields = form.fields["selected_fields"].initial
         id_list = json.loads(request.GET.get("ids", "[]"))
         employees = Employee.objects.filter(id__in=id_list)
+
+    # Rows ticked in the employee list (the Export modal's instance_ids):
+    # export exactly those, on top of whatever filter was applied.
+    instance_ids = request.GET.get("instance_ids")
+    if instance_ids:
+        with contextlib.suppress(ValueError, SyntaxError):
+            instance_ids = ast.literal_eval(instance_ids)
+            if instance_ids:
+                employees = employees.filter(pk__in=instance_ids)
 
     prefetch_fields = list(set(f.split("__")[0] for f in selected_fields if "__" in f))
     if prefetch_fields:
@@ -3204,7 +3227,7 @@ def work_info_export(request):
     data_frame = pd.DataFrame(data=employees_data)
     response = HttpResponse(content_type="application/ms-excel")
     response["Content-Disposition"] = 'attachment; filename="employee_export.xlsx"'
-    data_frame.to_excel(response, index=False)
+    _to_excel_bold_header(data_frame, response)
 
     return response
 

@@ -154,7 +154,7 @@
       </button>
       <div class="oh-modal__dialog-body p-0 pt-2" id="employeeExportModalBody">
         <form
-          action="{%url 'employee-export' %}"
+          action="{%url 'work-info-export' %}"
           method="get"
           onsubmit="event.stopPropagation();
             $(this).find('[name=instance_ids]').val($('#selectedInstances').attr('data-ids') || '[]');

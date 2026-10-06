@@ -783,6 +783,20 @@ class ExportView(TemplateView):
         employee = Employee.objects.filter(is_active=True)
         export_form = EmployeeExportExcelForm()
         export_filter = EmployeeFilter(queryset=employee)
+        # The AJAX comboboxes get ids derived from their field key
+        # ("id_filter_employee_company", ...), the same ones the page's own
+        # filter panel already uses. Two selects with one id break select2
+        # (its container/results ids and aria-owns resolve to the wrong
+        # element), so the Work Info dropdowns in this modal opened and
+        # immediately closed. Give the export copies their own ids; the
+        # template's <label for> follows via id_for_label.
+        for field_name in EmployeeFilter.ajax_fields:
+            field = export_filter.form.fields.get(field_name)
+            current_id = field.widget.attrs.get("id") if field else None
+            if current_id:
+                field.widget.attrs["id"] = current_id.replace(
+                    "id_filter_", "id_export_filter_", 1
+                )
         context["export_form"] = export_form
         context["export_filter"] = export_filter
         return context
