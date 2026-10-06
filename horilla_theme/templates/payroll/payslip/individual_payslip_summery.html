@@ -37,7 +37,7 @@ the pay was worked out from. Everything below is the caveats.
     grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
     gap: 2px 18px;
     border: 1px solid #e6e7eb; border-radius: 10px; background: #fbfbfc;
-    padding: 12px 14px; margin-bottom: 14px;
+    padding: 8px 14px; margin-bottom: 10px;
   }
   /* Below this they genuinely do not fit, and a squeezed single row is worse
      than a wrapped one. */
@@ -60,7 +60,7 @@ the pay was worked out from. Everything below is the caveats.
   /* ---- the arithmetic ---- */
   .ps__ledger {
     display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
-    align-items: start; margin-bottom: 14px;
+    align-items: start; margin-bottom: 10px;
   }
   @media (max-width: 820px) { .ps__ledger { grid-template-columns: 1fr; } }
 
@@ -74,7 +74,7 @@ the pay was worked out from. Everything below is the caveats.
   }
   .ps__col-head {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 9px 12px; background: #f4f5f7;
+    padding: 6px 12px; background: #f4f5f7;
     border-bottom: 1px solid #e6e7eb;
     border-top-left-radius: 9px; border-top-right-radius: 9px;
     font-size: 10px; font-weight: 700; letter-spacing: .06em;
@@ -83,7 +83,7 @@ the pay was worked out from. Everything below is the caveats.
   .ps__rows { flex: 1 1 auto; }
   .ps__row {
     display: flex; align-items: baseline; gap: 10px;
-    padding: 7px 12px; border-bottom: 1px solid #f4f5f7;
+    padding: 5px 12px; border-bottom: 1px solid #f4f5f7;
   }
   .ps__row:last-child { border-bottom: 0; }
   .ps__label { flex: 1 1 auto; min-width: 0; }
@@ -95,7 +95,7 @@ the pay was worked out from. Everything below is the caveats.
   }
   .ps__total {
     display: flex; align-items: baseline; gap: 10px;
-    padding: 10px 12px; border-top: 2px solid #e6e7eb; background: #fbfbfc;
+    padding: 7px 12px; border-top: 2px solid #e6e7eb; background: #fbfbfc;
     border-bottom-left-radius: 9px; border-bottom-right-radius: 9px;
     font-weight: 700;
   }
@@ -109,7 +109,7 @@ the pay was worked out from. Everything below is the caveats.
   /* ---- salary adjustments (Gross Up only: Loss of Pay already folded
      into Basic Pay above, stated outright rather than left to the
      Deductions total it is no longer part of) ---- */
-  .ps__side { display: flex; flex-direction: column; gap: 14px; height: 100%; }
+  .ps__side { display: flex; flex-direction: column; gap: 10px; height: 100%; }
   .ps__adj { border: 1px solid #fcd9a8; border-radius: 10px; background: #fffaf3; }
   .ps__adj-head {
     display: flex; align-items: center; gap: 6px;
@@ -231,7 +231,25 @@ the pay was worked out from. Everything below is the caveats.
 </style>
 
 <div class="ps">
-
+  {% comment %}Who the payslip is for: the first thing read, ahead of the figures.{% endcomment %}
+  <div class="ps__facts ps__facts--who">
+    <div>
+      <div class="ps__fact-label">{% trans "Badge ID" %}</div>
+      <div class="ps__fact-value">{{ employee.badge_id|default:"—" }}</div>
+    </div>
+    <div>
+      <div class="ps__fact-label">{% trans "Name" %}</div>
+      <div class="ps__fact-value">{{ employee }}</div>
+    </div>
+    <div>
+      <div class="ps__fact-label">{% trans "Department" %}</div>
+      <div class="ps__fact-value">{{ employee.employee_work_info.department_id.department|default:"—" }}</div>
+    </div>
+    <div>
+      <div class="ps__fact-label">{% trans "Bank account" %}</div>
+      <div class="ps__fact-value">{{ employee.employee_bank_details.account_number|default:"—" }}</div>
+    </div>
+  </div>
   {% comment %}
   What the figures below were worked out from. An hourly payslip lives or dies
   on this: the pay IS the rate times the hours, so without them there is
@@ -560,23 +578,6 @@ the pay was worked out from. Everything below is the caveats.
     </div>
   </div>
 
-  {% comment %}
-  The net restated as the subtraction it is, so the two totals above can be
-  checked against it without arithmetic in the reader's head.
-  {% endcomment %}
-  <div class="ps__net{% if uncovered_deduction %} ps__net--short{% endif %}">
-    <div>
-      <div class="ps__net-label">{% trans "Net pay" %}</div>
-      <div class="ps__net-sum">
-        {{ gross_pay|floatformat:2 }} &minus; {{ total_deductions|floatformat:2 }}
-        {% if uncovered_deduction %}
-          &mdash; {% trans "deductions capped at gross" %}
-        {% endif %}
-      </div>
-    </div>
-    <div class="ps__net-amount">{{ net_pay|floatformat:2|currency_symbol_position }}</div>
-  </div>
-
   {% if uncovered_deduction %}
     {% comment %}
     More was owed than was earned. Nobody can be paid a negative amount, so
@@ -592,24 +593,6 @@ the pay was worked out from. Everything below is the caveats.
   {% endif %}
 
   <div class="ps__panels">
-    <div class="ps__panel">
-      <div class="ps__panel-head">{% trans "Employee" %}</div>
-      <table class="ps__table">
-        <tr><td>{% trans "Badge ID" %}</td><td class="num">{{ employee.badge_id }}</td></tr>
-        <tr><td>{% trans "Name" %}</td><td class="num">{{ employee }}</td></tr>
-        <tr>
-          <td>{% trans "Department" %}</td>
-          <td class="num">{{ employee.employee_work_info.department_id.department }}</td>
-        </tr>
-        <tr>
-          <td>{% trans "Bank account" %}</td>
-          <td class="num">
-            {{ employee.employee_bank_details.account_number|default:"—" }}
-          </td>
-        </tr>
-      </table>
-    </div>
-
     {% if custom_leave_breakdown %}
       <div class="ps__panel">
         <div class="ps__panel-head">{% trans "Partially paid leave" %}</div>
