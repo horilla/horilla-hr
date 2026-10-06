@@ -20,6 +20,7 @@ from base.cbv.work_shift_tab import ProfileTabShellView
 from base.methods import (
     choosesubordinates,
     get_key_instances,
+    humanize_filter_tags,
     is_reportingmanager,
     paginator_qry,
 )
@@ -407,7 +408,12 @@ class DocumentRequestPipelineView(Pipeline):
         data_dict = get_key_instances(self.model, data_dict)
         for key in ("filter_applied", "nav_url", "referrer", "grouper", "page"):
             data_dict.pop(key, None)
+        # generic/filter_tags.html needs the label/extra maps next to filter_dict
+        data_dict, tag_labels, tag_extras = humanize_filter_tags(data_dict)
         context["filter_dict"] = data_dict
+        context["filter_tag_labels"] = tag_labels
+        context["filter_tag_extras"] = tag_extras
+        context["keys_to_remove"] = []
 
         context["saved_filters"] = self.request.GET
         context["stored_filters"] = horilla_views_models.SavedFilter.objects.filter(

@@ -87,7 +87,11 @@
         (function () {
             var STORAGE_KEY = "activeRequestsTab";
 
-            function loadRequestsTab(buttonEl, persist) {
+            // Filters handed in by a deep link (?tab=...&status=...); applied only to
+            // the first tab load so later tab clicks start unfiltered.
+            var initialQuery = "{{ initial_query|escapejs }}";
+
+            function loadRequestsTab(buttonEl, persist, query) {
                 if (!buttonEl || typeof htmx === "undefined") return;
                 var url = buttonEl.getAttribute("data-url");
                 if (!url) return;
@@ -101,6 +105,7 @@
                         localStorage.setItem(STORAGE_KEY, tabId);
                     } catch (_) {}
                 }
+                if (query) url += (url.indexOf("?") === -1 ? "?" : "&") + query;
                 htmx.ajax("GET", url, {
                     target: "#requestsContent",
                     swap: "innerHTML",
@@ -110,10 +115,13 @@
             function restoreRequestsTab() {
                 if (!document.getElementById("requestsContent")) return;
 
-                var savedTabId = null;
-                try {
-                    savedTabId = localStorage.getItem(STORAGE_KEY);
-                } catch (_) {}
+                var linkedTabId = "{{ initial_tab|escapejs }}";
+                var savedTabId = linkedTabId || null;
+                if (!savedTabId) {
+                    try {
+                        savedTabId = localStorage.getItem(STORAGE_KEY);
+                    } catch (_) {}
+                }
 
                 var initialTab = null;
                 if (savedTabId) {
@@ -126,7 +134,7 @@
                         '.requests-tab-btn[data-tab-id="shift-request"]'
                     );
                 }
-                loadRequestsTab(initialTab, false);
+                loadRequestsTab(initialTab, !!linkedTabId, linkedTabId ? initialQuery : "");
             }
 
             function runWhenHtmxReady(fn) {

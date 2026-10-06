@@ -1,7 +1,7 @@
 {% load i18n static %}
 
 <div class="oh-inner-sidebar-content border border-[#ebebeb] rounded-md mb-5">
-    <div hx-get="{% url 'document-request-nav-cbv' %}" hx-trigger="load"></div>
+    <div hx-get="{% url 'document-request-nav-cbv' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" hx-trigger="load"></div>
 
     <p class="text-xs text-gray-500 mt-1 ml-2">
         {% trans "Review document upload requests and submit required files from HR." %}

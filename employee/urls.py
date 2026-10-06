@@ -292,54 +292,24 @@ urlpatterns = [
         name="employee-dashboard-kpi",
     ),
     path(
+        "dashboard/api/work-type/",
+        emp_dashboard.employee_by_work_type,
+        name="employee-dashboard-work-type",
+    ),
+    path(
+        "dashboard/api/shift/",
+        emp_dashboard.employee_by_shift,
+        name="employee-dashboard-shift",
+    ),
+    path(
         "dashboard/api/departments/",
         emp_dashboard.employee_by_department,
         name="employee-dashboard-dept",
     ),
     path(
-        "dashboard/api/gender/",
-        emp_dashboard.employee_by_gender,
-        name="employee-dashboard-gender",
-    ),
-    path(
-        "dashboard/api/type/",
-        emp_dashboard.employee_by_type,
-        name="employee-dashboard-type",
-    ),
-    path(
-        "dashboard/api/attendance-shift/",
-        emp_dashboard.employee_attendance_by_shift,
-        name="employee-dashboard-attendance-shift",
-    ),
-    path(
-        "dashboard/api/attendance-work-type/",
-        emp_dashboard.employee_attendance_by_work_type,
-        name="employee-dashboard-attendance-work-type",
-    ),
-    path(
-        "dashboard/api/position/",
-        emp_dashboard.employee_by_job_position,
-        name="employee-dashboard-position",
-    ),
-    path(
-        "dashboard/api/joining-trend/",
-        emp_dashboard.employee_joining_trend,
-        name="employee-dashboard-joining-trend",
-    ),
-    path(
-        "dashboard/api/headcount/",
-        emp_dashboard.employee_headcount_trend,
-        name="employee-dashboard-headcount",
-    ),
-    path(
-        "dashboard/api/recent/",
-        emp_dashboard.employee_recent_list,
-        name="employee-dashboard-recent",
-    ),
-    path(
-        "dashboard/api/birthdays/",
-        emp_dashboard.employee_upcoming_birthdays,
-        name="employee-dashboard-birthdays",
+        "dashboard/api/new-joiners/",
+        emp_dashboard.employee_new_joiners,
+        name="employee-dashboard-new-joiners",
     ),
     path(
         "total-employees-count/",

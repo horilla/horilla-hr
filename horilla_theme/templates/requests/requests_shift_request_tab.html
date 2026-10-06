@@ -1,7 +1,7 @@
 {% load i18n static %}
 
 <div class="oh-inner-sidebar-content border border-[#ebebeb] rounded-md mb-5">
-    <div hx-get="{% url 'requests-shift-nav' %}" hx-trigger="load"></div>
+    <div hx-get="{% url 'requests-shift-nav' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" hx-trigger="load"></div>
 
     <p class="text-xs text-gray-500 mt-1 ml-2">
         {% trans "Submit and manage your shift change requests for approval." %}

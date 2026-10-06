@@ -166,7 +166,6 @@ sidebar_urls = [
     "late-come-early-out-view",
     "view-my-attendance",
     "leave-dashboard",
-    "leave-employee-dashboard",
     "user-leave",
     "user-request-view",
     "leave-allocation-request-view",
@@ -773,7 +772,7 @@ def _section_redirect(url_name):
 def _leave_redirect(request):
     if request.user.has_perm("leave.view_leaverequest"):
         return redirect("leave-dashboard")
-    return redirect(reverse("leave-employee-dashboard") + "?dashboard=true")
+    return redirect("user-request-view")
 
 
 def _attendance_redirect(request):
@@ -788,9 +787,19 @@ def _attendance_redirect(request):
     return redirect("attendance-view")
 
 
+def _employee_redirect(request):
+    from base.templatetags.basefilters import is_reportingmanager
+
+    if request.user.has_perm("employee.view_employee") or is_reportingmanager(
+        request.user
+    ):
+        return redirect("employee-dashboard")
+    return redirect("ess-dashboard")
+
+
 urlpatterns.append(path("recruitment/", _section_redirect("recruitment-dashboard")))
 urlpatterns.append(path("onboarding/", _section_redirect("onboarding-dashboard")))
-urlpatterns.append(path("employee/", _section_redirect("ess-dashboard")))
+urlpatterns.append(path("employee/", _employee_redirect))
 urlpatterns.append(path("attendance/", _attendance_redirect))
 urlpatterns.append(path("leave/", _leave_redirect))
 urlpatterns.append(path("payroll/", _section_redirect("view-payroll-dashboard")))
