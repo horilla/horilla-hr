@@ -114,7 +114,7 @@ def _kpis(batches):
 
 @login_required
 @permission_required("payroll.view_payslip")
-def batch_detail(request, batch_id):
+def batch_detail(request, batch_id, model=None):
     """One run: its payslips, the ones that failed, and where it can go next."""
     batch = get_object_or_404(PayrollBatch, pk=batch_id)
     problems = batch.lines.filter(

@@ -282,6 +282,9 @@ class PayrollBatch(HorillaModel):
     def is_finished(self):
         return self.progress_state in (self.DONE, self.FAILED)
 
+    def breadcrumb_name(self):
+        return self.batch_name
+
     @property
     def active_payslip_count(self):
         """Payslips of employees who are still active -- the count a run shows."""

@@ -16,6 +16,7 @@ from payroll.cbv import (
     settings_tabs,
 )
 from payroll.models.models import Contract, Payslip
+from payroll.models.payroll_batch import PayrollBatch
 from payroll.views import (
     batch_views,
     contract_components,
@@ -389,6 +390,7 @@ urlpatterns = [
         "payroll-runs/<int:batch_id>/",
         batch_views.batch_detail,
         name="payroll-batch-detail",
+        kwargs={"model": PayrollBatch},
     ),
     path(
         "payroll-runs/<int:batch_id>/delete/",
