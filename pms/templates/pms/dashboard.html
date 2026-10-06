@@ -181,7 +181,7 @@
 
         .pm-layout {
             display: grid;
-            grid-template-columns: 1fr 300px;
+            grid-template-columns: minmax(0, 1fr) 300px;
             align-items: start;
             gap: 20px;
         }
@@ -207,11 +207,13 @@
 
         .pm-chart-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            /* minmax(0, ...): a nowrap legend must not stretch the column under the side panel. */
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             margin-bottom: 20px;
             gap: 16px;
         }
         .pm-chart-card {
+            min-width: 0;
             overflow: visible;
             border: 1px solid rgba(128, 128, 128, 0.12);
             border-radius: 12px;
@@ -243,6 +245,9 @@
             padding: 6px 10px 10px;
         }
         .pm-pill-legend {
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
             display: flex;
             flex-wrap: nowrap;
             align-items: center;
@@ -903,7 +908,7 @@
         /* Responsive */
         @media (max-width: 1280px) {
             .pm-layout {
-                grid-template-columns: 1fr;
+                grid-template-columns: minmax(0, 1fr);
             }
             .pm-sidebar {
                 display: grid;
