@@ -258,13 +258,13 @@
           class="pb__actions">
       {% csrf_token %}
       <div class="d-flex align-items-center gap-2">
-        <a href="{% url 'payroll-batch-scope' %}" class="oh-btn oh-btn--light">
-          <ion-icon name="arrow-back-outline" class="me-1"></ion-icon>
+        <a href="{% url 'payroll-batch-scope' %}" class="pb__btn">
+          <ion-icon name="arrow-back-outline"></ion-icon>
           {% trans "Back" %}
         </a>
-        <button type="button" class="oh-btn oh-btn--light"
+        <button type="button" class="pb__btn"
                 onclick="window.location.reload();">
-          <ion-icon name="refresh-outline" class="me-1"></ion-icon>
+          <ion-icon name="refresh-outline"></ion-icon>
           {% trans "Re-check" %}
         </button>
       </div>
