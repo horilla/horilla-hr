@@ -206,6 +206,7 @@
     </div>
 </div>
 
+{% include "components/pie_legend.html" %}
 <script>
 (function() {
     const isDark = document.documentElement.classList.contains('dark') || document.body.classList.contains('dark');
@@ -408,9 +409,9 @@
         .then(r => r.json())
         .then(data => {
             const total = data.data.reduce((a, b) => a + b, 0);
-            if (!total) { document.querySelector("#chart-offer-status").innerHTML = emptyHtml('{% trans "No candidates"|escapejs %}'); return; }
+            if (!total) { PieLegend.clearFor(document.querySelector("#chart-offer-status")); document.querySelector("#chart-offer-status").innerHTML = emptyHtml('{% trans "No candidates"|escapejs %}'); return; }
             const offerColors = ['#94a3b8', '#f59e0b', '#22c55e', '#ef4444', '#E54F38'];
-            renderChart('offer-status', document.querySelector("#chart-offer-status"), {
+            renderChart('offer-status', document.querySelector("#chart-offer-status"), PieLegend.options(document.querySelector("#chart-offer-status"), () => chartInstances['offer-status'], 'statuses', {
                 series: data.data,
                 chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit',
                     events: { dataPointSelection: (e, ctx, config) => {
@@ -425,7 +426,7 @@
                 dataLabels: { enabled: false },
                 legend: { position: 'bottom', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
                 tooltip: { theme: isDark ? 'dark' : 'light' },
-            });
+            }));
         });
     }
     loadOfferStatus();

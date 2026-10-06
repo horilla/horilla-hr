@@ -1082,7 +1082,8 @@
         </div>
     </div>
 
-    <script>
+    {% include "components/pie_legend.html" %}
+<script>
         (function() {
             const isDark = document.documentElement.classList.contains('dark') || document.body.classList.contains('dark');
             const textColor = isDark ? '#e2e8f0' : '#334155';
@@ -1311,9 +1312,9 @@
                 .then(r => r.json())
                 .then(data => {
                     const hasRealSource = data.sources.some(s => s.key !== 'not_set');
-                    if (!data.sources.length || !hasRealSource) { document.querySelector("#chart-source-hire").innerHTML = emptyHtml('{% trans "No source data available yet"|escapejs %}'); return; }
+                    if (!data.sources.length || !hasRealSource) { PieLegend.clearFor(document.querySelector("#chart-source-hire")); document.querySelector("#chart-source-hire").innerHTML = emptyHtml('{% trans "No source data available yet"|escapejs %}'); return; }
                     const sourceColors = { 'Application Form': '#3b82f6', 'Inside Software': '#E54F38', 'Referral': '#22c55e', 'Other': '#94a3b8' };
-                    renderChart('source-hire', document.querySelector("#chart-source-hire"), {
+                    renderChart('source-hire', document.querySelector("#chart-source-hire"), PieLegend.options(document.querySelector("#chart-source-hire"), () => chartInstances['source-hire'], 'sources', {
                         series: data.sources.map(s => s.count),
                         chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit',
                             events: { dataPointSelection: (e, ctx, config) => {
@@ -1334,7 +1335,7 @@
                         dataLabels: { enabled: false },
                         legend: { position: 'bottom', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
                         tooltip: { theme: isDark ? 'dark' : 'light' },
-                    });
+                    }));
                 });
             }
             loadSourceOfHire();
@@ -1450,9 +1451,9 @@
                 .then(r => r.json())
                 .then(data => {
                     const total = data.data.reduce((a, b) => a + b, 0);
-                    if (!total) { document.querySelector("#chart-offer-status").innerHTML = emptyHtml('{% trans "No candidates"|escapejs %}'); return; }
+                    if (!total) { PieLegend.clearFor(document.querySelector("#chart-offer-status")); document.querySelector("#chart-offer-status").innerHTML = emptyHtml('{% trans "No candidates"|escapejs %}'); return; }
                     const offerColors = ['#94a3b8', '#f59e0b', '#22c55e', '#ef4444', '#E54F38'];
-                    renderChart('offer-status', document.querySelector("#chart-offer-status"), {
+                    renderChart('offer-status', document.querySelector("#chart-offer-status"), PieLegend.options(document.querySelector("#chart-offer-status"), () => chartInstances['offer-status'], 'statuses', {
                         series: data.data,
                         chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit',
                             events: { dataPointSelection: (e, ctx, config) => {
@@ -1467,7 +1468,7 @@
                         dataLabels: { enabled: false },
                         legend: { position: 'bottom', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
                         tooltip: { theme: isDark ? 'dark' : 'light' },
-                    });
+                    }));
                 });
             }
             loadOfferStatus();
@@ -1540,10 +1541,11 @@
                     const el = document.querySelector("#chart-talent-pool");
                     if (!data.pools || !data.pools.length) {
                         if (chartInstances['talent-pool']) { chartInstances['talent-pool'].destroy(); chartInstances['talent-pool'] = null; }
+                        PieLegend.clearFor(el);
                         el.innerHTML = emptyHtml('{% trans "No talent pools yet"|escapejs %}');
                         return;
                     }
-                    renderChart('talent-pool', el, {
+                    renderChart('talent-pool', el, PieLegend.options(el, () => chartInstances['talent-pool'], 'pools', {
                         series: data.pools.map(p => p.count),
                         labels: data.pools.map(p => p.pool),
                         chart: { type: 'pie', height: 300, background: 'transparent', fontFamily: 'inherit',
@@ -1554,7 +1556,7 @@
                         dataLabels: { enabled: true, style: { fontSize: '12px', colors: ['#fff'] }, dropShadow: { enabled: false } },
                         legend: { position: 'bottom', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
                         tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: v => v + ' candidate(s)' } },
-                    });
+                    }));
                 });
             }
             loadTalentPool();

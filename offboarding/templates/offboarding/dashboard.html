@@ -902,7 +902,8 @@
         </div>
     </div>
 
-    <script>
+    {% include "components/pie_legend.html" %}
+<script>
         function obInitDashboard() {
             const isDark = document.documentElement.classList.contains('dark') || document.body.classList.contains('dark');
             const textColor = isDark ? '#e2e8f0' : '#334155';
@@ -1219,8 +1220,8 @@
                 .then(r => r.json())
                 .then(data => {
                     const total = data.statuses.reduce((a, s) => a + s.count, 0);
-                    if (!total) { document.querySelector("#chart-resignation").innerHTML = emptyHtml('{% trans "No resignations"|escapejs %}'); return; }
-                    renderChart('resignation', document.querySelector("#chart-resignation"), {
+                    if (!total) { PieLegend.clearFor(document.querySelector("#chart-resignation")); document.querySelector("#chart-resignation").innerHTML = emptyHtml('{% trans "No resignations"|escapejs %}'); return; }
+                    renderChart('resignation', document.querySelector("#chart-resignation"), PieLegend.options(document.querySelector("#chart-resignation"), () => chartInstances['resignation'], 'statuses', {
                         series: data.statuses.map(s => s.count),
                         chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit',
                             events: { dataPointSelection: (e, ctx, config) => {
@@ -1235,7 +1236,7 @@
                         stroke: { width: 2, colors: [cardBg] }, dataLabels: { enabled: false },
                         legend: { position: 'bottom', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
                         tooltip: { theme: isDark ? 'dark' : 'light' },
-                    });
+                    }));
                 });
             }
             loadResignationStatus();
@@ -1246,14 +1247,14 @@
                 .then(r => r.json())
                 .then(data => {
                     const total = data.statuses.reduce((a, s) => a + s.count, 0);
-                    if (!total) { document.querySelector("#chart-tasks").innerHTML = emptyHtml('{% trans "No tasks"|escapejs %}'); return; }
+                    if (!total) { PieLegend.clearFor(document.querySelector("#chart-tasks")); document.querySelector("#chart-tasks").innerHTML = emptyHtml('{% trans "No tasks"|escapejs %}'); return; }
                     const taskColors = { todo: '#94a3b8', in_progress: '#3b82f6', stuck: '#ef4444', completed: '#22c55e' };
                     // No redirect: EmployeeTask has no list view anywhere in
                     // offboarding to send this to (tasks are only ever visible
                     // embedded inside an individual offboarding employee's own
                     // detail modal) -- same reasoning as the Task Completion KPI
                     // card above, which is deliberately non-clickable too.
-                    renderChart('tasks', document.querySelector("#chart-tasks"), {
+                    renderChart('tasks', document.querySelector("#chart-tasks"), PieLegend.options(document.querySelector("#chart-tasks"), () => chartInstances['tasks'], 'statuses', {
                         series: data.statuses.map(s => s.count),
                         chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit' },
                         labels: data.statuses.map(s => s.label),
@@ -1262,7 +1263,7 @@
                         stroke: { width: 2, colors: [cardBg] }, dataLabels: { enabled: false },
                         legend: { position: 'bottom', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
                         tooltip: { theme: isDark ? 'dark' : 'light' },
-                    });
+                    }));
                 });
             }
             loadTaskCompletion();

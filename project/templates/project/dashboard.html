@@ -212,7 +212,6 @@
                     </div>
                     <div class="pr-chart-card__body">
                         <div id="pr-task-chart"></div>
-                        <div class="pr-legend" id="pr-task-legend"></div>
                     </div>
                 </div>
 
@@ -266,6 +265,7 @@
     </div>
 </div>
 
+{% include "components/pie_legend.html" %}
 <script>
 (function() {
     const isDark = document.documentElement.classList.contains('dark') || document.body.classList.contains('dark');
@@ -399,11 +399,10 @@
     function prLoadTasks() {
         prFetch(PR_URLS.tasks).then(d => {
             const el = document.getElementById('pr-task-chart');
-            const legend = document.getElementById('pr-task-legend');
-            if (!d.counts.length) { el.innerHTML = emptyHtml('{% trans "No tasks yet"|escapejs %}'); legend.innerHTML = ''; return; }
+            if (!d.counts.length) { PieLegend.clearFor(el); el.innerHTML = emptyHtml('{% trans "No tasks yet"|escapejs %}'); return; }
             const colors = d.keys.map(k => TASK_COLORS[k] || '#94a3b8');
             el.style.cursor = "pointer";
-            renderChart('task-status', el, {
+            renderChart('task-status', el, PieLegend.options(el, () => chartInstances['task-status'], 'statuses', {
                 series: d.counts,
                 labels: d.labels,
                 chart: {
@@ -419,10 +418,7 @@
                 plotOptions: { pie: { donut: { size: "62%", labels: { show: true, total: { show: true, label: '{% trans "Total"|escapejs %}', color: textColor, fontSize: '12px', fontWeight: 600 } } } } },
                 stroke: { width: 2, colors: [cardBg] },
                 tooltip: { theme: isDark ? 'dark' : 'light' },
-            });
-            legend.innerHTML = d.labels.map((label, i) =>
-                `<div class="pr-legend__item"><span class="pr-legend__dot" style="background:${colors[i]};"></span>${label} <span class="pr-legend__count">(${d.counts[i]})</span></div>`
-            ).join('');
+            }));
         });
     }
 
