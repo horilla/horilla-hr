@@ -7,9 +7,10 @@ Accessible at /project/dashboard/
 from collections import Counter
 from datetime import date, timedelta
 
+from django.contrib import messages
 from django.db.models import Count, Q
 from django.http import JsonResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.utils.translation import gettext_lazy as _
 
 from horilla.decorators import login_required
@@ -74,25 +75,30 @@ def _period_overlap(qs, request):
 
 
 @login_required
-@is_projectmanager_or_member_or_perms(perm="project.view_project")
 def project_dashboard_view(request):
+    from project.sidebar import dashboard_accessibility
+
+    if not dashboard_accessibility(request, None, None):
+        messages.info(request, _("You don't have permission."))
+        return redirect("/")
     return render(request, "project/dashboard.html")
 
 
 @login_required
 @is_projectmanager_or_member_or_perms(perm="project.view_project")
 def project_kpi_data(request):
-    """Total/Active/Completed/Overdue counts, each with a small trend delta."""
+    """Total/Active/On Hold/Overdue counts, each with a small trend delta."""
     from project.models import Project
 
     today = date.today()
     this_month_start, this_month_end = _month_bounds(today, 0)
-    last_month_start, last_month_end = _month_bounds(today, 1)
 
     active_qs = Project.objects.filter(is_active=True)
     total = active_qs.count()
     active = active_qs.filter(status="in_progress").count()
-    completed = active_qs.filter(status="completed").count()
+    on_hold_qs = active_qs.filter(status="on_hold")
+    on_hold = on_hold_qs.count()
+    on_hold_overdue = on_hold_qs.filter(end_date__lt=today).count()
     overdue = (
         active_qs.filter(end_date__lt=today)
         .exclude(status__in=["completed", "cancelled", "expired"])
@@ -100,30 +106,13 @@ def project_kpi_data(request):
     )
 
     total_new_this_month = active_qs.filter(
-        created_at__date__gte=this_month_start, created_at__date__lte=this_month_end
+        start_date__gte=this_month_start, start_date__lte=this_month_end
     ).count()
     active_started_this_month = active_qs.filter(
         status="in_progress",
         start_date__gte=this_month_start,
         start_date__lte=this_month_end,
     ).count()
-    completed_this_month = active_qs.filter(
-        status="completed",
-        end_date__gte=this_month_start,
-        end_date__lte=this_month_end,
-    ).count()
-    completed_last_month = active_qs.filter(
-        status="completed",
-        end_date__gte=last_month_start,
-        end_date__lte=last_month_end,
-    ).count()
-    completed_change_pct = 0
-    if completed_last_month > 0:
-        completed_change_pct = round(
-            ((completed_this_month - completed_last_month) / completed_last_month)
-            * 100,
-            1,
-        )
     overdue_new_this_month = (
         active_qs.filter(
             end_date__gte=this_month_start,
@@ -137,12 +126,11 @@ def project_kpi_data(request):
         {
             "total_projects": total,
             "active_projects": active,
-            "completed_projects": completed,
+            "on_hold_projects": on_hold,
+            "on_hold_overdue": on_hold_overdue,
             "overdue_projects": overdue,
             "total_new_this_month": total_new_this_month,
             "active_started_this_month": active_started_this_month,
-            "completed_this_month": completed_this_month,
-            "completed_change_pct": completed_change_pct,
             "overdue_new_this_month": overdue_new_this_month,
         }
     )

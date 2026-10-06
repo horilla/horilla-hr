@@ -75,6 +75,8 @@
     .pr-kpi-card__icon--blue { background: #dbeafe; color: var(--pr-blue); }
     .pr-kpi-card__icon--green { background: #dcfce7; color: var(--pr-green); }
     .pr-kpi-card__icon--purple { background: #f3e8ff; color: var(--pr-purple); }
+    .pr-kpi-card__icon--amber { background: #fef3c7; color: var(--pr-amber); }
+    .dark .pr-kpi-card__icon--amber { background: #78350f; }
     .pr-kpi-card__icon--red { background: #fee2e2; color: var(--pr-red); }
     .dark .pr-kpi-card__icon--blue { background: #1e3a5f; } .dark .pr-kpi-card__icon--green { background: #14532d; }
     .dark .pr-kpi-card__icon--purple { background: #3b0764; } .dark .pr-kpi-card__icon--red { background: #7f1d1d; }
@@ -146,10 +148,28 @@
     .pr-pipeline-step__label { font-size: 10px; font-weight: 600; text-transform: uppercase; opacity: 0.7; }
 
     /* Task status legend — counts alongside percentages */
-    .pr-legend { display: flex; flex-wrap: wrap; gap: 10px 16px; padding: 4px 4px 2px; justify-content: center; }
-    .pr-legend__item { display: flex; align-items: center; gap: 6px; font-size: 11px; }
-    .pr-legend__dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
-    .pr-legend__count { opacity: 0.55; }
+    .pr-legend { display: flex; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 6px; padding: 6px 12px 14px; }
+    .pr-pills { display: contents; }
+    .pr-pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border: 1px solid rgba(128,128,128,0.2); border-radius: 999px; background: none; color: inherit; font-size: 11px; font-weight: 500; white-space: nowrap; flex-shrink: 0; cursor: pointer; transition: opacity 0.15s, border-color 0.15s; }
+    .pr-pill:hover { border-color: var(--primary-600, #E54F38); }
+    .pr-pill.is-off { opacity: 0.45; }
+    .pr-pill.is-off .pr-pill__dot { filter: grayscale(1); }
+    .pr-pill__dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .pr-pill__name { max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
+    .pr-pill__detail { opacity: 0.55; }
+    .pr-pill--more { text-transform: capitalize; color: var(--primary-600, #E54F38); font-weight: 600; border-style: dashed; }
+    .pr-pill-more { position: relative; display: inline-block; }
+    .pr-pop { display: none; position: absolute; right: 0; bottom: 100%; padding-bottom: 8px; z-index: 40; }
+    .pr-pill-more:hover .pr-pop, .pr-pill-more:focus-within .pr-pop { display: block; }
+    .pr-pop__box { width: max-content; min-width: 200px; max-width: 340px; border: 1px solid rgba(128,128,128,0.15); border-radius: 10px; background: #ffffff; box-shadow: 0 8px 28px rgba(0,0,0,0.15); padding: 8px 4px 6px; }
+    .dark .pr-pop__box { background: #242424; }
+    .pr-pop__list { max-height: 190px; overflow-y: auto; }
+    .pr-pop__row { display: flex; align-items: center; gap: 8px; padding: 5px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; }
+    .pr-pop__row:hover { background: rgba(128,128,128,0.1); }
+    .pr-pop__row input { accent-color: var(--primary-600, #E54F38); margin: 0; }
+    .pr-pop__text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pr-pop__count { flex-shrink: 0; margin-left: auto; font-size: 11px; opacity: 0.55; }
+    .pr-chart-card:has(.pr-pill-more:hover), .pr-chart-card:has(.pr-pill-more:focus-within) { position: relative; z-index: 30; }
 
     /* Responsive */
     @media (max-width: 1280px) { .pr-kpi-grid { grid-template-columns: repeat(2, 1fr); } .pr-layout { grid-template-columns: 1fr; } .pr-sidebar { position: static; display: grid; grid-template-columns: 1fr 1fr; max-height: none; overflow-y: visible; } }
@@ -191,17 +211,6 @@
         <div class="pr-main">
             <div class="pr-chart-grid">
 
-                <!-- Project Pipeline -->
-                <div class="pr-chart-card pr-chart-card--wide">
-                    <div class="pr-chart-card__header">
-                        <div>
-                            <div class="pr-chart-card__title">{% trans "Project Pipeline" %}</div>
-                            <div class="pr-chart-card__sub">{% trans "Status of active projects" %}<span data-period-label></span></div>
-                        </div>
-                    </div>
-                    <div class="pr-chart-card__body"><div id="pr-pipeline"></div></div>
-                </div>
-
                 <!-- Task Status -->
                 <div class="pr-chart-card">
                     <div class="pr-chart-card__header">
@@ -223,7 +232,10 @@
                             <div class="pr-chart-card__sub">{% trans "In progress — by task count" %}<span data-period-label></span></div>
                         </div>
                     </div>
-                    <div class="pr-chart-card__body"><div id="pr-top-chart"></div></div>
+                    <div class="pr-chart-card__body">
+                        <div id="pr-top-chart"></div>
+                        <div class="pr-legend" id="pr-top-legend"></div>
+                    </div>
                 </div>
 
                 <!-- Project Timesheet -->
@@ -234,7 +246,10 @@
                             <div class="pr-chart-card__sub">{% trans "Hours logged per project" %}<span data-period-label></span></div>
                         </div>
                     </div>
-                    <div class="pr-chart-card__body"><div id="pr-timesheet-chart"></div></div>
+                    <div class="pr-chart-card__body">
+                        <div id="pr-timesheet-chart"></div>
+                        <div class="pr-legend" id="pr-timesheet-legend"></div>
+                    </div>
                 </div>
 
             </div>
@@ -273,7 +288,7 @@
     const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
     const cardBg = isDark ? '#242424' : '#ffffff';
     const emptyHtml = (msg) => `<div class="pr-empty"><img src="/static/images/ui/no_records.svg" alt="">${msg}</div>`;
-    const taskAllUrlFor = id => id ? `{% url 'task-all' %}?task_members=${id}` : '#';
+    const taskAllUrlFor = id => id ? `{% url 'task-all' %}?task_members=${id}&status=completed&end_from=${prFromDate}&end_till=${prToDate}` : '#';
 
     const PR_URLS = {
         kpi:          "{% url 'project-dashboard-kpi' %}",
@@ -340,14 +355,71 @@
         return chart;
     }
 
-    const fmtPct = v => (v > 0 ? '+' : '') + v + '%';
+    const prEsc = v => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    function prCreateLegend({ el, noun, topN = 6 }) {
+        let items = [], selected = new Set(), onToggle = null;
+        const dot = c => `<span class="pr-pill__dot" style="background:${c}"></span>`;
+        function pillsHtml(k) {
+            return items.slice(0, k).map(it => `<button type="button" class="pr-pill${selected.has(it.name) ? '' : ' is-off'}" data-name="${prEsc(it.name)}" title="${prEsc(it.name)}${it.detail != null ? ': ' + prEsc(it.detail) : ''}">${dot(it.color)}<span class="pr-pill__name">${prEsc(it.name)}</span>${it.detail != null ? `<span class="pr-pill__detail">${prEsc(it.detail)}</span>` : ''}</button>`).join('');
+        }
+        function build(k) {
+            const rest = items.slice(k);
+            let html = `<span class="pr-pills">${pillsHtml(k)}</span>`;
+            if (rest.length) {
+                html += `<span class="pr-pill-more"><button type="button" class="pr-pill pr-pill--more">+${rest.length} ${prEsc(noun)}</button>`
+                    + `<div class="pr-pop"><div class="pr-pop__box"><div class="pr-pop__list">`
+                    + rest.map(it => `<label class="pr-pop__row"><input type="checkbox" data-name="${prEsc(it.name)}"${selected.has(it.name) ? ' checked' : ''}>${dot(it.color)}<span class="pr-pop__text">${prEsc(it.name)}</span>${it.detail != null ? `<span class="pr-pop__count">${prEsc(it.detail)}</span>` : ''}</label>`).join('')
+                    + `</div></div></div></span>`;
+            }
+            el.innerHTML = html;
+            return k;
+        }
+        function render() {
+            let k = build(Math.min(topN, items.length));
+            while (k > 1 && el.scrollWidth > el.clientWidth + 1) k = build(k - 1);
+        }
+        function toggle(name) {
+            if (selected.has(name)) {
+                if (selected.size === 1) return;
+                selected.delete(name);
+            } else {
+                selected.add(name);
+            }
+            const pills = el.querySelector('.pr-pills');
+            if (pills) pills.querySelectorAll('.pr-pill').forEach(p => p.classList.toggle('is-off', !selected.has(p.dataset.name)));
+            el.querySelectorAll('input[data-name]').forEach(cb => { cb.checked = selected.has(cb.dataset.name); });
+            if (onToggle) onToggle(name, selected.has(name));
+        }
+        el.addEventListener('click', e => {
+            const pill = e.target.closest('.pr-pill[data-name]');
+            if (pill) toggle(pill.dataset.name);
+        });
+        el.addEventListener('change', e => {
+            if (e.target.matches('input[data-name]')) toggle(e.target.dataset.name);
+        });
+        let lastWidth = 0;
+        new ResizeObserver(() => {
+            if (el.clientWidth === lastWidth) return;
+            lastWidth = el.clientWidth;
+            if (items.length) render();
+        }).observe(el);
+        return {
+            set(newItems, toggleFn) {
+                items = newItems;
+                selected = new Set(items.map(i => i.name));
+                onToggle = toggleFn;
+                render();
+            },
+            clear() { items = []; el.innerHTML = ''; },
+        };
+    }
+    const timesheetLegend = prCreateLegend({ el: document.getElementById('pr-timesheet-legend'), noun: '{% trans "projects"|escapejs %}' });
+    const topLegend = prCreateLegend({ el: document.getElementById('pr-top-legend'), noun: '{% trans "projects"|escapejs %}', topN: 3 });
 
     // ─── KPI CARDS ───
     function prLoadKpi() {
         prFetch(PR_URLS.kpi).then(d => {
             const pv = PR_URLS.projectView;
-            const changeIcon = d.completed_change_pct > 0 ? '↑' : d.completed_change_pct < 0 ? '↓' : '→';
-            const changeClass = d.completed_change_pct > 0 ? 'pr-badge--green' : d.completed_change_pct < 0 ? 'pr-badge--red' : 'pr-badge--blue';
             document.getElementById('pr-kpi-grid').innerHTML = `
                 <a href="${pv}" class="pr-kpi-card">
                     <div class="pr-kpi-card__icon pr-kpi-card__icon--blue"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
@@ -361,11 +433,11 @@
                     <div class="pr-kpi-card__value">${d.active_projects}</div>
                     <div class="pr-kpi-card__sub"><span class="pr-badge pr-badge--green">+${d.active_started_this_month} {% trans "Started This Month"|escapejs %}</span></div>
                 </a>
-                <a href="${pv}?status=completed" class="pr-kpi-card">
-                    <div class="pr-kpi-card__icon pr-kpi-card__icon--purple"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
-                    <div class="pr-kpi-card__label">{% trans "Completed"|escapejs %}</div>
-                    <div class="pr-kpi-card__value">${d.completed_projects}</div>
-                    <div class="pr-kpi-card__sub"><span class="pr-badge ${changeClass}">${changeIcon} ${fmtPct(Math.abs(d.completed_change_pct))} {% trans "Vs Last Month"|escapejs %}</span></div>
+                <a href="${pv}?status=on_hold" class="pr-kpi-card">
+                    <div class="pr-kpi-card__icon pr-kpi-card__icon--amber"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="10" y1="15" x2="10" y2="9"/><line x1="14" y1="15" x2="14" y2="9"/></svg></div>
+                    <div class="pr-kpi-card__label">{% trans "On Hold"|escapejs %}</div>
+                    <div class="pr-kpi-card__value">${d.on_hold_projects}</div>
+                    <div class="pr-kpi-card__sub">${d.on_hold_overdue > 0 ? `<span class="pr-badge pr-badge--amber">${d.on_hold_overdue} {% trans "Past End Date"|escapejs %}</span>` : `<span class="pr-badge pr-badge--amber">{% trans "Needs Review"|escapejs %}</span>`}</div>
                 </a>
                 <a href="${pv}?overdue=True" class="pr-kpi-card">
                     <div class="pr-kpi-card__icon pr-kpi-card__icon--red"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
@@ -378,38 +450,23 @@
         });
     }
 
-    // ─── PROJECT PIPELINE ───
-    function prLoadPipeline() {
-        prFetch(PR_URLS.pipeline).then(d => {
-            const el = document.getElementById('pr-pipeline');
-            if (!d.total) { el.innerHTML = emptyHtml('{% trans "No active projects"|escapejs %}'); return; }
-            const colors = { new: 'rgba(148,163,184,0.15)', in_progress: 'rgba(59,130,246,0.15)', on_hold: 'rgba(245,158,11,0.15)', completed: 'rgba(34,197,94,0.15)' };
-            const textColors = { new: '#64748b', in_progress: '#2563eb', on_hold: '#d97706', completed: '#16a34a' };
-            el.innerHTML = '<div class="pr-pipeline">' + d.stages.map(s =>
-                `<a href="${PR_URLS.projectView}?status=${encodeURIComponent(s.status)}" class="pr-pipeline-step" style="background:${colors[s.status]};cursor:pointer;">
-                    <div class="pr-pipeline-step__count" style="color:${textColors[s.status]};">${s.count}</div>
-                    <div class="pr-pipeline-step__label">${s.label}</div>
-                </a>`
-            ).join('<div style="display:flex;align-items:center;opacity:0.3;font-size:18px;">→</div>') + '</div>';
-        });
-    }
-
     // ─── TASK STATUS ───
     const TASK_COLORS = { to_do: '#94a3b8', in_progress: '#3b82f6', completed: '#22c55e', expired: '#ef4444' };
     function prLoadTasks() {
         prFetch(PR_URLS.tasks).then(d => {
             const el = document.getElementById('pr-task-chart');
-            if (!d.counts.length) { PieLegend.clearFor(el); el.innerHTML = emptyHtml('{% trans "No tasks yet"|escapejs %}'); return; }
+            if (!d.counts.length) { PieLegend.clearFor(el); el.innerHTML = emptyHtml('{% trans "No tasks in this period"|escapejs %}'); return; }
             const colors = d.keys.map(k => TASK_COLORS[k] || '#94a3b8');
             el.style.cursor = "pointer";
-            renderChart('task-status', el, PieLegend.options(el, () => chartInstances['task-status'], 'statuses', {
+            renderChart('task-status', el, PieLegend.options(el, () => chartInstances['task-status'], '{% trans "statuses"|escapejs %}', {
                 series: d.counts,
                 labels: d.labels,
                 chart: {
                     type: "donut", height: 240, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
                     events: { dataPointSelection: (e, ctx, cfg) => {
                         const key = d.keys[cfg.dataPointIndex];
-                        window.location.href = key ? PR_URLS.taskAll + "?status=" + encodeURIComponent(key) : PR_URLS.taskAll;
+                        const period = "period_from=" + prFromDate + "&period_to=" + prToDate;
+                        window.location.href = PR_URLS.taskAll + "?" + (key ? "status=" + encodeURIComponent(key) + "&" : "") + period;
                     }},
                 },
                 colors: colors,
@@ -426,8 +483,9 @@
     function prLoadTimesheet() {
         prFetch(PR_URLS.timesheet).then(d => {
             const el = document.getElementById('pr-timesheet-chart');
-            if (!d.entries) { el.innerHTML = emptyHtml('{% trans "No timesheet entries in this period"|escapejs %}'); return; }
-            renderChart('timesheet', el, {
+            if (!d.entries) { el.innerHTML = emptyHtml('{% trans "No timesheet entries in this period"|escapejs %}'); timesheetLegend.clear(); return; }
+            const seriesColors = ['#3b82f6', '#22c55e', '#f59e0b', '#a855f7', '#06b6d4', '#ec4899', '#94a3b8'];
+            const chart = renderChart('timesheet', el, {
                 series: d.series.map(s => ({ name: s.name, data: s.data })),
                 chart: { type: 'bar', stacked: true, height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
                     events: { dataPointSelection: (e, ctx, cfg) => {
@@ -436,7 +494,7 @@
                         if (s && s.project_id) window.location.href = PR_URLS.projectDetail.replace('__ID__', s.project_id);
                     }},
                 },
-                colors: ['#3b82f6', '#22c55e', '#f59e0b', '#a855f7', '#06b6d4', '#ec4899', '#94a3b8'],
+                colors: seriesColors,
                 plotOptions: { bar: { columnWidth: '55%', borderRadius: 3 } },
                 dataLabels: { enabled: false },
                 stroke: { width: 1, colors: [cardBg] },
@@ -445,9 +503,13 @@
                 xaxis: { categories: d.labels, tickAmount: d.labels.length, labels: { rotate: -45, rotateAlways: d.labels.length > 14, hideOverlappingLabels: false, trim: false, style: { colors: textColor, fontSize: d.labels.length > 14 ? '10px' : '11px' } }, axisBorder: { show: false }, axisTicks: { show: false } },
                 yaxis: { min: 0, title: { text: '{% trans "Hours"|escapejs %}', style: { color: textColor, fontSize: '11px' } }, labels: { style: { colors: textColor }, formatter: v => Math.round(v * 10) / 10 } },
                 grid: { borderColor: gridColor, strokeDashArray: 4 },
-                legend: { position: 'top', horizontalAlign: 'right', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
+                legend: { show: false },
                 tooltip: { theme: isDark ? 'dark' : 'light', shared: true, intersect: false, y: { formatter: v => v + ' h' } },
             });
+            timesheetLegend.set(
+                d.series.map((s, i) => ({ name: s.name, color: seriesColors[i % seriesColors.length] })),
+                (name, on) => { if (on) chart.showSeries(name); else chart.hideSeries(name); }
+            );
         });
     }
 
@@ -455,25 +517,43 @@
     function prLoadTop() {
         prFetch(PR_URLS.top).then(d => {
             const el = document.getElementById("pr-top-chart");
-            if (!d.projects.length) { el.innerHTML = emptyHtml('{% trans "No active projects"|escapejs %}'); return; }
+            if (!d.projects.length) { el.innerHTML = emptyHtml('{% trans "No in-progress projects in this period"|escapejs %}'); topLegend.clear(); return; }
             el.style.cursor = "pointer";
-            renderChart('top-active', el, {
-                series: [{ name: '{% trans "Tasks"|escapejs %}', data: d.projects.map(p => p.task_count) }],
+            const palette = ['#E54F38', '#3b82f6', '#22c55e', '#f59e0b', '#a855f7', '#06b6d4', '#ec4899', '#94a3b8'];
+            const all = d.projects.map((p, i) => ({ p, color: palette[i % palette.length] }));
+            let shown = all;
+            const shortTitle = t => t.length > 18 ? t.slice(0, 18) + "…" : t;
+            const chart = renderChart('top-active', el, {
+                series: [{ name: '{% trans "Tasks"|escapejs %}', data: shown.map(s => s.p.task_count) }],
                 chart: {
                     type: "bar", height: 240, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
                     events: { dataPointSelection: (e, ctx, cfg) => {
-                        const proj = d.projects[cfg.dataPointIndex];
-                        if (proj && proj.id) window.location.href = PR_URLS.projectDetail.replace('__ID__', proj.id);
+                        const proj = shown[cfg.dataPointIndex] && shown[cfg.dataPointIndex].p;
+                        if (proj && proj.id) window.location.href = PR_URLS.taskAll + "?view=list&field=project&nested_fields=&project=" + proj.id;
                     }},
                 },
-                colors: ["#E54F38"],
-                xaxis: { categories: d.projects.map(p => p.title.length > 18 ? p.title.slice(0,18)+"…" : p.title), labels: { style: { colors: textColor, fontSize: "11px" } } },
+                colors: shown.map(s => s.color),
+                xaxis: { categories: shown.map(s => shortTitle(s.p.title)), labels: { style: { colors: textColor, fontSize: "11px" } } },
                 yaxis: { labels: { style: { colors: textColor, fontSize: "11px" } } },
-                plotOptions: { bar: { borderRadius: 4, horizontal: true } },
+                plotOptions: { bar: { borderRadius: 4, horizontal: true, distributed: true } },
+                legend: { show: false },
                 dataLabels: { enabled: false },
                 grid: { borderColor: gridColor, strokeDashArray: 4 },
                 tooltip: { theme: isDark ? 'dark' : 'light' },
             });
+            const hidden = new Set();
+            topLegend.set(
+                all.map(s => ({ name: s.p.title, color: s.color, detail: String(s.p.task_count) })),
+                (name, on) => {
+                    if (on) hidden.delete(name); else hidden.add(name);
+                    shown = all.filter(s => !hidden.has(s.p.title));
+                    chart.updateOptions({
+                        series: [{ name: '{% trans "Tasks"|escapejs %}', data: shown.map(s => s.p.task_count) }],
+                        xaxis: { categories: shown.map(s => shortTitle(s.p.title)) },
+                        colors: shown.map(s => s.color),
+                    });
+                }
+            );
         });
     }
 
@@ -481,7 +561,7 @@
     function prLoadContributors() {
         prFetch(PR_URLS.contributors).then(d => {
             const el = document.getElementById('pr-contributors');
-            if (!d.contributors.length) { el.innerHTML = '<div class="pr-info-panel__empty">{% trans "No completed tasks this month"|escapejs %}</div>'; return; }
+            if (!d.contributors.length) { el.innerHTML = '<div class="pr-info-panel__empty">{% trans "No completed tasks in this period"|escapejs %}</div>'; return; }
             el.innerHTML = d.contributors.map(c => {
                 const initials = c.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
                 const avatarInner = c.avatar ? `<img src="${c.avatar}" alt="">` : initials;
@@ -489,7 +569,6 @@
                     <div class="pr-list-item__avatar">${avatarInner}</div>
                     <div class="pr-list-item__info">
                         <div class="pr-list-item__name">${c.name}</div>
-                        <div class="pr-list-item__detail">${c.completed_count} {% trans "tasks"|escapejs %}</div>
                     </div>
                     <div class="pr-list-item__value" style="color:var(--pr-green);">${c.completed_count}</div>
                 </a>`;
@@ -569,7 +648,6 @@
     function prLoadAll() {
         prApplyPeriodLabels();
         prLoadKpi();
-        prLoadPipeline();
         prLoadTasks();
         prLoadTimesheet();
         prLoadTop();

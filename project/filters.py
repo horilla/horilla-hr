@@ -138,6 +138,16 @@ class TaskAllFilter(HorillaFilterSet):
         widget=forms.DateInput(attrs={"type": "date"}),
         label=_("End Date Till"),
     )
+    period_from = django_filters.DateFilter(
+        method="filter_period_from",
+        widget=forms.DateInput(attrs={"type": "date"}),
+        label=_("Active From"),
+    )
+    period_to = django_filters.DateFilter(
+        method="filter_period_to",
+        widget=forms.DateInput(attrs={"type": "date"}),
+        label=_("Active Till"),
+    )
 
     # HorillaFilterSet.ajax_fields (generic AJAX-loaded combobox mechanism)
     ajax_fields = {
@@ -190,6 +200,14 @@ class TaskAllFilter(HorillaFilterSet):
         if value:
             return queryset.filter(status__in=["to_do", "in_progress"])
         return queryset
+
+    def filter_period_from(self, queryset, _name, value):
+        """Tasks that end on or after the date; no end date counts as open."""
+        return queryset.filter(Q(end_date__gte=value) | Q(end_date__isnull=True))
+
+    def filter_period_to(self, queryset, _name, value):
+        """Tasks that start on or before the date; no start date counts as started."""
+        return queryset.filter(Q(start_date__lte=value) | Q(start_date__isnull=True))
 
     def filter_by_task(self, queryset, _, value):
         queryset = queryset.filter(title__icontains=value)
