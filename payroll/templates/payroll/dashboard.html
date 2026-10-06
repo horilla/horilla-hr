@@ -373,8 +373,15 @@ function pdInit() {
     function setPreset(p) {
         const [f, to] = presetRange(p);
         fromInput.value = iso(f); toInput.value = iso(to);
+        applyPeriod();
+    }
+    // Apply the period in place: remember it, re-mark the preset, then re-run every load.
+    function applyPeriod() {
         savePeriod();
-        location.reload();
+        markActivePreset();
+        lastRefresh = Date.now();
+        updateRefreshText();
+        refreshAllData();
     }
     document.querySelectorAll('.pd-period-preset').forEach(b => b.addEventListener('click', () => setPreset(b.dataset.preset)));
     // The custom dates apply when the field loses focus, not on every change:
@@ -382,7 +389,7 @@ function pdInit() {
     [fromInput, toInput].forEach(i => {
         i.addEventListener('focus', () => { i.dataset.prev = i.value; });
         i.addEventListener('blur', () => {
-            if (i.value && i.value !== i.dataset.prev && fromInput.value && toInput.value) { savePeriod(); location.reload(); }
+            if (i.value && i.value !== i.dataset.prev && fromInput.value && toInput.value) applyPeriod();
         });
     });
     function periodLabel() {
@@ -563,7 +570,14 @@ function pdInit() {
             chartInstances[key].destroy();
             chartInstances[key] = null;
         }
-        const chart = new ApexCharts(el, options);
+        // A draw can still be mounting when the next one replaces it (two loads close
+        // together, a tab coming back from the background). destroy() on a chart that has
+        // not mounted yet leaves its drawing behind and it lands in the page anyway: the same
+        // chart, twice. So each draw gets its own holder, and putting that holder in place
+        // throws away whatever the previous draw left, finished or not.
+        const holder = document.createElement('div');
+        el.replaceChildren(holder);
+        const chart = new ApexCharts(holder, options);
         chartInstances[key] = chart;
         const drawn = chart.render();
         // A chart replaced while it was still drawing would otherwise land in the page
