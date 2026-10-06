@@ -989,6 +989,56 @@ HOLIDAYS = {
     ],
 }
 
+# (name, days from today) -- company days off that always fall in the next weeks.
+UPCOMING_HOLIDAYS = {
+    NORTHWIND: [
+        ("Founders' Day", 6),
+        ("Company Wellness Day", 16),
+        ("Volunteer Day", 26),
+    ],
+    MERIDIAN: [
+        ("Company Anniversary", 6),
+        ("Team Appreciation Day", 16),
+        ("Family Day", 26),
+    ],
+}
+ANNOUNCEMENTS = [
+    (
+        "Quarterly Town Hall",
+        "Join leadership for the quarterly update on results, priorities and open roles.",
+        12,
+    ),
+    (
+        "New Health Insurance Plan",
+        "Open enrolment for the updated health insurance plan is now live. Review the options on the Policies page.",
+        25,
+    ),
+    (
+        "Office Maintenance Weekend",
+        "Building maintenance is scheduled this weekend. Please clear your desks by Friday evening.",
+        4,
+    ),
+    (
+        "Employee Referral Programme",
+        "Refer a friend for an open role and earn a bonus once they complete probation.",
+        40,
+    ),
+    (
+        "Learning & Development Calendar",
+        "The next quarter's training calendar is published. Register for sessions from the Learning page.",
+        33,
+    ),
+    (
+        "Security Awareness Reminder",
+        "Please complete the annual security awareness module before the deadline.",
+        18,
+    ),
+    (
+        "Annual Day Celebration",
+        "Save the date for the annual day celebration. Details and RSVP will follow.",
+        55,
+    ),
+]
 # (name, payment, total days, reset month) -- limited yearly entitlements.
 LEAVE_TYPES = [
     ("Annual Leave", "paid", 20.0, 3),
@@ -1121,6 +1171,12 @@ OBJECTIVE_COMMENTS = [
 ]
 
 
+def _aware(day):
+    from django.utils import timezone
+
+    return timezone.make_aware(datetime.datetime.combine(day, datetime.time(10, 0)))
+
+
 def _file(name):
     return ContentFile(_PDF, name=name)
 
@@ -1132,16 +1188,399 @@ class ExtrasMixin:
         from django.db import transaction
 
         with transaction.atomic(), _as_request():
+            self._joining_dates_for(employees, today)
             self._document_requests_for(company, employees, today)
             self._holidays_for(company, today)
+            self._announcements_for(company, today)
             self._leave_extras_for(company, employees, today)
             self._offboarding_for(company, employees, today)
+            self._current_month_payslips_for(company, employees, today)
             self._recruitment_extras_for(company, employees, today)
             self._attendance_extras_for(company, employees, today)
             self._pms_extras_for(company, employees, today)
             self._employee_extras_for(company, employees, today)
             self._base_extras_for(company, employees, today, default_shift)
             self._misc_extras_for(company, employees, today)
+            self._admin_extras_for(company, employees, today, default_shift)
+
+    # -- announcements -------------------------------------------------------
+
+    def _announcements_for(self, company, today):
+        from base.models import Announcement
+
+        for i, (title, description, expires_in) in enumerate(ANNOUNCEMENTS):
+            announcement = Announcement.objects.create(
+                title=title,
+                description=description,
+                expire_date=today + datetime.timedelta(days=expires_in),
+            )
+            announcement.company_id.add(company)
+            Announcement.objects.filter(pk=announcement.pk).update(
+                created_at=_aware(today - datetime.timedelta(days=1 + i * 3))
+            )
+        self.stdout.write(f"  Announcements: {len(ANNOUNCEMENTS)} more")
+
+    # -- current-month payslips ---------------------------------------------
+
+    def _current_month_payslips_for(self, company, employees, today):
+        """Month-to-date payslips left at different stages, for the Payroll
+        Dashboard's Payslip Pipeline (Draft / Review / Confirmed)."""
+        from payroll.methods import batch_run
+        from payroll.models.payroll_batch import PayrollBatch
+
+        # A month's payslips exist once the month is over. Before its last day
+        # only last month's run is kept; a part-month run would be a payslip
+        # for days that have not happened yet.
+        if (today + datetime.timedelta(days=1)).month == today.month:
+            self.stdout.write("  Month-to-date payslips: skipped (month not over)")
+            return
+
+        start = today.replace(day=1)
+        batch_employees = [e for e in employees[:12] if e.is_active]
+        batch = batch_run.create_batch(
+            name=f"{start.strftime('%b %Y')} Payroll (Month to date)",
+            start_date=start,
+            end_date=today,
+            employees=batch_employees,
+        )
+        PayrollBatch.objects.filter(pk=batch.pk).update(company_id=company)
+        while batch_run.generate_slice(batch, size=len(batch_employees)):
+            pass
+        statuses = [
+            "draft",
+            "draft",
+            "draft",
+            "review_ongoing",
+            "review_ongoing",
+            "confirmed",
+        ]
+        for i, payslip in enumerate(batch.payslips.order_by("pk")):
+            payslip.status = statuses[i % len(statuses)]
+            payslip.save(update_fields=["status"])
+        batch.refresh_totals()
+        self.stdout.write(f"  Month-to-date payslips: {batch.generated_count}")
+
+    # -- joining dates -------------------------------------------------------
+
+    def _joining_dates_for(self, employees, today):
+        """Spread joining dates over the last 12 months and earlier years.
+
+        The recent hires and joiners keep the dates already set for them; the
+        people who later resign or leave are given long tenures so they have
+        always joined before they exit. Runs after payroll, so closed payslips
+        are untouched.
+        """
+        from employee.models import EmployeeWorkInformation
+
+        recent = {e.pk for e in employees[-len(TURNOVER_HIRE_MONTHS_AGO) :]}
+        long_tenure = {
+            employees[i].pk
+            for i in (9, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21)
+            if i < len(employees)
+        }
+        recent_months = [11, 9, 7, 10, 6, 8, 12, 5]
+        older = 0
+        spread = 0
+        for index, employee in enumerate(employees):
+            if employee.pk in recent or index == 7:
+                continue
+            if employee.pk in long_tenure:
+                months_ago = 18 + (older * 5) % 40
+                older += 1
+            elif spread < len(recent_months) + 4:
+                months_ago = (
+                    recent_months[spread % len(recent_months)]
+                    + (spread // len(recent_months)) * 0
+                )
+                spread += 1
+            else:
+                months_ago = 14 + (index * 7) % 46
+            joined = _add_months(today.replace(day=1), -months_ago).replace(
+                day=2 + (index * 5) % 25
+            )
+            EmployeeWorkInformation.objects.filter(employee_id=employee).update(
+                date_joining=joined
+            )
+
+        # The newest joiners start this month, for the New Employees widget.
+        month_start = today.replace(day=1)
+        for k, employee in enumerate(employees[-3:]):
+            EmployeeWorkInformation.objects.filter(employee_id=employee).update(
+                date_joining=month_start
+                + datetime.timedelta(days=min(k * 2, today.day - 1))
+            )
+
+    # -- Adam Admin's own data (My Dashboard) --------------------------------
+
+    def _admin_core_for(
+        self,
+        company,
+        shift,
+        gross_up,
+        wage,
+        position_pool,
+        today,
+        older,
+        current,
+        last_month,
+        leave_horizon_end,
+        paid_type,
+        unpaid_type,
+    ):
+        """Give Adam Admin a real employee record: contract, department,
+        attendance, leave and a payslip, like everyone else in the branch."""
+        from employee.models import Employee, EmployeeWorkInformation
+        from payroll.models.models import Contract
+
+        admin = Employee.objects.get(email="adam@horilla.com")
+        Contract.objects.filter(employee_id=admin).delete()
+        contract = Contract.objects.create(
+            contract_name="Adam Admin — Standard",
+            employee_id=admin,
+            contract_start_date=datetime.date(2023, 1, 1),
+            contract_status="active",
+            wage_type="monthly",
+            wage=wage * 1.4,
+            calculate_daily_leave_amount=True,
+            daily_leave_amount_divisor="calendar_days",
+            deduct_leave_from_basic_pay=True,
+        )
+        contract.set_salary_structure(gross_up)
+        Contract.objects.filter(pk=contract.pk).update(daily_leave_amount_base="wage")
+
+        department, job_position, job_role = next(
+            (
+                entry
+                for entry in position_pool
+                if entry[0].department == "Human Resources"
+            ),
+            position_pool[0],
+        )
+        EmployeeWorkInformation.objects.filter(employee_id=admin).update(
+            department_id=department,
+            job_position_id=job_position,
+            job_role_id=job_role,
+            shift_id=shift,
+            date_joining=datetime.date(2023, 1, 9),
+        )
+        Employee.objects.filter(pk=admin.pk).update(
+            gender="male",
+            dob=datetime.date(1985, today.month, min(today.day + 5, 28)),
+            country="United States",
+            state="Texas",
+            city="Austin",
+        )
+
+        # index 3 gives a mix of present days, paid and unpaid leave.
+        self._extra_coverage_for(
+            admin,
+            3,
+            shift,
+            older[0],
+            older[1],
+            current[0],
+            current[1],
+            leave_horizon_end,
+            paid_type,
+            unpaid_type,
+        )
+        self._payroll_month_for(
+            admin,
+            3,
+            shift,
+            last_month[0],
+            last_month[1],
+            paid_type,
+            unpaid_type,
+        )
+        summary = self._verified_summary(admin, last_month[0], last_month[1])
+        self.stdout.write(
+            f"  {admin.get_full_name():20s}  present={summary['present']:>4}  "
+            f"paid_days={summary['paid_days']:>5}  unpaid_days={summary['unpaid_days']:>4}"
+        )
+        self._today_attendance_for([admin], today, shift)
+        return admin
+
+    def _admin_extras_for(self, company, employees, today, default_shift):
+        """Leave balances, objectives, tasks, requests and documents for Adam
+        Admin, so every widget on My Dashboard has something to show."""
+        from base.models import ShiftRequest, WorkType, WorkTypeRequest
+        from employee.models import (
+            Employee,
+            EmployeeBankDetails,
+            EmployeeWorkInformation,
+        )
+        from horilla_documents.models import Document
+        from leave.models import AvailableLeave, LeaveType
+        from pms.models import EmployeeKeyResult, EmployeeObjective, Objective
+        from project.models import Task
+
+        admin = Employee.objects.filter(email="adam@horilla.com").first()
+        work_info = getattr(admin, "employee_work_info", None) if admin else None
+        if not admin or not work_info or work_info.company_id_id != company.pk:
+            return
+
+        work_type = WorkType.objects.filter(company_id=company).order_by("pk").first()
+        EmployeeWorkInformation.objects.filter(employee_id=admin).update(
+            work_type_id=work_type
+        )
+
+        # Leave balances, with the leaves taken / booked below counted in.
+        types = {
+            t.name: t
+            for t in LeaveType.objects.filter(name__in=[n for n, *_ in LEAVE_TYPES])
+        }
+        annual, sick, casual = (types[n] for n, *_ in LEAVE_TYPES)
+        year_start = datetime.date(today.year, 1, 1)
+        booked = {annual: 2.0, sick: 1.0, casual: 1.0}
+        for leave_type, taken in booked.items():
+            total = leave_type.total_days
+            AvailableLeave.objects.update_or_create(
+                employee_id=admin,
+                leave_type_id=leave_type,
+                defaults={
+                    "available_days": total - taken,
+                    "carryforward_days": 0.0,
+                    "total_leave_days": total,
+                    "assigned_date": year_start,
+                    "reset_date": datetime.date(today.year + 1, 1, 1),
+                },
+            )
+        sick_day = today - datetime.timedelta(days=3)
+        while sick_day.weekday() >= 5:
+            sick_day -= datetime.timedelta(days=1)
+        for leave_type, start, end, status, text in [
+            (sick, sick_day, sick_day, "approved", "Down with a fever."),
+            (
+                annual,
+                today + datetime.timedelta(days=12),
+                today + datetime.timedelta(days=13),
+                "approved",
+                "Short family trip.",
+            ),
+            (
+                casual,
+                today + datetime.timedelta(days=21),
+                today + datetime.timedelta(days=21),
+                "requested",
+                "Personal errand.",
+            ),
+        ]:
+            while start.weekday() >= 5:
+                start += datetime.timedelta(days=1)
+            end = max(start, end)
+            _create_leave(
+                employee_id=admin,
+                leave_type_id=leave_type,
+                start_date=start,
+                end_date=end,
+                status=status,
+                start_date_breakdown="full_day",
+                end_date_breakdown="full_day",
+                description=text,
+            )
+
+        # Objectives with key results, in different states.
+        objectives = list(
+            Objective.objects.filter(company_id=company).order_by("pk")[:3]
+        )
+        month_start = today.replace(day=1)
+        plan = [("On Track", 55), ("Behind", 30), ("Not Started", 0)]
+        for objective, (status, progress) in zip(objectives, plan):
+            employee_objective = EmployeeObjective.objects.create(
+                employee_id=admin,
+                objective_id=objective,
+                objective=objective.title,
+                objective_description=objective.description,
+                start_date=month_start - datetime.timedelta(days=20),
+                end_date=today + datetime.timedelta(days=45 + progress // 5),
+                status=status,
+                progress_percentage=progress,
+            )
+            key_results = list(objective.key_result_id.all())
+            employee_objective.key_result_id.add(*key_results)
+            for key_result in key_results:
+                EmployeeKeyResult.objects.create(
+                    key_result=key_result.title,
+                    key_result_description=key_result.description,
+                    employee_objective_id=employee_objective,
+                    key_result_id=key_result,
+                    progress_type="%",
+                    status=status,
+                    start_value=0,
+                    current_value=progress,
+                    target_value=100,
+                    start_date=employee_objective.start_date,
+                    end_date=employee_objective.end_date,
+                    progress_percentage=progress,
+                )
+
+        # Open project tasks assigned to Adam.
+        for task in Task.objects.filter(
+            project__company_id=company, status__in=["to_do", "in_progress"]
+        ).order_by("pk")[:6]:
+            task.task_members.add(admin)
+
+        # Requests waiting for approval.
+        shifts = [s for s in self._extra_shifts.values()]
+        ShiftRequest.objects.create(
+            employee_id=admin,
+            shift_id=shifts[0],
+            previous_shift_id=default_shift,
+            requested_date=today + datetime.timedelta(days=4),
+            requested_till=today + datetime.timedelta(days=34),
+            description="Need an earlier start for a client call schedule.",
+        )
+        other_type = (
+            WorkType.objects.filter(company_id=company).exclude(pk=work_type.pk).first()
+        )
+        if other_type:
+            WorkTypeRequest.objects.create(
+                employee_id=admin,
+                work_type_id=other_type,
+                previous_work_type_id=work_type,
+                requested_date=today + datetime.timedelta(days=6),
+                requested_till=today + datetime.timedelta(days=20),
+                description="Working from home during the office renovation.",
+            )
+        for i, (title, status) in enumerate(
+            [
+                ("Passport Copy", "requested"),
+                ("Address Proof", "approved"),
+                ("Medical Fitness Certificate", "rejected"),
+            ]
+        ):
+            document = Document(
+                title=title,
+                employee_id=admin,
+                status=status,
+                issue_date=today - datetime.timedelta(days=90),
+                expiry_date=today + datetime.timedelta(days=200 + i * 60),
+                reject_reason=(
+                    "The document is not legible." if status == "rejected" else None
+                ),
+            )
+            if status != "requested":
+                document.document.save(f"admin_{i}.pdf", _file("doc.pdf"), save=False)
+            document.save()
+
+        EmployeeBankDetails.objects.update_or_create(
+            employee_id=admin,
+            defaults=dict(
+                bank_name="Chase Bank",
+                account_number="520000009999",
+                branch="Austin Main Branch",
+                address="1 Financial District, Austin",
+                country="United States",
+                state="Texas",
+                city="Austin",
+                any_other_code1="CHASUS33",
+                any_other_code2="0001",
+            ),
+        )
+        self.stdout.write(
+            "  Adam Admin: leave balances, objectives, tasks, requests, documents"
+        )
 
     # -- documents -----------------------------------------------------------
 
@@ -1169,7 +1608,15 @@ class ExtrasMixin:
                 )
                 document.status = status
                 document.issue_date = today - datetime.timedelta(days=30 + i * 9)
-                document.expiry_date = today + datetime.timedelta(days=300 + r * 30)
+                # Every other approved document has already expired, so the
+                # Expired Documents widget has rows.
+                if status == "approved" and (i + r) % 2 == 0:
+                    document.issue_date = today - datetime.timedelta(days=400 + i * 20)
+                    document.expiry_date = today - datetime.timedelta(
+                        days=10 + i * 17 + r * 6
+                    )
+                else:
+                    document.expiry_date = today + datetime.timedelta(days=300 + r * 30)
                 if status == "rejected":
                     document.reject_reason = (
                         "The scan is blurred; please upload a clearer copy."
@@ -1198,6 +1645,17 @@ class ExtrasMixin:
                 start_date=start,
                 end_date=datetime.date(today.year, *end) if end else start,
                 recurring=True,
+                company_id=company,
+            )
+        # A few company-level days off in the coming weeks, so the Upcoming
+        # Holidays widgets are never empty whatever month the data is loaded in.
+        for name, days_ahead in UPCOMING_HOLIDAYS[company.company]:
+            day = today + datetime.timedelta(days=days_ahead)
+            Holidays.objects.create(
+                name=name,
+                start_date=day,
+                end_date=day,
+                recurring=False,
                 company_id=company,
             )
         self.stdout.write(f"  Holidays: {len(HOLIDAYS[company.company])}")
@@ -1438,13 +1896,20 @@ class ExtrasMixin:
 
         # Leavers: employees who have finished the whole process. Same steps as
         # moving someone to the archived stage in the offboarding pipeline --
-        # the employee is deactivated and their login revoked. They left only
-        # in the last few days, after the closed payroll month, so no payslip
-        # or past attendance changes.
-        leaver_indexes = [i for i in (17, 19, 21) if i < len(employees)]
+        # the employee is deactivated and their login revoked. They left in
+        # the last six weeks, spread over this and last month.
+        leaver_indexes = [i for i in (13, 15, 17, 19, 21) if i < len(employees)]
+        last_month_end = today.replace(day=1) - datetime.timedelta(days=1)
+        leaving_dates = [
+            today - datetime.timedelta(days=2),
+            today - datetime.timedelta(days=5),
+            last_month_end - datetime.timedelta(days=4),
+            today - datetime.timedelta(days=9),
+            last_month_end - datetime.timedelta(days=11),
+        ]
         for k, index in enumerate(leaver_indexes):
             employee = employees[index]
-            left_on = today - datetime.timedelta(days=2 + k * 2)
+            left_on = leaving_dates[k]
             starts = left_on - datetime.timedelta(days=60)
             off_employee = OffboardingEmployee.objects.create(
                 employee_id=employee,
@@ -1496,6 +1961,22 @@ class ExtrasMixin:
             Employee._base_manager.filter(pk=employee.pk).update(is_active=False)
             employee.refresh_from_db()
             employee.sync_login_access()
+        # Resignation letters still in the review queue (plus one rejected).
+        letter_states = [
+            (4, "requested", "Relocating to another city."),
+            (6, "requested", "Accepted an offer closer to home."),
+            (8, "requested", "Moving abroad for family reasons."),
+            (10, "rejected", "Asked to reconsider during the critical release."),
+        ]
+        for index, state, text in letter_states:
+            if index < len(employees):
+                ResignationLetter.objects.create(
+                    employee_id=employees[index],
+                    title="Resignation",
+                    status=state,
+                    description=text,
+                    planned_to_leave_on=today + datetime.timedelta(days=45 + index),
+                )
         self.stdout.write(
             f"  Offboarding: 1 process, {len(stages)} stages, {len(letters)} in progress, {len(leaver_indexes)} leavers"
         )
@@ -1871,18 +2352,18 @@ class ExtrasMixin:
                 comment=REQUEST_COMMENTS[(i + 1) % len(REQUEST_COMMENTS)],
             )
 
-        # Next week's roster for the first 12 employees on their own shift.
+        # This week's and next week's roster for the first 12 employees.
         works = {
             w.employee_id_id: w
             for w in EmployeeWorkInformation.objects.filter(employee_id__in=employees)
         }
-        monday = today + datetime.timedelta(days=7 - today.weekday())
+        monday = today - datetime.timedelta(days=today.weekday())
         count = 0
         for employee in employees[:12]:
             work = works.get(employee.pk)
             if not work or not work.department_id:
                 continue
-            for offset in range(7):
+            for offset in range(14):  # this week and next
                 day = monday + datetime.timedelta(days=offset)
                 Roster.objects.create(
                     employee=employee,
@@ -2039,6 +2520,23 @@ class Command(ExtrasMixin, BaseCommand):
                     f"unpaid_days={summary['unpaid_days']:>4}"
                 )
 
+            admin_employee = None
+            if company_spec is COMPANIES[0]:
+                admin_employee = self._admin_core_for(
+                    company,
+                    shift,
+                    gross_up,
+                    wage,
+                    position_pool,
+                    today,
+                    (older_month_start, older_month_end),
+                    (this_month_start, today),
+                    (last_month_start, last_month_end),
+                    leave_horizon_end,
+                    paid_type,
+                    unpaid_type,
+                )
+
             self._ongoing_leave_for(employees, today, paid_type, unpaid_type)
             self._today_attendance_for(employees, today, shift)
             self._pending_attendance_request_for(employees, older_month_start)
@@ -2082,11 +2580,11 @@ class Command(ExtrasMixin, BaseCommand):
                     for total, added in zip(performance_totals, performance)
                 ]
 
+            payroll_employees = employees[:-UNRUN_PER_COMPANY]
+            if admin_employee is not None:
+                payroll_employees = [admin_employee, *payroll_employees]
             batch = self._run_payroll_batch(
-                employees[:-UNRUN_PER_COMPANY],
-                last_month_start,
-                last_month_end,
-                company,
+                payroll_employees, last_month_start, last_month_end, company
             )
             payslips_created += batch.generated_count
             runs_created += 1
@@ -2772,8 +3270,17 @@ class Command(ExtrasMixin, BaseCommand):
         rows _payroll_month_for() already wrote, so the same by-construction
         reconciliation applies here with no extra plumbing.
         """
+        from attendance.models import AttendanceSummaryOverride
         from payroll.methods import batch_run
         from payroll.models.payroll_batch import PayrollBatch
+
+        # _payroll_month_for() stated these totals (no absences) before the
+        # punctuality pass punched some days out. A payslip must read the
+        # attendance as it really is -- absences and half days as unpaid --
+        # not the stale statement, which would pay for days nobody worked.
+        AttendanceSummaryOverride.objects.filter(
+            employee_id__in=employees, from_date=start, to_date=end
+        ).delete()
 
         batch = batch_run.create_batch(
             name=f"{start.strftime('%b %Y')} Payroll",
