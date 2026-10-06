@@ -63,6 +63,16 @@ urlpatterns = [
     path("payslip-list/", payslip.PayslipList.as_view(), name="payslip-list"),
     path("payslip-navbar/", payslip.PayslipNav.as_view(), name="payslip-navbar"),
     path(
+        "payslip-run-list/<int:batch_id>/",
+        payslip.PayslipRunList.as_view(),
+        name="payslip-run-list",
+    ),
+    path(
+        "payslip-run-navbar/<int:batch_id>/",
+        payslip.PayslipRunNav.as_view(),
+        name="payslip-run-navbar",
+    ),
+    path(
         "payslip-bulk-export-data",
         payslip.PayslipBulkExport.as_view(),
         name="payslip-bulk-export-data",

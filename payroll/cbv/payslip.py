@@ -296,6 +296,9 @@ class PayslipNav(HorillaNavView):
             )
 
     nav_title = _("Payslip")
+    # The button opens the run wizard, so it says what it does.
+    create_label = _("Generate")
+    create_icon = "play-outline"
     filter_body_template = "cbv/payslip/payslip_filter.html"
     filter_instance = PayslipFilter()
     filter_form_context_name = "form"
@@ -341,6 +344,58 @@ class PayslipNav(HorillaNavView):
         ("employee_id__employee_work_info__job_role_id", _("Job Role")),
         ("employee_id__employee_work_info__company_id", _("Company")),
     ]
+
+
+@method_decorator(login_required, name="dispatch")
+class PayslipRunList(PayslipList):
+    """
+    The payslip list, scoped to one payroll run (the run's own page).
+
+    The run comes from the URL, not from a filter, so it cannot be cleared
+    away. Like every list, it leaves out employees who are no longer active.
+    """
+
+    columns = [col for col in PayslipList.columns if col[0] != _("Batch")]
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.search_url = reverse(
+            "payslip-run-list",
+            kwargs={"batch_id": self.request.resolver_match.kwargs["batch_id"]},
+        )
+
+    def get_queryset(self, queryset=None, *args, **kwargs):
+        if self.queryset:
+            return self.queryset
+        base = self.model.objects.all().filter(
+            payroll_batch_id=self.request.resolver_match.kwargs["batch_id"]
+        )
+        if not self.request.user.has_perm("payroll.view_payslip"):
+            base = base.filter(employee_id__employee_user_id=self.request.user)
+        return HorillaListView.get_queryset(self, base, *args, **kwargs)
+
+
+@method_decorator(login_required, name="dispatch")
+class PayslipRunNav(PayslipNav):
+    """Search, filter and actions of the payslip list on a run's page."""
+
+    # The run's own page already carries the title; an empty one would fall
+    # back to the model name, so a non-breaking space holds the place.
+    nav_title = " "
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.search_url = reverse(
+            "payslip-run-list",
+            kwargs={"batch_id": self.request.resolver_match.kwargs["batch_id"]},
+        )
+        # Generating and the runs page are the page around this one.
+        self.create_attrs = None
+        self.actions = [
+            action
+            for action in self.actions
+            if action["action"] not in (_("Generate"), _("Payroll runs"))
+        ]
 
 
 @method_decorator(login_required, name="dispatch")
