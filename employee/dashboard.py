@@ -8,9 +8,10 @@ already resolves the session's selected company (including "All Company").
 """
 
 import calendar
-from datetime import date
+from datetime import date, timedelta
 
 from django.db.models import Count, Q
+from django.db.models.functions import Coalesce
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.urls import reverse
@@ -25,6 +26,7 @@ from horilla_documents.models import Document
 
 EMPLOYEE_PERM = "employee.view_employee"
 NEW_EMPLOYEES_LIMIT = 10
+EXPIRED_DOCUMENTS_LIMIT = 10
 
 
 def _current_month_bounds():
@@ -198,6 +200,201 @@ def employee_by_department(request):
     return JsonResponse({"items": _distribution("department")})
 
 
+TREND_MONTHS = 12
+JOB_POSITION_SERIES_LIMIT = 8
+REPORTING_MANAGER_LIMIT = 10
+
+
+def _month_start(value, offset):
+    """First day of the month `offset` months away from `value`'s month."""
+    index = value.year * 12 + value.month - 1 + offset
+    return date(index // 12, index % 12 + 1, 1)
+
+
+def _joining_and_leaving_dates():
+    """(joined, left) per employee in the selected company.
+
+    The employee record holds no exit date, so "left" is the end of the
+    offboarding notice period, falling back to the contract end date. Active
+    employees have no exit date; inactive ones with neither date are skipped
+    because their exit month is unknown.
+    """
+    rows = Employee.objects.filter(
+        employee_work_info__date_joining__isnull=False
+    ).values_list(
+        "is_active",
+        "employee_work_info__date_joining",
+        Coalesce(
+            "offboardingemployee__notice_period_ends",
+            "employee_work_info__contract_end_date",
+        ),
+    )
+    for is_active, joined, left in rows:
+        if is_active:
+            yield joined, None
+        elif left:
+            yield joined, left
+
+
+@login_required
+@manager_can_enter(EMPLOYEE_PERM)
+def employee_headcount_trend(request):
+    """Month-end active headcount and leavers for the last 12 months."""
+    this_month = timezone.now().date().replace(day=1)
+    people = list(_joining_and_leaving_dates())
+    # Active employees only, so each month's count matches the employee list
+    # the chart links to (date_joining in the month, is_active=True).
+    active_joining_dates = list(
+        _active_employees()
+        .filter(employee_work_info__date_joining__isnull=False)
+        .values_list("employee_work_info__date_joining", flat=True)
+    )
+    items = []
+    for n in range(TREND_MONTHS - 1, -1, -1):
+        start = _month_start(this_month, -n)
+        end = _month_start(start, 1)  # exclusive
+        items.append(
+            {
+                "label": start.strftime("%b %Y"),
+                "from_date": start.isoformat(),
+                "to_date": (end - timedelta(days=1)).isoformat(),
+                "active_joiners": sum(
+                    1 for d in active_joining_dates if start <= d < end
+                ),
+                "headcount": sum(
+                    1
+                    for joined, left in people
+                    if joined < end and (not left or left >= end)
+                ),
+                "joined": sum(1 for joined, _left in people if start <= joined < end),
+                "leavers": sum(
+                    1 for _joined, left in people if left and start <= left < end
+                ),
+                "total_leavers": sum(
+                    1 for _joined, left in people if left and left < end
+                ),
+            }
+        )
+    return JsonResponse({"items": items})
+
+
+@login_required
+@manager_can_enter(EMPLOYEE_PERM)
+def employee_department_positions(request):
+    """Active headcount per department, split by job position.
+
+    The most populated job positions get their own series; the rest (and
+    employees without a position) are folded into "Other" so the stacked bars
+    stay readable.
+    """
+    key_dept = "employee_work_info__department_id"
+    key_pos = "employee_work_info__job_position_id"
+    rows = list(
+        _active_employees()
+        .filter(**{f"{key_pos}__isnull": False})
+        .values(
+            key_dept,
+            f"{key_dept}__department",
+            key_pos,
+            f"{key_pos}__job_position",
+        )
+        .annotate(count=Count("id"))
+    )
+    # Employees with no position still count toward their department total
+    no_position = {
+        row[key_dept]: row["count"]
+        for row in _active_employees()
+        .filter(**{f"{key_pos}__isnull": True})
+        .values(key_dept)
+        .annotate(count=Count("id"))
+    }
+
+    position_totals = {}
+    for row in rows:
+        entry = position_totals.setdefault(
+            row[key_pos],
+            {"key": row[key_pos], "label": row[f"{key_pos}__job_position"], "count": 0},
+        )
+        entry["count"] += row["count"]
+    top = sorted(position_totals.values(), key=lambda p: -p["count"])[
+        :JOB_POSITION_SERIES_LIMIT
+    ]
+    top_ids = {p["key"] for p in top}
+    positions = [{"key": p["key"], "label": p["label"]} for p in top]
+
+    departments = {}
+
+    def department(dept_id, label):
+        return departments.setdefault(
+            dept_id,
+            {
+                "id": dept_id,
+                "label": label or _("Unassigned"),
+                "total": 0,
+                "by_position": {},
+            },
+        )
+
+    for row in rows:
+        dept = department(row[key_dept], row[f"{key_dept}__department"])
+        pos_key = row[key_pos] if row[key_pos] in top_ids else "other"
+        dept["by_position"][pos_key] = (
+            dept["by_position"].get(pos_key, 0) + row["count"]
+        )
+        dept["total"] += row["count"]
+    if no_position:
+        names = dict(
+            _active_employees()
+            .filter(**{f"{key_dept}__in": [k for k in no_position if k]})
+            .values_list(key_dept, f"{key_dept}__department")
+            .distinct()
+        )
+        for dept_id, count in no_position.items():
+            dept = department(dept_id, names.get(dept_id))
+            dept["by_position"]["other"] = dept["by_position"].get("other", 0) + count
+            dept["total"] += count
+    if any("other" in d["by_position"] for d in departments.values()):
+        positions.append({"key": "other", "label": _("Other")})
+
+    return JsonResponse(
+        {
+            "positions": positions,
+            "departments": sorted(departments.values(), key=lambda d: -d["total"]),
+        }
+    )
+
+
+@login_required
+@manager_can_enter(EMPLOYEE_PERM)
+def employee_by_reporting_manager(request):
+    """Active employees per reporting manager (direct reports), top 10."""
+    key = "employee_work_info__reporting_manager_id"
+    rows = list(
+        _active_employees()
+        .filter(**{f"{key}__isnull": False})
+        .values(key)
+        .annotate(count=Count("id"))
+        .order_by("-count")[:REPORTING_MANAGER_LIMIT]
+    )
+    managers = {m.id: m for m in Employee.objects.filter(id__in=[r[key] for r in rows])}
+    return JsonResponse(
+        {
+            "items": [
+                {
+                    "id": row[key],
+                    "label": (
+                        managers[row[key]].get_full_name()
+                        if row[key] in managers
+                        else _("Unknown")
+                    ),
+                    "count": row["count"],
+                }
+                for row in rows
+            ]
+        }
+    )
+
+
 @login_required
 @manager_can_enter(EMPLOYEE_PERM)
 def employee_new_joiners(request):
@@ -235,3 +432,29 @@ def employee_new_joiners(request):
         )
 
     return JsonResponse({"employees": employees, "total": joined.count()})
+
+
+@login_required
+@manager_can_enter(EMPLOYEE_PERM)
+def employee_expired_documents(request):
+    """Approved documents whose expiry date has passed, most recently expired first."""
+    if not _can_view_documents(request):
+        return JsonResponse({"documents": [], "total": 0})
+    today = timezone.now().date()
+    expired = Document.objects.filter(
+        status="approved", expiry_date__isnull=False, expiry_date__lt=today
+    )
+    rows = expired.select_related("employee_id").order_by("-expiry_date", "-id")[
+        :EXPIRED_DOCUMENTS_LIMIT
+    ]
+    documents = [
+        {
+            "id": doc.id,
+            "title": doc.title,
+            "employee": doc.employee_id.get_full_name(),
+            "avatar": doc.employee_id.get_avatar(),
+            "expiry_date": doc.expiry_date.strftime("%d %b %Y"),
+        }
+        for doc in rows
+    ]
+    return JsonResponse({"documents": documents, "total": expired.count()})

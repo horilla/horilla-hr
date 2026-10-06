@@ -307,9 +307,29 @@ urlpatterns = [
         name="employee-dashboard-dept",
     ),
     path(
+        "dashboard/api/headcount-trend/",
+        emp_dashboard.employee_headcount_trend,
+        name="employee-dashboard-headcount-trend",
+    ),
+    path(
+        "dashboard/api/department-positions/",
+        emp_dashboard.employee_department_positions,
+        name="employee-dashboard-dept-positions",
+    ),
+    path(
+        "dashboard/api/reporting-managers/",
+        emp_dashboard.employee_by_reporting_manager,
+        name="employee-dashboard-reporting-managers",
+    ),
+    path(
         "dashboard/api/new-joiners/",
         emp_dashboard.employee_new_joiners,
         name="employee-dashboard-new-joiners",
+    ),
+    path(
+        "dashboard/api/expired-documents/",
+        emp_dashboard.employee_expired_documents,
+        name="employee-dashboard-expired-documents",
     ),
     path(
         "total-employees-count/",

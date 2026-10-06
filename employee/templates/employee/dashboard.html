@@ -925,6 +925,81 @@
                         </div>
                         <div class="em-chart-card__body"><div id="chart-em-dept"></div></div>
                     </div>
+                    <div
+                        class="em-chart-card"
+                        data-accent="green"
+                        data-cust-id="chart-headcount"
+                        data-cust-group="chart"
+                        data-cust-label="{% trans 'Headcount Growth' %}"
+                    >
+                        <div class="em-chart-card__header">
+                            <div>
+                                <div class="em-chart-card__title">{% trans "Headcount Growth" %}</div>
+                                <div class="em-chart-card__subtitle">{% trans "Active employees who joined each month, last 12 months" %}</div>
+                            </div>
+                        </div>
+                        <div class="em-chart-card__body"><div id="chart-em-headcount"></div></div>
+                    </div>
+                    <div
+                        class="em-chart-card"
+                        data-accent="amber"
+                        data-cust-id="chart-leavers"
+                        data-cust-group="chart"
+                        data-cust-label="{% trans 'Leavers Growth' %}"
+                    >
+                        <div class="em-chart-card__header">
+                            <div>
+                                <div class="em-chart-card__title">{% trans "Leavers Growth" %}</div>
+                                <div class="em-chart-card__subtitle">{% trans "Cumulative leavers, last 12 months" %}</div>
+                            </div>
+                        </div>
+                        <div class="em-chart-card__body"><div id="chart-em-leavers"></div></div>
+                    </div>
+                    <div
+                        class="em-chart-card em-chart-card--wide"
+                        data-accent="green"
+                        data-cust-id="chart-joiners-leavers"
+                        data-cust-group="chart"
+                        data-cust-label="{% trans 'Joiners vs Leavers' %}"
+                    >
+                        <div class="em-chart-card__header">
+                            <div>
+                                <div class="em-chart-card__title">{% trans "Joiners vs Leavers" %}</div>
+                                <div class="em-chart-card__subtitle">{% trans "Employees joined and left per month, last 12 months" %}</div>
+                            </div>
+                        </div>
+                        <div class="em-chart-card__body"><div id="chart-em-joiners-leavers"></div></div>
+                    </div>
+                    <div
+                        class="em-chart-card em-chart-card--wide"
+                        data-accent="indigo"
+                        data-cust-id="chart-dept-positions"
+                        data-cust-group="chart"
+                        data-cust-label="{% trans 'Department Headcount by Job Position' %}"
+                    >
+                        <div class="em-chart-card__header">
+                            <div>
+                                <div class="em-chart-card__title">{% trans "Department Headcount by Job Position" %}</div>
+                                <div class="em-chart-card__subtitle">{% trans "Active employees per department, stacked by job position" %}</div>
+                            </div>
+                        </div>
+                        <div class="em-chart-card__body"><div id="chart-em-dept-positions"></div></div>
+                    </div>
+                    <div
+                        class="em-chart-card em-chart-card--wide"
+                        data-accent="blue"
+                        data-cust-id="chart-managers"
+                        data-cust-group="chart"
+                        data-cust-label="{% trans 'Employees per Reporting Manager' %}"
+                    >
+                        <div class="em-chart-card__header">
+                            <div>
+                                <div class="em-chart-card__title">{% trans "Employees per Reporting Manager" %}</div>
+                                <div class="em-chart-card__subtitle">{% trans "Active direct reports, top 10 managers" %}</div>
+                            </div>
+                        </div>
+                        <div class="em-chart-card__body"><div id="chart-em-managers"></div></div>
+                    </div>
                 </div>
             </div>
 
@@ -941,6 +1016,20 @@
                         <a href="{% url 'employee-view' %}?is_active=True&filter_applied=on" class="em-panel__link">{% trans "View all" %}</a>
                     </div>
                     <div class="em-panel__body" id="em-new-list">
+                        <div class="em-panel__empty">{% trans "Loading..." %}</div>
+                    </div>
+                </div>
+                <div
+                    class="em-panel"
+                    data-cust-id="panel-expired-documents"
+                    data-cust-group="panel"
+                    data-cust-label="{% trans 'Expired Documents' %}"
+                >
+                    <div class="em-panel__header">
+                        <span class="em-panel__title">{% trans "Expired Documents" %}<span id="em-expired-count" class="em-count-badge" hidden>0</span></span>
+                        <a href="{% url 'requests-view' %}?tab=document&filter_applied=on" class="em-panel__link">{% trans "View all" %}</a>
+                    </div>
+                    <div class="em-panel__body" id="em-expired-list">
                         <div class="em-panel__empty">{% trans "Loading..." %}</div>
                     </div>
                 </div>
@@ -1115,7 +1204,7 @@
             function renderChart(key, el, options) {
                 if (chartInstances[key]) chartInstances[key].destroy();
                 el.innerHTML = '';
-                const chart = new ApexCharts(el, { ...options, legend: { ...options.legend, show: false } });
+                const chart = new ApexCharts(el, { ...options, legend: { ...options.legend, show: !!(options.legend && options.legend.show) } });
                 chartInstances[key] = chart;
                 chart.render();
             }
@@ -1171,6 +1260,125 @@
                 }).catch(() => { legend.clear(); el.innerHTML = emptyHtml("{% trans 'No data'|escapejs %}"); });
             }
 
+            // ── Trend / stacked / ranking charts ──
+            const GRID = { borderColor: gridColor, strokeDashArray: 5, padding: { left: 4, right: 4 } };
+            const TOOLTIP_STYLE = { theme: isDark ? 'dark' : 'light', style: { fontSize: '12px' } };
+            const XAXIS_STYLE = { labels: { style: { colors: textColor, fontSize: '11px', fontWeight: 500 } }, axisBorder: { show: false }, axisTicks: { show: false } };
+            const YAXIS_STYLE = { min: 0, forceNiceScale: true, labels: { style: { colors: textColor, fontSize: '11px' }, formatter: v => Number.isInteger(+v) ? v : '' } };
+            const LEGEND_STYLE = { position: 'bottom', labels: { colors: textColor }, fontSize: '11px', fontWeight: 500, markers: { width: 8, height: 8, radius: 3 }, itemMargin: { horizontal: 8 } };
+            const baseChart = (extra) => ({ height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', ...extra });
+
+            function trendChart(key, selector, emptyMsg, buildOptions) {
+                const el = document.querySelector(selector);
+                fetchJson("{% url 'employee-dashboard-headcount-trend' %}").then(data => {
+                    const items = data.items || [];
+                    if (!items.some(i => i.headcount || i.total_leavers || i.joined || i.active_joiners)) { el.innerHTML = emptyHtml(emptyMsg); return; }
+                    renderChart(key, el, buildOptions(items));
+                }).catch(() => { el.innerHTML = emptyHtml("{% trans 'No data'|escapejs %}"); });
+            }
+
+            function loadHeadcountGrowth() {
+                trendChart('headcount', '#chart-em-headcount', "{% trans 'No headcount data'|escapejs %}", items => ({
+                    series: [{ name: "{% trans 'Joiners'|escapejs %}", data: items.map(i => i.active_joiners) }],
+                    chart: baseChart({ type: 'area', events: { markerClick: (e, ctx, { dataPointIndex }) => {
+                        const item = items[dataPointIndex];
+                        if (item) window.location.href = `${employeeListUrl}?is_active=True&filter_applied=on`
+                            + `&custom_field=date_joining&custom_lookup=gte&custom_value=${item.from_date}`
+                            + `&custom_field=date_joining&custom_lookup=lte&custom_value=${item.to_date}`;
+                    }}}),
+                    colors: ['#22c55e'],
+                    stroke: { curve: 'smooth', width: 3 },
+                    fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.35, opacityTo: 0.02, stops: [0, 95, 100] } },
+                    markers: { size: 4, strokeWidth: 2, strokeColors: cardBg },
+                    xaxis: { ...XAXIS_STYLE, categories: items.map(i => i.label) },
+                    yaxis: YAXIS_STYLE, grid: GRID, dataLabels: { enabled: false },
+                    tooltip: { ...TOOLTIP_STYLE, y: { formatter: v => v } },
+                }));
+            }
+
+            function loadLeaversGrowth() {
+                trendChart('leavers', '#chart-em-leavers', "{% trans 'No leavers data'|escapejs %}", items => ({
+                    series: [{ name: "{% trans 'Total leavers'|escapejs %}", data: items.map(i => i.total_leavers) }],
+                    chart: baseChart({ type: 'line' }),
+                    colors: ['#ef4444'],
+                    stroke: { curve: 'smooth', width: 3 },
+                    markers: { size: 4, strokeWidth: 2, strokeColors: cardBg },
+                    xaxis: { ...XAXIS_STYLE, categories: items.map(i => i.label) },
+                    yaxis: YAXIS_STYLE, grid: GRID, dataLabels: { enabled: false },
+                    tooltip: { ...TOOLTIP_STYLE, y: { formatter: (v, { dataPointIndex }) => `${v} (+${items[dataPointIndex].leavers} {% trans 'this month'|escapejs %})` } },
+                }));
+            }
+
+            function loadJoinersLeavers() {
+                trendChart('joiners-leavers', '#chart-em-joiners-leavers', "{% trans 'No joiners or leavers data'|escapejs %}", items => ({
+                    series: [
+                        { name: "{% trans 'Joiners'|escapejs %}", data: items.map(i => i.joined) },
+                        { name: "{% trans 'Leavers'|escapejs %}", data: items.map(i => i.leavers) },
+                    ],
+                    chart: baseChart({ type: 'bar' }),
+                    colors: ['#22c55e', '#ef4444'],
+                    plotOptions: { bar: { borderRadius: 6, borderRadiusApplication: 'end', columnWidth: '55%' } },
+                    stroke: { width: 2, colors: [cardBg] },
+                    xaxis: { ...XAXIS_STYLE, categories: items.map(i => i.label) },
+                    yaxis: YAXIS_STYLE, grid: GRID, dataLabels: { enabled: false },
+                    legend: { ...LEGEND_STYLE, show: true, position: 'top', horizontalAlign: 'right' },
+                    tooltip: { ...TOOLTIP_STYLE, shared: true, intersect: false },
+                    states: { hover: { filter: { type: 'darken', value: 0.9 } } },
+                }));
+            }
+
+            function loadDeptPositions() {
+                const el = document.querySelector('#chart-em-dept-positions');
+                fetchJson("{% url 'employee-dashboard-dept-positions' %}").then(data => {
+                    const depts = data.departments || [], positions = data.positions || [];
+                    if (!depts.length) { el.innerHTML = emptyHtml("{% trans 'No department data'|escapejs %}"); return; }
+                    renderChart('dept-positions', el, {
+                        series: positions.map(p => ({ name: p.label, data: depts.map(d => d.by_position[p.key] || 0) })),
+                        chart: baseChart({ type: 'bar', stacked: true, height: 340,
+                            events: { dataPointSelection: (e, ctx, cfg) => {
+                                const d = depts[cfg.dataPointIndex], p = positions[cfg.seriesIndex];
+                                if (!d || !d.id) return;
+                                let url = employeeUrlFor('employee_work_info__department_id', d.id);
+                                if (p && p.key !== 'other') url += `&employee_work_info__job_position_id=${encodeURIComponent(p.key)}`;
+                                window.location.href = url;
+                            }}
+                        }),
+                        colors: positions.map((p, n) => PieLegend.color(n, COLORS)),
+                        plotOptions: { bar: { borderRadius: 6, borderRadiusApplication: 'end', borderRadiusWhenStacked: 'last', columnWidth: '42%' } },
+                        stroke: { width: 2, colors: [cardBg] },
+                        xaxis: { ...XAXIS_STYLE, categories: depts.map(d => d.label) },
+                        yaxis: YAXIS_STYLE, grid: GRID, dataLabels: { enabled: false },
+                        legend: { ...LEGEND_STYLE, show: true },
+                        tooltip: { ...TOOLTIP_STYLE, shared: true, intersect: false },
+                        states: { hover: { filter: { type: 'darken', value: 0.9 } } },
+                    });
+                }).catch(() => { el.innerHTML = emptyHtml("{% trans 'No data'|escapejs %}"); });
+            }
+
+            function loadManagers() {
+                const el = document.querySelector('#chart-em-managers');
+                fetchJson("{% url 'employee-dashboard-reporting-managers' %}").then(data => {
+                    const items = data.items || [];
+                    if (!items.length) { el.innerHTML = emptyHtml("{% trans 'No reporting manager data'|escapejs %}"); return; }
+                    renderChart('managers', el, {
+                        series: [{ name: "{% trans 'Employees'|escapejs %}", data: items.map(i => i.count) }],
+                        chart: baseChart({ type: 'bar', height: Math.max(220, items.length * 36 + 40),
+                            events: { dataPointSelection: (e, ctx, cfg) => {
+                                const item = items[cfg.dataPointIndex];
+                                if (item) window.location.href = employeeUrlFor('employee_work_info__reporting_manager_id', item.id);
+                            }}
+                        }),
+                        colors: ['#3b82f6'],
+                        plotOptions: { bar: { horizontal: true, borderRadius: 6, barHeight: '60%', distributed: false } },
+                        dataLabels: { enabled: true, style: { fontSize: '11px' } },
+                        xaxis: { ...XAXIS_STYLE, categories: items.map(i => i.label) },
+                        yaxis: { labels: { style: { colors: textColor, fontSize: '11px' }, maxWidth: 200 } },
+                        grid: { ...GRID, xaxis: { lines: { show: true } }, yaxis: { lines: { show: false } } },
+                        tooltip: { ...TOOLTIP_STYLE },
+                    });
+                }).catch(() => { el.innerHTML = emptyHtml("{% trans 'No data'|escapejs %}"); });
+            }
+
             // ── New employees ──
             function loadNewEmployees() {
                 const container = document.getElementById('em-new-list');
@@ -1195,11 +1403,40 @@
                 }).catch(() => { setCount(0); container.innerHTML = `<div class="em-panel__empty">{% trans "No data"|escapejs %}</div>`; });
             }
 
+            // ── Expired documents ──
+            function loadExpiredDocuments() {
+                const container = document.getElementById('em-expired-list');
+                const badge = document.getElementById('em-expired-count');
+                const setCount = (n) => { badge.textContent = n; badge.hidden = !n; };
+                fetchJson("{% url 'employee-dashboard-expired-documents' %}").then(data => {
+                    setCount(data.total);
+                    if (!data.documents.length) { container.innerHTML = `<div class="em-panel__empty">{% trans "No expired documents"|escapejs %}</div>`; return; }
+                    container.innerHTML = data.documents.map(doc => {
+                        const initials = doc.employee.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+                        const avatar = doc.avatar ? `<img src="${esc(doc.avatar)}" alt="${esc(doc.employee)}">` : esc(initials);
+                        return `<div class="em-emp-item">
+                            <div class="em-emp-item__avatar">${avatar}</div>
+                            <div class="em-emp-item__info">
+                                <div class="em-emp-item__name">${esc(doc.title)}</div>
+                                <div class="em-emp-item__detail">${esc(doc.employee)}</div>
+                            </div>
+                            <span class="em-emp-item__date">${esc(doc.expiry_date)}</span>
+                        </div>`;
+                    }).join('');
+                }).catch(() => { setCount(0); container.innerHTML = `<div class="em-panel__empty">{% trans "No data"|escapejs %}</div>`; });
+            }
+
             loadKpis();
             donutChart('work-type', '#chart-em-work-type', "{% url 'employee-dashboard-work-type' %}", 'employee_work_info__work_type_id', "{% trans 'No work type data'|escapejs %}", "{% trans 'work types'|escapejs %}");
             donutChart('shift', '#chart-em-shift', "{% url 'employee-dashboard-shift' %}", 'employee_work_info__shift_id', "{% trans 'No shift data'|escapejs %}", "{% trans 'shifts'|escapejs %}");
             donutChart('dept', '#chart-em-dept', "{% url 'employee-dashboard-dept' %}", 'employee_work_info__department_id', "{% trans 'No department data'|escapejs %}", "{% trans 'departments'|escapejs %}");
+            loadHeadcountGrowth();
+            loadLeaversGrowth();
+            loadJoinersLeavers();
+            loadDeptPositions();
+            loadManagers();
             loadNewEmployees();
+            loadExpiredDocuments();
         })();
     </script>
 {% endblock %}
