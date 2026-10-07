@@ -60,6 +60,7 @@ def _candidates_in_period(request):
 
     from_date, to_date = _parse_period(request)
     return Candidate.objects.filter(
+        is_active=True,
         created_at__date__gte=from_date,
         created_at__date__lte=to_date,
     )
@@ -216,7 +217,7 @@ def recruitment_source_quality(request):
     sources = []
 
     for rec in recruitments:
-        rec_cands = Candidate.objects.filter(recruitment_id=rec)
+        rec_cands = Candidate.objects.filter(recruitment_id=rec, is_active=True)
         total = rec_cands.count()
         if total == 0:
             continue
@@ -251,7 +252,7 @@ def recruitment_vacancy_vs_hired(request):
     recruitments = []
 
     for rec in Recruitment.objects.filter(closed=False):
-        rec_cands = Candidate.objects.filter(recruitment_id=rec)
+        rec_cands = Candidate.objects.filter(recruitment_id=rec, is_active=True)
         hired = (
             rec_cands.filter(Q(hired=True) | Q(stage_id__stage_type="hired"))
             .distinct()
@@ -424,6 +425,7 @@ def recruitment_upcoming_interviews(request):
     try:
         qs = (
             InterviewSchedule.objects.filter(
+                candidate_id__is_active=True,
                 interview_date__gte=from_date,
                 interview_date__lte=to_date,
             )
@@ -477,7 +479,9 @@ def recruitment_open_by_department(request):
         for rec in recruitments:
             vacancy = rec.vacancy or 0
             filled = (
-                rec.candidate.filter(Q(hired=True) | Q(stage_id__stage_type="hired"))
+                rec.candidate.filter(
+                    Q(hired=True) | Q(stage_id__stage_type="hired"), is_active=True
+                )
                 .distinct()
                 .count()
             )
@@ -682,6 +686,7 @@ def recruitment_joinings_monthly(request):
 
     qs = Candidate.objects.filter(
         Q(hired=True) | Q(stage_id__stage_type="hired"),
+        is_active=True,
         joining_date__gte=from_date,
         joining_date__lte=to_date,
     ).distinct()
