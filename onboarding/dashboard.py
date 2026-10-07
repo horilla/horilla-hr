@@ -52,6 +52,7 @@ def _onboarding_candidates_in_period(request):
 
     from_date, to_date = _parse_period(request)
     return Candidate.objects.filter(
+        is_active=True,
         start_onboard=True,
         created_at__date__gte=from_date,
         created_at__date__lte=to_date,
@@ -85,9 +86,9 @@ def onboarding_kpi_data(request):
     # candidates are excluded -- they've left the candidate pipeline for
     # good, same exclusion email_send itself applies before sending a
     # portal link.
-    onboard_stages = CandidateStage.objects.exclude(
-        candidate_id__converted_employee_id__isnull=False
-    )
+    onboard_stages = CandidateStage.objects.filter(
+        candidate_id__is_active=True
+    ).exclude(candidate_id__converted_employee_id__isnull=False)
     total_candidates = onboard_stages.count()
     completed_all_time = onboard_stages.filter(
         onboarding_stage_id__is_final_stage=True
@@ -101,8 +102,9 @@ def onboarding_kpi_data(request):
     # Portal link sent, but the candidate hasn't finished the onboarding
     # portal flow yet (used flips to True only once they reach the very
     # end -- see employee_bank_details_save in onboarding/views.py).
-    portal_sent = OnboardingPortal.objects.count()
-    portal_incomplete = OnboardingPortal.objects.filter(used=False).count()
+    portals = OnboardingPortal.objects.filter(candidate_id__is_active=True)
+    portal_sent = portals.count()
+    portal_incomplete = portals.filter(used=False).count()
 
     # Task stats — every pipeline candidate's checklist, all-time (same
     # population as the "Onboarding Candidates"/"Candidate Rate In Final
@@ -143,9 +145,8 @@ def onboarding_by_job_position(request):
 
     try:
         data = (
-            CandidateStage.objects.exclude(
-                candidate_id__converted_employee_id__isnull=False
-            )
+            CandidateStage.objects.filter(candidate_id__is_active=True)
+            .exclude(candidate_id__converted_employee_id__isnull=False)
             .values(
                 "candidate_id__job_position_id",
                 "candidate_id__job_position_id__job_position",
@@ -239,6 +240,7 @@ def onboarding_completion_trend(request):
     final_stage_counts = dict(
         CandidateStage.objects.filter(
             onboarding_stage_id__is_final_stage=True,
+            candidate_id__is_active=True,
             candidate_id__recruitment_id__closed=False,
             candidate_id__recruitment_id__is_active=True,
         )
