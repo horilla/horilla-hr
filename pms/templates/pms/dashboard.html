@@ -592,30 +592,42 @@
             padding: 8px 0;
             gap: 10px;
             border-bottom: 1px solid rgba(128, 128, 128, 0.06);
+            color: inherit;
+            text-decoration: none;
         }
         .pm-meeting-item:last-child {
             border-bottom: none;
         }
-        .pm-meeting-item__date {
+        .pm-meeting-item:hover {
+            opacity: 0.8;
+        }
+        /* Date and time as one tag on the right of each meeting row
+           (same look as the Recruitment dashboard's Interviews list) */
+        .pm-meeting-item__when {
             flex-shrink: 0;
-            min-width: 46px;
-            padding: 6px 8px;
+            margin-left: auto;
+            padding: 6px 10px;
             border-radius: 8px;
-            background: #eef2ff;
-            color: var(--pm-indigo);
+            background: color-mix(in srgb, var(--primary-600, #E54F38) 12%, transparent);
+            color: var(--primary-600, #E54F38);
             font-weight: 700;
             font-size: 11px;
-            text-align: center;
+            white-space: nowrap;
         }
-        .dark .pm-meeting-item__date {
-            background: #312e81;
+        .dark .pm-meeting-item__when {
+            background: color-mix(in srgb, var(--primary-600, #E54F38) 25%, transparent);
+            color: var(--primary-300, #fcedeb);
         }
         .pm-meeting-item__info {
             flex: 1;
+            min-width: 0;
         }
         .pm-meeting-item__title {
+            overflow: hidden;
             font-weight: 600;
             font-size: 12px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         .pm-meeting-item__meta {
             font-size: 11px;
@@ -1348,7 +1360,7 @@
                 return !!(e && e.isTrusted);
             }
 
-            const PILL_LEGEND_LIMIT = 5;
+            const PILL_LEGEND_LIMIT = 4;
 
             function makeOverflowLegend(el, { items, noun, isOff, onToggle }) {
                 el.style.color = textColor;
@@ -1619,13 +1631,13 @@
                     const el = document.getElementById('pm-meetings');
                     if (!data.meetings.length) { el.innerHTML = '<div class="pm-info-panel__empty">{% trans "No upcoming meetings"|escapejs %}</div>'; return; }
                     el.innerHTML = data.meetings.map(m => `
-                <div class="pm-meeting-item">
-                    <div class="pm-meeting-item__date">${esc(m.date)}</div>
+                <a href="{% url 'view-meetings' %}?id=${encodeURIComponent(m.id)}" class="pm-meeting-item">
                     <div class="pm-meeting-item__info">
                         <div class="pm-meeting-item__title">${esc(m.title)}</div>
-                        <div class="pm-meeting-item__meta">${esc(m.time)} · ${esc(m.attendees)} {% trans "attendees"|escapejs %}</div>
+                        <div class="pm-meeting-item__meta">${esc(m.attendees)} {% trans "attendees"|escapejs %}</div>
                     </div>
-                </div>`).join('');
+                    <div class="pm-meeting-item__when">${esc(m.date)}${m.time ? ' · ' + esc(m.time) : ''}</div>
+                </a>`).join('');
                 }).catch(() => { document.getElementById('pm-meetings').innerHTML = '<div class="pm-info-panel__empty">{% trans "No upcoming meetings"|escapejs %}</div>'; });
             }
             loadUpcomingMeetings();

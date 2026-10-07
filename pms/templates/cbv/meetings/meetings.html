@@ -15,7 +15,7 @@
         }
     </style>
 
-    <div hx-get="{% url 'meetings-nav' %}" hx-trigger="load"></div>
+    <div hx-get="{% url 'meetings-nav' %}?{{request.GET.urlencode}}" hx-trigger="load"></div>
 
     {% include "generic/components.html" %}
 

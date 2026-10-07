@@ -7,7 +7,7 @@ Accessible at /pms/dashboard/modern/ alongside the existing dashboard.
 from datetime import date, timedelta
 
 from django.contrib.auth.decorators import login_required
-from django.db.models import Avg, Count, F, FloatField, Q, Sum
+from django.db.models import Avg, Case, Count, FloatField, IntegerField, Q, Sum, When
 from django.db.models.functions import Coalesce
 from django.http import JsonResponse
 from django.shortcuts import render
@@ -55,9 +55,11 @@ def pms_kpi_data(request):
     # scoped to the picker range: key results can have no start/end date at
     # all, and assignments/feedback are often dated outside the current
     # month, which made these tiles read 0 while the lists were populated.
-    objectives = EmployeeObjective.objects.filter(archive=False)
-    key_results = EmployeeKeyResult.objects.all()
-    feedbacks = Feedback.objects.filter(archive=False)
+    objectives = EmployeeObjective.objects.all().filter(archive=False)
+    key_results = EmployeeKeyResult.objects.filter(
+        employee_objective_id__employee_id__is_active=True
+    )
+    feedbacks = Feedback.objects.all().filter(archive=False)
 
     total_objectives = objectives.exclude(status="Closed").count()
     total_key_results = key_results.count()
@@ -96,7 +98,7 @@ def pms_objective_status(request):
     from pms.models import EmployeeObjective
 
     objectives = _period_overlap(
-        EmployeeObjective.objects.filter(archive=False), request
+        EmployeeObjective.objects.all().filter(archive=False), request
     )
     statuses = []
 
@@ -113,7 +115,12 @@ def pms_key_result_status(request):
     """Key result status distribution for KRs active in the picker range."""
     from pms.models import EmployeeKeyResult
 
-    key_results = _period_overlap(EmployeeKeyResult.objects.all(), request)
+    key_results = _period_overlap(
+        EmployeeKeyResult.objects.filter(
+            employee_objective_id__employee_id__is_active=True
+        ),
+        request,
+    )
     statuses = []
 
     for status, label in EmployeeKeyResult.STATUS_CHOICES:
@@ -129,7 +136,7 @@ def pms_feedback_status(request):
     """Feedback status distribution for feedback active in the picker range."""
     from pms.models import Feedback
 
-    feedbacks = _period_overlap(Feedback.objects.filter(archive=False), request)
+    feedbacks = _period_overlap(Feedback.objects.all().filter(archive=False), request)
     statuses = []
 
     # Same status order as the objective / key result charts (the model's
@@ -154,7 +161,9 @@ def pms_department_performance(request):
 
     try:
         data = (
-            _period_overlap(EmployeeObjective.objects.filter(archive=False), request)
+            _period_overlap(
+                EmployeeObjective.objects.all().filter(archive=False), request
+            )
             .values(
                 "employee_id__employee_work_info__department_id",
                 "employee_id__employee_work_info__department_id__department",
@@ -200,7 +209,9 @@ def pms_top_performers(request):
     try:
         # By objective progress
         data = (
-            _period_overlap(EmployeeObjective.objects.filter(archive=False), request)
+            _period_overlap(
+                EmployeeObjective.objects.all().filter(archive=False), request
+            )
             .values(
                 "employee_id",
                 "employee_id__employee_first_name",
@@ -262,13 +273,22 @@ def pms_kr_progress_overview(request):
     try:
         objectives = (
             _period_overlap(
-                EmployeeObjective.objects.filter(archive=False).exclude(
-                    status="Closed"
-                ),
+                EmployeeObjective.objects.all()
+                .filter(archive=False)
+                .exclude(status="Closed"),
                 request,
             )
             .select_related("objective_id")
-            .order_by("-progress_percentage")[:10]
+            .annotate(
+                status_rank=Case(
+                    When(status="At Risk", then=0),
+                    When(status="Behind", then=1),
+                    When(status="On Track", then=2),
+                    default=3,
+                    output_field=IntegerField(),
+                )
+            )
+            .order_by("status_rank", "progress_percentage")[:10]
         )
 
         for obj in objectives:
@@ -337,7 +357,7 @@ def pms_upcoming_meetings(request):
                     "date": local_dt.strftime("%b %d"),
                     "time": local_dt.strftime("%I:%M %p"),
                     "days_away": (local_dt.date() - today).days,
-                    "attendees": m.employee_id.count() + m.manager.count(),
+                    "attendees": m.employee_id.all().count() + m.manager.all().count(),
                 }
             )
     except Exception:

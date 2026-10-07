@@ -883,6 +883,7 @@ class EmployeeKeyResultListFilter(HorillaFilterSet):
 class MeetingsFilter(HorillaFilterSet):
 
     search = django_filters.CharFilter(field_name="title", lookup_expr="icontains")
+    id = django_filters.NumberFilter(field_name="id")
     date = django_filters.DateFilter(
         field_name="date",
         lookup_expr="date",
