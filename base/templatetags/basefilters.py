@@ -267,6 +267,10 @@ def filter_field(value):
     if value.endswith("_ids"):
         value = value[:-4]
     splitted = value.split("__")
+    if splitted[-1] == "is_active":
+        # Filter tags read "Active: True", also for related lookups such as
+        # employee_id__is_active.
+        return "Active"
     if splitted[-1] in ("gte", "lte", "gt", "lt") and len(splitted) > 1:
         # never surface the lookup operator itself as the label
         suffix = {"gte": "From", "gt": "From", "lte": "To", "lt": "To"}[splitted[-1]]

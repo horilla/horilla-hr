@@ -2670,7 +2670,7 @@ _FILTER_LABELS = {
     "employee_work_info__work_type_id": "Work Type",
     "working_today": "Currently Working",
     "employee_user_id__groups": "Groups",
-    "is_active": "Is Active",
+    "is_active": "Active",
     "employee_user_id__user_permissions": "Permissions",
 }
 

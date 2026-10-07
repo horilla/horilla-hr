@@ -222,7 +222,7 @@ class EmployeeFilter(HorillaFilterSet):
 
     is_active = django_filters.ChoiceFilter(
         field_name="is_active",
-        label="Is Active",
+        label="Active",
         # Segmented Any/Yes/No toggle in the modern filter panel -- the
         # empty leading choice (rendered as "Any") is what lets the field
         # be cleared back to unfiltered; a plain 2-choice Yes/No couldn't
@@ -743,6 +743,13 @@ class DocumentRequestFilter(HorillaFilterSet):
     # against it can never narrow a group down to one employee. Search by the
     # employee's name/badge instead, like every other request list in the app.
     search = CharFilter(method=filter_by_name)
+    # Expiry window, used by the Employee dashboard's "Documents to Expire" link.
+    expiry_from = django_filters.DateFilter(
+        field_name="expiry_date", lookup_expr="gte", label=_("Expires from")
+    )
+    expiry_till = django_filters.DateFilter(
+        field_name="expiry_date", lookup_expr="lte", label=_("Expires till")
+    )
     # Dedicated comma-separated "Name or Badge ID" search, alongside the
     # AJAX employee_id picker below rather than instead of it -- same
     # field/behavior as EmployeeFilter.name_or_badge; see
