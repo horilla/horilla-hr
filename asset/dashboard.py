@@ -289,6 +289,7 @@ def asset_recent_allocations(request):
         qs = (
             AssetAssignment.objects.filter(
                 return_status__isnull=True,
+                assigned_to_employee_id__is_active=True,
                 assigned_date__gte=from_date,
                 assigned_date__lte=to_date,
             )
@@ -341,6 +342,7 @@ def asset_department_distribution(request):
         data = (
             AssetAssignment.objects.filter(
                 return_status__isnull=True,
+                assigned_to_employee_id__is_active=True,
             )
             .values(
                 "assigned_to_employee_id__employee_work_info__department_id",
