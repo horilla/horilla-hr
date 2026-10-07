@@ -788,7 +788,7 @@ $(document).on("htmx:afterSettle", function (event) {
     }
 });
 
-$(".oh-password-input--toggle").on("click", function (e) {
+function togglePasswordVisibility(e) {
     e.preventDefault();
 
     const $toggle = $(this);
@@ -805,6 +805,18 @@ $(".oh-password-input--toggle").on("click", function (e) {
         $showIcon.removeClass("hidden");
         $hideIcon.addClass("hidden");
     }
+}
+
+// Toggles present at load are bound directly, as before.
+$(".oh-password-input--toggle").on("click", togglePasswordVisibility);
+
+// A form swapped in later (the change-password page opens in place) has no direct
+// binding, so its eye button did nothing. Those are handled here -- but not any toggle
+// that already has its own click handler, or it would flip twice.
+$(document).on("click", ".oh-password-input--toggle", function (e) {
+    var events = $._data(this, "events");
+    if (events && events.click) return;
+    togglePasswordVisibility.call(this, e);
 });
 
 $(".oh-modal__close").on("click", function () {

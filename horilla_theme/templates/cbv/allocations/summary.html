@@ -5,7 +5,7 @@
         <h2 class="text-sm font-semibold">{% trans "Employee" %}</h2>
 
         <div class="flex flex-wrap items-center gap-2">
-            <span class="text-xs font-medium">{% trans "Dashboard Access" %} :
+            <span class="text-xs font-medium">{% trans "Login Access" %} :
             </span>
             <form
                 hx-post="{% url 'toggle-user-dashboard-access' %}?instance_id={{instance.pk}}"
