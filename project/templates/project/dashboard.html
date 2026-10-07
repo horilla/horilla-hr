@@ -64,6 +64,38 @@
     .pr-period-preset:hover { border-color: var(--primary-600, #E54F38); color: var(--primary-600, #E54F38); }
     .pr-period-preset--active,
     .pr-period-preset--active:hover { background: var(--primary-600, #E54F38) !important; color: #ffffff !important; border-color: var(--primary-600, #E54F38) !important; }
+
+    /* Customize button + slide-over panel (same as the other dashboards) */
+    .pr-customize-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 1050; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+    .pr-customize-overlay--open { opacity: 1; pointer-events: auto; }
+    .pr-customize-panel { position: fixed; top: 0; right: -420px; width: 400px; height: 100vh; background: #ffffff; box-shadow: -4px 0 24px rgba(0,0,0,0.12); z-index: 1051; display: flex; flex-direction: column; transition: right 0.25s ease; }
+    .dark .pr-customize-panel { background: #242424; }
+    .pr-customize-panel--open { right: 0; }
+    .pr-customize-panel__header { padding: 18px 20px; border-bottom: 1px solid rgba(128,128,128,0.12); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+    .pr-customize-panel__header h3 { font-size: 16px; font-weight: 700; margin: 0; }
+    .pr-customize-panel__close { width: 32px; height: 32px; border-radius: 8px; border: none; background: rgba(128,128,128,0.08); cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; color: inherit; }
+    .pr-customize-panel__close:hover { background: rgba(128,128,128,0.16); }
+    .pr-customize-panel__body { flex: 1; overflow-y: auto; padding: 12px 20px; }
+    .pr-customize-panel__footer { padding: 14px 20px; border-top: 1px solid rgba(128,128,128,0.12); display: flex; justify-content: space-between; flex-shrink: 0; }
+    .pr-cust-btn { padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; }
+    .pr-cust-btn--primary { background: var(--primary-600, #E54F38); color: #fff; }
+    .pr-cust-btn--primary:hover { opacity: 0.9; }
+    .pr-cust-btn--ghost { background: none; color: inherit; opacity: 0.6; }
+    .pr-cust-btn--ghost:hover { opacity: 1; }
+    .pr-cust-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; margin-bottom: 6px; border-radius: 8px; border: 1px solid rgba(128,128,128,0.1); background: rgba(128,128,128,0.02); cursor: grab; user-select: none; }
+    .pr-cust-item:active { cursor: grabbing; }
+    .pr-cust-item.pr-dragging { opacity: 0.85; box-shadow: 0 4px 16px rgba(0,0,0,0.12); border-color: var(--primary-600, #E54F38); }
+    .pr-cust-item.pr-drag-over { border-top: 2px solid var(--primary-600, #E54F38); }
+    .pr-cust-item__handle { font-size: 16px; opacity: 0.3; cursor: grab; flex-shrink: 0; }
+    .pr-cust-item__label { flex: 1; font-size: 13px; font-weight: 500; }
+    .pr-cust-item__toggle { width: 36px; height: 20px; border-radius: 12px; background: #e2e8f0; position: relative; cursor: pointer; transition: background 0.2s; flex-shrink: 0; border: none; }
+    .dark .pr-cust-item__toggle { background: #334155; }
+    .pr-cust-item__toggle::after { content: ''; position: absolute; width: 16px; height: 16px; border-radius: 50%; top: 2px; left: 2px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.2); transition: transform 0.2s; }
+    .pr-cust-item__toggle--on { background: var(--primary-600, #E54F38); }
+    .dark .pr-cust-item__toggle--on { background: var(--primary-600, #E54F38); }
+    .pr-cust-item__toggle--on::after { transform: translateX(16px); }
+    @media (max-width: 1024px) { .pr-customize-panel { width: 320px; right: -340px; } }
+    @media (max-width: 640px) { .pr-customize-panel { width: 100%; right: -100%; } }
     .dark .pr-period-picker input[type="date"] { color-scheme: dark; }
 
     /* KPI grid — sizing/spacing ported from the Payroll dashboard's pd-kpi-* */
@@ -195,6 +227,9 @@
                 <span class="pr-period-picker__sep">&rarr;</span>
                 <input type="date" id="pr-to-date" title="{% trans 'To' %}">
             </div>
+            <button class="oh-btn oh-btn--secondary" id="pr-open-customize" style="display: flex; align-items: center; gap: 5px; font-size: 13px" title="{% trans 'Customize' %}">
+                ⚙ {% trans "Customize" %}
+            </button>
         </div>
     </div>
 
@@ -212,7 +247,7 @@
             <div class="pr-chart-grid">
 
                 <!-- Task Status -->
-                <div class="pr-chart-card">
+                <div class="pr-chart-card" data-chart-id="task_status" data-chart-label="{% trans 'Task Status' %}">
                     <div class="pr-chart-card__header">
                         <div>
                             <div class="pr-chart-card__title">{% trans "Task Status" %}</div>
@@ -225,7 +260,7 @@
                 </div>
 
                 <!-- Top Active Projects -->
-                <div class="pr-chart-card">
+                <div class="pr-chart-card" data-chart-id="top_projects" data-chart-label="{% trans 'Top Active Projects' %}">
                     <div class="pr-chart-card__header">
                         <div>
                             <div class="pr-chart-card__title">{% trans "Top Active Projects" %}</div>
@@ -239,7 +274,7 @@
                 </div>
 
                 <!-- Project Timesheet -->
-                <div class="pr-chart-card pr-chart-card--wide">
+                <div class="pr-chart-card pr-chart-card--wide" data-chart-id="project_timesheet" data-chart-label="{% trans 'Project Timesheet' %}">
                     <div class="pr-chart-card__header">
                         <div>
                             <div class="pr-chart-card__title">{% trans "Project Timesheet" %}</div>
@@ -281,6 +316,20 @@
 </div>
 
 {% include "components/pie_legend.html" %}
+<!-- Customize Panel -->
+<div class="pr-customize-overlay" id="pr-customize-overlay"></div>
+<div class="pr-customize-panel" id="pr-customize-panel">
+    <div class="pr-customize-panel__header">
+        <h3>{% trans "Customize Dashboard" %}</h3>
+        <button class="pr-customize-panel__close" id="pr-close-customize">&times;</button>
+    </div>
+    <div class="pr-customize-panel__body" id="pr-customize-list"></div>
+    <div class="pr-customize-panel__footer">
+        <button class="pr-cust-btn pr-cust-btn--ghost" id="pr-reset-customize">{% trans "Reset" %}</button>
+        <button class="pr-cust-btn pr-cust-btn--primary" id="pr-save-customize">{% trans "Save" %}</button>
+    </div>
+</div>
+
 <script>
 (function() {
     const isDark = document.documentElement.classList.contains('dark') || document.body.classList.contains('dark');
@@ -343,6 +392,58 @@
         const sep = url.includes("?") ? "&" : "?";
         return fetch(url + sep + p.slice(1)).then(r => r.json());
     }
+
+    // ── Chart Customize ──
+    const CUST_KEY = 'pr_chart_prefs';
+    function getDefaultOrder() { return Array.from(document.querySelectorAll('[data-chart-id]')).map(c => ({ id: c.dataset.chartId, visible: true })); }
+    function loadCustPrefs() { try { const r = localStorage.getItem(CUST_KEY); return r ? JSON.parse(r) : null; } catch { return null; } }
+    function saveCustPrefs(p) { localStorage.setItem(CUST_KEY, JSON.stringify(p)); }
+    function applyCustPrefs(p) {
+        if (!p) return;
+        const container = document.querySelector('.pr-chart-grid');
+        const cards = {}; container.querySelectorAll('[data-chart-id]').forEach(c => { cards[c.dataset.chartId] = c; });
+        p.forEach(pr => { const card = cards[pr.id]; if (card) { container.appendChild(card); if (pr.visible === false) card.style.display = 'none'; else card.style.display = ''; } });
+        Object.keys(cards).forEach(id => { if (!p.find(pr => pr.id === id)) { container.appendChild(cards[id]); cards[id].style.display = ''; } });
+    }
+    applyCustPrefs(loadCustPrefs());
+
+    const custOverlay = document.getElementById('pr-customize-overlay');
+    const custPanel = document.getElementById('pr-customize-panel');
+    const custList = document.getElementById('pr-customize-list');
+
+    function openCust() {
+        const prefs = loadCustPrefs() || getDefaultOrder();
+        const allCards = {}; document.querySelectorAll('[data-chart-id]').forEach(c => { allCards[c.dataset.chartId] = { id: c.dataset.chartId, label: c.dataset.chartLabel }; });
+        const ordered = []; prefs.forEach(p => { if (allCards[p.id]) ordered.push({ ...allCards[p.id], visible: p.visible !== false }); });
+        Object.keys(allCards).forEach(id => { if (!ordered.find(o => o.id === id)) ordered.push({ ...allCards[id], visible: true }); });
+        let html = ''; ordered.forEach((item, idx) => {
+            html += `<div class="pr-cust-item" draggable="true" data-cust-id="${item.id}"><span class="pr-cust-item__handle">&#x2630;</span><div class="pr-cust-item__label">${item.label}</div><button class="pr-cust-item__toggle ${item.visible ? 'pr-cust-item__toggle--on' : ''}" data-cust-toggle="${item.id}"></button></div>`;
+        });
+        custList.innerHTML = html;
+        initCustDrag();
+        custOverlay.classList.add('pr-customize-overlay--open'); custPanel.classList.add('pr-customize-panel--open');
+    }
+    function closeCust() { custOverlay.classList.remove('pr-customize-overlay--open'); custPanel.classList.remove('pr-customize-panel--open'); }
+
+    function initCustDrag() {
+        let dragEl = null;
+        custList.querySelectorAll('.pr-cust-item').forEach(item => {
+            item.addEventListener('dragstart', e => { dragEl = item; item.classList.add('pr-dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', ''); });
+            item.addEventListener('dragend', () => { if (dragEl) dragEl.classList.remove('pr-dragging'); custList.querySelectorAll('.pr-cust-item').forEach(i => i.classList.remove('pr-drag-over')); dragEl = null; });
+            item.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (item !== dragEl) item.classList.add('pr-drag-over'); });
+            item.addEventListener('dragleave', () => item.classList.remove('pr-drag-over'));
+            item.addEventListener('drop', e => { e.preventDefault(); item.classList.remove('pr-drag-over'); if (dragEl && item !== dragEl) { const items = Array.from(custList.querySelectorAll('.pr-cust-item')); if (items.indexOf(dragEl) < items.indexOf(item)) item.parentNode.insertBefore(dragEl, item.nextSibling); else item.parentNode.insertBefore(dragEl, item); } });
+        });
+        custList.querySelectorAll('.pr-cust-item__toggle').forEach(btn => btn.addEventListener('click', e => { e.stopPropagation(); btn.classList.toggle('pr-cust-item__toggle--on'); }));
+    }
+
+    function getCustState() { return Array.from(custList.querySelectorAll('.pr-cust-item')).map(item => ({ id: item.dataset.custId, visible: item.querySelector('.pr-cust-item__toggle').classList.contains('pr-cust-item__toggle--on') })); }
+
+    document.getElementById('pr-open-customize').addEventListener('click', openCust);
+    document.getElementById('pr-close-customize').addEventListener('click', closeCust);
+    custOverlay.addEventListener('click', closeCust);
+    document.getElementById('pr-save-customize').addEventListener('click', () => { const p = getCustState(); saveCustPrefs(p); applyCustPrefs(p); closeCust(); });
+    document.getElementById('pr-reset-customize').addEventListener('click', () => { localStorage.removeItem(CUST_KEY); location.reload(); });
 
     // ── Chart instance registry (avoid stacking duplicate SVGs on reload) ──
     const chartInstances = {};
