@@ -305,6 +305,7 @@ def project_top_contributors(request):
     try:
         data = (
             Employee.objects.filter(
+                is_active=True,
                 tasks__status="completed",
                 tasks__end_date__gte=from_date,
                 tasks__end_date__lte=to_date,
