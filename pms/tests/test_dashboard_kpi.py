@@ -89,17 +89,16 @@ class DashboardKpiTests(TestCase):
         )
 
     def test_empty_database_does_not_divide_by_zero(self):
-        """completion_rate guards total_objectives > 0, and avg_progress
-        relies on Coalesce to turn an empty Avg into 0.0."""
+        """avg_progress relies on Coalesce to turn an empty Avg into 0.0."""
         response = self.client.get(URL, WIDE)
 
         self.assertEqual(response.status_code, 200)
         body = response.json()
         self.assertEqual(body["total_objectives"], 0)
-        self.assertEqual(body["completion_rate"], 0)
         self.assertEqual(body["avg_progress"], 0.0)
 
-    def test_completion_rate_is_closed_over_total(self):
+    def test_total_objectives_leaves_out_closed_ones(self):
+        """The tile counts objectives still open, matching its list link."""
         self._objective(status="Closed")
         self._objective(status="Closed")
         self._objective(status="On Track")
@@ -107,19 +106,7 @@ class DashboardKpiTests(TestCase):
 
         body = self.client.get(URL, WIDE).json()
 
-        self.assertEqual(body["total_objectives"], 4)
-        self.assertEqual(body["closed"], 2)
-        self.assertEqual(body["completion_rate"], 50.0)
-
-    def test_completion_rate_is_rounded_to_one_decimal(self):
-        """1 of 3 closed is 33.333...; the view rounds to 33.3."""
-        self._objective(status="Closed")
-        self._objective(status="On Track")
-        self._objective(status="On Track")
-
-        body = self.client.get(URL, WIDE).json()
-
-        self.assertEqual(body["completion_rate"], 33.3)
+        self.assertEqual(body["total_objectives"], 2)
 
     def test_at_risk_counts_only_that_status(self):
         self._objective(status="At Risk")
@@ -153,8 +140,9 @@ class DashboardKpiTests(TestCase):
         self.assertEqual(body["total_key_results"], 2)
         self.assertEqual(body["avg_progress"], 50.0)
 
-    def test_period_window_excludes_rows_outside_it(self):
-        """A row overlaps when start <= to_date and end >= from_date."""
+    def test_the_period_picker_does_not_scope_the_tiles(self):
+        """The tiles link to unfiltered lists, so their counts are not
+        narrowed to the picker range (see pms_kpi_data)."""
         self._objective(start=date(2026, 2, 1), days=28)
         self._objective(start=date(2026, 8, 1), days=28)
 
@@ -162,17 +150,7 @@ class DashboardKpiTests(TestCase):
             URL, {"from_date": "2026-01-01", "to_date": "2026-04-01"}
         ).json()
 
-        self.assertEqual(body["total_objectives"], 1)
-
-    def test_a_row_straddling_the_window_is_included(self):
-        """Overlap, not containment: a row spanning the whole window counts."""
-        self._objective(start=date(2026, 1, 1), days=364)
-
-        body = self.client.get(
-            URL, {"from_date": "2026-06-01", "to_date": "2026-06-30"}
-        ).json()
-
-        self.assertEqual(body["total_objectives"], 1)
+        self.assertEqual(body["total_objectives"], 2)
 
     def test_unparseable_dates_fall_back_to_the_current_month(self):
         """_parse_period catches ValueError/TypeError rather than 500ing."""

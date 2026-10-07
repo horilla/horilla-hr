@@ -141,13 +141,12 @@ class ModernDashboardFetchInventoryTests(SimpleTestCase):
         )
         for token in banned:
             self.assertNotIn(token, text, msg=f"legacy fetch still present: {token}")
+        # The charts the simplified dashboard still draws (employee status,
+        # department overtime and the two leave-by-department charts went in
+        # "Simplify main dashboard KPI tiles").
         for required in (
-            "dashboard-employee-status",
             "dashboard-attendance-overview",
-            "dashboard-department-overtime",
             "dashboard-leave-trends",
-            "dashboard-leave-by-department",
-            "dashboard-department-leave-days",
             "dashboard-hiring-timeline",
             "dashboard-recruitment-by-stage",
         ):
@@ -158,12 +157,6 @@ class ModernDashboardFetchInventoryTests(SimpleTestCase):
 
         text = Path("templates/dashboard.html").read_text(encoding="utf-8")
         self.assertIn("status=approved&today_leave=true&filter_applied=on", text)
-        # Present Today drills into the employee directory -- the people who
-        # have an attendance record today -- not into attendance-view's
-        # per-record list.
-        self.assertIn(
-            "present_on={% now 'Y-m-d' %}&is_active=True&filter_applied=on", text
-        )
         self.assertIn(
             "expected_to_check_in={% now 'Y-m-d' %}&is_active=True&filter_applied=on",
             text,

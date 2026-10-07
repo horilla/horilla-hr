@@ -82,12 +82,15 @@ class Fixture(TestCase):
 
 
 class ListTests(Fixture):
-    def test_an_empty_list_offers_the_wizard(self):
-        response = self.client.get(reverse("payroll-batch-home"))
+    def test_the_title_bar_offers_the_wizard(self):
+        """Generate lives in the list's nav bar, which the page loads itself."""
+        response = self.client.get(
+            reverse("payroll-batch-navbar"), HTTP_HX_REQUEST="true"
+        )
         self.assertContains(response, reverse("payroll-batch-scope"))
 
     def test_the_figures_come_from_the_runs(self):
-        PayrollBatch.objects.create(
+        batch = PayrollBatch.objects.create(
             batch_name="March",
             period_start=date(2026, 3, 1),
             period_end=date(2026, 3, 31),
@@ -95,8 +98,27 @@ class ListTests(Fixture):
             total_net=1234.0,
             flagged_count=2,
         )
+        # "People" counts the run's payslips for active employees, as the
+        # run's own page shows them -- not the stored generated_count.
+        left = self.people[1]
+        left.is_active = False
+        left.save()
+        for person in self.people:
+            Payslip.objects.create(
+                employee_id=person,
+                start_date=date(2026, 3, 1),
+                end_date=date(2026, 3, 31),
+                status="draft",
+                basic_pay=1,
+                contract_wage=1,
+                gross_pay=1,
+                deduction=0,
+                net_pay=1,
+                pay_head_data={},
+                payroll_batch=batch,
+            )
         response = self.client.get(reverse("payroll-batch-home"))
-        self.assertEqual(response.context["kpi"]["employees"], 7)
+        self.assertEqual(response.context["kpi"]["employees"], 1)
         self.assertEqual(response.context["kpi"]["flagged"], 2)
         self.assertEqual(response.context["kpi"]["unpaid"], 1)
 
