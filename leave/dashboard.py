@@ -68,15 +68,24 @@ def leave_kpi_data(request):
     ).count()
 
     # Always reflects who is on leave right now, independent of the date filter
-    on_leave_today = (
-        LeaveRequest.objects.filter(
-            start_date__lte=real_today,
-            status="approved",
-            employee_id__is_active=True,
-        )
-        .filter(
-            Q(end_date__gte=real_today)
-            | Q(end_date__isnull=True, start_date=real_today)
+    on_leave_today_qs = LeaveRequest.objects.filter(
+        start_date__lte=real_today,
+        status="approved",
+        employee_id__is_active=True,
+    ).filter(
+        Q(end_date__gte=real_today) | Q(end_date__isnull=True, start_date=real_today)
+    )
+    on_leave_today = on_leave_today_qs.values("employee_id").distinct().count()
+    half_day_today = (
+        on_leave_today_qs.filter(
+            Q(
+                start_date=real_today,
+                start_date_breakdown__in=["first_half", "second_half"],
+            )
+            | Q(
+                end_date=real_today,
+                end_date_breakdown__in=["first_half", "second_half"],
+            )
         )
         .values("employee_id")
         .distinct()
@@ -118,6 +127,7 @@ def leave_kpi_data(request):
             "approved_this_month": approved_this_month,
             "rejected_this_month": rejected_this_month,
             "on_leave_today": on_leave_today,
+            "half_day_today": half_day_today,
             "total_days_used": round(float(total_days_used), 1),
             "pending_allocations": pending_allocations,
             "pending_comp": pending_comp,
