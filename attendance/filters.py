@@ -1314,22 +1314,26 @@ def get_present_on(queryset, _name, value):
 
 def get_checked_in_on(queryset, _name, value):
     """
-    Employees with an attendance record on ``value`` who are not on approved
-    leave that date. Backs the dashboard's "Checked In Today" KPI, which keeps
-    people on leave out so Checked In + Absent + On Leave add up to the total.
+    Employees with an attendance record on ``value`` who are not on a full-day
+    approved leave that date. Backs the dashboard's "Checked In Today" KPI; a
+    half-day leave with attendance still counts as checked in.
     """
     from django.db.models import Q
 
     from leave.models import LeaveRequest
 
-    on_leave_ids = (
+    half_day_q = Q(
+        start_date=value, start_date_breakdown__in=["first_half", "second_half"]
+    ) | Q(end_date=value, end_date_breakdown__in=["first_half", "second_half"])
+    full_day_leave_ids = (
         LeaveRequest.objects.filter(status="approved", start_date__lte=value)
         .filter(Q(end_date__gte=value) | Q(end_date__isnull=True, start_date=value))
+        .exclude(half_day_q)
         .values_list("employee_id", flat=True)
     )
     return (
         queryset.filter(employee_attendances__attendance_date=value)
-        .exclude(id__in=on_leave_ids)
+        .exclude(id__in=full_day_leave_ids)
         .distinct()
     )
 

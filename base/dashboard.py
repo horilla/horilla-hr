@@ -501,6 +501,7 @@ def dashboard_kpi_data(request):
     # Distinct employees, not leave requests — an employee with two
     # overlapping approved leave records must still count once.
     on_leave_employee_ids = set()
+    full_day_leave_ids = set()
     half_day_today = 0
     try:
         leave_qs = _today_leave_qs(request, real_today, status="approved")
@@ -510,20 +511,20 @@ def dashboard_kpi_data(request):
         # Half day only counts when today itself is the broken-down boundary
         # date — a multi-day leave's middle days are always full days
         # regardless of how its start/end boundaries are split.
+        half_day_q = Q(
+            start_date=real_today,
+            start_date_breakdown__in=["first_half", "second_half"],
+        ) | Q(
+            end_date=real_today,
+            end_date_breakdown__in=["first_half", "second_half"],
+        )
         half_day_today = (
-            leave_qs.filter(
-                Q(
-                    start_date=real_today,
-                    start_date_breakdown__in=["first_half", "second_half"],
-                )
-                | Q(
-                    end_date=real_today,
-                    end_date_breakdown__in=["first_half", "second_half"],
-                )
-            )
-            .values("employee_id")
+            leave_qs.filter(half_day_q).values("employee_id").distinct().count()
+        )
+        full_day_leave_ids = set(
+            leave_qs.exclude(half_day_q)
+            .values_list("employee_id", flat=True)
             .distinct()
-            .count()
         )
     except Exception:
         pass
@@ -537,11 +538,11 @@ def dashboard_kpi_data(request):
         present_qs = Attendance.objects.filter(
             attendance_date=real_today, employee_id__in=emp_qs
         )
-        # Someone on approved leave counts as on leave, not as checked in, so
-        # Checked In + Absent + On Leave partition the headcount.
+        # Someone on a full-day approved leave counts as on leave, not as
+        # checked in. A half-day leave with an attendance record still counts
+        # as checked in (and as on leave).
         present_ids = (
-            set(present_qs.values_list("employee_id", flat=True))
-            - on_leave_employee_ids
+            set(present_qs.values_list("employee_id", flat=True)) - full_day_leave_ids
         )
         present_today = len(present_ids)
     except Exception:
@@ -1499,6 +1500,8 @@ def dashboard_turnover(request):
     today = to_date
     months = []
     report_url = ""
+    total_employees = 0
+    total_exits_6m = 0
     try:
         report_url = reverse("standard-report-detail", args=["turnover-attrition"])
     except Exception:
@@ -1561,6 +1564,11 @@ def dashboard_turnover(request):
         {
             "months": months,
             "turnover_rate_6m": turnover_rate,
+            "turnover_exits_6m": total_exits_6m,
+            "turnover_headcount": total_employees,
+            "turnover_formula": str(
+                _("Exits in last 6 months ÷ Active employees × 100")
+            ),
             "report_url": report_url,
             "subtitle": str(_("All exits — see Standard Report for detail")),
         }
