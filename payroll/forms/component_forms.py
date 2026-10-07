@@ -185,7 +185,19 @@ def apply_component_code_choices(form, model):
     # Labelled by name. The code is derived plumbing the user never chose, so
     # showing it here would ask them to recognise an identifier instead of the
     # component they created.
-    choices += [(row["code"], row["label"]) for row in rows]
+    choices += [
+        (
+            row["code"],
+            # Under a CTC Down structure basic is worked out from a component, not
+            # read off the contract; the label says which "Basic pay" this is.
+            (
+                f'{row["label"]} ({_("CTC Down structure")})'
+                if row["code"] == "BASIC"
+                else row["label"]
+            ),
+        )
+        for row in rows
+    ]
 
     current = (
         (form.data.get("percentage_of_code") if form.is_bound else None)

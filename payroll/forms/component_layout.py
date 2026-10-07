@@ -309,6 +309,10 @@ def group_based_on_choices(field):
     state, not a kind of amount.
     """
     labels = {str(value): label for value, label in field.choices}
+    # "Basic Pay" here is the figure on the contract; the Percentage Of list's
+    # "Basic pay" is the component worked out by the structure. Say which.
+    if "basic_pay" in labels:
+        labels["basic_pay"] = _("Basic Pay (Basic on contract)")
     blank = [(value, label) for value, label in field.choices if value == ""]
 
     grouped = []
