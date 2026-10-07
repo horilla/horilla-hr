@@ -161,6 +161,10 @@
 
 
     /* Standard chart tooltip card and chip legend, as on the main dashboard */
+    /* A long title wraps inside a bounded card instead of stretching the tooltip until it
+       flips off the chart and is clipped by the page edge; and it stacks above neighbours. */
+    .apexcharts-tooltip { z-index: 60 !important; }
+    .pd-tip { max-width: 260px; white-space: normal; overflow-wrap: anywhere; }
     .pd-tip { min-width: 150px; padding: 10px 12px; font-size: 12px; }
     .pd-tip__title { margin-bottom: 4px; font-size: 12px; font-weight: 700; }
     .pd-tip__row { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 4px; }
@@ -969,6 +973,34 @@ function pdInit() {
     const tag = document.getElementById('pd-apexcharts');
     if (tag) tag.addEventListener('load', pdInit, { once: true });
     else { const t = setInterval(() => { if (window.ApexCharts) { clearInterval(t); pdInit(); } }, 50); }
+})();
+
+/* Keep every chart tooltip inside its card. Apex flips a wide tooltip to the left of the
+   bar and, near the card's left edge, that puts it past the edge where the page clips it.
+   After Apex positions it, nudge it back in. */
+(function () {
+    if (window.__tooltipClamp) return;
+    window.__tooltipClamp = true;
+    var queued = false;
+    function clamp() {
+        queued = false;
+        document.querySelectorAll('.apexcharts-tooltip.apexcharts-active').forEach(function (t) {
+            var holder = t.closest('[id^="chart-"]') || t.parentElement;
+            var card = (holder && holder.parentElement) || holder;
+            if (!card) return;
+            var box = card.getBoundingClientRect(), r = t.getBoundingClientRect();
+            if (r.width > box.width) return;
+            var margin = 8, shift = 0;
+            if (r.left < box.left + margin) shift = box.left + margin - r.left;
+            else if (r.right > box.right - margin) shift = box.right - margin - r.right;
+            if (shift) t.style.left = (parseFloat(t.style.left) || 0) + shift + 'px';
+        });
+    }
+    // After Apex has placed the tooltip for this move (a moment later), pull it inside its card.
+    // No mutation observer: nothing here listens for its own change.
+    document.addEventListener('mousemove', function () {
+        if (!queued) { queued = true; setTimeout(clamp, 40); }
+    }, { passive: true });
 })();
 </script>
 {% endblock %}

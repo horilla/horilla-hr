@@ -664,7 +664,11 @@
         }
 
         /* The tooltip card every dashboard chart shares: bold title, a coloured-dot row per value. */
-        .as-tip { min-width: 150px; padding: 10px 12px; font-size: 12px; }
+        /* A long title wraps inside a bounded card instead of stretching the tooltip until it
+       flips off the chart and is clipped by the page edge; and it stacks above neighbours. */
+    .apexcharts-tooltip { z-index: 60 !important; }
+    .as-tip { max-width: 260px; white-space: normal; overflow-wrap: anywhere; }
+    .as-tip { min-width: 150px; padding: 10px 12px; font-size: 12px; }
         .as-tip__title { margin-bottom: 4px; font-size: 12px; font-weight: 700; }
         .as-tip__row { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 4px; }
         .as-tip__label { display: inline-flex; align-items: center; gap: 6px; }
@@ -1221,7 +1225,7 @@
                     <div class="as-kpi-card__icon as-kpi-card__icon--blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
                     <div class="as-kpi-card__label">{% trans "Total Assets"|escapejs %}</div>
                     <div class="as-kpi-card__value">${data.total_assets}</div>
-                    <div class="as-kpi-card__sub"><span class="as-badge as-badge--green">${data.in_use} {% trans "In Use"|escapejs %}</span> <span class="as-badge as-badge--amber">${data.available} {% trans "Available"|escapejs %}</span></div>
+                    <div class="as-kpi-card__sub"><span class="as-badge as-badge--green">${data.in_use} {% trans "In Use"|escapejs %}</span> <span class="as-badge as-badge--amber">${data.available} {% trans "Available"|escapejs %}</span> <span class="as-badge as-badge--red">${data.not_available} {% trans "Not Available"|escapejs %}</span></div>
                 </a>
                 <a href="{% url 'asset-request-allocation-view' %}?open_tab=2&asset_request_status=Requested&custom_field=asset_request_date&custom_lookup=gte&custom_value=${data.period_from_date}&custom_field=asset_request_date&custom_lookup=lte&custom_value=${data.period_to_date}&filter_applied=1" class="as-kpi-card">
                     <div class="as-kpi-card__icon as-kpi-card__icon--amber"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg></div>
@@ -1666,5 +1670,33 @@
             }
 
         })();
-    </script>
+
+/* Keep every chart tooltip inside its card. Apex flips a wide tooltip to the left of the
+   bar and, near the card's left edge, that puts it past the edge where the page clips it.
+   After Apex positions it, nudge it back in. */
+(function () {
+    if (window.__tooltipClamp) return;
+    window.__tooltipClamp = true;
+    var queued = false;
+    function clamp() {
+        queued = false;
+        document.querySelectorAll('.apexcharts-tooltip.apexcharts-active').forEach(function (t) {
+            var holder = t.closest('[id^="chart-"]') || t.parentElement;
+            var card = (holder && holder.parentElement) || holder;
+            if (!card) return;
+            var box = card.getBoundingClientRect(), r = t.getBoundingClientRect();
+            if (r.width > box.width) return;
+            var margin = 8, shift = 0;
+            if (r.left < box.left + margin) shift = box.left + margin - r.left;
+            else if (r.right > box.right - margin) shift = box.right - margin - r.right;
+            if (shift) t.style.left = (parseFloat(t.style.left) || 0) + shift + 'px';
+        });
+    }
+    // After Apex has placed the tooltip for this move (a moment later), pull it inside its card.
+    // No mutation observer: nothing here listens for its own change.
+    document.addEventListener('mousemove', function () {
+        if (!queued) { queued = true; setTimeout(clamp, 40); }
+    }, { passive: true });
+})();
+</script>
 {% endblock %}

@@ -972,6 +972,10 @@
         #chart-turnover .apexcharts-bar-area { cursor: pointer; }
         /* The tooltip sits over the bar being hovered; it must not swallow the click. */
         #chart-turnover .apexcharts-tooltip { pointer-events: none; }
+        /* A long title wraps inside a bounded card instead of stretching the tooltip until it
+       flips off the chart and is clipped by the page edge; and it stacks above neighbours. */
+    .apexcharts-tooltip { z-index: 60 !important; }
+    .md-tip { max-width: 260px; white-space: normal; overflow-wrap: anywhere; }
         .md-tip {
             min-width: 150px;
             padding: 10px 12px;
@@ -2786,7 +2790,7 @@
                         document.getElementById('md-kpi-grid').innerHTML =
                             kpiCard("{% url 'employee-view' %}?is_active=True&filter_applied=on",   PERM.employee,    'md-kpi-card__icon--indigo', empSvg,   '{% trans "Total Employees"|escapejs %}',   data.total_employees,   data.new_joiners > 0 ? '<span class="md-badge md-badge--green">+' + data.new_joiners + ' {% trans "This Month"|escapejs %}</span>' : '') +
                             kpiCard("{% url 'employee-view' %}?checked_in_on={% now 'Y-m-d' %}&is_active=True&filter_applied=on",  PERM.employee,    'md-kpi-card__icon--green',  attSvg,   '{% trans "Checked In Today"|escapejs %}',     data.present_today,     data.week_off_today ? '<span class="md-badge md-badge--amber">' + data.week_off_count + ' {% trans "on week off"|escapejs %}</span>' : '') +
-                            kpiCard("{% url 'employee-view' %}?expected_to_check_in={% now 'Y-m-d' %}&is_active=True&filter_applied=on", PERM.employee, 'md-kpi-card__icon--red', offlineSvg, '{% trans "Absent Today"|escapejs %}', data.not_checked_in, '') +
+                            kpiCard("{% url 'employee-view' %}?expected_to_check_in={% now 'Y-m-d' %}&is_active=True&filter_applied=on", PERM.employee, 'md-kpi-card__icon--red', offlineSvg, '{% trans "Not Checked In Today"|escapejs %}', data.not_checked_in, '') +
                             kpiCard(`{% url 'request-view' %}?status=approved&today_leave=true&filter_applied=on`,     PERM.leave,       'md-kpi-card__icon--amber',  leaveSvg, '{% trans "On Leave"|escapejs %}',           data.on_leave,          '');
                     });
             }
@@ -3655,16 +3659,14 @@
                         ],
                         chart: { type: 'bar', height: 290, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', animations: ANIM,
                             // A column opens the people behind it. Green: the candidates hired in
-                            // that month. Red: the employees who are no longer active.
+                            // that month. Red (exits) is not clickable.
                             events: { dataPointSelection: (e, ctx, config) => {
                                 const m = data.months[config.dataPointIndex];
                                 if (!m || !m.from) return;
                                 if (!PERM.employee) return;
-                                // Same people the chart counted: those who joined, or those who left,
-                                // in that month -- active or not.
-                                const range = config.seriesIndex === 0
-                                    ? "joined_from=" + m.from + "&joined_till=" + m.to
-                                    : "exited_from=" + m.from + "&exited_till=" + m.to;
+                                // Only the hires column opens a list; exits don't redirect.
+                                if (config.seriesIndex !== 0) return;
+                                const range = "joined_from=" + m.from + "&joined_till=" + m.to;
                                 window.location.href = "{% url 'employee-view' %}?is_active=all&" + range + "&filter_applied=on";
                             } } },
                         colors: ['#22c55e', '#ef4444'],
@@ -3732,5 +3734,33 @@
             }
 
         })();
-    </script>
+
+/* Keep every chart tooltip inside its card. Apex flips a wide tooltip to the left of the
+   bar and, near the card's left edge, that puts it past the edge where the page clips it.
+   After Apex positions it, nudge it back in. */
+(function () {
+    if (window.__tooltipClamp) return;
+    window.__tooltipClamp = true;
+    var queued = false;
+    function clamp() {
+        queued = false;
+        document.querySelectorAll('.apexcharts-tooltip.apexcharts-active').forEach(function (t) {
+            var holder = t.closest('[id^="chart-"]') || t.parentElement;
+            var card = (holder && holder.parentElement) || holder;
+            if (!card) return;
+            var box = card.getBoundingClientRect(), r = t.getBoundingClientRect();
+            if (r.width > box.width) return;
+            var margin = 8, shift = 0;
+            if (r.left < box.left + margin) shift = box.left + margin - r.left;
+            else if (r.right > box.right - margin) shift = box.right - margin - r.right;
+            if (shift) t.style.left = (parseFloat(t.style.left) || 0) + shift + 'px';
+        });
+    }
+    // After Apex has placed the tooltip for this move (a moment later), pull it inside its card.
+    // No mutation observer: nothing here listens for its own change.
+    document.addEventListener('mousemove', function () {
+        if (!queued) { queued = true; setTimeout(clamp, 40); }
+    }, { passive: true });
+})();
+</script>
 {% endblock %}
