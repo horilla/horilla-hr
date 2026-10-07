@@ -95,6 +95,30 @@ class SandboxAvailabilityTests(SimpleTestCase):
         with self.assertRaises(TaxFormulaTimeout):
             run_tax_formula(_fn("while True:\n        pass"), 1, timeout=1.0)
 
+    def test_a_timed_out_formula_does_not_keep_running(self):
+        """
+        Abandoning the worker used to leave it spinning for the life of the
+        process -- one busy thread per bad formula, which is what made the
+        full suite take 25 minutes longer to exit under coverage.
+        """
+        import threading
+        import time
+
+        before = set(threading.enumerate())
+        for _ in range(3):
+            with self.assertRaises(TaxFormulaTimeout):
+                run_tax_formula(_fn("while True:\n        pass"), 1, timeout=0.3)
+
+        deadline = time.time() + 5
+        while True:
+            leaked = [
+                t for t in threading.enumerate() if t not in before and t.is_alive()
+            ]
+            if not leaked or time.time() > deadline:
+                break
+            time.sleep(0.1)
+        self.assertEqual(leaked, [], "timed-out formula workers are still running")
+
     def test_huge_range_is_refused_rather_than_run(self):
         """
         The timeout alone does not cover this. ``sum(range(10**9))`` runs inside

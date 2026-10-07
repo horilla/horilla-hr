@@ -30,6 +30,7 @@ imports, file access, attribute introspection, or I/O are permitted.
 """
 
 import ast
+import ctypes
 import re
 import threading
 
@@ -253,6 +254,24 @@ def validate_tax_code(code: str) -> None:
     _check(code)
 
 
+def _stop_worker(worker, attempts: int = 20, wait: float = 0.05):
+    """Ask CPython to raise ``SystemExit`` inside a worker that outran its timeout.
+
+    Python cannot kill a thread, but it can raise an exception in one the next
+    time it runs bytecode, which is enough for ``while True: pass``. It is
+    repeated because a formula may catch the first one (``try/except`` around
+    its own loop). It cannot interrupt a single long C call, which is why
+    ``range()`` and ``**`` are capped at source instead.
+    """
+    for _ in range(attempts):
+        if not worker.is_alive():
+            return
+        ctypes.pythonapi.PyThreadState_SetAsyncExc(
+            ctypes.c_ulong(worker.ident), ctypes.py_object(SystemExit)
+        )
+        worker.join(wait)
+
+
 def run_tax_formula(code: str, yearly_income, timeout: float = DEFAULT_TIMEOUT_SECONDS):
     """Validate, sandbox-execute, and call the tax formula under a time limit.
 
@@ -270,10 +289,11 @@ def run_tax_formula(code: str, yearly_income, timeout: float = DEFAULT_TIMEOUT_S
 
     The work therefore happens on a daemon worker joined with a wall-clock
     timeout. ``threading`` rather than ``signal.alarm`` because the latter is
-    POSIX-only and this project runs on Windows too. Joining does not *kill* a
-    stuck worker — Python cannot — but it frees the caller immediately, which
-    is what fixes the availability problem; the abandoned daemon holds no lock
-    another request can see and dies with the process.
+    POSIX-only and this project runs on Windows too. Joining does not stop a
+    stuck worker, so on timeout it is also told to raise inside itself
+    (:func:`_stop_worker`). Without that the abandoned thread kept spinning for
+    the life of the process: every bad formula leaked a busy thread, and the
+    test suite ended up 25 minutes slower in CI waiting on the ones it made.
     """
     _check(code)
 
@@ -317,11 +337,12 @@ def run_tax_formula(code: str, yearly_income, timeout: float = DEFAULT_TIMEOUT_S
         except BaseException as exc:  # noqa: BLE001 - re-raised in the caller's thread
             error_box["error"] = exc
 
-    worker = threading.Thread(target=_worker, daemon=True)
+    worker = threading.Thread(target=_worker, name="tax-formula-worker", daemon=True)
     worker.start()
     worker.join(timeout=timeout)
 
     if worker.is_alive():
+        _stop_worker(worker)
         raise TaxFormulaTimeout(
             f"Tax formula did not finish within {timeout}s and was abandoned."
         )
