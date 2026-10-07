@@ -510,7 +510,7 @@ def _apply(applied, period_from, period_to):
     """Write the overrides. One transaction, as the upload itself is."""
     with transaction.atomic():
         for employee, counts, note in applied:
-            AttendanceSummaryOverride.objects.update_or_create(
+            AttendanceSummaryOverride._base_manager.update_or_create(
                 employee_id=employee,
                 from_date=period_from,
                 to_date=period_to,

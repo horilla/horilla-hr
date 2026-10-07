@@ -1920,7 +1920,7 @@ def attendance_monthly_summary_conflict_resolve(request):
             "leave",  # legacy kept for existing records
         }
         if resolution in _valid:
-            AttendanceConflictResolution.objects.update_or_create(
+            AttendanceConflictResolution._base_manager.update_or_create(
                 employee_id=emp,
                 date=date,
                 defaults={"resolution": resolution, "conflict_type": conflict_type},
@@ -2349,7 +2349,7 @@ def attendance_monthly_summary_conflict_bulk_resolve(request):
         }
         if resolution in _valid:
             for d in dates:
-                AttendanceConflictResolution.objects.update_or_create(
+                AttendanceConflictResolution._base_manager.update_or_create(
                     employee_id=emp,
                     date=d,
                     defaults={"resolution": resolution, "conflict_type": ""},
@@ -2430,7 +2430,7 @@ def attendance_monthly_summary_bulk_override(request):
             ex = existing_map.get((emp.pk, d))
             if ex and ex[1] == resolution:
                 continue  # already the same value — skip
-            obj, _ = AttendanceConflictResolution.objects.update_or_create(
+            obj, _ = AttendanceConflictResolution._base_manager.update_or_create(
                 employee_id=emp,
                 date=d,
                 defaults={"resolution": resolution, "conflict_type": "bulk"},

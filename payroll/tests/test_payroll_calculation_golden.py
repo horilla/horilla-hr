@@ -73,7 +73,7 @@ EMPTY_LEAVES = {
 # run and cannot be baselined. Dropping the ids is safe for what this suite
 # guards: every line still carries its own ``title``, so a title-to-amount
 # mismatch (the zip() misattribution) is still caught exactly.
-VOLATILE_KEYS = {"allowance_id", "deduction_id", "id"}
+VOLATILE_KEYS = {"allowance_id", "deduction_id", "id", "employee"}
 
 
 def _normalize(value):

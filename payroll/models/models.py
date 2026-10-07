@@ -165,7 +165,7 @@ class FilingStatus(HorillaModel):
         ("taxable_gross_pay", _("Taxable Gross Pay")),
     ]
     filing_status = models.CharField(
-        max_length=30,
+        max_length=100,
         blank=False,
         verbose_name=_("Filing status"),
     )

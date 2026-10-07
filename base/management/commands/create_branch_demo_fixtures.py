@@ -3217,7 +3217,7 @@ class Command(ExtrasMixin, BaseCommand):
         # whatever this command's own shift/calendar say for the period --
         # so overriding present/paid_leave/unpaid_leave/absent to these
         # counts, on top of that real week_off/holiday, always reconciles.
-        AttendanceSummaryOverride.objects.update_or_create(
+        AttendanceSummaryOverride._base_manager.update_or_create(
             employee_id=employee,
             from_date=start,
             to_date=end,
