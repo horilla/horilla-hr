@@ -775,7 +775,7 @@
             color: var(--ess-amber);
         }
         .ess-upcoming-row--holiday {
-            color: var(--ess-purple);
+            color: inherit;
         }
 
         /* Birthdays card */
@@ -986,6 +986,7 @@
                             {% trans "Upcoming Holidays" %}
                             <span id="essUpcomingCount" class="ess-count-badge" hidden title="{% trans 'Upcoming Holidays' %}">0</span>
                         </div>
+                        <span style="font-size:11px;font-weight:400;opacity:0.5;">{% trans "Next 30 days" %}</span>
                     </div>
                     <div id="essUpcomingList" class="ess-info-panel__body">
                         <div class="ess-empty-sm">{% trans "Loading..." %}</div>
