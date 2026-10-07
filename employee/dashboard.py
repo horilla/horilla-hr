@@ -25,6 +25,7 @@ from horilla_documents.models import Document
 
 EMPLOYEE_PERM = "employee.view_employee"
 NEW_EMPLOYEES_LIMIT = 10
+NEW_EMPLOYEES_DAYS = 30
 EXPIRED_DOCUMENTS_LIMIT = 10
 EXPIRING_DOCUMENTS_DAYS = 60
 
@@ -195,7 +196,6 @@ def employee_by_department(request):
     return JsonResponse({"items": _distribution("department")})
 
 
-JOB_POSITION_SERIES_LIMIT = 8
 REPORTING_MANAGER_LIMIT = 10
 
 
@@ -204,9 +204,8 @@ REPORTING_MANAGER_LIMIT = 10
 def employee_department_positions(request):
     """Active headcount per department, split by job position.
 
-    The most populated job positions get their own series; the rest (and
-    employees without a position) are folded into "Not Assigned" so the stacked bars
-    stay readable.
+    Every job position with active employees gets its own series, most populated
+    first. Employees with no position at all are a "Not Assigned" series.
     """
     key_dept = "employee_work_info__department_id"
     key_pos = "employee_work_info__job_position_id"
@@ -237,10 +236,7 @@ def employee_department_positions(request):
             {"key": row[key_pos], "label": row[f"{key_pos}__job_position"], "count": 0},
         )
         entry["count"] += row["count"]
-    top = sorted(position_totals.values(), key=lambda p: -p["count"])[
-        :JOB_POSITION_SERIES_LIMIT
-    ]
-    top_ids = {p["key"] for p in top}
+    top = sorted(position_totals.values(), key=lambda p: -p["count"])
     positions = [{"key": p["key"], "label": p["label"]} for p in top]
 
     departments = {}
@@ -258,7 +254,7 @@ def employee_department_positions(request):
 
     for row in rows:
         dept = department(row[key_dept], row[f"{key_dept}__department"])
-        pos_key = row[key_pos] if row[key_pos] in top_ids else "other"
+        pos_key = row[key_pos]
         dept["by_position"][pos_key] = (
             dept["by_position"].get(pos_key, 0) + row["count"]
         )
@@ -272,10 +268,10 @@ def employee_department_positions(request):
         )
         for dept_id, count in no_position.items():
             dept = department(dept_id, names.get(dept_id))
-            dept["by_position"]["other"] = dept["by_position"].get("other", 0) + count
+            dept["by_position"]["unassigned"] = count
             dept["total"] += count
-    if any("other" in d["by_position"] for d in departments.values()):
-        positions.append({"key": "other", "label": _("Not Assigned")})
+    if any("unassigned" in d["by_position"] for d in departments.values()):
+        positions.append({"key": "unassigned", "label": _("Not Assigned")})
 
     return JsonResponse(
         {
@@ -319,8 +315,12 @@ def employee_by_reporting_manager(request):
 @login_required
 @manager_can_enter(EMPLOYEE_PERM)
 def employee_new_joiners(request):
-    """Active employees who joined during the selected period, newest first."""
-    from_date, to_date = _period_bounds(request)
+    """Active employees who joined in the previous 30 days, newest first.
+
+    Independent of the dashboard period filter.
+    """
+    to_date = timezone.localdate()
+    from_date = to_date - timedelta(days=NEW_EMPLOYEES_DAYS)
     joined = _active_employees().filter(
         employee_work_info__date_joining__gte=from_date,
         employee_work_info__date_joining__lte=to_date,

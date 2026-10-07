@@ -209,6 +209,12 @@ class EmployeeFilter(HorillaFilterSet):
         queryset=JobPosition.objects.all(),
         label=_("Job Position"),
     )
+    # Active employees whose work info has no job position (dashboard drill-down)
+    no_job_position = django_filters.BooleanFilter(
+        field_name="employee_work_info__job_position_id",
+        lookup_expr="isnull",
+        label=_("No Job Position"),
+    )
     employee_work_info__basic_salary__gte = django_filters.NumberFilter(
         field_name="employee_work_info__basic_salary",
         lookup_expr="gte",
