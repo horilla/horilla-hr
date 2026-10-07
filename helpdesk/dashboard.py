@@ -18,14 +18,23 @@ from horilla.decorators import login_required, permission_required
 
 
 def _parse_period(request):
-    """Return the current calendar month's bounds (first day to last day).
+    """Return the picker's (from_date, to_date), defaulting to the current month.
 
-    The dashboard always shows the current month; GET params are ignored,
-    so the range rolls forward on its own when the month changes.
+    `from_date` / `to_date` come from the GET params (ISO dates); either one
+    that is missing or invalid falls back to the current calendar month's
+    first / last day, so the range still rolls forward by itself.
     """
     today = timezone.now().date()
-    from_date = today.replace(day=1)
-    to_date = today.replace(day=calendar.monthrange(today.year, today.month)[1])
+    default_from = today.replace(day=1)
+    default_to = today.replace(day=calendar.monthrange(today.year, today.month)[1])
+    try:
+        from_date = date.fromisoformat(request.GET.get("from_date", ""))
+    except (ValueError, TypeError):
+        from_date = default_from
+    try:
+        to_date = date.fromisoformat(request.GET.get("to_date", ""))
+    except (ValueError, TypeError):
+        to_date = default_to
     return from_date, to_date
 
 
@@ -36,24 +45,33 @@ def helpdesk_dashboard_view(request):
     return render(request, "helpdesk/dashboard.html")
 
 
-def _period_tickets(request):
-    """All active tickets, across all time."""
+def _live_tickets():
+    """Every active ticket regardless of the picker (current-state panels)."""
     from helpdesk.models import Ticket
 
-    return Ticket.objects.filter(is_active=True)
+    return Ticket.objects.filter(is_active=True, employee_id__is_active=True)
+
+
+def _period_tickets(request):
+    """Active tickets created within the picker's date range."""
+    from_date, to_date = _parse_period(request)
+    return _live_tickets().filter(
+        created_date__gte=from_date, created_date__lte=to_date
+    )
 
 
 def _resolved_this_month(request):
-    """All active resolved tickets, across all time."""
-    from helpdesk.models import Ticket
-
-    return Ticket.objects.filter(is_active=True, status="resolved")
+    """Active tickets resolved within the picker's date range."""
+    from_date, to_date = _parse_period(request)
+    return _live_tickets().filter(
+        status="resolved", resolved_date__gte=from_date, resolved_date__lte=to_date
+    )
 
 
 @login_required
 @permission_required("helpdesk.view_ticket")
 def helpdesk_kpi_data(request):
-    """Return helpdesk KPI summary data as JSON, across all time."""
+    """Return helpdesk KPI summary data as JSON, for the picker's date range."""
     from helpdesk.models import ClaimRequest
 
     period_tickets = _period_tickets(request)
@@ -70,13 +88,8 @@ def helpdesk_kpi_data(request):
 
     period_resolved = resolved_this_month.count()
 
-    month_from, month_to = _parse_period(request)
-    month_created = period_tickets.filter(
-        created_date__gte=month_from, created_date__lte=month_to
-    ).count()
-    month_resolved = resolved_this_month.filter(
-        resolved_date__gte=month_from, resolved_date__lte=month_to
-    ).count()
+    month_created = total_tickets
+    month_resolved = period_resolved
     resolution_rate = (
         min(round((month_resolved / month_created * 100), 1), 100)
         if month_created > 0
@@ -121,6 +134,7 @@ def _overdue_count():
     today = date.today()
     return Ticket.objects.filter(
         is_active=True,
+        employee_id__is_active=True,
         deadline__lt=today,
         status__in=["new", "in_progress", "on_hold"],
     ).count()
@@ -129,7 +143,7 @@ def _overdue_count():
 @login_required
 @permission_required("helpdesk.view_ticket")
 def helpdesk_status_distribution(request):
-    """Ticket count by current status, across all time."""
+    """Ticket count by current status, for tickets created in the picker's range."""
     statuses = []
     status_choices = [
         ("new", _("New")),
@@ -154,7 +168,7 @@ def helpdesk_status_distribution(request):
 @login_required
 @permission_required("helpdesk.view_ticket")
 def helpdesk_priority_distribution(request):
-    """Ticket count by priority, across all time."""
+    """Open ticket count by priority, for tickets created in the picker's range."""
     priorities = []
     priority_choices = [
         ("high", _("High")),
@@ -177,7 +191,7 @@ def helpdesk_priority_distribution(request):
 @login_required
 @permission_required("helpdesk.view_ticket")
 def helpdesk_type_distribution(request):
-    """Ticket count by type, across all time."""
+    """Ticket count by type, for tickets created in the picker's range."""
     types = []
 
     try:
@@ -212,10 +226,10 @@ def helpdesk_type_distribution(request):
 @login_required
 @permission_required("helpdesk.view_ticket")
 def helpdesk_monthly_trend(request):
-    """Created-vs-resolved ticket counts for each of the last 6 months."""
+    """Created-vs-resolved ticket counts for the 6 months ending at the picker's end date."""
     from helpdesk.models import Ticket
 
-    today = date.today()
+    today = _parse_period(request)[1]
     months = []
     created = []
     resolved = []
@@ -261,7 +275,7 @@ def helpdesk_monthly_trend(request):
 @login_required
 @permission_required("helpdesk.view_ticket")
 def helpdesk_department_breakdown(request):
-    """Tickets by department (via employee owner), across all time."""
+    """Open tickets by department (via employee owner), created in the picker's range."""
     departments = []
 
     try:
@@ -296,14 +310,14 @@ def helpdesk_department_breakdown(request):
 @login_required
 @permission_required("helpdesk.view_ticket")
 def helpdesk_overdue_tickets(request):
-    """Open tickets whose deadline has already passed."""
+    """Open tickets whose deadline has already passed (live, not scoped to the picker)."""
     today = date.today()
     cutoff = today
     tickets = []
 
     try:
         qs = (
-            _period_tickets(request)
+            _live_tickets()
             .filter(
                 deadline__lt=cutoff,
                 status__in=["new", "in_progress", "on_hold"],
@@ -340,7 +354,7 @@ def helpdesk_overdue_tickets(request):
 @login_required
 @permission_required("helpdesk.view_ticket")
 def helpdesk_recent_tickets(request):
-    """Most recently created tickets overall."""
+    """Most recently created tickets within the picker's range."""
     tickets = []
 
     try:
@@ -377,7 +391,7 @@ def helpdesk_recent_tickets(request):
 @login_required
 @permission_required("helpdesk.view_ticket")
 def helpdesk_sla_compliance(request):
-    """SLA compliance -- resolved tickets, on time vs late."""
+    """SLA compliance -- tickets resolved in the picker's range, on time vs late."""
     resolved_on_time = 0
     resolved_late = 0
 
@@ -417,11 +431,11 @@ def helpdesk_sla_compliance(request):
 @login_required
 @permission_required("helpdesk.view_ticket")
 def helpdesk_assignee_workload(request):
-    """Open ticket count per assignee, across all time."""
+    """Current open ticket count per assignee (live, not scoped to the picker)."""
     assignees = []
 
     try:
-        open_tickets = _period_tickets(request).filter(
+        open_tickets = _live_tickets().filter(
             status__in=["new", "in_progress", "on_hold"],
         )
 

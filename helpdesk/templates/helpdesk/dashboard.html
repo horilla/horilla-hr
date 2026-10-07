@@ -98,7 +98,7 @@
     @media (max-width: 640px) { .hd-customize-panel { width: 100%; right: -100%; } }
 
     /* Period Picker */
-    .hd-period-picker { display: none !important; /* TEMP: hide period picker */ align-items: center; gap: 6px; font-size: 12px; }
+    .hd-period-picker { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
     .hd-period-picker input[type="date"] { padding: 5px 8px; border-radius: 6px; border: 1px solid rgba(128,128,128,0.2); font-size: 12px; background: transparent; color: inherit; outline: none; transition: border-color 0.15s; }
     .hd-period-picker input[type="date"]:focus { border-color: var(--hd-indigo); }
     .hd-period-picker__sep { opacity: 0.4; font-size: 11px; }
@@ -160,10 +160,11 @@
             <div class="hd-refresh"><span class="hd-refresh__dot" id="hd-refresh-dot"></span><span id="hd-refresh-text">{% trans "Just now" %}</span><button class="hd-refresh__toggle" id="hd-refresh-toggle" title="{% trans 'Toggle auto-refresh' %}">⟳</button></div>
         </div>
         <div style="display:flex;gap:8px;">
-            <div class="hd-period-picker" hidden>
+            <div class="hd-period-picker">
+                <button class="hd-period-preset" data-preset="today">{% trans "Today" %}</button>
+                <button class="hd-period-preset" data-preset="this_week">{% trans "This Week" %}</button>
                 <button class="hd-period-preset" data-preset="this_month">{% trans "This Month" %}</button>
-                <button class="hd-period-preset" data-preset="last_month">{% trans "Last Month" %}</button>
-                <button class="hd-period-preset" data-preset="this_quarter">{% trans "Quarter" %}</button>
+                <button class="hd-period-preset" data-preset="this_year">{% trans "This Year" %}</button>
                 <input type="date" id="hd-from-date" title="{% trans 'From' %}">
                 <span class="hd-period-picker__sep">&rarr;</span>
                 <input type="date" id="hd-to-date" title="{% trans 'To' %}">
@@ -183,23 +184,23 @@
         <div class="hd-main">
             <div class="hd-chart-grid">
                 <div class="hd-chart-card" data-chart-id="ticket_status" data-chart-label="{% trans 'Ticket Status' %}">
-                    <div class="hd-chart-card__header"><div><div class="hd-chart-card__title">{% trans "Ticket Status" %}</div><div class="hd-chart-card__subtitle">{% trans "All tickets" %}</div></div></div>
+                    <div class="hd-chart-card__header"><div><div class="hd-chart-card__title">{% trans "Ticket Status" %}</div><div class="hd-chart-card__subtitle">{% trans "All tickets" %}<span data-period-label></span></div></div></div>
                     <div class="hd-chart-card__body"><div id="chart-hd-status"></div></div>
                 </div>
                 <div class="hd-chart-card" data-chart-id="priority_breakdown" data-chart-label="{% trans 'Priority Breakdown' %}">
-                    <div class="hd-chart-card__header"><div><div class="hd-chart-card__title">{% trans "Priority Breakdown" %}</div><div class="hd-chart-card__subtitle">{% trans "Open tickets by priority" %}</div></div></div>
+                    <div class="hd-chart-card__header"><div><div class="hd-chart-card__title">{% trans "Priority Breakdown" %}</div><div class="hd-chart-card__subtitle">{% trans "Open tickets by priority" %}<span data-period-label></span></div></div></div>
                     <div class="hd-chart-card__body"><div id="chart-hd-priority"></div></div>
                 </div>
                 <div class="hd-chart-card" data-chart-id="tickets_by_type" data-chart-label="{% trans 'Tickets by Type' %}">
-                    <div class="hd-chart-card__header"><div><div class="hd-chart-card__title">{% trans "Tickets by Type" %}</div><div class="hd-chart-card__subtitle">{% trans "Suggestion, complaint, service, etc." %}</div></div></div>
+                    <div class="hd-chart-card__header"><div><div class="hd-chart-card__title">{% trans "Tickets by Type" %}</div><div class="hd-chart-card__subtitle">{% trans "Suggestion, complaint, service, etc." %}<span data-period-label></span></div></div></div>
                     <div class="hd-chart-card__body"><div id="chart-hd-type"></div><div class="hd-pie-legend" id="hd-pie-legend-type"></div></div>
                 </div>
                 <div class="hd-chart-card" data-chart-id="tickets_by_dept" data-chart-label="{% trans 'Tickets by Department' %}">
-                    <div class="hd-chart-card__header"><div><div class="hd-chart-card__title">{% trans "Tickets by Department" %}</div><div class="hd-chart-card__subtitle">{% trans "Open tickets raised by department" %}</div></div></div>
+                    <div class="hd-chart-card__header"><div><div class="hd-chart-card__title">{% trans "Tickets by Department" %}</div><div class="hd-chart-card__subtitle">{% trans "Open tickets raised by department" %}<span data-period-label></span></div></div></div>
                     <div class="hd-chart-card__body"><div id="chart-hd-dept"></div></div>
                 </div>
                 <div class="hd-chart-card hd-chart-card--wide" data-chart-id="ticket_trend" data-chart-label="{% trans 'Ticket Trend' %}">
-                    <div class="hd-chart-card__header"><div><div class="hd-chart-card__title">{% trans "Ticket Trend" %}</div><div class="hd-chart-card__subtitle">{% trans "Created vs resolved — last 6 months" %}</div></div></div>
+                    <div class="hd-chart-card__header"><div><div class="hd-chart-card__title">{% trans "Ticket Trend" %}</div><div class="hd-chart-card__subtitle">{% trans "Created vs resolved — 6 months up to period end" %}</div></div></div>
                     <div class="hd-chart-card__body"><div id="chart-hd-trend"></div></div>
                 </div>
             </div>
@@ -208,7 +209,7 @@
         <div class="hd-sidebar">
             <div class="hd-info-panel">
                 <div class="hd-info-panel__header">
-                    <div class="hd-info-panel__title">{% trans "Recent Tickets" %}</div>
+                    <div class="hd-info-panel__title">{% trans "Recent Tickets" %}<span data-period-label style="font-weight:400;font-size:11px;opacity:0.5"></span></div>
                     <a href="{% url 'ticket-view' %}" style="font-size:11px;color:var(--hd-indigo);text-decoration:none;">{% trans "View all" %}</a>
                 </div>
                 <div class="hd-info-panel__body" id="hd-recent">
@@ -255,9 +256,15 @@
     // filters, so the ticket list's filter-tag bar shows them as clean,
     // correctly-labelled pills instead of the generic builder's garbled
     // multi-row concatenation.
+    // Falls back to the picker's own dates: the chart endpoints don't send a
+    // period back, so without this the click-through carried no date range and
+    // the ticket list showed every ticket, not just the period's. Also marks the
+    // filter as freshly applied so the list doesn't reuse a remembered one.
     function createdDateRangeParams(fromDate, toDate) {
+        fromDate = fromDate || fromInput.value;
+        toDate = toDate || toInput.value;
         if (!fromDate || !toDate) return '';
-        return '&created_date_from=' + encodeURIComponent(fromDate) + '&created_date_till=' + encodeURIComponent(toDate);
+        return '&created_date_from=' + encodeURIComponent(fromDate) + '&created_date_till=' + encodeURIComponent(toDate) + '&filter_applied=1';
     }
 
     document.getElementById('hd-date').textContent = new Date().toLocaleDateString('en-US', {
@@ -268,30 +275,80 @@
     const PERIOD_KEY = 'hd_period_v2';
     const fromInput = document.getElementById('hd-from-date');
     const toInput = document.getElementById('hd-to-date');
-    function getToday() { return new Date().toISOString().split('T')[0]; }
-    function getFirstOfMonth(d) { const dt = new Date(d || getToday()); dt.setDate(1); return dt.toISOString().split('T')[0]; }
-    function getLastOfMonth(d) { const dt = new Date(d || getToday()); return new Date(dt.getFullYear(), dt.getMonth()+1, 0).toISOString().split('T')[0]; }
+    // Local-time YYYY-MM-DD (toISOString() shifts the day outside UTC).
+    function ymdLocal(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+    function presetRange(p) {
+        const t = new Date();
+        if (p === 'today') return [t, t];
+        if (p === 'this_week') {
+            const dow = (t.getDay() + 6) % 7; // 0 = Monday
+            const from = new Date(t.getFullYear(), t.getMonth(), t.getDate() - dow);
+            return [from, new Date(from.getFullYear(), from.getMonth(), from.getDate() + 6)];
+        }
+        if (p === 'this_month') return [new Date(t.getFullYear(), t.getMonth(), 1), new Date(t.getFullYear(), t.getMonth() + 1, 0)];
+        if (p === 'this_year') return [new Date(t.getFullYear(), 0, 1), new Date(t.getFullYear(), 11, 31)];
+        return null;
+    }
+    // ── Period label on the period-aware charts/panels ──
+    const PRESET_LABELS = {
+        today: '{% trans "Today"|escapejs %}',
+        this_week: '{% trans "This Week"|escapejs %}',
+        this_month: '{% trans "This Month"|escapejs %}',
+        this_year: '{% trans "This Year"|escapejs %}',
+    };
+    function shortDate(d) { return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+    function periodLabel() {
+        let preset = '';
+        for (const k of Object.keys(PRESET_LABELS)) {
+            const r = presetRange(k);
+            if (fromInput.value === ymdLocal(r[0]) && toInput.value === ymdLocal(r[1])) { preset = k; break; }
+        }
+        const from = new Date(fromInput.value + 'T00:00:00');
+        const to = new Date(toInput.value + 'T00:00:00');
+        let detail;
+        if (preset === 'this_month') detail = from.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        else if (preset === 'this_year') detail = String(from.getFullYear());
+        else if (preset === 'today') detail = shortDate(from);
+        else detail = shortDate(from) + ' – ' + shortDate(to);
+        return (PRESET_LABELS[preset] || '{% trans "Custom"|escapejs %}') + ' · ' + detail;
+    }
+    function applyPeriodLabels() {
+        if (!fromInput.value || !toInput.value) return;
+        const label = ' — ' + periodLabel();
+        document.querySelectorAll('[data-period-label]').forEach(el => { el.textContent = label; });
+    }
+    function syncPresetActive() {
+        document.querySelectorAll('.hd-period-preset').forEach(b => {
+            const r = presetRange(b.dataset.preset);
+            const on = r && fromInput.value === ymdLocal(r[0]) && toInput.value === ymdLocal(r[1]);
+            b.classList.toggle('hd-period-preset--active', !!on);
+        });
+    }
     function initPeriod() {
         const saved = sessionStorage.getItem(PERIOD_KEY);
         if (saved) { try { const p = JSON.parse(saved); fromInput.value = p.from; toInput.value = p.to; return; } catch {} }
-        fromInput.value = ""; toInput.value = "";
+        const [f, t] = presetRange('this_month');
+        fromInput.value = ymdLocal(f); toInput.value = ymdLocal(t);
     }
     function savePeriod() { sessionStorage.setItem(PERIOD_KEY, JSON.stringify({ from: fromInput.value, to: toInput.value })); }
     function periodParams() { const f = fromInput.value, t = toInput.value; return (f && t) ? ("from_date=" + encodeURIComponent(f) + "&to_date=" + encodeURIComponent(t)) : ""; }
     function urlWithPeriod(u) { return u + (u.includes('?') ? '&' : '?') + periodParams(); }
     function fetchP(url) { return fetch(urlWithPeriod(url)); }
     function setPreset(p) {
-        const t = new Date(); let f, to;
-        if (p === 'this_month') { f = new Date(t.getFullYear(), t.getMonth(), 1); to = new Date(t.getFullYear(), t.getMonth()+1, 0); }
-        else if (p === 'last_month') { f = new Date(t.getFullYear(), t.getMonth()-1, 1); to = new Date(t.getFullYear(), t.getMonth(), 0); }
-        else if (p === 'this_quarter') { f = new Date(t.getFullYear(), Math.floor(t.getMonth()/3)*3, 1); to = new Date(t.getFullYear(), Math.floor(t.getMonth()/3)*3+3, 0); }
-        fromInput.value = f.toISOString().split('T')[0]; toInput.value = to.toISOString().split('T')[0];
-        savePeriod(); document.querySelectorAll('.hd-period-preset').forEach(b => b.classList.toggle('hd-period-preset--active', b.dataset.preset === p));
-        location.reload();
+        const r = presetRange(p);
+        if (!r) return;
+        fromInput.value = ymdLocal(r[0]); toInput.value = ymdLocal(r[1]);
+        savePeriod(); syncPresetActive(); applyPeriodLabels();
+        refreshAllData();
     }
     document.querySelectorAll('.hd-period-preset').forEach(b => b.addEventListener('click', () => setPreset(b.dataset.preset)));
-    [fromInput, toInput].forEach(i => i.addEventListener('change', () => { savePeriod(); location.reload(); }));
+    [fromInput, toInput].forEach(i => i.addEventListener('change', () => {
+        if (!fromInput.value || !toInput.value) return;
+        savePeriod(); syncPresetActive(); applyPeriodLabels(); refreshAllData();
+    }));
     initPeriod();
+    syncPresetActive();
+    applyPeriodLabels();
 
     // ── Chart Customize ──
     const CUST_KEY = 'hd_chart_prefs';
@@ -422,11 +479,11 @@
                     <div class="hd-kpi-card__value">${data.open_tickets}</div>
                     <div class="hd-kpi-card__sub"><span class="hd-badge hd-badge--amber">${data.new_tickets} {% trans "New"|escapejs %}</span><span class="hd-badge hd-badge--blue">${data.in_progress} {% trans "In Progress"|escapejs %}</span><span class="hd-badge hd-badge--red">${data.on_hold} {% trans "On Hold"|escapejs %}</span></div>
                 </a>
-                <div class="hd-kpi-card hd-kpi-card--static" title="${'Resolution Rate (this month) = Resolved this month (' + data.month_resolved + ') / Created this month (' + data.month_created + ') × 100 = ' + data.resolution_rate + '%'}">
+                <div class="hd-kpi-card hd-kpi-card--static" title="${'Resolution Rate (selected period) = Resolved in period (' + data.month_resolved + ') / Created in period (' + data.month_created + ') × 100 = ' + data.resolution_rate + '%'}">
                     <div class="hd-kpi-card__icon hd-kpi-card__icon--green"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
                     <div class="hd-kpi-card__label">{% trans "Resolution Rate"|escapejs %}</div>
                     <div class="hd-kpi-card__value">${data.resolution_rate}%</div>
-                    <div class="hd-kpi-card__sub"><span class="hd-badge hd-badge--green">${data.month_resolved} {% trans "Resolved Of"|escapejs %} ${data.month_created} {% trans "This Month"|escapejs %}</span></div>
+                    <div class="hd-kpi-card__sub"><span class="hd-badge hd-badge--green">${data.month_resolved} {% trans "Resolved Of"|escapejs %} ${data.month_created} {% trans "Created"|escapejs %}</span></div>
                 </div>
                 <a href="{% url 'ticket-view' %}?ticket_tab=all_tickets&open_tab=3&is_overdue=true&filter_applied=1" class="hd-kpi-card">
                     <div class="hd-kpi-card__icon hd-kpi-card__icon--red"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
