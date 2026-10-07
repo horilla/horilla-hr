@@ -924,6 +924,7 @@ def dashboard_todays_leave(request):
             start_date__lte=today,
             end_date__gte=today,
             status="approved",
+            employee_id__is_active=True,
         ).select_related("employee_id", "leave_type_id")
 
         if not can_view_all:
@@ -1202,6 +1203,7 @@ def dashboard_payroll_summary(request):
         current_qs = Payslip.objects.filter(
             start_date__gte=first_of_month,
             start_date__lte=today,
+            employee_id__is_active=True,
             status__in=["confirmed", "paid", "review_ongoing"],
         )
         current = _aggregate(current_qs)
@@ -1209,6 +1211,7 @@ def dashboard_payroll_summary(request):
         prev_qs = Payslip.objects.filter(
             start_date__gte=prev_month_start,
             start_date__lte=prev_month_end,
+            employee_id__is_active=True,
             status__in=["confirmed", "paid"],
         )
         previous = _aggregate(prev_qs)
@@ -1315,7 +1318,10 @@ def dashboard_pending_approvals(request):
         from base.methods import filtersubordinates
 
         if can_approve:
-            qs = AssetRequest.objects.filter(asset_request_status="Requested")
+            qs = AssetRequest.objects.filter(
+                asset_request_status="Requested",
+                requested_employee_id__is_active=True,
+            )
             asset_count = (
                 (
                     filtersubordinates(
@@ -1420,7 +1426,11 @@ def dashboard_pending_approvals(request):
             # Match ReimbursementsListView's own scoping
             # (payroll.view_reimbursement) so this count agrees with the
             # destination list.
-            qs = Reimbursement.objects.filter(status="requested", type="reimbursement")
+            qs = Reimbursement.objects.filter(
+                status="requested",
+                type="reimbursement",
+                employee_id__is_active=True,
+            )
             reimb_count = filter_own_records(
                 request, qs, "payroll.view_reimbursement"
             ).count()
@@ -1588,6 +1598,7 @@ def dashboard_leave_coverage(request):
             leave_qs = LeaveRequest.objects.filter(
                 start_date__lte=day,
                 status="approved",
+                employee_id__is_active=True,
             ).filter(Q(end_date__gte=day) | Q(end_date__isnull=True, start_date=day))
             if scoped_ids is not None:
                 leave_qs = leave_qs.filter(employee_id__in=scoped_ids)
@@ -1614,6 +1625,7 @@ def dashboard_leave_coverage(request):
             LeaveRequest.objects.filter(
                 start_date__lte=last_of_month,
                 status="approved",
+                employee_id__is_active=True,
             )
             .filter(
                 Q(end_date__gte=first_of_month)
