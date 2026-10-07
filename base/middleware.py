@@ -432,6 +432,9 @@ class ForcePasswordChangeMiddleware:
         if request.path.rstrip("/") in excluded_paths:
             return self.get_response(request)
 
+        if request.path.startswith(("/jsi18n/", "/media/")):
+            return self.get_response(request)
+
         if hasattr(request, "user") and request.user.is_authenticated:
             if getattr(request.user, "is_new_employee", True):
                 # HTMX sub-requests that originate from the change-password page
