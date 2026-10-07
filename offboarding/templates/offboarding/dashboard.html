@@ -916,13 +916,18 @@
             const resignationUrlFor = id => id ? `${resignationUrl}?employee_id=${id}` : '#';
             const assetAllocationUrl = "{% url 'asset-request-allocation-view' %}";
             const assetAllocationUrlFor = id => id ? `${assetAllocationUrl}?assigned_to_employee_id=${id}&open_tab=3&filter_applied=on` : '#';
-            // Placeholder-pk trick (only way to get a dynamic-pk Django url tag
-            // into JS): reverse it once with a pk that can never collide with a
-            // real one, then substitute the real id client-side.
-            const offboardingPipelineShellUrlTemplate = "{% url 'offboarding-pipeline-shell' pk=999999999 %}";
-            const offboardingPipelineShellUrl = id => offboardingPipelineShellUrlTemplate.replace('999999999', id);
+            // offboarding-pipeline-shell is an htmx-only fragment (no page
+            // chrome -- no header/sidebar) meant to be loaded inside the
+            // tab view below, not visited directly. Linking straight to it
+            // left a direct click on a blank, unstyled page. Route through
+            // the real page instead: offboarding_id narrows the tab list to
+            // just this one record (PipelineFilter.offboarding_id) so it's
+            // guaranteed to land at position 1, and open_tab=1 opens it;
+            // employee_id then deep-links into that board
+            // (PipelineEmployeeFilter.employee_id).
+            const offboardingPipelineUrl = "{% url 'offboarding-pipeline' %}";
             const noticeTrackerUrlFor = row => row.offboarding_id
-                ? `${offboardingPipelineShellUrl(row.offboarding_id)}?employee_id=${row.id}`
+                ? `${offboardingPipelineUrl}?offboarding_id=${row.offboarding_id}&open_tab=1&employee_id=${row.id}`
                 : resignationUrlFor(row.id);
 
             // Matches HorillaFilterSet._apply_custom_filters' parallel-array
@@ -1208,12 +1213,11 @@
                     if (!data.stages.length) { el.innerHTML = emptyHtml('{% trans "No offboarding stages"|escapejs %}'); return; }
                     const stageColors = { notice_period: 'rgba(245,158,11,0.15)', interview: 'rgba(99,102,241,0.15)', handover: 'rgba(59,130,246,0.15)', fnf: 'rgba(168,85,247,0.15)', other: 'rgba(148,163,184,0.15)', archived: 'rgba(34,197,94,0.15)' };
                     const stageTextColors = { notice_period: '#d97706', interview: '#4f46e5', handover: '#2563eb', fnf: '#7c3aed', other: '#64748b', archived: '#16a34a' };
-                    const pipelineUrl = "{% url 'offboarding-pipeline' %}";
                     el.innerHTML = '<div class="ob-pipeline">' + data.stages.map(s =>
-                        `<a href="${pipelineUrl}?stage_type=${encodeURIComponent(s.type)}" class="ob-pipeline-step" style="background:${stageColors[s.type] || 'rgba(148,163,184,0.15)'};text-decoration:none;color:inherit;">
+                        `<div class="ob-pipeline-step" style="background:${stageColors[s.type] || 'rgba(148,163,184,0.15)'};color:inherit;">
                     <div class="ob-pipeline-step__count" style="color:${stageTextColors[s.type] || '#64748b'};">${s.count}</div>
                     <div class="ob-pipeline-step__label">${s.stage}</div>
-                </a>`
+                </div>`
                     ).join('<div style="display:flex;align-items:center;opacity:0.3;font-size:18px;">→</div>') + '</div>';
                 });
             }

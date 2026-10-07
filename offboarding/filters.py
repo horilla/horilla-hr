@@ -267,6 +267,12 @@ class PipelineFilter(HorillaFilterSet):
     offboarding_manager = django_filters.ModelChoiceFilter(
         field_name="managers", queryset=Employee.objects.all()
     )
+    # Exact-offboarding deep link (the dashboard's Notice Period Tracker
+    # rows) -- narrows the tab list to just this one record so it's
+    # guaranteed to land at position 1, letting the link combine this with
+    # ?open_tab=1 to open directly on the right tab. Same shape as
+    # PipelineEmployeeFilter.employee_id's own deep-link filter.
+    offboarding_id = django_filters.CharFilter(field_name="id")
 
     # HorillaFilterSet.ajax_fields (generic AJAX-loaded combobox mechanism)
     # -- Managers opts into an AJAX-searched combobox instead of
