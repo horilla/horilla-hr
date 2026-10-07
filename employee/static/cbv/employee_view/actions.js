@@ -394,6 +394,20 @@ $(document).on("click", "#resetPasswordEmployees", function (e) {
                 ids = [];
                 ids.push($("#selectedInstances").attr("data-ids"));
                 ids = JSON.parse($("#selectedInstances").attr("data-ids"));
+                // The request is one call, so the real progress is not known: the bar
+                // runs until it finishes. Without it the page just sat there.
+                Swal.fire({
+                    title: i18nMessages.resettingPasswords || "Resetting passwords",
+                    html:
+                        '<style>@keyframes rpSlide{0%{margin-left:-40%}100%{margin-left:100%}}</style>' +
+                        '<div style="margin:14px 0 6px;color:#6b7280;font-size:14px">' +
+                        ids.length + " " + (i18nMessages.resettingCount || "employee(s)") + "</div>" +
+                        '<div style="height:8px;border-radius:6px;background:#eceef2;overflow:hidden">' +
+                        '<div style="width:40%;height:100%;border-radius:6px;background:#e54f38;animation:rpSlide 1.1s ease-in-out infinite"></div></div>',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    showConfirmButton: false,
+                });
                 $.ajax({
                     type: "POST",
                     url: "/employee/employee-bulk-reset-password-admin/",
@@ -401,7 +415,12 @@ $(document).on("click", "#resetPasswordEmployees", function (e) {
                         csrfmiddlewaretoken: getCookie("csrftoken"),
                         ids: JSON.stringify(ids),
                     },
+                    error: function () {
+                        Swal.close();
+                        Swal.fire({ text: i18nMessages.resetFailed || "Could not reset the passwords.", icon: "error" });
+                    },
                     success: function (response, textStatus, jqXHR) {
+                        Swal.close();
                         if (jqXHR.status === 200) {
                             $("#genericModalBody").html(response);
                             // Same class the declarative data-toggle="oh-modal-toggle"

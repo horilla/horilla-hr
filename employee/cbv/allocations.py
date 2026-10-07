@@ -1470,9 +1470,9 @@ class ToggleDashboardAccess(View):
         instance.employee_user_id.is_active = not instance.employee_user_id.is_active
         instance.employee_user_id.save()
         if instance.employee_user_id.is_active:
-            messages.success(request, _("Dashboard access provided"))
+            messages.success(request, _("Login access provided"))
         else:
-            messages.success(request, _("Dashboard access removed"))
+            messages.success(request, _("Login access removed"))
         return HttpResponse(
             """
         <script>$("#reloadMessagesButton").click();$(".reload-record").click();</script>

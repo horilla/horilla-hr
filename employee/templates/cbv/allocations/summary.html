@@ -25,7 +25,7 @@
             </div>
         </div>
         <p class="oh-profile__info-designation mt-2">
-            {% trans "Dashboard Access" %} :
+            {% trans "Login Access" %} :
             <form
                 hx-post='{% url "toggle-user-dashboard-access" %}?instance_id={{instance.pk}}'
                 hx-target="#responseContainer"
