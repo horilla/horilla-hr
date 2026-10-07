@@ -157,6 +157,9 @@
     .dark .pr-info-panel { background: #242424; border-color: rgba(255,255,255,0.08); }
     .pr-info-panel__header { padding: 14px 16px 10px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; border-bottom: 1px solid rgba(128,128,128,0.08); }
     .pr-info-panel__title { font-size: 13px; font-weight: 700; }
+    /* Title on top, the date period / basis the card lists on the line below. */
+    .pr-info-panel__heading { min-width: 0; }
+    .pr-info-panel__sub { font-size: 11px; opacity: 0.5; margin-top: 2px; }
     .pr-info-panel__body { padding: 8px 16px 12px; overflow-y: auto; flex: 1; max-height: 350px; }
     .pr-info-panel__empty { text-align: center; padding: 30px 0; opacity: 0.4; font-size: 12px; }
 
@@ -294,8 +297,10 @@
         <div class="pr-sidebar">
             <div class="pr-info-panel">
                 <div class="pr-info-panel__header">
+                    <div class="pr-info-panel__heading">
                     <div class="pr-info-panel__title">{% trans "Top Contributors" %}</div>
-                    <span style="font-size:11px;opacity:0.5;" data-period-label="bare"></span>
+                    <div class="pr-info-panel__sub" data-period-label="bare"></div>
+                </div>
                 </div>
                 <div class="pr-info-panel__body" id="pr-contributors">
                     <div class="pr-info-panel__empty">{% trans "Loading..." %}</div>
@@ -303,8 +308,10 @@
             </div>
             <div class="pr-info-panel">
                 <div class="pr-info-panel__header">
+                    <div class="pr-info-panel__heading">
                     <div class="pr-info-panel__title">{% trans "Task Deadlines" %}</div>
-                    <span style="font-size:11px;opacity:0.5;">{% trans "Next 14 days & overdue" %}</span>
+                    <div class="pr-info-panel__sub">{% trans "Next 14 days & overdue" %}</div>
+                </div>
                 </div>
                 <div class="pr-info-panel__body" id="pr-deadlines">
                     <div class="pr-info-panel__empty">{% trans "Loading..." %}</div>

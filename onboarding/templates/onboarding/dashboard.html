@@ -55,6 +55,9 @@
     .on-info-panel__title { font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
     .on-count-badge { min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: var(--on-indigo); color: #fff; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
     .on-count-badge[hidden] { display: none; }
+    /* Title on top, the date period / basis the card lists on the line below. */
+    .on-info-panel__heading { min-width: 0; }
+    .on-info-panel__sub { font-size: 11px; opacity: 0.5; margin-top: 2px; }
     .on-info-panel__body { padding: 8px 16px 12px; overflow-y: auto; flex: 1; max-height: 400px; }
     .on-info-panel__empty { text-align: center; padding: 30px 0; opacity: 0.4; font-size: 12px; }
     .on-cand-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(128,128,128,0.06); }
@@ -179,9 +182,12 @@
         <div class="on-sidebar">
             <div class="on-info-panel">
                 <div class="on-info-panel__header">
-                    <div class="on-info-panel__title">
-                        {% trans "Managing Tasks" %}
-                        <span id="on-my-tasks-count" class="on-count-badge" hidden title="{% trans 'Tasks assigned to you' %}">0</span>
+                    <div class="on-info-panel__heading">
+                        <div class="on-info-panel__title">
+                            {% trans "Managing Tasks" %}
+                            <span id="on-my-tasks-count" class="on-count-badge" hidden title="{% trans 'Tasks assigned to you' %}">0</span>
+                        </div>
+                        <div class="on-info-panel__sub" data-period-label></div>
                     </div>
                 </div>
                 <div class="on-info-panel__body" id="on-my-tasks">
@@ -248,6 +254,12 @@
     document.querySelectorAll('.on-period-preset').forEach(b => b.addEventListener('click', () => setPreset(b.dataset.preset)));
     [fromInput, toInput].forEach(i => i.addEventListener('change', () => { savePeriod(); location.reload(); }));
     initPeriod();
+    // Card tags: the period the cards are scoped to.
+    (function () {
+        const d = v => new Date(v + 'T00:00:00').toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+        if (!fromInput.value || !toInput.value) return;
+        document.querySelectorAll('[data-period-label]').forEach(el => { el.textContent = d(fromInput.value) + ' – ' + d(toInput.value); });
+    })();
 
     // ── Chart Customize ──
     const CUST_KEY = 'on_chart_prefs';

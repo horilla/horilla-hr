@@ -553,6 +553,9 @@
 
         /* Right of a side panel's title: which records it lists (same as the Leave dashboard). */
         .md-info-panel__header { gap: 8px; }
+    /* Title on top, the date period / basis the card lists on the line below. */
+    .md-info-panel__heading { min-width: 0; }
+    .md-info-panel__sub { font-size: 11px; opacity: 0.5; margin-top: 2px; }
         .md-info-panel__basis {
             min-width: 0;
             text-align: right;
@@ -2119,8 +2122,10 @@
             <div class="md-sidebar">
                 <div class="md-info-panel">
                     <div class="md-info-panel__header">
-                        <div class="md-info-panel__title">{% trans "Announcements" %}<span id="md-announcements-count" class="md-count-badge" hidden title="{% trans 'Announcements' %}">0</span></div>
-                        <span class="md-info-panel__basis" title="{% trans "Announcements still active, newest first" %}">{% trans "Not Expired" %}</span>
+                        <div class="md-info-panel__heading">
+                            <div class="md-info-panel__title">{% trans "Announcements" %}<span id="md-announcements-count" class="md-count-badge" hidden title="{% trans 'Announcements' %}">0</span></div>
+                            <div class="md-info-panel__sub" title="{% trans "Announcements still active, newest first" %}">{% trans "Not Expired" %}</div>
+                        </div>
                         {% if perms.base.add_announcement %}
                             <button
                                 class="md-btn-add"
@@ -2142,8 +2147,10 @@
                 </div>
                 <div class="md-info-panel">
                     <div class="md-info-panel__header">
-                        <div class="md-info-panel__title">{% trans "Birthdays & Anniversaries" %}<span id="md-birthdays-count" class="md-count-badge" hidden title="{% trans 'This month' %}">0</span></div>
-                        <span class="md-info-panel__basis" title="{% trans "Birthdays and work anniversaries this month, closest to today first" %}">{% trans "This Month" %}</span>
+                        <div class="md-info-panel__heading">
+                            <div class="md-info-panel__title">{% trans "Birthdays & Anniversaries" %}<span id="md-birthdays-count" class="md-count-badge" hidden title="{% trans 'This month' %}">0</span></div>
+                            <div class="md-info-panel__sub" title="{% trans "Birthdays and work anniversaries this month, closest to today first" %}">{% trans "This Month" %}</div>
+                        </div>
                     </div>
                     <div class="md-info-panel__body" id="md-birthdays">
                         <div class="md-info-panel__empty">{% trans "Loading..." %}</div>
@@ -2151,8 +2158,10 @@
                 </div>
                 <div class="md-info-panel">
                     <div class="md-info-panel__header">
-                        <div class="md-info-panel__title">{% trans "Pending Approvals" %}<span id="md-pending-count" class="md-count-badge" hidden title="{% trans 'Waiting for approval' %}">0</span></div>
-                        <span class="md-info-panel__basis" title="{% trans "Everything awaiting your approval, whatever dates the period filter covers" %}">{% trans "All Dates" %}</span>
+                        <div class="md-info-panel__heading">
+                            <div class="md-info-panel__title">{% trans "Pending Approvals" %}<span id="md-pending-count" class="md-count-badge" hidden title="{% trans 'Waiting for approval' %}">0</span></div>
+                            <div class="md-info-panel__sub" title="{% trans "Everything awaiting your approval, whatever dates the period filter covers" %}">{% trans "All Dates" %}</div>
+                        </div>
                     </div>
                     <div class="md-info-panel__body" id="md-pending-approvals">
                         <div class="md-info-panel__empty">{% trans "Loading..." %}</div>
@@ -2791,7 +2800,7 @@
                             kpiCard("{% url 'employee-view' %}?is_active=True&filter_applied=on",   PERM.employee,    'md-kpi-card__icon--indigo', empSvg,   '{% trans "Total Employees"|escapejs %}',   data.total_employees,   data.new_joiners > 0 ? '<span class="md-badge md-badge--green">+' + data.new_joiners + ' {% trans "This Month"|escapejs %}</span>' : '') +
                             kpiCard("{% url 'employee-view' %}?checked_in_on={% now 'Y-m-d' %}&is_active=True&filter_applied=on",  PERM.employee,    'md-kpi-card__icon--green',  attSvg,   '{% trans "Checked In Today"|escapejs %}',     data.present_today,     data.week_off_today ? '<span class="md-badge md-badge--amber">' + data.week_off_count + ' {% trans "on week off"|escapejs %}</span>' : '') +
                             kpiCard("{% url 'employee-view' %}?expected_to_check_in={% now 'Y-m-d' %}&is_active=True&filter_applied=on", PERM.employee, 'md-kpi-card__icon--red', offlineSvg, '{% trans "Not Checked In Today"|escapejs %}', data.not_checked_in, '') +
-                            kpiCard(`{% url 'request-view' %}?status=approved&today_leave=true&filter_applied=on`,     PERM.leave,       'md-kpi-card__icon--amber',  leaveSvg, '{% trans "On Leave"|escapejs %}',           data.on_leave,          '');
+                            kpiCard(`{% url 'request-view' %}?status=approved&today_leave=true&filter_applied=on`,     PERM.leave,       'md-kpi-card__icon--amber',  leaveSvg, '{% trans "On Leave"|escapejs %}',           data.on_leave,          data.half_day_today > 0 ? '<span class="md-badge md-badge--amber">' + data.half_day_today + ' {% trans "Half Day"|escapejs %}</span>' : '');
                     });
             }
             loadKpiCards();
@@ -2932,11 +2941,12 @@
 
             // ─── Shared pie/donut legend ───
             // One row only: as many chips as fit, then a "+N" chip whose hover
-            // popover lists the rest with checkboxes. The first `topN` items start
-            // selected; everything else starts unselected. Unselected items are
-            // zeroed out of the series, so the canvas never carries extra labels.
+            // popover lists the rest with checkboxes. Every item starts selected
+            // (selectAll); pass selectAll: false to start with only the first `topN`.
+            // Unselected items are zeroed out of the series, so the canvas never
+            // carries extra labels.
             const escHtml = (v) => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-            function createPieLegend({ el, chartKey, noun, topN = 5, maxChips = null, toSeries = null, onChange = null }) {
+            function createPieLegend({ el, chartKey, noun, topN = 5, maxChips = null, toSeries = null, onChange = null, selectAll = true }) {
                 let items = [];
                 let selected = null;
                 const dot = (c) => `<span class="md-pie-chip__dot" style="background:${c}"></span>`;
@@ -3011,7 +3021,7 @@
                         items = newItems;
                         const names = items.map(i => i.name);
                         if (selected) selected = new Set([...selected].filter(n => names.includes(n)));
-                        if (!selected || !selected.size) selected = new Set(names.slice(0, topN));
+                        if (!selected || !selected.size) selected = new Set(selectAll ? names : names.slice(0, topN));
                         render();
                     },
                     series,
@@ -3301,8 +3311,10 @@
                     dataLabels: { enabled: false },
                     legend: { show: false },
                     // A week reads "05 Oct - 11 Oct": split over two lines (start, then "– end") so every
-                    // label fits upright, instead of tilting and running off the chart's edges.
-                    xaxis: { ...XAXIS_STYLE, categories: leaveTrendData.labels.map(l => { const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(l); if (m) return `${+m[1]} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m[2] - 1]}`; const range = String(l).split(/\s+[-–]\s+/); return range.length === 2 ? [range[0], '– ' + range[1]] : l; }),
+                    // label fits upright, instead of tilting and running off the chart's edges. A month
+                    // bucket ("Jan 2026") drops the year -- the subtitle already names it, and all 12
+                    // ticks sharing one calendar year made "Jan 2026".."Dec 2026" wide enough to overlap.
+                    xaxis: { ...XAXIS_STYLE, categories: leaveTrendData.labels.map(l => { const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(l); if (m) return `${+m[1]} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m[2] - 1]}`; const month = /^([A-Za-z]{3}) \d{4}$/.exec(l); if (month) return month[1]; const range = String(l).split(/\s+[-–]\s+/); return range.length === 2 ? [range[0], '– ' + range[1]] : l; }),
                         labels: { ...XAXIS_STYLE.labels, rotate: 0, rotateAlways: false, hideOverlappingLabels: false, trim: false, maxHeight: 44, style: { ...XAXIS_STYLE.labels.style, fontSize: '10px' } } },
                     yaxis: { ...YAXIS_STYLE, min: 0, max: yMax, tickAmount: yMax / yStep, labels: { style: { colors: textColor, fontSize: '11px' }, formatter: v => Number.isInteger(+v) ? v : '' } },
                     grid: { ...GRID, padding: { left: 18, right: 22 } },
@@ -3652,6 +3664,7 @@
                     const rateEl = document.getElementById('turnover-rate');
                     const rateTxt = `{% trans "6-month turnover rate"|escapejs %}: ${data.turnover_rate_6m}%`;
                     rateEl.textContent = rateTxt;
+                    rateEl.title = `${data.turnover_formula}\n= ${data.turnover_exits_6m} ÷ ${data.turnover_headcount} × 100 = ${data.turnover_rate_6m}%`;
                     renderChart('turnover', document.querySelector("#chart-turnover"), {
                         series: [
                             { name: '{% trans "New Hires"|escapejs %}', data: data.months.map(m => m.hires) },

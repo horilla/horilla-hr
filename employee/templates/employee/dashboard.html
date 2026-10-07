@@ -489,19 +489,20 @@
             font-size: 11px;
             text-decoration: none;
         }
+        /* Same chip as the Interviews time on the Recruitment dashboard: active theme colour. */
         .em-emp-item__date {
             flex-shrink: 0;
-            padding: 2px 8px;
-            border-radius: 999px;
-            background: #dcfce7;
-            color: #166534;
-            font-weight: 600;
-            font-size: 10px;
+            padding: 6px 10px;
+            border-radius: 8px;
+            background: color-mix(in srgb, var(--primary-600, #E54F38) 12%, transparent);
+            color: var(--primary-600, #E54F38);
+            font-weight: 700;
+            font-size: 11px;
             white-space: nowrap;
         }
         .dark .em-emp-item__date {
-            background: #14532d;
-            color: #bbf7d0;
+            background: color-mix(in srgb, var(--primary-600, #E54F38) 25%, transparent);
+            color: var(--primary-300, #fcedeb);
         }
 
         .em-header {
@@ -920,12 +921,12 @@
                         data-accent="indigo"
                         data-cust-id="chart-dept-positions"
                         data-cust-group="chart"
-                        data-cust-label="{% trans 'Department Headcount by Job Position' %}"
+                        data-cust-label="{% trans 'Job Position Headcount by Department' %}"
                     >
                         <div class="em-chart-card__header">
                             <div>
-                                <div class="em-chart-card__title">{% trans "Department Headcount by Job Position" %}</div>
-                                <div class="em-chart-card__subtitle">{% trans "Active employees per department, stacked by job position" %}</div>
+                                <div class="em-chart-card__title">{% trans "Job Position Headcount by Department" %}</div>
+                                <div class="em-chart-card__subtitle">{% trans "Active employees per job position, stacked by department" %}</div>
                             </div>
                         </div>
                         <div class="em-chart-card__body"><div id="chart-em-dept-positions"></div></div>
@@ -1156,8 +1157,10 @@
                 fetchJson("{% url 'dashboard-turnover' %}").then(data => {
                     const months = data.months || [];
                     if (!months.length) { el.innerHTML = emptyHtml("{% trans 'No turnover data'|escapejs %}"); return; }
-                    document.getElementById('em-turnover-rate').textContent =
+                    const rateEl = document.getElementById('em-turnover-rate');
+                    rateEl.textContent =
                         `{% trans "6-month turnover rate"|escapejs %}: ${data.turnover_rate_6m}%`;
+                    rateEl.title = `${data.turnover_formula}\n= ${data.turnover_exits_6m} ÷ ${data.turnover_headcount} × 100 = ${data.turnover_rate_6m}%`;
                     renderChart('turnover', el, {
                         series: [
                             { name: "{% trans 'New Hires'|escapejs %}", data: months.map(m => m.hires) },
@@ -1200,7 +1203,7 @@
             const deptPositionsLegend = PieLegend.forChart(
                 document.querySelector('#chart-em-dept-positions'),
                 () => chartInstances['dept-positions'],
-                "{% trans 'job positions'|escapejs %}",
+                "{% trans 'departments'|escapejs %}",
                 { topN: 20, onChange: () => loadDeptPositions(deptPositionsRaw) },
             );
             function loadDeptPositions(cached) {
@@ -1210,33 +1213,49 @@
                         deptPositionsRaw = data;
                         const depts = data.departments || [], positions = data.positions || [];
                         if (!depts.length) { el.innerHTML = emptyHtml("{% trans 'No department data'|escapejs %}"); deptPositionsLegend.clear(); return; }
-                        const colors = positions.map((p, n) => PieLegend.color(n, COLORS));
+                        // Departments run along the x-axis (and are the legend); each department's
+                        // bar is stacked by its job positions, as shades of the department colour.
+                        const deptColors = depts.map((d, n) => PieLegend.color(n, COLORS));
                         if (!cached) {
-                            deptPositionsLegend.set(positions.map((p, n) => ({
-                                name: p.label, color: colors[n],
-                                value: depts.reduce((sum, d) => sum + (d.by_position[p.key] || 0), 0),
-                            })));
+                            deptPositionsLegend.set(depts.map((d, n) => ({ name: d.label, color: deptColors[n], value: d.total })));
                         }
                         const picked = new Set(deptPositionsLegend.selectedNames());
-                        const visible = positions.filter(p => picked.has(p.label));
+                        const shown = depts.map((d, n) => ({ d, n })).filter(x => picked.has(x.d.label));
+                        const posLabel = Object.fromEntries(positions.map(p => [p.key, p.label]));
+                        const shade = (color, t) => {
+                            if (!/^#[0-9a-f]{6}$/i.test(color)) return color;
+                            const v = parseInt(color.slice(1), 16);
+                            const mix = c => Math.round(c + (255 - c) * t);
+                            return '#' + [(v >> 16) & 255, (v >> 8) & 255, v & 255].map(mix).map(c => c.toString(16).padStart(2, '0')).join('');
+                        };
+                        // One stacked series per (department, position) that has headcount
+                        const stacks = [];
+                        shown.forEach((x, col) => {
+                            Object.keys(x.d.by_position).sort((a, b) => x.d.by_position[b] - x.d.by_position[a]).forEach((key, i) => {
+                                const data = shown.map(() => 0);
+                                data[col] = x.d.by_position[key];
+                                stacks.push({ name: posLabel[key] || key, key, dept: x.d, data, color: shade(deptColors[x.n], Math.min(i * 0.22, 0.66)) });
+                            });
+                        });
                         renderChart('dept-positions', el, {
-                            series: visible.map(p => ({ name: p.label, data: depts.map(d => d.by_position[p.key] || 0) })),
+                            series: stacks.map(st => ({ name: st.name, data: st.data })),
                             chart: baseChart({ type: 'bar', stacked: true, height: 340,
                                 events: { dataPointSelection: (e, ctx, cfg) => {
-                                    const d = depts[cfg.dataPointIndex], p = visible[cfg.seriesIndex];
-                                    if (!d || !d.id) return;
-                                    let url = employeeUrlFor('employee_work_info__department_id', d.id);
-                                    if (p && p.key !== 'other') url += `&employee_work_info__job_position_id=${encodeURIComponent(p.key)}`;
+                                    const st = stacks[cfg.seriesIndex];
+                                    if (!st || !st.dept.id) return;
+                                    let url = employeeUrlFor('employee_work_info__department_id', st.dept.id);
+                                    if (st.key === 'unassigned') url += '&no_job_position=True';
+                                    else url += `&employee_work_info__job_position_id=${encodeURIComponent(st.key)}`;
                                     window.location.href = url;
                                 }}
                             }),
-                            colors: visible.map(p => colors[positions.indexOf(p)]),
+                            colors: stacks.map(st => st.color),
                             plotOptions: { bar: { borderRadius: 6, borderRadiusApplication: 'end', borderRadiusWhenStacked: 'last', columnWidth: '42%' } },
                             stroke: { width: 2, colors: [cardBg] },
-                            xaxis: { ...XAXIS_STYLE, categories: depts.map(d => d.label) },
+                            xaxis: { ...XAXIS_STYLE, categories: shown.map(x => x.d.label) },
                             yaxis: YAXIS_STYLE, grid: GRID, dataLabels: { enabled: false },
                             legend: { show: false },
-                            // Only the hovered department's own positions (non-zero headcount)
+                            // Only the hovered department's own job positions
                             tooltip: { ...TOOLTIP_STYLE, shared: true, intersect: false,
                                 custom: ({ series, dataPointIndex, w }) => {
                                     const rows = w.globals.seriesNames
@@ -1285,10 +1304,10 @@
                 const badge = document.getElementById('em-new-count');
                 const setCount = (n) => { badge.textContent = n; badge.hidden = !n; };
                 fetchJson("{% url 'employee-dashboard-new-joiners' %}").then(data => {
-                    document.getElementById('em-new-range').textContent = `${data.from_label} – ${data.to_label}`;
+                    document.getElementById('em-new-range').textContent = "{% trans 'Joined in the previous 30 days'|escapejs %}";
                     document.getElementById('em-new-view-all').href = `${employeeListUrl}?is_active=True&joined_from=${data.from_date}&joined_till=${data.to_date}&filter_applied=on`;
                     setCount(data.employees.length);
-                    if (!data.employees.length) { container.innerHTML = `<div class="em-panel__empty">{% trans "No new employees in this period"|escapejs %}</div>`; return; }
+                    if (!data.employees.length) { container.innerHTML = `<div class="em-panel__empty">{% trans "No new employees in the last 30 days"|escapejs %}</div>`; return; }
                     container.innerHTML = data.employees.map(emp => {
                         const initials = emp.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
                         const avatar = emp.avatar ? `<img src="${esc(emp.avatar)}" alt="${esc(emp.name)}">` : esc(initials);

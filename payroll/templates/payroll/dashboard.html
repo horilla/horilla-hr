@@ -80,6 +80,9 @@
     /* How many items the panel holds, beside its title. Hidden at zero. */
     .pd-count-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 999px; background: var(--pd-indigo); color: #fff; font-size: 12px; font-weight: 600; line-height: 1; }
     .pd-count-badge[hidden] { display: none; }
+    /* Title on top, the date period / basis the card lists on the line below. */
+    .pd-info-panel__heading { min-width: 0; }
+    .pd-info-panel__sub { font-size: 11px; opacity: 0.5; margin-top: 2px; }
     .pd-info-panel__body { padding: 8px 16px 12px; overflow-y: auto; flex: 1; max-height: 350px; }
     .pd-info-panel__empty { text-align: center; padding: 30px 0; opacity: 0.4; font-size: 12px; }
 
@@ -287,8 +290,10 @@
         <div class="pd-sidebar">
             <div class="pd-info-panel">
                 <div class="pd-info-panel__header">
-                    <div class="pd-info-panel__title">{% trans "Contracts Ending" %}<span id="pd-contracts-count" class="pd-count-badge" hidden title="{% trans 'Contracts ending or expired' %}">0</span></div>
-                    <span style="font-size:11px;opacity:0.5;">{% trans "Next 60 days" %}</span>
+                    <div class="pd-info-panel__heading">
+                        <div class="pd-info-panel__title">{% trans "Contracts Ending" %}<span id="pd-contracts-count" class="pd-count-badge" hidden title="{% trans 'Contracts ending or expired' %}">0</span></div>
+                        <div class="pd-info-panel__sub">{% trans "Next 60 days" %}</div>
+                    </div>
                 </div>
                 <div class="pd-info-panel__body" id="pd-contracts">
                     <div class="pd-info-panel__empty">{% trans "Loading..." %}</div>
@@ -296,7 +301,10 @@
             </div>
             <div class="pd-info-panel">
                 <div class="pd-info-panel__header">
-                    <div class="pd-info-panel__title">{% trans "Active Loans" %}<span id="pd-loans-count" class="pd-count-badge" hidden title="{% trans 'Active loans' %}">0</span></div>
+                    <div class="pd-info-panel__heading">
+                        <div class="pd-info-panel__title">{% trans "Active Loans" %}<span id="pd-loans-count" class="pd-count-badge" hidden title="{% trans 'Active loans' %}">0</span></div>
+                        <div class="pd-info-panel__sub" data-period-label></div>
+                    </div>
                 </div>
                 <div class="pd-info-panel__body" id="pd-loans">
                     <div class="pd-info-panel__empty">{% trans "Loading..." %}</div>
@@ -539,7 +547,7 @@ function pdInit() {
                 items = newItems;
                 const names = items.map(i => i.name);
                 if (selected) selected = new Set([...selected].filter(n => names.includes(n)));
-                if (!selected || !selected.size) selected = new Set(names.slice(0, topN));
+                if (!selected || !selected.size) selected = new Set(names);  // every item starts ticked; topN only sets how many chips fit
                 render();
             },
             series,
@@ -952,7 +960,12 @@ function pdInit() {
 
     // ── Re-run every load/chart function above in place (used by the
     // auto-refresh timer instead of location.reload()).
+    function applyPeriodLabels() {
+        if (!fromInput.value || !toInput.value) return;
+        document.querySelectorAll('[data-period-label]').forEach(el => { el.textContent = periodLabel(); });
+    }
     function refreshAllData() {
+        applyPeriodLabels();
         loadKpiCards();
         loadPayslipPipeline();
         loadPayrollTrend();

@@ -438,6 +438,9 @@
             font-weight: 700;
             font-size: 13px;
         }
+    /* Title on top, the date period / basis the card lists on the line below. */
+    .pm-info-panel__heading { min-width: 0; }
+    .pm-info-panel__sub { font-size: 11px; opacity: 0.5; margin-top: 2px; }
         .pm-info-panel__body {
             flex: 1;
             max-height: 350px;
@@ -1078,7 +1081,10 @@
             <div class="pm-sidebar">
                 <div class="pm-info-panel">
                     <div class="pm-info-panel__header">
-                        <div class="pm-info-panel__title">{% trans "Top Performers" %}<span data-period-label style="font-weight:400;font-size:11px;opacity:0.5"></span></div>
+                        <div class="pm-info-panel__heading">
+                            <div class="pm-info-panel__title">{% trans "Top Performers" %}</div>
+                            <div class="pm-info-panel__sub" data-period-label="bare"></div>
+                        </div>
                     </div>
                     <div class="pm-info-panel__body" id="pm-performers">
                         <div class="pm-info-panel__empty">{% trans "Loading..." %}</div>
@@ -1086,8 +1092,10 @@
                 </div>
                 <div class="pm-info-panel">
                     <div class="pm-info-panel__header">
-                        <div class="pm-info-panel__title">{% trans "Upcoming Meetings" %}</div>
-                        <span style="font-size: 11px; opacity: 0.5">{% trans "Next 14 days" %}</span>
+                        <div class="pm-info-panel__heading">
+                            <div class="pm-info-panel__title">{% trans "Upcoming Meetings" %}</div>
+                            <div class="pm-info-panel__sub">{% trans "Next 14 days" %}</div>
+                        </div>
                     </div>
                     <div class="pm-info-panel__body" id="pm-meetings">
                         <div class="pm-info-panel__empty">{% trans "Loading..." %}</div>
@@ -1188,7 +1196,7 @@
             }
             function applyPeriodLabels() {
                 const label = ' — ' + periodLabel();
-                document.querySelectorAll('[data-period-label]').forEach(el => { el.textContent = label; });
+                document.querySelectorAll('[data-period-label]').forEach(el => { el.textContent = el.dataset.periodLabel === 'bare' ? periodLabel() : label; });
                 document.querySelectorAll('[data-period-label-pm]').forEach(el => { el.textContent = periodLabel(); });
             }
             function setPreset(p) {

@@ -1280,7 +1280,7 @@
 
             // ─── STAGE CONVERSION FUNNEL ───
             const stageColors = { initial: '#94a3b8', applied: '#a855f7', test: '#3b82f6', interview: '#f59e0b', hired: '#22c55e', cancelled: '#ef4444' };
-            const stageHidden = new Set(['applied', 'cancelled']);
+            const stageHidden = new Set(['cancelled']);  // Applied is shown from the first load; Cancelled starts off
             const stageLegend = document.getElementById('rd-stage-legend');
             let stageData = [];
             const stageLabel = c => c.type === 'hired' ? '{% trans "Shortlisted"|escapejs %}' : c.stage;

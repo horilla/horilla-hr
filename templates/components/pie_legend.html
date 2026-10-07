@@ -1,8 +1,9 @@
 {% comment %}
 Shared donut/pie chart legend, the same one the main dashboard uses for
 Department Headcount: one row of chips, then a "+N" chip whose hover popover
-lists the rest with checkboxes. The first `topN` items start selected;
-unselected ones are zeroed out of the series, so the donut only carries
+lists the rest with checkboxes. Every item starts ticked (except any named in
+`initiallyOff`; `topN` only sets how many chips fit in the row);
+unticked ones are zeroed out of the series, so the donut only carries
 what is ticked.
 
 Include once per dashboard page, before the page's chart script:
@@ -15,6 +16,8 @@ Usage:
     legend.clear();   // when there is no data
 {% endcomment %}
 <style>
+    /* legendWrap: every item as its own chip, wrapping onto extra rows (no "+N" popover) */
+    .pl-legend--wrap { flex-wrap: wrap; }
     .pl-legend {
         --pl-accent: var(--primary-600, #e54f38);
         display: flex;
@@ -149,7 +152,7 @@ Usage:
         };
 
         function create(opts) {
-            var el = opts.el, getChart = opts.getChart, noun = opts.noun || 'more', topN = opts.topN || 5, onChange = opts.onChange;
+            var el = opts.el, getChart = opts.getChart, noun = opts.noun || 'more', topN = opts.topN || 5, onChange = opts.onChange, wrap = !!opts.wrap;
             var items = [], selected = null, visible = 0;
             var dot = function (c) { return '<span class="pl-chip__dot" style="background:' + c + '"></span>'; };
             var series = function () {
@@ -208,6 +211,7 @@ Usage:
                 el.innerHTML = html;
             }
             function render() {
+                if (wrap) { build(items.length); return; }
                 var k = Math.min(topN, items.length);
                 build(k);
                 while (k > 1 && el.scrollWidth > el.clientWidth + 1) {
@@ -236,7 +240,7 @@ Usage:
                     if (selected) selected = new Set(Array.from(selected).filter(function (n) { return names.indexOf(n) >= 0; }));
                     if (!selected || !selected.size) {
                         var off = initiallyOff || [];
-                        selected = new Set(names.filter(function (n) { return off.indexOf(n) < 0; }).slice(0, topN));
+                        selected = new Set(names.filter(function (n) { return off.indexOf(n) < 0; }));
                         if (!selected.size) selected = new Set(names.slice(0, 1));
                     }
                     render();
@@ -257,7 +261,8 @@ Usage:
             var box = document.createElement('div');
             box.className = 'pl-legend';
             chartEl.insertAdjacentElement('afterend', box);
-            chartEl._pieLegend = create({ el: box, getChart: getChart, noun: noun, topN: opts.topN, onChange: opts.onChange });
+            if (opts.wrap) box.classList.add('pl-legend--wrap');
+            chartEl._pieLegend = create({ el: box, getChart: getChart, noun: noun, topN: opts.topN, onChange: opts.onChange, wrap: opts.wrap });
             return chartEl._pieLegend;
         }
 
@@ -274,9 +279,11 @@ Usage:
         // legend-driven series and Apex's own legend switched off.
         //   renderChart(key, el, PieLegend.options(el, () => chartInstances[key], 'noun', { ...apexOptions }))
         // `initiallyOff` (optional): labels that start unticked.
+        // `legendWrap` (optional): show every item as its own chip, wrapping onto
+        // extra rows, instead of one row plus a "+N" popover.
         var DEFAULT_COLORS = ['#E54F38', '#22c55e', '#f59e0b', '#3b82f6', '#a855f7', '#06b6d4', '#ec4899', '#84cc16', '#64748b', '#8b5e3c'];
         function options(chartEl, getChart, noun, opts) {
-            var legend = forChart(chartEl, getChart, noun);
+            var legend = forChart(chartEl, getChart, noun, opts.legendWrap ? { wrap: true } : undefined);
             var labels = opts.labels || [];
             var palette = (opts.colors && opts.colors.length) ? opts.colors : DEFAULT_COLORS;
             var colors = labels.map(function (l, i) { return color(i, palette); });
@@ -285,6 +292,7 @@ Usage:
             }), opts.initiallyOff);
             var out = Object.assign({}, opts, { series: legend.series(), colors: colors, legend: { show: false } });
             delete out.initiallyOff;
+            delete out.legendWrap;
             return out;
         }
 

@@ -2680,7 +2680,7 @@
                         items = newItems;
                         const names = items.map(i => i.name);
                         if (selected) selected = new Set([...selected].filter(n => names.includes(n)));
-                        if (!selected || !selected.size) selected = new Set(names.slice(0, topN));
+                        if (!selected || !selected.size) selected = new Set(names);  // every item starts ticked; topN only sets how many chips fit
                         render();
                     },
                     series,

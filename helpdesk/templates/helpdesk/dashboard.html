@@ -52,6 +52,9 @@
     .dark .hd-info-panel { background: #242424; border-color: rgba(255,255,255,0.08); }
     .hd-info-panel__header { padding: 14px 16px 10px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; border-bottom: 1px solid rgba(128,128,128,0.08); }
     .hd-info-panel__title { font-size: 13px; font-weight: 700; }
+    /* Title on top, the date period / basis the card lists on the line below. */
+    .hd-info-panel__heading { min-width: 0; }
+    .hd-info-panel__sub { font-size: 11px; opacity: 0.5; margin-top: 2px; }
     .hd-info-panel__body { padding: 8px 16px 12px; overflow-y: auto; flex: 1; max-height: 350px; }
     .hd-info-panel__empty { text-align: center; padding: 30px 0; opacity: 0.4; font-size: 12px; }
     .hd-ticket-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(128,128,128,0.06); text-decoration: none; color: inherit; }
@@ -209,7 +212,10 @@
         <div class="hd-sidebar">
             <div class="hd-info-panel">
                 <div class="hd-info-panel__header">
-                    <div class="hd-info-panel__title">{% trans "Recent Tickets" %}<span data-period-label style="font-weight:400;font-size:11px;opacity:0.5"></span></div>
+                    <div class="hd-info-panel__heading">
+                        <div class="hd-info-panel__title">{% trans "Recent Tickets" %}</div>
+                        <div class="hd-info-panel__sub" data-period-label="bare"></div>
+                    </div>
                     <a href="{% url 'ticket-view' %}" style="font-size:11px;color:var(--hd-indigo);text-decoration:none;">{% trans "View all" %}</a>
                 </div>
                 <div class="hd-info-panel__body" id="hd-recent">
@@ -315,7 +321,7 @@
     function applyPeriodLabels() {
         if (!fromInput.value || !toInput.value) return;
         const label = ' — ' + periodLabel();
-        document.querySelectorAll('[data-period-label]').forEach(el => { el.textContent = label; });
+        document.querySelectorAll('[data-period-label]').forEach(el => { el.textContent = el.dataset.periodLabel === 'bare' ? periodLabel() : label; });
     }
     function syncPresetActive() {
         document.querySelectorAll('.hd-period-preset').forEach(b => {

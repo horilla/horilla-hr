@@ -95,6 +95,9 @@
     .ld-info-panel__header > span[data-period-label] { text-align: right; min-width: 0; }
     .ld-count-badge[hidden] { display: none; }
     .ld-count-badge { min-width: 24px; height: 24px; padding: 0 6px; border-radius: 999px; background: var(--ld-indigo); color: #fff; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
+    /* Title on top, the date period / basis the card lists on the line below. */
+    .ld-info-panel__heading { min-width: 0; }
+    .ld-info-panel__sub { font-size: 11px; opacity: 0.5; margin-top: 2px; }
     .ld-info-panel__body { padding: 8px 16px 12px; overflow-y: auto; flex: 1; max-height: 350px; }
     .ld-info-panel__empty { text-align: center; padding: 30px 0; opacity: 0.4; font-size: 12px; }
 
@@ -271,9 +274,12 @@
         <div class="ld-sidebar">
             <div class="ld-info-panel">
                 <div class="ld-info-panel__header">
-                    <div class="ld-info-panel__title" style="display:flex;align-items:center;gap:8px;">
-                        {% trans "On Leave Today" %}
-                        <span id="ld-on-leave-count" class="ld-count-badge" hidden title="{% trans 'On leave today' %}">0</span>
+                    <div class="ld-info-panel__heading">
+                        <div class="ld-info-panel__title" style="display:flex;align-items:center;gap:8px;">
+                            {% trans "On Leave Today" %}
+                            <span id="ld-on-leave-count" class="ld-count-badge" hidden title="{% trans 'On leave today' %}">0</span>
+                        </div>
+                        <div class="ld-info-panel__sub">{% trans "Today" %}</div>
                     </div>
                     <a href="{% url 'request-view' %}" style="font-size:11px;color:var(--ld-indigo);text-decoration:none;">{% trans "View all" %}</a>
                 </div>
@@ -283,11 +289,13 @@
             </div>
             <div class="ld-info-panel">
                 <div class="ld-info-panel__header">
-                    <div class="ld-info-panel__title" style="display:flex;align-items:center;gap:8px;">
-                        {% trans "Upcoming Leaves" %}
-                        <span id="ld-upcoming-count" class="ld-count-badge" hidden title="{% trans 'Upcoming leaves' %}">0</span>
+                    <div class="ld-info-panel__heading">
+                        <div class="ld-info-panel__title" style="display:flex;align-items:center;gap:8px;">
+                            {% trans "Upcoming Leaves" %}
+                            <span id="ld-upcoming-count" class="ld-count-badge" hidden title="{% trans 'Upcoming leaves' %}">0</span>
+                        </div>
+                        <div class="ld-info-panel__sub">{% trans "Next 7 days" %}</div>
                     </div>
-                    <span style="font-size:11px;opacity:0.5;">{% trans "Next 7 days" %}</span>
                 </div>
                 <div class="ld-info-panel__body" id="ld-upcoming">
                     <div class="ld-info-panel__empty">{% trans "Loading..." %}</div>
@@ -295,11 +303,13 @@
             </div>
             <div class="ld-info-panel">
                 <div class="ld-info-panel__header">
-                    <div class="ld-info-panel__title" style="display:flex;align-items:center;gap:8px;">
-                        {% trans "Top Leave Takers" %}
-                        <span id="ld-top-takers-count" class="ld-count-badge" hidden title="{% trans 'Top leave takers' %}">0</span>
+                    <div class="ld-info-panel__heading">
+                        <div class="ld-info-panel__title" style="display:flex;align-items:center;gap:8px;">
+                            {% trans "Top Leave Takers" %}
+                            <span id="ld-top-takers-count" class="ld-count-badge" hidden title="{% trans 'Top leave takers' %}">0</span>
+                        </div>
+                        <div class="ld-info-panel__sub" id="takers-month" data-period-label>{% trans "This month" %}</div>
                     </div>
-                    <span style="font-size:11px;opacity:0.5;" id="takers-month" data-period-label>{% trans "This month" %}</span>
                 </div>
                 <div class="ld-info-panel__body" id="ld-top-takers">
                     <div class="ld-info-panel__empty">{% trans "Loading..." %}</div>
@@ -307,11 +317,13 @@
             </div>
             <div class="ld-info-panel">
                 <div class="ld-info-panel__header">
-                    <div class="ld-info-panel__title" style="display:flex;align-items:center;gap:8px;">
-                        {% trans "Upcoming Holidays" %}
-                        <span id="ld-holidays-count" class="ld-count-badge" hidden title="{% trans 'Upcoming holidays' %}">0</span>
+                    <div class="ld-info-panel__heading">
+                        <div class="ld-info-panel__title" style="display:flex;align-items:center;gap:8px;">
+                            {% trans "Upcoming Holidays" %}
+                            <span id="ld-holidays-count" class="ld-count-badge" hidden title="{% trans 'Upcoming holidays' %}">0</span>
+                        </div>
+                        <div class="ld-info-panel__sub" data-period-label>{% trans "Next 30 days" %}</div>
                     </div>
-                    <span style="font-size:11px;opacity:0.5;" data-period-label>{% trans "Next 30 days" %}</span>
                 </div>
                 <div class="ld-info-panel__body" id="ld-holidays">
                     <div class="ld-info-panel__empty">{% trans "Loading..." %}</div>
@@ -639,7 +651,7 @@
                     <div class="ld-kpi-card__icon ld-kpi-card__icon--blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
                     <div class="ld-kpi-card__label">{% trans "On Leave Today"|escapejs %}</div>
                     <div class="ld-kpi-card__value">${data.on_leave_today}</div>
-                    <div class="ld-kpi-card__sub"><span class="ld-badge ld-badge--blue">${Number(data.on_leave_today) === 1 ? "{% trans 'Employee Away'|escapejs %}" : "{% trans 'Employees Away'|escapejs %}"}</span></div>
+                    <div class="ld-kpi-card__sub"><span class="ld-badge ld-badge--blue">${Number(data.on_leave_today) === 1 ? "{% trans 'Employee Away'|escapejs %}" : "{% trans 'Employees Away'|escapejs %}"}</span>${Number(data.half_day_today) > 0 ? ` <span class="ld-badge ld-badge--amber">${data.half_day_today} {% trans 'Half Day'|escapejs %}</span>` : ''}</div>
                 </a>`;
         });
     }

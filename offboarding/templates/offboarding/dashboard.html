@@ -304,6 +304,9 @@
             font-weight: 700;
             font-size: 13px;
         }
+    /* Title on top, the date period / basis the card lists on the line below. */
+    .ob-info-panel__heading { min-width: 0; }
+    .ob-info-panel__sub { font-size: 11px; opacity: 0.5; margin-top: 2px; }
         .ob-info-panel__body {
             flex: 1;
             max-height: 350px;
@@ -871,7 +874,10 @@
             <div class="ob-sidebar">
                 <div class="ob-info-panel">
                     <div class="ob-info-panel__header">
-                        <div class="ob-info-panel__title">{% trans "Notice Period Tracker" %}</div>
+                        <div class="ob-info-panel__heading">
+                            <div class="ob-info-panel__title">{% trans "Notice Period Tracker" %}</div>
+                            <div class="ob-info-panel__sub" data-period-label="bare"></div>
+                        </div>
                     </div>
                     <div class="ob-info-panel__body" id="ob-notice">
                         <div class="ob-info-panel__empty">{% trans "Loading..." %}</div>
@@ -879,7 +885,10 @@
                 </div>
                 <div class="ob-info-panel">
                     <div class="ob-info-panel__header">
-                        <div class="ob-info-panel__title">{% trans "Unreturned Assets" %}</div>
+                        <div class="ob-info-panel__heading">
+                            <div class="ob-info-panel__title">{% trans "Unreturned Assets" %}</div>
+                            <div class="ob-info-panel__sub" data-period-label="bare"></div>
+                        </div>
                     </div>
                     <div class="ob-info-panel__body" id="ob-assets">
                         <div class="ob-info-panel__empty">{% trans "Loading..." %}</div>
@@ -1036,7 +1045,7 @@
             }
             function applyPeriodLabels() {
                 const label = ' — ' + periodLabel();
-                document.querySelectorAll('[data-period-label]').forEach(el => { el.textContent = label; });
+                document.querySelectorAll('[data-period-label]').forEach(el => { el.textContent = el.dataset.periodLabel === 'bare' ? periodLabel() : label; });
             }
             applyPeriodLabels();
 
@@ -1323,6 +1332,7 @@
                     // Donut with the reasons as legend chips (same legend as the other
                     // donuts here: a row of chips plus a "+N" popover for the rest).
                     renderChart('exit-reasons', el, PieLegend.options(el, () => chartInstances['exit-reasons'], 'reasons', {
+                        legendWrap: true,
                         series: data.reasons.map(r => r.count),
                         chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit',
                             events: { dataPointSelection: (e, ctx, config) => {

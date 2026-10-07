@@ -297,6 +297,9 @@
             font-weight: 700;
             font-size: 13px;
         }
+    /* Title on top, the date period / basis the card lists on the line below. */
+    .as-info-panel__heading { min-width: 0; }
+    .as-info-panel__sub { font-size: 11px; opacity: 0.5; margin-top: 2px; }
         .as-info-panel__body {
             flex: 1;
             max-height: 350px;
@@ -974,8 +977,10 @@
             <div class="as-sidebar">
                 <div class="as-info-panel">
                     <div class="as-info-panel__header">
-                        <div class="as-info-panel__title">{% trans "Expiring Soon" %}</div>
-                        <span style="font-size: 11px; opacity: 0.5">{% trans "Next 30 Days" %}</span>
+                        <div class="as-info-panel__heading">
+                            <div class="as-info-panel__title">{% trans "Expiring Soon" %}</div>
+                            <div class="as-info-panel__sub">{% trans "Next 30 Days" %}</div>
+                        </div>
                     </div>
                     <div class="as-info-panel__body" id="as-expiring">
                         <div class="as-info-panel__empty">{% trans "Loading..." %}</div>
@@ -983,7 +988,10 @@
                 </div>
                 <div class="as-info-panel">
                     <div class="as-info-panel__header">
-                        <div class="as-info-panel__title">{% trans "Recent Allocations" %}</div>
+                        <div class="as-info-panel__heading">
+                            <div class="as-info-panel__title">{% trans "Recent Allocations" %}</div>
+                            <div class="as-info-panel__sub" data-period-label></div>
+                        </div>
                     </div>
                     <div class="as-info-panel__body" id="as-allocations">
                         <div class="as-info-panel__empty">{% trans "Loading..." %}</div>
@@ -1089,6 +1097,12 @@
             document.querySelectorAll('.as-period-preset').forEach(b => b.addEventListener('click', () => setPreset(b.dataset.preset)));
             [fromInput, toInput].forEach(i => i.addEventListener('change', () => { savePeriod(); location.reload(); }));
             initPeriod();
+        // Card tags: the period the cards are scoped to.
+        (function () {
+            const d = v => new Date(v + 'T00:00:00').toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+            if (!fromInput.value || !toInput.value) return;
+            document.querySelectorAll('[data-period-label]').forEach(el => { el.textContent = d(fromInput.value) + ' – ' + d(toInput.value); });
+        })();
 
             // ── Chart Customize ──
             const CUST_KEY = 'as_chart_prefs';
@@ -1380,7 +1394,7 @@
                         items = newItems;
                         const names = items.map(i => i.name);
                         if (selected) selected = new Set([...selected].filter(n => names.includes(n)));
-                        if (!selected || !selected.size) selected = new Set(names.slice(0, topN));
+                        if (!selected || !selected.size) selected = new Set(names);  // every item starts ticked; topN only sets how many chips fit
                         render();
                     },
                     series,
