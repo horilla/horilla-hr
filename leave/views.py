@@ -3179,7 +3179,9 @@ def department_leave_chart(request):
 
     from_param = request.GET.get("from_date")
     to_param = request.GET.get("to_date")
-    leave_request = LeaveRequest.objects.filter(status="approved")
+    leave_request = LeaveRequest.objects.filter(
+        status="approved", employee_id__is_active=True
+    )
     if from_param and to_param:
         try:
             range_start = date.fromisoformat(from_param)
@@ -3332,6 +3334,7 @@ def leave_over_period(request):
             period_dates = [start_of_week + timedelta(days=i) for i in range(6)]
     leave_request = LeaveRequest.objects.filter(
         status="approved",
+        employee_id__is_active=True,
         start_date__lte=period_dates[-1],
     ).filter(
         Q(end_date__gte=period_dates[0])
