@@ -1360,6 +1360,32 @@ def link_callback(uri, rel):
 #     return response
 
 
+def pdfkit_configuration():
+    """
+    pdfkit pointed at wkhtmltopdf, found even when it is not on PATH.
+
+    pdfkit looks the program up on PATH (``where`` on Windows) and fails with
+    'No wkhtmltopdf executable found: b""' when the installer did not add it, as the
+    Windows installer by default does not. WKHTMLTOPDF_PATH, then the usual
+    install folders, are tried before leaving it to pdfkit's own search.
+    """
+    import os
+    import shutil
+
+    candidates = [
+        os.environ.get("WKHTMLTOPDF_PATH"),
+        shutil.which("wkhtmltopdf"),
+        "C:/Program Files/wkhtmltopdf/bin/wkhtmltopdf.exe",
+        "C:/Program Files (x86)/wkhtmltopdf/bin/wkhtmltopdf.exe",
+        "/usr/local/bin/wkhtmltopdf",
+        "/usr/bin/wkhtmltopdf",
+    ]
+    for path in candidates:
+        if path and os.path.isfile(path):
+            return pdfkit.configuration(wkhtmltopdf=path)
+    return None
+
+
 def generate_pdf(template_path, context, path=True, title=None, html=True):
     """
     Render HTML to a PDF response.
@@ -1746,7 +1772,12 @@ def template_pdf(template, context={}, html=False, filename="payslip.pdf"):
             "footer-center": "[page]/[topage]",
         }
 
-        pdf = pdfkit.from_string(html_content, False, options=pdf_options)
+        pdf = pdfkit.from_string(
+            html_content,
+            False,
+            options=pdf_options,
+            configuration=pdfkit_configuration(),
+        )
 
         response = HttpResponse(pdf, content_type="application/pdf")
         response["Content-Disposition"] = f"inline; filename={filename}"
