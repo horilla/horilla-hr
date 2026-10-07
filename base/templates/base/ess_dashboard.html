@@ -638,6 +638,14 @@
             align-items: center;
             gap: 8px;
         }
+        /* Title on top, the date period the card lists on the line below. */
+        .ess-info-panel__heading { min-width: 0; }
+        .ess-info-panel__sub {
+            margin-top: 2px;
+            font-size: 11px;
+            font-weight: 400;
+            opacity: 0.5;
+        }
         .ess-count-badge {
             display: inline-flex;
             align-items: center;
@@ -968,11 +976,13 @@
                 <!-- Birthdays: today and the rest of this month, all employees -->
                 <div class="ess-info-panel">
                     <div class="ess-info-panel__header">
-                        <div class="ess-info-panel__title">
-                            {% trans "Birthdays" %}
-                            <span id="essBirthdaysCount" class="ess-count-badge" hidden title="{% trans 'Birthdays this month' %}">0</span>
+                        <div class="ess-info-panel__heading">
+                            <div class="ess-info-panel__title">
+                                {% trans "Birthdays" %}
+                                <span id="essBirthdaysCount" class="ess-count-badge" hidden title="{% trans 'Birthdays this month' %}">0</span>
+                            </div>
+                            <div class="ess-info-panel__sub">{% trans "This month" %}</div>
                         </div>
-                        <span style="font-size:11px;font-weight:400;opacity:0.5;">{% trans "This month" %}</span>
                     </div>
                     <div id="essBirthdaysList" class="ess-info-panel__body">
                         <div class="ess-empty-sm">{% trans "Loading..." %}</div>
@@ -982,11 +992,13 @@
                 <!-- Upcoming holidays -->
                 <div class="ess-info-panel">
                     <div class="ess-info-panel__header">
-                        <div class="ess-info-panel__title">
-                            {% trans "Upcoming Holidays" %}
-                            <span id="essUpcomingCount" class="ess-count-badge" hidden title="{% trans 'Upcoming Holidays' %}">0</span>
+                        <div class="ess-info-panel__heading">
+                            <div class="ess-info-panel__title">
+                                {% trans "Upcoming Holidays" %}
+                                <span id="essUpcomingCount" class="ess-count-badge" hidden title="{% trans 'Upcoming Holidays' %}">0</span>
+                            </div>
+                            <div class="ess-info-panel__sub">{% trans "Next 30 days" %}</div>
                         </div>
-                        <span style="font-size:11px;font-weight:400;opacity:0.5;">{% trans "Next 30 days" %}</span>
                     </div>
                     <div id="essUpcomingList" class="ess-info-panel__body">
                         <div class="ess-empty-sm">{% trans "Loading..." %}</div>
