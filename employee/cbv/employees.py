@@ -175,6 +175,12 @@ class EmployeesList(HorillaListView):
         "employee_bank_details__city",
     ]
 
+    def import_accessibility(self) -> bool:
+        # Employees are imported from Actions > Import (the work-information
+        # template); the list's own quick import, offered in the empty state,
+        # is not shown.
+        return False
+
     import_fields = [
         "badge_id",
         # "test",
@@ -409,7 +415,6 @@ class EmployeesList(HorillaListView):
     }
 
     row_attrs = """
-                {diff_cell}
                 hx-get="{get_profile_url}"
                 hx-target="#listContainer"
                 hx-swap="innerHTML"
@@ -894,7 +899,6 @@ class EmployeeCard(HorillaCardView):
     custom_body_template = "cbv/employees_view/card_body.html"
 
     card_attrs = """
-                {diff_cell}
                 hx-get="{get_profile_url}"
                 hx-target="#listContainer"
                 hx-swap="innerHTML"
