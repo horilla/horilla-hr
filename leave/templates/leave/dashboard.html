@@ -121,13 +121,16 @@
     /* Holiday item */
     .ld-holiday-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(128,128,128,0.06); }
     .ld-holiday-item:last-child { border-bottom: none; }
+    .ld-holiday-item__info { flex: 1; min-width: 0; }
+    .ld-holiday-item__name { font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ld-holiday-item__away { font-size: 11px; opacity: 0.5; }
     .ld-holiday-item__date {
-        min-width: 46px; text-align: center; padding: 6px 8px; border-radius: 8px;
-        background: #dcfce7; font-size: 11px; font-weight: 700; color: #166534; flex-shrink: 0;
+        flex-shrink: 0; padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+        background: #fef3c7; font-size: 10px; font-weight: 600; color: #92400e;
     }
-    .dark .ld-holiday-item__date { background: #14532d; color: #bbf7d0; }
-    .ld-holiday-item__name { font-size: 12px; font-weight: 500; flex: 1; }
-    .ld-holiday-item__away { font-size: 10px; opacity: 0.5; flex-shrink: 0; }
+    .ld-holiday-item__date--today { background: #dcfce7; color: #166534; }
+    .dark .ld-holiday-item__date { background: #92400e; color: #fde68a; }
+    .dark .ld-holiday-item__date--today { background: #166534; color: #bbf7d0; }
 
 
     /* Customize Panel */
@@ -249,16 +252,16 @@
                     <div class="ld-chart-card__body"><div id="chart-leave-types"></div></div>
                 </div>
 
-                <!-- Paid vs Unpaid -->
-                <div class="ld-chart-card" data-chart-id="paid_unpaid" data-chart-label="{% trans 'Paid vs Unpaid' %}">
-                    <div class="ld-chart-card__header"><div><div class="ld-chart-card__title">{% trans "Paid vs Unpaid" %}</div><div class="ld-chart-card__subtitle" id="pu-month" data-period-label>{% trans "This month" %}</div></div></div>
-                    <div class="ld-chart-card__body"><div id="chart-paid-unpaid"></div></div>
-                </div>
-
                 <!-- Weekly Pattern -->
                 <div class="ld-chart-card" data-chart-id="weekly_pattern" data-chart-label="{% trans 'Leave Day Pattern' %}">
                     <div class="ld-chart-card__header"><div><div class="ld-chart-card__title">{% trans "Leave Day Pattern" %}</div><div class="ld-chart-card__subtitle">{% trans "Most common leave days" %} — <span data-period-label></span></div></div></div>
                     <div class="ld-chart-card__body"><div id="chart-weekly-pattern"></div></div>
+                </div>
+
+                <!-- Paid vs Unpaid -->
+                <div class="ld-chart-card" data-chart-id="paid_unpaid" data-chart-label="{% trans 'Paid vs Unpaid' %}">
+                    <div class="ld-chart-card__header"><div><div class="ld-chart-card__title">{% trans "Paid vs Unpaid" %}</div><div class="ld-chart-card__subtitle" id="pu-month" data-period-label>{% trans "This month" %}</div></div></div>
+                    <div class="ld-chart-card__body"><div id="chart-paid-unpaid"></div></div>
                 </div>
 
             </div>
@@ -340,7 +343,7 @@
     const textColor = isDark ? '#e2e8f0' : '#334155';
     const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
     const cardBg = isDark ? '#242424' : '#ffffff';
-    const COLORS = ['#E54F38','#22c55e','#f59e0b','#ef4444','#3b82f6','#a855f7','#06b6d4','#ec4899','#14b8a6','#f97316'];
+    const COLORS = ['#E54F38','#22c55e','#f59e0b','#3b82f6','#a855f7','#06b6d4','#ec4899','#84cc16','#64748b','#8b5e3c'];
     const emptyHtml = (msg) => `<div class="ld-empty"><img src="/static/images/ui/no_records.svg" alt="">${msg}</div>`;
     const leaveRequestUrl = "{% url 'request-view' %}";
     const leaveRequestUrlFor = id => id ? `${leaveRequestUrl}?employee_id=${id}` : '#';
@@ -611,7 +614,7 @@
             const baseUrl = "{% url 'request-view' %}";
             const pendingUrl = `${baseUrl}?status=requested&filter_applied=on`;
             const allocationUrl = "{% url 'leave-allocation-request-view' %}?status=requested&filter_applied=on&open_tab=2";
-            const compUrl = "{% url 'view-compensatory-leave' %}?status=requested&filter_applied=on";
+            const compUrl = "{% url 'view-compensatory-leave' %}?status=requested&filter_applied=on&open_tab=2";
             const onLeaveTodayUrl = `${baseUrl}?status=approved&from_date=${data.today}&to_date=${data.today}&filter_applied=on`;
             document.getElementById('ld-kpi-grid').innerHTML = `
                 <a href="${pendingUrl}" class="ld-kpi-card">
@@ -735,7 +738,7 @@
                 },
                 labels: ['{% trans "Paid"|escapejs %}', '{% trans "Unpaid"|escapejs %}'],
                 colors: ['#22c55e', '#ef4444'],
-                plotOptions: { pie: { donut: { size: '70%', labels: { show: true, total: { show: true, label: '{% trans "Total"|escapejs %}', color: textColor, fontSize: '13px', fontWeight: 600, formatter: w => w.globals.seriesTotals.reduce((a,b)=>a+b,0).toFixed(1) + 'd' } } } } },
+                plotOptions: { pie: { donut: { size: '70%', labels: { show: true, total: { show: true, label: '{% trans "Total"|escapejs %}', color: textColor, fontSize: '13px', fontWeight: 600, formatter: w => w.globals.seriesTotals.reduce((a,b)=>a+b,0).toFixed(1) } } } } },
                 stroke: { width: 2, colors: [cardBg] },
                 dataLabels: { enabled: false },
                 legend: { show: false },
@@ -860,9 +863,11 @@
             el.innerHTML = data.holidays.map(h => {
                 const badge = h.days_away === 0 ? '{% trans "Today"|escapejs %}' : h.days_away === 1 ? '{% trans "Tomorrow"|escapejs %}' : h.days_away + 'd';
                 return `<div class="ld-holiday-item">
-                    <div class="ld-holiday-item__date">${h.start}</div>
-                    <div class="ld-holiday-item__name">${h.name}</div>
-                    <div class="ld-holiday-item__away">${badge}</div>
+                    <div class="ld-holiday-item__info">
+                        <div class="ld-holiday-item__name">${h.name}</div>
+                        <div class="ld-holiday-item__away">${badge}</div>
+                    </div>
+                    <div class="ld-holiday-item__date${h.days_away === 0 ? ' ld-holiday-item__date--today' : ''}">${h.start}</div>
                 </div>`;
             }).join('');
         }).catch(() => { document.getElementById('ld-holidays').innerHTML = '<div class="ld-info-panel__empty">{% trans "No upcoming holidays"|escapejs %}</div>'; });
