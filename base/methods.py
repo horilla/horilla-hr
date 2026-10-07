@@ -846,6 +846,30 @@ def get_key_instances(model, data_dict, filter_class=None):
             except (ObjectDoesNotExist, ValueError):
                 pass
 
+    # A param can also reach a foreign key through relations
+    # (e.g. "employee_work_info__job_position_id"), which the direct
+    # field-name match above never sees, leaving the raw id in its filter tag.
+    for key in list(data_dict):
+        if "__" not in key:
+            continue
+        try:
+            field = model
+            for part in key.split("__"):
+                field = (
+                    field._meta
+                    if hasattr(field, "_meta")
+                    else field.related_model._meta
+                ).get_field(part)
+            if not isinstance(field, (ForeignKey, OneToOneField)):
+                continue
+            ids = [int(value) for value in data_dict[key]]
+            data_dict[key] = [
+                str(instance)
+                for instance in field.remote_field.model.objects.filter(id__in=ids)
+            ]
+        except Exception:
+            continue
+
     # Create a list of field names that are ManyToManyField
     many_to_many_field_names = [
         field.name for field in model_fields if isinstance(field, ManyToManyField)
