@@ -633,6 +633,10 @@ class Employee(models.Model):
             }
         return {"label": _("Basic"), "amount": contract.wage, "contract": contract}
 
+    def get_pay_contracts_list_url(self):
+        """The contracts list showing just this employee's contracts."""
+        return f"{reverse('view-contract')}?employee_id={self.pk}&filter_applied=true"
+
     def get_pay_contract_url(self):
         """
         Where the pay is changed: the edit form of the active contract, or, with

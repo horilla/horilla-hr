@@ -1,0 +1,40 @@
+{% load i18n %}
+{% comment %}
+The Salary bubble. Context: pay (the pay summary, or None), link (the address, empty
+when the viewer may not open it).
+{% endcomment %}
+{% if link %}
+<a
+    href="{{ link }}"
+    class="group inline-flex max-w-full items-center gap-2 rounded-full border border-[#ebebeb] bg-white py-1 px-2.5 transition-colors hover:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-1"
+    title="{% if pay %}{% trans 'Open the contract' %}{% else %}{% trans 'Open the contracts' %}{% endif %}"
+>
+{% else %}
+<span
+    class="inline-flex max-w-full items-center gap-2 rounded-full border border-[#ebebeb] bg-[#f5f5f5] py-1 px-2.5 opacity-60 cursor-not-allowed"
+    title="{% trans 'You do not have permission to open contracts' %}"
+>
+{% endif %}
+    <span class="min-w-0 truncate text-xs font-medium {% if pay and pay.amount %}text-dark-500{% else %}italic text-dark-100{% endif %}{% if link %} group-hover:text-primary-600{% endif %}">
+        {% if not pay %}
+            {% trans "No active contract" %}
+        {% elif pay.amount %}
+            <span class="font-normal text-dark-100">{{ pay.label }}</span> {{ pay.amount|floatformat:"-2" }}
+        {% else %}
+            {% trans "Not set" %}
+        {% endif %}
+    </span>
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 12 12"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.7"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        class="h-3 w-3 shrink-0 {% if link %}text-primary-600 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5{% else %}text-dark-100{% endif %}"
+        aria-hidden="true"
+    >
+        <path d="M3.5 8.5 8.5 3.5M4.5 3.5h4v4"/>
+    </svg>
+{% if link %}</a>{% else %}</span>{% endif %}
