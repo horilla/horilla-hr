@@ -375,25 +375,15 @@
         }
 
         .rd-info-panel__subtitle { font-size: 11px; opacity: 0.5; margin-top: 2px; }
-        .rd-card-link {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
+        .rd-panel__link {
             flex-shrink: 0;
-            width: 30px;
-            height: 30px;
-            border-radius: 8px;
-            border: 1px solid color-mix(in srgb, var(--primary-600, #E54F38) 25%, transparent);
-            background: color-mix(in srgb, var(--primary-600, #E54F38) 8%, transparent);
             color: var(--primary-600, #E54F38);
+            font-weight: 700;
+            font-size: 11px;
             text-decoration: none;
-            transition: background 0.15s, color 0.15s, transform 0.15s;
+            white-space: nowrap;
         }
-        .rd-card-link:hover {
-            background: var(--primary-600, #E54F38);
-            color: #fff;
-            transform: translate(1px, -1px);
-        }
+        .rd-panel__link:hover { text-decoration: underline; }
         /* Date and time as one tag on the right of each interview row */
         .rd-interview-item__when {
             flex-shrink: 0;
@@ -1100,9 +1090,7 @@
                             <div class="rd-info-panel__title">{% trans "Interviews" %} <span class="rd-badge rd-badge--primary" id="rd-interviews-count">0</span></div>
                             <div class="rd-info-panel__subtitle">{% trans "Scheduled this period" %}</div>
                         </div>
-                        <a class="rd-card-link" href="{% url 'interview-view' %}" title="{% trans 'View all interviews' %}">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7"></path><path d="M8 7h9v9"></path></svg>
-                        </a>
+                        <a href="{% url 'interview-view' %}" class="rd-panel__link">{% trans "View all" %}</a>
                     </div>
                     <div class="rd-info-panel__body" id="rd-interviews">
                         <div class="rd-info-panel__empty">{% trans "Loading..." %}</div>
