@@ -398,7 +398,7 @@ def attendance_overtime_summary(request):
 
 @login_required
 def attendance_hours_distribution(request):
-    """Employees with pending hours, by department, for the selected period.
+    """Pending hours and employees with pending hours, by department, for the selected period.
 
     Pending hours come from AttendanceOverTime (the "hour account"), which has
     no attendance_date - it's keyed by its own month/year accounting period,
@@ -429,14 +429,21 @@ def attendance_hours_distribution(request):
             .filter(period_q)
             .order_by()
             .values("employee_id__employee_work_info__department_id__department")
-            .annotate(pending_employees=Count("employee_id", distinct=True))
-            .order_by("-pending_employees")
+            .annotate(
+                pending_employees=Count("employee_id", distinct=True),
+                pending_total=Sum("hour_pending_second"),
+            )
+            .order_by("-pending_total")
         )
         for row in rows:
             dept = row["employee_id__employee_work_info__department_id__department"]
             if dept:
                 departments.append(
-                    {"department": dept, "pending_employees": row["pending_employees"]}
+                    {
+                        "department": dept,
+                        "pending_employees": row["pending_employees"],
+                        "pending_hours": round((row["pending_total"] or 0) / 3600, 1),
+                    }
                 )
     except Exception:
         pass

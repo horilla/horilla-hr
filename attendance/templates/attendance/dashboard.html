@@ -1092,29 +1092,6 @@
         <!-- Header -->
         <div class="am-header">
             <div>
-                <nav class="oh-breadcrumb" style="margin-bottom: 4px">
-                    <a
-                        href="{% url 'dashboard' %}"
-                        class="oh-breadcrumb__item"
-                        style="
-                            font-size: 12px;
-                            opacity: 0.6;
-                            text-decoration: none;
-                            color: inherit;
-                        "
-                        >{% trans "Home" %}</a
-                    >
-                    <span
-                        class="oh-breadcrumb__divider"
-                        style="font-size: 12px; opacity: 0.4; margin: 0 4px"
-                        >/</span
-                    >
-                    <span
-                        class="oh-breadcrumb__item"
-                        style="font-size: 12px; opacity: 0.6"
-                        >{% trans "Attendance" %}</span
-                    >
-                </nav>
                 <h1>{% trans "Attendance Dashboard" %}</h1>
                 <div class="am-header__date" id="am-date"></div>
                 <div class="am-refresh">
@@ -1220,6 +1197,12 @@
                             </div>
                         </div>
                         <div class="am-chart-card__body">
+                            <div class="am-status-key">
+                                <span class="md-pie-chip"><span class="md-pie-chip__dot" style="background:#22c55e"></span>{% blocktrans %}80% or more{% endblocktrans %}</span>
+                                <span class="md-pie-chip"><span class="md-pie-chip__dot" style="background:#f59e0b"></span>{% blocktrans %}50–79%{% endblocktrans %}</span>
+                                <span class="md-pie-chip"><span class="md-pie-chip__dot" style="background:#f97316"></span>{% blocktrans %}25–49%{% endblocktrans %}</span>
+                                <span class="md-pie-chip"><span class="md-pie-chip__dot" style="background:#ef4444"></span>{% blocktrans %}Below 25%{% endblocktrans %}</span>
+                            </div>
                             <div id="chart-calendar"></div>
                         </div>
                     </div>
@@ -1286,6 +1269,13 @@
                             </select>
                         </div>
                         <div class="am-chart-card__body am-chart-card__body--tight">
+                            <div class="am-status-key">
+                                <span class="md-pie-chip"><span class="md-pie-chip__dot" style="background:#22c55e"></span>{% blocktrans %}90% or more{% endblocktrans %}</span>
+                                <span class="md-pie-chip"><span class="md-pie-chip__dot" style="background:#f59e0b"></span>{% blocktrans %}75–89%{% endblocktrans %}</span>
+                                <span class="md-pie-chip"><span class="md-pie-chip__dot" style="background:#f97316"></span>{% blocktrans %}50–74%{% endblocktrans %}</span>
+                                <span class="md-pie-chip"><span class="md-pie-chip__dot" style="background:#ef4444"></span>{% blocktrans %}25–49%{% endblocktrans %}</span>
+                                <span class="md-pie-chip"><span class="md-pie-chip__dot" style="background:#b91c1c"></span>{% blocktrans %}Below 25%{% endblocktrans %}</span>
+                            </div>
                             <div id="chart-absenteeism"></div>
                             <div class="md-pie-legend" id="am-pie-legend-attendance"></div>
                         </div>
@@ -1321,6 +1311,12 @@
                             </select>
                         </div>
                         <div class="am-chart-card__body am-chart-card__body--tight">
+                            <div class="am-status-key">
+                                <span class="md-pie-chip"><span class="md-pie-chip__dot" style="background:#22c55e"></span>{% blocktrans %}10% or less{% endblocktrans %}</span>
+                                <span class="md-pie-chip"><span class="md-pie-chip__dot" style="background:#f59e0b"></span>{% blocktrans %}11–25%{% endblocktrans %}</span>
+                                <span class="md-pie-chip"><span class="md-pie-chip__dot" style="background:#f97316"></span>{% blocktrans %}26–49%{% endblocktrans %}</span>
+                                <span class="md-pie-chip"><span class="md-pie-chip__dot" style="background:#ef4444"></span>{% blocktrans %}50% or more{% endblocktrans %}</span>
+                            </div>
                             <div id="chart-absence-pct"></div>
                             <div class="md-pie-legend" id="am-pie-legend-absence"></div>
                         </div>
@@ -1377,7 +1373,13 @@
                             </div>
                         </div>
                         <div class="am-chart-card__body">
-                            <div id="chart-avg-hours"></div>
+                            <div class="am-status-key">
+                                    <span class="md-pie-chip"><span class="md-pie-chip__dot" style="background:#22c55e"></span>{% blocktrans %}8h or more{% endblocktrans %}</span>
+                                    <span class="md-pie-chip"><span class="md-pie-chip__dot" style="background:#f59e0b"></span>{% blocktrans %}6–8h{% endblocktrans %}</span>
+                                    <span class="md-pie-chip"><span class="md-pie-chip__dot" style="background:#f97316"></span>{% blocktrans %}4–6h{% endblocktrans %}</span>
+                                    <span class="md-pie-chip"><span class="md-pie-chip__dot" style="background:#ef4444"></span>{% blocktrans %}Below 4h{% endblocktrans %}</span>
+                                </div>
+                                <div id="chart-avg-hours"></div>
                             <div class="md-pie-legend" id="am-pie-legend-avg-hours"></div>
                         </div>
                     </div>
@@ -2017,7 +2019,7 @@
                         <div class="am-kpi-card__icon am-kpi-card__icon--red"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M9 14l2 2 4-4"/></svg></div>
                         <div class="am-kpi-card__label">{% trans "Not Checked In Today"|escapejs %}</div>
                         <div class="am-kpi-card__value">${data.expected_to_check_in}</div>
-                        <div class="am-kpi-card__sub"><span class="am-badge am-badge--amber">{% trans "Not Present, Not On Leave"|escapejs %}</span></div>
+
                     </a>
                     <a href="{% url 'attendance-view' %}?open_tab=2&attendance_overtime_approve=False&attendance_validated=True&attendance_date=${data.date}&filter_applied=on" class="am-kpi-card">
                         <div class="am-kpi-card__icon am-kpi-card__icon--amber"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
@@ -2348,7 +2350,7 @@
                         }
                         if (!cached) {
                             hoursLegend.set(raw.departments.map((d, i) => ({
-                                name: d.department, value: d.pending_employees, color: deptColor(i),
+                                name: d.department, value: d.pending_hours.toFixed(1) + "h", color: deptColor(i),
                                 detail: d.pending_employees + ' {% trans "employees with pending hours"|escapejs %}',
                             })));
                         }
@@ -2362,7 +2364,7 @@
                                     {
                                         name: '{% trans "Pending"|escapejs %}',
                                         data: data.departments.map(
-                                            (d) => d.pending_employees,
+                                            (d) => d.pending_hours,
                                         ),
                                     },
                                 ],
@@ -2427,12 +2429,13 @@
                                     forceNiceScale: true,
                                     labels: {
                                         ...YAXIS_STYLE.labels,
-                                        formatter: (v) => Math.round(v),
+                                        formatter: (v) => (parseFloat(v) || 0).toFixed(0) + "h",
                                     },
                                 },
                                 grid: GRID,
                                 dataLabels: {
                                     enabled: true,
+                                    formatter: (v) => (parseFloat(v) || 0).toFixed(1) + "h",
                                     style: {
                                         fontSize: "11px",
                                         fontWeight: 700,
@@ -2444,8 +2447,8 @@
                                 tooltip: {
                                     ...TOOLTIP_STYLE,
                                     y: {
-                                        formatter: (v) =>
-                                            v + " " + '{% trans "employee(s)"|escapejs %}',
+                                        formatter: (v, { dataPointIndex: i }) =>
+                                            `${(parseFloat(v) || 0).toFixed(1)} hrs (${data.departments[i].pending_employees} emp)`,
                                     },
                                 },
                                 states: {
@@ -2520,7 +2523,9 @@
                                         ? "#22c55e"
                                         : d.rate >= 50
                                             ? "#f59e0b"
-                                            : "#ef4444",
+                                            : d.rate >= 25
+                                                ? "#f97316"
+                                                : "#ef4444",
                                 ),
                                 plotOptions: {
                                     bar: {
@@ -2821,7 +2826,7 @@
                     });
             }
             const attendanceColor = (r) =>
-                r >= 90 ? "#22c55e" : r >= 75 ? "#f59e0b" : "#ef4444";
+                r >= 90 ? "#22c55e" : r >= 75 ? "#f59e0b" : r >= 50 ? "#f97316" : r >= 25 ? "#ef4444" : "#b91c1c";
             const ATTENDANCE_SUBTITLES = {
                 shift: '{% trans "Attendance % by shift"|escapejs %}',
                 department: '{% trans "Attendance % by department"|escapejs %}',
@@ -2867,7 +2872,7 @@
 
             // ─── ABSENCE % (SHIFT / DEPARTMENT / WORK TYPE) ───
             const absenceColor = (r) =>
-                r <= 10 ? "#22c55e" : r <= 25 ? "#f59e0b" : "#ef4444";
+                r <= 10 ? "#22c55e" : r <= 25 ? "#f59e0b" : r < 50 ? "#f97316" : "#ef4444";
             const ABSENCE_SUBTITLES = {
                 shift: '{% trans "Absence % by shift"|escapejs %}',
                 department: '{% trans "Absence % by department"|escapejs %}',
@@ -2975,7 +2980,9 @@
                                         ? "#22c55e"
                                         : d.avg_hours_per_day >= 6
                                             ? "#f59e0b"
-                                            : "#ef4444",
+                                            : d.avg_hours_per_day >= 4
+                                                ? "#f97316"
+                                                : "#ef4444",
                                 ),
                                 fill: {
                                     type: "gradient",
@@ -3028,23 +3035,6 @@
                                         formatter: (v, { dataPointIndex: i }) =>
                                             `${v} hrs/day (${data.departments[i].employees} {% trans "employees"|escapejs %})`,
                                     },
-                                },
-                                annotations: {
-                                    yaxis: [
-                                        {
-                                            y: 8,
-                                            borderColor: "#22c55e",
-                                            strokeDashArray: 4,
-                                            label: {
-                                                text: '{% trans "8h target"|escapejs %}',
-                                                style: {
-                                                    color: "#22c55e",
-                                                    background: "transparent",
-                                                    fontSize: "10px",
-                                                },
-                                            },
-                                        },
-                                    ],
                                 },
                             },
                         );
