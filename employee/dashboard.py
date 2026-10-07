@@ -11,7 +11,6 @@ import calendar
 from datetime import date, timedelta
 
 from django.db.models import Count, Q
-from django.db.models.functions import Coalesce
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.urls import reverse
@@ -27,6 +26,7 @@ from horilla_documents.models import Document
 EMPLOYEE_PERM = "employee.view_employee"
 NEW_EMPLOYEES_LIMIT = 10
 EXPIRED_DOCUMENTS_LIMIT = 10
+EXPIRING_DOCUMENTS_DAYS = 60
 
 
 def _current_month_bounds():
@@ -88,7 +88,7 @@ def _shift_allocations(request):
         allocated = allocated.filter(
             Q(reallocate_to=employee) | Q(employee_id=employee)
         )
-    return queryset | allocated
+    return (queryset | allocated).filter(employee_id__is_active=True)
 
 
 def _work_type_requests(request):
@@ -112,17 +112,12 @@ def employee_dashboard_view(request):
 def employee_kpi_data(request):
     """Pending request counts shown in the KPI cards.
 
-    "Pending" is the same condition as the list filter status=requested
-    (not approved and not canceled). Only requests created inside the selected
-    period are counted.
+    "Pending" is the same condition as the list filter status=requested (not
+    approved and not canceled) -- a live snapshot, not scoped to any date
+    window, so each tile's count always matches what its own click-through
+    link shows (those links carry no date filter either).
     """
-    from_date, to_date = _period_bounds(request)
-    pending = {
-        "approved": False,
-        "canceled": False,
-        "created_at__date__gte": from_date,
-        "created_at__date__lte": to_date,
-    }
+    pending = {"approved": False, "canceled": False}
     show_documents = _can_view_documents(request)
 
     return JsonResponse(
@@ -130,8 +125,8 @@ def employee_kpi_data(request):
             "document_requests": (
                 Document.objects.filter(
                     status="requested",
-                    created_at__date__gte=from_date,
-                    created_at__date__lte=to_date,
+                    employee_id__is_active=True,
+                    document_request_id__isnull=False,
                 ).count()
                 if show_documents
                 else None
@@ -200,82 +195,8 @@ def employee_by_department(request):
     return JsonResponse({"items": _distribution("department")})
 
 
-TREND_MONTHS = 12
 JOB_POSITION_SERIES_LIMIT = 8
 REPORTING_MANAGER_LIMIT = 10
-
-
-def _month_start(value, offset):
-    """First day of the month `offset` months away from `value`'s month."""
-    index = value.year * 12 + value.month - 1 + offset
-    return date(index // 12, index % 12 + 1, 1)
-
-
-def _joining_and_leaving_dates():
-    """(joined, left) per employee in the selected company.
-
-    The employee record holds no exit date, so "left" is the end of the
-    offboarding notice period, falling back to the contract end date. Active
-    employees have no exit date; inactive ones with neither date are skipped
-    because their exit month is unknown.
-    """
-    rows = Employee.objects.filter(
-        employee_work_info__date_joining__isnull=False
-    ).values_list(
-        "is_active",
-        "employee_work_info__date_joining",
-        Coalesce(
-            "offboardingemployee__notice_period_ends",
-            "employee_work_info__contract_end_date",
-        ),
-    )
-    for is_active, joined, left in rows:
-        if is_active:
-            yield joined, None
-        elif left:
-            yield joined, left
-
-
-@login_required
-@manager_can_enter(EMPLOYEE_PERM)
-def employee_headcount_trend(request):
-    """Month-end active headcount and leavers for the last 12 months."""
-    this_month = timezone.now().date().replace(day=1)
-    people = list(_joining_and_leaving_dates())
-    # Active employees only, so each month's count matches the employee list
-    # the chart links to (date_joining in the month, is_active=True).
-    active_joining_dates = list(
-        _active_employees()
-        .filter(employee_work_info__date_joining__isnull=False)
-        .values_list("employee_work_info__date_joining", flat=True)
-    )
-    items = []
-    for n in range(TREND_MONTHS - 1, -1, -1):
-        start = _month_start(this_month, -n)
-        end = _month_start(start, 1)  # exclusive
-        items.append(
-            {
-                "label": start.strftime("%b %Y"),
-                "from_date": start.isoformat(),
-                "to_date": (end - timedelta(days=1)).isoformat(),
-                "active_joiners": sum(
-                    1 for d in active_joining_dates if start <= d < end
-                ),
-                "headcount": sum(
-                    1
-                    for joined, left in people
-                    if joined < end and (not left or left >= end)
-                ),
-                "joined": sum(1 for joined, _left in people if start <= joined < end),
-                "leavers": sum(
-                    1 for _joined, left in people if left and start <= left < end
-                ),
-                "total_leavers": sum(
-                    1 for _joined, left in people if left and left < end
-                ),
-            }
-        )
-    return JsonResponse({"items": items})
 
 
 @login_required
@@ -284,7 +205,7 @@ def employee_department_positions(request):
     """Active headcount per department, split by job position.
 
     The most populated job positions get their own series; the rest (and
-    employees without a position) are folded into "Other" so the stacked bars
+    employees without a position) are folded into "Not Assigned" so the stacked bars
     stay readable.
     """
     key_dept = "employee_work_info__department_id"
@@ -354,7 +275,7 @@ def employee_department_positions(request):
             dept["by_position"]["other"] = dept["by_position"].get("other", 0) + count
             dept["total"] += count
     if any("other" in d["by_position"] for d in departments.values()):
-        positions.append({"key": "other", "label": _("Other")})
+        positions.append({"key": "other", "label": _("Not Assigned")})
 
     return JsonResponse(
         {
@@ -431,20 +352,32 @@ def employee_new_joiners(request):
             }
         )
 
-    return JsonResponse({"employees": employees, "total": joined.count()})
+    return JsonResponse(
+        {
+            "employees": employees,
+            "total": joined.count(),
+            "from_date": from_date.isoformat(),
+            "to_date": to_date.isoformat(),
+            "from_label": from_date.strftime("%d %b %Y"),
+            "to_label": to_date.strftime("%d %b %Y"),
+        }
+    )
 
 
 @login_required
 @manager_can_enter(EMPLOYEE_PERM)
 def employee_expired_documents(request):
-    """Approved documents whose expiry date has passed, most recently expired first."""
+    """Approved documents expiring within the next 60 days, soonest first."""
     if not _can_view_documents(request):
         return JsonResponse({"documents": [], "total": 0})
     today = timezone.now().date()
     expired = Document.objects.filter(
-        status="approved", expiry_date__isnull=False, expiry_date__lt=today
+        status="approved",
+        employee_id__is_active=True,
+        expiry_date__gte=today,
+        expiry_date__lte=today + timedelta(days=EXPIRING_DOCUMENTS_DAYS),
     )
-    rows = expired.select_related("employee_id").order_by("-expiry_date", "-id")[
+    rows = expired.select_related("employee_id").order_by("expiry_date", "id")[
         :EXPIRED_DOCUMENTS_LIMIT
     ]
     documents = [
@@ -454,7 +387,15 @@ def employee_expired_documents(request):
             "employee": doc.employee_id.get_full_name(),
             "avatar": doc.employee_id.get_avatar(),
             "expiry_date": doc.expiry_date.strftime("%d %b %Y"),
+            "days_left": (doc.expiry_date - today).days,
         }
         for doc in rows
     ]
-    return JsonResponse({"documents": documents, "total": expired.count()})
+    return JsonResponse(
+        {
+            "documents": documents,
+            "total": expired.count(),
+            "from_date": today.isoformat(),
+            "to_date": (today + timedelta(days=EXPIRING_DOCUMENTS_DAYS)).isoformat(),
+        }
+    )

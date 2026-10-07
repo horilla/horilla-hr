@@ -410,6 +410,23 @@
             font-size: 11px;
             opacity: 0.5;
         }
+        .em-panel__subtitle {
+            font-size: 11px;
+            font-weight: 400;
+            opacity: 0.5;
+        }
+        .em-emp-item__expiry {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 2px;
+            flex-shrink: 0;
+        }
+        .em-emp-item__days {
+            font-size: 10px;
+            opacity: 0.6;
+            white-space: nowrap;
+        }
         .em-emp-item__badge {
             flex-shrink: 0;
             padding: 2px 6px;
@@ -487,57 +504,9 @@
             color: #bbf7d0;
         }
 
-        /* Period Picker */
         .em-header {
             flex-wrap: wrap;
             row-gap: 10px;
-        }
-        .em-period-picker {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 6px;
-            font-size: 12px;
-        }
-        .em-period-picker input[type='date'] {
-            padding: 5px 8px;
-            border: 1px solid rgba(128, 128, 128, 0.2);
-            border-radius: 6px;
-            outline: none;
-            background: transparent;
-            color: inherit;
-            font-size: 12px;
-            transition: border-color 0.15s;
-        }
-        .em-period-picker input[type='date']:focus {
-            border-color: var(--em-indigo);
-        }
-        .em-period-picker__sep {
-            font-size: 11px;
-            opacity: 0.4;
-        }
-        .em-period-preset {
-            padding: 4px 10px;
-            border: 1px solid rgba(128, 128, 128, 0.15);
-            border-radius: 6px;
-            background: none;
-            color: inherit;
-            font-size: 11px;
-            cursor: pointer;
-            transition: all 0.15s;
-        }
-        .em-period-preset:hover {
-            border-color: var(--em-indigo);
-            color: var(--em-indigo);
-        }
-        .em-period-preset--active,
-        .em-period-preset--active:hover {
-            border-color: var(--em-indigo);
-            background: var(--em-indigo);
-            color: #fff;
-        }
-        .dark .em-period-picker input[type='date'] {
-            color-scheme: dark;
         }
 
         /* Customize panel */
@@ -759,19 +728,10 @@
         <!-- Header -->
         <div class="em-header">
             <div>
-                <h1>{% trans "Dashboard" %}</h1>
+                <h1>{% trans "Employee Dashboard" %}</h1>
                 <div class="em-header__date" id="em-today-date"></div>
             </div>
             <div class="em-header__actions">
-                <div class="em-period-picker">
-                    <button type="button" class="em-period-preset" data-preset="today">{% trans "Today" %}</button>
-                    <button type="button" class="em-period-preset" data-preset="this_week">{% trans "This Week" %}</button>
-                    <button type="button" class="em-period-preset" data-preset="this_month">{% trans "This Month" %}</button>
-                    <button type="button" class="em-period-preset" data-preset="this_year">{% trans "This Year" %}</button>
-                    <input type="date" id="em-from-date" title="{% trans 'Custom range start' %}">
-                    <span class="em-period-picker__sep">→</span>
-                    <input type="date" id="em-to-date" title="{% trans 'Custom range end' %}">
-                </div>
                 <button
                     type="button"
                     class="oh-btn oh-btn--secondary"
@@ -800,7 +760,7 @@
         <!-- KPI Cards -->
         <div class="em-kpi-grid" id="em-kpi-grid">
             <a
-                href="{% url 'requests-view' %}?tab=document&status=requested&filter_applied=on"
+                href="{% url 'requests-view' %}?tab=document&status=requested&employee_id__is_active=true&filter_applied=on"
                 class="em-kpi-card"
                 id="kpi-card-documents"
                 data-cust-id="kpi-documents"
@@ -927,48 +887,33 @@
                     </div>
                     <div
                         class="em-chart-card"
-                        data-accent="green"
-                        data-cust-id="chart-headcount"
+                        data-accent="blue"
+                        data-cust-id="chart-managers"
                         data-cust-group="chart"
-                        data-cust-label="{% trans 'Headcount Growth' %}"
+                        data-cust-label="{% trans 'Employees Per Reporting Manager' %}"
                     >
                         <div class="em-chart-card__header">
                             <div>
-                                <div class="em-chart-card__title">{% trans "Headcount Growth" %}</div>
-                                <div class="em-chart-card__subtitle">{% trans "Active employees who joined each month, last 12 months" %}</div>
+                                <div class="em-chart-card__title">{% trans "Employees Per Reporting Manager" %}</div>
+                                <div class="em-chart-card__subtitle">{% trans "Active direct reports, top 10 managers" %}</div>
                             </div>
                         </div>
-                        <div class="em-chart-card__body"><div id="chart-em-headcount"></div></div>
-                    </div>
-                    <div
-                        class="em-chart-card"
-                        data-accent="amber"
-                        data-cust-id="chart-leavers"
-                        data-cust-group="chart"
-                        data-cust-label="{% trans 'Leavers Growth' %}"
-                    >
-                        <div class="em-chart-card__header">
-                            <div>
-                                <div class="em-chart-card__title">{% trans "Leavers Growth" %}</div>
-                                <div class="em-chart-card__subtitle">{% trans "Cumulative leavers, last 12 months" %}</div>
-                            </div>
-                        </div>
-                        <div class="em-chart-card__body"><div id="chart-em-leavers"></div></div>
+                        <div class="em-chart-card__body"><div id="chart-em-managers"></div></div>
                     </div>
                     <div
                         class="em-chart-card em-chart-card--wide"
                         data-accent="green"
-                        data-cust-id="chart-joiners-leavers"
+                        data-cust-id="chart-turnover"
                         data-cust-group="chart"
-                        data-cust-label="{% trans 'Joiners vs Leavers' %}"
+                        data-cust-label="{% trans 'Hire vs Turnover' %}"
                     >
                         <div class="em-chart-card__header">
                             <div>
-                                <div class="em-chart-card__title">{% trans "Joiners vs Leavers" %}</div>
-                                <div class="em-chart-card__subtitle">{% trans "Employees joined and left per month, last 12 months" %}</div>
+                                <div class="em-chart-card__title">{% trans "Hire vs Turnover" %}</div>
+                                <div class="em-chart-card__subtitle" id="em-turnover-rate">{% trans "New hires vs exits — last 6 months" %}</div>
                             </div>
                         </div>
-                        <div class="em-chart-card__body"><div id="chart-em-joiners-leavers"></div></div>
+                        <div class="em-chart-card__body"><div id="chart-em-turnover"></div></div>
                     </div>
                     <div
                         class="em-chart-card em-chart-card--wide"
@@ -985,21 +930,6 @@
                         </div>
                         <div class="em-chart-card__body"><div id="chart-em-dept-positions"></div></div>
                     </div>
-                    <div
-                        class="em-chart-card em-chart-card--wide"
-                        data-accent="blue"
-                        data-cust-id="chart-managers"
-                        data-cust-group="chart"
-                        data-cust-label="{% trans 'Employees per Reporting Manager' %}"
-                    >
-                        <div class="em-chart-card__header">
-                            <div>
-                                <div class="em-chart-card__title">{% trans "Employees per Reporting Manager" %}</div>
-                                <div class="em-chart-card__subtitle">{% trans "Active direct reports, top 10 managers" %}</div>
-                            </div>
-                        </div>
-                        <div class="em-chart-card__body"><div id="chart-em-managers"></div></div>
-                    </div>
                 </div>
             </div>
 
@@ -1012,8 +942,11 @@
                     data-cust-label="{% trans 'New Employees' %}"
                 >
                     <div class="em-panel__header">
-                        <span class="em-panel__title">{% trans "New Employees" %}<span id="em-new-count" class="em-count-badge" hidden title="{% trans 'In this period' %}">0</span></span>
-                        <a href="{% url 'employee-view' %}?is_active=True&filter_applied=on" class="em-panel__link">{% trans "View all" %}</a>
+                        <div>
+                            <span class="em-panel__title">{% trans "New Employees" %}<span id="em-new-count" class="em-count-badge" hidden title="{% trans 'In this period' %}">0</span></span>
+                            <div class="em-panel__subtitle" id="em-new-range"></div>
+                        </div>
+                        <a href="{% url 'employee-view' %}?is_active=True&filter_applied=on" id="em-new-view-all" class="em-panel__link">{% trans "View all" %}</a>
                     </div>
                     <div class="em-panel__body" id="em-new-list">
                         <div class="em-panel__empty">{% trans "Loading..." %}</div>
@@ -1023,11 +956,14 @@
                     class="em-panel"
                     data-cust-id="panel-expired-documents"
                     data-cust-group="panel"
-                    data-cust-label="{% trans 'Expired Documents' %}"
+                    data-cust-label="{% trans 'Documents to Expire' %}"
                 >
                     <div class="em-panel__header">
-                        <span class="em-panel__title">{% trans "Expired Documents" %}<span id="em-expired-count" class="em-count-badge" hidden>0</span></span>
-                        <a href="{% url 'requests-view' %}?tab=document&filter_applied=on" class="em-panel__link">{% trans "View all" %}</a>
+                        <div>
+                            <span class="em-panel__title">{% trans "Documents to Expire" %}<span id="em-expired-count" class="em-count-badge" hidden>0</span></span>
+                            <div class="em-panel__subtitle">{% trans "Documents expire in 60 days" %}</div>
+                        </div>
+                        <a href="{% url 'requests-view' %}?tab=document&filter_applied=on" id="em-expired-view-all" class="em-panel__link">{% trans "View all" %}</a>
                     </div>
                     <div class="em-panel__body" id="em-expired-list">
                         <div class="em-panel__empty">{% trans "Loading..." %}</div>
@@ -1068,66 +1004,10 @@
 
             document.getElementById('em-today-date').textContent = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-            // ── Period picker (presets + custom range; drives KPI cards and New Employees) ──
-            const PERIOD_KEY = 'em_period_v1';
-            const fromInput = document.getElementById('em-from-date');
-            const toInput = document.getElementById('em-to-date');
-            const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-            const presetRange = (preset) => {
-                const t = new Date();
-                if (preset === 'today') return [t, t];
-                if (preset === 'this_week') {
-                    const from = new Date(t.getFullYear(), t.getMonth(), t.getDate() - ((t.getDay() + 6) % 7));
-                    return [from, new Date(from.getFullYear(), from.getMonth(), from.getDate() + 6)];
-                }
-                if (preset === 'this_year') return [new Date(t.getFullYear(), 0, 1), new Date(t.getFullYear(), 11, 31)];
-                return [new Date(t.getFullYear(), t.getMonth(), 1), new Date(t.getFullYear(), t.getMonth() + 1, 0)];
-            };
-            const savePeriod = () => { try { sessionStorage.setItem(PERIOD_KEY, JSON.stringify({ from: fromInput.value, to: toInput.value })); } catch (e) {} };
-            const periodParams = () => (fromInput.value && toInput.value) ? `from_date=${encodeURIComponent(fromInput.value)}&to_date=${encodeURIComponent(toInput.value)}` : '';
-            const withPeriod = (url) => { const q = periodParams(); return q ? url + (url.includes('?') ? '&' : '?') + q : url; };
-            const detectPreset = () => ['today', 'this_week', 'this_month', 'this_year'].find(k => {
-                const [f, t] = presetRange(k);
-                return fromInput.value === ymd(f) && toInput.value === ymd(t);
-            }) || '';
-            const highlightPreset = (active) => document.querySelectorAll('.em-period-preset').forEach(b => b.classList.toggle('em-period-preset--active', b.dataset.preset === active));
-            // Refresh the period-driven widgets in place; the URL is updated so it survives refresh and is shareable
-            const reloadWithPeriod = () => {
-                savePeriod();
-                history.replaceState(null, '', location.pathname + '?' + periodParams());
-                highlightPreset(detectPreset());
-                loadKpis();
-                loadNewEmployees();
-            };
-
-            (function initPeriod() {
-                const q = new URLSearchParams(location.search);
-                let saved = null;
-                try { saved = JSON.parse(sessionStorage.getItem(PERIOD_KEY)); } catch (e) {}
-                if (q.get('from_date') && q.get('to_date')) {
-                    fromInput.value = q.get('from_date'); toInput.value = q.get('to_date'); savePeriod();
-                } else if (saved && saved.from && saved.to) {
-                    fromInput.value = saved.from; toInput.value = saved.to;
-                } else {
-                    const [f, t] = presetRange('this_month');
-                    fromInput.value = ymd(f); toInput.value = ymd(t);
-                }
-                highlightPreset(detectPreset());
-            })();
-
-            document.querySelectorAll('.em-period-preset').forEach(btn => btn.addEventListener('click', () => {
-                const [f, t] = presetRange(btn.dataset.preset);
-                fromInput.value = ymd(f); toInput.value = ymd(t);
-                reloadWithPeriod();
-            }));
-            [fromInput, toInput].forEach(input => input.addEventListener('change', () => { if (fromInput.value && toInput.value) reloadWithPeriod(); }));
-
             // ── Chart customize (show/hide + reorder, per group; stored per browser) ──
             const CUST_KEY = 'em_dashboard_prefs';
             const GROUPS = {
-                kpi: { title: "{% trans 'KPI Cards'|escapejs %}", container: '#em-kpi-grid' },
                 chart: { title: "{% trans 'Charts'|escapejs %}", container: '#em-chart-grid' },
-                panel: { title: "{% trans 'Side Panels'|escapejs %}", container: '#em-sidebar' },
             };
             const loadPrefs = () => { try { const r = localStorage.getItem(CUST_KEY); return r ? JSON.parse(r) : null; } catch (e) { return null; } };
             const savePrefs = (p) => { try { localStorage.setItem(CUST_KEY, JSON.stringify(p)); } catch (e) {} };
@@ -1155,7 +1035,7 @@
                 const prefs = loadPrefs() || [];
                 let html = '';
                 Object.keys(GROUPS).forEach(group => {
-                    const els = Array.from(document.querySelectorAll(`[data-cust-group="${group}"]`)).filter(customizable);
+                    const els = Array.from(document.querySelector(GROUPS[group].container).querySelectorAll(`[data-cust-group="${group}"]`)).filter(customizable);
                     if (!els.length) return;
                     html += `<div class="em-cust-group">${GROUPS[group].title}</div>`;
                     els.forEach(el => {
@@ -1211,7 +1091,7 @@
 
             // ── KPI cards ──
             function loadKpis() {
-                fetchJson(withPeriod("{% url 'employee-dashboard-kpi' %}")).then(data => {
+                fetchJson("{% url 'employee-dashboard-kpi' %}").then(data => {
                     const map = {
                         'documents': data.document_requests,
                         'work-type': data.work_type_requests,
@@ -1268,91 +1148,111 @@
             const LEGEND_STYLE = { position: 'bottom', labels: { colors: textColor }, fontSize: '11px', fontWeight: 500, markers: { width: 8, height: 8, radius: 3 }, itemMargin: { horizontal: 8 } };
             const baseChart = (extra) => ({ height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', ...extra });
 
-            function trendChart(key, selector, emptyMsg, buildOptions) {
-                const el = document.querySelector(selector);
-                fetchJson("{% url 'employee-dashboard-headcount-trend' %}").then(data => {
-                    const items = data.items || [];
-                    if (!items.some(i => i.headcount || i.total_leavers || i.joined || i.active_joiners)) { el.innerHTML = emptyHtml(emptyMsg); return; }
-                    renderChart(key, el, buildOptions(items));
-                }).catch(() => { el.innerHTML = emptyHtml("{% trans 'No data'|escapejs %}"); });
-            }
-
-            function loadHeadcountGrowth() {
-                trendChart('headcount', '#chart-em-headcount', "{% trans 'No headcount data'|escapejs %}", items => ({
-                    series: [{ name: "{% trans 'Joiners'|escapejs %}", data: items.map(i => i.active_joiners) }],
-                    chart: baseChart({ type: 'area', events: { markerClick: (e, ctx, { dataPointIndex }) => {
-                        const item = items[dataPointIndex];
-                        if (item) window.location.href = `${employeeListUrl}?is_active=True&filter_applied=on`
-                            + `&custom_field=date_joining&custom_lookup=gte&custom_value=${item.from_date}`
-                            + `&custom_field=date_joining&custom_lookup=lte&custom_value=${item.to_date}`;
-                    }}}),
-                    colors: ['#22c55e'],
-                    stroke: { curve: 'smooth', width: 3 },
-                    fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.35, opacityTo: 0.02, stops: [0, 95, 100] } },
-                    markers: { size: 4, strokeWidth: 2, strokeColors: cardBg },
-                    xaxis: { ...XAXIS_STYLE, categories: items.map(i => i.label) },
-                    yaxis: YAXIS_STYLE, grid: GRID, dataLabels: { enabled: false },
-                    tooltip: { ...TOOLTIP_STYLE, y: { formatter: v => v } },
-                }));
-            }
-
-            function loadLeaversGrowth() {
-                trendChart('leavers', '#chart-em-leavers', "{% trans 'No leavers data'|escapejs %}", items => ({
-                    series: [{ name: "{% trans 'Total leavers'|escapejs %}", data: items.map(i => i.total_leavers) }],
-                    chart: baseChart({ type: 'line' }),
-                    colors: ['#ef4444'],
-                    stroke: { curve: 'smooth', width: 3 },
-                    markers: { size: 4, strokeWidth: 2, strokeColors: cardBg },
-                    xaxis: { ...XAXIS_STYLE, categories: items.map(i => i.label) },
-                    yaxis: YAXIS_STYLE, grid: GRID, dataLabels: { enabled: false },
-                    tooltip: { ...TOOLTIP_STYLE, y: { formatter: (v, { dataPointIndex }) => `${v} (+${items[dataPointIndex].leavers} {% trans 'this month'|escapejs %})` } },
-                }));
-            }
-
-            function loadJoinersLeavers() {
-                trendChart('joiners-leavers', '#chart-em-joiners-leavers', "{% trans 'No joiners or leavers data'|escapejs %}", items => ({
-                    series: [
-                        { name: "{% trans 'Joiners'|escapejs %}", data: items.map(i => i.joined) },
-                        { name: "{% trans 'Leavers'|escapejs %}", data: items.map(i => i.leavers) },
-                    ],
-                    chart: baseChart({ type: 'bar' }),
-                    colors: ['#22c55e', '#ef4444'],
-                    plotOptions: { bar: { borderRadius: 6, borderRadiusApplication: 'end', columnWidth: '55%' } },
-                    stroke: { width: 2, colors: [cardBg] },
-                    xaxis: { ...XAXIS_STYLE, categories: items.map(i => i.label) },
-                    yaxis: YAXIS_STYLE, grid: GRID, dataLabels: { enabled: false },
-                    legend: { ...LEGEND_STYLE, show: true, position: 'top', horizontalAlign: 'right' },
-                    tooltip: { ...TOOLTIP_STYLE, shared: true, intersect: false },
-                    states: { hover: { filter: { type: 'darken', value: 0.9 } } },
-                }));
-            }
-
-            function loadDeptPositions() {
-                const el = document.querySelector('#chart-em-dept-positions');
-                fetchJson("{% url 'employee-dashboard-dept-positions' %}").then(data => {
-                    const depts = data.departments || [], positions = data.positions || [];
-                    if (!depts.length) { el.innerHTML = emptyHtml("{% trans 'No department data'|escapejs %}"); return; }
-                    renderChart('dept-positions', el, {
-                        series: positions.map(p => ({ name: p.label, data: depts.map(d => d.by_position[p.key] || 0) })),
-                        chart: baseChart({ type: 'bar', stacked: true, height: 340,
-                            events: { dataPointSelection: (e, ctx, cfg) => {
-                                const d = depts[cfg.dataPointIndex], p = positions[cfg.seriesIndex];
-                                if (!d || !d.id) return;
-                                let url = employeeUrlFor('employee_work_info__department_id', d.id);
-                                if (p && p.key !== 'other') url += `&employee_work_info__job_position_id=${encodeURIComponent(p.key)}`;
-                                window.location.href = url;
-                            }}
-                        }),
-                        colors: positions.map((p, n) => PieLegend.color(n, COLORS)),
-                        plotOptions: { bar: { borderRadius: 6, borderRadiusApplication: 'end', borderRadiusWhenStacked: 'last', columnWidth: '42%' } },
-                        stroke: { width: 2, colors: [cardBg] },
-                        xaxis: { ...XAXIS_STYLE, categories: depts.map(d => d.label) },
-                        yaxis: YAXIS_STYLE, grid: GRID, dataLabels: { enabled: false },
-                        legend: { ...LEGEND_STYLE, show: true },
+            // Same shared metric as the main dashboard's own "Hire vs Turnover"
+            // card (base/dashboard.py's dashboard_turnover) -- last 6 months
+            // ending at the selected period, new hires vs exits.
+            function loadEmployeeTurnover() {
+                const el = document.querySelector('#chart-em-turnover');
+                fetchJson("{% url 'dashboard-turnover' %}").then(data => {
+                    const months = data.months || [];
+                    if (!months.length) { el.innerHTML = emptyHtml("{% trans 'No turnover data'|escapejs %}"); return; }
+                    document.getElementById('em-turnover-rate').textContent =
+                        `{% trans "6-month turnover rate"|escapejs %}: ${data.turnover_rate_6m}%`;
+                    renderChart('turnover', el, {
+                        series: [
+                            { name: "{% trans 'New Hires'|escapejs %}", data: months.map(m => m.hires) },
+                            { name: "{% trans 'Exits'|escapejs %}", data: months.map(m => m.exits) },
+                        ],
+                        chart: baseChart({ type: 'bar', height: 290, events: { dataPointSelection: (e, ctx, cfg) => {
+                            const m = months[cfg.dataPointIndex];
+                            if (!m || !m.from) return;
+                            // Only the hires column opens a list; exits don't redirect.
+                            if (cfg.seriesIndex !== 0) return;
+                            const range = `joined_from=${m.from}&joined_till=${m.to}`;
+                            window.location.href = `${employeeListUrl}?is_active=all&${range}&filter_applied=on`;
+                        }}}),
+                        colors: ['#22c55e', '#ef4444'],
+                        fill: { type: 'gradient', gradient: { type: 'vertical', shadeIntensity: 0.3, opacityFrom: 1, opacityTo: 0.8 } },
+                        plotOptions: { bar: { borderRadius: 6, borderRadiusApplication: 'end', columnWidth: '52%', grouped: true } },
+                        xaxis: { ...XAXIS_STYLE, categories: months.map(m => m.month) },
+                        // Whole people only: one tick per integer while the counts are small.
+                        yaxis: (() => {
+                            const peak = Math.max(1, ...months.map(m => Math.max(m.hires, m.exits)));
+                            return { ...YAXIS_STYLE, min: 0, ...(peak <= 5 ? { max: peak, tickAmount: peak } : { forceNiceScale: true }),
+                                labels: { ...YAXIS_STYLE.labels, formatter: v => Math.round(v) } };
+                        })(),
+                        grid: GRID,
+                        dataLabels: { enabled: true, style: { fontSize: '11px', fontWeight: 700, colors: ['#fff'] }, background: { enabled: false } },
+                        legend: { ...LEGEND_STYLE, show: true, position: 'top', horizontalAlign: 'right' },
                         tooltip: { ...TOOLTIP_STYLE, shared: true, intersect: false },
-                        states: { hover: { filter: { type: 'darken', value: 0.9 } } },
+                        states: { hover: { filter: { type: 'darken', value: 0.85 } } },
                     });
-                }).catch(() => { el.innerHTML = emptyHtml("{% trans 'No data'|escapejs %}"); });
+                }).catch(() => { el.innerHTML = emptyHtml("{% trans 'No turnover data'|escapejs %}"); });
+            }
+
+            // Job positions are series here (one stacked segment per position
+            // across every department bar), not one value per legend item, so
+            // the legend can't just call chart.updateSeries() the way the
+            // donut charts' PieLegend.options() usage does above -- toggling a
+            // chip instead re-runs this whole function (onChange) against the
+            // cached payload, dropping that position's series from the chart.
+            let deptPositionsRaw = null;
+            const deptPositionsLegend = PieLegend.forChart(
+                document.querySelector('#chart-em-dept-positions'),
+                () => chartInstances['dept-positions'],
+                "{% trans 'job positions'|escapejs %}",
+                { topN: 20, onChange: () => loadDeptPositions(deptPositionsRaw) },
+            );
+            function loadDeptPositions(cached) {
+                const el = document.querySelector('#chart-em-dept-positions');
+                (cached ? Promise.resolve(cached) : fetchJson("{% url 'employee-dashboard-dept-positions' %}"))
+                    .then(data => {
+                        deptPositionsRaw = data;
+                        const depts = data.departments || [], positions = data.positions || [];
+                        if (!depts.length) { el.innerHTML = emptyHtml("{% trans 'No department data'|escapejs %}"); deptPositionsLegend.clear(); return; }
+                        const colors = positions.map((p, n) => PieLegend.color(n, COLORS));
+                        if (!cached) {
+                            deptPositionsLegend.set(positions.map((p, n) => ({
+                                name: p.label, color: colors[n],
+                                value: depts.reduce((sum, d) => sum + (d.by_position[p.key] || 0), 0),
+                            })));
+                        }
+                        const picked = new Set(deptPositionsLegend.selectedNames());
+                        const visible = positions.filter(p => picked.has(p.label));
+                        renderChart('dept-positions', el, {
+                            series: visible.map(p => ({ name: p.label, data: depts.map(d => d.by_position[p.key] || 0) })),
+                            chart: baseChart({ type: 'bar', stacked: true, height: 340,
+                                events: { dataPointSelection: (e, ctx, cfg) => {
+                                    const d = depts[cfg.dataPointIndex], p = visible[cfg.seriesIndex];
+                                    if (!d || !d.id) return;
+                                    let url = employeeUrlFor('employee_work_info__department_id', d.id);
+                                    if (p && p.key !== 'other') url += `&employee_work_info__job_position_id=${encodeURIComponent(p.key)}`;
+                                    window.location.href = url;
+                                }}
+                            }),
+                            colors: visible.map(p => colors[positions.indexOf(p)]),
+                            plotOptions: { bar: { borderRadius: 6, borderRadiusApplication: 'end', borderRadiusWhenStacked: 'last', columnWidth: '42%' } },
+                            stroke: { width: 2, colors: [cardBg] },
+                            xaxis: { ...XAXIS_STYLE, categories: depts.map(d => d.label) },
+                            yaxis: YAXIS_STYLE, grid: GRID, dataLabels: { enabled: false },
+                            legend: { show: false },
+                            // Only the hovered department's own positions (non-zero headcount)
+                            tooltip: { ...TOOLTIP_STYLE, shared: true, intersect: false,
+                                custom: ({ series, dataPointIndex, w }) => {
+                                    const rows = w.globals.seriesNames
+                                        .map((name, i) => ({ name, count: series[i][dataPointIndex], color: w.globals.colors[i] }))
+                                        .filter(r => r.count > 0)
+                                        .map(r => `<div class="apexcharts-tooltip-series-group apexcharts-active" style="display:flex;order:1;">
+                                            <span class="apexcharts-tooltip-marker" style="background-color:${r.color};"></span>
+                                            <div class="apexcharts-tooltip-text"><div class="apexcharts-tooltip-y-group">
+                                                <span class="apexcharts-tooltip-text-y-label">${esc(r.name)}: </span>
+                                                <span class="apexcharts-tooltip-text-y-value">${r.count}</span>
+                                            </div></div></div>`).join('');
+                                    return `<div class="apexcharts-tooltip-title">${esc(w.globals.labels[dataPointIndex])}</div>${rows}`;
+                                } },
+                            states: { hover: { filter: { type: 'darken', value: 0.9 } } },
+                        });
+                    }).catch(() => { el.innerHTML = emptyHtml("{% trans 'No data'|escapejs %}"); deptPositionsLegend.clear(); });
             }
 
             function loadManagers() {
@@ -1362,7 +1262,7 @@
                     if (!items.length) { el.innerHTML = emptyHtml("{% trans 'No reporting manager data'|escapejs %}"); return; }
                     renderChart('managers', el, {
                         series: [{ name: "{% trans 'Employees'|escapejs %}", data: items.map(i => i.count) }],
-                        chart: baseChart({ type: 'bar', height: Math.max(220, items.length * 36 + 40),
+                        chart: baseChart({ type: 'bar', height: 300,
                             events: { dataPointSelection: (e, ctx, cfg) => {
                                 const item = items[cfg.dataPointIndex];
                                 if (item) window.location.href = employeeUrlFor('employee_work_info__reporting_manager_id', item.id);
@@ -1384,7 +1284,9 @@
                 const container = document.getElementById('em-new-list');
                 const badge = document.getElementById('em-new-count');
                 const setCount = (n) => { badge.textContent = n; badge.hidden = !n; };
-                fetchJson(withPeriod("{% url 'employee-dashboard-new-joiners' %}")).then(data => {
+                fetchJson("{% url 'employee-dashboard-new-joiners' %}").then(data => {
+                    document.getElementById('em-new-range').textContent = `${data.from_label} – ${data.to_label}`;
+                    document.getElementById('em-new-view-all').href = `${employeeListUrl}?is_active=True&joined_from=${data.from_date}&joined_till=${data.to_date}&filter_applied=on`;
                     setCount(data.employees.length);
                     if (!data.employees.length) { container.innerHTML = `<div class="em-panel__empty">{% trans "No new employees in this period"|escapejs %}</div>`; return; }
                     container.innerHTML = data.employees.map(emp => {
@@ -1409,8 +1311,9 @@
                 const badge = document.getElementById('em-expired-count');
                 const setCount = (n) => { badge.textContent = n; badge.hidden = !n; };
                 fetchJson("{% url 'employee-dashboard-expired-documents' %}").then(data => {
+                    document.getElementById('em-expired-view-all').href = `{% url 'requests-view' %}?tab=document&status=approved&expiry_from=${data.from_date}&expiry_till=${data.to_date}&employee_id__is_active=True&filter_applied=on`;
                     setCount(data.total);
-                    if (!data.documents.length) { container.innerHTML = `<div class="em-panel__empty">{% trans "No expired documents"|escapejs %}</div>`; return; }
+                    if (!data.documents.length) { container.innerHTML = `<div class="em-panel__empty">{% trans "No documents expiring soon"|escapejs %}</div>`; return; }
                     container.innerHTML = data.documents.map(doc => {
                         const initials = doc.employee.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
                         const avatar = doc.avatar ? `<img src="${esc(doc.avatar)}" alt="${esc(doc.employee)}">` : esc(initials);
@@ -1420,7 +1323,10 @@
                                 <div class="em-emp-item__name">${esc(doc.title)}</div>
                                 <div class="em-emp-item__detail">${esc(doc.employee)}</div>
                             </div>
-                            <span class="em-emp-item__date">${esc(doc.expiry_date)}</span>
+                            <div class="em-emp-item__expiry">
+                                <span class="em-emp-item__date">${esc(doc.expiry_date)}</span>
+                                <span class="em-emp-item__days">${doc.days_left === 0 ? "{% trans 'Expires today'|escapejs %}" : doc.days_left === 1 ? "{% trans '1 day left'|escapejs %}" : doc.days_left + " {% trans 'days left'|escapejs %}"}</span>
+                            </div>
                         </div>`;
                     }).join('');
                 }).catch(() => { setCount(0); container.innerHTML = `<div class="em-panel__empty">{% trans "No data"|escapejs %}</div>`; });
@@ -1430,9 +1336,7 @@
             donutChart('work-type', '#chart-em-work-type', "{% url 'employee-dashboard-work-type' %}", 'employee_work_info__work_type_id', "{% trans 'No work type data'|escapejs %}", "{% trans 'work types'|escapejs %}");
             donutChart('shift', '#chart-em-shift', "{% url 'employee-dashboard-shift' %}", 'employee_work_info__shift_id', "{% trans 'No shift data'|escapejs %}", "{% trans 'shifts'|escapejs %}");
             donutChart('dept', '#chart-em-dept', "{% url 'employee-dashboard-dept' %}", 'employee_work_info__department_id', "{% trans 'No department data'|escapejs %}", "{% trans 'departments'|escapejs %}");
-            loadHeadcountGrowth();
-            loadLeaversGrowth();
-            loadJoinersLeavers();
+            loadEmployeeTurnover();
             loadDeptPositions();
             loadManagers();
             loadNewEmployees();

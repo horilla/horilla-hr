@@ -149,13 +149,18 @@ Usage:
         };
 
         function create(opts) {
-            var el = opts.el, getChart = opts.getChart, noun = opts.noun || 'more', topN = opts.topN || 5;
+            var el = opts.el, getChart = opts.getChart, noun = opts.noun || 'more', topN = opts.topN || 5, onChange = opts.onChange;
             var items = [], selected = null, visible = 0;
             var dot = function (c) { return '<span class="pl-chip__dot" style="background:' + c + '"></span>'; };
             var series = function () {
                 return items.map(function (it) { return selected.has(it.name) ? it.value : 0; });
             };
             function syncChart() {
+                // onChange (a multi-series chart, e.g. one stacked bar segment
+                // per legend item rather than one pie slice per item) rebuilds
+                // the whole chart itself from selectedNames() -- series()'s
+                // one-value-per-item shape doesn't fit that case.
+                if (onChange) { onChange(); return; }
                 var chart = getChart && getChart();
                 if (chart) chart.updateSeries(series());
             }
@@ -237,17 +242,22 @@ Usage:
                     render();
                 },
                 series: series,
+                selectedNames: function () { return items.filter(function (it) { return selected.has(it.name); }).map(function (it) { return it.name; }); },
                 clear: function () { items = []; el.innerHTML = ''; },
             };
         }
 
         // Legend container placed right under the chart element, created once.
-        function forChart(chartEl, getChart, noun, topN) {
+        // `topNOrOpts` is either the legacy plain topN number, or an options
+        // object ({ topN, onChange }) for a multi-series chart that needs to
+        // rebuild itself on every toggle instead of a plain updateSeries().
+        function forChart(chartEl, getChart, noun, topNOrOpts) {
             if (chartEl._pieLegend) return chartEl._pieLegend;
+            var opts = (topNOrOpts && typeof topNOrOpts === 'object') ? topNOrOpts : { topN: topNOrOpts };
             var box = document.createElement('div');
             box.className = 'pl-legend';
             chartEl.insertAdjacentElement('afterend', box);
-            chartEl._pieLegend = create({ el: box, getChart: getChart, noun: noun, topN: topN });
+            chartEl._pieLegend = create({ el: box, getChart: getChart, noun: noun, topN: opts.topN, onChange: opts.onChange });
             return chartEl._pieLegend;
         }
 
@@ -264,7 +274,7 @@ Usage:
         // legend-driven series and Apex's own legend switched off.
         //   renderChart(key, el, PieLegend.options(el, () => chartInstances[key], 'noun', { ...apexOptions }))
         // `initiallyOff` (optional): labels that start unticked.
-        var DEFAULT_COLORS = ['#E54F38', '#22c55e', '#f59e0b', '#3b82f6', '#a855f7', '#06b6d4', '#ec4899', '#ef4444', '#84cc16', '#0ea5e9'];
+        var DEFAULT_COLORS = ['#E54F38', '#22c55e', '#f59e0b', '#3b82f6', '#a855f7', '#06b6d4', '#ec4899', '#84cc16', '#64748b', '#8b5e3c'];
         function options(chartEl, getChart, noun, opts) {
             var legend = forChart(chartEl, getChart, noun);
             var labels = opts.labels || [];
