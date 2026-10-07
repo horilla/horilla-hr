@@ -609,7 +609,14 @@ class PayslipPDFAPIView(APIView):
                 pdf_options = {
                     "enable-local-file-access": None,  # if your template references local CSS
                 }
-                pdf_bytes = pdfkit.from_string(html, False, options=pdf_options)
+                from base.methods import pdfkit_configuration
+
+                pdf_bytes = pdfkit.from_string(
+                    html,
+                    False,
+                    options=pdf_options,
+                    configuration=pdfkit_configuration(),
+                )
                 response = HttpResponse(pdf_bytes, content_type="application/pdf")
                 response["Content-Disposition"] = f'inline; filename="payslip-{id}.pdf"'
                 return response
