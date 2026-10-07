@@ -280,7 +280,7 @@ class ViewTests(Fixture):
         response = self.client.post(
             self.url(), {"amount:basic": "1000.00"}, HTTP_HX_REQUEST="true"
         )
-        self.assertContains(response, "Net pay")
+        self.assertContains(response, "Gross pay")
 
     def test_a_garbage_amount_is_ignored_not_a_500(self):
         response = self.client.post(self.url(), {"amount:basic": "not-a-number"})

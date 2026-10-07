@@ -464,6 +464,16 @@ def formula_context(payslip):
     }
     context.setdefault("BASIC", float(payslip.basic_pay or 0))
     context.setdefault("GROSS", float(payslip.gross_pay or 0))
+    # Older payslips did not store these; they are worked out from the dates.
+    if "YEARS_OF_SERVICE" not in context or "YEARS_OF_CONTRACT" not in context:
+        from payroll.methods.component_engine import add_service_years
+
+        contract = payslip.employee_id.contract_set.filter(
+            contract_status="active"
+        ).first()
+        fresh = add_service_years({}, payslip.employee_id, contract, payslip.end_date)
+        for key, value in fresh.items():
+            context.setdefault(key, value)
     return context
 
 

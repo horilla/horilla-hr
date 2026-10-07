@@ -10,7 +10,9 @@
       "GROSS": 22000.0,
       "LOP": 0.0,
       "PAID_DAYS": 22.0,
-      "UNPAID_DAYS": 0.0
+      "UNPAID_DAYS": 0.0,
+      "YEARS_OF_CONTRACT": 0.08,
+      "YEARS_OF_SERVICE": 0.0
     },
     "contract_wage": 30000.0,
     "custom_leave_breakdown": [],
@@ -65,7 +67,9 @@
       "GROSS": 24800.0,
       "LOP": 0.0,
       "PAID_DAYS": 31,
-      "UNPAID_DAYS": 0.0
+      "UNPAID_DAYS": 0.0,
+      "YEARS_OF_CONTRACT": 0.08,
+      "YEARS_OF_SERVICE": 0.0
     },
     "contract_wage": 800.0,
     "custom_leave_breakdown": [],
@@ -128,7 +132,9 @@
       "GROSS": 24000.0,
       "LOP": 0.0,
       "PAID_DAYS": 22.0,
-      "UNPAID_DAYS": 0.0
+      "UNPAID_DAYS": 0.0,
+      "YEARS_OF_CONTRACT": 0.08,
+      "YEARS_OF_SERVICE": 0.0
     },
     "contract_wage": 30000.0,
     "custom_leave_breakdown": [],
@@ -198,7 +204,9 @@
       "PAID_DAYS": 22.0,
       "TAXABLE_FIXED": 2000.0,
       "UNPAID_DAYS": 0.0,
-      "UNTAXED_FIXED": 750.0
+      "UNTAXED_FIXED": 750.0,
+      "YEARS_OF_CONTRACT": 0.08,
+      "YEARS_OF_SERVICE": 0.0
     },
     "contract_wage": 30000.0,
     "custom_leave_breakdown": [],
@@ -261,7 +269,9 @@
       "GROSS": 24000.0,
       "LOP": 0.0,
       "PAID_DAYS": 22.0,
-      "UNPAID_DAYS": 0.0
+      "UNPAID_DAYS": 0.0,
+      "YEARS_OF_CONTRACT": 0.08,
+      "YEARS_OF_SERVICE": 0.0
     },
     "contract_wage": 30000.0,
     "custom_leave_breakdown": [],
@@ -316,7 +326,9 @@
       "GROSS": 22000.0,
       "LOP": 0.0,
       "PAID_DAYS": 22.0,
-      "UNPAID_DAYS": 0.0
+      "UNPAID_DAYS": 0.0,
+      "YEARS_OF_CONTRACT": 0.08,
+      "YEARS_OF_SERVICE": 0.0
     },
     "contract_wage": 30000.0,
     "custom_leave_breakdown": [],
@@ -386,7 +398,9 @@
       "PAID_DAYS": 22.0,
       "TAXABLE_PART": 3000.0,
       "UNPAID_DAYS": 0.0,
-      "UNTAXED_PART": 3000.0
+      "UNTAXED_PART": 3000.0,
+      "YEARS_OF_CONTRACT": 0.08,
+      "YEARS_OF_SERVICE": 0.0
     },
     "contract_wage": 30000.0,
     "custom_leave_breakdown": [],
@@ -449,7 +463,9 @@
       "GROSS": 27000.0,
       "LOP": 0.0,
       "PAID_DAYS": 22.0,
-      "UNPAID_DAYS": 0.0
+      "UNPAID_DAYS": 0.0,
+      "YEARS_OF_CONTRACT": 0.08,
+      "YEARS_OF_SERVICE": 0.0
     },
     "contract_wage": 30000.0,
     "custom_leave_breakdown": [],
@@ -504,7 +520,9 @@
       "GROSS": 22000.0,
       "LOP": 0.0,
       "PAID_DAYS": 22.0,
-      "UNPAID_DAYS": 0.0
+      "UNPAID_DAYS": 0.0,
+      "YEARS_OF_CONTRACT": 0.08,
+      "YEARS_OF_SERVICE": 0.0
     },
     "contract_wage": 30000.0,
     "custom_leave_breakdown": [],
@@ -567,7 +585,9 @@
       "HRA": 11000.0,
       "LOP": 0.0,
       "PAID_DAYS": 22.0,
-      "UNPAID_DAYS": 0.0
+      "UNPAID_DAYS": 0.0,
+      "YEARS_OF_CONTRACT": 0.08,
+      "YEARS_OF_SERVICE": 0.0
     },
     "contract_wage": 30000.0,
     "custom_leave_breakdown": [],
@@ -630,7 +650,9 @@
       "GROSS": 27000.0,
       "LOP": 0.0,
       "PAID_DAYS": 22.0,
-      "UNPAID_DAYS": 0.0
+      "UNPAID_DAYS": 0.0,
+      "YEARS_OF_CONTRACT": 0.08,
+      "YEARS_OF_SERVICE": 0.0
     },
     "contract_wage": 30000.0,
     "custom_leave_breakdown": [],
@@ -686,7 +708,9 @@
       "GROSS": 22000.0,
       "LOP": 0.0,
       "PAID_DAYS": 22.0,
-      "UNPAID_DAYS": 0.0
+      "UNPAID_DAYS": 0.0,
+      "YEARS_OF_CONTRACT": 0.08,
+      "YEARS_OF_SERVICE": 0.0
     },
     "contract_wage": 30000.0,
     "custom_leave_breakdown": [],
@@ -751,7 +775,9 @@
       "GROSS": 22000.0,
       "LOP": 0.0,
       "PAID_DAYS": 22.0,
-      "UNPAID_DAYS": 0.0
+      "UNPAID_DAYS": 0.0,
+      "YEARS_OF_CONTRACT": 0.08,
+      "YEARS_OF_SERVICE": 0.0
     },
     "contract_wage": 30000.0,
     "custom_leave_breakdown": [],
@@ -837,7 +863,9 @@
       "GROSS": 24000.0,
       "LOP": 0.0,
       "PAID_DAYS": 22.0,
-      "UNPAID_DAYS": 0.0
+      "UNPAID_DAYS": 0.0,
+      "YEARS_OF_CONTRACT": 0.08,
+      "YEARS_OF_SERVICE": 0.0
     },
     "contract_wage": 30000.0,
     "custom_leave_breakdown": [],
@@ -900,7 +928,9 @@
       "GROSS": 22000.0,
       "LOP": 0.0,
       "PAID_DAYS": 22.0,
-      "UNPAID_DAYS": 0.0
+      "UNPAID_DAYS": 0.0,
+      "YEARS_OF_CONTRACT": 0.08,
+      "YEARS_OF_SERVICE": 0.0
     },
     "contract_wage": 30000.0,
     "custom_leave_breakdown": [],
@@ -971,7 +1001,9 @@
       "GROSS": 20500.0,
       "LOP": 0.0,
       "PAID_DAYS": 22.0,
-      "UNPAID_DAYS": 0.0
+      "UNPAID_DAYS": 0.0,
+      "YEARS_OF_CONTRACT": 0.08,
+      "YEARS_OF_SERVICE": 0.0
     },
     "contract_wage": 30000.0,
     "custom_leave_breakdown": [],
@@ -1034,7 +1066,9 @@
       "GROSS": 24000.0,
       "LOP": 0.0,
       "PAID_DAYS": 22.0,
-      "UNPAID_DAYS": 0.0
+      "UNPAID_DAYS": 0.0,
+      "YEARS_OF_CONTRACT": 0.08,
+      "YEARS_OF_SERVICE": 0.0
     },
     "contract_wage": 30000.0,
     "custom_leave_breakdown": [],
@@ -1097,7 +1131,9 @@
       "GROSS": 22000.0,
       "LOP": 0.0,
       "PAID_DAYS": 22.0,
-      "UNPAID_DAYS": 0.0
+      "UNPAID_DAYS": 0.0,
+      "YEARS_OF_CONTRACT": 0.08,
+      "YEARS_OF_SERVICE": 0.0
     },
     "contract_wage": 30000.0,
     "custom_leave_breakdown": [],

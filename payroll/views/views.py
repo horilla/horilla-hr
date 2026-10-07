@@ -1526,7 +1526,14 @@ def generate_payslip_pdf(template_path, context, html=False):
             )
 
         # Generate the PDF as binary content
-        pdf = pdfkit.from_string(html_content, False, options=pdf_options)
+        from base.methods import pdfkit_configuration
+
+        pdf = pdfkit.from_string(
+            html_content,
+            False,
+            options=pdf_options,
+            configuration=pdfkit_configuration(),
+        )
 
         # Return an HttpResponse containing the PDF content
         response = HttpResponse(pdf, content_type="application/pdf")

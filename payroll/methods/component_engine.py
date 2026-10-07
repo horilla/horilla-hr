@@ -77,6 +77,38 @@ def new_context(basic_pay=0.0, total_gross=None):
     }
 
 
+def years_between(start, end):
+    """Whole and fractional years from ``start`` to ``end``, two decimals; never negative."""
+    if not start or not end:
+        return 0.0
+    days = (end - start).days
+    return round(max(days, 0) / 365.25, 2)
+
+
+def add_service_years(context, employee, contract, as_of):
+    """
+    Seed YEARS_OF_SERVICE and YEARS_OF_CONTRACT, both measured to the end of the
+    pay period.
+
+    * YEARS_OF_SERVICE: from the employee's joining date. Gratuity and similar
+      service-based entitlements run on this.
+    * YEARS_OF_CONTRACT: from the start of the active contract, for a rule that
+      counts only the present term.
+
+    Fractional (6.4, not 6): ``round(YEARS_OF_SERVICE)`` gives a rounded figure
+    where a formula wants whole years. An employee with no joining date reads 0.
+    """
+    joined = None
+    work_info = getattr(employee, "employee_work_info", None)
+    if work_info is not None:
+        joined = work_info.date_joining
+    context["YEARS_OF_SERVICE"] = years_between(joined, as_of)
+    context["YEARS_OF_CONTRACT"] = years_between(
+        getattr(contract, "contract_start_date", None), as_of
+    )
+    return context
+
+
 def accumulate(context, amount):
     """
     Add an earning to the running totals.

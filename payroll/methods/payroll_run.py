@@ -24,7 +24,11 @@ from payroll.methods.basic_pay_source import COMPONENT as BASIC_FROM_COMPONENT
 from payroll.methods.basic_pay_source import CONTRACT as BASIC_FROM_CONTRACT
 from payroll.methods.basic_pay_source import NEITHER as BASIC_FROM_NEITHER
 from payroll.methods.basic_pay_source import resolve_basic_pay_source
-from payroll.methods.component_engine import eligible_allowances, new_context
+from payroll.methods.component_engine import (
+    add_service_years,
+    eligible_allowances,
+    new_context,
+)
 from payroll.methods.deductions import update_compensation_deduction
 from payroll.methods.methods import compute_net_pay, compute_salary_on_period
 from payroll.methods.payslip_calc import (
@@ -265,6 +269,7 @@ def payroll_calculation(employee, start_date, end_date, month_summary=None):
     component_context["PAID_DAYS"] = paid_days
     component_context["UNPAID_DAYS"] = unpaid_days
     component_context["LOP"] = loss_of_pay
+    add_service_years(component_context, employee, contract, end_date)
 
     # The flagged earning is skipped when the contract already states basic.
     # Paying it as well would add a second basic on top of the one that is

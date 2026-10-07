@@ -62,7 +62,9 @@ def min_zero(value):
 #
 # BASIC is deliberately absent: a CTC Down structure derives basic pay FROM a
 # component, so that one is meant to be written.
-RESERVED_COMPONENT_CODES = frozenset({"GROSS", "CTC"})
+RESERVED_COMPONENT_CODES = frozenset(
+    {"GROSS", "CTC", "YEARS_OF_SERVICE", "YEARS_OF_CONTRACT"}
+)
 
 
 def derive_component_code(model, title, exclude_pk=None):

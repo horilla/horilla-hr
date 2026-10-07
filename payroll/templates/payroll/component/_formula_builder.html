@@ -80,6 +80,22 @@ which were operators and which were numbers.
   }
   .fx__token--number { background: #fdf2e3; color: #8a5a12; font-variant-numeric: tabular-nums; }
   .fx__token:hover { filter: brightness(.96); }
+  /* The token the cursor sits after: the one Backspace works on. */
+  .fx__token--sel { box-shadow: 0 0 0 2px var(--fx-accent); }
+  .fx__canvas:focus { outline: none; border-color: var(--fx-accent); box-shadow: 0 0 0 3px var(--fx-accent-soft); }
+  .fx__caret {
+    width: 2px; height: 22px; border-radius: 1px; background: var(--fx-accent);
+    display: none; flex: 0 0 auto;
+  }
+  .fx__canvas:focus .fx__caret { display: inline-block; animation: fx-blink 1s steps(2, start) infinite; }
+  @keyframes fx-blink { to { visibility: hidden; } }
+  .fx__notes {
+    margin-top: 10px; border: 1px solid var(--fx-accent-soft); background: var(--fx-accent-soft);
+    border-radius: 8px; padding: 9px 12px; font-size: 12px; color: var(--fx-ink);
+  }
+  .fx__notes[hidden] { display: none; }
+  .fx__notes ul { margin: 4px 0 0; padding-left: 18px; }
+  .fx__notes code { font-size: 11.5px; font-weight: 600; color: var(--fx-accent); }
 
   .fx__hint { color: var(--fx-mute); font-size: 12px; margin: 6px 2px 0; }
 
@@ -160,6 +176,7 @@ which were operators and which were numbers.
     cursor: pointer;
   }
   .fx__key:hover { border-color: var(--fx-accent); color: var(--fx-accent); }
+  .fx__key--fn { font-size: 12px; }
 
   .fx__value { display: flex; gap: 6px; }
   .fx__value input {
@@ -250,10 +267,11 @@ the real ones exist. Same builder, same JSON, different context.
      data-formula-field="{{ formula_field|default:'formula' }}"
      data-formula-preview-url="{{ formula_preview_url|default:fx_sample_preview_url }}">
   <div class="fx__canvas-wrap">
-    <div class="fx__canvas" data-formula-tokens></div>
+    <div class="fx__canvas" data-formula-tokens tabindex="0" role="textbox"
+         aria-label="{% trans 'Formula. Type numbers and + - * / ( ), arrows move the cursor, Backspace deletes.' %}"></div>
     <button type="button" class="fx__clear" data-formula-clear>{% trans "Clear" %}</button>
   </div>
-  <p class="fx__hint">{% trans "Tap a token to remove it." %}</p>
+  <p class="fx__hint">{% trans "Click the box and type numbers and + - * / ( ) from the keyboard. Click a token to put the cursor after it; the left and right arrows move it, Backspace deletes before it, Delete after it." %}</p>
 
   <div class="fx__grid">
     <section class="fx__panel">
@@ -303,6 +321,13 @@ the real ones exist. Same builder, same JSON, different context.
         <button type="button" class="fx__key" data-formula-token="(">(</button>
         <button type="button" class="fx__key" data-formula-token=")">)</button>
       </div>
+      <div class="fx__panel-head" style="margin-top:14px;"><h4>{% trans "Functions" %}</h4></div>
+      <div class="fx__keys">
+        <button type="button" class="fx__key fx__key--fn" data-formula-multi="round,(" title="{% trans 'Round to whole numbers (or round(x, 2) to 2 decimals)' %}">round</button>
+        <button type="button" class="fx__key fx__key--fn" data-formula-multi="min,(">min</button>
+        <button type="button" class="fx__key fx__key--fn" data-formula-multi="max,(">max</button>
+        <button type="button" class="fx__key" data-formula-token=",">,</button>
+      </div>
 
       <div class="fx__panel-head" style="margin-top:14px;"><h4>{% trans "Number" %}</h4></div>
       <div class="fx__value">
@@ -327,6 +352,7 @@ the real ones exist. Same builder, same JSON, different context.
     <div class="fx__expression" data-formula-expression>&mdash;</div>
     <div class="fx__result" data-formula-result></div>
     <div class="fx__detail" data-formula-detail></div>
+    <div class="fx__notes" data-formula-notes hidden></div>
   </div>
 </div>
 
@@ -372,12 +398,30 @@ document.querySelectorAll("[data-formula-builder]").forEach(function (root) {
   // Split a stored expression back into tokens, so an existing formula can be
   // edited rather than only rewritten from scratch.
   function parse(text) {
-    return (text || "").match(/[A-Za-z_][A-Za-z0-9_]*|\d*\.?\d+|[()+*\/-]/g) || [];
+    return (text || "").match(/[A-Za-z_][A-Za-z0-9_]*|\d+\.?\d*|\.\d+|[(),+*\/-]/g) || [];
   }
   var tokens = parse(field() ? field().value : "");
+  // Where the next token goes: an index into `tokens`, 0 (before the first) to
+  // tokens.length (after the last).
+  var cursor = tokens.length;
 
-  function isComponent(token) { return /^[A-Za-z_][A-Za-z0-9_]*$/.test(token); }
-  function isNumber(token) { return /^\d*\.?\d+$/.test(token); }
+  var FUNCTIONS = ["round", "min", "max", "abs"];
+  function isFunction(token) { return FUNCTIONS.indexOf(token) !== -1; }
+  function isComponent(token) { return /^[A-Za-z_][A-Za-z0-9_]*$/.test(token) && !isFunction(token); }
+  function isNumber(token) { return /^(\d+\.?\d*|\.\d+)$/.test(token); }
+
+  // Put a token at the cursor and move the cursor past it.
+  function insert(token) {
+    tokens.splice(cursor, 0, token);
+    cursor += 1;
+  }
+
+  // What the notes section says about the service-year figures. Shown only
+  // while the formula actually uses one of them.
+  var NOTES = {
+    YEARS_OF_SERVICE: "{% trans 'Years of service: counted from the employee joining date to the end of the pay period, with decimals (6.4). Use round(...) for whole years.' %}",
+    YEARS_OF_CONTRACT: "{% trans 'Years of the active contract: counted from the start date of the active contract to the end of the pay period, with decimals (2.5). Use round(...) for whole years.' %}"
+  };
 
   // code -> human name, so the expression reads as the components the user
   // actually clicked rather than as identifiers they never chose.
@@ -390,22 +434,32 @@ document.querySelectorAll("[data-formula-builder]").forEach(function (root) {
   });
   function labelFor(token) { return LABELS[token] || token; }
 
+  function caretEl() {
+    var caret = document.createElement("span");
+    caret.className = "fx__caret";
+    caret.setAttribute("aria-hidden", "true");
+    return caret;
+  }
+
   function render() {
     canvas.innerHTML = "";
     if (!tokens.length) {
+      canvas.appendChild(caretEl());
       var empty = document.createElement("span");
       empty.className = "fx__placeholder";
       empty.textContent = PROMPT;
       canvas.appendChild(empty);
       return;
     }
+    if (cursor === 0) canvas.appendChild(caretEl());
     tokens.forEach(function (token, index) {
       var chip = document.createElement("button");
       chip.type = "button";
       var kind = isComponent(token)
         ? "component"
         : (isNumber(token) ? "number" : "operator");
-      chip.className = "fx__token fx__token--" + kind;
+      if (isFunction(token)) { kind = "operator"; }
+      chip.className = "fx__token fx__token--" + kind + (cursor === index + 1 ? " fx__token--sel" : "");
       chip.textContent = kind === "component" ? labelFor(token) : token;
       // Not a `title` attribute: this app binds a jQuery UI tooltip widget to
       // every `[title]` element document-wide (footerScripts.js), and this
@@ -415,11 +469,15 @@ document.querySelectorAll("[data-formula-builder]").forEach(function (root) {
       // information to assistive tech without opting into that widget; sighted
       // users already have the "Tap a token to remove it." hint above.
       chip.setAttribute("aria-label", chip.textContent + ", " + REMOVE);
-      chip.addEventListener("click", function () {
-        tokens.splice(index, 1);
-        sync();
+      // A click selects: the cursor goes just after this token.
+      chip.addEventListener("click", function (e) {
+        e.stopPropagation();
+        cursor = index + 1;
+        render();
+        canvas.focus();
       });
       canvas.appendChild(chip);
+      if (cursor === index + 1) canvas.appendChild(caretEl());
     });
   }
 
@@ -429,6 +487,16 @@ document.querySelectorAll("[data-formula-builder]").forEach(function (root) {
     var expression = tokens.join(" ");
     if (field()) { field().value = expression; }
     root.querySelector("[data-formula-expression]").textContent = expression || "—";
+    var notes = root.querySelector("[data-formula-notes]");
+    if (notes) {
+      var used = Object.keys(NOTES).filter(function (code) { return tokens.indexOf(code) !== -1; });
+      notes.hidden = !used.length;
+      notes.innerHTML = used.length
+        ? "<strong>{% trans 'Note' %}</strong><ul>" + used.map(function (code) {
+            return "<li><code>" + code + "</code> - " + NOTES[code] + "</li>";
+          }).join("") + "</ul>"
+        : "";
+    }
     clearTimeout(debounce);
     debounce = setTimeout(preview, 250);
   }
@@ -488,26 +556,92 @@ document.querySelectorAll("[data-formula-builder]").forEach(function (root) {
   }
 
   root.addEventListener("click", function (e) {
+    var multiBtn = e.target.closest("[data-formula-multi]");
+    if (multiBtn) {
+      e.preventDefault();
+      multiBtn.dataset.formulaMulti.split(",").forEach(insert);
+      sync();
+      canvas.focus();
+      return;
+    }
     var tokenBtn = e.target.closest("[data-formula-token]");
     if (tokenBtn) {
       e.preventDefault();
-      tokens.push(tokenBtn.dataset.formulaToken);
+      insert(tokenBtn.dataset.formulaToken);
       sync();
+      canvas.focus();
       return;
     }
     if (e.target.closest("[data-formula-add]")) {
       e.preventDefault();
       var input = root.querySelector("[data-formula-value]");
       if (input.value !== "") {
-        tokens.push(input.value);
+        insert(input.value);
         input.value = "";
         sync();
+        canvas.focus();
       }
       return;
     }
     if (e.target.closest("[data-formula-clear]")) {
       e.preventDefault();
       tokens = [];
+      cursor = 0;
+      sync();
+    }
+  });
+
+  // Clicking the empty part of the box puts the cursor at the end and focuses it.
+  canvas.addEventListener("click", function () {
+    cursor = tokens.length;
+    render();
+    canvas.focus();
+  });
+
+  // The keyboard works on the box: operators and digits type, the arrows move the
+  // cursor, Backspace and Delete remove. A number is built up digit by digit, so
+  // typing 1 2 . 5 makes one token, and Backspace shortens it before dropping it.
+  canvas.addEventListener("keydown", function (e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    var key = e.key, handled = true;
+    var before = cursor > 0 ? tokens[cursor - 1] : null;
+    if (key === "ArrowLeft") {
+      cursor = Math.max(0, cursor - 1);
+    } else if (key === "ArrowRight") {
+      cursor = Math.min(tokens.length, cursor + 1);
+    } else if (key === "Home") {
+      cursor = 0;
+    } else if (key === "End") {
+      cursor = tokens.length;
+    } else if (key === "Backspace") {
+      if (before !== null && isNumber(before) && before.length > 1) {
+        tokens[cursor - 1] = before.slice(0, -1);
+      } else if (cursor > 0) {
+        tokens.splice(cursor - 1, 1);
+        cursor -= 1;
+      }
+    } else if (key === "Delete") {
+      if (cursor < tokens.length) tokens.splice(cursor, 1);
+    } else if (/^[+\-*\/(),]$/.test(key)) {
+      insert(key);
+    } else if (key === "x" || key === "X") {
+      insert("*");
+    } else if (/^[0-9]$/.test(key)) {
+      if (before !== null && isNumber(before)) tokens[cursor - 1] = before + key;
+      else insert(key);
+    } else if (key === ".") {
+      if (before !== null && isNumber(before)) {
+        if (before.indexOf(".") === -1) tokens[cursor - 1] = before + ".";
+      } else {
+        insert("0.");
+      }
+    } else if (key === "Enter") {
+      // Not a submit: Enter inside the builder must not save the component form.
+    } else {
+      handled = false;
+    }
+    if (handled) {
+      e.preventDefault();
       sync();
     }
   });

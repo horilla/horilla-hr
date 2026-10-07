@@ -92,6 +92,8 @@ The form fields are unchanged: the table's checkboxes post as `allowances` and
           {{ form.allowances.errors }}{{ form.deductions.errors }}
         </div>
 
+        {% comment %} Not asked when a structure is first created: employees come onto a structure through their contract. Shown when editing or duplicating. {% endcomment %}
+        {% if form.instance.pk %}
         <div class="ss-form__section" style="margin-top:18px;">
           {% trans "Employees on this structure" %}
         </div>
@@ -99,6 +101,7 @@ The form fields are unchanged: the table's checkboxes post as `allowances` and
           {{ form.employees }}
           <div class="ss-form__errors">{{ form.employees.errors }}</div>
         </div>
+        {% endif %}
 
         {% for field in form.hidden_fields %}{{ field }}{% endfor %}
 

@@ -34,6 +34,11 @@ ENGINE_CODES = [
     ("PAID_DAYS", _("Paid days in the period")),
     ("UNPAID_DAYS", _("Unpaid days in the period")),
     ("LOP", _("Loss of pay (the amount, not the day count)")),
+    # Service measured to the end of the pay period, as years with decimals
+    # (6.4). round(YEARS_OF_SERVICE) gives whole years. Gratuity and other
+    # service-based entitlements read these.
+    ("YEARS_OF_SERVICE", _("Years of service (from the joining date)")),
+    ("YEARS_OF_CONTRACT", _("Years of the active contract (from its start date)")),
 ]
 
 
@@ -102,6 +107,9 @@ def sample_context(sample_basic):
         "PAID_DAYS": sample_paid_days,
         "UNPAID_DAYS": sample_unpaid_days,
         "LOP": sample_lop,
+        # Illustrative, like the attendance above.
+        "YEARS_OF_SERVICE": 6.4,
+        "YEARS_OF_CONTRACT": 2.5,
     }
 
     # Evaluation order, so a component that refers to an earlier one resolves
