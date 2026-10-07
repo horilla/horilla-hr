@@ -38,7 +38,7 @@
 <div
     class="oh-wrapper"
     id="listContainer"
-    hx-get="{% url "compensatory-tab-view" %}"
+    hx-get="{% url "compensatory-tab-view" %}?{{ request.GET.urlencode }}"
     hx-trigger="load"
 >
     <div class="animated-background"></div>
