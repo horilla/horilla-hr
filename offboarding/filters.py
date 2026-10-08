@@ -22,6 +22,7 @@ from base.models import (
 from employee.models import Employee
 from horilla.filters import HorillaFilterSet, filter_name_or_badge_terms
 from offboarding.models import (
+    EmployeeTask,
     Offboarding,
     OffboardingEmployee,
     OffboardingStage,
@@ -256,6 +257,53 @@ class LetterFilter(HorillaFilterSet):
         self.form.fields["name_or_badge"].widget.attrs["placeholder"] = _(
             "e.g. John, PEP01, PEP02"
         )
+
+
+class EmployeeTaskListFilter(HorillaFilterSet):
+    """
+    Filter for the standalone offboarding task list page
+    """
+
+    search = django_filters.CharFilter(method="search_method")
+    task = django_filters.CharFilter(
+        field_name="task_id__title", lookup_expr="icontains"
+    )
+    stage = django_filters.CharFilter(
+        field_name="task_id__stage_id__title", lookup_expr="icontains"
+    )
+    offboarding = django_filters.CharFilter(
+        field_name="task_id__stage_id__offboarding_id__title", lookup_expr="icontains"
+    )
+    created_at_from = django_filters.DateFilter(
+        field_name="created_at",
+        lookup_expr="date__gte",
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+    created_at_till = django_filters.DateFilter(
+        field_name="created_at",
+        lookup_expr="date__lte",
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+
+    class Meta:
+        model = EmployeeTask
+        fields = ["status"]
+
+    def search_method(self, queryset, _, value):
+        """
+        Search by employee, task, stage or offboarding
+        """
+        return (
+            queryset.filter(
+                employee_id__employee_id__employee_first_name__icontains=value
+            )
+            | queryset.filter(
+                employee_id__employee_id__employee_last_name__icontains=value
+            )
+            | queryset.filter(task_id__title__icontains=value)
+            | queryset.filter(task_id__stage_id__title__icontains=value)
+            | queryset.filter(task_id__stage_id__offboarding_id__title__icontains=value)
+        ).distinct()
 
 
 class PipelineFilter(HorillaFilterSet):

@@ -161,6 +161,21 @@ urlpatterns = [
         name="delete-offboarding-employee",
     ),
     path("delete-offboarding-task/", views.delete_task, name="delete-offboarding-task"),
+    path(
+        "employee-tasks-view/",
+        exit_process.EmployeeTasksPage.as_view(),
+        name="employee-tasks-view",
+    ),
+    path(
+        "employee-tasks-nav/",
+        exit_process.EmployeeTasksNav.as_view(),
+        name="employee-tasks-nav",
+    ),
+    path(
+        "employee-tasks-list/",
+        exit_process.EmployeeTasksList.as_view(),
+        name="employee-tasks-list",
+    ),
     # path(
     #     "offboarding-individual-view/<int:emp_id>/",
     #     views.offboarding_individual_view,
