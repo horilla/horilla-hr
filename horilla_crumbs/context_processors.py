@@ -105,6 +105,7 @@ def sync_session_ids(request, key, queryset):
 BREADCRUMB_URL_NAMES = {
     "monthly-summary": "Monthly Summary",
     "my-dashboard": _("My Dashboard"),
+    "candidate-tasks-view": _("Candidate Tasks View"),
     "ess": "Employee",
     "offboarding": "Offboarding",
     "helpdesk": "Helpdesk",
