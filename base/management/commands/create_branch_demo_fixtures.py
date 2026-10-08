@@ -140,6 +140,7 @@ EMPLOYEE_NAMES = {
         ("Julia", "Wagner", "female"),
     ],
 }
+BADGE_PREFIX_BY_COMPANY = {NORTHWIND: "NTI", MERIDIAN: "MIG"}
 EMAIL_DOMAIN_BY_COMPANY = {
     NORTHWIND: "northwind-tech.com",
     MERIDIAN: "meridian-industries.de",
@@ -991,11 +992,7 @@ HOLIDAYS = {
 
 # (name, days from today) -- company days off that always fall in the next weeks.
 UPCOMING_HOLIDAYS = {
-    NORTHWIND: [
-        ("Founders' Day", 6),
-        ("Company Wellness Day", 16),
-        ("Volunteer Day", 26),
-    ],
+    NORTHWIND: [("Company Wellness Day", 16), ("Volunteer Day", 26)],
     MERIDIAN: [
         ("Company Anniversary", 6),
         ("Team Appreciation Day", 16),
@@ -1046,18 +1043,23 @@ LEAVE_TYPES = [
     ("Casual Leave", "paid", 6.0, 1),
 ]
 
-OFFBOARDING_STAGES = [
-    ("Notice Period", "notice_period"),
-    ("Exit Interview", "interview"),
-    ("Handover", "handover"),
-    ("Full & Final Settlement", "fnf"),
-    ("Archived", "archived"),
+# Creating an Offboarding already creates its stages (the model's save() and
+# create_initial_stage), so the fixture uses those rather than adding its own
+# set: this is only the order the pipeline shows them in, archived last.
+OFFBOARDING_STAGE_ORDER = [
+    "notice_period",
+    "interview",
+    "handover",
+    "fnf",
+    "other",
+    "archived",
 ]
 OFFBOARDING_TASKS = {
     "notice_period": ["Acknowledge resignation", "Share notice period terms"],
     "interview": ["Schedule exit interview"],
     "handover": ["Transfer ongoing work", "Return laptop and access card"],
     "fnf": ["Clear pending reimbursements", "Prepare final settlement"],
+    "other": ["Organise a farewell for the team"],
     "archived": ["Archive employee records"],
 }
 EXIT_REASONS = [
@@ -1330,7 +1332,7 @@ class ExtrasMixin:
         """Give Adam Admin a real employee record: contract, department,
         attendance, leave and a payslip, like everyone else in the branch."""
         from employee.models import Employee, EmployeeWorkInformation
-        from payroll.models.models import Contract
+        from payroll.models.models import Contract, FilingStatus
 
         admin = Employee.objects.get(email="adam@horilla.com")
         Contract.objects.filter(employee_id=admin).delete()
@@ -1342,6 +1344,7 @@ class ExtrasMixin:
             wage_type="monthly",
             wage=wage * 1.4,
             calculate_daily_leave_amount=True,
+            filing_status=FilingStatus.objects.order_by("id").first(),
             daily_leave_amount_divisor="calendar_days",
             deduct_leave_from_basic_pay=True,
         )
@@ -1826,14 +1829,15 @@ class ExtrasMixin:
             company_id=company,
         )
         offboarding.managers.set(managers)
+        by_type = {
+            stage.type: stage
+            for stage in OffboardingStage.objects.filter(offboarding_id=offboarding)
+        }
         stages = []
-        for sequence, (title, stage_type) in enumerate(OFFBOARDING_STAGES):
-            stage = OffboardingStage.objects.create(
-                title=title,
-                type=stage_type,
-                offboarding_id=offboarding,
-                sequence=sequence,
-            )
+        for sequence, stage_type in enumerate(OFFBOARDING_STAGE_ORDER):
+            stage = by_type[stage_type]
+            stage.sequence = sequence
+            stage.save()
             stage.managers.set(managers)
             stages.append(stage)
         tasks = {}
@@ -2759,6 +2763,10 @@ class Command(ExtrasMixin, BaseCommand):
         shared across branches) so every row carries a real company_id and
         a "BASIC"/"HRA"/etc. code lookup never has to guess which branch's
         component it means.
+
+        Components name no employees: whoever's contract is on a structure
+        gets what it lists. CTC Down's basic is its one flagged earning
+        (BASIC); Gross Up's basic is the contract wage.
         """
         from payroll.models.models import Allowance, Deduction, SalaryStructure
 
@@ -2771,6 +2779,7 @@ class Command(ExtrasMixin, BaseCommand):
             based_on="basic_pay",
             rate=40.0,
             is_taxable=True,
+            include_active_employees=False,
         )
         special = Allowance.objects.create(
             title="Special Allowance",
@@ -2780,6 +2789,7 @@ class Command(ExtrasMixin, BaseCommand):
             is_fixed=True,
             amount=300.0,
             is_taxable=True,
+            include_active_employees=False,
         )
         pf = Deduction.objects.create(
             title="Pension Contribution",
@@ -2791,6 +2801,7 @@ class Command(ExtrasMixin, BaseCommand):
             rate=12.0,
             employer_rate=12.0,
             is_pretax=True,
+            include_active_employees=False,
         )
         pt = Deduction.objects.create(
             title="Payroll Tax",
@@ -2800,6 +2811,7 @@ class Command(ExtrasMixin, BaseCommand):
             is_fixed=True,
             amount=120.0,
             is_pretax=False,
+            include_active_employees=False,
         )
         gross_up = SalaryStructure.objects.create(
             title="Standard",
@@ -2819,6 +2831,7 @@ class Command(ExtrasMixin, BaseCommand):
             based_on="formula",
             formula="CTC * 0.4",
             is_taxable=True,
+            include_active_employees=False,
         )
         ctc_hra = Allowance.objects.create(
             title="House Rent Allowance",
@@ -2830,6 +2843,7 @@ class Command(ExtrasMixin, BaseCommand):
             percentage_of_code="BASIC",
             rate=40.0,
             is_taxable=True,
+            include_active_employees=False,
         )
         flex = Allowance.objects.create(
             title="Flexible Benefits (Balance)",
@@ -2839,6 +2853,7 @@ class Command(ExtrasMixin, BaseCommand):
             is_fixed=False,
             based_on="balance",
             is_taxable=True,
+            include_active_employees=False,
         )
         ctc_down = SalaryStructure.objects.create(
             title="CTC Down",
@@ -2893,16 +2908,23 @@ class Command(ExtrasMixin, BaseCommand):
         self, company, shift, gross_up, ctc_down, wage, position_pool, today
     ):
         """
-        Contract.salary_structure_id is never set directly on ``create()``
-        -- only ``set_salary_structure()`` adds the employee to the
-        structure's Allowance/Deduction rows' ``specific_employees``, which
-        is what calculate_pre_tax_deduction / calculate_post_tax_deduction
-        actually filter on. See create_precise_payroll_fixtures.py for the
-        failure mode this sidesteps.
+        Contracts name their salary structure and nothing else: eligibility
+        follows the structure, so no component lists these people.
+
+        The contract mix is deliberate. Every fifth contract keeps loss of pay
+        as a deduction line instead of taking it off basic, and CTC Down
+        contracts alternate between pricing a day of leave off the structure's
+        basic ("wage") and off the package ("monthly_ctc"), so each payslip
+        shape exists.
         """
         from employee.models import Employee, EmployeeWorkInformation
         from horilla.testkit import make_employee
-        from payroll.models.models import Contract
+        from payroll.models.models import Contract, FilingStatus
+
+        # Income tax is only worked out for a contract with a filing status; one
+        # without it is taxed at nothing, which made every demo payslip read as
+        # if tax were broken. Cycled so each seeded pack is exercised.
+        statuses = list(FilingStatus.objects.order_by("id"))
 
         domain = EMAIL_DOMAIN_BY_COMPANY[company.company]
         names = EMPLOYEE_NAMES[company.company]
@@ -2927,6 +2949,7 @@ class Command(ExtrasMixin, BaseCommand):
                 shift=shift,
             )
             Employee.objects.filter(pk=employee.pk).update(
+                badge_id=f"{BADGE_PREFIX_BY_COMPANY[company.company]}{i + 1:04d}",
                 gender=gender,
                 dob=datetime.date(
                     1972 + (i * 7) % 29, 1 + (i * 5) % 12, 1 + (i * 11) % 28
@@ -2944,16 +2967,17 @@ class Command(ExtrasMixin, BaseCommand):
                 contract_status="active",
                 wage_type="monthly",
                 wage=wage,
+                filing_status=statuses[i % len(statuses)] if statuses else None,
                 calculate_daily_leave_amount=True,
                 daily_leave_amount_divisor="calendar_days",
-                deduct_leave_from_basic_pay=True,
+                deduct_leave_from_basic_pay=i % 5 != 4,
             )
             if is_ctc_down:
                 contract.set_salary_structure(ctc_down)
                 Contract.objects.filter(pk=contract.pk).update(
                     monthly_ctc=round(wage * CTC_DOWN_WAGE_TO_CTC_MULTIPLIER, 2),
                     wage=0,
-                    daily_leave_amount_base="monthly_ctc",
+                    daily_leave_amount_base="wage" if i % 2 else "monthly_ctc",
                 )
             else:
                 contract.set_salary_structure(gross_up)

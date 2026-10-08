@@ -132,7 +132,9 @@ def create_initial_stage(sender, instance, created, **kwargs):
     """
     This is post save method, used to create initial stage for the recruitment
     """
-    if created:
+    # Not while loading a fixture: the dump already carries its own stages, so
+    # an extra "Notice Period" here would sit next to the loaded one.
+    if created and not kwargs.get("raw"):
         initial_stage = OffboardingStage()
         initial_stage.title = "Notice Period"
         initial_stage.offboarding_id = instance
