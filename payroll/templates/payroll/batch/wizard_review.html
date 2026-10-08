@@ -105,6 +105,27 @@
     </form>
     {% endif %}
 
+    {% comment %}Above the table: with a long list the buttons were a scroll away.{% endcomment %}
+    <form method="post" action="{% url 'payroll-batch-start' %}"
+          class="pb__actions mb-3">
+      {% csrf_token %}
+      <div class="d-flex align-items-center gap-2">
+        <a href="{% url 'payroll-batch-scope' %}" class="pb__btn">
+          <ion-icon name="arrow-back-outline"></ion-icon>
+          {% trans "Back" %}
+        </a>
+        <button type="button" class="pb__btn"
+                onclick="window.location.reload();">
+          <ion-icon name="refresh-outline"></ion-icon>
+          {% trans "Re-check" %}
+        </button>
+      </div>
+      <button type="submit" class="oh-btn oh-btn--secondary" {% if not ready_count %}disabled{% endif %}>
+        {% blocktrans count n=ready_count %}Generate {{ n }} payslip{% plural %}Generate {{ n }} payslips{% endblocktrans %}
+        <ion-icon name="arrow-forward-outline" class="ms-1"></ion-icon>
+      </button>
+    </form>
+
     <div class="pb__panel mb-3">
       <div class="pb__panel-head">
         <span>{% trans "Attendance this period" %}</span>
@@ -254,26 +275,6 @@
     </div>
     {% endif %}
 
-    <form method="post" action="{% url 'payroll-batch-start' %}"
-          class="pb__actions">
-      {% csrf_token %}
-      <div class="d-flex align-items-center gap-2">
-        <a href="{% url 'payroll-batch-scope' %}" class="pb__btn">
-          <ion-icon name="arrow-back-outline"></ion-icon>
-          {% trans "Back" %}
-        </a>
-        <button type="button" class="pb__btn"
-                onclick="window.location.reload();">
-          <ion-icon name="refresh-outline"></ion-icon>
-          {% trans "Re-check" %}
-        </button>
-      </div>
-      <button type="submit" class="oh-btn oh-btn--secondary" {% if not ready_count %}disabled{% endif %}>
-        {% blocktrans count n=ready_count %}Generate {{ n }} payslip{% plural %}Generate {{ n }} payslips{% endblocktrans %}
-        <ion-icon name="arrow-forward-outline" class="ms-1"></ion-icon>
-      </button>
-    </form>
-
   </section>
 </main>
 
@@ -397,5 +398,17 @@ read. Sorting a column overrides that, so there is a way back to it.
   filter();
   markHeaders();
 })();
+</script>
+<script>
+  {% comment %}
+  Saving the contract form from "Edit contract" answers with an empty 200 and
+  HX-Trigger: reloadPayrollContracts. Nothing on this page listened, so the
+  modal's backdrop stayed over the screen and the figures went on showing the
+  old wage. What this page reports comes from the contract, so reloading it is
+  the honest response: it closes everything and re-runs the review.
+  {% endcomment %}
+  document.body.addEventListener("reloadPayrollContracts", function () {
+    window.location.reload();
+  });
 </script>
 {% endblock content %}
