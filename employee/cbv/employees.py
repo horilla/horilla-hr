@@ -115,6 +115,7 @@ class EmployeesList(HorillaListView):
     """
 
     model = Employee
+    hidden_filter_tag_values = {"is_active": True}
     filter_class = EmployeeFilter
     view_id = "view-container"
     # Mirrors EmployeeNav.nested_group_by_fields below -- needed here too
@@ -586,6 +587,7 @@ class EmployeeNav(HorillaNavView):
         super().__init__(**kwargs)
         self.search_url = reverse("employees-list")
         self.search_in = [
+            ("badge_id", _("Badge ID")),
             ("employee_work_info__reporting_manager_id", _("Reporting Manager")),
             (
                 "employee_work_info__department_id",
@@ -822,6 +824,7 @@ class EmployeeCard(HorillaCardView):
     """
 
     model = Employee
+    hidden_filter_tag_values = {"is_active": True}
     filter_class = EmployeeFilter
 
     def __init__(self, **kwargs: Any) -> None:
