@@ -23,6 +23,10 @@ class HorillaKanbanView(HorillaCardView):
     custom_card_content_template: str = ""
     group_actions: list = []
     show_kanban_confirmation: bool = True
+    # When True the board writes its number of columns into the tab badge it
+    # sits in. A board that wants the tab to count its records instead (the
+    # recruitment / onboarding / offboarding pipelines) sets this to False.
+    records_count_in_tab: bool = True
     folded_groups: list = []
     action_method: str = """"""
     group_label_key: str = ""

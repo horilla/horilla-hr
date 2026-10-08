@@ -10,7 +10,7 @@ from urllib.parse import urlencode, urlparse
 from django import forms
 from django.apps import apps
 from django.contrib import messages
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
@@ -47,6 +47,7 @@ from offboarding.cbv_decorators import (
     offboarding_or_stage_manager_can_enter,
 )
 from offboarding.filters import (
+    EmployeeTaskListFilter,
     PipelineEmployeeFilter,
     PipelineFilter,
     PipelineStageFilter,
@@ -591,6 +592,16 @@ class PipeLineTabView(HorillaTabView):
         context = super().get_context_data(**kwargs)
         offboardings = self.filter_class(self.request.GET).qs.filter(is_active=True)
         self.tabs = []
+        # Employees on each offboarding's board, not how many stages it has.
+        employee_counts = dict(
+            OffboardingEmployee.objects.filter(
+                stage_id__offboarding_id__in=offboardings.values_list("pk", flat=True),
+                stage_id__is_active=True,
+            )
+            .values("stage_id__offboarding_id")
+            .annotate(total=Count("id"))
+            .values_list("stage_id__offboarding_id", "total")
+        )
         for offboarding in offboardings:
             tab = {}
             tab["title"] = offboarding.title
@@ -601,10 +612,8 @@ class PipeLineTabView(HorillaTabView):
 
             tab["url"] = url
 
-            tab["badge_label"] = _("Stages")
-            tab["badge"] = offboarding.offboardingstage_set.filter(
-                is_active=True
-            ).count()
+            tab["badge_label"] = _("Employees")
+            tab["badge"] = employee_counts.get(offboarding.pk, 0)
             self.tabs.append(tab)
 
         context["tabs"] = self.tabs
@@ -864,6 +873,8 @@ class OffboardingKanbanView(HorillaKanbanView):
     group_key = "stage_id"
     records_per_page = 10
     show_kanban_confirmation = False
+    # The tab badge counts employees (set server-side), not stage columns
+    records_count_in_tab = False
     pre_move_check_url = reverse_lazy("offboarding-kanban-required-task-check")
 
     kanban_attrs = """
@@ -1273,6 +1284,92 @@ class DashboardTaskListview(HorillaListView):
         ("Stage", "stage_id"),
         ("Task Status", "get_task_status_col"),
     ]
+
+
+def visible_employee_tasks(request):
+    """
+    Employee tasks the requesting user is allowed to see
+    """
+    queryset = EmployeeTask.objects.all()
+    if request.user.has_perm("offboarding.view_offboarding"):
+        return queryset
+    employee = request.user.employee_get
+    return queryset.filter(
+        Q(task_id__managers=employee)
+        | Q(task_id__stage_id__managers=employee)
+        | Q(task_id__stage_id__offboarding_id__managers=employee)
+    ).distinct()
+
+
+@method_decorator(login_required, name="dispatch")
+@method_decorator(
+    any_manager_can_enter("offboarding.view_offboarding"), name="dispatch"
+)
+class EmployeeTasksPage(TemplateView):
+    """
+    Page shell for the offboarding task list
+    """
+
+    template_name = "cbv/employee_tasks/employee_tasks.html"
+
+
+@method_decorator(login_required, name="dispatch")
+@method_decorator(
+    any_manager_can_enter("offboarding.view_offboarding"), name="dispatch"
+)
+class EmployeeTasksNav(HorillaNavView):
+    """
+    Search and filter bar of the offboarding task list
+    """
+
+    nav_title = _("Offboarding Tasks")
+    filter_instance = EmployeeTaskListFilter()
+    filter_form_context_name = "form"
+    filter_body_template = "cbv/employee_tasks/employee_task_filter.html"
+    search_swap_target = "#listContainer"
+    modern_filter = True
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.search_url = reverse("employee-tasks-list")
+
+
+@method_decorator(login_required, name="dispatch")
+@method_decorator(
+    any_manager_can_enter("offboarding.view_offboarding"), name="dispatch"
+)
+class EmployeeTasksList(HorillaListView):
+    """
+    List of offboarding employee tasks
+    """
+
+    model = EmployeeTask
+    filter_class = EmployeeTaskListFilter
+    view_id = "employeeTasksContainer"
+    filter_selected = False
+    bulk_select_option = False
+    bulk_update = False
+    quick_export = False
+
+    columns = [
+        (
+            _("Employee"),
+            "employee_id__employee_id",
+            "employee_id__employee_id__get_avatar",
+        ),
+        (_("Task"), "task_id__title"),
+        (_("Stage"), "task_id__stage_id__title"),
+        (_("Offboarding"), "task_id__stage_id__offboarding_id__title"),
+        (_("Status"), "get_status_display"),
+    ]
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.search_url = reverse("employee-tasks-list")
+
+    def get_queryset(self, queryset=None, filtered=False, *args, **kwargs):
+        qs = super().get_queryset(queryset, filtered, *args, **kwargs)
+        return qs.filter(pk__in=visible_employee_tasks(self.request).values("pk"))
 
 
 if apps.is_installed("asset"):

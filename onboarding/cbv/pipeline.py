@@ -205,6 +205,32 @@ class RecruitmentTabView(HorillaTabView):
         extra_params.pop("view", None)
         extra_qs = extra_params.urlencode()
         self.tabs = []
+        # Candidates on each job's board (one stage row per candidate), not
+        # how many stages it has.
+        candidate_stage_qs = onboarding_models.CandidateStage.objects.filter(
+            onboarding_stage_id__recruitment_id__in=recruitments.values_list(
+                "pk", flat=True
+            ),
+            onboarding_stage_id__is_active=True,
+        )
+        # The card/kanban board sets records_count_in_tab = False precisely so
+        # this tab badge counts candidates, not columns -- but unlike the list
+        # board's own stage badges (CandidatePipeline.get_queryset), nothing
+        # ever patches this one from the client side, so a task_status filter
+        # left unapplied here stuck permanently at the unfiltered total: the
+        # dashboard's Stuck Tasks tile landed on a tab badge that kept showing
+        # every candidate, never the stuck ones, no matter what the board
+        # underneath it correctly rendered.
+        task_status = self.request.GET.get("task_status")
+        if task_status:
+            candidate_stage_qs = candidate_stage_qs.filter(
+                candidate_id__candidate_task__status=task_status
+            )
+        candidate_counts = dict(
+            candidate_stage_qs.values("onboarding_stage_id__recruitment_id")
+            .annotate(total=Count("candidate_id", distinct=True))
+            .values_list("onboarding_stage_id__recruitment_id", "total")
+        )
         for rec in recruitments:
             tab = {}
             tab["title"] = rec
@@ -218,8 +244,8 @@ class RecruitmentTabView(HorillaTabView):
                 url += "?" + "&".join(query_parts)
             tab["url"] = url
 
-            tab["badge_label"] = _("Stages")
-            tab["badge"] = rec.onboarding_stage.filter(is_active=True).count()
+            tab["badge_label"] = _("Candidates")
+            tab["badge"] = candidate_counts.get(rec.pk, 0)
             self.tabs.append(tab)
 
 
@@ -465,7 +491,24 @@ class CandidatePipeline(Pipeline):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        queryset = queryset.annotate(candidate_count=Count("candidate", distinct=True))
+        # OnboardingStageFilter (this grouper's own field_filter_class) has no
+        # task_status field, so a deep link like the dashboard's Stuck Tasks
+        # tile (?task_status=stuck) never touched this count: every stage kept
+        # showing its total candidate count regardless, and a stage with zero
+        # *matching* candidates stayed expanded instead of auto-collapsing,
+        # since that decision reads this same number. The nested candidate
+        # list a few lines of HTML down does filter correctly (via
+        # PipelineCandidateFilter), so the badge looked wrong only until its
+        # own JS later patched it from that list's real count.
+        task_status = self.request.GET.get("task_status")
+        count_filter = (
+            Q(candidate__candidate_id__candidate_task__status=task_status)
+            if task_status
+            else Q()
+        )
+        queryset = queryset.annotate(
+            candidate_count=Count("candidate", filter=count_filter, distinct=True)
+        )
         self.queryset = queryset.order_by("sequence")
         return self.queryset
 
@@ -878,6 +921,8 @@ class CandidateKanbanView(HorillaKanbanView):
     group_key = "onboarding_stage__onboarding_stage_id"
     records_per_page = 10
     show_kanban_confirmation = False
+    # The tab badge counts candidates (set server-side), not stage columns
+    records_count_in_tab = False
     filter_keys_to_remove = ["onboarding_stage_id", "rec_id", "recruitment_id"]
     filter_class = onboarding_filters.KanbanCandidateFilter
     group_filter_class = onboarding_filters.OnboardingStageFilter

@@ -195,6 +195,8 @@ class HorillaListView(ListView):
     show_filter_tags: bool = True
     show_toggle_form: bool = True
     filter_keys_to_remove: list = []
+    # {field: value} pairs not shown as filter tags (still applied), e.g. a default
+    hidden_filter_tag_values: dict = {}
 
     records_per_page: int = 0
     export_fields: list = []
@@ -482,6 +484,10 @@ class HorillaListView(ListView):
 
             for key in remove_keys:
                 data_dict.pop(key, None)
+
+            for key, hidden in self.hidden_filter_tag_values.items():
+                if data_dict.get(key) == [str(hidden)]:
+                    data_dict.pop(key)
 
             data_dict, tag_labels, tag_extras = humanize_filter_tags(data_dict)
             context["filter_dict"] = data_dict
@@ -1757,6 +1763,12 @@ class HorillaTabView(TemplateView):
     view_id: str = ""
     template_name = "generic/horilla_tabs.html"
     show_filter_tags = False
+    # Tabs pass the page they were opened from on as "referrer", which lets a
+    # saved filter (and a default one) made in one tab show up in its sibling
+    # tabs (see saved_filter_path_query). Right for tabs that are views of the
+    # same records; wrong for tabs over different models (e.g. Asset Request
+    # and Service Request), whose filters must stay in their own tab.
+    share_saved_filters_across_tabs: bool = True
 
     tabs: list = []
 
@@ -1801,9 +1813,16 @@ class HorillaTabView(TemplateView):
         extra_params = self.request.GET.copy()
         # open_tab only controls which tab opens; don't forward it as a filter.
         extra_params.pop("open_tab", None)
-        extra_params["referrer"] = self.request.META.get("HTTP_REFERER", "")
+        if self.share_saved_filters_across_tabs:
+            extra_params["referrer"] = self.request.META.get("HTTP_REFERER", "")
+        else:
+            extra_params.pop("referrer", None)
 
         for tab in self.tabs:
+            # A tab that already carries exactly the query it should get (e.g.
+            # only the filters its own list understands) is left as it is.
+            if tab.get("query_scoped"):
+                continue
             parsed = urlparse(tab.get("url", ""))
             combined_query = QueryDict(parsed.query, mutable=True)
             for key in extra_params:
@@ -1880,6 +1899,8 @@ class HorillaCardView(ListView):
 
     show_filter_tags: bool = True
     filter_keys_to_remove: list = []
+    # {field: value} pairs not shown as filter tags (still applied), e.g. a default
+    hidden_filter_tag_values: dict = {}
 
     records_per_page: int = 0
     card_status_class: str = """"""
@@ -1968,6 +1989,10 @@ class HorillaCardView(ListView):
 
             for key in remove_keys:
                 data_dict.pop(key, None)
+
+            for key, hidden in self.hidden_filter_tag_values.items():
+                if data_dict.get(key) == [str(hidden)]:
+                    data_dict.pop(key)
 
             data_dict, tag_labels, tag_extras = humanize_filter_tags(data_dict)
             context["filter_dict"] = data_dict

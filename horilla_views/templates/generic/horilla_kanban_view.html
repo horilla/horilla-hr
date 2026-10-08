@@ -246,6 +246,7 @@
 		});
 	});
 
+    {% if view.records_count_in_tab %}
     var tabId = $("#{{view_id}}").closest(".oh-tabs__content:visible").attr("id");
     var badge = $(`#badge-${tabId}`);
     var count = "{{grouped_items.items|length}}";
@@ -253,6 +254,7 @@
     var title = count + " " + label;
     badge.html(count);
     badge.attr("title", title);
+    {% endif %}
 
 	var toggleFold = (el) => {
 		el.closest(".kanban-block").toggleClass("folded");

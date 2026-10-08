@@ -221,12 +221,18 @@ class RecruitmentTabView(HorillaTabView):
         )
         self.tabs = []
         view_perm = self.request.user.has_perm("recruitment.view_recruitment")
-        stage_qs = GetStages.filter_class(self.request.GET).qs
 
-        stage_counts = dict(
-            stage_qs.values("recruitment_id")
-            .annotate(count=Count("id"))
-            .values_list("recruitment_id", "count")
+        # Candidates on each recruitment's board (the same set the stage
+        # columns list), not how many stages it has.
+        candidate_counts = dict(
+            filters.CandidateFilter(self.request.GET)
+            .qs.filter(
+                is_active=True,
+                stage_id__recruitment_id__in=recruitments.values_list("pk", flat=True),
+            )
+            .values("stage_id__recruitment_id")
+            .annotate(total=Count("id", distinct=True))
+            .values_list("stage_id__recruitment_id", "total")
         )
         employee = getattr(self.request.user, "employee_get", None)
         if employee:
@@ -260,8 +266,8 @@ class RecruitmentTabView(HorillaTabView):
             tab["url"] = url
 
             self.query_params["view"] = view_type
-            tab["badge_label"] = _("Stages")
-            tab["badge"] = stage_counts.get(rec.pk, 0)
+            tab["badge_label"] = _("Candidates")
+            tab["badge"] = candidate_counts.get(rec.pk, 0)
             if stage_manage_perm or view_perm:
                 self.tabs.append(tab)
 
@@ -760,6 +766,8 @@ class CandidateList(HorillaListView):
 )
 class CandidateCard(HorillaKanbanView):
     model = models.Candidate
+    # The tab badge counts candidates (set server-side), not stage columns
+    records_count_in_tab = False
     filter_class = filters.CandidateFilter
     group_filter_class = filters.StageFilter
     group_key = "stage_id"

@@ -108,6 +108,7 @@
               .attr("title", count);
           }
         });
+        syncTabBadge();
       }
 
       // Register per-view handler; remove stale one first.
@@ -125,25 +126,26 @@
         window.stageCandidateCountSyncBound = false;
       }
 
-      // ── Job tab's own "Stages" badge ────────────────────────────────────
-      // Adding/deleting a stage only reloads this tab's own content
-      // (`#applyFilter` inside RecruitmentCandidateNav) - the job tab bar
-      // itself (horilla_tabs.html) is never re-rendered, so its "Stages"
-      // badge stays at whatever count it had on the last full page load.
-      // Patch that one badge here, found via the tab button whose
-      // data-target points at this content div's own id, so a stage
-      // delete/add is reflected immediately without a full page reload.
-      var contentEl = document.getElementById(VIEW_ID);
-      var tabContent = contentEl && contentEl.closest(".oh-tabs__content");
-      if (tabContent) {
+      // ── Job tab's own badge: total across every stage below ─────────────
+      // The tab bar (horilla_tabs.html) is rendered once, so its badge is
+      // patched here, found via the tab button whose data-target points at
+      // this content div's id. It is the sum of the stage counts, refreshed
+      // whenever a stage count changes (add / move / delete).
+      function syncTabBadge() {
+        var contentEl = document.getElementById(VIEW_ID);
+        var tabContent = contentEl && contentEl.closest(".oh-tabs__content");
+        if (!tabContent) return;
         var tabButton = document.querySelector('[data-target="#' + tabContent.id + '"]');
         var badge = tabButton && tabButton.querySelector(".tab-badge");
-        if (badge) {
-          var stageCount = {{ stages|length }};
-          badge.textContent = stageCount > 999 ? "999+" : stageCount;
-          badge.title = stageCount + " " + (badge.getAttribute("data-badge-label") || "Items");
-        }
+        if (!badge) return;
+        var total = 0;
+        contentEl.querySelectorAll(".stage-count-badge").forEach(function (b) {
+          total += parseInt(b.textContent, 10) || 0;
+        });
+        badge.textContent = total > 999 ? "999+" : total;
+        badge.title = total + " " + (badge.getAttribute("data-badge-label") || "Items");
       }
+      syncTabBadge();
     })();
   </script>
 </div>

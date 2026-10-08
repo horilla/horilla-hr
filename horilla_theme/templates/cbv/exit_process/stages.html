@@ -36,12 +36,37 @@
   </div>
   {% endfor %}
   <script>
-    var tabId = $("#{{view_id}}").closest(".oh-tabs__content").attr("id");
-    var badge = $(".oh-tabs__tab--active").find(".tab-badge");
-    var count = "{{groups|length}}";
-    var label = badge.attr("data-badge-label") || "";
-    var title = count + " " + label;
-    badge.html(count);
-    badge.attr("title", title);
+    (function () {
+      var VIEW_ID = "{{view_id}}";
+
+      // ── Job tab's own badge: total across every stage below ─────────────
+      // The tab bar (horilla_tabs.html) is rendered once, so its badge is
+      // patched here, found via the tab button whose data-target points at
+      // this content div's id. It is the sum of the stage counts, refreshed
+      // whenever a stage count changes (add / move / delete).
+      function syncTabBadge() {
+        var contentEl = document.getElementById(VIEW_ID);
+        var tabContent = contentEl && contentEl.closest(".oh-tabs__content");
+        if (!tabContent) return;
+        var tabButton = document.querySelector('[data-target="#' + tabContent.id + '"]');
+        var badge = tabButton && tabButton.querySelector(".tab-badge");
+        if (!badge) return;
+        var total = 0;
+        contentEl.querySelectorAll(".stage-count-badge").forEach(function (b) {
+          total += parseInt(b.textContent, 10) || 0;
+        });
+        badge.textContent = total > 999 ? "999+" : total;
+        badge.title = total + " " + (badge.getAttribute("data-badge-label") || "Items");
+      }
+
+      syncTabBadge();
+      // Keep it live as stage counts change.
+      var TAB_KEY = "__tabBadgeHandler_" + VIEW_ID;
+      if (window[TAB_KEY]) {
+        document.body.removeEventListener("htmx:afterSettle", window[TAB_KEY]);
+      }
+      window[TAB_KEY] = syncTabBadge;
+      document.body.addEventListener("htmx:afterSettle", syncTabBadge);
+    })();
   </script>
 </div>
