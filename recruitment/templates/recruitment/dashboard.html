@@ -1536,34 +1536,57 @@
             */
 
             // ─── VACANCY VS HIRED ───
+            // The recruitments are the chips under the chart (same chip legend as the donuts):
+            // click one to take its column out of the chart, the "+N" chip lists the rest. The
+            // x axis is just a plain line, the names are not written under the columns.
+            let vacancyRows = [];
+            const vacancyEl = document.querySelector("#chart-vacancy-hired");
+            const vacancyLegend = PieLegend.forChart(vacancyEl, () => chartInstances['vacancy-hired'], '{% trans "recruitments"|escapejs %}', { onChange: () => drawVacancyHired() });
+            function drawVacancyHired() {
+                const picked = new Set(vacancyLegend.selectedNames());
+                const rows = vacancyRows.filter(r => picked.has(r.label));
+                renderChart('vacancy-hired', vacancyEl, {
+                    series: [
+                        { name: '{% trans "Shortlisted"|escapejs %}', data: rows.map(r => r.hired) },
+                        { name: '{% trans "Remaining"|escapejs %}', data: rows.map(r => Math.max(r.vacancy - r.hired, 0)) },
+                    ],
+                    chart: { type: 'bar', height: 300, stacked: true, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
+                        events: { dataPointSelection: (e, ctx, config) => {
+                            const rec = rows[config.dataPointIndex]?.recruitment || '';
+                            window.location.href = "{% url 'candidate-view' %}?recruitment=" + encodeURIComponent(rec) + "&hired=true";
+                        }}
+                    },
+                    colors: ['#22c55e', '#f59e0b'],
+                    plotOptions: { bar: { borderRadius: 4, columnWidth: '45%' } },
+                    xaxis: { categories: rows.map(r => r.label), labels: { show: false }, axisBorder: { show: true, color: gridColor }, axisTicks: { show: false }, tooltip: { enabled: false } },
+                    yaxis: { labels: { style: { colors: textColor }, formatter: v => Math.round(v) }, forceNiceScale: true },
+                    grid: { borderColor: gridColor, strokeDashArray: 4 },
+                    dataLabels: { enabled: true, style: { fontSize: '11px', colors: ['#fff'] }, formatter: v => v || '' },
+                    legend: { position: 'top', horizontalAlign: 'right', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
+                    tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: (v, { seriesIndex: si, dataPointIndex: i }) => {
+                        const r = rows[i];
+                        return si === 0 ? `${v} {% trans "shortlisted of"|escapejs %} ${r.vacancy} (${r.fill_rate}%)` : `${v} {% trans "remaining"|escapejs %} (${r.applied} {% trans "applied"|escapejs %})`;
+                    } } },
+                });
+            }
             function loadVacancyVsHired() {
                 fetchP("{% url 'recruitment-dashboard-vacancy-hired' %}")
                 .then(r => r.json())
                 .then(data => {
-                    if (!data.recruitments || !data.recruitments.length) { document.querySelector("#chart-vacancy-hired").innerHTML = emptyHtml('{% trans "No ongoing recruitments"|escapejs %}'); return; }
-                    renderChart('vacancy-hired', document.querySelector("#chart-vacancy-hired"), {
-                        series: [
-                            { name: '{% trans "Shortlisted"|escapejs %}', data: data.recruitments.map(r => r.hired) },
-                            { name: '{% trans "Remaining"|escapejs %}', data: data.recruitments.map(r => Math.max(r.vacancy - r.hired, 0)) },
-                        ],
-                        chart: { type: 'bar', height: 300, stacked: true, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
-                            events: { dataPointSelection: (e, ctx, config) => {
-                                const rec = data.recruitments[config.dataPointIndex]?.recruitment || '';
-                                window.location.href = "{% url 'candidate-view' %}?recruitment=" + encodeURIComponent(rec) + "&hired=true";
-                            }}
-                        },
-                        colors: ['#22c55e', '#f59e0b'],
-                        plotOptions: { bar: { borderRadius: 4, columnWidth: '45%' } },
-                        xaxis: { categories: data.recruitments.map(r => r.recruitment), labels: { style: { colors: textColor, fontSize: '11px' }, rotate: -30, trim: true }, axisBorder: { show: false }, axisTicks: { show: false } },
-                        yaxis: { labels: { style: { colors: textColor }, formatter: v => Math.round(v) }, forceNiceScale: true },
-                        grid: { borderColor: gridColor, strokeDashArray: 4 },
-                        dataLabels: { enabled: true, style: { fontSize: '11px', colors: ['#fff'] }, formatter: v => v || '' },
-                        legend: { position: 'top', horizontalAlign: 'right', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
-                        tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: (v, { seriesIndex: si, dataPointIndex: i }) => {
-                            const r = data.recruitments[i];
-                            return si === 0 ? `${v} {% trans "shortlisted of"|escapejs %} ${r.vacancy} (${r.fill_rate}%)` : `${v} {% trans "remaining"|escapejs %} (${r.applied} {% trans "applied"|escapejs %})`;
-                        } } },
+                    if (!data.recruitments || !data.recruitments.length) {
+                        if (chartInstances['vacancy-hired']) { chartInstances['vacancy-hired'].destroy(); chartInstances['vacancy-hired'] = null; }
+                        PieLegend.clearFor(vacancyEl);
+                        vacancyEl.innerHTML = emptyHtml('{% trans "No ongoing recruitments"|escapejs %}');
+                        return;
+                    }
+                    // Chip names must be unique: two recruitments can share a title.
+                    const seen = {};
+                    vacancyRows = data.recruitments.map(r => {
+                        seen[r.recruitment] = (seen[r.recruitment] || 0) + 1;
+                        return { ...r, label: seen[r.recruitment] > 1 ? `${r.recruitment} (${seen[r.recruitment]})` : r.recruitment };
                     });
+                    vacancyLegend.set(vacancyRows.map((r, i) => ({ name: r.label, value: `${r.hired}/${r.vacancy}`, color: PieLegend.color(i, COLORS) })));
+                    drawVacancyHired();
                 });
             }
             loadVacancyVsHired();
