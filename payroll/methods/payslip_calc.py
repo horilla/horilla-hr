@@ -19,6 +19,7 @@ from payroll.methods.component_engine import (
     eligible_allowances,
     new_context,
     record,
+    structure_components,
 )
 from payroll.methods.deductions import update_compensation_deduction
 from payroll.methods.limits import compute_limit
@@ -312,12 +313,12 @@ def calculate_taxable_gross_pay(*_args, **kwargs):
         if contract is None or contract.loss_of_pay_is_pretax:
             loss_of_pay_total = loss_of_pay
 
-    taxable_gross_pay = (
-        gross_pay
-        - non_taxable_allowance_total
-        - pretax_deduction_total
-        - loss_of_pay_total
-    )
+    # Taxable gross = taxable earnings - pre-tax deductions (- loss of pay when
+    # it is a separate pre-tax deduction). Taxable earnings are gross less the
+    # earnings that are not taxable. The payslip's tax panel and the edit form
+    # lay it out in exactly these terms.
+    taxable_earnings = gross_pay - non_taxable_allowance_total
+    taxable_gross_pay = taxable_earnings - pretax_deduction_total - loss_of_pay_total
     # There is no such thing as negative taxable pay. Pre-tax deductions and
     # loss of pay together can come to more than was earned -- most of a month
     # unpaid against a part month worked -- and the raw subtraction then goes
@@ -478,7 +479,13 @@ def calculate_tax_deduction(*_args, **kwargs):
     active_employee_deduction = models.Deduction.objects.filter(
         include_active_employees=True, is_pretax=False, is_tax=True
     ).exclude(exclude_employees=employee)
-    deductions = (specific_deductions | active_employee_deduction).distinct()
+    deductions = (
+        specific_deductions
+        | active_employee_deduction
+        | structure_components(models.Deduction, employee).filter(
+            is_pretax=False, is_tax=True
+        )
+    ).distinct()
     deductions = (
         deductions.exclude(one_time_date__lt=start_date)
         .exclude(one_time_date__gt=end_date)
@@ -559,7 +566,12 @@ def calculate_pre_tax_deduction(*_args, **kwargs):
     ).exclude(exclude_employees=employee)
 
     deductions = (
-        specific_deductions | conditional_deduction | active_employee_deduction
+        specific_deductions
+        | conditional_deduction
+        | active_employee_deduction
+        | structure_components(models.Deduction, employee).filter(
+            is_pretax=True, is_tax=False
+        )
     ).distinct()
     deductions = (
         deductions.exclude(one_time_date__lt=start_date)
@@ -650,7 +662,12 @@ def calculate_post_tax_deduction(*_args, **kwargs):
     ).exclude(exclude_employees=employee)
     # .distinct(): see calculate_pre_tax_deduction's identical fan-out note.
     deductions = (
-        specific_deductions | conditional_deduction | active_employee_deduction
+        specific_deductions
+        | conditional_deduction
+        | active_employee_deduction
+        | structure_components(models.Deduction, employee).filter(
+            is_pretax=False, is_tax=False
+        )
     ).distinct()
     deductions = (
         deductions.exclude(one_time_date__lt=start_date)
@@ -935,6 +952,9 @@ def calculate_based_on_basic_pay(*_args, **kwargs):
     basic_pay = kwargs["basic_pay"]
     day_dict = kwargs["day_dict"]
     rate = component.rate
+    # Under CTC Down basic_pay is 0; the basic is the structure's flagged component.
+    if not basic_pay:
+        basic_pay = float((kwargs.get("component_context") or {}).get("BASIC") or 0)
     amount = basic_pay * rate / 100
     amount = compute_limit(component, amount, day_dict)
 
