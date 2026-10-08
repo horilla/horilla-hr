@@ -240,7 +240,7 @@
                                     {{row_attrs|format:instance|safe}}
                                 >
                                     {% if bulk_select_option %}
-                                    <td class="text-sm text-left px-1 py-1 text-[#666] rounded-lg h-[30px] {{row_status_class|format:instance|safe}}">
+                                    <td class="text-sm text-left px-1 py-1 text-[#666] rounded-lg h-[30px] {{row_status_class|format:instance|safe}}" prevent-dblclick="true" onclick="event.stopPropagation()">
                                         <div class="flex items-center justify-center">
                                             <input
                                                 type="checkbox"
