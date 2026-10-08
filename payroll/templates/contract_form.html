@@ -110,6 +110,10 @@ components divide up.
     var help = wage.getAttribute("data-wage-help-" + suffix);
     var reading = wage.getAttribute("data-wage-reading-" + suffix);
     if (label && text) { label.textContent = text; }
+    // Not read under CTC Down, so it is shown but not editable. A disabled box
+    // is not posted; the form keeps the saved wage and does not demand one.
+    wage.disabled = mode === "ctc_down";
+    if (mode === "ctc_down") { wage.removeAttribute("required"); }
     if (info && help) { info.setAttribute("title", help); }
     if (reading) {
       var structure = option && option.value ? option.textContent.trim() : "";

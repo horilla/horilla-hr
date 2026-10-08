@@ -25,14 +25,14 @@ from payroll.models.models import (
     SalaryStructure,
 )
 
-# What the contract wage IS depends on the structure the contract is on, and
-# the field cannot say "Basic Salary" in both cases without lying in one of
-# them. Under CTC Down the wage is the whole figure the components divide up,
-# and basic is one of the components — often "50% of gross" — so calling that
-# box basic pay describes the opposite of what it does.
+# What the contract wage IS depends on the structure the contract is on. Under
+# Gross Up it is basic pay. Under CTC Down it is not: basic is the structure's
+# own Basic Pay earning and the package is the separate Monthly CTC box, so the
+# wage is just the contract's stated pay -- naming it Basic or CTC would
+# describe the opposite of what it does.
 WAGE_LABELS = {
     "gross_up": _("Basic Salary"),
-    "ctc_down": _("Gross / CTC"),
+    "ctc_down": _("Basic Salary"),
 }
 
 # The unit the wage is in, said in the label rather than left to Wage Type two
@@ -46,20 +46,18 @@ WAGE_UNITS = {
 WAGE_HELP = {
     "gross_up": _("Basic pay. Allowances are added on top of it to reach gross."),
     "ctc_down": _(
-        "The total to divide up. Every earning, including basic pay, comes "
-        "from a component of this structure — so a component can be defined "
-        "as a percentage of gross, and the balance component absorbs whatever "
-        "is left."
+        "Not counted under a CTC Down structure: basic is the structure's "
+        "Basic Pay earning, worked out from Monthly CTC."
     ),
 }
 
 # Said plainly, next to the box, naming the structure responsible. The label
 # alone changes silently when the structure changes, which is easy to miss on a
-# form this long — and reading the wrong meaning into this number is how a
+# form this long -- and reading the wrong meaning into this number is how a
 # payslip comes out wrong.
 WAGE_READING = {
     "gross_up": _("Read as basic pay."),
-    "ctc_down": _("Read as cost to company, and divided up by the structure."),
+    "ctc_down": _("Not counted: basic comes from the structure's Basic Pay earning."),
 }
 
 
@@ -200,13 +198,24 @@ class ContractForm(ModelForm):
             )
         return value
 
+    def _structure_mode(self):
+        """The mode of the structure on the form: as posted, else as saved."""
+        chosen = None
+        if self.is_bound:
+            raw = self.data.get(self.add_prefix("salary_structure_id"))
+            if raw:
+                chosen = SalaryStructure.objects.filter(pk=raw).first()
+        else:
+            chosen = getattr(self.instance, "salary_structure_id", None)
+        return getattr(chosen, "structure_mode", None) or "gross_up"
+
     def _label_wage_for_structure(self):
         """
         Name the wage box after what it holds on the chosen structure, and give
         the picker what the page needs to keep doing so as the choice changes.
         """
         structure = getattr(self.instance, "salary_structure_id", None)
-        mode = getattr(structure, "structure_mode", None) or "gross_up"
+        mode = self._structure_mode()
 
         wage = self.fields["wage"]
         wage.label = WAGE_LABELS.get(mode, WAGE_LABELS["gross_up"])
@@ -222,6 +231,14 @@ class ContractForm(ModelForm):
                 "data-wage-structure": str(structure) if structure else "",
             }
         )
+
+        # Under CTC Down the box is shown but cannot be edited: it is not read.
+        # A disabled field keeps the saved value instead of taking what is
+        # posted, and a structure picked in this very form (so not yet saved)
+        # is honoured too, because the page disables the box the same way.
+        if self._structure_mode() == "ctc_down":
+            wage.disabled = True
+            wage.required = False
 
         # An hourly contract is paid from its own box, so the monthly figure is
         # not what the engine reads and should not be demanded.
