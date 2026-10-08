@@ -484,11 +484,14 @@
 
         /* Panel links */
         .em-panel__link {
-            color: var(--em-indigo);
+            flex-shrink: 0;
+            color: var(--primary-600, #E54F38);
             font-weight: 700;
             font-size: 11px;
             text-decoration: none;
+            white-space: nowrap;
         }
+        .em-panel__link:hover { text-decoration: underline; }
         /* Same chip as the Interviews time on the Recruitment dashboard: active theme colour. */
         .em-emp-item__date {
             flex-shrink: 0;
@@ -1252,7 +1255,8 @@
                             colors: stacks.map(st => st.color),
                             plotOptions: { bar: { borderRadius: 6, borderRadiusApplication: 'end', borderRadiusWhenStacked: 'last', columnWidth: '42%' } },
                             stroke: { width: 2, colors: [cardBg] },
-                            xaxis: { ...XAXIS_STYLE, categories: shown.map(x => x.d.label) },
+                            // Departments are the legend chips below, so the x axis is just a plain line.
+                            xaxis: { ...XAXIS_STYLE, categories: shown.map(x => x.d.label), labels: { show: false }, axisBorder: { show: true, color: gridColor }, tooltip: { enabled: false } },
                             yaxis: YAXIS_STYLE, grid: GRID, dataLabels: { enabled: false },
                             legend: { show: false },
                             // Only the hovered department's own job positions
@@ -1304,7 +1308,7 @@
                 const badge = document.getElementById('em-new-count');
                 const setCount = (n) => { badge.textContent = n; badge.hidden = !n; };
                 fetchJson("{% url 'employee-dashboard-new-joiners' %}").then(data => {
-                    document.getElementById('em-new-range').textContent = "{% trans 'Joined in the previous 30 days'|escapejs %}";
+                    document.getElementById('em-new-range').textContent = "{% trans 'Joined in the last 30 days'|escapejs %}";
                     document.getElementById('em-new-view-all').href = `${employeeListUrl}?is_active=True&joined_from=${data.from_date}&joined_till=${data.to_date}&filter_applied=on`;
                     setCount(data.employees.length);
                     if (!data.employees.length) { container.innerHTML = `<div class="em-panel__empty">{% trans "No new employees in the last 30 days"|escapejs %}</div>`; return; }

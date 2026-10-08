@@ -315,7 +315,7 @@ def employee_by_reporting_manager(request):
 @login_required
 @manager_can_enter(EMPLOYEE_PERM)
 def employee_new_joiners(request):
-    """Active employees who joined in the previous 30 days, newest first.
+    """Active employees who joined in the last 30 days, newest first.
 
     Independent of the dashboard period filter.
     """
