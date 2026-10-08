@@ -128,28 +128,33 @@ class TaxBracket(HorillaModel):
         if existing_bracket.exists():
             raise ValidationError(_("This tax bracket already exists"))
 
-        if self.max_income is None:
-            self.max_income = math.inf
+        # Open-ended is NULL, read as infinity but never written back as it.
+        top = math.inf if self.max_income is None else self.max_income
 
-        if self.min_income >= self.max_income:
+        if self.min_income >= top:
             raise ValidationError(
                 {"max_income": _("Maximum income must be greater than minimum income.")}
             )
 
-        existing_brackets = TaxBracket.objects.filter(
+        # The slab grid validates the whole table itself.
+        if getattr(self, "_table_validated", False):
+            return
+
+        # Slabs that meet are fine; only a real overlap is refused.
+        overlapping = TaxBracket.objects.filter(
             filing_status_id=self.filing_status_id
         ).exclude(pk=self.pk)
-        if existing_brackets.filter(max_income__gte=self.min_income).exists():
-            tax_bracket = existing_brackets.filter(
-                max_income__gte=self.min_income
-            ).first()
-            if tax_bracket.min_income <= self.max_income:
-                raise ValidationError(
-                    {
-                        "min_income": format_lazy(
-                            "The minimum income of this tax bracket must be \
-                                greater than the maximum income of {}.",
-                            tax_bracket,
-                        )
-                    }
-                )
+        overlapping = overlapping.filter(
+            models.Q(max_income__isnull=True) | models.Q(max_income__gt=self.min_income)
+        )
+        if top != math.inf:
+            overlapping = overlapping.filter(min_income__lt=top)
+        tax_bracket = overlapping.first()
+        if tax_bracket is not None:
+            raise ValidationError(
+                {
+                    "min_income": format_lazy(
+                        "This tax bracket overlaps {}.", tax_bracket
+                    )
+                }
+            )

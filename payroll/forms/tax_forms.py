@@ -173,6 +173,12 @@ class BaseTaxBracketFormSet(forms.BaseInlineFormSet):
     brackets at the first one that does not apply.
     """
 
+    def _construct_form(self, i, **kwargs):
+        form = super()._construct_form(i, **kwargs)
+        # The table is checked as a whole below.
+        form.instance._table_validated = True
+        return form
+
     def clean(self):
         super().clean()
         if any(self.errors):

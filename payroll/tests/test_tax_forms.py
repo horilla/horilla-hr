@@ -223,6 +223,86 @@ class TaxBracketFormSetTests(TestCase):
         self.assertTrue(formset.is_valid(), self._all_errors(formset))
 
 
+class SavingAnUnchangedSlabTableTests(TestCase):
+    """Saving a slab table unchanged must pass; slabs that meet are not overlaps."""
+
+    def setUp(self):
+        from payroll.models.models import FilingStatus
+        from payroll.models.tax_models import TaxBracket
+
+        self.filing_status = FilingStatus.objects.create(
+            filing_status="Saved Slabs", based_on="taxable_gross_pay"
+        )
+        self.rows = [
+            TaxBracket.objects.create(
+                filing_status_id=self.filing_status,
+                min_income=low,
+                max_income=high,
+                tax_rate=rate,
+            )
+            for low, high, rate in (
+                (0, 250000, 0),
+                (250000, 500000, 5),
+                (500000, 1000000, 20),
+                (1000000, None, 30),
+            )
+        ]
+
+    def test_saving_the_table_unchanged_is_accepted(self):
+        from payroll.forms.tax_forms import TaxBracketFormSet
+
+        data = {
+            "taxbracket_set-TOTAL_FORMS": str(len(self.rows)),
+            "taxbracket_set-INITIAL_FORMS": str(len(self.rows)),
+            "taxbracket_set-MIN_NUM_FORMS": "0",
+            "taxbracket_set-MAX_NUM_FORMS": "1000",
+        }
+        for index, row in enumerate(self.rows):
+            data[f"taxbracket_set-{index}-id"] = str(row.pk)
+            data[f"taxbracket_set-{index}-filing_status_id"] = str(
+                self.filing_status.pk
+            )
+            data[f"taxbracket_set-{index}-min_income"] = str(row.min_income)
+            data[f"taxbracket_set-{index}-max_income"] = (
+                "" if row.max_income is None else str(row.max_income)
+            )
+            data[f"taxbracket_set-{index}-tax_rate"] = str(row.tax_rate)
+        formset = TaxBracketFormSet(data, instance=self.filing_status)
+        self.assertTrue(
+            formset.is_valid(),
+            " ".join(str(f.errors) for f in formset.forms)
+            + str(formset.non_form_errors()),
+        )
+
+    def test_a_slab_that_only_meets_its_neighbour_is_not_an_overlap(self):
+        from payroll.models.tax_models import TaxBracket
+
+        TaxBracket(
+            filing_status_id=self.filing_status,
+            min_income=1000000,
+            max_income=None,
+            tax_rate=31,
+        ).clean_fields()
+        meeting = TaxBracket(
+            filing_status_id=self.filing_status,
+            min_income=2000000,
+            max_income=3000000,
+            tax_rate=1,
+        )
+        # Still overlaps the open-ended top slab.
+        from django.core.exceptions import ValidationError
+
+        with self.assertRaises(ValidationError):
+            meeting.clean()
+
+    def test_the_open_ended_slab_stays_null_after_validation(self):
+        from payroll.models.tax_models import TaxBracket
+
+        top = TaxBracket.objects.get(pk=self.rows[-1].pk)
+        top.clean()
+        self.assertIsNone(top.max_income)
+
+
 class FilingStatusTaxRulesFormTests(TestCase):
     def setUp(self):
         from payroll.models.models import FilingStatus
