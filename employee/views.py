@@ -3045,7 +3045,7 @@ def work_info_import(request):
                     {"error_message": error_message},
                 )
             success_list, error_list, created_count = process_employee_records(
-                cleaned_data_frame
+                cleaned_data_frame, get_session_company(request)
             )
             if success_list:
                 try:

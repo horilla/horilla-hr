@@ -3120,21 +3120,6 @@
   },
   {
     "model": "base.holidays",
-    "pk": 4,
-    "fields": {
-      "created_at": "2025-01-05T09:39:13.849Z",
-      "created_by": null,
-      "modified_by": null,
-      "is_active": true,
-      "name": "Founders' Day",
-      "start_date": "2025-06-01",
-      "end_date": "2025-06-01",
-      "recurring": false,
-      "company_id": null
-    }
-  },
-  {
-    "model": "base.holidays",
     "pk": 5,
     "fields": {
       "created_at": "2025-01-05T09:39:13.867Z",

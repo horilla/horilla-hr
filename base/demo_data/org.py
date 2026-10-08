@@ -27,7 +27,6 @@ HOLIDAY_COMPANY_BY_NAME = {
     "Eid al-Fitr": 2,  # gazetted holiday in India
     "Eid al-Adha": 2,  # gazetted holiday in India
     "Labor Day": 2,  # India observes May 1 as Labour Day
-    "Founders' Day": 1,  # company-specific, kept with the HQ company
 }
 
 # One department exclusive to each company, so every company's own
