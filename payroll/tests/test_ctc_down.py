@@ -595,3 +595,50 @@ class WageLeftOnTheContractTests(CtcDownSetup, TestCase):
         )
         self.assertAlmostEqual(data["total_deductions"], listed, places=2)
         self.assertTrue(data["lop_reflected_in_basic"])
+        # Loss of pay is the contract's own daily figure, taken off basic -- not a
+        # share of the package scaled by the wage's ratio -- and the package
+        # itself stays whole.
+        lop = data["loss_of_pay"]
+        self.assertGreater(lop, 0)
+        self.assertAlmostEqual(data["basic_pay"], 60000.0 * 0.50 - lop, places=2)
+        self.assertAlmostEqual(data["gross_pay"], 60000.0 - lop, places=2)
+
+    def test_loss_of_pay_is_a_share_of_the_defined_basic_not_the_contract_wage(self):
+        """
+        Under CTC Down the contract wage is not basic. A day of loss of pay is
+        the structure's basic over the divisor, so a stale wage on the contract
+        must not move it.
+        """
+        self._standard_structure()
+        Contract.objects.filter(pk=self.contract.pk).update(
+            wage=6500.0,
+            monthly_ctc=60000.0,
+            calculate_daily_leave_amount=True,
+            deduct_leave_from_basic_pay=True,
+            daily_leave_amount_base="wage",
+        )
+        summary = {
+            "present": 20,
+            "paid_leave": 0,
+            "unpaid_leave": 2,
+            "absent": 0,
+            "week_off": 0,
+            "holiday": 0,
+            "total_working": WORKING_DAYS,
+            "working_days": WORKING_DAYS,
+            "unresolved_conflicts": 0,
+        }
+        with patch(
+            "payroll.methods.methods.months_between_range",
+            return_value=[
+                {"working_days_on_period": WORKING_DAYS, "per_day_amount": PER_DAY}
+            ],
+        ), patch("payroll.methods.methods.get_leaves", return_value=EMPTY_LEAVES):
+            data = payroll_calculation(
+                self.employee, PERIOD_START, PERIOD_END, month_summary=summary
+            )
+        # Basic is 50% of the 60000 package, whatever the wage says.
+        self.assertAlmostEqual(data["lop_base_amount"], 30000.0, places=2)
+        expected = data["unpaid_days"] * 30000.0 / data["lop_divisor_days"]
+        self.assertAlmostEqual(data["loss_of_pay"], expected, places=2)
+        self.assertAlmostEqual(data["basic_pay"], 30000.0 - expected, places=2)

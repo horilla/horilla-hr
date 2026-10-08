@@ -243,10 +243,11 @@ class CtcDownGuardTests(TestCase):
         ):
             return payroll_calculation(self.employee, PERIOD_START, PERIOD_END)
 
-    def test_ctc_down_with_no_basic_refuses_rather_than_paying_zero_basic(self):
+    def test_ctc_down_with_no_basic_component_shows_zero_basic(self):
         """
-        A zero basic is not a display problem: a filing status based on basic
-        pay would tax nothing, and the payslip would look complete.
+        Under CTC Down basic is the flagged earning and nothing else. With none
+        flagged it is zero -- the contract wage is not read as basic -- and the
+        payslip still runs.
         """
         other = Allowance.objects.create(
             title="Allowance",
@@ -258,9 +259,8 @@ class CtcDownGuardTests(TestCase):
         )
         other.specific_employees.add(self.employee)
 
-        with self.assertRaises(StructureConfigurationError) as caught:
-            self._run()
-        self.assertIn("basic pay", str(caught.exception).lower())
+        data = self._run()
+        self.assertEqual(data["basic_pay"], 0)
 
     def test_ctc_down_with_a_basic_component_runs(self):
         basic = Allowance.objects.create(

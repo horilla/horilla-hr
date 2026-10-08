@@ -193,6 +193,14 @@
   // --- preview ------------------------------------------------------------
   function money(n) { return Number(n).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
 
+  // Enter in the income box works the tax out; it must not submit the rules form.
+  document.getElementById("previewIncome").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      document.getElementById("previewBtn").click();
+    }
+  });
+
   document.getElementById("previewBtn").addEventListener("click", function () {
     var out = document.getElementById("previewOut");
     var body = new FormData();
