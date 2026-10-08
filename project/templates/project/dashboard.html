@@ -33,7 +33,14 @@
         gap: 12px;
     }
     .pr-header h1 { font-size: 22px; font-weight: 700; margin: 0; }
-    .pr-header__meta { font-size: 13px; opacity: 0.5; margin-top: 2px; }
+    .pr-header__date { font-size: 13px; opacity: 0.6; margin-top: 2px; }
+    /* Auto-refresh */
+    .pr-refresh { display: flex; align-items: center; gap: 6px; font-size: 11px; opacity: 0.5; }
+    .pr-refresh__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--pr-green); flex-shrink: 0; }
+    .pr-refresh__dot--pulse { animation: pr-pulse 2s infinite; }
+    @keyframes pr-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .pr-refresh__toggle { cursor: pointer; opacity: 0.6; font-size: 13px; border: none; background: none; color: inherit; padding: 2px; }
+    .pr-refresh__toggle:hover { opacity: 1; }
     .pr-header__controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     /* Period picker — same look as the Offboarding / PMS dashboards' picker */
     .pr-period-picker {
@@ -156,7 +163,10 @@
     .pr-info-panel { border-radius: 12px; background: #ffffff; border: 1px solid rgba(128,128,128,0.12); overflow: hidden; display: flex; flex-direction: column; flex-shrink: 0; }
     .dark .pr-info-panel { background: #242424; border-color: rgba(255,255,255,0.08); }
     .pr-info-panel__header { padding: 14px 16px 10px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; border-bottom: 1px solid rgba(128,128,128,0.08); }
-    .pr-info-panel__title { font-size: 13px; font-weight: 700; }
+    .pr-info-panel__title { font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    /* How many records the card holds, beside its title. Hidden at zero. */
+    .pr-count-badge[hidden] { display: none; }
+    .pr-count-badge { min-width: 24px; height: 24px; padding: 0 6px; border-radius: 999px; background: var(--pr-indigo); color: #fff; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
     /* Title on top, the date period / basis the card lists on the line below. */
     .pr-info-panel__heading { min-width: 0; }
     .pr-info-panel__sub { font-size: 11px; opacity: 0.5; margin-top: 2px; }
@@ -218,7 +228,8 @@
     <div class="pr-header">
         <div>
             <h1>{% trans "Project Dashboard" %}</h1>
-            <div class="pr-header__meta" id="pr-last-updated">{% trans "Loading..." %}</div>
+            <div class="pr-header__date" id="pr-date"></div>
+            <div class="pr-refresh"><span class="pr-refresh__dot" id="pr-refresh-dot"></span><span id="pr-refresh-text">{% trans "Just now" %}</span><button class="pr-refresh__toggle" id="pr-refresh-toggle" title="{% trans 'Toggle auto-refresh' %}">⟳</button></div>
         </div>
         <div class="pr-header__controls">
             <div class="pr-period-picker">
@@ -236,8 +247,8 @@
         </div>
     </div>
 
-    <!-- KPI Row -->
-    <div class="pr-kpi-grid" id="pr-kpi-grid">
+    <!-- Task/deadline KPI row -->
+    <div class="pr-kpi-grid" id="pr-task-kpi-grid">
         <div class="pr-kpi-card pr-skeleton" style="height:100px;"></div>
         <div class="pr-kpi-card pr-skeleton" style="height:100px;"></div>
         <div class="pr-kpi-card pr-skeleton" style="height:100px;"></div>
@@ -298,7 +309,7 @@
             <div class="pr-info-panel">
                 <div class="pr-info-panel__header">
                     <div class="pr-info-panel__heading">
-                    <div class="pr-info-panel__title">{% trans "Top Contributors" %}</div>
+                    <div class="pr-info-panel__title">{% trans "Top Contributors" %}<span id="pr-contributors-count" class="pr-count-badge" hidden title="{% trans 'Employees who completed tasks in this period' %}">0</span></div>
                     <div class="pr-info-panel__sub" data-period-label="bare"></div>
                 </div>
                 </div>
@@ -309,7 +320,7 @@
             <div class="pr-info-panel">
                 <div class="pr-info-panel__header">
                     <div class="pr-info-panel__heading">
-                    <div class="pr-info-panel__title">{% trans "Task Deadlines" %}</div>
+                    <div class="pr-info-panel__title">{% trans "Task Deadlines" %}<span id="pr-deadlines-count" class="pr-count-badge" hidden title="{% trans 'Tasks due soon or overdue' %}">0</span></div>
                     <div class="pr-info-panel__sub">{% trans "Next 14 days & overdue" %}</div>
                 </div>
                 </div>
@@ -347,13 +358,13 @@
     const taskAllUrlFor = id => id ? `{% url 'task-all' %}?task_members=${id}&status=completed&end_from=${prFromDate}&end_till=${prToDate}` : '#';
 
     const PR_URLS = {
-        kpi:          "{% url 'project-dashboard-kpi' %}",
         pipeline:     "{% url 'project-dashboard-pipeline' %}",
         tasks:        "{% url 'project-dashboard-tasks' %}",
         timesheet:    "{% url 'project-dashboard-timesheet' %}",
         top:          "{% url 'project-dashboard-top' %}",
         contributors: "{% url 'project-dashboard-contributors' %}",
         deadlines:    "{% url 'project-dashboard-task-deadlines' %}",
+        taskKpi:      "{% url 'project-dashboard-task-kpi' %}",
         projectView:  "{% url 'project-view' %}",
         taskAll:      "{% url 'task-all' %}",
         projectDetail: "/project/task-view/__ID__/?view=card",
@@ -524,37 +535,45 @@
     const timesheetLegend = prCreateLegend({ el: document.getElementById('pr-timesheet-legend'), noun: '{% trans "projects"|escapejs %}' });
     const topLegend = prCreateLegend({ el: document.getElementById('pr-top-legend'), noun: '{% trans "projects"|escapejs %}', topN: 3 });
 
-    // ─── KPI CARDS ───
-    function prLoadKpi() {
-        prFetch(PR_URLS.kpi).then(d => {
+    // ─── TASK & DEADLINE KPI ───
+    // "Today's", "nearing deadline" and "overdue" are always relative to
+    // today, not the period picker above -- same choice project_task_deadlines
+    // already makes for the Task Deadlines panel, so this row doesn't flip
+    // between showing nothing and showing everything as the picker changes.
+    function prLoadTaskKpi() {
+        prFetch(PR_URLS.taskKpi).then(d => {
+            const today = new Date();
+            const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+            const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+            const soon = new Date(today); soon.setDate(today.getDate() + 14);
+            const todayStr = prFmt(today), tomorrowStr = prFmt(tomorrow), yesterdayStr = prFmt(yesterday), soonStr = prFmt(soon);
+            const ta = PR_URLS.taskAll;
             const pv = PR_URLS.projectView;
-            document.getElementById('pr-kpi-grid').innerHTML = `
-                <a href="${pv}" class="pr-kpi-card">
-                    <div class="pr-kpi-card__icon pr-kpi-card__icon--blue"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
-                    <div class="pr-kpi-card__label">{% trans "Total Projects"|escapejs %}</div>
-                    <div class="pr-kpi-card__value">${d.total_projects}</div>
-                    <div class="pr-kpi-card__sub"><span class="pr-badge pr-badge--blue">+${d.total_new_this_month} {% trans "This Month"|escapejs %}</span></div>
+            document.getElementById('pr-task-kpi-grid').innerHTML = `
+                <a href="${ta}?is_open=true&end_date=${todayStr}&filter_applied=on" class="pr-kpi-card">
+                    <div class="pr-kpi-card__icon pr-kpi-card__icon--blue"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+                    <div class="pr-kpi-card__label">{% trans "Today's Tasks"|escapejs %}</div>
+                    <div class="pr-kpi-card__value">${d.today_tasks}</div>
+                    <div class="pr-kpi-card__sub"><span class="pr-badge pr-badge--blue">{% trans "Due Today"|escapejs %}</span></div>
                 </a>
-                <a href="${pv}?status=in_progress" class="pr-kpi-card">
-                    <div class="pr-kpi-card__icon pr-kpi-card__icon--green"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg></div>
-                    <div class="pr-kpi-card__label">{% trans "Active"|escapejs %}</div>
-                    <div class="pr-kpi-card__value">${d.active_projects}</div>
-                    <div class="pr-kpi-card__sub"><span class="pr-badge pr-badge--green">+${d.active_started_this_month} {% trans "Started This Month"|escapejs %}</span></div>
+                <a href="${ta}?is_open=true&end_from=${tomorrowStr}&end_till=${soonStr}&filter_applied=on" class="pr-kpi-card">
+                    <div class="pr-kpi-card__icon pr-kpi-card__icon--amber"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+                    <div class="pr-kpi-card__label">{% trans "Nearing Deadline"|escapejs %}</div>
+                    <div class="pr-kpi-card__value">${d.nearing_deadline_tasks}</div>
+                    <div class="pr-kpi-card__sub"><span class="pr-badge pr-badge--amber">{% trans "Next 14 Days"|escapejs %}</span></div>
                 </a>
-                <a href="${pv}?status=on_hold" class="pr-kpi-card">
-                    <div class="pr-kpi-card__icon pr-kpi-card__icon--amber"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="10" y1="15" x2="10" y2="9"/><line x1="14" y1="15" x2="14" y2="9"/></svg></div>
-                    <div class="pr-kpi-card__label">{% trans "On Hold"|escapejs %}</div>
-                    <div class="pr-kpi-card__value">${d.on_hold_projects}</div>
-                    <div class="pr-kpi-card__sub">${d.on_hold_overdue > 0 ? `<span class="pr-badge pr-badge--amber">${d.on_hold_overdue} {% trans "Past End Date"|escapejs %}</span>` : `<span class="pr-badge pr-badge--amber">{% trans "Needs Review"|escapejs %}</span>`}</div>
-                </a>
-                <a href="${pv}?overdue=True" class="pr-kpi-card">
+                <a href="${ta}?is_open=true&end_till=${yesterdayStr}&filter_applied=on" class="pr-kpi-card">
                     <div class="pr-kpi-card__icon pr-kpi-card__icon--red"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
-                    <div class="pr-kpi-card__label">{% trans "Overdue"|escapejs %}</div>
-                    <div class="pr-kpi-card__value">${d.overdue_projects}</div>
-                    <div class="pr-kpi-card__sub">${d.overdue_new_this_month > 0 ? `<span class="pr-badge pr-badge--red">+${d.overdue_new_this_month} {% trans "This Month"|escapejs %}</span>` : `<span class="pr-badge pr-badge--red">{% trans "Past End Date"|escapejs %}</span>`}</div>
+                    <div class="pr-kpi-card__label">{% trans "Overdue Tasks"|escapejs %}</div>
+                    <div class="pr-kpi-card__value">${d.overdue_tasks}</div>
+                    <div class="pr-kpi-card__sub"><span class="pr-badge pr-badge--red">{% trans "Past End Date"|escapejs %}</span></div>
+                </a>
+                <a href="${pv}?status=in_progress&end_from=${todayStr}&end_till=${soonStr}&filter_applied=on" class="pr-kpi-card">
+                    <div class="pr-kpi-card__icon pr-kpi-card__icon--purple"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3 7h7l-5.5 4.5L18.5 21 12 16.5 5.5 21 7.5 13.5 2 9h7z"/></svg></div>
+                    <div class="pr-kpi-card__label">{% trans "Projects Ending Soon"|escapejs %}</div>
+                    <div class="pr-kpi-card__value">${d.projects_ending_soon}</div>
+                    <div class="pr-kpi-card__sub"><span class="pr-badge pr-badge--purple">{% trans "Next 14 Days"|escapejs %}</span></div>
                 </a>`;
-            document.getElementById('pr-last-updated').textContent =
-                `{% trans "Last updated"|escapejs %}: ${new Date().toLocaleTimeString()}`;
         });
     }
 
@@ -566,9 +585,13 @@
             if (!d.counts.length) { PieLegend.clearFor(el); el.innerHTML = emptyHtml('{% trans "No tasks in this period"|escapejs %}'); return; }
             const colors = d.keys.map(k => TASK_COLORS[k] || '#94a3b8');
             el.style.cursor = "pointer";
+            // Completed and expired tasks are done; To Do and In Progress are
+            // what still needs attention, so the chart opens on those.
+            const initiallyOff = d.labels.filter((_, i) => d.keys[i] === 'completed' || d.keys[i] === 'expired');
             renderChart('task-status', el, PieLegend.options(el, () => chartInstances['task-status'], '{% trans "statuses"|escapejs %}', {
                 series: d.counts,
                 labels: d.labels,
+                initiallyOff: initiallyOff,
                 chart: {
                     type: "donut", height: 240, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
                     events: { dataPointSelection: (e, ctx, cfg) => {
@@ -665,10 +688,17 @@
         });
     }
 
+    function prSetCountBadge(id, n) {
+        const b = document.getElementById(id);
+        b.textContent = n || 0;
+        b.hidden = !n;
+    }
+
     // ─── TOP CONTRIBUTORS ───
     function prLoadContributors() {
         prFetch(PR_URLS.contributors).then(d => {
             const el = document.getElementById('pr-contributors');
+            prSetCountBadge('pr-contributors-count', d.total);
             if (!d.contributors.length) { el.innerHTML = '<div class="pr-info-panel__empty">{% trans "No completed tasks in this period"|escapejs %}</div>'; return; }
             el.innerHTML = d.contributors.map(c => {
                 const initials = c.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
@@ -688,6 +718,7 @@
     function prLoadDeadlines() {
         prFetch(PR_URLS.deadlines).then(d => {
             const el = document.getElementById('pr-deadlines');
+            prSetCountBadge('pr-deadlines-count', d.total);
             const items = [
                 ...d.overdue.map(t => ({...t, kind: 'overdue'})),
                 ...d.upcoming.map(t => ({...t, kind: 'upcoming'})),
@@ -753,9 +784,50 @@
         });
     }
 
+    document.getElementById("pr-date").textContent = new Date().toLocaleDateString("en-US", {
+        weekday: "long", year: "numeric", month: "long", day: "numeric"
+    });
+
+    // ── Auto-refresh (same as the other dashboards) ──
+    const PR_REFRESH_INTERVAL = 300000; // 5 minutes
+    const PR_REFRESH_KEY = "pr_auto_refresh";
+    let prRefreshTimer = null;
+    let prLastRefresh = Date.now();
+    let prAutoRefreshOn = localStorage.getItem(PR_REFRESH_KEY) !== "off";
+    const prRefreshDot = document.getElementById("pr-refresh-dot");
+    const prRefreshText = document.getElementById("pr-refresh-text");
+    const prRefreshToggle = document.getElementById("pr-refresh-toggle");
+    function prUpdateRefreshText() {
+        const mins = Math.floor((Date.now() - prLastRefresh) / 60000);
+        prRefreshText.textContent = mins < 1 ? '{% trans "Just now"|escapejs %}' : mins + '{% trans "m ago"|escapejs %}';
+    }
+    registerAutoRefresh(setInterval(prUpdateRefreshText, 30000));
+    function prStartAutoRefresh() {
+        prAutoRefreshOn = true;
+        localStorage.setItem(PR_REFRESH_KEY, "on");
+        prRefreshDot.classList.add("pr-refresh__dot--pulse");
+        prRefreshToggle.textContent = "⟳";
+        prRefreshToggle.title = '{% trans "Auto-refresh ON (5 min)"|escapejs %}';
+        // Wrapped so a hidden tab does not keep fetching; refreshes once on return.
+        prRefreshTimer = setInterval(autoRefreshWhenVisible(prLoadAll), PR_REFRESH_INTERVAL);
+        registerAutoRefresh(prRefreshTimer);
+    }
+    function prStopAutoRefresh() {
+        prAutoRefreshOn = false;
+        localStorage.setItem(PR_REFRESH_KEY, "off");
+        prRefreshDot.classList.remove("pr-refresh__dot--pulse");
+        prRefreshToggle.textContent = "⏸";
+        prRefreshToggle.title = '{% trans "Auto-refresh OFF"|escapejs %}';
+        if (prRefreshTimer) { clearInterval(prRefreshTimer); prRefreshTimer = null; }
+    }
+    prRefreshToggle.addEventListener("click", () => { if (prAutoRefreshOn) prStopAutoRefresh(); else prStartAutoRefresh(); });
+    if (prAutoRefreshOn) prStartAutoRefresh(); else prStopAutoRefresh();
+
     function prLoadAll() {
+        prLastRefresh = Date.now();
+        prUpdateRefreshText();
         prApplyPeriodLabels();
-        prLoadKpi();
+        prLoadTaskKpi();
         prLoadTasks();
         prLoadTimesheet();
         prLoadTop();
