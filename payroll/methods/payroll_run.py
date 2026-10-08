@@ -14,6 +14,7 @@ module. Callers keep working through the re-export left behind in
 ``component_views``.
 """
 
+import copy
 import json
 import logging
 
@@ -215,12 +216,28 @@ def payroll_calculation(employee, start_date, end_date, month_summary=None):
     # off again has to know.
     pot_prorated_by_wage = ctc_stated and bool(contract.wage)
 
-    period_ctc = basic_pay
+    # Loss of pay comes off basic pay itself, in either structure type, when the
+    # contract says so -- not off the package. compute_salary_on_period has
+    # already taken it off the wage, so the pot is rebuilt from the wage as it
+    # was before that, and the cut is applied to the basic earning below
+    # (basic_lop_reduction), where everything that reads BASIC sees the adjusted
+    # figure. When the contract does not say so, loss of pay is a deduction line
+    # and the pot is untouched.
+    lop_off_basic = bool(
+        structure_mode == "ctc_down"
+        and contract.deduct_leave_from_basic_pay
+        and not basic_pay_details.get("lop_from_gross")
+    )
+    if lop_off_basic:
+        pot_prorated_by_wage = False
+
+    period_ctc = basic_pay + loss_of_pay if lop_off_basic else basic_pay
     if ctc_stated:
         # Prorated by the same factor the wage was, so a part-month payslip
         # divides a part-month package. Derived from the ratio rather than
         # re-prorated from scratch, so it cannot disagree with the wage.
-        ratio = basic_pay / float(contract.wage) if contract.wage else 1.0
+        pre_lop_wage_pay = basic_pay + loss_of_pay if lop_off_basic else basic_pay
+        ratio = pre_lop_wage_pay / float(contract.wage) if contract.wage else 1.0
         period_ctc = float(contract.monthly_ctc) * ratio
 
     # Where basic pay comes from: the contract if it states a wage, otherwise
@@ -311,8 +328,7 @@ def payroll_calculation(employee, start_date, end_date, month_summary=None):
             # The same goes for a stated CTC on a contract that also holds a
             # wage: the package was prorated by the wage's own ratio above, and
             # that ratio already carries the loss of pay.
-            ctc_stated
-            and not pot_prorated_by_wage
+            (lop_off_basic or (ctc_stated and not pot_prorated_by_wage))
             and basic_source == BASIC_FROM_COMPONENT
             and contract.deduct_leave_from_basic_pay
             and not basic_pay_details.get("lop_from_gross")
@@ -327,6 +343,39 @@ def payroll_calculation(employee, start_date, end_date, month_summary=None):
         kwargs["employer_deductions"] = eligible_deductions(
             employee, start_date, end_date
         )
+    # Under CTC Down, "per day of basic pay" means the basic the structure
+    # defines, not the contract's wage -- the wage is not basic there. Loss of
+    # pay is therefore worked out from that basic in full, before any cut: a
+    # trial pass of the earnings finds it, and the daily rate is that figure over
+    # the same divisor the contract picked. The wage-based figure the period
+    # calculation arrived at is replaced, and anything else it held (a custom
+    # leave deduction) is kept.
+    if (
+        structure_mode == "ctc_down"
+        and basic_source == BASIC_FROM_COMPONENT
+        and contract.calculate_daily_leave_amount
+        and contract.daily_leave_amount_base == "wage"
+        and not basic_pay_details.get("lop_from_gross")
+        and lop_daily_rate is not None
+        and lop_divisor_days
+        and unpaid_days
+    ):
+        trial = dict(kwargs)
+        trial["component_context"] = copy.deepcopy(component_context)
+        trial["basic_lop_reduction"] = 0.0
+        calculate_allowance(**trial)
+        full_basic = float(trial["component_context"].get("BASIC", 0) or 0)
+        new_rate = full_basic / float(lop_divisor_days)
+        loss_of_pay = (
+            loss_of_pay - unpaid_days * lop_daily_rate + unpaid_days * new_rate
+        )
+        lop_base_amount, lop_daily_rate = full_basic, new_rate
+        loss_of_pay_amount = 0 if contract.deduct_leave_from_basic_pay else loss_of_pay
+        component_context["LOP"] = loss_of_pay
+        kwargs["loss_of_pay_amount"] = loss_of_pay_amount
+        if kwargs["basic_lop_reduction"]:
+            kwargs["basic_lop_reduction"] = float(loss_of_pay)
+
     # basic pay will be basic_pay = basic_pay - update_compensation_amount
     # Overtime pay (regular/week-off/holiday) comes from the configurable
     # "Regular Overtime" / "Week Off Overtime" / "Holiday Overtime"
@@ -351,7 +400,12 @@ def payroll_calculation(employee, start_date, end_date, month_summary=None):
     # marked as basic pay. A zero basic is not a harmless display problem — a
     # filing status based on basic pay would tax nothing — so refuse the payslip
     # and say so, the same stance TaxComputationError takes.
-    if basic_source == BASIC_FROM_NEITHER:
+    #
+    # A CTC Down structure is the exception: its basic is whichever earning is
+    # flagged as basic pay, and with none flagged basic is simply zero -- the
+    # contract wage is never read as basic there, so there is nothing to refuse
+    # over. The structure form already tells whoever configured it.
+    if basic_source == BASIC_FROM_NEITHER and structure_mode != "ctc_down":
         # Still a refusal, but now only for what it was written for: nothing
         # anywhere states a rate. An employee who worked no hours this period
         # has a configured contract and gets a payslip of zero, which is the
@@ -432,6 +486,18 @@ def payroll_calculation(employee, start_date, end_date, month_summary=None):
         # there to keep gross from double-counting.
         basic_pay = derived_basic_pay
         kwargs["basic_pay"] = basic_pay
+        # Basic is now in kwargs["basic_pay"], and the earning that produced it
+        # is still among the allowances. Gross as the later steps work it out is
+        # total_allowance + basic_pay, so leaving the earning in the total counted
+        # basic twice -- taxable gross, and the income tax taken from it, came out
+        # one basic too high. Gross itself was fixed above, before this.
+        basic_row_amount = sum(
+            row["amount"]
+            for row in allowances["allowances"]
+            if basic_pay_row_id is not None
+            and row.get("allowance_id") == basic_pay_row_id
+        )
+        kwargs["total_allowance"] = total_allowance - basic_row_amount
 
         # deduct_leave_from_basic_pay's reduction (in compute_salary_on_period)
         # landed on the wage-sourced basic_pay this line just discarded --

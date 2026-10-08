@@ -21,13 +21,10 @@ Every figure a payslip shows lives in one of four places:
 Editing any of them re-derives gross, total deductions and net the same way
 the engine's own final steps do — deductions capped at gross (see
 ``payroll_run.calculate``), net never negative — so a hand-edited payslip
-still reads as one whose own arithmetic works out. What is NOT attempted here
-is re-deriving tax: Income Tax is an ordinary editable line like any other,
-because recomputing it against an edited taxable gross means calling the real
-bracket engine, and duplicating that arithmetic here is exactly the mistake
-this codebase keeps finding and fixing elsewhere. Someone who changes an
-earning enough to want the tax to follow has to edit that line too, on
-purpose.
+still reads as one whose own arithmetic works out. Income Tax follows the edit: it is worked out again by the same
+``period_tax`` the engine used, from the taxable gross the edit leaves, so the
+bracket arithmetic is not duplicated here. It stays an editable line -- a figure
+typed into it is kept as typed.
 
 A line can also be *added* here, which is the other half of the same idea:
 a one-off allowance or deduction that belongs to this payslip and nothing
@@ -229,9 +226,10 @@ def described_lines(payslip):
     data = payslip.pay_head_data or {}
     allowances, deductions = _components_on(payslip)
 
-    def described(key, section, title, amount, removable, component):
+    def described(key, section, title, amount, removable, component, **extra):
         basis, applies = _explain(component)
         return component, {
+            **extra,
             "key": key,
             "section": section,
             "title": title,
@@ -252,6 +250,7 @@ def described_lines(payslip):
             payslip.basic_pay or 0,
             False,
             basic_component,
+            taxable=True,
         )
     ]
     # Basic pay is what the others are worked out from, so it is given here
@@ -270,6 +269,7 @@ def described_lines(payslip):
                 row.get("amount", 0) or 0,
                 True,
                 allowances.get(row.get("allowance_id")),
+                taxable=bool(row.get("is_taxable", True)),
             )
         )
 
@@ -294,6 +294,7 @@ def described_lines(payslip):
                     row.get("amount", 0) or 0,
                     True,
                     deductions.get(row.get("deduction_id")),
+                    pretax=bucket == "pretax_deductions",
                 )
             )
 
@@ -355,7 +356,11 @@ def apply_edits(payslip, amounts, removed, new_line=None):
     every stored line, because from the moment it is saved that is what it is.
     """
     data = dict(payslip.pay_head_data or {})
-    lines = editable_lines(payslip)
+    pairs = described_lines(payslip)
+    lines = [line for line, _component in pairs]
+    old_tax = float(data.get("federal_tax", 0) or 0)
+    old_basic = float(data.get("basic_pay", payslip.basic_pay) or 0)
+    amounts = dict(amounts)
     if new_line:
         lines = lines + [
             {
@@ -366,6 +371,22 @@ def apply_edits(payslip, amounts, removed, new_line=None):
                 "removable": True,
             }
         ]
+
+    # Income Tax follows the edit. A figure typed into the tax line itself is
+    # kept as typed; one left as it was (or not sent) is worked out again from
+    # what the payslip now comes to, by the same tax engine that generated it.
+    if TAX_KEY not in removed:
+        posted = amounts.get(TAX_KEY)
+        if posted is None or abs(posted - old_tax) < 0.005:
+            earnings_now = preview_totals(lines, amounts, removed)["gross_pay"]
+            tax = recomputed_tax(payslip, pairs, amounts, removed, earnings_now)
+            if tax is not None:
+                if new_line and new_line["section"] == "earning":
+                    # A one-off earning is taxable, as an allowance is.
+                    tax = recomputed_tax_with_line(
+                        payslip, pairs, amounts, removed, earnings_now, new_line
+                    )
+                amounts[TAX_KEY] = tax
     totals = preview_totals(lines, amounts, removed)
 
     def rebuild(rows, prefix, id_field):
@@ -407,6 +428,22 @@ def apply_edits(payslip, amounts, removed, new_line=None):
     data["federal_tax"] = (
         0.0 if TAX_KEY in removed else amounts.get(TAX_KEY, data.get("federal_tax", 0))
     )
+    new_basic = round(amounts.get(BASIC_KEY, payslip.basic_pay or 0), 2)
+    # The page reads these from the snapshot, not from the model's columns, so
+    # leaving them as generated showed the old basic and gross after a save.
+    data["basic_pay"] = new_basic
+    data["gross_pay"] = totals["gross_pay"]
+    data["taxable_gross_pay"] = round(
+        taxable_after(payslip, pairs, amounts, removed, new_line), 2
+    )
+    if abs(new_basic - old_basic) > 0.005:
+        # Basic was set by hand, so it is no longer "after loss of pay": the
+        # figure is what was decided, and a Salary Adjustments block claiming
+        # a deduction from it would describe something that did not happen.
+        data["loss_of_pay_before_edit"] = data.get("loss_of_pay", 0)
+        data["loss_of_pay"] = 0.0
+        data["lop_reflected_in_basic"] = False
+        data["basic_edited"] = True
     data["total_deductions"] = totals["total_deductions"]
     data["deduction_before_cap"] = totals["deduction_before_cap"]
     data["uncovered_deduction"] = totals["uncovered_deduction"]
@@ -638,4 +675,108 @@ def recompute_dependents(payslip, amounts, removed=(), given=()):
             if section == "earning":
                 earned += amount
 
+    # Income Tax follows the edit unless it was typed into or taken off.
+    if TAX_KEY not in given and TAX_KEY not in removed:
+        tax = recomputed_tax(payslip, pairs, result, removed, earned)
+        if tax is not None:
+            result[TAX_KEY] = tax
+
     return result
+
+
+def recomputed_tax_with_line(payslip, pairs, amounts, removed, gross, new_line):
+    """recomputed_tax for a payslip that also gains a one-off taxable earning."""
+    extra = float(new_line["amount"] or 0)
+    return recomputed_tax(payslip, pairs, amounts, removed, gross, extra_taxable=extra)
+
+
+def taxable_after(payslip, pairs, amounts, removed, new_line=None):
+    """
+    The taxable gross these figures leave, built the way the engine builds it:
+    taxable earnings, less pre-tax deductions, less loss of pay when it is a
+    separate pre-tax deduction.
+
+    Worked from the lines rather than moved from the stored figure, so a
+    payslip whose snapshot drifted (an earlier edit, or one generated before
+    a fix) is still taxed on what it shows.
+    """
+    data = payslip.pay_head_data or {}
+    taxable = 0.0
+    for line, _component in pairs:
+        key = line["key"]
+        new = 0.0 if key in removed else float(amounts.get(key, line["amount"]) or 0)
+        if line["section"] == "earning" and line.get("taxable"):
+            taxable += new
+        elif line.get("pretax"):
+            taxable -= new
+    if new_line and new_line["section"] == "earning":
+        taxable += float(new_line["amount"] or 0)
+    taxable -= taxable_loss_of_pay(payslip)
+    return max(0.0, taxable)
+
+
+def taxable_loss_of_pay(payslip):
+    """Loss of pay that is taken off taxable gross: a separate, pre-tax one."""
+    data = payslip.pay_head_data or {}
+    if data.get("lop_reflected_in_basic"):
+        return 0.0
+    from payroll.models.models import Contract
+
+    contract = (
+        Contract.objects.entire()
+        .filter(employee_id=payslip.employee_id, contract_status="active")
+        .first()
+    )
+    if contract is None or contract.loss_of_pay_is_pretax:
+        return float(data.get("loss_of_pay") or 0)
+    return 0.0
+
+
+def tax_explanation(payslip, pairs, amounts, removed, gross, extra_taxable=0.0):
+    """
+    How the Income Tax on these figures is worked out, or None when there is
+    nothing to work out (no filing status on the contract: "no income tax
+    configured", as it is in the engine).
+
+    The same arithmetic ``period_tax`` does -- laid out step by step by
+    ``explain_period_tax`` -- fed the figure the filing status taxes. Taxable
+    gross is built from the lines: taxable earnings, less pre-tax deductions.
+    """
+    from payroll.methods.tax_calc import explain_period_tax
+    from payroll.models.models import Contract
+
+    contract = (
+        Contract.objects.entire()
+        .filter(employee_id=payslip.employee_id, contract_status="active")
+        .select_related("filing_status")
+        .first()
+    )
+    filing = contract.filing_status if contract is not None else None
+    if filing is None:
+        return None
+
+    taxable = taxable_after(payslip, pairs, amounts, removed) + extra_taxable
+
+    if filing.based_on == "taxable_gross_pay":
+        income = taxable
+    elif filing.based_on == "gross_pay":
+        income = gross
+    else:
+        income = float(amounts.get(BASIC_KEY, payslip.basic_pay or 0) or 0)
+
+    return explain_period_tax(
+        filing,
+        max(income, 0.0),
+        payslip.start_date,
+        payslip.end_date,
+        employee=payslip.employee_id,
+        pay_frequency=contract.pay_frequency,
+    )
+
+
+def recomputed_tax(payslip, pairs, amounts, removed, gross, extra_taxable=0.0):
+    """The Income Tax these figures come to, or None (see tax_explanation)."""
+    explained = tax_explanation(
+        payslip, pairs, amounts, removed, gross, extra_taxable=extra_taxable
+    )
+    return None if explained is None else round(explained["period_tax"], 2)

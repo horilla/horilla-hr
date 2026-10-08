@@ -125,6 +125,32 @@ def accumulate(context, amount):
     return context
 
 
+def structure_components(model, employee):
+    """
+    The components of ``model`` (Allowance or Deduction) that the employee's
+    active contract's salary structure carries.
+
+    A component in the structure applies to everyone on it, whatever the
+    component's own specific / excluded employees say: the structure is the
+    statement. Empty when the employee has no active contract or structure.
+    """
+    from payroll.models.models import Contract
+
+    contract = (
+        Contract.objects.entire()
+        .filter(
+            employee_id=employee,
+            contract_status="active",
+            salary_structure_id__isnull=False,
+        )
+        .order_by("-contract_start_date", "-pk")
+        .first()
+    )
+    if contract is None:
+        return model.objects.none()
+    return model.objects.filter(salary_structures=contract.salary_structure_id)
+
+
 def eligible_allowances(employee, start_date, end_date):
     """
     The allowances in scope for this employee and period, in evaluation order.
@@ -142,7 +168,9 @@ def eligible_allowances(employee, start_date, end_date):
         exclude_employees=employee
     )
 
-    allowances = specific | conditional | active
+    allowances = (
+        specific | conditional | active | structure_components(Allowance, employee)
+    )
     return (
         allowances.exclude(one_time_date__lt=start_date)
         .exclude(one_time_date__gt=end_date)
