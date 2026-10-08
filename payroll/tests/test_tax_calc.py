@@ -207,3 +207,106 @@ class DeclarativeAdjustmentTests(TestCase):
         )
         # (200000 - 50000) * 10% = 15000, + 10% cess = 16500
         self.assertAlmostEqual(self._tax(status, 200000), 16500.0, places=2)
+
+
+class PayPeriodAnnualisationTests(TestCase):
+    """
+    The annualised (percentage) method payroll packages use: a period's taxable
+    pay is multiplied by the periods in a year, taxed as a yearly figure, and
+    the period carries 1/N of the tax. The payslip and the filing status page's
+    "check a salary" then agree: monthly taxable x 12 is the yearly income.
+    """
+
+    def setUp(self):
+        from payroll.models.models import FilingStatus
+        from payroll.models.tax_models import TaxBracket
+
+        self.status = FilingStatus.objects.create(
+            filing_status="Progressive", based_on="taxable_gross_pay"
+        )
+        TaxBracket.objects.create(
+            filing_status_id=self.status, min_income=0, max_income=240000, tax_rate=5
+        )
+        TaxBracket.objects.create(
+            filing_status_id=self.status,
+            min_income=240000,
+            max_income=10**9,
+            tax_rate=20,
+        )
+
+    def yearly(self, income):
+        from payroll.methods.tax_calc import compute_yearly_tax
+
+        return compute_yearly_tax(self.status, income)[0]
+
+    def test_a_month_is_a_twelfth_of_the_year_whatever_its_length(self):
+        from payroll.methods.tax_calc import period_tax
+
+        for start, end in (
+            (date(2026, 2, 1), date(2026, 2, 28)),
+            (date(2026, 9, 1), date(2026, 9, 30)),
+            (date(2026, 10, 1), date(2026, 10, 31)),
+        ):
+            self.assertAlmostEqual(
+                period_tax(self.status, 60000.0, start, end, pay_frequency="monthly"),
+                self.yearly(60000.0 * 12) / 12,
+                places=2,
+            )
+
+    def test_a_part_month_is_annualised_like_a_full_one(self):
+        from payroll.methods.tax_calc import period_tax
+
+        # Pay actually received in the period, not the days it spans.
+        self.assertAlmostEqual(
+            period_tax(
+                self.status,
+                30000.0,
+                date(2026, 9, 16),
+                date(2026, 9, 30),
+                pay_frequency="monthly",
+            ),
+            self.yearly(30000.0 * 12) / 12,
+            places=2,
+        )
+
+    def test_other_frequencies_use_their_own_period_count(self):
+        from payroll.methods.tax_calc import period_tax
+
+        self.assertAlmostEqual(
+            period_tax(
+                self.status,
+                2000.0,
+                date(2026, 9, 1),
+                date(2026, 9, 7),
+                pay_frequency="weekly",
+            ),
+            self.yearly(2000.0 * 52) / 52,
+            places=2,
+        )
+        self.assertAlmostEqual(
+            period_tax(
+                self.status,
+                4000.0,
+                date(2026, 9, 1),
+                date(2026, 9, 15),
+                pay_frequency="semi_monthly",
+            ),
+            self.yearly(4000.0 * 24) / 24,
+            places=2,
+        )
+
+    def test_a_run_longer_than_one_period_falls_back_to_days(self):
+        from payroll.methods.tax_calc import period_tax
+
+        yearly_income = 120000.0 / 61 * 365
+        self.assertAlmostEqual(
+            period_tax(
+                self.status,
+                120000.0,
+                date(2026, 8, 1),
+                date(2026, 9, 30),
+                pay_frequency="monthly",
+            ),
+            self.yearly(round(yearly_income, 2)) / 365 * 61,
+            places=1,
+        )
