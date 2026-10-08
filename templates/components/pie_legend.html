@@ -16,8 +16,6 @@ Usage:
     legend.clear();   // when there is no data
 {% endcomment %}
 <style>
-    /* legendWrap: every item as its own chip, wrapping onto extra rows (no "+N" popover) */
-    .pl-legend--wrap { flex-wrap: wrap; }
     .pl-legend {
         --pl-accent: var(--primary-600, #e54f38);
         display: flex;
@@ -152,7 +150,7 @@ Usage:
         };
 
         function create(opts) {
-            var el = opts.el, getChart = opts.getChart, noun = opts.noun || 'more', topN = opts.topN || 5, onChange = opts.onChange, wrap = !!opts.wrap;
+            var el = opts.el, getChart = opts.getChart, noun = opts.noun || 'more', topN = opts.topN || 5, onChange = opts.onChange;
             var items = [], selected = null, visible = 0;
             var dot = function (c) { return '<span class="pl-chip__dot" style="background:' + c + '"></span>'; };
             var series = function () {
@@ -211,7 +209,6 @@ Usage:
                 el.innerHTML = html;
             }
             function render() {
-                if (wrap) { build(items.length); return; }
                 var k = Math.min(topN, items.length);
                 build(k);
                 while (k > 1 && el.scrollWidth > el.clientWidth + 1) {
@@ -261,8 +258,7 @@ Usage:
             var box = document.createElement('div');
             box.className = 'pl-legend';
             chartEl.insertAdjacentElement('afterend', box);
-            if (opts.wrap) box.classList.add('pl-legend--wrap');
-            chartEl._pieLegend = create({ el: box, getChart: getChart, noun: noun, topN: opts.topN, onChange: opts.onChange, wrap: opts.wrap });
+            chartEl._pieLegend = create({ el: box, getChart: getChart, noun: noun, topN: opts.topN, onChange: opts.onChange });
             return chartEl._pieLegend;
         }
 
@@ -279,11 +275,9 @@ Usage:
         // legend-driven series and Apex's own legend switched off.
         //   renderChart(key, el, PieLegend.options(el, () => chartInstances[key], 'noun', { ...apexOptions }))
         // `initiallyOff` (optional): labels that start unticked.
-        // `legendWrap` (optional): show every item as its own chip, wrapping onto
-        // extra rows, instead of one row plus a "+N" popover.
         var DEFAULT_COLORS = ['#E54F38', '#22c55e', '#f59e0b', '#3b82f6', '#a855f7', '#06b6d4', '#ec4899', '#84cc16', '#64748b', '#8b5e3c'];
         function options(chartEl, getChart, noun, opts) {
-            var legend = forChart(chartEl, getChart, noun, opts.legendWrap ? { wrap: true } : undefined);
+            var legend = forChart(chartEl, getChart, noun);
             var labels = opts.labels || [];
             var palette = (opts.colors && opts.colors.length) ? opts.colors : DEFAULT_COLORS;
             var colors = labels.map(function (l, i) { return color(i, palette); });
@@ -292,7 +286,6 @@ Usage:
             }), opts.initiallyOff);
             var out = Object.assign({}, opts, { series: legend.series(), colors: colors, legend: { show: false } });
             delete out.initiallyOff;
-            delete out.legendWrap;
             return out;
         }
 

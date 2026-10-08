@@ -301,8 +301,26 @@
             border-bottom: 1px solid rgba(128, 128, 128, 0.08);
         }
         .ob-info-panel__title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
             font-weight: 700;
             font-size: 13px;
+        }
+        /* How many records the card holds, beside its title. Hidden at zero. */
+        .ob-count-badge[hidden] { display: none; }
+        .ob-count-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 24px;
+            height: 24px;
+            padding: 0 6px;
+            border-radius: 999px;
+            background: var(--ob-indigo);
+            color: #fff;
+            font-size: 12px;
+            font-weight: 600;
         }
     /* Title on top, the date period / basis the card lists on the line below. */
     .ob-info-panel__heading { min-width: 0; }
@@ -875,8 +893,8 @@
                 <div class="ob-info-panel">
                     <div class="ob-info-panel__header">
                         <div class="ob-info-panel__heading">
-                            <div class="ob-info-panel__title">{% trans "Notice Period Tracker" %}</div>
-                            <div class="ob-info-panel__sub" data-period-label="bare"></div>
+                            <div class="ob-info-panel__title">{% trans "Notice Period Tracker" %}<span id="ob-notice-count" class="ob-count-badge" hidden title="{% trans 'Employees whose notice period ends in the next 30 days' %}">0</span></div>
+                            <div class="ob-info-panel__sub">{% trans "Next 30 days" %}</div>
                         </div>
                     </div>
                     <div class="ob-info-panel__body" id="ob-notice">
@@ -886,7 +904,7 @@
                 <div class="ob-info-panel">
                     <div class="ob-info-panel__header">
                         <div class="ob-info-panel__heading">
-                            <div class="ob-info-panel__title">{% trans "Unreturned Assets" %}</div>
+                            <div class="ob-info-panel__title">{% trans "Unreturned Assets" %}<span id="ob-assets-count" class="ob-count-badge" hidden title="{% trans 'Assets not yet returned' %}">0</span></div>
                             <div class="ob-info-panel__sub" data-period-label="bare"></div>
                         </div>
                     </div>
@@ -1269,16 +1287,18 @@
                     const total = data.statuses.reduce((a, s) => a + s.count, 0);
                     if (!total) { PieLegend.clearFor(document.querySelector("#chart-tasks")); document.querySelector("#chart-tasks").innerHTML = emptyHtml('{% trans "No tasks"|escapejs %}'); return; }
                     const taskColors = { todo: '#94a3b8', in_progress: '#3b82f6', stuck: '#ef4444', completed: '#22c55e' };
-                    // No redirect: EmployeeTask has no list view anywhere in
-                    // offboarding to send this to (tasks are only ever visible
-                    // embedded inside an individual offboarding employee's own
-                    // detail modal) -- same reasoning as the Task Completion KPI
-                    // card above, which is deliberately non-clickable too.
                     renderChart('tasks', document.querySelector("#chart-tasks"), PieLegend.options(document.querySelector("#chart-tasks"), () => chartInstances['tasks'], 'statuses', {
                         series: data.statuses.map(s => s.count),
-                        chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit' },
+                        chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit',
+                            events: { dataPointSelection: (e, ctx, config) => {
+                                const status = data.statuses[config.dataPointIndex].status;
+                                window.location.href = "{% url 'employee-tasks-view' %}?status=" + encodeURIComponent(status) +
+                                    dateRangeParams('created_at', fromInput.value, toInput.value);
+                            }}
+                        },
                         labels: data.statuses.map(s => s.label),
                         colors: data.statuses.map(s => taskColors[s.status] || '#94a3b8'),
+                        initiallyOff: data.statuses.filter(s => s.status === 'completed').map(s => s.label),
                         plotOptions: { pie: { donut: { size: '65%', labels: { show: true, total: { show: true, label: '{% trans "Total"|escapejs %}', color: textColor, fontSize: '13px', fontWeight: 600, formatter: w => w.globals.seriesTotals.reduce((a,b)=>a+b,0) } } } } },
                         stroke: { width: 2, colors: [cardBg] }, dataLabels: { enabled: false },
                         legend: { position: 'bottom', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
@@ -1311,7 +1331,9 @@
                         },
                         colors: COLORS,
                         plotOptions: { bar: { borderRadius: 6, horizontal: true, barHeight: '55%', distributed: true } },
-                        xaxis: { categories: data.departments.map(d => d.department), labels: { style: { colors: textColor } } },
+                        xaxis: { categories: data.departments.map(d => d.department), min: 0, forceNiceScale: true, decimalsInFloat: 0,
+                            tickAmount: Math.min(Math.max(...data.departments.map(d => d.count)), 6),
+                            labels: { style: { colors: textColor }, formatter: v => (isNaN(v) ? v : Math.round(v)) } },
                         yaxis: { labels: { style: { colors: textColor, fontSize: '11px' } } },
                         grid: { borderColor: gridColor },
                         dataLabels: { enabled: true, style: { fontSize: '11px' } },
@@ -1332,7 +1354,6 @@
                     // Donut with the reasons as legend chips (same legend as the other
                     // donuts here: a row of chips plus a "+N" popover for the rest).
                     renderChart('exit-reasons', el, PieLegend.options(el, () => chartInstances['exit-reasons'], 'reasons', {
-                        legendWrap: true,
                         series: data.reasons.map(r => r.count),
                         chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit',
                             events: { dataPointSelection: (e, ctx, config) => {
@@ -1385,13 +1406,20 @@
             }
             loadJoinExitTrend();
 
+            function setCountBadge(id, n) {
+                const b = document.getElementById(id);
+                b.textContent = n || 0;
+                b.hidden = !n;
+            }
+
             // ─── NOTICE PERIOD TRACKER ───
             function loadNoticeTracker() {
             fetchP("{% url 'offboarding-dashboard-notice' %}")
                 .then(r => r.json())
                 .then(data => {
                     const el = document.getElementById('ob-notice');
-                    if (!data.employees.length) { el.innerHTML = '<div class="ob-info-panel__empty">{% trans "No active notice periods"|escapejs %}</div>'; return; }
+                    setCountBadge('ob-notice-count', data.total);
+                    if (!data.employees.length) { el.innerHTML = '<div class="ob-info-panel__empty">{% trans "No notice periods ending in the next 30 days"|escapejs %}</div>'; return; }
                     el.innerHTML = data.employees.map(e => {
                         const initials = e.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
                         const avatarInner = e.avatar ? `<img src="${e.avatar}" alt="">` : initials;
@@ -1418,6 +1446,7 @@
                 .then(r => r.json())
                 .then(data => {
                     const el = document.getElementById('ob-assets');
+                    setCountBadge('ob-assets-count', data.total);
                     if (!data.assets.length) { el.innerHTML = '<div class="ob-info-panel__empty">{% trans "All assets returned"|escapejs %}</div>'; return; }
                     el.innerHTML = data.assets.map(a => {
                         return `<a href="${assetAllocationUrlFor(a.id)}" class="ob-list-item">
