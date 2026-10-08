@@ -14,9 +14,9 @@ urlpatterns = [
         name="project-dashboard-view",
     ),
     path(
-        "dashboard/api/kpi/",
-        proj_dashboard.project_kpi_data,
-        name="project-dashboard-kpi",
+        "dashboard/api/task-kpi/",
+        proj_dashboard.project_task_kpi_data,
+        name="project-dashboard-task-kpi",
     ),
     path(
         "dashboard/api/pipeline/",

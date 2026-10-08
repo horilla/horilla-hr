@@ -48,6 +48,12 @@ class ProjectFilter(HorillaFilterSet):
         widget=forms.DateInput(attrs={"type": "date"}),
         label=_("Start From"),
     )
+    end_from = django_filters.DateFilter(
+        field_name="end_date",
+        lookup_expr="gte",
+        widget=forms.DateInput(attrs={"type": "date"}),
+        label=_("End From"),
+    )
     end_till = django_filters.DateFilter(
         field_name="end_date",
         lookup_expr="lte",
