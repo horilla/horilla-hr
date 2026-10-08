@@ -1,0 +1,211 @@
+{% load i18n %}
+{% comment %}
+Who this component reaches, as a table that loads as you scroll. A ticked,
+locked row is covered by a salary structure that carries the component -- that
+is the structure's statement and cannot be undone here. Other rows can be ticked
+to apply the component outside any structure; one on a structure that does not
+carry it is flagged, because it is then applied around that structure. The
+header box applies it to every active employee (include_active_employees).
+Selection lives in hidden inputs, not the rows, because rows come and go.
+{% endcomment %}
+<div class="col-12 oh-component-field oh-applies" data-row data-section-of="{{ section.key }}"
+     id="id_applies_table_parent_div" data-applies-url="{% url 'component-applies-rows' %}"
+     data-kind="{% if form.instance.pk %}{{ form.instance.pk }}{% endif %}"
+     data-model="{% if applies_editable %}allowance{% else %}deduction{% endif %}"
+     data-next="{% if applies_has_next %}2{% endif %}"
+     data-structure-count="{{ applies_structure_count }}">
+  <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:2px">
+    <strong style="font-size:14px">{% trans "Applied to" %}</strong>
+    <span style="font-size:12px;color:#6b7280;border:0;padding:0;background:none" data-applies-count></span>
+  </div>
+  <p class="oh-applies__note">
+    {% trans "Employees on a salary structure that includes this component get it automatically and cannot be unticked here." %}
+    {% if applies_editable %}{% trans "Tick anyone else to apply it outside a structure, or use the header box to apply it to every active employee and untick anyone to leave them out." %}{% endif %}
+  </p>
+  <div hidden>{{ form.include_active_employees }}</div>
+  <div hidden data-applies-selected>
+    {% for pk in applies_selected %}<input type="hidden" name="specific_employees" value="{{ pk }}">{% endfor %}
+  </div>
+  <div hidden data-applies-excluded>
+    {% for pk in applies_excluded %}<input type="hidden" name="exclude_employees" value="{{ pk }}">{% endfor %}
+  </div>
+  <input type="search" class="oh-applies__search" placeholder="{% trans 'Search by name, code, department or structure' %}"
+         aria-label="{% trans 'Search employees' %}" data-applies-search autocomplete="off">
+  <div class="oh-applies__scroll" data-applies-scroll>
+    <table class="oh-applies__table">
+      <thead>
+        <tr>
+          <th style="width:34px">
+            {% if applies_editable %}<input type="checkbox" data-applies-all title="{% trans 'Apply to every active employee' %}">{% endif %}
+          </th>
+          <th>{% trans "Code" %}</th>
+          <th>{% trans "Employee" %}</th>
+          <th>{% trans "Department" %}</th>
+          <th>{% trans "Salary structure" %}</th>
+          <th>{% trans "Applied" %}</th>
+        </tr>
+      </thead>
+      <tbody data-applies-body>
+        {% include "payroll/component/_applies_rows.html" with rows=applies_rows editable=applies_editable %}
+      </tbody>
+    </table>
+    <div class="oh-applies__more" data-applies-more hidden>{% trans "Loading..." %}</div>
+  </div>
+</div>
+<style>
+  .oh-applies__note { font-size: 12px; color: #6b7280; margin: 4px 0 8px; }
+  .oh-applies__count { font-size: 12px; color: #6b7280; margin-left: 8px; }
+  .oh-applies__search { width: 100%; max-width: 360px; height: 34px; padding: 0 10px; margin-bottom: 8px;
+    border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; }
+  .oh-applies__scroll { max-height: 280px; overflow-y: auto; overflow-x: hidden; border: 1px solid #e5e7eb; border-radius: 8px; }
+  .oh-applies__more { padding: 8px; text-align: center; font-size: 12px; color: #6b7280; }
+  .oh-applies__table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .oh-applies__table th { position: sticky; top: 0; background: #f9fafb; text-align: left; font-size: 11px;
+    text-transform: uppercase; letter-spacing: .04em; color: #6b7280; padding: 7px 10px; border-bottom: 1px solid #e5e7eb; }
+  .oh-applies__table td:last-child, .oh-applies__table th:last-child { white-space: nowrap; }
+  .oh-applies__table th:first-child, .oh-applies__table td:first-child { width: 40px; padding-left: 14px; padding-right: 4px; }
+  .oh-applies__table td { padding: 6px 10px; border-bottom: 1px solid #f3f4f6; }
+  .oh-applies__table tr.is-locked td { background: #f8fafc; color: #475569; }
+  .oh-applies__pill { display: inline-block; white-space: nowrap; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .oh-applies__pill--structure { background: rgba(99,102,241,.14); color: #4338ca; }
+  .oh-applies__pill--outside { background: rgba(245,158,11,.16); color: #b45309; }
+  .oh-applies__pill[hidden], .oh-applies__warn[hidden], .oh-applies__none[hidden] { display: none; }
+  .oh-applies__warn { display: block; margin-top: 3px; font-size: 11px; color: #b45309; cursor: help; }
+  .oh-applies__none { color: #9ca3af; }
+</style>
+<script>
+(function () {
+  var root = document.getElementById("id_applies_table_parent_div");
+  if (!root || root.dataset.wired) return;
+  root.dataset.wired = "1";
+  var body = root.querySelector("[data-applies-body]");
+  var scroller = root.querySelector("[data-applies-scroll]");
+  var more = root.querySelector("[data-applies-more]");
+  var holder = root.querySelector("[data-applies-selected]");
+  var exHolder = root.querySelector("[data-applies-excluded]");
+  var all = root.querySelector("[data-applies-all]");
+  var flag = root.closest("form").querySelector("input[name=include_active_employees][type=checkbox]");
+  var count = root.querySelector("[data-applies-count]");
+  var structureCount = parseInt(root.dataset.structureCount, 10) || 0;
+  var next = root.dataset.next, query = "", busy = false;
+  var picked = new Set(
+    Array.prototype.map.call(holder.querySelectorAll("input"), function (i) { return i.value; })
+  );
+
+  // With "every active employee" on, unticking a row leaves that person out.
+  var excluded = new Set(
+    Array.prototype.map.call(exHolder.querySelectorAll("input"), function (i) { return i.value; })
+  );
+  function paint(tr) {
+    if (tr.hasAttribute("data-locked")) return;
+    var box = tr.querySelector("[data-applies-pick]");
+    if (!box) return;
+    var everyone = flag && flag.checked;
+    var on = everyone ? !excluded.has(box.value) : picked.has(box.value);
+    box.checked = on;
+    box.disabled = false;
+    tr.querySelectorAll("[data-applies-outside]").forEach(function (e) { e.hidden = !on; });
+    tr.querySelectorAll("[data-applies-inside]").forEach(function (e) { e.hidden = on; });
+  }
+  function sync() {
+    holder.innerHTML = "";
+    picked.forEach(function (pk) {
+      var i = document.createElement("input");
+      i.type = "hidden"; i.name = "specific_employees"; i.value = pk;
+      holder.appendChild(i);
+    });
+    exHolder.innerHTML = "";
+    if (flag && flag.checked) {
+      excluded.forEach(function (pk) {
+        var i = document.createElement("input");
+        i.type = "hidden"; i.name = "exclude_employees"; i.value = pk;
+        exHolder.appendChild(i);
+      });
+    }
+    var everyone = flag && flag.checked;
+    if (all && !query) all.checked = !!everyone;
+    count.textContent = everyone
+      ? "{% trans 'All active employees' %}" + (excluded.size ? " ({% trans 'except' %} " + excluded.size + " {% trans 'outside a structure' %})" : "")
+      : (structureCount + picked.size) + " {% trans 'employees' %} ("
+        + structureCount + " {% trans 'via structures' %}, " + picked.size + " {% trans 'outside' %})";
+    body.querySelectorAll("[data-applies-row]").forEach(paint);
+    titleHeader();
+  }
+  // The header box means different things with and without a search, and
+  // different things ticked and unticked; say which.
+  function titleHeader() {
+    if (!all) return;
+    all.title = query
+      ? (all.checked
+          ? "{% trans 'Clear the employees this search found' %}"
+          : "{% trans 'Select every employee this search found' %}")
+      : (all.checked
+          ? "{% trans 'Stop applying to every active employee' %}"
+          : "{% trans 'Apply to every active employee' %}");
+  }
+
+  function load(reset) {
+    if (busy || (!reset && !next)) return;
+    busy = true; more.hidden = false;
+    var page = reset ? 1 : next;
+    var url = root.dataset.appliesUrl + "?model=" + root.dataset.model
+      + "&pk=" + encodeURIComponent(root.dataset.kind)
+      + "&page=" + page + "&q=" + encodeURIComponent(query);
+    fetch(url, { headers: { "X-Requested-With": "XMLHttpRequest" } })
+      .then(function (r) {
+        var n = r.headers.get("X-Next-Page") || "";
+        return r.text().then(function (t) { return { t: t, n: n }; });
+      })
+      .then(function (res) {
+        if (reset) body.innerHTML = "";
+        body.insertAdjacentHTML("beforeend", res.t);
+        next = res.n;
+        body.querySelectorAll("[data-applies-row]").forEach(paint);
+      })
+      .finally(function () { busy = false; more.hidden = true; fill(); });
+  }
+  // A short page leaves nothing to scroll, so keep loading until it does.
+  function fill() {
+    if (next && scroller.scrollHeight <= scroller.clientHeight + 4) load(false);
+  }
+  scroller.addEventListener("scroll", function () {
+    if (scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 40) load(false);
+  });
+  var timer;
+  root.querySelector("[data-applies-search]").addEventListener("input", function () {
+    var v = this.value;
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      query = v; next = ""; if (all) all.checked = query ? false : !!(flag && flag.checked);
+      titleHeader();
+      load(true);
+    }, 250);
+  });
+  root.addEventListener("change", function (e) {
+    var t = e.target;
+    if (t === all && query) {
+      // A search is active: the header box means "these results", not everyone.
+      var on = t.checked;
+      fetch(root.dataset.appliesUrl + "?ids=1&model=" + root.dataset.model
+        + "&pk=" + encodeURIComponent(root.dataset.kind) + "&q=" + encodeURIComponent(query))
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+          res.ids.forEach(function (id) { if (on) picked.add(id); else picked.delete(id); });
+          sync();
+        });
+    } else if (t === all) {
+      excluded.clear();
+      if (flag) { flag.checked = t.checked; flag.dispatchEvent(new Event("change", { bubbles: true })); }
+      sync();
+    } else if (t.matches("[data-applies-pick]")) {
+      var set = flag && flag.checked ? excluded : picked;
+      // Excluded is the unticked list, picked the ticked one.
+      if (set === excluded ? !t.checked : t.checked) set.add(t.value); else set.delete(t.value);
+      sync();
+    }
+  });
+  if (flag) flag.addEventListener("change", sync);
+  sync();
+  fill();
+})();
+</script>

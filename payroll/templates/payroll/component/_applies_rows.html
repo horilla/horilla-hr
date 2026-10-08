@@ -1,0 +1,31 @@
+{% load i18n %}
+{% for r in rows %}
+<tr data-applies-row data-pk="{{ r.pk }}"{% if r.via == "structure" %} data-locked class="is-locked"{% endif %}>
+  <td>
+    {% if r.via == "structure" %}
+      <input type="checkbox" checked disabled title="{% trans 'Applied through the salary structure' %}">
+    {% elif editable %}
+      <input type="checkbox" data-applies-pick value="{{ r.pk }}">
+    {% else %}
+      <input type="checkbox" disabled>
+    {% endif %}
+  </td>
+  <td>{{ r.code|default:"-" }}</td>
+  <td>{{ r.name }}</td>
+  <td>{{ r.department|default:"-" }}</td>
+  <td>{{ r.structure|default:"-" }}</td>
+  <td>
+    {% if r.via == "structure" %}
+      <span class="oh-applies__pill oh-applies__pill--structure">{% trans "Via structure" %}</span>
+    {% else %}
+      <span class="oh-applies__pill oh-applies__pill--outside" data-applies-outside hidden>{% trans "Outside structure" %}</span>
+      {% if r.warning %}
+        <span class="oh-applies__warn" data-applies-outside hidden title="{% blocktrans with s=r.warning %}On the {{ s }} structure, which does not include this component. It is applied to them outside that structure.{% endblocktrans %}">&#9888; {% trans "Not in" %} {{ r.warning }}</span>
+      {% endif %}
+      <span class="oh-applies__none" data-applies-inside>&mdash;</span>
+    {% endif %}
+  </td>
+</tr>
+{% empty %}
+<tr data-applies-empty><td colspan="6" class="oh-applies__none" style="padding:14px;text-align:center">{% trans "No employees found." %}</td></tr>
+{% endfor %}
