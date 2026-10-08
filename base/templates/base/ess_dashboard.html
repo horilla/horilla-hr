@@ -1143,9 +1143,9 @@
                             '{% url "view-my-attendance" %}?attendance_date__gte=' + fromInput.value +
                                 '&attendance_date__lte=' + toInput.value + '&filter_applied=1') +
                     {% endif %}
-                    kpiCard('amber', iconLeave, '{% trans "Requested Leave"|escapejs %}',
+                    kpiCard('amber', iconLeave, '{% trans "Pending Leave Requests"|escapejs %}',
                             d.pending_leave_requests != null ? d.pending_leave_requests : 0,
-                            '<span class="ess-badge ess-badge--amber">' + '{% trans "awaiting approval"|escapejs %}' + '</span>',
+                            '',
                             '{% url "user-request-view" %}?status=requested&filter_applied=1') +
                     (d.assigned_tasks != null
                         ? kpiCard('green', iconTask, '{% trans "Assigned Tasks"|escapejs %}',

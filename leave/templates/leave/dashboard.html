@@ -95,6 +95,16 @@
     .ld-info-panel__header > span[data-period-label] { text-align: right; min-width: 0; }
     .ld-count-badge[hidden] { display: none; }
     .ld-count-badge { min-width: 24px; height: 24px; padding: 0 6px; border-radius: 999px; background: var(--ld-indigo); color: #fff; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
+    /* "View all" in a card header: same look on every dashboard. */
+    .ld-panel__link {
+        flex-shrink: 0;
+        color: var(--primary-600, #E54F38);
+        font-weight: 700;
+        font-size: 11px;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+    .ld-panel__link:hover { text-decoration: underline; }
     /* Title on top, the date period / basis the card lists on the line below. */
     .ld-info-panel__heading { min-width: 0; }
     .ld-info-panel__sub { font-size: 11px; opacity: 0.5; margin-top: 2px; }
@@ -281,7 +291,7 @@
                         </div>
                         <div class="ld-info-panel__sub">{% trans "Today" %}</div>
                     </div>
-                    <a href="{% url 'request-view' %}" style="font-size:11px;color:var(--ld-indigo);text-decoration:none;">{% trans "View all" %}</a>
+                    <a href="{% url 'request-view' %}" class="ld-panel__link">{% trans "View all" %}</a>
                 </div>
                 <div class="ld-info-panel__body" id="ld-on-leave">
                     <div class="ld-info-panel__empty">{% trans "Loading..." %}</div>
@@ -631,27 +641,23 @@
             document.getElementById('ld-kpi-grid').innerHTML = `
                 <a href="${pendingUrl}" class="ld-kpi-card">
                     <div class="ld-kpi-card__icon ld-kpi-card__icon--amber"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/></svg></div>
-                    <div class="ld-kpi-card__label">{% trans "Leave Requests"|escapejs %}</div>
+                    <div class="ld-kpi-card__label">{% trans "Pending Leave Requests"|escapejs %}</div>
                     <div class="ld-kpi-card__value">${data.pending_approval}</div>
-                    <div class="ld-kpi-card__sub"><span class="ld-badge ld-badge--amber">{% trans "Pending Review"|escapejs %}</span></div>
                 </a>
                 <a href="${allocationUrl}" class="ld-kpi-card">
                     <div class="ld-kpi-card__icon ld-kpi-card__icon--green"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg></div>
-                    <div class="ld-kpi-card__label">{% trans "Allocation Requests"|escapejs %}</div>
+                    <div class="ld-kpi-card__label">{% trans "Pending Allocation Requests"|escapejs %}</div>
                     <div class="ld-kpi-card__value">${data.pending_allocations}</div>
-                    <div class="ld-kpi-card__sub"><span class="ld-badge ld-badge--amber">{% trans "Pending Review"|escapejs %}</span></div>
                 </a>
                 <a href="${compUrl}" class="ld-kpi-card">
                     <div class="ld-kpi-card__icon ld-kpi-card__icon--blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-                    <div class="ld-kpi-card__label">{% trans "Compensatory Requests"|escapejs %}</div>
+                    <div class="ld-kpi-card__label">{% trans "Pending Compensatory Requests"|escapejs %}</div>
                     <div class="ld-kpi-card__value">${data.pending_comp}</div>
-                    <div class="ld-kpi-card__sub"><span class="ld-badge ld-badge--amber">{% trans "Pending Review"|escapejs %}</span></div>
                 </a>
                 <a href="${onLeaveTodayUrl}" class="ld-kpi-card">
                     <div class="ld-kpi-card__icon ld-kpi-card__icon--blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
                     <div class="ld-kpi-card__label">{% trans "On Leave Today"|escapejs %}</div>
                     <div class="ld-kpi-card__value">${data.on_leave_today}</div>
-                    <div class="ld-kpi-card__sub"><span class="ld-badge ld-badge--blue">${Number(data.on_leave_today) === 1 ? "{% trans 'Employee Away'|escapejs %}" : "{% trans 'Employees Away'|escapejs %}"}</span>${Number(data.half_day_today) > 0 ? ` <span class="ld-badge ld-badge--amber">${data.half_day_today} {% trans 'Half Day'|escapejs %}</span>` : ''}</div>
                 </a>`;
         });
     }
