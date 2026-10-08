@@ -155,8 +155,43 @@ def apply_component_code_choices(form, model):
     # would re-derive from the current title and silently retarget every
     # formula and percentage pointing at the old code.
     if "code" in form.fields:
-        form.fields["code"].widget = forms.HiddenInput()
+        # Drawn: typed, or left blank to be derived from the title on save. Changing
+        # one that is already referenced would leave those formulas pointing at nothing.
         form.fields["code"].required = False
+        form.fields["code"].widget.attrs.update(
+            {
+                "placeholder": _("Auto from title, e.g. HRA"),
+                # Upper-cased as it is typed; a style would capitalise the placeholder too.
+                "oninput": "this.value = this.value.toUpperCase();",
+                "autocomplete": "off",
+                "maxlength": 32,
+            }
+        )
+        form.fields["code"].help_text = _(
+            "Short name other components and formulas use to refer to this one "
+            "(capital letters, digits, underscore; starts with a letter). Leave "
+            "blank to make it from the title. Changing it later breaks anything "
+            "that refers to the old one."
+        )
+
+        def _upper(value):
+            return (value or "").strip().upper()
+
+        def _clean_code(value, _f=form.fields["code"]):
+            value = forms.CharField.clean(_f, _upper(value))
+            _f.run_validators(value)
+            instance = getattr(form, "instance", None)
+            pk = instance.pk if instance is not None and instance.pk else None
+            from payroll.models.models import component_code_taken
+
+            if component_code_taken(value, model, pk):
+                raise forms.ValidationError(
+                    _("The code %(code)s is already used by another component."),
+                    params={"code": value},
+                )
+            return value
+
+        form.fields["code"].clean = _clean_code
 
     # Same reasoning as `code`: not drawn, but it has to survive an edit. A
     # form that simply omitted it would blank the setting on the next save.
@@ -326,6 +361,9 @@ class AllowanceForm(ModelForm):
             self.fields["one_time_date"].initial = None
         apply_component_code_choices(self, payroll.models.models.Allowance)
         restrict_to_system_fields(self)
+        from payroll.forms.component_layout import apply_labels
+
+        apply_labels(self)
         restrict_maximum_unit_to_calendar_days(self)
 
     def as_p(self):
@@ -429,6 +467,9 @@ class DeductionForm(ModelForm):
         super().__init__(*args, **kwargs)
         apply_component_code_choices(self, payroll.models.models.Deduction)
         restrict_to_system_fields(self)
+        from payroll.forms.component_layout import apply_labels
+
+        apply_labels(self)
         restrict_maximum_unit_to_calendar_days(self)
 
     def clean(self, *args, **kwargs):
@@ -489,7 +530,15 @@ class DeductionForm(ModelForm):
         specific_employees = self.data.getlist("specific_employees")
         include_all = self.data.get("include_active_employees")
         condition_based = self.data.get("is_condition_based")
-        if not specific_employees and not include_all and not condition_based:
+        in_structure = (
+            bool(self.instance.pk) and self.instance.salary_structures.exists()
+        )
+        if (
+            not specific_employees
+            and not include_all
+            and not condition_based
+            and not in_structure
+        ):
             self.instance.include_active_employees = True
         super().save(commit)
         other_conditions = self.data.getlist("other_conditions")
@@ -622,6 +671,23 @@ class SalaryStructureForm(ModelForm):
             )
         if problems:
             raise forms.ValidationError({"employees": problems})
+
+        # One basic pay component per structure.
+        flagged = [
+            allowance
+            for allowance in (cleaned_data.get("allowances") or [])
+            if getattr(allowance, "is_basic_pay", False)
+        ]
+        if len(flagged) > 1:
+            raise forms.ValidationError(
+                {
+                    "allowances": _(
+                        "A structure can have only one basic pay component. "
+                        "Marked as basic pay: %(names)s"
+                    )
+                    % {"names": ", ".join(str(one) for one in flagged)}
+                }
+            )
 
         # The component set has to agree with what the mode says the contract
         # wage means. Checked here rather than in Model.clean() because the M2M

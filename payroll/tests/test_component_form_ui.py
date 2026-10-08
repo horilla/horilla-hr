@@ -53,11 +53,10 @@ class LayoutCompletenessTests(TestCase):
             with self.subTest(form=form_class.__name__):
                 self.assertEqual(unplaced_field_names(form_class()), [])
 
-    def test_the_derived_code_is_not_drawn_but_still_round_trips(self):
+    def test_the_code_is_drawn_and_typed_codes_are_uppercased(self):
         """
-        Re-deriving only happens when the code is blank, so a form that simply
-        dropped the field would re-derive from the current title on every save
-        and silently retarget anything pointing at the old code.
+        The code is an input beside the title. Blank still means "derive it from
+        the title on save", and what is typed is upper-cased so grat -> GRAT.
         """
         for form_class in (AllowanceForm, DeductionForm):
             with self.subTest(form=form_class.__name__):
@@ -67,8 +66,10 @@ class LayoutCompletenessTests(TestCase):
                     for section in sections_for(form)
                     for row in section["rows"]
                 }
-                self.assertNotIn("code", drawn)
-                self.assertIn("code", [f.name for f in form.hidden_fields()])
+                self.assertIn("code", drawn)
+                self.assertNotIn("code", [f.name for f in form.hidden_fields()])
+                self.assertEqual(form.fields["code"].clean(" grat "), "GRAT")
+                self.assertEqual(form.fields["code"].clean(""), "")
 
     def test_what_it_is_a_percentage_of_comes_before_the_percentage(self):
         """Asking for a rate before naming its base reads backwards."""
@@ -102,7 +103,8 @@ class LayoutCompletenessTests(TestCase):
         self.assertEqual(allowance, deduction)
 
     def test_hidden_fields_are_named_rather_than_assumed(self):
-        self.assertIn("code", HIDDEN_FIELDS)
+        self.assertNotIn("code", HIDDEN_FIELDS)
+        self.assertIn("update_compensation", HIDDEN_FIELDS)
 
 
 class BasedOnGroupingTests(TestCase):
@@ -328,7 +330,8 @@ class ComponentFormRenderTests(TestCase):
                 self.assertIn("componentForm.js", body)
 
     def test_conditions_render_server_side_with_a_template_to_add_more(self):
-        for url_name in ("create-allowance", "create-deduction"):
+        # The allowance form targets through the table; only deductions keep rules.
+        for url_name in ("create-deduction",):
             with self.subTest(form=url_name):
                 body = self._body(url_name)
                 self.assertIn("data-condition-template", body)
@@ -401,6 +404,13 @@ class ComponentFormRenderTests(TestCase):
             with self.subTest(form=url_name):
                 body = self._body(url_name)
                 for name in form_class().fields:
+                    # The table writes specific_employees as it is ticked, and the
+                    # exclude list is gone from the form on purpose.
+                    if name in ("specific_employees", "exclude_employees") or (
+                        name in ("is_condition_based", "field", "condition", "value")
+                        and url_name == "create-allowance"
+                    ):
+                        continue
                     self.assertIn(f'name="{name}"', body, name)
 
     def test_the_form_still_posts_once(self):

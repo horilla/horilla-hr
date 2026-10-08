@@ -85,13 +85,17 @@ LAYOUT = [
         [
             ("title", 6, ""),
             ("sequence", 6, ""),
+            # Shown: other components and formulas refer to this one by it. Left
+            # blank it is derived from the title on save.
+            ("code", 6, ""),
+            # The date field ahead of the switches, so the inputs sit together.
+            ("one_time_date", 6, ""),
             ("is_taxable", 6, ""),
             # Beside the other "what kind of thing is this" switches, because
             # that is what it is — not an amount setting.
             ("is_basic_pay", 6, ""),
             ("is_pretax", 6, ""),
             ("is_tax", 6, ""),
-            ("one_time_date", 6, ""),
         ],
     ),
     (
@@ -142,20 +146,53 @@ LAYOUT = [
 # edited in the builder popover, and only its summary belongs inline. The
 # employer's is the same field in a second popover, opened from the employer
 # basis row.
-HANDLED_ELSEWHERE = {"formula", "employer_formula"}
+HANDLED_ELSEWHERE = {
+    "formula",
+    "employer_formula",
+    "specific_employees",
+    "exclude_employees",
+    "include_active_employees",
+}
 
-# Never drawn. The code is derived from the title on save so that components can
-# reference each other; it is plumbing, and asking someone to invent an
-# identifier for a component they just named is the opposite of the point.
-#
-# update_compensation is hidden rather than dropped. It does something no other
+# On the Allowance form the table is the whole targeting story, so the
+# rule-based option went with its toggle. A deduction has no table to replace it.
+ALLOWANCE_ONLY_HIDDEN = {"is_condition_based", "field", "condition", "value"}
+
+
+# The "When it applies" rule, worded as a sentence: "Applies when [basic pay] is
+# [greater than] [amount]". The model's own names ("If Choice") read as column
+# names, not as something to fill in.
+FIELD_LABELS = {
+    "if_choice": _("Applies when"),
+    "if_component_code": _("Component"),
+    "if_condition": _("Is"),
+    "if_amount": _("Amount"),
+    "start_range": _("From"),
+    "end_range": _("To"),
+}
+
+
+def apply_labels(form):
+    for name, label in FIELD_LABELS.items():
+        if name in form.fields:
+            form.fields[name].label = label
+
+
+def _placed(form):
+    placed = set(HANDLED_ELSEWHERE) | set(HIDDEN_FIELDS)
+    if "specific_employees" in form.fields:
+        placed |= ALLOWANCE_ONLY_HIDDEN
+    return placed
+
+
+# Never drawn. update_compensation is hidden rather than dropped. It does something no other
 # setting does — it shrinks the pay head itself, so a later "percentage of
 # basic" is worked out on the reduced figure — but it bypasses eligibility,
 # the "when it applies" rules, the ceiling and the period basis, and it sat
 # between "Is Tax" and "One Time Date" with nothing to say any of that. Keeping
 # it in the DOM means an existing one survives an edit; nothing on this form
 # can create one.
-HIDDEN_FIELDS = {"code", "update_compensation"}
+HIDDEN_FIELDS = {"update_compensation"}
 
 
 def sections_for(form):
@@ -166,7 +203,7 @@ def sections_for(form):
     Empty groups are dropped, so the Allowance form does not show a "Deduction
     only" heading with nothing under it.
     """
-    placed = set(HANDLED_ELSEWHERE) | set(HIDDEN_FIELDS)
+    placed = _placed(form)
     sections = []
 
     for index, (step, title, hint, spec) in enumerate(LAYOUT, start=1):
@@ -176,7 +213,9 @@ def sections_for(form):
                 continue
             placed.add(name)
             rows.append({"field": form[name], "width": width, "show_if": show_if})
-        if rows:
+        # The targeting table is drawn inside this section, so it stays even
+        # when every field that used to be in it has been replaced by the table.
+        if rows or (title == WHO_TITLE and "specific_employees" in form.fields):
             # The key ties the heading to its rows in the DOM. They are siblings
             # rather than parent and child — everything has to be a direct child
             # of the Bootstrap row — so a heading can only know whether anything
@@ -239,7 +278,7 @@ def steps_for(form):
 
 def unplaced_field_names(form):
     """The leftover sweep, for tests to assert on."""
-    placed = set(HANDLED_ELSEWHERE) | set(HIDDEN_FIELDS)
+    placed = _placed(form)
     for _step, _title, _hint, spec in LAYOUT:
         placed.update(name for name, _w, _s in spec)
     return [f.name for f in form.visible_fields() if f.name not in placed]
@@ -264,11 +303,146 @@ def form_context(form, model):
             for row in instance.other_conditions.all()
         ]
 
+    rows, has_next, selected, structure_count = applies_rows(form, model)
     return {
         "formula_codes": available_codes(exclude_pk=pk, exclude_model=model),
         "component_steps": steps_for(form),
         "extra_conditions": extra_conditions,
+        "applies_rows": rows,
+        "applies_has_next": has_next,
+        "applies_selected": selected,
+        "applies_excluded": applies_excluded(form),
+        "applies_structure_count": structure_count,
+        # The deduction form has no specific-employees field: its table is a read-out.
+        "applies_editable": "specific_employees" in form.fields,
+        "who_title": WHO_TITLE,
     }
+
+
+WHO_TITLE = _("Who gets it")
+
+
+APPLIES_PAGE_SIZE = 25
+
+
+def applies_excluded(form):
+    """Employees left out of an "everyone" component, as saved or as just posted."""
+    if form.is_bound and hasattr(form, "data"):
+        return [v for v in form.data.getlist("exclude_employees") if v.isdigit()]
+    instance = getattr(form, "instance", None)
+    if instance is not None and instance.pk and hasattr(instance, "exclude_employees"):
+        return [
+            str(pk) for pk in instance.exclude_employees.values_list("pk", flat=True)
+        ]
+    return []
+
+
+def applies_rows(form, model, page=1, query=""):
+    """
+    One page of the "who gets it" table, plus what a failed save had ticked.
+
+    ``via`` is "structure" when the employee's active contract is on a salary
+    structure that carries this component (it applies, and cannot be unticked
+    here), "outside" when they are ticked on the component itself, and "" when
+    they are not covered. ``warning`` names the structure for someone who is on
+    one that does not carry this component but has it applied around it.
+
+    Returns ``(rows, has_next, selected_pks, structure_count)``. ``selected_pks`` is every
+    employee ticked on the component, not just those on this page: the table
+    loads as you scroll, so the page cannot be what is submitted.
+    """
+    instance = getattr(form, "instance", None)
+    pk = instance.pk if instance is not None and instance.pk else None
+    targeted = set()
+    if pk and hasattr(instance, "specific_employees"):
+        targeted = set(instance.specific_employees.values_list("pk", flat=True))
+    # What a failed save was asked to keep ticked.
+    if form.is_bound and hasattr(form, "data"):
+        targeted = {
+            int(v) for v in form.data.getlist("specific_employees") if v.isdigit()
+        }
+    rows, has_next, covered = applies_page(model, pk, targeted, page, query)
+    # Those on a structure that carries it are counted separately, not as ticks.
+    return rows, has_next, sorted(targeted - covered), len(covered)
+
+
+def applies_page(model, pk, targeted, page=1, query=""):
+    from employee.models import Employee
+    from payroll.models.models import Contract
+
+    in_structures = set()
+    if pk:
+        in_structures = set(
+            model.objects.get(pk=pk).salary_structures.values_list("pk", flat=True)
+        )
+
+    contracts = {}
+    for contract in (
+        Contract.objects.entire()
+        .filter(contract_status="active")
+        .select_related("salary_structure_id")
+        .order_by("contract_start_date", "pk")
+    ):
+        contracts[contract.employee_id_id] = contract.salary_structure_id
+
+    rows = []
+    employees = (
+        Employee.objects.filter(is_active=True, contract_set__contract_status="active")
+        .select_related("employee_work_info__department_id")
+        .distinct()
+        .order_by("employee_first_name", "employee_last_name")
+    )
+    needle = (query or "").strip().lower()
+    covered = set()
+    for employee in employees:
+        structure = contracts.get(employee.pk)
+        via = ""
+        warning = ""
+        if structure is not None and structure.pk in in_structures:
+            via = "structure"
+        elif employee.pk in targeted:
+            via = "outside"
+        if structure is not None and via != "structure":
+            warning = structure.title
+        row = {
+            "pk": employee.pk,
+            "name": employee.get_full_name(),
+            "code": employee.badge_id or "",
+            "department": getattr(
+                getattr(
+                    getattr(employee, "employee_work_info", None), "department_id", None
+                ),
+                "department",
+                "",
+            ),
+            "structure": structure.title if structure is not None else "",
+            "via": via,
+            "warning": warning,
+            "checked": via != "",
+        }
+        if via == "structure":
+            covered.add(employee.pk)
+        if (
+            needle
+            and needle
+            not in " ".join(
+                (row["name"], row["code"], row["department"] or "", row["structure"])
+            ).lower()
+        ):
+            continue
+        rows.append(row)
+    # Those it already reaches first, structure before outside.
+    rows.sort(
+        key=lambda r: (
+            {"structure": 0, "outside": 1, "": 2}[r["via"]],
+            r["name"].lower(),
+        )
+    )
+    if page is None:
+        return rows, False, covered
+    start = (max(int(page or 1), 1) - 1) * APPLIES_PAGE_SIZE
+    chunk = rows[start : start + APPLIES_PAGE_SIZE]
+    return chunk, start + APPLIES_PAGE_SIZE < len(rows), covered
 
 
 # How the Based On choices are grouped in the dropdown. It is one flat list of
@@ -309,10 +483,6 @@ def group_based_on_choices(field):
     state, not a kind of amount.
     """
     labels = {str(value): label for value, label in field.choices}
-    # "Basic Pay" here is the figure on the contract; the Percentage Of list's
-    # "Basic pay" is the component worked out by the structure. Say which.
-    if "basic_pay" in labels:
-        labels["basic_pay"] = _("Basic Pay (Basic on contract)")
     blank = [(value, label) for value, label in field.choices if value == ""]
 
     grouped = []
