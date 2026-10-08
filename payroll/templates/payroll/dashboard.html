@@ -273,9 +273,16 @@
                     <div class="pd-pie-legend" id="pd-legend-reimbursement"></div>
                 </div>
 
+                <!-- Pending Requests by Type -->
+                <div class="pd-chart-card" data-chart-id="pending_requests" data-chart-label="{% trans 'Reimbursements & Encashments' %}">
+                    <div class="pd-chart-card__header"><div><div class="pd-chart-card__title">{% trans "Reimbursements & Encashments" %}</div><div class="pd-chart-card__subtitle">{% trans "Pending requests by type" %}</div></div></div>
+                    <div class="pd-chart-card__body"><div id="chart-pending-requests"></div></div>
+                </div>
+
                 <div class="pd-chart-card" data-chart-id="contribution_cost" data-chart-label="{% trans 'Contribution Cost' %}">
                     <div class="pd-chart-card__header"><div><div class="pd-chart-card__title">{% trans "Contribution Cost" %}</div><div class="pd-chart-card__subtitle" id="contribution-basis">{% trans "Employee and employer share, paid payslips" %}</div></div></div>
                     <div class="pd-chart-card__body"><div id="chart-contribution-cost"></div></div>
+                    <div class="pd-pie-legend" id="pd-legend-contribution"></div>
                 </div>
                 <div class="pd-chart-card" data-chart-id="run_coverage" data-chart-label="{% trans 'Payroll Run Progress' %}">
                     <div class="pd-chart-card__header"><div><div class="pd-chart-card__title">{% trans "Payroll Run Progress" %}</div><div class="pd-chart-card__subtitle" id="coverage-basis">{% trans "Employees by payslip status" %}</div></div></div>
@@ -501,7 +508,7 @@ function pdInit() {
     function createPieLegend({ el, chartKey, noun, topN = 5, toSeries = null }) {
         let items = [];
         let selected = null;
-        const dot = c => `<span class="pd-pie-chip__dot" style="background:${c}"></span>`;
+        const dot = c => c ? `<span class="pd-pie-chip__dot" style="background:${c}"></span>` : '';
         const series = () => items.map(it => selected.has(it.name) ? it.value : 0);
         function syncChart() {
             const chart = chartInstances[chartKey];
@@ -547,7 +554,10 @@ function pdInit() {
                 items = newItems;
                 const names = items.map(i => i.name);
                 if (selected) selected = new Set([...selected].filter(n => names.includes(n)));
-                if (!selected || !selected.size) selected = new Set(names);  // every item starts ticked; topN only sets how many chips fit
+                if (!selected || !selected.size) {
+                    const on = items.filter(i => !i.off).map(i => i.name);
+                    selected = new Set(on.length ? on : names);  // topN only sets how many chips fit
+                }
                 render();
             },
             series,
@@ -789,7 +799,7 @@ function pdInit() {
             const el = document.querySelector("#chart-reimbursement");
             const statuses = data.by_status || [];
             if (!statuses.length) { el.innerHTML = emptyHtml('{% trans "No reimbursements"|escapejs %}'); reimbLegend.clear(); return; }
-            reimbLegend.set(statuses.map(t => ({ name: t.label, value: t.count, color: STATUS_COLOR[t.status] || '#94a3b8', detail: fmt(t.amount) })));
+            reimbLegend.set(statuses.map(t => ({ name: t.label, value: t.count, color: STATUS_COLOR[t.status] || '#94a3b8', detail: fmt(t.amount), off: t.status === 'approved' })));
             renderChart('reimbursement', el, {
                 series: reimbLegend.series(),
                 chart: { type: 'donut', height: 280, background: 'transparent', fontFamily: 'inherit',
@@ -814,14 +824,60 @@ function pdInit() {
     }
     loadReimbursementSummary();
 
+    // ─── PENDING REQUESTS BY TYPE ───
+    function loadPendingRequests() {
+    fetchP("{% url 'payroll-dashboard-pending-requests' %}")
+        .then(r => r.json())
+        .then(data => {
+            const el = document.querySelector("#chart-pending-requests");
+            const types = data.types || [];
+            if (!types.some(t => t.count)) {
+                if (chartInstances['pending-requests']) { chartInstances['pending-requests'].destroy(); chartInstances['pending-requests'] = null; }
+                el.innerHTML = emptyHtml('{% trans "No pending requests"|escapejs %}');
+                return;
+            }
+            renderChart('pending-requests', el, {
+                series: [{ name: '{% trans "Pending"|escapejs %}', data: types.map(t => t.count) }],
+                chart: { type: 'bar', height: 300, toolbar: { show: false }, zoom: { enabled: false, allowMouseWheelZoom: false }, background: 'transparent', fontFamily: 'inherit',
+                    events: { dataPointSelection: (e, ctx, config) => {
+                        const t = types[config.dataPointIndex];
+                        const base = "{% url 'view-reimbursement' %}";
+                        window.location.href = t ? base + "?open_tab=" + (config.dataPointIndex + 1) + "&status=requested&type=" + encodeURIComponent(t.type_key) + "&filter_applied=1" : base;
+                    }}
+                },
+                colors: [STATUS_COLOR.requested],
+                plotOptions: { bar: { borderRadius: 6, columnWidth: '40%' } },
+                xaxis: { categories: types.map(t => t.type), labels: { style: { colors: textColor, fontSize: '11px' } }, axisBorder: { show: false }, axisTicks: { show: false } },
+                yaxis: { min: 0, forceNiceScale: true, labels: { style: { colors: textColor, fontSize: '11px' }, formatter: v => Math.round(v) } },
+                grid: { borderColor: gridColor, strokeDashArray: 4 },
+                dataLabels: { enabled: true, formatter: v => Math.round(v), style: { fontSize: '12px', fontWeight: 700, colors: ['#ffffff'] } },
+                legend: { show: false },
+                tooltip: stdTooltip({ shared: false, rows: (i, g) => [
+                    { color: STATUS_COLOR.requested, label: '{% trans "Pending"|escapejs %}', value: types[i].amount_display + ' (' + types[i].count + ')' },
+                ] }),
+            });
+        });
+    }
+    loadPendingRequests();
+
     // ─── CONTRIBUTION COST ───
+    let contribComps = [];
+    const contribLegend = createPieLegend({
+        el: document.getElementById('pd-legend-contribution'),
+        chartKey: 'contribution-cost',
+        noun: '{% trans "more"|escapejs %}',
+        toSeries: vals => [
+            { name: '{% trans "Employee share"|escapejs %}', data: contribComps.map((c, i) => vals[i] ? c.employee : 0) },
+            { name: '{% trans "Employer share"|escapejs %}', data: contribComps.map((c, i) => vals[i] ? c.employer : 0) },
+        ],
+    });
     function loadContributionCost() {
     document.getElementById('contribution-basis').textContent = '{% trans "Paid payslips · based on the applied filter:"|escapejs %} ' + periodLabel();
     fetchP("{% url 'payroll-dashboard-contribution-cost' %}")
         .then(r => r.json())
         .then(data => {
             const el = document.querySelector("#chart-contribution-cost");
-            if (!data.components.length) { el.innerHTML = emptyHtml('{% trans "No contributions in this period"|escapejs %}'); return; }
+            if (!data.components.length) { el.innerHTML = emptyHtml('{% trans "No contributions in this period"|escapejs %}'); contribLegend.clear(); return; }
             const comps = data.components;
             // The code is the short name; where two components share one (the
             // same contribution configured per company) the company is added.
@@ -831,17 +887,20 @@ function pdInit() {
                 const base = c.code || c.title;
                 return codeCount[base] > 1 && c.company ? base + ' · ' + c.company : base;
             };
+            contribComps = comps;
+            contribLegend.set(comps.map(c => ({ name: axisLabel(c), value: c.total, color: null, detail: fmt(c.total) })));
+            const shown = contribLegend.series();
             renderChart('contribution-cost', el, {
                 series: [
-                    { name: '{% trans "Employee share"|escapejs %}', data: comps.map(c => c.employee) },
-                    { name: '{% trans "Employer share"|escapejs %}', data: comps.map(c => c.employer) },
+                    { name: '{% trans "Employee share"|escapejs %}', data: comps.map((c, i) => shown[i] ? c.employee : 0) },
+                    { name: '{% trans "Employer share"|escapejs %}', data: comps.map((c, i) => shown[i] ? c.employer : 0) },
                 ],
                 chart: { type: 'bar', stacked: true, height: 300, toolbar: { show: false }, zoom: { enabled: false, allowMouseWheelZoom: false }, background: 'transparent', fontFamily: 'inherit',
                     events: { dataPointSelection: () => { window.location.href = "{% url 'payroll-contribution-list' %}?from_date=" + fromInput.value + "&to_date=" + toInput.value; } }
                 },
                 colors: ['#3b82f6', '#E54F38'],
                 plotOptions: { bar: { borderRadius: 4, columnWidth: '45%' } },
-                xaxis: { categories: comps.map(axisLabel), labels: { style: { colors: textColor, fontSize: '11px' } }, axisBorder: { show: false }, axisTicks: { show: false } },
+                xaxis: { categories: comps.map(axisLabel), labels: { show: false }, axisBorder: { show: false }, axisTicks: { show: false } },
                 yaxis: { labels: { style: { colors: textColor, fontSize: '11px' }, formatter: v => fmt(v) } },
                 grid: { borderColor: gridColor, strokeDashArray: 4 },
                 dataLabels: { enabled: false },
@@ -971,6 +1030,7 @@ function pdInit() {
         loadPayrollTrend();
         loadDeptCost();
         loadReimbursementSummary();
+        loadPendingRequests();
         loadContributionCost();
         loadRunCoverage();
         loadContractsEnding();

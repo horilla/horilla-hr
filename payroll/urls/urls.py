@@ -362,6 +362,11 @@ urlpatterns = [
         name="payroll-dashboard-reimbursement",
     ),
     path(
+        "dashboard/api/pending-requests/",
+        pay_dashboard.payroll_pending_requests_by_type,
+        name="payroll-dashboard-pending-requests",
+    ),
+    path(
         "dashboard/api/contribution-cost/",
         pay_dashboard.payroll_contribution_cost,
         name="payroll-dashboard-contribution-cost",

@@ -572,6 +572,60 @@ def payroll_reimbursement_summary(request):
 
 @login_required
 @permission_required("payroll.view_payslip")
+def payroll_pending_requests_by_type(request):
+    """Pending reimbursement and encashment requests per type for the selected period."""
+    from base.templatetags.horillafilters import currency_symbol_position
+    from payroll.decorators import leave_encashment_visible_to
+    from payroll.models.models import Reimbursement
+
+    from_date, to_date = _parse_period(request)
+    pending_by_type = {}
+
+    try:
+        rows = (
+            Reimbursement.objects.filter(
+                employee_id__is_active=True,
+                allowance_on__gte=from_date,
+                allowance_on__lte=to_date,
+                status="requested",
+            )
+            .values("type")
+            .annotate(
+                count=Count("id"),
+                total=Coalesce(Sum("amount"), 0.0, output_field=FloatField()),
+            )
+        )
+        pending_by_type = {row["type"]: row for row in rows}
+    except Exception:
+        pass
+
+    tab_order = ["reimbursement"]
+    if leave_encashment_visible_to(request):
+        tab_order.append("leave_encashment")
+    tab_order.append("bonus_encashment")
+    labels = dict(Reimbursement.reimbursement_types)
+
+    types = []
+    for key in tab_order:
+        if key not in labels:
+            continue
+        label = labels[key]
+        row = pending_by_type.get(key)
+        amount = round(float(row["total"]), 2) if row else 0
+        types.append(
+            {
+                "type": label,
+                "type_key": key,
+                "count": row["count"] if row else 0,
+                "amount": amount,
+                "amount_display": currency_symbol_position(f"{amount:,.0f}"),
+            }
+        )
+    return JsonResponse({"types": types})
+
+
+@login_required
+@permission_required("payroll.view_payslip")
 def payroll_contribution_cost(request):
     """
     What each contribution costs, employee and employer share, over the paid
@@ -591,7 +645,7 @@ def payroll_contribution_cost(request):
             end_date__lte=to_date,
             status="paid",
         )
-        rows, totals = contributions.summarise(payslips)
+        rows, totals = contributions.summarise(payslips, all_deductions=True)
         components = [
             {
                 "title": row["title"],

@@ -61,15 +61,34 @@ def contribution_components():
     return {component.pk: component for component in configured}
 
 
-def summarise(payslips):
+def summarise(payslips, all_deductions=False):
     """
     One row per contribution component, over the payslips given.
 
     Returns ``(rows, totals)``. Rows carry the employee share, the employer
     share, the two combined, and how many people it applied to — sorted by the
     combined figure, because that is the one being remitted.
+
+    With ``all_deductions`` every deduction counts, employer share or not,
+    except the generated ones (loan instalments, fines).
     """
     configured = contribution_components()
+    generated = set()
+    lookup = configured
+    if all_deductions:
+        from django.db.models import Q
+
+        from payroll.models.models import Deduction
+
+        every = Deduction.objects.entire()
+        generated = set(
+            every.filter(
+                Q(only_show_under_employee=True) | Q(is_installment=True)
+            ).values_list("pk", flat=True)
+        )
+        lookup = {
+            component.pk: component for component in every.exclude(pk__in=generated)
+        }
 
     employee_total = defaultdict(float)
     employer_total = defaultdict(float)
@@ -83,7 +102,10 @@ def summarise(payslips):
 
             # A component with no employer side is an ordinary deduction and
             # not what this page is about.
-            if component_id not in configured and not employer:
+            if all_deductions:
+                if component_id in generated or component_id not in lookup:
+                    continue
+            elif component_id not in configured and not employer:
                 continue
 
             employee_total[component_id] += float(row.get("amount") or 0)
@@ -93,7 +115,7 @@ def summarise(payslips):
 
     rows = []
     for component_id in titles:
-        component = configured.get(component_id)
+        component = lookup.get(component_id)
         employee = round(employee_total[component_id], 2)
         employer = round(employer_total[component_id], 2)
         rows.append(
