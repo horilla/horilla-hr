@@ -450,7 +450,7 @@ class Stage(HorillaModel):
         ("applied", _("Applied")),
         ("test", _("Test")),
         ("interview", _("Interview")),
-        ("cancelled", _("Cancelled")),
+        ("cancelled", _("Rejected")),
         ("hired", _("Hired")),
     ]
     recruitment_id = models.ForeignKey(
