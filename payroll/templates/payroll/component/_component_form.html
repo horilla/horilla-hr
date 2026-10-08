@@ -411,6 +411,7 @@ and have nowhere on the form to set them.
               </div>
             {% endif %}
           {% endfor %}
+          {% if section.title == who_title %}{% include "payroll/component/_applies_table.html" %}{% endif %}
         {% endfor %}
 
         </div>
@@ -513,4 +514,52 @@ carrying the same field names.
   </div>
 </template>
 
+<script>
+// Live check of the Code input: asks the server whether the code is free (across
+// allowances and deductions) as you type, and holds the Save buttons while it is not.
+(function () {
+  var input = document.querySelector("input[name='code']");
+  if (!input || input.dataset.codeCheck) return;
+  input.dataset.codeCheck = "1";
+  var form = input.closest("form");
+  var note = document.createElement("div");
+  note.className = "oh-code-check";
+  note.style.cssText = "font-size:12px;margin-top:4px";
+  note.hidden = true;
+  input.parentNode.appendChild(note);
+  var kind = "{{ form.verbose_name|lower }}".indexOf("deduction") !== -1 ? "deduction" : "allowance";
+  var pk = "{{ form.instance.pk|default:'' }}";
+  var timer, seq = 0;
+  function show(ok, message) {
+    // After a failed save the server has already printed this same error under the
+    // field; saying it twice reads as two problems, so the live note stays quiet then.
+    var server = document.getElementById("id_code_error");
+    var repeated = server && message && server.textContent.indexOf(message) !== -1;
+    note.textContent = repeated ? "" : (message || "");
+    note.hidden = !note.textContent;
+    note.style.color = ok ? "#15803d" : "#b91c1c";
+    input.style.borderColor = message && !ok ? "#ef4444" : "";
+    input.setCustomValidity(ok ? "" : message);
+  }
+  function check() {
+    var code = input.value.trim().toUpperCase();
+    if (!code) { show(true, ""); return; }
+    var mine = ++seq;
+    fetch("{% url 'component-code-check' %}?kind=" + kind + "&pk=" + encodeURIComponent(pk) + "&code=" + encodeURIComponent(code), {
+      credentials: "same-origin",
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { if (mine === seq) show(d.ok, d.message); })
+      .catch(function () { /* the server still checks on save */ });
+  }
+  input.addEventListener("input", function () {
+    var stale = document.getElementById("id_code_error");
+    if (stale) stale.remove();
+    clearTimeout(timer);
+    timer = setTimeout(check, 300);
+  });
+  input.addEventListener("blur", check);
+  if (input.value) check();
+})();
+</script>
 <script src="{% static 'src/js/componentForm.js' %}"></script>

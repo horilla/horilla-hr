@@ -142,6 +142,43 @@ def sample_context(sample_basic):
 
 
 @login_required
+@permission_required("payroll.view_allowance")
+def check_component_code(request):
+    """
+    Is this code free? Backs the live check under the Code input.
+
+    ``kind`` is allowance or deduction and ``pk`` the component being edited, so it
+    may keep its own code. Same rule the form applies on save.
+    """
+    from payroll.models.models import component_code_taken, component_code_validator
+
+    code = (request.GET.get("code") or "").strip().upper()
+    model = Deduction if request.GET.get("kind") == "deduction" else Allowance
+    try:
+        pk = int(request.GET.get("pk") or 0) or None
+    except ValueError:
+        pk = None
+    if not code:
+        return JsonResponse({"ok": True, "message": ""})
+    try:
+        component_code_validator(code)
+    except Exception as exc:
+        message = getattr(exc, "messages", [str(exc)])[0]
+        return JsonResponse({"ok": False, "message": str(message)})
+    if component_code_taken(code, model, pk):
+        return JsonResponse(
+            {
+                "ok": False,
+                "message": str(
+                    _("The code %(code)s is already used by another component.")
+                    % {"code": code}
+                ),
+            }
+        )
+    return JsonResponse({"ok": True, "message": str(_("Available"))})
+
+
+@login_required
 @hx_request_required
 @permission_required("payroll.view_allowance")
 def preview_component_formula(request):
@@ -339,3 +376,50 @@ def load_component_library(request):
     else:
         messages.info(request, _("Those components already exist."))
     return HorillaRedirect(request, back)
+
+
+@login_required
+@permission_required("payroll.view_allowance")
+def component_applies_rows(request):
+    """
+    Next page of the "who gets it" table on the component form, as table rows.
+
+    The next page number, if any, travels in X-Next-Page so the script can keep
+    scrolling without parsing the rows.
+    """
+    from django.http import HttpResponse
+    from django.template.loader import render_to_string
+
+    from payroll.forms.component_layout import applies_page
+
+    model = Deduction if request.GET.get("model") == "deduction" else Allowance
+    try:
+        pk = int(request.GET.get("pk") or 0) or None
+        page = int(request.GET.get("page") or 1)
+    except ValueError:
+        pk, page = None, 1
+    targeted = set()
+    if pk and model is Allowance:
+        targeted = set(
+            Allowance.objects.get(pk=pk).specific_employees.values_list("pk", flat=True)
+        )
+    if request.GET.get("ids"):
+        # Everyone the search matches who is not already on a structure, for the
+        # header box to tick in one go.
+        rows, _more, _covered = applies_page(
+            model, pk, targeted, None, request.GET.get("q", "")
+        )
+        return JsonResponse(
+            {"ids": [str(r["pk"]) for r in rows if r["via"] != "structure"]}
+        )
+    rows, has_next, _covered = applies_page(
+        model, pk, targeted, page, request.GET.get("q", "")
+    )
+    html = render_to_string(
+        "payroll/component/_applies_rows.html",
+        {"rows": rows, "editable": model is Allowance},
+        request=request,
+    )
+    response = HttpResponse(html)
+    response["X-Next-Page"] = str(page + 1) if has_next else ""
+    return response

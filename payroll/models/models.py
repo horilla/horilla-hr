@@ -67,6 +67,32 @@ RESERVED_COMPONENT_CODES = frozenset(
 )
 
 
+def component_code_taken(code, model=None, exclude_pk=None):
+    """
+    Whether ``code`` is already a component's, an engine name, or both.
+
+    One namespace across allowances and deductions: a formula refers to a component
+    by code alone, so the same code on an allowance and a deduction would make
+    "HRA" mean whichever happened to be looked up first. ``exclude_pk`` is the
+    component being edited, on ``model``, which may keep its own code.
+    """
+    code = (code or "").strip().upper()
+    if not code:
+        return False
+    # The engine's own names (GROSS, CTC, the service-year figures). BASIC is not
+    # here: it is the code the basic-pay component itself carries, so it is
+    # taken only when one already does.
+    if code in RESERVED_COMPONENT_CODES or code in {"PAID_DAYS", "UNPAID_DAYS", "LOP"}:
+        return True
+    for candidate_model in (Allowance, Deduction):
+        clash = candidate_model.objects.filter(code=code)
+        if exclude_pk and model is candidate_model:
+            clash = clash.exclude(pk=exclude_pk)
+        if clash.exists():
+            return True
+    return False
+
+
 def derive_component_code(model, title, exclude_pk=None):
     """
     Build a component code from its title.
@@ -88,10 +114,7 @@ def derive_component_code(model, title, exclude_pk=None):
     while True:
         taken = candidate in RESERVED_COMPONENT_CODES
         if not taken:
-            clash = model.objects.filter(code=candidate)
-            if exclude_pk:
-                clash = clash.exclude(pk=exclude_pk)
-            taken = clash.exists()
+            taken = component_code_taken(candidate, model, exclude_pk)
         if not taken:
             return candidate
         candidate = f"{base[:26]}_{suffix}"

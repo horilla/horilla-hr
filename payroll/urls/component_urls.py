@@ -25,6 +25,16 @@ from payroll.views import (
 
 urlpatterns = [
     path(
+        "component-code-check/",
+        component_formula_views.check_component_code,
+        name="component-code-check",
+    ),
+    path(
+        "component-applies-rows/",
+        component_formula_views.component_applies_rows,
+        name="component-applies-rows",
+    ),
+    path(
         "component-formula-preview/",
         component_formula_views.preview_component_formula,
         name="component-formula-preview",
