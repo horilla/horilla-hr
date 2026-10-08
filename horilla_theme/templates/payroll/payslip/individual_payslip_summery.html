@@ -1,4 +1,4 @@
-{% load static i18n horillafilters %}
+{% load static i18n horillafilters payrollfilters %}
 {% comment %}
 The payslip.
 
@@ -622,3 +622,9 @@ the pay was worked out from. Everything below is the caveats.
     {% endif %}
   </div>
 </div>
+
+{% if request.META.HTTP_HX_REQUEST %}
+  <aside id="payslipTaxPanel" hx-swap-oob="true" style="flex:0 0 340px;width:340px;max-width:100%;">
+    {% include "payroll/payslip/_tax_side_panel.html" %}
+  </aside>
+{% endif %}
