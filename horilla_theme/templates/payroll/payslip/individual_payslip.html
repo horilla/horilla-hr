@@ -12,7 +12,12 @@
     padding-bottom:0rem;
   }
 </style>
-<div class="bg-white px-6 py-4 rounded-md shadow-card w-[60%] mx-auto">
+{% comment %}
+The payslip and its tax working side by side, the pair centred in the view. The
+working is its own card so the payslip stays the statement it is.
+{% endcomment %}
+<div style="display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:center;gap:16px;width:94%;max-width:1480px;margin:0 auto;">
+<div class="bg-white px-6 py-4 rounded-md shadow-card" style="flex:1 1 640px;max-width:980px;min-width:0;">
     <div class="flex gap-2 md:gap-0 flex-wrap justify-between items-end mb-2 border-b border-dark-50 pb-3">
         <div class="flex items-center gap-5">
             <div class="bg-dark-50 p-2 rounded-md w-14">
@@ -107,6 +112,10 @@
             <p class="text-lg font-semibold text-primary-600">{{ net_pay|floatformat:2|currency_symbol_position }}</p>
         </div>
     </div>
+</div>
+<aside id="payslipTaxPanel" style="flex:0 0 340px;width:340px;max-width:100%;">
+  {% include "payroll/payslip/_tax_side_panel.html" %}
+</aside>
 </div>
 <script>
   (function () {

@@ -1,0 +1,128 @@
+{% load i18n %}
+{% comment %}
+How an Income Tax figure was worked out, step by step, for one payslip.
+
+Shared by the payslip's info popover and the edit form's "how is this worked
+out" block, so the two cannot describe the same tax differently. ``tax`` is the
+dict explain_period_tax builds -- the same functions that charged the tax -- or
+None when the contract has no filing status.
+{% endcomment %}
+<div class="tx">
+  <style>
+    .tx { font-size: 12px; color: #374151; line-height: 1.45; min-width: 260px; }
+    .tx__row { display: flex; justify-content: space-between; gap: 16px; padding: 2px 0; }
+    .tx__row span:last-child { font-weight: 600; white-space: nowrap; }
+    .tx__sub { color: #6b7280; font-size: 11px; padding: 0 0 4px; }
+    .tx__rule { border-top: 1px solid #e5e7eb; margin: 5px 0; }
+    .tx__head { font-weight: 600; color: #111827; margin-bottom: 4px; }
+    .tx__slabs { width: 100%; border-collapse: collapse; margin: 3px 0 4px; font-size: 11px; }
+    .tx__slabs th { text-align: left; color: #6b7280; font-weight: 500; padding: 1px 4px 1px 0; }
+    .tx__slabs td { padding: 1px 4px 1px 0; }
+    .tx__slabs td:last-child, .tx__slabs th:last-child { text-align: right; padding-right: 0; }
+    .tx__total { display: flex; justify-content: space-between; font-weight: 700; color: #111827; padding-top: 3px; }
+    .tx__note { color: #b45309; font-size: 11px; margin-top: 6px; }
+  </style>
+  {% if not tax %}
+    <div class="tx__sub">
+      {% trans "No filing status is set on this employee's contract, so no income tax is worked out." %}
+    </div>
+  {% else %}
+    <div class="tx__head">{{ tax.filing_status }}</div>
+
+    <div class="tx__row">
+      <span>
+        {% if tax.based_on == "gross_pay" %}{% trans "Gross pay this period" %}
+        {% elif tax.based_on == "taxable_gross_pay" %}{% trans "Taxable gross this period" %}
+        {% else %}{% trans "Basic pay this period" %}{% endif %}
+      </span>
+      <span>{{ tax.income|floatformat:2 }}</span>
+    </div>
+    <div class="tx__row">
+      <span>
+        {% if tax.method == "periods" %}
+          &times; {{ tax.periods }} {% trans "pay periods a year" %}
+        {% else %}
+          &divide; {{ tax.days }} &times; {{ tax.year_days }} {% trans "days" %}
+        {% endif %}
+      </span>
+      <span>{{ tax.yearly_income|floatformat:2 }}</span>
+    </div>
+    <div class="tx__sub">{% trans "Yearly income the slabs are applied to" %}</div>
+
+    {% if tax.breakdown.standard_deduction %}
+      <div class="tx__row">
+        <span>{% trans "Less standard deduction" %}</span>
+        <span>&minus;{{ tax.breakdown.standard_deduction|floatformat:2 }}</span>
+      </div>
+      <div class="tx__row">
+        <span>{% trans "Taxable yearly income" %}</span>
+        <span>{{ tax.breakdown.taxable_income|floatformat:2 }}</span>
+      </div>
+    {% endif %}
+
+    <div class="tx__rule"></div>
+    {% if tax.breakdown.mode == "slabs" %}
+      {% if tax.breakdown.slabs %}
+        <table class="tx__slabs">
+          <thead>
+            <tr>
+              <th>{% trans "Slab" %}</th><th>{% trans "Rate" %}</th><th>{% trans "Tax" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for slab in tax.breakdown.slabs %}
+              <tr>
+                <td>{{ slab.from|floatformat:0 }} &ndash; {{ slab.to|floatformat:0 }}</td>
+                <td>{{ slab.rate|floatformat:"-2" }}%</td>
+                <td>{{ slab.tax|floatformat:2 }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% endif %}
+    {% else %}
+      <div class="tx__sub">{% trans "Worked out by this status's tax formula." %}</div>
+    {% endif %}
+
+    <div class="tx__row">
+      <span>{% trans "Tax before relief" %}</span>
+      <span>{{ tax.breakdown.tax_before_relief|floatformat:2 }}</span>
+    </div>
+    {% if tax.breakdown.rebate_applied %}
+      <div class="tx__row">
+        <span>{% trans "Less rebate" %}</span>
+        <span>&minus;{{ tax.breakdown.rebate_applied|floatformat:2 }}</span>
+      </div>
+    {% endif %}
+    {% if tax.breakdown.cess_applied %}
+      <div class="tx__row">
+        <span>{% trans "Plus cess" %}</span>
+        <span>+{{ tax.breakdown.cess_applied|floatformat:2 }}</span>
+      </div>
+    {% endif %}
+    <div class="tx__row">
+      <span>{% trans "Tax for the year" %}</span>
+      <span>{{ tax.yearly_tax|floatformat:2 }}</span>
+    </div>
+
+    <div class="tx__rule"></div>
+    <div class="tx__total">
+      <span>
+        {% if tax.method == "periods" %}&divide; {{ tax.periods }}{% else %}&divide; {{ tax.year_days }} &times; {{ tax.days }}{% endif %}
+        &rarr; {% trans "Income tax" %}
+      </span>
+      <span>{{ tax.period_tax|floatformat:2 }}</span>
+    </div>
+
+    {% if tax.adjusted %}
+      <div class="tx__note">
+        {% trans "The figure on the payslip was changed by hand, so it differs from this working." %}
+      </div>
+    {% endif %}
+    <div class="tx__sub" style="margin-top:6px;">
+      <a href="{% url 'filing-status-rules' tax.rules_pk %}" target="_blank" rel="noopener">
+        {% trans "Open the tax rules" %} &#8599;
+      </a>
+    </div>
+  {% endif %}
+</div>

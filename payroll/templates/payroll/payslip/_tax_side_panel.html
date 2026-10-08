@@ -1,0 +1,123 @@
+{% load i18n payrollfilters %}
+{% comment %}
+The tax working, beside the payslip rather than inside it: what the tax is
+charged on and how that figure is reached, then the tax itself step by step.
+
+Rendered in the page beside the payslip card, and again out-of-band whenever the
+payslip body is swapped (a status change, an edit), so it never lags behind the
+figures it explains.
+{% endcomment %}
+{% with tax=payslip|income_tax_explanation base=payslip|taxable_gross_working %}
+<div class="tsp" style="background:#fff;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:16px 18px;font-size:12px;color:#374151;line-height:1.45;">
+  <style>
+    .tsp__title { font-size: 13px; font-weight: 700; color: #111827; margin: 0 0 6px; }
+    .tsp__sec { margin-bottom: 14px; }
+    .tsp__eqn { font-weight: 600; color: #4338ca; background: #eef2ff; border-radius: 6px; padding: 4px 8px; margin: 0 0 8px; }
+    .tsp__head { font-weight: 600; color: #111827; margin: 2px 0 2px; }
+    .tsp__strong { color: #111827; }
+    .tsp__row { display: flex; justify-content: space-between; gap: 12px; padding: 1px 0; }
+    .tsp__row span:last-child { font-weight: 600; white-space: nowrap; }
+    .tsp__sub { color: #6b7280; font-size: 11px; }
+    .tsp__rule { border-top: 1px solid #e5e7eb; margin: 5px 0; }
+    .tsp__total { display: flex; justify-content: space-between; font-weight: 700; color: #111827; }
+    .tsp__tag { display: inline-block; font-size: 10px; padding: 0 6px; border-radius: 999px; background: #fef3c7; color: #92400e; margin-left: 4px; }
+    .tsp__warn { color: #b45309; font-size: 11px; margin-top: 4px; }
+  </style>
+
+  {% if tax.based_on == "basic_pay" %}
+  {% with b=payslip|basic_pay_working %}
+  <div class="tsp__sec">
+    <div class="tsp__title">{% trans "Basic Pay" %}</div>
+    <div class="tsp__eqn">
+      {% if b.lop_in_basic %}{% trans "Basic Pay" %} = {% trans "Basic Before Loss Of Pay" %} &minus; {% trans "Loss Of Pay" %}{% else %}{% trans "Basic Pay" %} = {% trans "Basic Pay As Set" %}{% endif %}
+    </div>
+    {% if b.lop_in_basic %}
+      <div class="tsp__row"><span>{% trans "Basic Before Loss Of Pay" %}</span><span>{{ b.before_lop|floatformat:2 }}</span></div>
+      <div class="tsp__row"><span>{% trans "Less Loss Of Pay" %}</span><span>&minus;{{ b.lop|floatformat:2 }}</span></div>
+      <div class="tsp__rule"></div>
+    {% endif %}
+    <div class="tsp__total"><span>{% trans "Basic Pay" %}</span><span>{{ b.basic|floatformat:2 }}</span></div>
+    {% if b.lop_in_basic %}
+      <div class="tsp__sub" style="text-align:right;">{{ b.before_lop|floatformat:2 }} &minus; {{ b.lop|floatformat:2 }} = {{ b.basic|floatformat:2 }}</div>
+    {% endif %}
+    {% if b.edited %}<div class="tsp__warn">{% trans "Basic pay was changed by hand on this payslip." %}</div>{% endif %}
+    <div class="tsp__sub" style="margin-top:4px;">{% trans "Income tax is charged on basic pay, so other earnings and deductions do not change it." %}</div>
+  </div>
+  {% endwith %}
+
+  {% elif base and tax.based_on == "gross_pay" %}
+  <div class="tsp__sec">
+    <div class="tsp__title">{% trans "Gross Pay" %}</div>
+    <div class="tsp__eqn">{% trans "Gross Pay" %} = {% trans "Basic Pay" %} + {% trans "Allowances" %}</div>
+    {% for row in base.earnings %}
+      <div class="tsp__row"><span>{{ row.title }}</span><span>{{ row.amount|floatformat:2 }}</span></div>
+    {% endfor %}
+    <div class="tsp__rule"></div>
+    <div class="tsp__total"><span>{% trans "Gross Pay" %}</span><span>{{ base.gross|floatformat:2 }}</span></div>
+    <div class="tsp__sub" style="margin-top:4px;">{% trans "Income tax is charged on gross pay, so non-taxable earnings and pre-tax deductions do not reduce it." %}</div>
+  </div>
+
+  {% elif base %}
+  <div class="tsp__sec">
+    <div class="tsp__title">{% trans "Taxable Gross" %}</div>
+    <div class="tsp__eqn">
+      {% trans "Taxable Gross" %} = {% trans "Taxable Earnings" %} &minus; {% trans "Pre-Tax Deductions" %}{% if base.loss_of_pay %} &minus; {% trans "Loss Of Pay" %}{% endif %}
+    </div>
+
+    <div class="tsp__head">{% trans "Taxable Earnings" %}</div>
+    {% for row in base.taxable_earnings %}
+      <div class="tsp__row"><span>{{ row.title }}</span><span>{{ row.amount|floatformat:2 }}</span></div>
+    {% endfor %}
+    <div class="tsp__rule"></div>
+    <div class="tsp__row tsp__strong"><span>{% trans "Taxable Earnings" %}</span><span>{{ base.taxable_total|floatformat:2 }}</span></div>
+
+    <div class="tsp__head" style="margin-top:8px;">{% trans "Pre-Tax Deductions" %}</div>
+    {% for row in base.pretax %}
+      <div class="tsp__row"><span>{{ row.title }}</span><span>{{ row.amount|floatformat:2 }}</span></div>
+    {% empty %}
+      <div class="tsp__sub">{% trans "None on this payslip." %}</div>
+    {% endfor %}
+    {% if base.pretax %}
+      <div class="tsp__rule"></div>
+      <div class="tsp__row tsp__strong"><span>{% trans "Pre-Tax Deductions" %}</span><span>{{ base.pretax_total|floatformat:2 }}</span></div>
+    {% endif %}
+
+    {% if base.loss_of_pay %}
+      <div class="tsp__head" style="margin-top:8px;">{% trans "Loss Of Pay" %}</div>
+      <div class="tsp__row"><span>{% trans "Separate, pre-tax" %}</span><span>{{ base.loss_of_pay|floatformat:2 }}</span></div>
+    {% endif %}
+
+    <div class="tsp__rule"></div>
+    <div class="tsp__total">
+      <span>{% trans "Taxable Gross" %}</span><span>{{ base.computed|floatformat:2 }}</span>
+    </div>
+    <div class="tsp__sub" style="text-align:right;">
+      {{ base.taxable_total|floatformat:2 }} &minus; {{ base.pretax_total|floatformat:2 }}{% if base.loss_of_pay %} &minus; {{ base.loss_of_pay|floatformat:2 }}{% endif %} = {{ base.computed|floatformat:2 }}
+    </div>
+
+    {% if base.non_taxable or base.lop_in_basic %}
+      <div class="tsp__head" style="margin-top:8px;">{% trans "Left Out Of The Equation" %}</div>
+      {% for row in base.non_taxable %}
+        <div class="tsp__row" style="color:#6b7280;"><span>{{ row.title }} <span class="tsp__sub">({% trans "not taxable" %})</span></span><span>{{ row.amount|floatformat:2 }}</span></div>
+      {% endfor %}
+      {% if base.lop_in_basic %}
+        <div class="tsp__row" style="color:#6b7280;"><span>{% trans "Loss Of Pay" %} <span class="tsp__sub">({% trans "already off Basic Pay" %})</span></span><span>{{ base.lop_amount_in_basic|floatformat:2 }}</span></div>
+      {% endif %}
+    {% endif %}
+    {% if not base.matches %}
+      <div class="tsp__warn">{% blocktrans with stored=base.stored|floatformat:2 %}The payslip holds {{ stored }}: it was changed by hand or generated before a correction.{% endblocktrans %}</div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="tsp__sec" style="margin-bottom:0;">
+    <div class="tsp__title">{% trans "How The Income Tax Is Worked Out" %}</div>
+    {% if tax %}
+      <div class="tsp__sub" style="margin-bottom:4px;">
+        {% blocktrans with name=tax.filing_status %}Charged on the basis set in the contract's filing status, {{ name }}.{% endblocktrans %}
+      </div>
+    {% endif %}
+    {% include "payroll/payslip/_income_tax_detail.html" with tax=tax %}
+  </div>
+</div>
+{% endwith %}
