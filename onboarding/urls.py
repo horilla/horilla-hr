@@ -183,6 +183,21 @@ urlpatterns = [
         dashboard.MyOnboardingCandidatesSingleView.as_view(),
         name="candidate-tasks-status",
     ),
+    path(
+        "candidate-tasks-view/",
+        dashboard.CandidateTasksPage.as_view(),
+        name="candidate-tasks-view",
+    ),
+    path(
+        "candidate-tasks-nav/",
+        dashboard.CandidateTasksNav.as_view(),
+        name="candidate-tasks-nav",
+    ),
+    path(
+        "candidate-tasks-list/",
+        dashboard.CandidateTasksList.as_view(),
+        name="candidate-tasks-list",
+    ),
     path("change-task-status/", views.change_task_status, name="change-task-status"),
     path(
         "update-offer-letter-status/",

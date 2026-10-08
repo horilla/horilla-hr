@@ -173,39 +173,55 @@ def onboarding_task_managers(request):
     """Task assignment by manager (logged-in user's tasks), scoped to the selected period."""
     if not _has_onboarding_permission(request):
         return JsonResponse({"no_permission": True})
-    from onboarding.models import CandidateTask, OnboardingTask
+    from onboarding.models import CandidateStage, CandidateTask, OnboardingTask
 
     tasks = []
 
     try:
         user_emp = getattr(request.user, "employee_get", None)
         if user_emp:
-            period_candidates = _onboarding_candidates_in_period(request)
+            pipeline_candidates = (
+                CandidateStage.objects.filter(candidate_id__is_active=True)
+                .exclude(candidate_id__converted_employee_id__isnull=False)
+                .values("candidate_id")
+            )
             task_qs = OnboardingTask.objects.filter(
                 employee_id=user_emp,
             ).order_by("stage_id__sequence")
 
-            for task in task_qs[:10]:
+            for task in task_qs:
                 ct_base = CandidateTask.objects.filter(
                     onboarding_task_id=task,
-                    candidate_id__in=period_candidates,
+                    candidate_id__in=pipeline_candidates,
                 )
                 total = ct_base.count()
                 if total == 0:
                     continue
                 done = ct_base.filter(status="done").count()
+                if done == total:
+                    continue
                 stuck = ct_base.filter(status="stuck").count()
+                progress = round((done / total * 100))
+                # Fully done has nothing left to manage, so it shouldn't take
+                # up one of this panel's slots -- keep slicing to 10 after
+                # this filter, not before, or a finished task would crowd out
+                # one still in progress.
+                if progress == 100:
+                    continue
 
                 tasks.append(
                     {
+                        "id": task.pk,
                         "title": task.task_title,
                         "stage": task.stage_id.stage_title if task.stage_id else "—",
                         "total": total,
                         "done": done,
                         "stuck": stuck,
-                        "progress": round((done / total * 100)) if total > 0 else 0,
+                        "progress": round((done / total * 100)),
                     }
                 )
+            tasks.sort(key=lambda item: item["progress"])
+            tasks = tasks[:10]
     except Exception:
         pass
 

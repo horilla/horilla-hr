@@ -11,10 +11,14 @@ from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
 
 from horilla_views.cbv_methods import login_required
-from horilla_views.generic.cbv.views import HorillaListView
+from horilla_views.generic.cbv.views import (
+    HorillaListView,
+    HorillaNavView,
+    TemplateView,
+)
 from onboarding.cbv_decorators import all_manager_can_enter
-from onboarding.filters import OnboardingTaskFilter
-from onboarding.models import CandidateTask, OnboardingTask
+from onboarding.filters import CandidateTaskListFilter, OnboardingTaskFilter
+from onboarding.models import CandidateStage, CandidateTask, OnboardingTask
 
 
 @method_decorator(login_required, name="dispatch")
@@ -152,3 +156,90 @@ class MyOnboardingCandidatesSingleView(HorillaListView):
         task_id = self.request.GET.get("task_id")
         queryset = queryset.filter(onboarding_task_id__id=task_id)
         return queryset
+
+
+def visible_candidate_tasks(request):
+    """
+    Pipeline candidate tasks the requesting user is allowed to see
+    """
+    pipeline_candidates = (
+        CandidateStage.objects.filter(candidate_id__is_active=True)
+        .exclude(candidate_id__converted_employee_id__isnull=False)
+        .values("candidate_id")
+    )
+    queryset = CandidateTask.objects.filter(candidate_id__in=pipeline_candidates)
+    if request.user.has_perm("onboarding.view_candidatetask"):
+        return queryset
+    employee = request.user.employee_get
+    return queryset.filter(
+        Q(onboarding_task_id__employee_id=employee)
+        | Q(stage_id__employee_id=employee)
+        | Q(candidate_id__recruitment_id__recruitment_managers=employee)
+    ).distinct()
+
+
+@method_decorator(login_required, name="dispatch")
+@method_decorator(
+    all_manager_can_enter("onboarding.view_candidatetask"), name="dispatch"
+)
+class CandidateTasksPage(TemplateView):
+    """
+    Page shell for the onboarding task list
+    """
+
+    template_name = "cbv/candidate_tasks/candidate_tasks.html"
+
+
+@method_decorator(login_required, name="dispatch")
+@method_decorator(
+    all_manager_can_enter("onboarding.view_candidatetask"), name="dispatch"
+)
+class CandidateTasksNav(HorillaNavView):
+    """
+    Search and filter bar of the onboarding task list
+    """
+
+    nav_title = _("Onboarding Tasks")
+    filter_instance = CandidateTaskListFilter()
+    filter_form_context_name = "form"
+    filter_body_template = "cbv/candidate_tasks/candidate_task_filter.html"
+    search_swap_target = "#listContainer"
+    modern_filter = True
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.search_url = reverse("candidate-tasks-list")
+
+
+@method_decorator(login_required, name="dispatch")
+@method_decorator(
+    all_manager_can_enter("onboarding.view_candidatetask"), name="dispatch"
+)
+class CandidateTasksList(HorillaListView):
+    """
+    List of onboarding candidate tasks
+    """
+
+    model = CandidateTask
+    filter_class = CandidateTaskListFilter
+    view_id = "candidateTasksContainer"
+    filter_selected = False
+    bulk_select_option = False
+    bulk_update = False
+    quick_export = False
+
+    columns = [
+        (_("Candidate"), "candidate_id__name"),
+        (_("Task"), "onboarding_task_id__task_title"),
+        (_("Stage"), "stage_id__stage_title"),
+        (_("Recruitment"), "candidate_id__recruitment_id__title"),
+        (_("Status"), "status_col"),
+    ]
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.search_url = reverse("candidate-tasks-list")
+
+    def get_queryset(self, queryset=None, filtered=False, *args, **kwargs):
+        qs = super().get_queryset(queryset, filtered, *args, **kwargs)
+        return qs.filter(pk__in=visible_candidate_tasks(self.request).values("pk"))
