@@ -507,7 +507,19 @@ class AssetReturnForm(ModelForm):
         self.fields["return_images"] = MultipleFileField(
             label=_("Return Condition Images")
         )
-        self.fields["return_images"].required = True
+        # Required unless the asset is reported Lost: there is nothing to
+        # photograph then. The browser-side "required" is toggled in the
+        # template; clean() below enforces it on the server.
+        self.fields["return_images"].required = False
+        self.fields["return_images"].widget.attrs["required"] = "required"
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get("return_status") != "Lost" and not (
+            self.files and self.files.getlist("return_images")
+        ):
+            self.add_error("return_images", _("This field is required."))
+        return cleaned_data
 
     def clean_return_date(self):
         """

@@ -71,7 +71,12 @@ def asset_kpi_data(request):
         expiry_date__lte=expiring_soon_to_date,
     ).count()
 
-    service_requests = AssetServiceRequest.objects.filter(status="Requested").count()
+    # Requests raised by active employees only: the Service Request list the
+    # tile links to leaves out inactive employees' requests, so the count must
+    # too or the tile and the list disagree.
+    service_requests = AssetServiceRequest.objects.filter(
+        status="Requested", requested_employee_id__is_active=True
+    ).count()
 
     return JsonResponse(
         {
@@ -243,16 +248,15 @@ def asset_expiring_soon(request):
     today = timezone.now().date()
     from_date, to_date = today, today + timedelta(days=30)
     assets = []
+    total = 0
 
     try:
-        qs = (
-            Asset.objects.filter(
-                expiry_date__gte=from_date,
-                expiry_date__lte=to_date,
-            )
-            .select_related("asset_category_id")
-            .order_by("expiry_date")[:15]
+        expiring = Asset.objects.filter(
+            expiry_date__gte=from_date,
+            expiry_date__lte=to_date,
         )
+        total = expiring.count()
+        qs = expiring.select_related("asset_category_id").order_by("expiry_date")[:15]
 
         for a in qs:
             days_left = (a.expiry_date - today).days
@@ -274,7 +278,7 @@ def asset_expiring_soon(request):
     except Exception:
         pass
 
-    return JsonResponse({"assets": assets})
+    return JsonResponse({"assets": assets, "total": total})
 
 
 @login_required
@@ -284,20 +288,19 @@ def asset_recent_allocations(request):
 
     from_date, to_date = _parse_period(request)
     allocations = []
+    total = 0
 
     try:
-        qs = (
-            AssetAssignment.objects.filter(
-                return_status__isnull=True,
-                assigned_to_employee_id__is_active=True,
-                assigned_date__gte=from_date,
-                assigned_date__lte=to_date,
-            )
-            .select_related(
-                "asset_id", "assigned_to_employee_id", "asset_id__asset_category_id"
-            )
-            .order_by("-assigned_date")[:15]
+        recent = AssetAssignment.objects.filter(
+            return_status__isnull=True,
+            assigned_to_employee_id__is_active=True,
+            assigned_date__gte=from_date,
+            assigned_date__lte=to_date,
         )
+        total = recent.count()
+        qs = recent.select_related(
+            "asset_id", "assigned_to_employee_id", "asset_id__asset_category_id"
+        ).order_by("-assigned_date")[:15]
 
         for aa in qs:
             emp = aa.assigned_to_employee_id
@@ -320,7 +323,7 @@ def asset_recent_allocations(request):
     except Exception:
         pass
 
-    return JsonResponse({"allocations": allocations})
+    return JsonResponse({"allocations": allocations, "total": total})
 
 
 @login_required

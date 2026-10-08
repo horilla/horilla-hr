@@ -41,6 +41,7 @@
                     {{ asset_return_form.return_images.label }}
                 </label>
                 {{ asset_return_form.return_images }}
+                {{ asset_return_form.return_images.errors }}
             </div>
             <div class="oh-btn-group mt-4">
                 <button
@@ -74,3 +75,18 @@
         </div>
     </form>
 </div>
+
+<script>
+    // A lost asset cannot be photographed: images are optional for "Lost".
+    (function () {
+        var status = document.getElementById("id_return_status");
+        var images = document.getElementById("id_return_images");
+        if (!status || !images) return;
+        function sync() {
+            images.required = status.value !== "Lost";
+        }
+        status.addEventListener("change", sync);
+        if (window.jQuery) window.jQuery(status).on("change", sync);
+        sync();
+    })();
+</script>

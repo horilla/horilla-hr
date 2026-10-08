@@ -294,8 +294,26 @@
             border-bottom: 1px solid rgba(128, 128, 128, 0.08);
         }
         .as-info-panel__title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
             font-weight: 700;
             font-size: 13px;
+        }
+        /* How many records the card holds, beside its title. Hidden at zero. */
+        .as-count-badge[hidden] { display: none; }
+        .as-count-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 24px;
+            height: 24px;
+            padding: 0 6px;
+            border-radius: 999px;
+            background: var(--as-indigo);
+            color: #fff;
+            font-size: 12px;
+            font-weight: 600;
         }
     /* Title on top, the date period / basis the card lists on the line below. */
     .as-info-panel__heading { min-width: 0; }
@@ -978,7 +996,7 @@
                 <div class="as-info-panel">
                     <div class="as-info-panel__header">
                         <div class="as-info-panel__heading">
-                            <div class="as-info-panel__title">{% trans "Expiring Soon" %}</div>
+                            <div class="as-info-panel__title">{% trans "Expiring Soon" %}<span id="as-expiring-count" class="as-count-badge" hidden title="{% trans 'Assets expiring in the next 30 days' %}">0</span></div>
                             <div class="as-info-panel__sub">{% trans "Next 30 Days" %}</div>
                         </div>
                     </div>
@@ -989,7 +1007,7 @@
                 <div class="as-info-panel">
                     <div class="as-info-panel__header">
                         <div class="as-info-panel__heading">
-                            <div class="as-info-panel__title">{% trans "Recent Allocations" %}</div>
+                            <div class="as-info-panel__title">{% trans "Recent Allocations" %}<span id="as-allocations-count" class="as-count-badge" hidden title="{% trans 'Assets allocated in this period' %}">0</span></div>
                             <div class="as-info-panel__sub" data-period-label></div>
                         </div>
                     </div>
@@ -1623,12 +1641,19 @@
             }
             loadAgeDist();
 
+            function setCountBadge(id, n) {
+                const b = document.getElementById(id);
+                b.textContent = n || 0;
+                b.hidden = !n;
+            }
+
             // ─── EXPIRING SOON ───
             function loadExpiring() {
             fetchP("{% url 'asset-dashboard-expiring' %}")
                 .then(r => r.json())
                 .then(data => {
                     const el = document.getElementById('as-expiring');
+                    setCountBadge('as-expiring-count', data.total);
                     if (!data.assets.length) { el.innerHTML = '<div class="as-info-panel__empty">{% trans "No assets expiring soon"|escapejs %}</div>'; return; }
                     el.innerHTML = data.assets.map(a => {
                         let badge = '';
@@ -1653,6 +1678,7 @@
                 .then(r => r.json())
                 .then(data => {
                     const el = document.getElementById('as-allocations');
+                    setCountBadge('as-allocations-count', data.total);
                     if (!data.allocations.length) { el.innerHTML = '<div class="as-info-panel__empty">{% trans "No recent allocations"|escapejs %}</div>'; return; }
                     el.innerHTML = data.allocations.map(a => {
                         const initials = a.employee.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();

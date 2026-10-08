@@ -503,6 +503,7 @@ class AssetAssignment(HorillaModel):
         ("Minor damage", _("Minor damage")),
         ("Major damage", _("Major damage")),
         ("Healthy", _("Healthy")),
+        ("Lost", _("Lost")),
     ]
     asset_id = models.ForeignKey(
         Asset, on_delete=models.PROTECT, verbose_name=_("Asset")

@@ -1034,6 +1034,11 @@ def asset_allocate_return(request, assignment_id):
             asset_allocation.return_status = asset_return_status
             asset_allocation.return_condition = asset_return_condition
             asset_allocation.save()
+            if asset_return_status == "Lost" and asset_allocation.asset_item_id_id:
+                # A lost unit is gone for good, so it must not stay "In use"
+                asset_item = asset_allocation.asset_item_id
+                asset_item.status = "Lost"
+                asset_item.save()
             if request.FILES:
                 for file in files:
                     attachment = ReturnImages()
