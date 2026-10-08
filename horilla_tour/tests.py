@@ -7,8 +7,10 @@ permission gating of the admin CRUD. The seed migration ships two global
 tours (getting-started, dashboard-overview) which the API tests rely on.
 """
 
+import io
 import json
 
+from django.core.management import call_command
 from django.test import Client, TestCase
 from django.urls import reverse
 
@@ -16,7 +18,13 @@ from base.models import Company
 from employee.models import Employee
 from horilla.horilla_middlewares import set_selected_company
 from horilla_auth.models import HorillaUser
-from horilla_tour.models import Tour, TourProgress, TourStep
+from horilla_tour.models import (
+    Tour,
+    TourProgress,
+    TourStep,
+    TourStepTranslation,
+    TourTranslation,
+)
 
 
 def make_company(name, address):
@@ -288,3 +296,203 @@ class TourCompanyIsolationTests(TestCase):
         self.assertIn("beta-tour", slugs_b)
         self.assertNotIn("alpha-tour", slugs_b)
         self.assertIn("getting-started", slugs_b)
+
+
+def _strip_translations(tour):
+    """Simulate a pre-feature tour/step: no TourTranslation/TourStepTranslation rows."""
+    TourTranslation.objects.filter(tour=tour).delete()
+    TourStepTranslation.objects.filter(tour_step__tour=tour).delete()
+
+
+class AuditTourTranslationsCommandTests(TestCase):
+    """US1 — the audit command classifies every Tour/TourStep as ready/not ready."""
+
+    def setUp(self):
+        from horilla.horilla_middlewares import _thread_locals
+
+        _thread_locals.request = None
+
+    def _run(self, *args):
+        out = io.StringIO()
+        call_command("audit_tour_translations", *args, stdout=out)
+        return out.getvalue()
+
+    def test_classifies_tours_without_translation_as_not_ready(self):
+        tour = make_tour("no-translation-tour")
+        _strip_translations(tour)
+
+        out = self._run()
+
+        self.assertIn("[NAO PRONTO]", out)
+        self.assertIn("no-translation-tour", out)
+
+    def test_summary_counts_match_totals(self):
+        tour = make_tour("counted-tour")
+        _strip_translations(tour)
+
+        import os
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(mode="r", suffix=".json", delete=False) as tmp:
+            path = tmp.name
+        try:
+            call_command("audit_tour_translations", "--output", path)
+            with open(path, encoding="utf-8") as fh:
+                result = json.load(fh)
+        finally:
+            os.remove(path)
+
+        self.assertEqual(
+            result["tours"]["ready"] + result["tours"]["not_ready"],
+            result["tours"]["total"],
+        )
+        self.assertEqual(result["tours"]["total"], Tour.objects.count())
+        self.assertEqual(
+            result["tour_steps"]["ready"] + result["tour_steps"]["not_ready"],
+            result["tour_steps"]["total"],
+        )
+        self.assertEqual(result["tour_steps"]["total"], TourStep.objects.count())
+
+    def test_command_is_read_only_and_idempotent(self):
+        tour = make_tour("readonly-check-tour")
+        _strip_translations(tour)
+
+        before = {
+            "tours": Tour.objects.count(),
+            "steps": TourStep.objects.count(),
+            "tour_translations": TourTranslation.objects.count(),
+            "step_translations": TourStepTranslation.objects.count(),
+            "progress": TourProgress.objects.count(),
+        }
+
+        first_run = self._run()
+        second_run = self._run()
+
+        after = {
+            "tours": Tour.objects.count(),
+            "steps": TourStep.objects.count(),
+            "tour_translations": TourTranslation.objects.count(),
+            "step_translations": TourStepTranslation.objects.count(),
+            "progress": TourProgress.objects.count(),
+        }
+
+        self.assertEqual(before, after)
+        self.assertEqual(first_run, second_run)
+
+
+class BackfillTourTranslationMigrationTests(TestCase):
+    """US2 — the data migration mirrors existing Tour/TourStep text into English translations."""
+
+    def setUp(self):
+        from horilla.horilla_middlewares import _thread_locals
+
+        _thread_locals.request = None
+
+    def _run_backfill(self):
+        import importlib
+
+        return importlib.import_module(
+            "horilla_tour.migrations.0089_backfill_english_tour_translations"
+        )
+
+    def test_backfill_mirrors_existing_text_including_blank_description(self):
+        tour = make_tour("legacy-tour", description="")
+        step = tour.steps.first()
+        step.description = ""
+        step.save()
+        _strip_translations(tour)
+
+        self.assertFalse(TourTranslation.objects.filter(tour=tour).exists())
+
+        from django.apps import apps as django_apps
+
+        backfill = self._run_backfill()
+        backfill.backfill(django_apps, None)
+
+        translation = TourTranslation.objects.get(tour=tour, language="en")
+        self.assertEqual(translation.title, tour.title)
+        self.assertEqual(translation.description, "")
+
+        step_translation = TourStepTranslation.objects.get(
+            tour_step=step, language="en"
+        )
+        self.assertEqual(step_translation.title, step.title)
+        self.assertEqual(step_translation.description, "")
+
+    def test_backfill_does_not_touch_tour_progress(self):
+        tour = make_tour("progress-safe-tour")
+        _strip_translations(tour)
+        admin = HorillaUser.objects.create_superuser(
+            username="progress_admin", email="pa@t.com", password="pass12345"
+        )
+        attach_employee(admin, "Progress", "Admin")
+        progress = TourProgress.objects.create(
+            tour=tour, user=admin, status="in_progress", last_step=1
+        )
+
+        before = list(
+            TourProgress.objects.values("id", "status", "last_step", "completed_at")
+        )
+
+        from django.apps import apps as django_apps
+
+        backfill = self._run_backfill()
+        backfill.backfill(django_apps, None)
+
+        after = list(
+            TourProgress.objects.values("id", "status", "last_step", "completed_at")
+        )
+        self.assertEqual(before, after)
+        self.assertEqual(TourProgress.objects.count(), 1)
+        self.assertEqual(TourProgress.objects.get(pk=progress.pk).status, "in_progress")
+
+
+class NewTourTranslationSignalTests(TestCase):
+    """US3 — newly created Tour/TourStep rows already have an English translation."""
+
+    def setUp(self):
+        from horilla.horilla_middlewares import _thread_locals
+
+        _thread_locals.request = None
+
+    def test_new_tour_and_step_get_english_translation_automatically(self):
+        tour = Tour.objects.create(
+            slug="fresh-tour",
+            title="Fresh Tour",
+            description="Brand new",
+            page_match="dashboard",
+            match_type="url_name",
+            audience="all",
+            trigger="auto_once",
+        )
+        step = TourStep.objects.create(
+            tour=tour, sequence=1, title="Fresh Step", description="Fresh step body"
+        )
+
+        self.assertTrue(tour.translations.filter(language="en").exists())
+        translation = tour.translations.get(language="en")
+        self.assertEqual(translation.title, tour.title)
+        self.assertEqual(translation.description, tour.description)
+
+        self.assertTrue(step.translations.filter(language="en").exists())
+        step_translation = step.translations.get(language="en")
+        self.assertEqual(step_translation.title, step.title)
+        self.assertEqual(step_translation.description, step.description)
+
+    def test_new_tour_is_classified_ready_without_backfill(self):
+        Tour.objects.create(
+            slug="fresh-audit-tour",
+            title="Fresh Audit Tour",
+            description="",
+            page_match="dashboard",
+            match_type="url_name",
+            audience="all",
+            trigger="auto_once",
+        )
+
+        out = io.StringIO()
+        call_command("audit_tour_translations", stdout=out)
+        output = out.getvalue()
+
+        self.assertIn("[PRONTO]", output)
+        self.assertIn("fresh-audit-tour", output)
