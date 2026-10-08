@@ -275,8 +275,33 @@
             transition: opacity 0.15s, border-color 0.15s;
         }
         .pm-pill:hover {
-            border-color: #6366f1;
+            border-color: var(--pm-indigo);
         }
+        /* Light card tooltip for legend chips (same as the main dashboard legend) */
+        .pm-pill[data-tip] { position: relative; }
+        .pm-pill[data-tip]::after {
+            content: attr(data-tip);
+            position: absolute;
+            left: 50%;
+            bottom: calc(100% + 8px);
+            transform: translateX(-50%);
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(128, 128, 128, 0.2);
+            background: #ffffff;
+            color: #334155;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+            font-size: 11px;
+            font-weight: 500;
+            white-space: nowrap;
+            pointer-events: none;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.12s;
+            z-index: 50;
+        }
+        .pm-pill[data-tip]:hover::after { opacity: 1; visibility: visible; }
+        .dark .pm-pill[data-tip]::after { background: #242424; color: #e2e8f0; border-color: rgba(255, 255, 255, 0.12); }
         .pm-pill__dot {
             width: 8px;
             height: 8px;
@@ -296,7 +321,7 @@
         }
         .pm-pill--more {
             border-style: dashed;
-            color: #6366f1;
+            color: var(--pm-indigo);
             font-weight: 600;
             text-transform: capitalize;
         }
@@ -318,8 +343,8 @@
         }
         .pm-pill-pop__box {
             width: max-content;
-            min-width: 200px;
-            max-width: 320px;
+            min-width: 230px;
+            max-width: 340px;
             padding: 8px 4px 6px;
             border: 1px solid rgba(128, 128, 128, 0.15);
             border-radius: 10px;
@@ -347,7 +372,7 @@
         }
         .pm-pill-pop__row input {
             margin: 0;
-            accent-color: #6366f1;
+            accent-color: var(--pm-indigo);
         }
         .pm-pill-pop__text {
             flex: 1;
@@ -360,7 +385,8 @@
             margin-left: auto;
             flex-shrink: 0;
             font-size: 11px;
-            opacity: 0.55;
+            font-weight: 600;
+            opacity: 0.7;
         }
         .pm-chart-card:has(.pm-pill-more:hover),
         .pm-chart-card:has(.pm-pill-more:focus-within) {
@@ -435,8 +461,26 @@
             border-bottom: 1px solid rgba(128, 128, 128, 0.08);
         }
         .pm-info-panel__title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
             font-weight: 700;
             font-size: 13px;
+        }
+        /* How many records the card holds, beside its title. Hidden at zero. */
+        .pm-count-badge[hidden] { display: none; }
+        .pm-count-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 24px;
+            height: 24px;
+            padding: 0 6px;
+            border-radius: 999px;
+            background: var(--pm-indigo);
+            color: #fff;
+            font-size: 12px;
+            font-weight: 600;
         }
     /* Title on top, the date period / basis the card lists on the line below. */
     .pm-info-panel__heading { min-width: 0; }
@@ -958,7 +1002,7 @@
         <div class="pm-header">
             <div>
                 <h1>{% trans "Performance Dashboard" %}</h1>
-                <div class="pm-header__date"><span data-period-label-pm></span></div>
+                <div class="pm-header__date" id="pm-date"></div>
                 <div class="pm-refresh">
                     <span class="pm-refresh__dot" id="pm-refresh-dot"></span><span
                         id="pm-refresh-text"
@@ -1082,7 +1126,7 @@
                 <div class="pm-info-panel">
                     <div class="pm-info-panel__header">
                         <div class="pm-info-panel__heading">
-                            <div class="pm-info-panel__title">{% trans "Top Performers" %}</div>
+                            <div class="pm-info-panel__title">{% trans "Top Performers" %}<span id="pm-performers-count" class="pm-count-badge" hidden title="{% trans 'Employees with objectives in this period' %}">0</span></div>
                             <div class="pm-info-panel__sub" data-period-label="bare"></div>
                         </div>
                     </div>
@@ -1093,7 +1137,7 @@
                 <div class="pm-info-panel">
                     <div class="pm-info-panel__header">
                         <div class="pm-info-panel__heading">
-                            <div class="pm-info-panel__title">{% trans "Upcoming Meetings" %}</div>
+                            <div class="pm-info-panel__title">{% trans "Upcoming Meetings" %}<span id="pm-meetings-count" class="pm-count-badge" hidden title="{% trans 'Meetings in the next 14 days' %}">0</span></div>
                             <div class="pm-info-panel__sub">{% trans "Next 14 days" %}</div>
                         </div>
                     </div>
@@ -1125,8 +1169,10 @@
             const textColor = isDark ? '#e2e8f0' : '#334155';
             const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
             const cardBg = isDark ? '#242424' : '#ffffff';
-            const COLORS = ['#E54F38','#22c55e','#f59e0b','#ef4444','#3b82f6','#a855f7','#06b6d4','#ec4899','#14b8a6','#f97316'];
-            const statusColors = { 'Not Started': '#94a3b8', 'On Track': '#22c55e', 'Behind': '#f59e0b', 'At Risk': '#ef4444', 'Closed': '#E54F38' };
+            // The active theme's primary colour, so slices that use it follow the theme.
+            const themePrimary = getComputedStyle(document.documentElement).getPropertyValue('--primary-600').trim() || '#E54F38';
+            const COLORS = [themePrimary,'#22c55e','#f59e0b','#ef4444','#3b82f6','#a855f7','#06b6d4','#ec4899','#14b8a6','#f97316'];
+            const statusColors = { 'Not Started': '#94a3b8', 'On Track': '#22c55e', 'Behind': '#f59e0b', 'At Risk': '#ef4444', 'Closed': themePrimary };
             const esc = (v) => String(v ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
             const emptyHtml = (msg) => `<div class="pm-empty"><img src="/static/images/ui/no_records.svg" alt="">${msg}</div>`;
             const objectiveListUrl = "{% url 'employee-objective-list-view' %}";
@@ -1194,10 +1240,13 @@
                 else detail = shortDate(from) + ' – ' + shortDate(to);
                 return (PRESET_LABELS[preset] || '{% trans "Custom"|escapejs %}') + ' · ' + detail;
             }
+            // Header subtitle: today's date, as on the other dashboards.
+            document.getElementById('pm-date').textContent = new Date().toLocaleDateString('en-US', {
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+            });
             function applyPeriodLabels() {
                 const label = ' — ' + periodLabel();
                 document.querySelectorAll('[data-period-label]').forEach(el => { el.textContent = el.dataset.periodLabel === 'bare' ? periodLabel() : label; });
-                document.querySelectorAll('[data-period-label-pm]').forEach(el => { el.textContent = periodLabel(); });
             }
             function setPreset(p) {
                 const r = presetRange(p);
@@ -1374,7 +1423,7 @@
                 el.style.color = textColor;
                 let visible = items.length;
                 const dot = (color) => `<span class="pm-pill__dot" style="background:${color};"></span>`;
-                const chipsHtml = (k) => items.slice(0, k).map((item, i) => `<button type="button" class="pm-pill${isOff(i) ? ' pm-pill--off' : ''}" data-idx="${i}" title="${esc(item.label)}">${dot(item.color)}<span class="pm-pill__name">${esc(item.label)}</span></button>`).join('');
+                const chipsHtml = (k) => items.slice(0, k).map((item, i) => `<button type="button" class="pm-pill${isOff(i) ? ' pm-pill--off' : ''}" data-idx="${i}" data-tip="${esc(item.label)}">${dot(item.color)}<span class="pm-pill__name">${esc(item.label)}</span></button>`).join('');
                 const build = (k) => {
                     visible = k;
                     const rest = items.slice(k);
@@ -1608,12 +1657,19 @@
             }
             loadOkrOverview();
 
+            function setCountBadge(id, n) {
+                const b = document.getElementById(id);
+                b.textContent = n || 0;
+                b.hidden = !n;
+            }
+
             // ─── TOP PERFORMERS ───
             function loadTopPerformers() {
                 fetchP("{% url 'pms-dashboard-performers' %}")
                 .then(r => r.json())
                 .then(data => {
                     const el = document.getElementById('pm-performers');
+                    setCountBadge('pm-performers-count', data.total);
                     if (!data.performers.length) { el.innerHTML = '<div class="pm-info-panel__empty">{% trans "No data"|escapejs %}</div>'; return; }
                     el.innerHTML = data.performers.map(p => {
                         const initials = esc(String(p.name).split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase());
@@ -1637,6 +1693,7 @@
                 .then(r => r.json())
                 .then(data => {
                     const el = document.getElementById('pm-meetings');
+                    setCountBadge('pm-meetings-count', data.total);
                     if (!data.meetings.length) { el.innerHTML = '<div class="pm-info-panel__empty">{% trans "No upcoming meetings"|escapejs %}</div>'; return; }
                     el.innerHTML = data.meetings.map(m => `
                 <a href="{% url 'view-meetings' %}?id=${encodeURIComponent(m.id)}" class="pm-meeting-item">

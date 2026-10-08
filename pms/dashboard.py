@@ -205,10 +205,11 @@ def pms_top_performers(request):
     from pms.models import EmployeeBonusPoint, EmployeeObjective
 
     performers = []
+    total = 0
 
     try:
         # By objective progress
-        data = (
+        ranked = (
             _period_overlap(
                 EmployeeObjective.objects.all().filter(archive=False), request
             )
@@ -222,8 +223,10 @@ def pms_top_performers(request):
                 total_objectives=Count("id"),
                 completed=Count("id", filter=Q(status="Closed")),
             )
-            .order_by("-avg_progress")[:10]
+            .order_by("-avg_progress")
         )
+        total = ranked.count()
+        data = ranked[:10]
 
         avatar_by_employee_id = {
             emp.id: emp.get_avatar()
@@ -259,7 +262,7 @@ def pms_top_performers(request):
     except Exception:
         pass
 
-    return JsonResponse({"performers": performers})
+    return JsonResponse({"performers": performers, "total": total})
 
 
 @login_required
@@ -341,12 +344,15 @@ def pms_upcoming_meetings(request):
     today = timezone.localdate()
     from_date, to_date = today, today + timedelta(days=14)
     meetings = []
+    total = 0
 
     try:
-        qs = Meetings.objects.filter(
+        upcoming = Meetings.objects.filter(
             date__date__gte=from_date,
             date__date__lte=to_date,
-        ).order_by("date")[:10]
+        )
+        total = upcoming.count()
+        qs = upcoming.order_by("date")[:10]
 
         for m in qs:
             local_dt = timezone.localtime(m.date)
@@ -363,4 +369,4 @@ def pms_upcoming_meetings(request):
     except Exception:
         pass
 
-    return JsonResponse({"meetings": meetings})
+    return JsonResponse({"meetings": meetings, "total": total})
