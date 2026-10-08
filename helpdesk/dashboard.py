@@ -354,15 +354,16 @@ def helpdesk_overdue_tickets(request):
 @login_required
 @permission_required("helpdesk.view_ticket")
 def helpdesk_recent_tickets(request):
-    """Most recently created tickets within the picker's range."""
+    """Most recently created tickets within the picker's range, resolved ones left out."""
     tickets = []
+    total = 0
 
     try:
-        qs = (
-            _period_tickets(request)
-            .select_related("employee_id", "ticket_type")
-            .order_by("-created_date", "-id")[:10]
-        )
+        period_qs = _period_tickets(request).exclude(status="resolved")
+        total = period_qs.count()
+        qs = period_qs.select_related("employee_id", "ticket_type").order_by(
+            "-created_date", "-id"
+        )[:10]
 
         for t in qs:
             emp = t.employee_id
@@ -385,7 +386,7 @@ def helpdesk_recent_tickets(request):
     except Exception:
         pass
 
-    return JsonResponse({"tickets": tickets})
+    return JsonResponse({"tickets": tickets, "total": total})
 
 
 @login_required

@@ -51,7 +51,20 @@
     .hd-info-panel { border-radius: 12px; background: #ffffff; border: 1px solid rgba(128,128,128,0.12); overflow: hidden; display: flex; flex-direction: column; flex-shrink: 0; }
     .dark .hd-info-panel { background: #242424; border-color: rgba(255,255,255,0.08); }
     .hd-info-panel__header { padding: 14px 16px 10px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; border-bottom: 1px solid rgba(128,128,128,0.08); }
-    .hd-info-panel__title { font-size: 13px; font-weight: 700; }
+    .hd-info-panel__title { font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    /* How many records the card holds, beside its title. Hidden at zero. */
+    .hd-count-badge[hidden] { display: none; }
+    .hd-count-badge { min-width: 24px; height: 24px; padding: 0 6px; border-radius: 999px; background: var(--hd-indigo); color: #fff; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
+    /* "View all" in a card header: same look on every dashboard. */
+    .hd-panel__link {
+        flex-shrink: 0;
+        color: var(--primary-600, #E54F38);
+        font-weight: 700;
+        font-size: 11px;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+    .hd-panel__link:hover { text-decoration: underline; }
     /* Title on top, the date period / basis the card lists on the line below. */
     .hd-info-panel__heading { min-width: 0; }
     .hd-info-panel__sub { font-size: 11px; opacity: 0.5; margin-top: 2px; }
@@ -213,10 +226,10 @@
             <div class="hd-info-panel">
                 <div class="hd-info-panel__header">
                     <div class="hd-info-panel__heading">
-                        <div class="hd-info-panel__title">{% trans "Recent Tickets" %}</div>
+                        <div class="hd-info-panel__title">{% trans "Recent Tickets" %}<span id="hd-recent-count" class="hd-count-badge" hidden title="{% trans 'Tickets in this period' %}">0</span></div>
                         <div class="hd-info-panel__sub" data-period-label="bare"></div>
                     </div>
-                    <a href="{% url 'ticket-view' %}" style="font-size:11px;color:var(--hd-indigo);text-decoration:none;">{% trans "View all" %}</a>
+                    <a href="{% url 'ticket-view' %}" class="hd-panel__link">{% trans "View all" %}</a>
                 </div>
                 <div class="hd-info-panel__body" id="hd-recent">
                     <div class="hd-info-panel__empty">{% trans "Loading..." %}</div>
@@ -748,6 +761,9 @@
         .then(r => r.json())
         .then(data => {
             const el = document.getElementById('hd-recent');
+            const badge = document.getElementById('hd-recent-count');
+            badge.textContent = data.total || 0;
+            badge.hidden = !data.total;
             if (!data.tickets.length) { el.innerHTML = '<div class="hd-info-panel__empty">{% trans "No tickets"|escapejs %}</div>'; return; }
             const sc = { new: 'hd-badge--amber', in_progress: 'hd-badge--amber', on_hold: 'hd-badge--red', resolved: 'hd-badge--green', canceled: '' };
             const sl = { new: '{% trans "New"|escapejs %}', in_progress: '{% trans "In Progress"|escapejs %}', on_hold: '{% trans "On Hold"|escapejs %}', resolved: '{% trans "Resolved"|escapejs %}', canceled: '{% trans "Canceled"|escapejs %}' };
