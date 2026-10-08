@@ -1033,6 +1033,39 @@
             transform: translate(1px, -1px);
         }
 
+        /* Dimension picker in a chart card header (e.g. Gender Distribution's Overall/Department-wise) */
+        .md-dimension-select {
+            appearance: none;
+            -webkit-appearance: none;
+            padding: 6px 28px 6px 10px;
+            border: 1px solid hsl(213, 22%, 84%);
+            border-radius: 6px;
+            background-color: #fff;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            color: inherit;
+            font: inherit;
+            font-size: 12px;
+            font-weight: 500;
+            line-height: 1.3;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .md-dimension-select:hover {
+            border-color: var(--md-indigo);
+        }
+        .md-dimension-select:focus {
+            outline: none;
+            border-color: var(--md-indigo);
+            box-shadow: 0 0 0 2px color-mix(in srgb, var(--md-indigo) 15%, transparent);
+        }
+        .dark .md-dimension-select {
+            background-color: rgba(255, 255, 255, 0.04);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
         .md-btn-add {
             display: inline-flex;
             align-items: center;
@@ -1934,8 +1967,12 @@
                         <div class="md-chart-card__header">
                             <div>
                                 <div class="md-chart-card__title">{% trans "Gender Distribution" %}</div>
-                                <div class="md-chart-card__subtitle">{% trans "Active employees" %}</div>
+                                <div class="md-chart-card__subtitle" id="gender-subtitle">{% trans "Active employees" %}</div>
                             </div>
+                            <select id="gender-dimension" class="md-dimension-select" aria-label="{% trans 'Group gender by' %}">
+                                <option value="overall">{% trans "Overall" %}</option>
+                                <option value="department">{% trans "Department-wise" %}</option>
+                            </select>
                         </div>
                         <div class="md-chart-card__body">
                             <div id="chart-gender"></div>
@@ -3077,30 +3114,68 @@
             loadDepartmentHeadcount();
 
             // ─── GENDER ───
+            {# keyed on the raw gender value: the name the API sends is translated #}
+            const genderColorMap = { 'male': '#3b82f6', 'female': '#ec4899', 'other': '#a855f7', '': '#94a3b8' };
+            const genderDimensionSelect = document.getElementById('gender-dimension');
+            let genderData = null;
+            // onChange, not the legend's own built-in series()/updateSeries(): the
+            // department view is a multi-series stacked bar (one series per gender
+            // across every department), not one value per legend item, so toggling
+            // a chip has to rebuild the whole chart from the cached payload rather
+            // than call chart.updateSeries() the way a plain donut chip would.
+            // Reused for the donut view too, so both views share one legend with
+            // one consistent chip style instead of the bar chart falling back to
+            // ApexCharts' own plain square-swatch legend.
             const genderLegend = createPieLegend({
                 el: document.getElementById('md-pie-legend-gender'),
                 chartKey: 'gender',
                 noun: '{% trans "more"|escapejs %}',
+                onChange: () => drawGenderChart(),
             });
-            function loadGenderSplit() {
-                fetch("{% url 'dashboard-gender-split' %}")
-                .then(r => r.json())
-                .then(data => {
-                    if (!data.genders.length) { document.querySelector("#chart-gender").innerHTML = emptyHtml('{% trans "No data"|escapejs %}'); return; }
-                    {# keyed on the raw gender value: the name the API sends is translated #}
-                    const gc = { 'male': '#3b82f6', 'female': '#ec4899', 'other': '#a855f7', '': '#94a3b8' };
-                    const genderColors = data.genders.map(g => gc[g.key != null ? g.key : ''] || '#94a3b8');
-                    genderLegend.set(data.genders.map((g, i) => ({ name: g.gender, value: g.count, color: genderColors[i] })));
+            function drawGenderChart() {
+                const data = genderData;
+                if (!data) return;
+                const picked = new Set(genderLegend.selectedNames());
+                const visible = data.genders.filter(g => picked.has(g.gender));
+                const genderColors = visible.map(g => genderColorMap[g.key != null ? g.key : ''] || '#94a3b8');
+                if (data.view === 'department') {
+                    const depts = data.departments;
                     renderChart('gender', document.querySelector("#chart-gender"), {
-                        series: genderLegend.series(),
-                        chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit', animations: ANIM,
+                        series: visible.map(g => ({ name: g.gender, data: depts.map(d => d.by_gender[g.key] || 0) })),
+                        chart: { type: 'bar', height: 300, stacked: true, background: 'transparent', fontFamily: 'inherit', animations: ANIM,
+                            toolbar: { show: false },
                             events: { dataPointSelection: (e, ctx, config) => {
                                 if (!PERM.employee) return;
-                                const g = data.genders[config.dataPointIndex];
+                                const d = depts[config.dataPointIndex];
+                                const g = visible[config.seriesIndex];
+                                if (!d) return;
+                                let url = "{% url 'employee-view' %}?department=" + encodeURIComponent(d.department) + "&filter_applied=on";
+                                if (g) url += "&gender=" + encodeURIComponent(g.key != null ? g.key : g.gender.toLowerCase());
+                                window.location.href = url;
+                            }}
+                        },
+                        colors: genderColors,
+                        plotOptions: { bar: { borderRadius: 4, borderRadiusApplication: 'end', borderRadiusWhenStacked: 'last', columnWidth: '45%' } },
+                        stroke: { width: 2, colors: [cardBg] },
+                        xaxis: { ...XAXIS_STYLE, categories: depts.map(d => d.department) },
+                        yaxis: { ...YAXIS_STYLE, min: 0, forceNiceScale: true, labels: { ...YAXIS_STYLE.labels, formatter: v => Number.isInteger(+v) ? v : '' } },
+                        grid: GRID,
+                        dataLabels: { enabled: false },
+                        legend: { show: false },
+                        tooltip: stdTooltip({ rowLabel: '{% trans "Employees"|escapejs %}' }),
+                    });
+                } else {
+                    renderChart('gender', document.querySelector("#chart-gender"), {
+                        series: visible.map(g => g.count),
+                        chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit', animations: ANIM,
+                            toolbar: { show: false },
+                            events: { dataPointSelection: (e, ctx, config) => {
+                                if (!PERM.employee) return;
+                                const g = visible[config.dataPointIndex];
                                 window.location.href = "{% url 'employee-view' %}?gender=" + encodeURIComponent(g.key != null ? g.key : g.gender.toLowerCase());
                             }}
                         },
-                        labels: data.genders.map(g => g.gender),
+                        labels: visible.map(g => g.gender),
                         colors: genderColors,
                         plotOptions: { pie: { expandOnClick: true, donut: { size: '68%',
                             labels: { show: true,
@@ -3115,9 +3190,32 @@
                         legend: { show: false },
                         tooltip: stdTooltip({ rowLabel: '{% trans "Employees"|escapejs %}' }),
                     });
+                }
+            }
+            function loadGenderSplit() {
+                const view = genderDimensionSelect.value;
+                fetch("{% url 'dashboard-gender-split' %}?view=" + encodeURIComponent(view))
+                .then(r => r.json())
+                .then(data => {
+                    genderData = data;
+                    document.getElementById('gender-subtitle').textContent =
+                        data.view === 'department' ? '{% trans "Active employees, by department"|escapejs %}' : '{% trans "Active employees"|escapejs %}';
+                    const empty = data.view === 'department' ? !data.departments.length : !data.genders.length;
+                    if (empty) {
+                        document.querySelector("#chart-gender").innerHTML = emptyHtml('{% trans "No data"|escapejs %}');
+                        genderLegend.clear();
+                        return;
+                    }
+                    const genderColors = data.genders.map(g => genderColorMap[g.key != null ? g.key : ''] || '#94a3b8');
+                    const totalFor = (g) => data.view === 'department'
+                        ? data.departments.reduce((sum, d) => sum + (d.by_gender[g.key] || 0), 0)
+                        : g.count;
+                    genderLegend.set(data.genders.map((g, i) => ({ name: g.gender, value: totalFor(g), color: genderColors[i] })));
+                    drawGenderChart();
                 });
             }
             loadGenderSplit();
+            genderDimensionSelect.addEventListener('change', loadGenderSplit);
 
             {% if perms.leave.view_leaverequest or request.user.is_superuser %}
             // ─── LEAVE BREAKDOWN ───

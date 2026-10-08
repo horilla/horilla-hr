@@ -775,43 +775,102 @@ def dashboard_department_headcount(request):
 
 @login_required
 def dashboard_gender_split(request):
-    """Gender distribution."""
+    """Gender distribution -- overall (default), or ?view=department for a
+    per-department breakdown.
+    """
+    view = (
+        request.GET.get("view")
+        if request.GET.get("view") in ("overall", "department")
+        else "overall"
+    )
+    gender_map = {
+        "male": _("Male"),
+        "female": _("Female"),
+        "other": _("Other"),
+        "": _("Not Specified"),
+    }
     genders = []
+    departments = []
 
     try:
         from django.db.models import Count
 
         from employee.models import Employee
 
-        data = (
-            Employee.objects.filter(is_active=True)
-            .values("gender")
-            .annotate(count=Count("id"))
-            .order_by("-count")
-        )
-
-        gender_map = {
-            "male": _("Male"),
-            "female": _("Female"),
-            "other": _("Other"),
-            "": _("Not Specified"),
-        }
-        for item in data:
-            genders.append(
-                {
-                    "gender": gender_map.get(
-                        item["gender"], item["gender"] or _("Not Specified")
-                    ),
-                    # The name above is translated, so it cannot be used to look
-                    # up a colour or build a filter. Ship the raw field value too.
-                    "key": item["gender"] or "",
-                    "count": item["count"],
-                }
+        if view == "department":
+            # .order_by() clears the default ordering Django would otherwise
+            # inherit here -- combined with the company-scoping manager's own
+            # .distinct() (see HorillaCompanyManager.get_queryset), an
+            # implicit ordering field gets dragged into the GROUP BY,
+            # splitting every matching employee into their own one-row
+            # "group" (count always 1) instead of aggregating by
+            # department+gender.
+            rows = (
+                Employee.objects.filter(is_active=True)
+                .values(
+                    "employee_work_info__department_id",
+                    "employee_work_info__department_id__department",
+                    "gender",
+                )
+                .annotate(count=Count("id"))
+                .order_by()
             )
+            # Stable series order regardless of which genders happen to
+            # appear first in the data, so a bar's segment colors/order
+            # don't shuffle between departments.
+            gender_order = ["male", "female", "other", ""]
+            seen_keys = set()
+            by_dept = {}
+            for row in rows:
+                dept_id = row["employee_work_info__department_id"]
+                dept_name = row["employee_work_info__department_id__department"] or _(
+                    "No department"
+                )
+                gkey = row["gender"] or ""
+                seen_keys.add(gkey)
+                entry = by_dept.setdefault(
+                    dept_id, {"department": dept_name, "id": dept_id, "by_gender": {}}
+                )
+                entry["by_gender"][gkey] = row["count"]
+
+            ordered_keys = [k for k in gender_order if k in seen_keys] + sorted(
+                seen_keys - set(gender_order)
+            )
+            genders = [
+                {"gender": gender_map.get(k, k or _("Not Specified")), "key": k}
+                for k in ordered_keys
+            ]
+            departments = sorted(
+                by_dept.values(),
+                key=lambda d: -sum(d["by_gender"].values()),
+            )
+        else:
+            # .order_by("-count") already clears the default ordering here
+            # (same fix as above) -- without it this would hit the same
+            # one-row-per-employee GROUP BY bug.
+            data = (
+                Employee.objects.filter(is_active=True)
+                .values("gender")
+                .annotate(count=Count("id"))
+                .order_by("-count")
+            )
+            for item in data:
+                genders.append(
+                    {
+                        "gender": gender_map.get(
+                            item["gender"], item["gender"] or _("Not Specified")
+                        ),
+                        # The name above is translated, so it cannot be used
+                        # to look up a colour or build a filter. Ship the raw
+                        # field value too.
+                        "key": item["gender"] or "",
+                        "count": item["count"],
+                    }
+                )
     except Exception:
         pass
 
-    return JsonResponse({"genders": genders})
+    return JsonResponse({"view": view, "genders": genders, "departments": departments})
 
 
 @login_required
