@@ -46,21 +46,6 @@ def _parse_period(request):
     return from_date, to_date
 
 
-def _month_bounds(today, months_ago):
-    """First/last day of the month `months_ago` months before `today`."""
-    year = today.year
-    month = today.month - months_ago
-    while month <= 0:
-        month += 12
-        year -= 1
-    first = date(year, month, 1)
-    if first.month == 12:
-        last = date(first.year + 1, 1, 1) - timedelta(days=1)
-    else:
-        last = date(first.year, first.month + 1, 1) - timedelta(days=1)
-    return first, last
-
-
 def _period_overlap(qs, request):
     """Rows whose [start_date, end_date] overlaps the picker range.
 
@@ -86,52 +71,47 @@ def project_dashboard_view(request):
 
 @login_required
 @is_projectmanager_or_member_or_perms(perm="project.view_project")
-def project_kpi_data(request):
-    """Total/Active/On Hold/Overdue counts, each with a small trend delta."""
-    from project.models import Project
+def project_task_kpi_data(request):
+    """
+    Today's/nearing-deadline/overdue task counts, plus projects ending soon.
+
+    Always relative to today, like project_task_deadlines below -- not the
+    period picker, which scopes historical charts, not "what needs attention
+    right now".
+
+    Tasks already marked "expired" (Task.clean() sets this once end_date has
+    passed, but only on an explicit save, not passively as time ticks by) are
+    left out of all three buckets here, matching task-all's own is_open=true
+    filter -- the same one this view's own task-all links use -- so a tile's
+    count always matches what clicking into it shows.
+    """
+    from project.models import Project, Task
 
     today = date.today()
-    this_month_start, this_month_end = _month_bounds(today, 0)
+    soon = today + timedelta(days=14)
 
-    active_qs = Project.objects.filter(is_active=True)
-    total = active_qs.count()
-    active = active_qs.filter(status="in_progress").count()
-    on_hold_qs = active_qs.filter(status="on_hold")
-    on_hold = on_hold_qs.count()
-    on_hold_overdue = on_hold_qs.filter(end_date__lt=today).count()
-    overdue = (
-        active_qs.filter(end_date__lt=today)
-        .exclude(status__in=["completed", "cancelled", "expired"])
-        .count()
+    open_tasks = Task.objects.filter(
+        is_active=True, status__in=["to_do", "in_progress"]
     )
-
-    total_new_this_month = active_qs.filter(
-        start_date__gte=this_month_start, start_date__lte=this_month_end
+    today_tasks = open_tasks.filter(end_date=today).count()
+    nearing_deadline_tasks = open_tasks.filter(
+        end_date__gt=today, end_date__lte=soon
     ).count()
-    active_started_this_month = active_qs.filter(
+    overdue_tasks = open_tasks.filter(end_date__lt=today).count()
+
+    projects_ending_soon = Project.objects.filter(
+        is_active=True,
         status="in_progress",
-        start_date__gte=this_month_start,
-        start_date__lte=this_month_end,
+        end_date__gte=today,
+        end_date__lte=soon,
     ).count()
-    overdue_new_this_month = (
-        active_qs.filter(
-            end_date__gte=this_month_start,
-            end_date__lte=min(this_month_end, today),
-        )
-        .exclude(status__in=["completed", "cancelled", "expired"])
-        .count()
-    )
 
     return JsonResponse(
         {
-            "total_projects": total,
-            "active_projects": active,
-            "on_hold_projects": on_hold,
-            "on_hold_overdue": on_hold_overdue,
-            "overdue_projects": overdue,
-            "total_new_this_month": total_new_this_month,
-            "active_started_this_month": active_started_this_month,
-            "overdue_new_this_month": overdue_new_this_month,
+            "today_tasks": today_tasks,
+            "nearing_deadline_tasks": nearing_deadline_tasks,
+            "overdue_tasks": overdue_tasks,
+            "projects_ending_soon": projects_ending_soon,
         }
     )
 
@@ -302,8 +282,9 @@ def project_top_contributors(request):
 
     from_date, to_date = _parse_period(request)
     contributors = []
+    total = 0
     try:
-        data = (
+        ranked = (
             Employee.objects.filter(
                 is_active=True,
                 tasks__status="completed",
@@ -312,8 +293,10 @@ def project_top_contributors(request):
             )
             .annotate(completed_count=Count("tasks", distinct=True))
             .filter(completed_count__gt=0)
-            .order_by("-completed_count")[:10]
+            .order_by("-completed_count")
         )
+        total = ranked.count()
+        data = ranked[:10]
         for emp in data:
             contributors.append(
                 {
@@ -326,7 +309,11 @@ def project_top_contributors(request):
     except Exception:
         pass
     return JsonResponse(
-        {"contributors": contributors, "month": to_date.strftime("%B %Y")}
+        {
+            "contributors": contributors,
+            "total": total,
+            "month": to_date.strftime("%B %Y"),
+        }
     )
 
 
@@ -339,10 +326,14 @@ def project_task_deadlines(request):
     today = date.today()
     open_tasks = Task.objects.filter(is_active=True).exclude(status__in=["completed"])
 
-    upcoming = open_tasks.filter(
+    upcoming_all = open_tasks.filter(
         end_date__gte=today, end_date__lte=today + timedelta(days=14)
-    ).order_by("end_date")[:8]
-    overdue = open_tasks.filter(end_date__lt=today).order_by("end_date")[:8]
+    )
+    overdue_all = open_tasks.filter(end_date__lt=today)
+    # Every task due soon or overdue, not just the rows the card lists
+    total = upcoming_all.count() + overdue_all.count()
+    upcoming = upcoming_all.order_by("end_date")[:8]
+    overdue = overdue_all.order_by("end_date")[:8]
 
     def _serialize(task, days_left):
         return {
@@ -357,4 +348,6 @@ def project_task_deadlines(request):
     upcoming_data = [_serialize(t, (t.end_date - today).days) for t in upcoming]
     overdue_data = [_serialize(t, (t.end_date - today).days) for t in overdue]
 
-    return JsonResponse({"upcoming": upcoming_data, "overdue": overdue_data})
+    return JsonResponse(
+        {"upcoming": upcoming_data, "overdue": overdue_data, "total": total}
+    )
