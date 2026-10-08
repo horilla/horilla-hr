@@ -128,7 +128,6 @@ class FAQForm(ModelForm):
 class TicketForm(ModelForm):
 
     cols = {"description": 12, "tags": 12}
-    deadline = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
 
     class Meta:
         model = Ticket
@@ -146,6 +145,7 @@ class TicketForm(ModelForm):
             "tags",
         ]
         widgets = {
+            "deadline": forms.DateInput(attrs={"type": "date"}),
             "raised_on": forms.Select(
                 attrs={"class": "oh-select oh-select-2", "required": "true"}
             ),
@@ -174,6 +174,16 @@ class TicketForm(ModelForm):
                 label="Attachements", required=False
             )
         request = getattr(horilla_middlewares._thread_locals, "request", None)
+        if self.instance and self.instance.pk:
+            is_manager = self.instance.can_manage_priority()
+        else:
+            is_manager = request.user.has_perm("helpdesk.change_ticket") or (
+                is_reportingmanager(request)
+            )
+        if not is_manager:
+            self.fields.pop("deadline", None)
+            if self.instance and self.instance.pk:
+                self.fields.pop("priority", None)
         instance = kwargs.get("instance")
         if instance:
             employee = instance.employee_id

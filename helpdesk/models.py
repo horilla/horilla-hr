@@ -26,7 +26,6 @@ PRIORITY = [
 MANAGER_TYPES = [
     ("department", _("Department")),
     ("job_position", _("Job Position")),
-    ("individual", _("Individual")),
 ]
 
 TICKET_TYPES = [
@@ -286,6 +285,35 @@ class Ticket(HorillaModel):
 
         return tags
 
+    def can_manage_priority(self):
+        """
+        Only managers and assignees may change the priority and deadline
+        after the ticket is created.
+        """
+        request = getattr(_thread_locals, "request", None)
+        user = getattr(request, "user", None)
+        employee = getattr(user, "employee_get", None)
+
+        if employee and user.has_perm("helpdesk.change_ticket"):
+            return True
+
+        if self.pk and self.assigned_to.filter(pk=employee.pk).exists():
+            return True
+
+        if self.employee_id and self.employee_id.get_reporting_manager() == employee:
+            return True
+
+        if self.assigning_type == "job_position":
+            department = self.get_raised_on_object().department_id
+        elif self.assigning_type == "department":
+            department = self.get_raised_on_object()
+        else:
+            return False
+
+        return DepartmentManager.objects.filter(
+            manager=employee, department=department
+        ).exists()
+
     def get_priority_stars(self):
         """
         This method is used to get the priority stars
@@ -294,14 +322,24 @@ class Ticket(HorillaModel):
         csrf_token = get_token(request)
         rating_inputs = ""
         checked_value = {"low": "1", "medium": "2", "high": "3"}.get(self.priority, "1")
+        editable = self.can_manage_priority()
 
         for i in "321":
             checked = "checked" if i == checked_value else ""
             title = {"1": _("Low"), "2": _("Medium"), "3": _("High")}[i]
 
             rating_inputs += f"""
-                <input type="radio" id="star{i}{self.id}" name="rating" class="rating-radio" value="{i}" {checked} />
+                <input type="radio" id="star{i}{self.id}" name="rating" class="rating-radio" value="{i}" {checked} {"" if editable else "disabled"} />
                 <label for="star{i}{self.id}" title="{title}"></label>
+            """
+
+        if not editable:
+            return f"""
+                <div class="d-flex">
+                    <div class="oh-rate" style="pointer-events: none" onclick="event.stopPropagation()">
+                        {rating_inputs}
+                    </div>
+                </div>
             """
 
         html = f"""

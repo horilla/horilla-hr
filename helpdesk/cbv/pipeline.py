@@ -246,6 +246,9 @@ class TicketTabView(HorillaTabView):
         suggested_qs |= base_qs.filter(
             raised_on=employee.id, assigning_type="individual"
         )
+        suggested_qs = suggested_qs.filter(assigned_to__isnull=True) | base_qs.filter(
+            assigned_to=employee
+        )
         suggested_tickets_count = TicketFilter(
             self.request.GET, queryset=suggested_qs.distinct()
         ).qs.count()
@@ -456,6 +459,9 @@ class SuggestedTicketsList(TicketListBase):
                 )
 
         queryset |= qs_cpy.filter(raised_on=employee.id, assigning_type="individual")
+        queryset = queryset.filter(assigned_to__isnull=True) | qs_cpy.filter(
+            assigned_to=employee
+        )
         return queryset.distinct()
 
 
@@ -567,6 +573,9 @@ class SuggestedTicketsCard(TicketCardBase):
                 )
 
         queryset |= base_qs.filter(raised_on=employee.id, assigning_type="individual")
+        queryset = queryset.filter(assigned_to__isnull=True) | base_qs.filter(
+            assigned_to=employee
+        )
         self.queryset = queryset.distinct()
         return self.queryset
 

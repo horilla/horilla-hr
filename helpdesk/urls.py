@@ -287,6 +287,11 @@ urlpatterns = [
         views.update_priority,
         name="update-priority",
     ),
+    path(
+        "update-deadline/<int:ticket_id>/",
+        views.update_deadline,
+        name="update-deadline",
+    ),
     path("ticket-type-view/", views.ticket_type_view, name="ticket-type-view"),
     path("ticket-type-create/", views.ticket_type_create, name="ticket-type-create"),
     path(

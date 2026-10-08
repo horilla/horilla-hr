@@ -1795,13 +1795,7 @@ def update_priority(request, ticket_id):
             request, message=_("No Ticket found matching the query.")
         )
 
-    if (
-        request.user.has_perm("helpdesk.view_ticket")
-        or ticket.employee_id.get_reporting_manager() == request.user.employee_get
-        or is_department_manager(request, ticket)
-        or request.user.employee_get == ticket.employee_id
-        or request.user.employee_get in ticket.assigned_to.all()
-    ):
+    if ticket.can_manage_priority():
         rating = request.POST.get("rating")
 
         if rating == "1":
@@ -1814,6 +1808,30 @@ def update_priority(request, ticket_id):
         messages.success(request, _("Priority updated successfully."))
         return HorillaRedirect(request)
     return handle_no_permission(request)
+
+
+@login_required
+@ticket_owner_can_enter(perm="helpdesk.change_ticket", model=Ticket)
+def update_deadline(request, ticket_id):
+    """
+    This function is used to update the deadline from the detailed view
+    """
+    ticket = Ticket.find(ticket_id)
+    if not ticket:
+        return HorillaRedirect(
+            request, message=_("No Ticket found matching the query.")
+        )
+    if not ticket.can_manage_priority():
+        return handle_no_permission(request)
+    value = request.POST.get("deadline", "").strip()
+    try:
+        ticket.deadline = datetime.strptime(value, "%Y-%m-%d").date() if value else None
+    except ValueError:
+        messages.error(request, _("Invalid date."))
+        return HorillaRedirect(request)
+    ticket.save()
+    messages.success(request, _("Deadline updated successfully."))
+    return HorillaRedirect(request)
 
 
 @login_required
