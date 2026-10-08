@@ -25,14 +25,25 @@ from payroll.methods.methods import get_total_calendar_days
 from payroll.methods.payslip_edit import (
     NewLineError,
     apply_edits,
+    described_lines,
     editable_lines,
     formula_codes,
     formula_context,
     parse_amounts,
     parse_new_line,
     recompute_dependents,
+    tax_explanation,
+    taxable_loss_of_pay,
 )
 from payroll.models.models import Payslip
+
+
+def _tax_detail_html(request, explained):
+    from django.template.loader import render_to_string
+
+    return render_to_string(
+        "payroll/payslip/_income_tax_detail.html", {"tax": explained}, request=request
+    )
 
 
 def _payslip_context(payslip):
@@ -113,6 +124,19 @@ def edit_payslip_components(request, payslip_id):
         {
             "payslip": payslip,
             "lines": lines,
+            # Loss of pay that comes off taxable gross as well: only when it is
+            # a separate pre-tax deduction rather than already inside basic.
+            "taxable_lop": taxable_loss_of_pay(payslip),
+            "tax_detail_html": _tax_detail_html(
+                request,
+                tax_explanation(
+                    payslip,
+                    described_lines(payslip),
+                    {line["key"]: line["amount"] for line in lines},
+                    set(),
+                    sum(l["amount"] for l in lines if l["section"] == "earning"),
+                ),
+            ),
             # The tap-to-build formula editor, reused as-is. It reads these two
             # from the context: which codes to offer as chips, and where to
             # send its live preview -- which for a payslip is the endpoint
@@ -199,9 +223,23 @@ def recalculate_payslip_lines(request, payslip_id):
 
     recomputed = recompute_dependents(payslip, amounts, removed=removed, given=given)
 
+    # How the tax comes to what it does, for the figures on the form right now.
+    # The tax line may have been typed into; the explanation is still what the
+    # engine would charge, which is the useful thing to show beside it.
+    final = {**amounts, **recomputed}
+    gross = sum(
+        float(final.get(line["key"], line["amount"]) or 0)
+        for line in lines
+        if line["section"] == "earning" and line["key"] not in removed
+    )
+    explained = tax_explanation(
+        payslip, described_lines(payslip), final, removed, gross
+    )
+
     return JsonResponse(
         {
             "ok": True,
             "amounts": {key: round(value, 2) for key, value in recomputed.items()},
+            "tax_html": _tax_detail_html(request, explained),
         }
     )

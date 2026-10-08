@@ -84,6 +84,9 @@ previewed is what gets written.
   .pe__row.is-removed .pe__amount { opacity: .4; text-decoration: line-through; }
   .pe__row.is-removed .pe__amount { pointer-events: none; }
 
+  .pe__tax { margin: 10px 0 2px; font-size: 12px; }
+  .pe__tax > summary { cursor: pointer; color: #6b7280; padding: 4px 0; }
+  .pe__tax > div { padding: 8px 12px; background: #fafafa; border-radius: 8px; }
   .pe__preview {
     margin-top: 16px; padding: 12px 14px; border-radius: 10px;
     background: #fbfbfc; border: 1px solid #e6e7eb;
@@ -165,7 +168,7 @@ previewed is what gets written.
         {% for line in lines %}
           {% if line.section == "earning" %}
             <div class="pe__row" data-pe-row data-pe-section="earning"
-                 data-pe-key="{{ line.key }}">
+                 data-pe-key="{{ line.key }}"{% if line.taxable %} data-pe-taxable{% endif %}>
               <span class="pe__title{% if not line.removable %} pe__title--locked{% endif %}">
                 <span class="pe__name">
                   {{ line.title }}
@@ -217,7 +220,7 @@ previewed is what gets written.
         {% for line in lines %}
           {% if line.section == "deduction" %}
             <div class="pe__row" data-pe-row data-pe-section="deduction"
-                 data-pe-key="{{ line.key }}">
+                 data-pe-key="{{ line.key }}"{% if line.pretax %} data-pe-pretax{% endif %}>
               <span class="pe__title{% if not line.removable %} pe__title--locked{% endif %}">
                 <span class="pe__name">
                   {{ line.title }}
@@ -282,7 +285,7 @@ previewed is what gets written.
         {% trans "A one-off, on this payslip only. No allowance or deduction is created, so nobody's next payslip changes." %}
       </p>
 
-      <div class="pe__row pe__row--new" data-pe-row data-pe-new data-pe-section="earning">
+      <div class="pe__row pe__row--new" data-pe-row data-pe-new data-pe-section="earning" data-pe-taxable>
         <select name="new_section" class="pe__select" data-pe-new-section
                 aria-label="{% trans 'Earning or deduction' %}">
           <option value="earning">{% trans "Earning" %}</option>
@@ -320,6 +323,10 @@ previewed is what gets written.
         <span class="pe__stat-label">{% trans "Gross pay" %}</span>
         <span class="pe__stat-value" data-pe-preview="gross_pay">0.00</span>
       </div>
+      <div class="pe__stat" data-pe-lop="{{ taxable_lop|default:0 }}">
+        <span class="pe__stat-label">{% trans "Taxable gross" %}</span>
+        <span class="pe__stat-value" data-pe-preview="taxable_gross">0.00</span>
+      </div>
       <div class="pe__stat">
         <span class="pe__stat-label">{% trans "Total deductions" %}</span>
         <span class="pe__stat-value" data-pe-preview="total_deductions">0.00</span>
@@ -330,6 +337,11 @@ previewed is what gets written.
       </div>
       <div class="pe__short" data-pe-short hidden></div>
     </div>
+
+    <details class="pe__tax">
+      <summary>{% trans "How The Income Tax Is Worked Out" %}</summary>
+      <div data-pe-tax-detail>{{ tax_detail_html|safe }}</div>
+    </details>
 
     <div class="pe__foot">
       <button type="button" class="oh-btn oh-btn--light"
@@ -351,10 +363,11 @@ previewed is what gets written.
   // Recomputes on every change, purely by addition -- the same rule
   // payslip_edit.preview_totals applies server-side: earnings summed for
   // gross, deductions summed and capped at gross, net floored at zero. No tax
-  // bracket or formula is re-derived here; Income Tax is just another row a
-  // person can edit, not something this recalculates on their behalf.
+  // bracket or formula is re-derived here: Income Tax comes back from
+  // recalculate_payslip_lines like any other line that follows another, and
+  // stays editable -- a figure typed into it is kept as typed.
   function recompute() {
-    var earnings = 0, deductions = 0;
+    var earnings = 0, deductions = 0, taxable = 0, pretax = 0;
     form.querySelectorAll("[data-pe-row]").forEach(function (row) {
       // The line being added counts only once it has a name, which is also
       // what the server requires of it -- until then it is an empty box, not
@@ -373,9 +386,19 @@ previewed is what gets written.
       var amount = parseFloat(amountField.value);
       if (isNaN(amount)) { amount = 0; }
 
-      if (row.dataset.peSection === "earning") { earnings += amount; }
-      else { deductions += amount; }
+      if (row.dataset.peSection === "earning") {
+        earnings += amount;
+        if (row.hasAttribute("data-pe-taxable")) { taxable += amount; }
+      } else {
+        deductions += amount;
+        if (row.hasAttribute("data-pe-pretax")) { pretax += amount; }
+      }
     });
+    // The figure Income Tax is worked out from: taxable earnings, less pre-tax
+    // deductions, less loss of pay when it is a separate pre-tax deduction.
+    var lopHolder = form.querySelector("[data-pe-lop]");
+    var lop = lopHolder ? parseFloat(lopHolder.dataset.peLop) || 0 : 0;
+    var taxableGross = Math.round(Math.max(0, taxable - pretax - lop) * 100) / 100;
 
     var grossPay = Math.round(earnings * 100) / 100;
     var totalDeductions = Math.round(Math.min(deductions, grossPay) * 100) / 100;
@@ -383,6 +406,7 @@ previewed is what gets written.
     var netPay = Math.round(Math.max(0, grossPay - totalDeductions) * 100) / 100;
 
     form.querySelector('[data-pe-preview="gross_pay"]').textContent = grossPay.toFixed(2);
+    form.querySelector('[data-pe-preview="taxable_gross"]').textContent = taxableGross.toFixed(2);
     form.querySelector('[data-pe-preview="total_deductions"]').textContent = totalDeductions.toFixed(2);
     form.querySelector('[data-pe-preview="net_pay"]').textContent = netPay.toFixed(2);
 
@@ -436,6 +460,8 @@ previewed is what gets written.
             field.value = Number(data.amounts[key]).toFixed(2);
           }
         });
+        var taxBox = form.querySelector("[data-pe-tax-detail]");
+        if (taxBox && data.tax_html) { taxBox.innerHTML = data.tax_html; }
         recompute();
       })
       .catch(function () { /* the figures on screen stay as they are */ });

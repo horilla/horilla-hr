@@ -234,6 +234,13 @@ class ViewTests(Fixture):
         self.assertContains(response, "Income Tax")
         self.assertContains(response, "Basic Pay")
 
+    def test_the_preview_shows_taxable_gross_and_marks_which_lines_feed_it(self):
+        response = self.client.get(self.url())
+        self.assertContains(response, 'data-pe-preview="taxable_gross"')
+        self.assertContains(response, "data-pe-taxable")
+        # Provident Fund is pre-tax, so it comes off what tax is worked out from.
+        self.assertContains(response, "data-pe-pretax")
+
     def test_posting_an_edit_saves_it(self):
         pf_key = self.lines_by_title()["Provident Fund"]["key"]
         self.client.post(self.url(), {f"amount:{pf_key}": "555.00"})
@@ -897,3 +904,172 @@ class TheFormShowsTheComputationTests(DerivedLinesFixture):
         self.assertContains(
             response, reverse("recalculate-payslip-lines", args=[self.payslip.pk])
         )
+
+
+class TaxFollowsTheEditTests(Fixture):
+    """
+    Income Tax is worked out again from what the payslip now comes to, by the
+    engine's own period_tax, and the snapshot the page reads is brought along.
+    """
+
+    def setUp(self):
+        super().setUp()
+        from payroll.models.models import FilingStatus
+        from payroll.models.tax_models import TaxBracket
+
+        status = FilingStatus.objects.create(
+            filing_status="Flat test", based_on="taxable_gross_pay"
+        )
+        TaxBracket.objects.create(
+            filing_status_id=status, min_income=0, max_income=10**9, tax_rate=10
+        )
+        Contract.objects.filter(employee_id=self.employee).update(filing_status=status)
+        with patch("payroll.methods.methods.get_leaves", return_value=NO_LEAVE):
+            result = payroll_calculation(self.employee, START, END)
+        Payslip.objects.filter(pk=self.payslip.pk).delete()
+        self.payslip = save_payslip(
+            **payslip_fields(result, self.employee, status="draft")
+        )
+
+    def test_a_higher_basic_means_more_tax_on_save(self):
+        before = self.payslip.pay_head_data["federal_tax"]
+        self.assertGreater(before, 0)
+
+        payslip_edit.apply_edits(
+            self.payslip, {"basic": self.payslip.basic_pay + 12000}, set()
+        )
+        self.payslip.refresh_from_db()
+
+        self.assertGreater(self.payslip.pay_head_data["federal_tax"], before)
+
+    def test_the_live_recalculation_returns_the_new_tax(self):
+        before = self.payslip.pay_head_data["federal_tax"]
+        amounts = {"basic": self.payslip.basic_pay + 12000}
+        recomputed = payslip_edit.recompute_dependents(
+            self.payslip, amounts, given={"basic"}
+        )
+        self.assertGreater(recomputed["tax"], before)
+
+    def test_a_tax_figure_typed_in_is_kept(self):
+        payslip_edit.apply_edits(
+            self.payslip, {"basic": self.payslip.basic_pay + 12000, "tax": 1.0}, set()
+        )
+        self.payslip.refresh_from_db()
+        self.assertEqual(self.payslip.pay_head_data["federal_tax"], 1.0)
+
+    def test_the_snapshot_the_page_reads_follows_the_edit(self):
+        payslip_edit.apply_edits(
+            self.payslip, {"basic": self.payslip.basic_pay + 12000}, set()
+        )
+        self.payslip.refresh_from_db()
+        data = self.payslip.pay_head_data
+        self.assertEqual(data["basic_pay"], self.payslip.basic_pay)
+        self.assertEqual(data["gross_pay"], self.payslip.gross_pay)
+
+    def test_editing_basic_takes_the_salary_adjustments_away(self):
+        data = dict(self.payslip.pay_head_data)
+        data.update(loss_of_pay=500.0, lop_reflected_in_basic=True)
+        self.payslip.pay_head_data = data
+        self.payslip.save()
+
+        payslip_edit.apply_edits(
+            self.payslip, {"basic": self.payslip.basic_pay + 100}, set()
+        )
+        self.payslip.refresh_from_db()
+        self.assertFalse(self.payslip.pay_head_data["lop_reflected_in_basic"])
+        self.assertEqual(self.payslip.pay_head_data["loss_of_pay"], 0.0)
+
+
+class TaxWorkingTests(Fixture):
+    """The form and the payslip can both say how the Income Tax came to what it did."""
+
+    def setUp(self):
+        super().setUp()
+        from payroll.models.models import FilingStatus
+        from payroll.models.tax_models import TaxBracket
+
+        status = FilingStatus.objects.create(
+            filing_status="Working test",
+            based_on="taxable_gross_pay",
+            standard_deduction=10000,
+        )
+        TaxBracket.objects.create(
+            filing_status_id=status, min_income=0, max_income=100000, tax_rate=10
+        )
+        TaxBracket.objects.create(
+            filing_status_id=status, min_income=100000, max_income=None, tax_rate=30
+        )
+        Contract.objects.filter(employee_id=self.employee).update(filing_status=status)
+        with patch("payroll.methods.methods.get_leaves", return_value=NO_LEAVE):
+            result = payroll_calculation(self.employee, START, END)
+        Payslip.objects.filter(pk=self.payslip.pk).delete()
+        self.payslip = save_payslip(
+            **payslip_fields(result, self.employee, status="draft")
+        )
+
+    def test_the_form_shows_the_working(self):
+        response = self.client.get(
+            reverse("edit-payslip-components", args=[self.payslip.pk])
+        )
+        self.assertContains(response, "How The Income Tax Is Worked Out")
+        self.assertContains(response, "Working test")
+        self.assertContains(response, "pay periods a year")
+        self.assertContains(response, "Less standard deduction")
+
+    def test_the_working_adds_up_to_the_tax_on_the_payslip(self):
+        from payroll.templatetags.payrollfilters import income_tax_explanation
+
+        explained = income_tax_explanation(self.payslip)
+        self.assertAlmostEqual(
+            explained["period_tax"], self.payslip.pay_head_data["federal_tax"], places=2
+        )
+        self.assertFalse(explained["adjusted"])
+        self.assertAlmostEqual(
+            sum(slab["tax"] for slab in explained["breakdown"]["slabs"]),
+            explained["breakdown"]["tax_before_relief"],
+            places=2,
+        )
+
+    def test_a_typed_over_tax_is_flagged_as_not_matching_the_working(self):
+        from payroll.templatetags.payrollfilters import income_tax_explanation
+
+        data = dict(self.payslip.pay_head_data)
+        data["federal_tax"] = 1.0
+        self.payslip.pay_head_data = data
+        self.payslip.save()
+        self.assertTrue(income_tax_explanation(self.payslip)["adjusted"])
+
+    def test_the_recalculation_answers_with_the_working(self):
+        response = self.client.post(
+            reverse("recalculate-payslip-lines", args=[self.payslip.pk]),
+            {"amount:basic": "40000"},
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertIn("Working test", response.json()["tax_html"])
+
+    def test_taxable_gross_is_taxable_earnings_less_pretax_deductions(self):
+        from payroll.templatetags.payrollfilters import taxable_gross_working
+
+        working = taxable_gross_working(self.payslip)
+        self.assertAlmostEqual(
+            working["computed"],
+            working["taxable_total"] - working["pretax_total"] - working["loss_of_pay"],
+            places=2,
+        )
+        # What the engine stored is the same figure the panel builds from lines.
+        self.assertTrue(working["matches"])
+        self.assertGreater(working["pretax_total"], 0)
+
+    def test_the_panel_follows_the_basis_the_filing_status_taxes(self):
+        from payroll.models.models import FilingStatus
+
+        url = reverse("view-created-payslip", kwargs={"payslip_id": self.payslip.pk})
+        for basis, heading in (
+            ("taxable_gross_pay", "Taxable Gross = Taxable Earnings"),
+            ("gross_pay", "Gross Pay = Basic Pay + Allowances"),
+            ("basic_pay", "Basic Pay = Basic Pay As Set"),
+        ):
+            FilingStatus.objects.filter(filing_status="Working test").update(
+                based_on=basis
+            )
+            self.assertContains(self.client.get(url), heading)
