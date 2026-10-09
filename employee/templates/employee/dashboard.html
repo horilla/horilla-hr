@@ -274,6 +274,39 @@
         .em-chart-card__body {
             padding: 4px 12px 12px;
         }
+        /* Small segmented switch in a chart card header (Overall / By Department). */
+        .em-chart-card__controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+        .em-seg {
+            display: inline-flex;
+            border: 1px solid rgba(128, 128, 128, 0.25);
+            border-radius: 999px;
+            padding: 2px;
+        }
+        .em-seg[hidden] { display: none; }
+        .em-seg__btn {
+            border: 0;
+            background: none;
+            color: inherit;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 12px;
+            border-radius: 999px;
+            opacity: 0.6;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .em-seg__btn:hover { opacity: 1; }
+        .em-seg__btn.is-active {
+            background: var(--primary-600, #e54f38);
+            color: #fff;
+            opacity: 1;
+        }
 
         /* Layout */
         .em-layout {
@@ -916,6 +949,16 @@
                                 <div class="em-chart-card__title">{% trans "Hire vs Turnover" %}</div>
                                 <div class="em-chart-card__subtitle" id="em-turnover-rate">{% trans "New hires vs exits — last 6 months" %}</div>
                             </div>
+                            <div class="em-chart-card__controls">
+                                <div class="em-seg" id="em-turnover-measure" hidden>
+                                    <button type="button" class="em-seg__btn is-active" data-measure="hires">{% trans "New Hires" %}</button>
+                                    <button type="button" class="em-seg__btn" data-measure="exits">{% trans "Exits" %}</button>
+                                </div>
+                                <div class="em-seg" id="em-turnover-view">
+                                    <button type="button" class="em-seg__btn is-active" data-view="overall">{% trans "Overall" %}</button>
+                                    <button type="button" class="em-seg__btn" data-view="department">{% trans "By Department" %}</button>
+                                </div>
+                            </div>
                         </div>
                         <div class="em-chart-card__body"><div id="chart-em-turnover"></div></div>
                     </div>
@@ -1155,16 +1198,112 @@
             // Same shared metric as the main dashboard's own "Hire vs Turnover"
             // card (base/dashboard.py's dashboard_turnover) -- last 6 months
             // ending at the selected period, new hires vs exits.
-            function loadEmployeeTurnover() {
-                const el = document.querySelector('#chart-em-turnover');
-                fetchJson("{% url 'dashboard-turnover' %}").then(data => {
-                    const months = data.months || [];
-                    if (!months.length) { el.innerHTML = emptyHtml("{% trans 'No turnover data'|escapejs %}"); return; }
-                    const rateEl = document.getElementById('em-turnover-rate');
-                    rateEl.textContent =
-                        `{% trans "6-month turnover rate"|escapejs %}: ${data.turnover_rate_6m}%`;
+            // "By Department" view: one stacked column per month, one segment per
+            // department, for the chosen measure (hires or exits).
+            let turnoverData = null;
+            let turnoverView = 'overall';   // 'overall' | 'department'
+            let turnoverMeasure = 'hires';  // department view only: 'hires' | 'exits'
+            const turnoverEl = document.querySelector('#chart-em-turnover');
+            const turnoverLabel = (measure) => measure === 'hires' ? "{% trans 'New Hires'|escapejs %}" : "{% trans 'Exits'|escapejs %}";
+            const turnoverLegend = PieLegend.forChart(
+                turnoverEl,
+                () => chartInstances['turnover'],
+                "{% trans 'departments'|escapejs %}",
+                { topN: 20, onChange: () => drawTurnoverDepartments() },
+            );
+            // Colour follows the department's place in the full list, so it is
+            // the same whichever measure is showing.
+            const turnoverDeptColor = (name) => PieLegend.color(Math.max(0, turnoverData.departments.findIndex(d => d.name === name)), COLORS);
+
+            function drawTurnoverDepartments() {
+                const data = turnoverData, measure = turnoverMeasure;
+                const picked = new Set(turnoverLegend.selectedNames());
+                const shown = data.departments.filter(d => picked.has(d.name));
+                const labels = data.months.map(m => m.month);
+                const peak = Math.max(0, ...labels.map((_, i) => shown.reduce((a, d) => a + d[measure][i], 0)));
+                // Whole people only: one tick per integer while the counts are small.
+                const yaxis = peak <= 5
+                    ? { max: Math.max(peak, 1), tickAmount: Math.max(peak, 1) }
+                    : { forceNiceScale: true };
+                renderChart('turnover', turnoverEl, {
+                    series: shown.map(d => ({ name: d.name, data: d[measure] })),
+                    chart: baseChart({ type: 'bar', stacked: true, height: 290,
+                        events: { dataPointSelection: (e, ctx, cfg) => {
+                            const m = data.months[cfg.dataPointIndex], d = shown[cfg.seriesIndex];
+                            // "No Department" has no id to filter on, so it cannot drill down.
+                            if (!m || !m.from || !d || d.id == null) return;
+                            const range = measure === 'hires'
+                                ? `joined_from=${m.from}&joined_till=${m.to}`
+                                : `exited_from=${m.from}&exited_till=${m.to}`;
+                            window.location.href = `${employeeListUrl}?is_active=all&${range}&employee_work_info__department_id=${d.id}&filter_applied=on`;
+                        }}
+                    }),
+                    colors: shown.map(d => turnoverDeptColor(d.name)),
+                    plotOptions: { bar: { borderRadius: 6, borderRadiusApplication: 'end', borderRadiusWhenStacked: 'last', columnWidth: '52%' } },
+                    stroke: { width: 2, colors: [cardBg] },
+                    xaxis: { ...XAXIS_STYLE, categories: labels },
+                    yaxis: { ...YAXIS_STYLE, min: 0, ...yaxis, labels: { ...YAXIS_STYLE.labels, formatter: v => Math.round(v) } },
+                    grid: GRID, dataLabels: { enabled: false },
+                    legend: { show: false },
+                    tooltip: { ...TOOLTIP_STYLE, shared: true, intersect: false },
+                    states: { hover: { filter: { type: 'darken', value: 0.9 } } },
+                });
+            }
+
+            // Switch between the overall bars and the department breakdown.
+            function showTurnover() {
+                const data = turnoverData;
+                if (!data) return;
+                const rateEl = document.getElementById('em-turnover-rate');
+                const dept = turnoverView === 'department';
+                document.getElementById('em-turnover-measure').hidden = !dept;
+                document.querySelectorAll('#em-turnover-view .em-seg__btn').forEach(b => b.classList.toggle('is-active', b.dataset.view === turnoverView));
+                document.querySelectorAll('#em-turnover-measure .em-seg__btn').forEach(b => b.classList.toggle('is-active', b.dataset.measure === turnoverMeasure));
+                if (!dept) {
+                    turnoverLegend.clear();
+                    rateEl.textContent = `{% trans "6-month turnover rate"|escapejs %}: ${data.turnover_rate_6m}%`;
                     rateEl.title = `${data.turnover_formula}\n= ${data.turnover_exits_6m} ÷ ${data.turnover_headcount} × 100 = ${data.turnover_rate_6m}%`;
-                    renderChart('turnover', el, {
+                    drawTurnoverOverall(data);
+                    return;
+                }
+                rateEl.textContent = turnoverLabel(turnoverMeasure) + " {% trans 'by department — last 6 months'|escapejs %}";
+                rateEl.title = '';
+                const totalOf = (d) => d[turnoverMeasure].reduce((a, b) => a + b, 0);
+                const depts = (data.departments || []).filter(d => totalOf(d) > 0);
+                if (!depts.length) {
+                    turnoverLegend.clear();
+                    if (chartInstances['turnover']) { chartInstances['turnover'].destroy(); chartInstances['turnover'] = null; }
+                    turnoverEl.innerHTML = emptyHtml("{% trans 'No data'|escapejs %}");
+                    return;
+                }
+                turnoverLegend.set(depts.map(d => ({ name: d.name, value: totalOf(d), color: turnoverDeptColor(d.name) })));
+                // set() does not redraw by itself. The legend only holds departments with
+                // data, so filtering by it also drops the empty ones.
+                drawTurnoverDepartments();
+            }
+            document.getElementById('em-turnover-view').addEventListener('click', (e) => {
+                const b = e.target.closest('[data-view]');
+                if (!b || b.dataset.view === turnoverView) return;
+                turnoverView = b.dataset.view;
+                showTurnover();
+            });
+            document.getElementById('em-turnover-measure').addEventListener('click', (e) => {
+                const b = e.target.closest('[data-measure]');
+                if (!b || b.dataset.measure === turnoverMeasure) return;
+                turnoverMeasure = b.dataset.measure;
+                showTurnover();
+            });
+
+            function loadEmployeeTurnover() {
+                fetchJson("{% url 'dashboard-turnover' %}?group=department").then(data => {
+                    if (!(data.months || []).length) { turnoverEl.innerHTML = emptyHtml("{% trans 'No turnover data'|escapejs %}"); return; }
+                    turnoverData = data;
+                    showTurnover();
+                }).catch(() => { turnoverEl.innerHTML = emptyHtml("{% trans 'No turnover data'|escapejs %}"); });
+            }
+            function drawTurnoverOverall(data) {
+                    const months = data.months;
+                    renderChart('turnover', turnoverEl, {
                         series: [
                             { name: "{% trans 'New Hires'|escapejs %}", data: months.map(m => m.hires) },
                             { name: "{% trans 'Exits'|escapejs %}", data: months.map(m => m.exits) },
@@ -1193,7 +1332,6 @@
                         tooltip: { ...TOOLTIP_STYLE, shared: true, intersect: false },
                         states: { hover: { filter: { type: 'darken', value: 0.85 } } },
                     });
-                }).catch(() => { el.innerHTML = emptyHtml("{% trans 'No turnover data'|escapejs %}"); });
             }
 
             // Job positions are series here (one stacked segment per position

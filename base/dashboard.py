@@ -1550,6 +1550,9 @@ def dashboard_turnover(request):
 
     Org-wide metric: requires employee view permission (not manager-only).
     Exit counts prefer shared report exit helper when available.
+
+    ``?group=department`` additionally returns ``departments``: per-department
+    hires/exits for the same six months (index-aligned with ``months``).
     """
     user = request.user
     if not (user.has_perm("employee.view_employee") or user.is_superuser):
@@ -1558,6 +1561,15 @@ def dashboard_turnover(request):
     _from_date, to_date = _parse_period(request)
     today = to_date
     months = []
+    by_dept = request.GET.get("group") == "department"
+    # {(id, name): {"hires": [0] * 6, "exits": [0] * 6}}
+    dept_rows = {}
+
+    def _dept_row(dept_id, name):
+        return dept_rows.setdefault(
+            (dept_id, name), {"hires": [0] * 6, "exits": [0] * 6}
+        )
+
     report_url = ""
     total_employees = 0
     total_exits_6m = 0
@@ -1569,11 +1581,11 @@ def dashboard_turnover(request):
     try:
         from employee.models import Employee, EmployeeWorkInformation
         from report.engine import ReportFilters
-        from report.metrics._exits import exits_in_period
+        from report.metrics._exits import iter_exits
 
         filters = ReportFilters(from_date=today.replace(day=1), to_date=today)
 
-        for i in range(5, -1, -1):
+        for idx, i in enumerate(range(5, -1, -1)):
             year = today.year
             month = today.month - i
             while month <= 0:
@@ -1589,11 +1601,27 @@ def dashboard_turnover(request):
                     month=month_start.month + 1
                 ) - timedelta(days=1)
 
-            hires = EmployeeWorkInformation.objects.filter(
+            hires_qs = EmployeeWorkInformation.objects.filter(
                 date_joining__gte=month_start,
                 date_joining__lte=month_end,
-            ).count()
-            exits = exits_in_period(filters, from_date=month_start, to_date=month_end)
+            )
+            hires = hires_qs.count()
+            exit_rows = iter_exits(filters, from_date=month_start, to_date=month_end)
+            exits = len(exit_rows)
+
+            if by_dept:
+                for r in hires_qs.values(
+                    "department_id", "department_id__department"
+                ).annotate(n=Count("id")):
+                    _dept_row(r["department_id"], r["department_id__department"])[
+                        "hires"
+                    ][idx] = r["n"]
+                for row in exit_rows:
+                    wi = getattr(row.get("employee"), "employee_work_info", None)
+                    dept = getattr(wi, "department_id", None)
+                    _dept_row(
+                        getattr(dept, "id", None), getattr(dept, "department", None)
+                    )["exits"][idx] += 1
 
             months.append(
                 {
@@ -1618,20 +1646,34 @@ def dashboard_turnover(request):
             {"month": f"M{i+1}", "hires": 0, "exits": 0, "net": 0} for i in range(6)
         ]
         turnover_rate = 0
+        total_exits_6m = 0
+        total_employees = 0
 
-    return JsonResponse(
-        {
-            "months": months,
-            "turnover_rate_6m": turnover_rate,
-            "turnover_exits_6m": total_exits_6m,
-            "turnover_headcount": total_employees,
-            "turnover_formula": str(
-                _("Exits in last 6 months ÷ Active employees × 100")
+    payload = {
+        "months": months,
+        "turnover_rate_6m": turnover_rate,
+        "turnover_exits_6m": total_exits_6m,
+        "turnover_headcount": total_employees,
+        "turnover_formula": str(_("Exits in last 6 months ÷ Active employees × 100")),
+        "report_url": report_url,
+        "subtitle": str(_("All exits — see Standard Report for detail")),
+    }
+    if by_dept:
+        # Busiest departments first; people without a department are
+        # grouped under one label rather than dropped.
+        payload["departments"] = sorted(
+            (
+                {
+                    "id": dept_id,
+                    "name": name or str(_("No Department")),
+                    "hires": row["hires"],
+                    "exits": row["exits"],
+                }
+                for (dept_id, name), row in dept_rows.items()
             ),
-            "report_url": report_url,
-            "subtitle": str(_("All exits — see Standard Report for detail")),
-        }
-    )
+            key=lambda d: -(sum(d["hires"]) + sum(d["exits"])),
+        )
+    return JsonResponse(payload)
 
 
 @login_required
