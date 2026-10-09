@@ -1241,10 +1241,10 @@
                     const stageColors = { notice_period: 'rgba(245,158,11,0.15)', interview: 'rgba(99,102,241,0.15)', handover: 'rgba(59,130,246,0.15)', fnf: 'rgba(168,85,247,0.15)', other: 'rgba(148,163,184,0.15)', archived: 'rgba(34,197,94,0.15)' };
                     const stageTextColors = { notice_period: '#d97706', interview: '#4f46e5', handover: '#2563eb', fnf: '#7c3aed', other: '#64748b', archived: '#16a34a' };
                     el.innerHTML = '<div class="ob-pipeline">' + data.stages.map(s =>
-                        `<div class="ob-pipeline-step" style="background:${stageColors[s.type] || 'rgba(148,163,184,0.15)'};color:inherit;">
+                        `<a href="${offboardingPipelineUrl}?stage_type=${s.type}" class="ob-pipeline-step" style="background:${stageColors[s.type] || 'rgba(148,163,184,0.15)'};color:inherit;text-decoration:none;display:block;">
                     <div class="ob-pipeline-step__count" style="color:${stageTextColors[s.type] || '#64748b'};">${s.count}</div>
                     <div class="ob-pipeline-step__label">${s.stage}</div>
-                </div>`
+                </a>`
                     ).join('<div style="display:flex;align-items:center;opacity:0.3;font-size:18px;">→</div>') + '</div>';
                 });
             }
@@ -1380,7 +1380,13 @@
             fetchP("{% url 'offboarding-dashboard-join-exit' %}")
                 .then(r => r.json())
                 .then(data => {
-                    if (!data.months.length) { document.querySelector("#chart-join-exit").innerHTML = emptyHtml('{% trans "No data"|escapejs %}'); return; }
+                    // A "This Month"/short-range period still hands back one
+                    // zero-valued bucket (months.length === 1), not an empty
+                    // array -- rendering that produced a chart with gridlines
+                    // and a category label but no visible bar, which reads as
+                    // broken rather than "nothing to show here".
+                    const totalExits = data.months.reduce((sum, m) => sum + (m.exiting || 0), 0);
+                    if (!data.months.length || !totalExits) { document.querySelector("#chart-join-exit").innerHTML = emptyHtml('{% trans "No exits in this period"|escapejs %}'); return; }
                     renderChart('join-exit', document.querySelector("#chart-join-exit"), {
                         series: [
                             { name: '{% trans "Exiting"|escapejs %}', data: data.months.map(m => m.exiting) },

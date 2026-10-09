@@ -593,12 +593,21 @@ class PipeLineTabView(HorillaTabView):
         offboardings = self.filter_class(self.request.GET).qs.filter(is_active=True)
         self.tabs = []
         # Employees on each offboarding's board, not how many stages it has.
-        employee_counts = dict(
-            OffboardingEmployee.objects.filter(
+        # Run through PipelineEmployeeFilter too (same fields the per-stage
+        # breakdown underneath already filters by -- stage_type, search, ...)
+        # so a deep link like the dashboard's pipeline-stage tiles
+        # (?stage_type=handover) narrows this tab badge the same way it
+        # narrows every stage count on the board, instead of leaving it at
+        # the full, unfiltered total no matter what's actually showing.
+        employee_qs = PipelineEmployeeFilter(
+            self.request.GET,
+            queryset=OffboardingEmployee.objects.filter(
                 stage_id__offboarding_id__in=offboardings.values_list("pk", flat=True),
                 stage_id__is_active=True,
-            )
-            .values("stage_id__offboarding_id")
+            ),
+        ).qs
+        employee_counts = dict(
+            employee_qs.values("stage_id__offboarding_id")
             .annotate(total=Count("id"))
             .values_list("stage_id__offboarding_id", "total")
         )
@@ -851,13 +860,20 @@ class OffboardingPipelineStage(Pipeline):
             self.request.GET.get(name) for name in PipelineEmployeeFilter.base_filters
         )
         for stage in context["groups"]:
-            stage.pipeline_open = (
-                not is_filtered
-                or PipelineEmployeeFilter(
-                    self.request.GET,
-                    queryset=OffboardingEmployee.objects.filter(stage_id=stage.pk),
-                ).qs.exists()
-            )
+            stage_employees = PipelineEmployeeFilter(
+                self.request.GET,
+                queryset=OffboardingEmployee.objects.filter(stage_id=stage.pk),
+            ).qs
+            # get_queryset()'s own employee_count annotation counts every
+            # employee in the stage, unfiltered -- PipelineStageFilter (this
+            # grouper's own field_filter_class) has no stage_type/search/etc.
+            # fields, so a deep link like the dashboard's pipeline-stage
+            # tiles (?stage_type=handover) never touched it: every stage
+            # kept showing its full, unfiltered count even once collapsed as
+            # empty, instead of the 0 its own "no records" body agreed with.
+            if is_filtered:
+                stage.employee_count = stage_employees.count()
+            stage.pipeline_open = not is_filtered or stage_employees.exists()
         return context
 
 
