@@ -664,42 +664,61 @@
     loadKpiCards();
 
     // ─── DEPARTMENT TREND ───
+    // Department chips under the chart, like the main dashboard's: one row, a "+N"
+    // chip for the rest, and a ticked department is a column on the chart.
+    let trendData = null;
+    const TREND_STATUS_NAMES = ['{% trans "Approved"|escapejs %}', '{% trans "Rejected"|escapejs %}', '{% trans "Requested"|escapejs %}'];
+    // Approved is shown by default; Rejected / Requested can be toggled on from the status
+    // legend. Kept here so a redraw (ticking a department) doesn't reset what was toggled.
+    const trendHiddenSeries = new Set([1, 2]);
+    const trendEl = document.querySelector("#chart-monthly-trend");
+    const trendLegend = PieLegend.forChart(trendEl, () => chartInstances['monthly-trend'], '{% trans "departments"|escapejs %}',
+        { topN: 20, onChange: () => drawDepartmentTrend() });
+    function drawDepartmentTrend() {
+        const names = new Set(trendLegend.selectedNames());
+        const departments = trendData.departments.filter(d => names.has(d.department));
+        const statusForSeries = ['approved', 'rejected', 'requested'];
+        renderChart('monthly-trend', trendEl, {
+            series: [
+                { name: TREND_STATUS_NAMES[0], data: departments.map(d => d.approved) },
+                { name: TREND_STATUS_NAMES[1], data: departments.map(d => d.rejected) },
+                { name: TREND_STATUS_NAMES[2], data: departments.map(d => d.pending) },
+            ],
+            chart: { type: 'bar', height: 280, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', stacked: true,
+                events: {
+                mounted: ctx => trendHiddenSeries.forEach(i => ctx.hideSeries(TREND_STATUS_NAMES[i])),
+                // Fires before Apex flips the series, so the set follows the user's click.
+                legendClick: (ctx, seriesIndex) => { if (trendHiddenSeries.has(seriesIndex)) trendHiddenSeries.delete(seriesIndex); else trendHiddenSeries.add(seriesIndex); },
+                dataPointSelection: (e, ctx, config) => {
+                    const d = departments[config.dataPointIndex];
+                    const status = statusForSeries[config.seriesIndex] || 'approved';
+                    if (d) {
+                        window.location.href = "{% url 'request-view' %}?department_name=" + encodeURIComponent(d.department) +
+                            "&status=" + status + "&start_date_gte=" + trendData.from_date + "&to_date=" + trendData.to_date + "&filter_applied=on";
+                    }
+                }}
+            },
+            colors: ['#22c55e', '#ef4444', '#f59e0b'],
+            plotOptions: { bar: { borderRadius: 4, columnWidth: '55%', borderRadiusApplication: 'end' } },
+            xaxis: { categories: departments.map(d => d.department), labels: { style: { colors: textColor, fontSize: '11px' } }, axisBorder: { show: false }, axisTicks: { show: false } },
+            yaxis: { labels: { style: { colors: textColor } } },
+            grid: { borderColor: gridColor, strokeDashArray: 4 },
+            dataLabels: { enabled: false },
+            legend: { position: 'top', horizontalAlign: 'right', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
+            tooltip: { theme: isDark ? 'dark' : 'light' },
+        });
+    }
     function loadDepartmentTrend() {
         fetchP("{% url 'leave-dashboard-department-trend' %}")
         .then(r => r.json())
         .then(data => {
-            if (!data.departments.length) { document.querySelector("#chart-monthly-trend").innerHTML = emptyHtml('{% trans "No data"|escapejs %}'); return; }
-            const statusForSeries = ['approved', 'rejected', 'requested'];
-            let defaultsApplied = false;
-            renderChart('monthly-trend', document.querySelector("#chart-monthly-trend"), {
-                series: [
-                    { name: '{% trans "Approved"|escapejs %}', data: data.departments.map(d => d.approved) },
-                    { name: '{% trans "Rejected"|escapejs %}', data: data.departments.map(d => d.rejected) },
-                    { name: '{% trans "Requested"|escapejs %}', data: data.departments.map(d => d.pending) },
-                ],
-                chart: { type: 'bar', height: 280, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', stacked: true,
-                    events: {
-                    // Approved is shown by default; Rejected / Requested can be toggled on from the legend.
-                    mounted: ctx => { if (defaultsApplied) return; defaultsApplied = true; ctx.hideSeries('{% trans "Rejected"|escapejs %}'); ctx.hideSeries('{% trans "Requested"|escapejs %}'); },
-                    dataPointSelection: (e, ctx, config) => {
-                        const d = data.departments[config.dataPointIndex];
-                        const status = statusForSeries[config.seriesIndex] || 'approved';
-                        if (d) {
-                            window.location.href = "{% url 'request-view' %}?department_name=" + encodeURIComponent(d.department) +
-                                "&status=" + status + "&start_date_gte=" + data.from_date + "&to_date=" + data.to_date + "&filter_applied=on";
-                        }
-                    }}
-                },
-                colors: ['#22c55e', '#ef4444', '#f59e0b'],
-                plotOptions: { bar: { borderRadius: 4, columnWidth: '55%', borderRadiusApplication: 'end' } },
-                xaxis: { categories: data.departments.map(d => d.department), labels: { style: { colors: textColor, fontSize: '11px' } }, axisBorder: { show: false }, axisTicks: { show: false } },
-                yaxis: { labels: { style: { colors: textColor } } },
-                grid: { borderColor: gridColor, strokeDashArray: 4 },
-                dataLabels: { enabled: false },
-                legend: { position: 'top', horizontalAlign: 'right', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
-                tooltip: { theme: isDark ? 'dark' : 'light' },
-            });
-        }).catch(() => { const el = document.querySelector("#chart-monthly-trend"); if (el) el.innerHTML = chartFailHtml(); });
+            if (!data.departments.length) { trendLegend.clear(); trendEl.innerHTML = emptyHtml('{% trans "No data"|escapejs %}'); return; }
+            trendData = data;
+            trendLegend.set(data.departments.map((d, i) => ({
+                name: d.department, value: d.approved + d.rejected + d.pending, color: PieLegend.color(i, COLORS),
+            })));
+            drawDepartmentTrend();
+        }).catch(() => { trendEl.innerHTML = chartFailHtml(); });
     }
     loadDepartmentTrend();
 
