@@ -1,0 +1,69 @@
+{% comment %}
+Remembers which chart-legend items a user switched off, so every dashboard
+legend opens the way they left it. Until they untick something, every item
+is on.
+
+Include once per dashboard page, before the page's chart script (the shared
+pie_legend.html already does this for the pages that use it):
+    {% include "components/legend_prefs.html" %}
+
+    LegendPrefs.initial(id, names, defaultOff, firstN)  -> Set of names that are on
+    LegendPrefs.save(id, names, selectedSet)    -> remember the current ticks
+
+`id` names the legend on its page (the chart element id works); preferences
+are kept per user, per page and per legend. Only the *off* names are stored,
+so an item that shows up later (a new department, say) starts on. Storage is
+the browser's localStorage; when it is blocked the choice still holds for the
+rest of the visit.
+{% endcomment %}
+<script>
+    window.LegendPrefs = window.LegendPrefs || (function () {
+        var memory = {};
+        // Read per call: a boosted (HTMX) navigation changes the path without reloading this script.
+        function keyFor(id) { return 'legendOff:{{ request.user.pk|default:"" }}:' + location.pathname + ':' + id; }
+
+        function readOff(id) {
+            var key = keyFor(id);
+            if (Object.prototype.hasOwnProperty.call(memory, key)) return memory[key];
+            try {
+                var raw = localStorage.getItem(key);
+                if (raw) {
+                    var parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed)) return parsed;
+                }
+            } catch (e) { /* storage blocked or corrupt: fall back to defaults */ }
+            return null;
+        }
+
+        function writeOff(id, off) {
+            var key = keyFor(id);
+            memory[key] = off;
+            try {
+                // Saved even when empty: "all on" is a choice that must beat defaultOff.
+                localStorage.setItem(key, JSON.stringify(off));
+            } catch (e) { /* the in-memory copy still covers this visit */ }
+        }
+
+        return {
+            // Everything is on, minus what the user switched off earlier. With
+            // nothing saved yet, `defaultOff` (optional) names the exceptions, or
+            // `firstN` (optional) keeps only the first N on -- for a chart too
+            // crowded to open with every item.
+            initial: function (id, names, defaultOff, firstN) {
+                var off = readOff(id);
+                if (off === null && firstN) return new Set(names.slice(0, firstN));
+                if (off === null) off = defaultOff || [];
+                var on = names.filter(function (n) { return off.indexOf(n) < 0; });
+                // A legend can't be emptied entirely: fall back to everything.
+                return new Set(on.length ? on : names);
+            },
+            // Names not in `names` (filtered out of the current period) keep
+            // whatever they were set to before.
+            save: function (id, names, selected) {
+                var off = (readOff(id) || []).filter(function (n) { return names.indexOf(n) < 0; });
+                names.forEach(function (n) { if (!selected.has(n)) off.push(n); });
+                writeOff(id, off);
+            },
+        };
+    })();
+</script>

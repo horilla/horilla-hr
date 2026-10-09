@@ -2,9 +2,9 @@
 Shared donut/pie chart legend, the same one the main dashboard uses for
 Department Headcount: one row of chips, then a "+N" chip whose hover popover
 lists the rest with checkboxes. Every item starts ticked (except any named in
-`initiallyOff`; `topN` only sets how many chips fit in the row);
-unticked ones are zeroed out of the series, so the donut only carries
-what is ticked.
+`initiallyOff`), and what the user unticks is remembered (see legend_prefs.html);
+`topN` only sets how many chips fit in the row. Unticked ones are zeroed out of
+the series, so the donut only carries what is ticked.
 
 Include once per dashboard page, before the page's chart script:
     {% include "components/pie_legend.html" %}
@@ -15,6 +15,7 @@ Usage:
     ... new ApexCharts(chartEl, { series: legend.series(), legend: { show: false }, ... })
     legend.clear();   // when there is no data
 {% endcomment %}
+{% include "components/legend_prefs.html" %}
 <style>
     .pl-legend {
         --pl-accent: var(--primary-600, #e54f38);
@@ -151,6 +152,7 @@ Usage:
 
         function create(opts) {
             var el = opts.el, getChart = opts.getChart, noun = opts.noun || 'more', topN = opts.topN || 5, onChange = opts.onChange;
+            var prefId = opts.id || noun;
             var items = [], selected = null, visible = 0;
             var dot = function (c) { return '<span class="pl-chip__dot" style="background:' + c + '"></span>'; };
             var series = function () {
@@ -188,6 +190,7 @@ Usage:
                 } else {
                     selected.add(name);
                 }
+                LegendPrefs.save(prefId, items.map(function (i) { return i.name; }), selected);
                 refreshState();
                 syncChart();
             }
@@ -229,17 +232,12 @@ Usage:
                 resizeTimer = setTimeout(function () { if (items.length && el.isConnected) render(); }, 150);
             });
             return {
-                // `initiallyOff` names start unticked; only applies the first time
-                // (a refresh keeps whatever the user toggled).
+                // `initiallyOff` names start unticked until the user has made their
+                // own choice, which is then what a refresh and later visits keep.
                 set: function (newItems, initiallyOff) {
                     items = newItems;
                     var names = items.map(function (i) { return i.name; });
-                    if (selected) selected = new Set(Array.from(selected).filter(function (n) { return names.indexOf(n) >= 0; }));
-                    if (!selected || !selected.size) {
-                        var off = initiallyOff || [];
-                        selected = new Set(names.filter(function (n) { return off.indexOf(n) < 0; }));
-                        if (!selected.size) selected = new Set(names.slice(0, 1));
-                    }
+                    selected = LegendPrefs.initial(prefId, names, initiallyOff);
                     render();
                 },
                 series: series,
@@ -258,7 +256,7 @@ Usage:
             var box = document.createElement('div');
             box.className = 'pl-legend';
             chartEl.insertAdjacentElement('afterend', box);
-            chartEl._pieLegend = create({ el: box, getChart: getChart, noun: noun, topN: opts.topN, onChange: opts.onChange });
+            chartEl._pieLegend = create({ el: box, getChart: getChart, noun: noun, topN: opts.topN, onChange: opts.onChange, id: chartEl.id });
             return chartEl._pieLegend;
         }
 

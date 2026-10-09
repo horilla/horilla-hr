@@ -3,6 +3,7 @@
 
 {% block content %}
     <script src="https://cdn.jsdelivr.net/npm/apexcharts@7.8.0/dist/apexcharts.min.js"></script>
+    {% include "components/legend_prefs.html" %}
     <style>
         :root {
             --as-indigo: var(--primary-600, #E54F38);
@@ -1338,6 +1339,7 @@
 
             const escHtml = (v) => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
             function createPieLegend({ el, chartKey, noun, topN = 5, format = v => v, onChange = null }) {
+                const prefId = el.id || chartKey;
                 let items = [];
                 let selected = null;
                 let visible = 0;
@@ -1365,6 +1367,7 @@
                     } else {
                         selected.add(name);
                     }
+                    LegendPrefs.save(prefId, items.map(i => i.name), selected);
                     refreshState();
                     // A chart whose columns come and go redraws itself; a donut just re-weights.
                     if (onChange) { onChange(); return; }
@@ -1411,8 +1414,7 @@
                     set(newItems) {
                         items = newItems;
                         const names = items.map(i => i.name);
-                        if (selected) selected = new Set([...selected].filter(n => names.includes(n)));
-                        if (!selected || !selected.size) selected = new Set(names);  // every item starts ticked; topN only sets how many chips fit
+                        selected = LegendPrefs.initial(prefId, names);
                         render();
                     },
                     series,

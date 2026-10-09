@@ -3,6 +3,7 @@
 
 {% block content %}
 <script src="https://cdn.jsdelivr.net/npm/apexcharts@7.8.0/dist/apexcharts.min.js"></script>
+{% include "components/legend_prefs.html" %}
 <style>
     :root { --hd-indigo: var(--primary-600, #E54F38); --hd-green: #22c55e; --hd-amber: #f59e0b; --hd-red: #ef4444; --hd-blue: #3b82f6; --hd-purple: #a855f7; }
     .hd-dashboard { font-family: inherit; background: #ffffff; margin: -24px; padding: 24px; min-height: calc(100vh - 80px); }
@@ -583,6 +584,7 @@
     // ─── Shared pie/donut legend ───
     const escHtml = (v) => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     function createPieLegend({ el, chartKey, noun }) {
+        const prefId = el.id || chartKey;
         let items = [];
         let selected = new Set();
         let visible = 0;
@@ -608,6 +610,7 @@
             } else {
                 selected.add(key);
             }
+            LegendPrefs.save(prefId, items.map(i => i.key), selected);
             refreshState();
             const chart = chartInstances[chartKey];
             if (chart) chart.updateSeries(series());
@@ -648,8 +651,7 @@
             set(newItems) {
                 items = newItems;
                 const keys = items.map(i => i.key);
-                selected = new Set([...selected].filter(k => keys.includes(k)));
-                if (!selected.size) selected = new Set(keys);
+                selected = LegendPrefs.initial(prefId, keys);
                 render();
             },
             series,

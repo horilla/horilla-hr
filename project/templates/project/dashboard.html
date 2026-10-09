@@ -476,6 +476,7 @@
 
     const prEsc = v => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     function prCreateLegend({ el, noun, topN = 6 }) {
+        const prefId = el.id || noun;
         let items = [], selected = new Set(), onToggle = null;
         const dot = c => `<span class="pr-pill__dot" style="background:${c}"></span>`;
         function pillsHtml(k) {
@@ -504,6 +505,7 @@
             } else {
                 selected.add(name);
             }
+            LegendPrefs.save(prefId, items.map(i => i.name), selected);
             const pills = el.querySelector('.pr-pills');
             if (pills) pills.querySelectorAll('.pr-pill').forEach(p => p.classList.toggle('is-off', !selected.has(p.dataset.name)));
             el.querySelectorAll('input[data-name]').forEach(cb => { cb.checked = selected.has(cb.dataset.name); });
@@ -525,9 +527,12 @@
         return {
             set(newItems, toggleFn) {
                 items = newItems;
-                selected = new Set(items.map(i => i.name));
+                selected = LegendPrefs.initial(prefId, items.map(i => i.name));
                 onToggle = toggleFn;
                 render();
+                // These charts only change through the toggle callback, so replay the
+                // items the user switched off on an earlier visit.
+                items.forEach(i => { if (!selected.has(i.name) && onToggle) onToggle(i.name, false); });
             },
             clear() { items = []; el.innerHTML = ''; },
         };

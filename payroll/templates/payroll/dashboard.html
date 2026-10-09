@@ -3,6 +3,7 @@
 
 {% block content %}
 <script id="pd-apexcharts" src="https://cdn.jsdelivr.net/npm/apexcharts@7.8.0/dist/apexcharts.min.js"></script>
+{% include "components/legend_prefs.html" %}
 <style>
     :root {
         --pd-indigo: var(--primary-600, #E54F38);
@@ -506,6 +507,7 @@ function pdInit() {
     // One row only: as many chips as fit, then a "+N" chip whose hover popover
     // lists the rest with checkboxes. Unselected items are zeroed out of the series.
     function createPieLegend({ el, chartKey, noun, topN = 5, toSeries = null }) {
+        const prefId = el.id || chartKey;
         let items = [];
         let selected = null;
         const dot = c => c ? `<span class="pd-pie-chip__dot" style="background:${c}"></span>` : '';
@@ -526,6 +528,7 @@ function pdInit() {
         }
         function toggle(name) {
             if (selected.has(name)) { if (selected.size > 1) selected.delete(name); } else { selected.add(name); }
+            LegendPrefs.save(prefId, items.map(i => i.name), selected);
             refreshState(); syncChart();
         }
         function build(k) {
@@ -553,11 +556,7 @@ function pdInit() {
             set(newItems) {
                 items = newItems;
                 const names = items.map(i => i.name);
-                if (selected) selected = new Set([...selected].filter(n => names.includes(n)));
-                if (!selected || !selected.size) {
-                    const on = items.filter(i => !i.off).map(i => i.name);
-                    selected = new Set(on.length ? on : names);  // topN only sets how many chips fit
-                }
+                selected = LegendPrefs.initial(prefId, names, items.filter(i => i.off).map(i => i.name));  // items flagged off start unticked
                 render();
             },
             series,
