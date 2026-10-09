@@ -350,6 +350,7 @@ class CandidateFilter(HorillaFilterSet):
             "candidate_rating__rating",
             "candidate_interview__employee_id",
             "source",
+            "referral_source",
         ]
 
     def __init__(self, *args, **kwargs):

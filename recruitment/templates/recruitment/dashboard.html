@@ -905,6 +905,8 @@
         #chart-conversion-funnel .apexcharts-bar-area,
         #chart-vacancy-hired .apexcharts-bar-area,
         #chart-talent-pool .apexcharts-pie-area,
+        #chart-source-conv .apexcharts-bar-area,
+        #chart-rejection-reasons .apexcharts-bar-area,
         #chart-joinings .apexcharts-bar-area {
             cursor: pointer;
         }
@@ -1060,6 +1062,21 @@
                         <div class="rd-chart-card__body"><div id="chart-talent-pool"></div></div>
                     </div>
 
+                    <!-- Source Conversion Rate -->
+                    <div
+                        class="rd-chart-card rd-chart-card--wide"
+                        data-chart-id="source_conversion"
+                        data-chart-label="{% trans 'Source Conversion Rate' %}"
+                    >
+                        <div class="rd-chart-card__header">
+                            <div>
+                                <div class="rd-chart-card__title">{% trans "Source Conversion Rate" %}</div>
+                                <div class="rd-chart-card__subtitle">{% trans "How candidates heard about us · solid = hired, faded = not hired · click a bar to list them" %}</div>
+                            </div>
+                        </div>
+                        <div class="rd-chart-card__body"><div id="chart-source-conv"></div></div>
+                    </div>
+
                     <!-- Joinings Per Month -->
                     <div
                         class="rd-chart-card rd-chart-card--wide"
@@ -1078,6 +1095,21 @@
                             </div>
                         </div>
                         <div class="rd-chart-card__body"><div id="chart-joinings"></div></div>
+                    </div>
+
+                    <!-- Rejected Candidates by Rejection Reason -->
+                    <div
+                        class="rd-chart-card rd-chart-card--wide"
+                        data-chart-id="rejection_reasons"
+                        data-chart-label="{% trans 'Rejected Candidates by Reason' %}"
+                    >
+                        <div class="rd-chart-card__header">
+                            <div>
+                                <div class="rd-chart-card__title">{% trans "Rejected Candidates by Reason" %}</div>
+                                <div class="rd-chart-card__subtitle" id="rejection-reasons-subtitle">{% trans "Rejected candidates per rejection reason · click a bar to list them" %}</div>
+                            </div>
+                        </div>
+                        <div class="rd-chart-card__body"><div id="chart-rejection-reasons"></div></div>
                     </div>
                 </div>
             </div>
@@ -1398,33 +1430,85 @@
             loadOpenPositionsByDept();
             */
 
-            /* ===== legacy =====
             // ─── SOURCE CONVERSION ───
+            // One column per candidate source ("How did you hear about us?" on the
+            // application form), in that source's colour: solid for hired, faded for the
+            // rest. The sources are chips under the chart, as on the main dashboard: tick
+            // one off to take its column out.
+            let sourceConvData = [];
+            const sourceColor = (key) => PieLegend.color(Math.max(0, sourceConvData.findIndex(x => x.key === key)), COLORS);
+            const fade = (hex, a) => {
+                const n = parseInt(hex.slice(1), 16);
+                return `rgba(${n >> 16}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+            };
+            function drawSourceConversion() {
+                const el = document.querySelector("#chart-source-conv");
+                const picked = new Set(sourceLegend.selectedNames());
+                const shown = sourceConvData.filter(s => picked.has(s.source));
+                const peak = Math.max(1, ...shown.map(s => s.total));
+                // Names go flat under the columns when each column has room for its longest
+                // word, otherwise they tilt so they never run into each other.
+                const slot = Math.max(200, (el.clientWidth || 800) - 70) / Math.max(shown.length, 1);
+                const longestWord = Math.max(...shown.map(s => Math.max(...s.source.split(' ').map(w => w.length))));
+                const tilt = slot < longestWord * 7 + 10;
+                renderChart('source-conv', el, {
+                    series: [
+                        { name: '{% trans "Hired"|escapejs %}', data: shown.map(s => s.hired) },
+                        { name: '{% trans "Not hired"|escapejs %}', data: shown.map(s => s.total - s.hired) },
+                    ],
+                    chart: { type: 'bar', height: tilt ? 340 : 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', stacked: true,
+                        events: { dataPointSelection: (e, ctx, config) => {
+                            const s = shown[config.dataPointIndex];
+                            // "Not Specified" has no value to filter on.
+                            if (!s || s.key === 'not_set') return;
+                            window.location.href = "{% url 'candidate-view' %}?referral_source=" + encodeURIComponent(s.key) + (config.seriesIndex === 0 ? "&hired=true" : "");
+                        }}
+                    },
+                    // Per column: the source's colour, solid when hired and faded for the rest.
+                    colors: [
+                        ({ dataPointIndex }) => sourceColor(shown[dataPointIndex].key),
+                        ({ dataPointIndex }) => fade(sourceColor(shown[dataPointIndex].key), 0.28),
+                    ],
+                    plotOptions: { bar: { borderRadius: 4, borderRadiusApplication: 'end', borderRadiusWhenStacked: 'last', columnWidth: shown.length <= 3 ? '30%' : '45%' } },
+                    xaxis: { categories: shown.map(s => tilt ? s.source : s.source.split(' ')),
+                        labels: { rotate: tilt ? -45 : 0, rotateAlways: tilt, trim: false, hideOverlappingLabels: false, maxHeight: tilt ? 110 : 48, style: { colors: textColor, fontSize: '11px' } },
+                        axisBorder: { show: false }, axisTicks: { show: false } },
+                    // Whole candidates only: one tick per integer while the counts are small.
+                    yaxis: { min: 0, ...(peak <= 5 ? { max: peak, tickAmount: peak } : { forceNiceScale: true }),
+                        labels: { style: { colors: textColor }, formatter: v => Math.round(v) } },
+                    grid: { borderColor: gridColor, strokeDashArray: 4 },
+                    dataLabels: { enabled: true, style: { fontSize: '11px', fontWeight: 700, colors: ['#fff', textColor] }, background: { enabled: false } },
+                    legend: { show: false },
+                    tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: (v, { seriesIndex: si, dataPointIndex: di }) => si === 0 ? `${v} {% trans "hired"|escapejs %} (${shown[di].rate}%)` : `${v} {% trans "not hired"|escapejs %}` } },
+                    states: { hover: { filter: { type: 'none' } } },
+                });
+            }
+            const sourceLegend = PieLegend.forChart(
+                document.querySelector("#chart-source-conv"),
+                () => chartInstances['source-conv'],
+                '{% trans "sources"|escapejs %}',
+                { topN: 12, onChange: drawSourceConversion },
+            );
             function loadSourceConversion() {
+                const el = document.querySelector("#chart-source-conv");
                 fetchP("{% url 'recruitment-dashboard-source-conv' %}")
                 .then(r => r.json())
                 .then(data => {
-                    const hasRealSource = data.sources.some(s => s.source !== '{% trans "Not Specified"|escapejs %}');
-                    if (!data.sources.length || !hasRealSource) { document.querySelector("#chart-source-conv").innerHTML = emptyHtml('{% trans "No source data available yet"|escapejs %}'); return; }
-                    renderChart('source-conv', document.querySelector("#chart-source-conv"), {
-                        series: [
-                            { name: '{% trans "Hired"|escapejs %}', data: data.sources.map(s => s.hired) },
-                            { name: '{% trans "Total"|escapejs %}', data: data.sources.map(s => s.total - s.hired) },
-                        ],
-                        chart: { type: 'bar', height: 280, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', stacked: true },
-                        colors: ['#22c55e', '#e2e8f0'],
-                        plotOptions: { bar: { borderRadius: 4, columnWidth: '50%' } },
-                        xaxis: { categories: data.sources.map(s => s.source), labels: { style: { colors: textColor, fontSize: '12px' } }, axisBorder: { show: false }, axisTicks: { show: false } },
-                        yaxis: { labels: { style: { colors: textColor } } },
-                        grid: { borderColor: gridColor, strokeDashArray: 4 },
-                        dataLabels: { enabled: false },
-                        legend: { position: 'top', horizontalAlign: 'right', labels: { colors: textColor }, fontSize: '11px', markers: { width: 8, height: 8, radius: 2 } },
-                        tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: (v, { seriesIndex: si, dataPointIndex: di }) => si === 0 ? `${v} hired (${data.sources[di].rate}%)` : `${v} not hired` } },
-                    });
-                });
+                    const sources = data.sources || [];
+                    const hasRealSource = sources.some(s => s.key !== 'not_set');
+                    if (!sources.length || !hasRealSource) {
+                        if (chartInstances['source-conv']) { chartInstances['source-conv'].destroy(); chartInstances['source-conv'] = null; }
+                        sourceLegend.clear();
+                        el.innerHTML = emptyHtml('{% trans "No source data available yet"|escapejs %}');
+                        return;
+                    }
+                    sourceConvData = sources;
+                    sourceLegend.set(sources.map(s => ({ name: s.source, value: s.rate + '%', color: sourceColor(s.key) })));
+                    drawSourceConversion();
+                })
+                .catch(() => { sourceLegend.clear(); el.innerHTML = emptyHtml('{% trans "Unable to load"|escapejs %}'); });
             }
             loadSourceConversion();
-            */
 
             // ─── INTERVIEWS IN PERIOD ───
             const candidateDetailUrl = "{% url 'candidate-view-individual' 0 %}";
@@ -1730,6 +1814,56 @@
             }
             loadJoinings();
 
+            // ─── REJECTED CANDIDATES BY REJECTION REASON ───
+            // One bar per reason. A candidate rejected for several reasons counts under each.
+            function loadRejectionReasons() {
+                const el = document.querySelector("#chart-rejection-reasons");
+                fetchP("{% url 'recruitment-dashboard-rejection-reasons' %}")
+                .then(r => r.json())
+                .then(data => {
+                    const reasons = data.reasons || [];
+                    if (!reasons.length) {
+                        if (chartInstances['rejection-reasons']) { chartInstances['rejection-reasons'].destroy(); chartInstances['rejection-reasons'] = null; }
+                        el.innerHTML = emptyHtml('{% trans "No rejected candidates yet"|escapejs %}');
+                        return;
+                    }
+                    document.getElementById('rejection-reasons-subtitle').textContent =
+                        data.total + ' {% trans "rejected candidates"|escapejs %} · {% trans "click a bar to list them"|escapejs %}';
+                    // Few short reasons sit flat under their bars; many or long ones tilt so
+                    // they never run into each other.
+                    const tilt = reasons.length > 6 || reasons.some(r => r.reason.length > 16);
+                    const clip = (t) => (t.length > 26 ? t.slice(0, 25) + '\u2026' : t);
+                    const peak = Math.max(...reasons.map(r => r.count));
+                    renderChart('rejection-reasons', el, {
+                        series: [{ name: '{% trans "Rejected candidates"|escapejs %}', data: reasons.map(r => r.count) }],
+                        chart: { type: 'bar', height: tilt ? 340 : 290, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
+                            events: { dataPointSelection: (e, ctx, config) => {
+                                const r = reasons[config.dataPointIndex];
+                                // "No Reason" has no reason id to filter on.
+                                if (!r || r.id == null) return;
+                                window.location.href = "{% url 'candidate-view' %}?canceled=true&rejected_candidate__reject_reason_id=" + encodeURIComponent(r.id);
+                            }}
+                        },
+                        colors: ['#ef4444'],
+                        fill: { type: 'gradient', gradient: { type: 'vertical', shadeIntensity: 0.3, opacityFrom: 1, opacityTo: 0.8 } },
+                        plotOptions: { bar: { borderRadius: 6, borderRadiusApplication: 'end', columnWidth: reasons.length <= 3 ? '30%' : '50%' } },
+                        xaxis: { categories: reasons.map(r => r.reason),
+                            labels: { rotate: tilt ? -45 : 0, rotateAlways: tilt, trim: false, hideOverlappingLabels: false, maxHeight: 120,
+                                style: { colors: textColor, fontSize: '11px' }, formatter: v => clip(String(v)) },
+                            axisBorder: { show: false }, axisTicks: { show: false } },
+                        // Whole candidates only: one tick per integer while the counts are small.
+                        yaxis: { min: 0, ...(peak <= 5 ? { max: peak, tickAmount: peak } : { forceNiceScale: true }),
+                            labels: { style: { colors: textColor, fontSize: '11px' }, formatter: v => Math.round(v) } },
+                        grid: { borderColor: gridColor, strokeDashArray: 4 },
+                        dataLabels: { enabled: true, style: { fontSize: '11px', fontWeight: 700, colors: ['#fff'] }, background: { enabled: false } },
+                        legend: { show: false },
+                        tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: v => v + ' {% trans "candidate(s)"|escapejs %}' } },
+                    });
+                })
+                .catch(() => { el.innerHTML = emptyHtml('{% trans "Unable to load"|escapejs %}'); });
+            }
+            loadRejectionReasons();
+
             /* ===== legacy =====
             // ─── ONGOING RECRUITMENTS & MANAGERS ───
             function loadManagersTable() {
@@ -1765,6 +1899,8 @@
                 loadTalentPool();
                 loadHireRate();
                 loadJoinings();
+                loadRejectionReasons();
+                loadSourceConversion();
             }
 
         })();

@@ -360,6 +360,40 @@ def recruitment_managers_data(request):
     return JsonResponse({"recruitments": data})
 
 
+@login_required
+def recruitment_rejection_reasons(request):
+    """Rejected candidates grouped by rejection reason.
+
+    A candidate can be rejected for several reasons; they count once under each
+    (so the bars can add up to more than ``total``). Candidates rejected without
+    picking a reason are grouped under "No Reason".
+    """
+    if not _has_recruitment_permission(request):
+        return JsonResponse({"no_permission": True})
+    from recruitment.models import RejectedCandidate
+
+    rejected = RejectedCandidate.objects.filter(
+        candidate_id__canceled=True, candidate_id__is_active=True
+    )
+    reasons = [
+        {
+            "id": row["reject_reason_id"],
+            "reason": row["reject_reason_id__title"],
+            "count": row["count"],
+        }
+        for row in rejected.filter(reject_reason_id__isnull=False)
+        .values("reject_reason_id", "reject_reason_id__title")
+        .annotate(count=Count("candidate_id", distinct=True))
+        .order_by("-count", "reject_reason_id__title")
+    ]
+    no_reason = rejected.filter(reject_reason_id__isnull=True).count()
+    if no_reason:
+        reasons.append({"id": None, "reason": _("No Reason"), "count": no_reason})
+        reasons.sort(key=lambda r: -r["count"])
+
+    return JsonResponse({"reasons": reasons, "total": rejected.count()})
+
+
 # ===== legacy =====
 @login_required
 def recruitment_source_of_hire(request):
@@ -578,75 +612,54 @@ def recruitment_stage_conversion(request):
     )
 
 
-# ===== legacy =====
 @login_required
 def recruitment_source_conversion(request):
-    """Hire rate per candidate source."""
+    """Hire rate per candidate source.
+
+    The source is the application form's "How did you hear about us?" answer
+    (``Candidate.referral_source``); candidates that never answered it are
+    grouped under "Not Specified".
+    """
     if not _has_recruitment_permission(request):
         return JsonResponse({"no_permission": True})
-    from django.db.models import Q
+    from recruitment.models import Candidate
 
-    candidates = _candidates_in_period(request)
+    # This card has no period picker: count every active candidate unless the
+    # caller sends a period (_candidates_in_period would otherwise default to
+    # the current month, which is empty most of the time).
+    if request.GET.get("from_date") or request.GET.get("to_date"):
+        candidates = _candidates_in_period(request)
+    else:
+        candidates = Candidate.objects.filter(is_active=True)
 
-    sources = []
-    try:
-        source_choices = [
-            ("application", _("Application Form")),
-            ("software", _("Inside Software")),
-            ("other", _("Other")),
-        ]
-        for key, label in source_choices:
-            total = candidates.filter(source=key).count()
-            hired = (
-                candidates.filter(source=key)
-                .filter(Q(hired=True) | Q(stage_id__stage_type="hired"))
-                .distinct()
-                .count()
-            )
-            rate = round((hired / total * 100), 1) if total > 0 else 0
-            if total > 0:
-                sources.append(
-                    {"source": label, "total": total, "hired": hired, "rate": rate}
-                )
-        total_ref = candidates.filter(referral__isnull=False).count()
-        hired_ref = (
-            candidates.filter(referral__isnull=False)
-            .filter(Q(hired=True) | Q(stage_id__stage_type="hired"))
-            .distinct()
-            .count()
-        )
-        if total_ref > 0:
-            sources.append(
-                {
-                    "source": _("Referral"),
-                    "total": total_ref,
-                    "hired": hired_ref,
-                    "rate": round((hired_ref / total_ref * 100), 1),
-                }
-            )
+    labels = dict(Candidate.referral_source_choices)
+    totals = {}
+    for row in candidates.values("referral_source").annotate(
+        total=Count("id", distinct=True),
+        hired=Count(
+            "id",
+            filter=Q(hired=True) | Q(stage_id__stage_type="hired"),
+            distinct=True,
+        ),
+    ):
+        key = row["referral_source"] or "not_set"
+        bucket = totals.setdefault(key, {"total": 0, "hired": 0})
+        bucket["total"] += row["total"]
+        bucket["hired"] += row["hired"]
 
-        total_ns = candidates.filter(
-            Q(source__isnull=True) | Q(source=""), referral__isnull=True
-        ).count()
-        if total_ns > 0:
-            hired_ns = (
-                candidates.filter(
-                    Q(source__isnull=True) | Q(source=""), referral__isnull=True
-                )
-                .filter(Q(hired=True) | Q(stage_id__stage_type="hired"))
-                .distinct()
-                .count()
-            )
-            sources.append(
-                {
-                    "source": _("Not Specified"),
-                    "total": total_ns,
-                    "hired": hired_ns,
-                    "rate": round((hired_ns / total_ns * 100), 1),
-                }
-            )
-    except Exception:
-        pass
+    sources = [
+        {
+            "source": labels.get(key) or _("Not Specified"),
+            "key": key,
+            "total": b["total"],
+            "hired": b["hired"],
+            "rate": round(b["hired"] / b["total"] * 100, 1),
+        }
+        for key, b in totals.items()
+        if b["total"] > 0
+    ]
+    # Busiest source first; the unanswered ones last.
+    sources.sort(key=lambda x: (x["key"] == "not_set", -x["total"]))
     return JsonResponse({"sources": sources})
 
 

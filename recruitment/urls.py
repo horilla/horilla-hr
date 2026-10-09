@@ -1204,6 +1204,11 @@ urlpatterns = [
         name="recruitment-dashboard-source-conv",
     ),
     path(
+        "dashboard/api/rejection-reasons/",
+        rec_dashboard.recruitment_rejection_reasons,
+        name="recruitment-dashboard-rejection-reasons",
+    ),
+    path(
         "dashboard/api/joinings/",
         rec_dashboard.recruitment_joinings_monthly,
         name="recruitment-dashboard-joinings",
