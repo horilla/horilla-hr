@@ -551,3 +551,17 @@ body.dark .bg-gray-100 {
 body.dark .hover\:bg-gray-200:hover {
   background-color: #3a3a3a !important;
 }
+
+body.dark .select2-container--default .select2-results__option {
+  color: #dfdfdf;
+}
+body.dark .select2-container--default .select2-results__option--selected,
+body.dark .select2-container--default .select2-results__option[aria-selected="true"] {
+  background-color: #333333;
+  color: #ffffff;
+}
+body.dark .select2-container--default .select2-results__option--highlighted[aria-selected],
+body.dark .select2-container--default .select2-results__option--highlighted.select2-results__option--selectable {
+  background-color: rgba(229, 79, 56, 0.18) !important;
+  color: var(--primary-300, #fcedeb);
+}
