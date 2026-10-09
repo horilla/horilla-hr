@@ -378,7 +378,8 @@ class CurrencyWithoutSettingsTests(TestCase):
         from payroll.models.tax_models import PayrollSettings
 
         PayrollSettings._base_manager.all().delete()
-        self.assertEqual(currency_symbol_position("100.00"), "100.00 $")
+        # With no row at all the filter falls back to "$" in prefix position.
+        self.assertEqual(currency_symbol_position("100.00"), "$ 100.00")
 
     def test_it_uses_the_row_when_there_is_one(self):
         from base.templatetags.horillafilters import currency_symbol_position
