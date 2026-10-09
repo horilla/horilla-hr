@@ -3,6 +3,7 @@
 
 {% block content %}
     <script src="https://cdn.jsdelivr.net/npm/apexcharts@7.8.0/dist/apexcharts.min.js"></script>
+    {% include "components/legend_prefs.html" %}
     <style>
         :root {
             --md-indigo: var(--primary-600, #e54f38);
@@ -351,6 +352,10 @@
         .md-chart-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 24px rgba(0, 0, 0, 0.1);
+            /* The hover transform makes the card its own stacking layer, which a later card
+               paints over: a tall tooltip (Recruitment Pipeline Trend) was cut off by the card
+               below. Lift the hovered card above its neighbours. */
+            z-index: 20;
         }
         .dark .md-chart-card {
             border-color: rgba(255, 255, 255, 0.07);
@@ -411,6 +416,40 @@
             font-weight: 500;
             font-size: 11px;
             opacity: 0.45;
+        }
+
+        /* Small segmented switch in a chart card header (Overall / By Department). */
+        .md-chart-card__controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+        .md-seg {
+            display: inline-flex;
+            border: 1px solid rgba(128, 128, 128, 0.25);
+            border-radius: 999px;
+            padding: 2px;
+        }
+        .md-seg__btn {
+            border: 0;
+            background: none;
+            color: inherit;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 12px;
+            border-radius: 999px;
+            opacity: 0.6;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .md-seg[hidden], .md-pie-legend[hidden] { display: none; }
+        .md-seg__btn:hover { opacity: 1; }
+        .md-seg__btn.is-active {
+            background: var(--md-indigo);
+            color: #fff;
+            opacity: 1;
         }
 
         .md-chart-card__body {
@@ -1010,6 +1049,13 @@
         .md-tip__sub {
             font-weight: 400;
             opacity: 0.65;
+        }
+        .md-tip__note {
+            margin-top: 8px;
+            padding-top: 6px;
+            border-top: 1px solid rgba(128, 128, 128, 0.2);
+            font-size: 10px;
+            opacity: 0.6;
         }
 
         /* Icon-only button in a chart card header that opens the module's own dashboard */
@@ -2090,8 +2136,21 @@
                                         {% trans "New hires vs exits — last 6 months" %}
                                     </div>
                                 </div>
+                                <div class="md-chart-card__controls">
+                                    <div class="md-seg" id="turnover-measure" hidden>
+                                        <button type="button" class="md-seg__btn is-active" data-measure="hires">{% trans "New Hires" %}</button>
+                                        <button type="button" class="md-seg__btn" data-measure="exits">{% trans "Exits" %}</button>
+                                    </div>
+                                    <div class="md-seg" id="turnover-view">
+                                        <button type="button" class="md-seg__btn is-active" data-view="overall">{% trans "Overall" %}</button>
+                                        <button type="button" class="md-seg__btn" data-view="department">{% trans "By Department" %}</button>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="md-chart-card__body"><div id="chart-turnover"></div></div>
+                            <div class="md-chart-card__body">
+                                <div id="chart-turnover"></div>
+                                <div class="md-pie-legend" id="md-pie-legend-turnover" hidden></div>
+                            </div>
                         </div>
                     {% endif %}
 
@@ -2238,7 +2297,9 @@
             const TOOLTIP_STYLE = { theme: isDark ? 'dark' : 'light', style: { fontSize: '12px' } };
             // One tooltip card for every chart: bold title, then a coloured-dot row per value.
             const tipCard = (title, rows) => `<div class="md-tip"><div class="md-tip__title">${escHtml(title)}</div>`
-                + rows.map(r => `<div class="md-tip__row"${r.indent ? ' style="padding-left:14px;font-size:11px;opacity:.8"' : ''}><span class="md-tip__label">${r.color ? `<i class="md-tip__dot" style="background:${r.color}"></i>` : ''}${escHtml(r.label)}</span><span${r.total ? ' style="font-weight:700"' : ''}>${escHtml(String(r.value))}${r.sub ? ` <span class="md-tip__sub">${escHtml(r.sub)}</span>` : ''}</span></div>`).join('')
+                + rows.map(r => r.note
+                    ? `<div class="md-tip__note">${escHtml(r.note)}</div>`
+                    : `<div class="md-tip__row"${r.indent ? ' style="padding-left:14px;font-size:11px;opacity:.8"' : ''}><span class="md-tip__label">${r.color ? `<i class="md-tip__dot" style="background:${r.color}"></i>` : ''}${escHtml(r.label)}</span><span style="white-space:nowrap;flex-shrink:0${r.total ? ';font-weight:700' : ''}">${escHtml(String(r.value))}${r.sub ? ` <span class="md-tip__sub">${escHtml(r.sub)}</span>` : ''}</span></div>`).join('')
                 + '</div>';
             const stdTooltip = ({ unit = '', decimals = 0, rowLabel = '' } = {}) => ({
                 // fillSeriesColor off: a pie/donut tooltip is otherwise painted in the
@@ -2266,6 +2327,21 @@
             });
             const LEGEND_STYLE = { position: 'bottom', labels: { colors: textColor }, fontSize: '11px', fontWeight: 500, markers: { width: 8, height: 8, radius: 3 }, itemMargin: { horizontal: 8 } };
             const XAXIS_STYLE = { labels: { style: { colors: textColor, fontSize: '11px', fontWeight: 500 } }, axisBorder: { show: false }, axisTicks: { show: false } };
+            // Category axis for charts whose columns follow a legend. Names wrap onto
+            // lines while every column's slot is wide enough for the longest word. Once
+            // it isn't (many columns, or a narrow card / zoomed page) they would have to
+            // be tilted and cut short, which reads as clutter, so they are left off the
+            // axis: the legend chips name each column (same colours) and the tooltip
+            // carries the full name.
+            function categoryAxis(names, fontSize, chartEl) {
+                const px = parseInt(fontSize, 10) || 11;
+                const longestWord = Math.max(1, ...names.map(n => Math.max(...n.split(' ').map(w => w.length))));
+                const slot = ((chartEl && chartEl.clientWidth) || 600) - 50;   // minus the y-axis gutter
+                const many = names.length * (longestWord * px * 0.62 + 10) > slot;
+                return { ...XAXIS_STYLE, categories: many ? names : names.map(n => n.split(' ')), tooltip: { enabled: false },
+                    labels: { ...XAXIS_STYLE.labels, show: !many, rotate: many ? -50 : 0, rotateAlways: many, hideOverlappingLabels: false, trim: many, maxHeight: many ? 110 : 48,
+                        style: { ...XAXIS_STYLE.labels.style, fontSize: many ? '10px' : fontSize } } };
+            }
             const YAXIS_STYLE = { labels: { style: { colors: textColor, fontSize: '11px' } } };
             const STORAGE_KEY = 'md_dashboard_prefs_v3';
 
@@ -2978,12 +3054,13 @@
 
             // ─── Shared pie/donut legend ───
             // One row only: as many chips as fit, then a "+N" chip whose hover
-            // popover lists the rest with checkboxes. Every item starts selected
-            // (selectAll); pass selectAll: false to start with only the first `topN`.
-            // Unselected items are zeroed out of the series, so the canvas never
-            // carries extra labels.
+            // popover lists the rest with checkboxes. Every item starts selected, minus
+            // whatever the user unticked before (see LegendPrefs); pass selectAll: false (or
+            // initialCount: N) to start with only the first `topN` (N). Unselected items are
+            // zeroed out of the series, so the canvas never carries extra labels.
             const escHtml = (v) => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-            function createPieLegend({ el, chartKey, noun, topN = 5, maxChips = null, toSeries = null, onChange = null, selectAll = true }) {
+            function createPieLegend({ el, chartKey, noun, topN = 5, maxChips = null, toSeries = null, onChange = null, selectAll = true, initialCount = null }) {
+                const prefId = el.id || chartKey;
                 let items = [];
                 let selected = null;
                 const dot = (c) => `<span class="md-pie-chip__dot" style="background:${c}"></span>`;
@@ -3018,6 +3095,7 @@
                     } else {
                         selected.add(name);
                     }
+                    LegendPrefs.save(prefId, items.map(i => i.name), selected);
                     refreshState();
                     syncChart();
                 }
@@ -3057,8 +3135,7 @@
                     set(newItems) {
                         items = newItems;
                         const names = items.map(i => i.name);
-                        if (selected) selected = new Set([...selected].filter(n => names.includes(n)));
-                        if (!selected || !selected.size) selected = new Set(selectAll ? names : names.slice(0, topN));
+                        selected = LegendPrefs.initial(prefId, names, null, initialCount || (selectAll ? null : topN));
                         render();
                     },
                     series,
@@ -3226,6 +3303,9 @@
             function drawLeaveBreakdown() {
                 const names = new Set(leaveTypeLegend.selectedNames());
                 const shown = leaveTypeData.filter(b => names.has(b.type));
+                const leaveEl = document.querySelector("#chart-leave");
+                const leaveAxis = categoryAxis(shown.map(b => b.type), '10px', leaveEl);
+                const crowded = leaveAxis.labels.rotateAlways;   // names left off the axis: columns are narrow too
                 renderChart('leave-breakdown', document.querySelector("#chart-leave"), {
                     series: [
                         { name: '{% trans "Approved"|escapejs %}', data: shown.map(b => b.approved) },
@@ -3243,10 +3323,10 @@
                         }}
                     },
                     colors: LEAVE_STATUS_COLORS,
-                    plotOptions: { bar: { horizontal: false, columnWidth: '42%', borderRadius: 6, borderRadiusApplication: 'around', borderRadiusWhenStacked: 'all' } },
-                    stroke: { width: 3, colors: [cardBg] },
-                    xaxis: { ...XAXIS_STYLE, categories: shown.map(b => b.type.split(' ')), tooltip: { enabled: false },
-                        labels: { ...XAXIS_STYLE.labels, rotate: 0, rotateAlways: false, hideOverlappingLabels: false, trim: false, maxHeight: 48, style: { ...XAXIS_STYLE.labels.style, fontSize: '10px' } } },
+                    plotOptions: { bar: { horizontal: false, columnWidth: crowded ? '70%' : '42%', borderRadius: crowded ? 3 : 6, borderRadiusApplication: 'around', borderRadiusWhenStacked: 'all' } },
+                    // The card-coloured outline eats into narrow columns, so thin it out.
+                    stroke: { width: crowded ? 1 : 3, colors: [cardBg] },
+                    xaxis: leaveAxis,
                     yaxis: { min: 0, max: 100, tickAmount: 4, labels: { style: { colors: textColor, fontSize: '11px' }, formatter: v => Math.round(v) + '%' } },
                     grid: GRID,
                     dataLabels: { enabled: false },
@@ -3269,6 +3349,7 @@
                 chartKey: 'leave-breakdown',
                 noun: '{% trans "leave types"|escapejs %}',
                 onChange: drawLeaveBreakdown,
+                initialCount: 5,
             });
             function loadLeaveBreakdown() {
                 fetchP("{% url 'dashboard-leave-breakdown' %}")
@@ -3327,8 +3408,7 @@
                     colors: ['#22c55e', '#f59e0b', '#ef4444'],
                     fill: { type: 'gradient', gradient: { type: 'vertical', shadeIntensity: 0.25, opacityFrom: 1, opacityTo: 0.85 } },
                     plotOptions: { bar: { borderRadius: 6, borderRadiusApplication: 'end', columnWidth: '58%' } },
-                    xaxis: { ...XAXIS_STYLE, categories: data.dataSet.map(d => d.label.split(' ')),
-                        labels: { ...XAXIS_STYLE.labels, rotate: 0, rotateAlways: false, hideOverlappingLabels: false, trim: false, maxHeight: 48, style: { ...XAXIS_STYLE.labels.style, fontSize: '11px' } } },
+                    xaxis: categoryAxis(data.dataSet.map(d => d.label), '11px', document.querySelector("#chart-attendance-overview")),
                     yaxis: { min: 0, max: 100, tickAmount: 4, labels: { style: { colors: textColor, fontSize: '11px' }, formatter: v => Math.round(v) + '%' } },
                     grid: GRID,
                     dataLabels: { enabled: false },
@@ -3392,6 +3472,13 @@
                 const peak = Math.max(1, ...lines.flatMap(d => d.data));
                 const yStep = peak <= 8 ? 1 : Math.ceil(peak / 5);
                 const yMax = (Math.ceil(peak / yStep) + 1) * yStep;
+                // Monthly points are labelled "Jan 2026": twelve of those do not fit side by side
+                // and run into each other. Within one year just the month is enough (the card
+                // names the year); across years the year goes on a second line.
+                const MONTH_LABEL = /^([A-Za-z]{3,9})\.?\s+(\d{4})$/;
+                const monthMatches = leaveTrendData.labels.map(l => MONTH_LABEL.exec(String(l)));
+                const monthly = monthMatches.length > 0 && monthMatches.every(Boolean);
+                const spansYears = new Set(monthMatches.filter(Boolean).map(m => m[2])).size > 1;
                 renderChart('leave-trend', document.querySelector("#chart-leave-trend"), {
                     series: lines.map(d => ({ name: d.label, data: d.data })),
                     chart: { type: 'line', height: 300, toolbar: { show: false }, zoom: { enabled: false }, background: 'transparent', fontFamily: 'inherit',
@@ -3409,10 +3496,8 @@
                     dataLabels: { enabled: false },
                     legend: { show: false },
                     // A week reads "05 Oct - 11 Oct": split over two lines (start, then "– end") so every
-                    // label fits upright, instead of tilting and running off the chart's edges. A month
-                    // bucket ("Jan 2026") drops the year -- the subtitle already names it, and all 12
-                    // ticks sharing one calendar year made "Jan 2026".."Dec 2026" wide enough to overlap.
-                    xaxis: { ...XAXIS_STYLE, categories: leaveTrendData.labels.map(l => { const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(l); if (m) return `${+m[1]} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m[2] - 1]}`; const month = /^([A-Za-z]{3}) \d{4}$/.exec(l); if (month) return month[1]; const range = String(l).split(/\s+[-–]\s+/); return range.length === 2 ? [range[0], '– ' + range[1]] : l; }),
+                    // label fits upright, instead of tilting and running off the chart's edges.
+                    xaxis: { ...XAXIS_STYLE, categories: leaveTrendData.labels.map((l, i) => { if (monthly) return spansYears ? [monthMatches[i][1], monthMatches[i][2]] : monthMatches[i][1]; const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(l); if (m) return `${+m[1]} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m[2] - 1]}`; const range = String(l).split(/\s+[-–]\s+/); return range.length === 2 ? [range[0], '– ' + range[1]] : l; }),
                         labels: { ...XAXIS_STYLE.labels, rotate: 0, rotateAlways: false, hideOverlappingLabels: false, trim: false, maxHeight: 44, style: { ...XAXIS_STYLE.labels.style, fontSize: '10px' } } },
                     yaxis: { ...YAXIS_STYLE, min: 0, max: yMax, tickAmount: yMax / yStep, labels: { style: { colors: textColor, fontSize: '11px' }, formatter: v => Number.isInteger(+v) ? v : '' } },
                     grid: { ...GRID, padding: { left: 18, right: 22 } },
@@ -3421,7 +3506,8 @@
                         const rows = lines.map((d, i) => ({ color: d.color, label: d.label, value: series[i][dataPointIndex] + ' {% trans "leave(s)"|escapejs %}', n: series[i][dataPointIndex] }));
                         const total = rows.reduce((a, r) => a + r.n, 0);
                         const raw = (w.globals.categoryLabels && w.globals.categoryLabels[dataPointIndex]) || w.globals.labels[dataPointIndex] || '';
-                        const title = Array.isArray(raw) ? raw.join(' ') : raw;
+                        // Monthly axis labels drop the year; the tooltip keeps the full "Jan 2026".
+                        const title = monthly ? String(leaveTrendData.labels[dataPointIndex]) : (Array.isArray(raw) ? raw.join(' ') : raw);
                         return tipCard(title, [{ total: true, label: '{% trans "Total"|escapejs %}', value: total + ' {% trans "leave(s)"|escapejs %}' }, ...rows]);
                     } },
                 });
@@ -3466,9 +3552,9 @@
                 const names = new Set(pipelineLegend.selectedNames());
                 const recs = pipelineData.dataSet.filter(r => names.has(r.label));
                 renderChart('pipeline', document.querySelector("#chart-pipeline"), {
-                    // One thin column per recruitment inside every stage: y = share of that
-                    // recruitment's candidates sitting at the stage (each recruitment sums to 100%).
-                    series: recs.map(r => { const t = r.data.reduce((a, b) => a + b, 0); return { name: r.label, data: r.data.map(n => t ? Math.round(n / t * 1000) / 10 : 0) }; }),
+                    // One thin column per recruitment inside every stage: y = number of that
+                    // recruitment's candidates sitting at the stage.
+                    series: recs.map(r => ({ name: r.label, data: r.data })),
                     chart: { type: 'bar', height: 320, toolbar: { show: false }, zoom: { enabled: false }, background: 'transparent', fontFamily: 'inherit',
                         animations: { enabled: false },
                         events: {
@@ -3488,15 +3574,17 @@
                     plotOptions: { bar: { columnWidth: Math.min(70, 12 * Math.max(recs.length, 1) + 10) + '%', borderRadius: 4, borderRadiusApplication: 'end', dataLabels: { position: 'top' } } },
                     stroke: { show: true, width: 2, colors: ['transparent'] },
                     xaxis: { ...XAXIS_STYLE, categories: pipelineData.labels },
-                    // Scaled to the tallest column (capped at 100%) so small shares stay readable.
+                    // Scaled to the tallest column, on whole-number ticks so counts never show decimals.
                     yaxis: (() => {
-                        const peak = Math.max(1, ...recs.map(r => { const t = r.data.reduce((x, y) => x + y, 0); return t ? Math.max(...r.data) / t * 100 : 0; }));
-                        const max = Math.min(100, Math.max(10, Math.ceil(peak * 1.2 / 10) * 10));
-                        return { min: 0, max, tickAmount: max <= 50 ? max / 10 : 5,
-                            labels: { style: { colors: textColor, fontSize: '11px' }, formatter: v => Math.round(v) + '%' } };
+                        const peak = Math.max(1, ...recs.map(r => Math.max(0, ...r.data)));
+                        const step = Math.max(1, Math.ceil(peak * 1.15 / 5));
+                        return { min: 0, max: step * 5, tickAmount: 5,
+                            labels: { style: { colors: textColor, fontSize: '11px' }, formatter: v => Math.round(v) } };
                     })(),
                     grid: GRID,
-                    dataLabels: { enabled: true, offsetY: -18, style: { fontSize: '10px', fontWeight: 600, colors: [textColor] }, formatter: v => v ? Math.round(v) + '%' : '' },
+                    // No counts printed above the bars: with several recruitments per stage they
+                    // crowd each other; the hover popup carries the numbers.
+                    dataLabels: { enabled: false },
                     states: { hover: { filter: { type: 'none' } } },
                     legend: { show: false },
                     // Fixed to the chart's top-right rather than following the pointer. This
@@ -3509,11 +3597,16 @@
                         const rows = [];
                         let total = 0;
                         const POSITIONS_SHOWN = 2;
-                        recs.forEach((r) => {
+                        // Only recruitments that have candidates at this stage, busiest first; the
+                        // rest are folded into one line so the card stays shorter than the chart.
+                        const RECRUITMENTS_SHOWN = 5;
+                        const here = recs.filter(r => r.data[dataPointIndex] > 0)
+                            .sort((a, b) => b.data[dataPointIndex] - a.data[dataPointIndex]);
+                        here.forEach(r => { total += r.data[dataPointIndex]; });
+                        here.slice(0, RECRUITMENTS_SHOWN).forEach((r) => {
                             const n = r.data[dataPointIndex];
                             const t = r.data.reduce((a, b) => a + b, 0);
-                            total += n;
-                            rows.push({ color: pipelineColor(r.label), label: r.label, value: n + ' {% trans "candidates"|escapejs %}', sub: t ? '(' + Math.round(n / t * 100) + '%)' : '(0%)' });
+                            rows.push({ color: pipelineColor(r.label), label: r.label, value: n, sub: t ? '(' + Math.round(n / t * 100) + '%)' : '(0%)' });
                             // Busiest job positions first, the rest folded into one line.
                             const atStage = (r.positions || []).filter(pos => pos.data[dataPointIndex] > 0)
                                 .sort((a, b) => b.data[dataPointIndex] - a.data[dataPointIndex]);
@@ -3523,6 +3616,11 @@
                                 rows.push({ indent: true, label: '+' + (atStage.length - POSITIONS_SHOWN) + ' {% trans "more positions"|escapejs %}', value: rest });
                             }
                         });
+                        if (here.length > RECRUITMENTS_SHOWN) {
+                            const rest = here.slice(RECRUITMENTS_SHOWN).reduce((sum, r) => sum + r.data[dataPointIndex], 0);
+                            rows.push({ label: '+' + (here.length - RECRUITMENTS_SHOWN) + ' {% trans "more recruitments"|escapejs %}', value: rest });
+                        }
+                        rows.push({ note: '{% trans "Figure: candidates at this stage. In brackets: their share of all active candidates in that recruitment."|escapejs %}' });
                         return tipCard(pipelineData.labels[dataPointIndex] || '', [{ total: true, label: '{% trans "Total candidates"|escapejs %}', value: total }, ...rows]);
                     } },
                 });
@@ -3548,7 +3646,7 @@
                     if (!data.dataSet || !data.dataSet.length) { document.querySelector("#chart-pipeline").innerHTML = emptyHtml('{% trans "No active recruitments"|escapejs %}'); pipelineLegend.clear(); return; }
                     try {
                         pipelineData = data;
-                        document.getElementById('pipeline-subtitle').textContent = '{% trans "All open recruitments"|escapejs %} (' + data.open_recruitments + ') — {% trans "% of each recruitment's active candidates at each stage, not affected by the date filter"|escapejs %}';
+                        document.getElementById('pipeline-subtitle').textContent = '{% trans "All open recruitments"|escapejs %} (' + data.open_recruitments + ') — {% trans "number of each recruitment's active candidates at each stage, not affected by the date filter"|escapejs %}';
                         // Busiest recruitments first, so the default top 5 are the ones with most candidates.
                         const total = (r) => r.data.reduce((a, b) => a + b, 0);
                         pipelineData.dataSet.sort((a, b) => total(b) - total(a));
@@ -3754,15 +3852,124 @@
 
             {% if perms.employee.view_employee or request.user.is_superuser %}
             // ─── EMPLOYEE TURNOVER ───
+            let turnoverData = null;
+            let turnoverView = 'overall';   // 'overall' | 'department'
+            let turnoverMeasure = 'hires';  // department view only: 'hires' | 'exits'
+            const turnoverDeptColor = (name) => deptColor(Math.max(0, turnoverData.departments.findIndex(d => d.name === name)));
+            const turnoverLegend = createPieLegend({
+                el: document.getElementById('md-pie-legend-turnover'),
+                chartKey: 'turnover',
+                noun: '{% trans "departments"|escapejs %}',
+                onChange: () => drawTurnoverDepartments(),
+            });
+            const turnoverLabel = (measure) => measure === 'hires' ? '{% trans "New Hires"|escapejs %}' : '{% trans "Exits"|escapejs %}';
+
+            // One stacked column per month, one segment per department, for the chosen measure.
+            function drawTurnoverDepartments() {
+                const data = turnoverData;
+                const names = new Set(turnoverLegend.selectedNames());
+                const shown = data.departments.filter(d => names.has(d.name));
+                const measure = turnoverMeasure;
+                const labels = data.months.map(m => m.month);
+                const monthTotals = labels.map((_, m) => shown.reduce((a, d) => a + d[measure][m], 0));
+                const peak = Math.max(0, ...monthTotals);
+                // Whole people only: one tick per integer while the counts are small.
+                const yaxis = peak <= 5
+                    ? { min: 0, max: Math.max(peak, 1), tickAmount: Math.max(peak, 1) }
+                    : { min: 0, forceNiceScale: true };
+                renderChart('turnover', document.querySelector("#chart-turnover"), {
+                    series: shown.map(d => ({ name: d.name, data: d[measure] })),
+                    chart: { type: 'bar', stacked: true, height: 290, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', animations: ANIM,
+                        events: { dataPointSelection: (e, ctx, config) => {
+                            const m = data.months[config.dataPointIndex];
+                            const dept = shown[config.seriesIndex];
+                            // "No Department" has no id to filter on, so it cannot drill down.
+                            if (!m || !m.from || !dept || dept.id == null || !PERM.employee) return;
+                            const range = measure === 'hires'
+                                ? "joined_from=" + m.from + "&joined_till=" + m.to
+                                : "exited_from=" + m.from + "&exited_till=" + m.to;
+                            window.location.href = "{% url 'employee-view' %}?is_active=all&" + range
+                                + "&employee_work_info__department_id=" + dept.id + "&filter_applied=on";
+                        } } },
+                    colors: shown.map(d => turnoverDeptColor(d.name)),
+                    plotOptions: { bar: { borderRadius: 6, borderRadiusApplication: 'end', borderRadiusWhenStacked: 'last', columnWidth: '52%' } },
+                    stroke: { width: 2, colors: [cardBg] },
+                    xaxis: { ...XAXIS_STYLE, categories: labels },
+                    yaxis: { ...YAXIS_STYLE, ...yaxis, labels: { ...YAXIS_STYLE.labels, formatter: v => Math.round(v) } },
+                    grid: GRID,
+                    dataLabels: { enabled: false },
+                    legend: { show: false },
+                    tooltip: { ...TOOLTIP_STYLE, shared: true, intersect: false, custom: ({ dataPointIndex }) => {
+                        const rows = shown.map(d => ({ color: turnoverDeptColor(d.name), label: d.name, n: d[measure][dataPointIndex] })).filter(r => r.n > 0);
+                        const total = rows.reduce((a, r) => a + r.n, 0);
+                        return tipCard(labels[dataPointIndex] || '', [
+                            { total: true, label: turnoverLabel(measure), value: total },
+                            ...rows.map(r => ({ color: r.color, label: r.label, value: r.n, sub: total ? '(' + Math.round(r.n / total * 100) + '%)' : '' })),
+                        ]);
+                    } },
+                    states: { hover: { filter: { type: 'darken', value: 0.9 } } },
+                });
+            }
+
+            // Switch between the overall bars and the department breakdown.
+            function showTurnover() {
+                const data = turnoverData;
+                if (!data) return;
+                const rateEl = document.getElementById('turnover-rate');
+                const legendEl = document.getElementById('md-pie-legend-turnover');
+                const dept = turnoverView === 'department';
+                document.getElementById('turnover-measure').hidden = !dept;
+                legendEl.hidden = !dept;
+                document.querySelectorAll('#turnover-view .md-seg__btn').forEach(b => b.classList.toggle('is-active', b.dataset.view === turnoverView));
+                document.querySelectorAll('#turnover-measure .md-seg__btn').forEach(b => b.classList.toggle('is-active', b.dataset.measure === turnoverMeasure));
+                if (!dept) {
+                    turnoverLegend.clear();
+                    rateEl.textContent = `{% trans "6-month turnover rate"|escapejs %}: ${data.turnover_rate_6m}%`;
+                    rateEl.title = `${data.turnover_formula}\n= ${data.turnover_exits_6m} ÷ ${data.turnover_headcount} × 100 = ${data.turnover_rate_6m}%`;
+                    drawTurnoverOverall(data);
+                    return;
+                }
+                rateEl.textContent = turnoverLabel(turnoverMeasure) + ' {% trans "by department — last 6 months"|escapejs %}';
+                rateEl.title = '';
+                const totalOf = (d) => d[turnoverMeasure].reduce((a, b) => a + b, 0);
+                const depts = (data.departments || []).filter(d => totalOf(d) > 0);
+                if (!depts.length) {
+                    turnoverLegend.clear();
+                    if (chartInstances['turnover']) { chartInstances['turnover'].destroy(); chartInstances['turnover'] = null; }
+                    document.querySelector("#chart-turnover").innerHTML = emptyHtml('{% trans "No data"|escapejs %}');
+                    return;
+                }
+                // Legend colours and order follow the full list, so a department keeps
+                // its colour when the measure switches.
+                turnoverLegend.set(depts.map(d => ({ name: d.name, value: totalOf(d), color: turnoverDeptColor(d.name),
+                    detail: totalOf(d) + ' ' + (turnoverMeasure === 'hires' ? '{% trans "hires"|escapejs %}' : '{% trans "exits"|escapejs %}') })));
+                // set() does not redraw by itself. Only departments with data are in the
+                // legend, so drawTurnoverDepartments() filtering by it drops the empty ones.
+                drawTurnoverDepartments();
+            }
+            document.getElementById('turnover-view')?.addEventListener('click', (e) => {
+                const b = e.target.closest('[data-view]');
+                if (!b || b.dataset.view === turnoverView) return;
+                turnoverView = b.dataset.view;
+                showTurnover();
+            });
+            document.getElementById('turnover-measure')?.addEventListener('click', (e) => {
+                const b = e.target.closest('[data-measure]');
+                if (!b || b.dataset.measure === turnoverMeasure) return;
+                turnoverMeasure = b.dataset.measure;
+                showTurnover();
+            });
+
             function loadEmployeeTurnover() {
-                fetchP("{% url 'dashboard-turnover' %}")
+                fetchP("{% url 'dashboard-turnover' %}?group=department")
                 .then(r => r.json())
                 .then(data => {
                     if (!data.months.length) { document.querySelector("#chart-turnover").innerHTML = emptyHtml('{% trans "No data"|escapejs %}'); return; }
-                    const rateEl = document.getElementById('turnover-rate');
-                    const rateTxt = `{% trans "6-month turnover rate"|escapejs %}: ${data.turnover_rate_6m}%`;
-                    rateEl.textContent = rateTxt;
-                    rateEl.title = `${data.turnover_formula}\n= ${data.turnover_exits_6m} ÷ ${data.turnover_headcount} × 100 = ${data.turnover_rate_6m}%`;
+                    turnoverData = data;
+                    showTurnover();
+                }).catch(() => { document.querySelector("#chart-turnover").innerHTML = emptyHtml('{% trans "No turnover data"|escapejs %}'); });
+            }
+            function drawTurnoverOverall(data) {
                     renderChart('turnover', document.querySelector("#chart-turnover"), {
                         series: [
                             { name: '{% trans "New Hires"|escapejs %}', data: data.months.map(m => m.hires) },
@@ -3796,7 +4003,6 @@
                         tooltip: stdTooltip(),
                         states: { hover: { filter: { type: 'darken', value: 0.85 } } },
                     });
-                }).catch(() => { document.querySelector("#chart-turnover").innerHTML = emptyHtml('{% trans "No turnover data"|escapejs %}'); });
             }
             loadEmployeeTurnover();
             {% endif %}
