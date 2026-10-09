@@ -3,6 +3,7 @@
 
 {% block content %}
     <script src="https://cdn.jsdelivr.net/npm/apexcharts@7.8.0/dist/apexcharts.min.js"></script>
+    {% include "components/legend_prefs.html" %}
     <style>
         #chart-absenteeism .apexcharts-bar-area {
             cursor: pointer;
@@ -328,10 +329,11 @@
         }
 
         .am-chart-card__body--tight {
-            height: 320px;
+            /* Grows with the chart: with many shifts the names run vertically and need
+               extra room below the columns, which a fixed height turned into a scrollbar. */
+            min-height: 320px;
             padding: 0 4px 6px;
             overflow-x: hidden;
-            overflow-y: auto;
         }
         .am-dimension-select {
             appearance: none;
@@ -897,8 +899,21 @@
         .am-chart-card__body > [id^="chart-"] { min-height: 0 !important; }
         .am-chart-card__body > .md-pie-legend { padding-top: 0; margin-top: 0; }
         /* Status key above the chart, top right (same place as the main dashboard's). */
-        .am-status-key { display: flex; justify-content: flex-end; gap: 6px; padding: 0 4px 6px; }
-        .am-status-key .md-pie-chip { cursor: default; }
+        /* One row, always. The chips are compact and may shrink (the text ellipsises only
+           as a last resort), so the row never runs off the card's left edge, which clipped
+           the first chip ("90% or more") when it could not shrink. */
+        .am-status-key { display: flex; flex-wrap: nowrap; justify-content: flex-end; gap: 4px; padding: 0 4px 6px; min-width: 0; }
+        .am-status-key .md-pie-chip {
+            cursor: default;
+            flex: 0 1 auto;
+            min-width: 0;
+            gap: 5px;
+            padding: 2px 8px;
+            font-size: 10px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .am-status-key .md-pie-chip__dot { width: 7px; height: 7px; }
         .am-status-key .md-pie-chip:hover { border-color: rgba(128, 128, 128, 0.2); }
         .md-pie-chip__name {
             max-width: 130px;
@@ -2337,6 +2352,13 @@
                 maxChips: 50,
                 onChange: () => loadHoursDistribution(hoursRaw),
             });
+            // Re-fit the department names when the window is resized (see fitAxisLabels,
+            // shared with the Avg Working Hours chart).
+            let hoursResizeTimer = null;
+            window.addEventListener("resize", () => {
+                clearTimeout(hoursResizeTimer);
+                hoursResizeTimer = setTimeout(() => { if (hoursRaw) loadHoursDistribution(hoursRaw); }, 200);
+            });
             function loadHoursDistribution(cached) {
                 (cached ? Promise.resolve(cached) : fetchP("{% url 'attendance-dashboard-hours' %}").then((r) => r.json()))
                     .then((raw) => {
@@ -2356,6 +2378,11 @@
                         }
                         const picked = new Set(hoursLegend.selectedNames());
                         data.departments = raw.departments.filter((d) => picked.has(d.department));
+                        const fit = fitAxisLabels(
+                            document.querySelector("#chart-hours"),
+                            data.departments.map((d) => d.department),
+                            Math.max(...data.departments.map((d) => d.pending_hours)).toFixed(1) + "h",
+                        );
                         renderChart(
                             "hours",
                             document.querySelector("#chart-hours"),
@@ -2370,7 +2397,8 @@
                                 ],
                                 chart: {
                                     type: "bar",
-                                    height: 300,
+                                    // Taller by whatever the tilted names need beyond two wrapped lines.
+                                    height: 300 + Math.max(0, fit.band - 48),
                                     toolbar: { show: false },
                                     background: "transparent",
                                     fontFamily: "inherit",
@@ -2416,12 +2444,20 @@
                                 },
                                 xaxis: {
                                     ...XAXIS_STYLE,
-                                    // Names wrap onto two lines instead of tilting, so they
-                                    // never run into the chips below.
-                                    categories: data.departments.map(
-                                        (d) => d.department.split(" "),
+                                    // Few departments: names wrap onto lines. Many: full names
+                                    // tilted, so they never run into each other or the chips.
+                                    categories: data.departments.map((d) =>
+                                        fit.mode === "wrap" ? d.department.split(" ") : d.department,
                                     ),
-                                    labels: { ...XAXIS_STYLE.labels, rotate: 0, rotateAlways: false, hideOverlappingLabels: false, trim: false, maxHeight: 48 },
+                                    labels: {
+                                        ...XAXIS_STYLE.labels,
+                                        rotate: fit.rotate,
+                                        rotateAlways: fit.mode !== "wrap",
+                                        hideOverlappingLabels: false,
+                                        trim: false,
+                                        maxHeight: fit.band,
+                                        ...(fit.mode === "wrap" ? {} : { formatter: (v) => fit.truncate(String(v)) }),
+                                    },
                                 },
                                 yaxis: {
                                     ...YAXIS_STYLE,
@@ -2434,7 +2470,8 @@
                                 },
                                 grid: GRID,
                                 dataLabels: {
-                                    enabled: true,
+                                    // Columns too narrow for "31.3h" would clip it; the tooltip has the value.
+                                    enabled: fit.showValues,
                                     formatter: (v) => (parseFloat(v) || 0).toFixed(1) + "h",
                                     style: {
                                         fontSize: "11px",
@@ -2601,11 +2638,12 @@
                 + '</div>';
             // ─── Shared pie/donut legend ───
             // One row only: as many chips as fit, then a "+N" chip whose hover
-            // popover lists the rest with checkboxes. The first `topN` items start
-            // selected; everything else starts unselected. Unselected items are
+            // popover lists the rest with checkboxes. Every item starts selected, minus
+            // whatever the user unticked before (see LegendPrefs). Unselected items are
             // zeroed out of the series, so the canvas never carries extra labels.
             const escHtml = (v) => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
             function createPieLegend({ el, chartKey, noun, topN = 5, maxChips = null, toSeries = null, onChange = null }) {
+                const prefId = el.id || chartKey;
                 let items = [];
                 let selected = null;
                 const dot = (c) => `<span class="md-pie-chip__dot" style="background:${c}"></span>`;
@@ -2640,6 +2678,7 @@
                     } else {
                         selected.add(name);
                     }
+                    LegendPrefs.save(prefId, items.map(i => i.name), selected);
                     refreshState();
                     syncChart();
                 }
@@ -2679,8 +2718,7 @@
                     set(newItems) {
                         items = newItems;
                         const names = items.map(i => i.name);
-                        if (selected) selected = new Set([...selected].filter(n => names.includes(n)));
-                        if (!selected || !selected.size) selected = new Set(names);  // every item starts ticked; topN only sets how many chips fit
+                        selected = LegendPrefs.initial(prefId, names);
                         render();
                     },
                     series,
@@ -2716,11 +2754,20 @@
                 const axisMax = cfg.fitAxis
                     ? Math.min(100, Math.max(10, Math.ceil((maxRate * 1.2) / 10) * 10))
                     : 100;
+                // Many groups (e.g. dozens of shifts): name them tilted/vertical with room
+                // reserved below, and drop the on-bar values that would overlap (the
+                // tooltip carries them). See fitAxisLabels.
+                const fit = fitAxisLabels(
+                    el,
+                    items.map((d) => String(d[cfg.labelKey])),
+                    Math.max(...items.map((d) => d.rate), 0) + "%",
+                );
                 renderChart(cfg.key, el, {
                     series: [{ name: cfg.seriesName, data: items.map((d) => d.rate) }],
                     chart: {
                         type: "bar",
-                        height: 250,
+                        // Taller by whatever the names need beyond two wrapped lines.
+                        height: 250 + Math.max(0, fit.band - 48),
                         toolbar: { show: false },
                         background: "transparent",
                         fontFamily: "inherit",
@@ -2752,12 +2799,17 @@
                     },
                     xaxis: {
                         ...XAXIS_STYLE,
-                        categories: items.map((d) => d[cfg.labelKey]),
+                        categories: items.map((d) =>
+                            fit.mode === "wrap" ? String(d[cfg.labelKey]).split(" ") : String(d[cfg.labelKey]),
+                        ),
                         labels: {
-                            rotate: 0,
-                            trim: true,
-                            hideOverlappingLabels: true,
+                            rotate: fit.rotate,
+                            rotateAlways: fit.mode !== "wrap",
+                            trim: false,
+                            hideOverlappingLabels: fit.thin,
+                            maxHeight: fit.band,
                             style: { colors: items.map(() => textColor), fontSize: "11px", fontWeight: 500 },
+                            ...(fit.mode === "wrap" ? {} : { formatter: (v) => fit.truncate(String(v)) }),
                         },
                     },
                     yaxis: {
@@ -2766,9 +2818,10 @@
                         tickAmount: axisMax <= 20 ? axisMax / 5 : 5,
                         labels: { style: { colors: textColor, fontSize: "11px" }, formatter: (v) => Math.round(v) + "%" },
                     },
-                    grid: GRID,
+                    // Headroom so a label above a full-height column is not cut off.
+                    grid: { ...GRID, padding: { ...(GRID.padding || {}), top: fit.showValues ? 20 : 0 } },
                     dataLabels: {
-                        enabled: true,
+                        enabled: fit.showValues,
                         offsetY: -18,
                         formatter: (v) => v + "%",
                         style: { fontSize: "11px", fontWeight: 600, colors: [textColor] },
@@ -2790,6 +2843,13 @@
                     states: { hover: { filter: { type: "darken", value: 0.85 } } },
                 });
             }
+            let rateResizeTimer = null;
+            window.addEventListener("resize", () => {
+                clearTimeout(rateResizeTimer);
+                rateResizeTimer = setTimeout(() => {
+                    Object.keys(rateState).forEach((key) => drawRateChart(key));
+                }, 200);
+            });
             function loadRateChart(cfg) {
                 cfg.filterParam = RATE_FILTER_PARAMS[cfg.dimension];
                 const el = document.querySelector(cfg.el);
@@ -2915,6 +2975,49 @@
                 onChange: () => loadAvgHours(avgHoursRaw),
             });
             const avgHoursColor = (h) => (h >= 8 ? "#22c55e" : h >= 6 ? "#f59e0b" : "#ef4444");
+
+            // Decide how the department names go under their columns, from the real
+            // width each column gets (measured with the chart's own font), so names
+            // never run into each other however many departments are showing:
+            //   wrap     - every column is wide enough for its longest word: names wrap
+            //              onto lines, horizontal.
+            //   tilt     - otherwise full names at -45 degrees, with room reserved below.
+            //   vertical - columns narrower still: names at -90 degrees.
+            // Very long names are cut with an ellipsis (the tooltip has the full name).
+            function fitAxisLabels(el, names, valueText) {
+                const ctx = (fitAxisLabels.ctx = fitAxisLabels.ctx || document.createElement("canvas").getContext("2d"));
+                const family = getComputedStyle(el).fontFamily || "sans-serif";
+                ctx.font = "500 11px " + family;
+                const width = (t) => ctx.measureText(t).width;
+                const plot = Math.max(200, (el.clientWidth || 800) - 70); // minus the y-axis gutter
+                const slot = plot / Math.max(names.length, 1);
+                const widestWord = Math.max(...names.map((n) => Math.max(...n.split(" ").map(width))));
+                let mode = "wrap", rotate = 0, band = 48, maxPx = Infinity;
+                if (slot < widestWord + 8) {
+                    mode = slot >= 22 ? "tilt" : "vertical";
+                    rotate = mode === "tilt" ? -45 : -90;
+                    maxPx = mode === "tilt" ? 170 : 120;
+                    const widest = Math.min(maxPx, Math.max(...names.map(width)));
+                    band = Math.ceil(mode === "tilt" ? widest * 0.71 + 14 : widest + 10);
+                }
+                ctx.font = "700 11px " + family;
+                const showValues = slot * 0.55 >= width(valueText) + 6;
+                const truncate = (t) => {
+                    ctx.font = "500 11px " + family;
+                    if (width(t) <= maxPx) return t;
+                    while (t.length > 1 && width(t + "\u2026") > maxPx) t = t.slice(0, -1);
+                    return t + "\u2026";
+                };
+                // Even vertical names need ~14px a column; below that, let ApexCharts
+                // thin the names out instead of stacking them on top of each other.
+                return { mode, rotate, band, truncate, showValues, thin: slot < 14 };
+            }
+            let avgHoursResizeTimer = null;
+            window.addEventListener("resize", () => {
+                clearTimeout(avgHoursResizeTimer);
+                avgHoursResizeTimer = setTimeout(() => { if (avgHoursRaw) loadAvgHours(avgHoursRaw); }, 200);
+            });
+
             function loadAvgHours(cached) {
                 (cached ? Promise.resolve(cached) : fetchP("{% url 'attendance-dashboard-avg-hours' %}").then((r) => r.json()))
                     .then((raw) => {
@@ -2936,6 +3039,11 @@
                         }
                         const picked = new Set(avgHoursLegend.selectedNames());
                         data.departments = raw.departments.filter((d) => picked.has(d.department));
+                        const fit = fitAxisLabels(
+                            document.querySelector("#chart-avg-hours"),
+                            data.departments.map((d) => d.department),
+                            Math.max(...data.departments.map((d) => d.avg_hours_per_day)) + "h",
+                        );
                         renderChart(
                             "avg-hours",
                             document.querySelector("#chart-avg-hours"),
@@ -2950,7 +3058,8 @@
                                 ],
                                 chart: {
                                     type: "bar",
-                                    height: 300,
+                                    // Taller by whatever the tilted names need beyond two wrapped lines.
+                                    height: 300 + Math.max(0, fit.band - 48),
                                     toolbar: { show: false },
                                     background: "transparent",
                                     fontFamily: "inherit",
@@ -3003,12 +3112,20 @@
                                 },
                                 xaxis: {
                                     ...XAXIS_STYLE,
-                                    // Names wrap onto two lines instead of tilting, so they
-                                    // never run into the chips below.
-                                    categories: data.departments.map(
-                                        (d) => d.department.split(" "),
+                                    // Few departments: names wrap onto lines. Many: full names
+                                    // tilted, so they never run into each other or the chips.
+                                    categories: data.departments.map((d) =>
+                                        fit.mode === "wrap" ? d.department.split(" ") : d.department,
                                     ),
-                                    labels: { ...XAXIS_STYLE.labels, rotate: 0, rotateAlways: false, hideOverlappingLabels: false, trim: false, maxHeight: 48 },
+                                    labels: {
+                                        ...XAXIS_STYLE.labels,
+                                        rotate: fit.rotate,
+                                        rotateAlways: fit.mode !== "wrap",
+                                        hideOverlappingLabels: false,
+                                        trim: false,
+                                        maxHeight: fit.band,
+                                        ...(fit.mode === "wrap" ? {} : { formatter: (v) => fit.truncate(String(v)) }),
+                                    },
                                 },
                                 yaxis: {
                                     ...YAXIS_STYLE,
@@ -3019,7 +3136,8 @@
                                 },
                                 grid: GRID,
                                 dataLabels: {
-                                    enabled: true,
+                                    // Columns too narrow for "8.6h" would clip it; the tooltip has the value.
+                                    enabled: fit.showValues,
                                     formatter: (v) => v + "h",
                                     style: {
                                         fontSize: "11px",
