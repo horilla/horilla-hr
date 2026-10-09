@@ -377,13 +377,13 @@ class CurrencyWithoutSettingsTests(TestCase):
         from base.templatetags.horillafilters import currency_symbol_position
         from payroll.models.tax_models import PayrollSettings
 
-        PayrollSettings.objects.all().delete()
+        PayrollSettings._base_manager.all().delete()
         self.assertEqual(currency_symbol_position("100.00"), "100.00 $")
 
     def test_it_uses_the_row_when_there_is_one(self):
         from base.templatetags.horillafilters import currency_symbol_position
         from payroll.models.tax_models import PayrollSettings
 
-        PayrollSettings.objects.all().delete()
+        PayrollSettings._base_manager.all().delete()
         PayrollSettings.objects.create(currency_symbol="€", position="prefix")
         self.assertEqual(currency_symbol_position("100.00"), "€ 100.00")
