@@ -48,21 +48,22 @@
                         <!-- File Upload -->
                         <label
                             for="resumeUpload{{ view_id }}"
-                            class="bg-white flex flex-col items-center justify-center w-full h-[7rem] mb-4 border-2 border-dashed border-[#d5d5d5] rounded-lg cursor-pointer hover:border-gray-400 transition"
+                            id="importDrop{{ view_id }}"
+                            class="relative bg-gray-50 flex flex-col items-center justify-center w-full h-[6.5rem] mb-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-brand-600 hover:bg-brand-50 transition"
                         >
                             <div class="flex flex-col items-center justify-center">
-                                <i class="fa-solid fa-file-pdf text-xl mb-2 text-gray-500"></i>
+                                <ion-icon name="cloud-upload-outline" class="text-4xl mb-2 text-brand-600"></ion-icon>
                                 <p class="text-sm font-semibold text-gray-700 mb-1 px-5 text-center">
                                     {% trans "Upload a File" %}
                                 </p>
                                 <p class="text-xs text-[#9e9e9e]">
-                                    {% trans "Click Here or Drag and drop your file here" %}
+                                    {% trans "Drag and drop files here" %}
                                 </p>
                             </div>
                             <input
                                 required
                                 id="resumeUpload{{ view_id }}"
-                                class="opacity-0"
+                                class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                 type="file"
                                 name="file"
                                 required
@@ -70,8 +71,8 @@
                         </label>
 
                         <!-- PDF Preview (Optional) -->
-                        <div id="pdfPreview{{ view_id }}" class="mt-4 text-sm text-gray-600 hidden mb-2">
-                            <i class="fa-solid fa-file-pdf text-red-500 mr-2"></i>
+                        <div id="pdfPreview{{ view_id }}" class="text-sm text-gray-700 hidden mb-2 flex items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
+                            <ion-icon name="document-text-outline" class="text-brand-600 text-lg"></ion-icon>
                             <span id="pdfFileName{{ view_id }}"></span>
                         </div>
 
@@ -92,11 +93,14 @@
                         {% endif %}
 
                         <!-- Footer Actions -->
-                        <div class="flex gap-1 justify-between pt-5 mt-5 border-t border-[#00000027]">
-                            <a
-                                onclick="$('#submitGetImportSheet{{ view_id }}').click()"
-                                class="px-4 py-2 border border-brand-600 text-brand-600 rounded-md text-xs flex items-center gap-2 hover:text-white hover:bg-brand-800 transition duration-300"
-                            ><i class="fa-solid fa-cloud-arrow-down pe-1"></i>{% trans "Download Template" %}</a>
+                        <div class="flex items-center gap-3">
+                        <a
+                            onclick="$('#submitGetImportSheet{{ view_id }}').click()"
+                            class="shrink-0 px-4 py-2 border border-brand-600 text-brand-600 rounded-md text-xs flex items-center gap-2 hover:text-white hover:bg-brand-800 transition duration-300 cursor-pointer"
+                        ><ion-icon name="cloud-download-outline" style="font-size:16px;"></ion-icon>{% trans "Download Template" %}</a>
+                        <p class="text-xs text-gray-500">{% trans "Fill in the template and upload it here." %}</p>
+                        </div>
+                        <div class="flex justify-end pt-4 mt-4 border-t border-gray-200">
                             <button
                                 onclick="if($('#resumeUpload{{ view_id }}').val()){
                   $('#uploading{{view_id}}').show();
@@ -108,7 +112,7 @@
                                 type="submit"
                                 class="px-4 py-2 bg-brand-600 text-white rounded-md text-xs flex items-center gap-2 hover:bg-brand-800 transition duration-300"
                             >
-                                Upload
+                                <ion-icon name="cloud-upload-outline" style="font-size:16px;"></ion-icon>{% trans "Upload" %}
                             </button>
                         </div>
                     </form>
@@ -129,6 +133,23 @@
     </div>
     <script>
         // Optional: PDF name preview (only if you want to show filename)
+        (function () {
+            var drop = document.getElementById("importDrop{{ view_id }}");
+            var input = document.getElementById("resumeUpload{{ view_id }}");
+            if (!drop || !input) return;
+            ["dragenter", "dragover"].forEach(function (ev) {
+                drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add("border-brand-600", "bg-brand-50"); });
+            });
+            ["dragleave", "drop"].forEach(function (ev) {
+                drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove("border-brand-600", "bg-brand-50"); });
+            });
+            drop.addEventListener("drop", function (e) {
+                if (e.dataTransfer && e.dataTransfer.files.length) {
+                    input.files = e.dataTransfer.files;
+                    input.dispatchEvent(new Event("change"));
+                }
+            });
+        })();
         document.getElementById("resumeUpload{{ view_id }}").addEventListener("change", function (e) {
             const fileName = e.target.files[0]?.name;
             if (fileName) {

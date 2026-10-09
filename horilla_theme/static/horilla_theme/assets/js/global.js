@@ -175,3 +175,81 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 });
+
+
+
+// IMPORT DROP ZONES
+// Every `.oh-dropdown__import-label` (the "Upload a File" box in the import
+// modals across modules) becomes click-to-browse + drag-and-drop, and shows
+// the chosen file name. Delegated, so it also covers htmx-loaded modals.
+(function () {
+  function findInput(label) {
+    if (label.htmlFor) {
+      var byId = document.getElementById(label.htmlFor);
+      if (byId && byId.type === "file") return byId;
+    }
+    var scope = label.closest(".oh-dropdown__import-form") || label.parentElement;
+    var input = scope && scope.querySelector('input[type="file"]');
+    if (!input) {
+      var form = label.closest("form");
+      input = form && form.querySelector('input[type="file"]');
+    }
+    return input;
+  }
+  function labelFor(input) {
+    var scope = input.closest(".oh-dropdown__import-form") || input.parentElement;
+    var labels = scope ? scope.querySelectorAll(".oh-dropdown__import-label") : [];
+    for (var i = 0; i < labels.length; i++) {
+      if (findInput(labels[i]) === input) return labels[i];
+    }
+    return null;
+  }
+  function showFile(input) {
+    var label = labelFor(input);
+    if (!label) return;
+    var title = label.querySelector(".oh-dropdown__import-form-title");
+    var hint = label.querySelector(".oh-dropdown__import-form-text");
+    if (!label._origTitle && title) {
+      label._origTitle = title.textContent;
+      label._origHint = hint ? hint.textContent : "";
+    }
+    var file = input.files && input.files[0];
+    label.classList.toggle("oh-import-has-file", !!file);
+    if (title) title.textContent = file ? file.name : label._origTitle;
+    if (hint) hint.textContent = file ? "Click or drop another file to replace" : label._origHint;
+  }
+  document.addEventListener("click", function (e) {
+    var label = e.target.closest && e.target.closest(".oh-dropdown__import-label");
+    if (!label) return;
+    var input = findInput(label);
+    if (!input) return;
+    e.preventDefault();
+    input.click();
+  });
+  document.addEventListener("change", function (e) {
+    if (e.target.matches && e.target.matches('input[type="file"]')) showFile(e.target);
+  });
+  ["dragenter", "dragover"].forEach(function (ev) {
+    document.addEventListener(ev, function (e) {
+      var label = e.target.closest && e.target.closest(".oh-dropdown__import-label");
+      if (!label) return;
+      e.preventDefault();
+      label.classList.add("oh-import-drag");
+    });
+  });
+  document.addEventListener("dragleave", function (e) {
+    var label = e.target.closest && e.target.closest(".oh-dropdown__import-label");
+    if (label) label.classList.remove("oh-import-drag");
+  });
+  document.addEventListener("drop", function (e) {
+    var label = e.target.closest && e.target.closest(".oh-dropdown__import-label");
+    if (!label) return;
+    e.preventDefault();
+    label.classList.remove("oh-import-drag");
+    var input = findInput(label);
+    if (input && e.dataTransfer && e.dataTransfer.files.length) {
+      input.files = e.dataTransfer.files;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  });
+})();

@@ -58,7 +58,7 @@
         <link href="{% static 'horilla_theme/assets/css/tailwind.css' %}" rel="stylesheet">
         <link href="{% static 'cdn/select2/css/select2.min.css' %}" rel="stylesheet">
 
-        <script src="{% static 'horilla_theme/assets/js/global.js' %}"></script>
+        <script src="{% static 'horilla_theme/assets/js/global.js' %}?v=2"></script>
         <script src="{% static 'cdn/hyperscript/script/_hyperscript.min.js' %}"></script>
         <!-- Load global.css after Select2 to ensure custom styles override Select2 defaults -->
         <link
@@ -71,7 +71,7 @@
            happily cache. {% endcomment %}
         <link
             rel="stylesheet"
-            href="{% static 'horilla_theme/assets/css/v1_styles.css' %}?v=16"
+            href="{% static 'horilla_theme/assets/css/v1_styles.css' %}?v=22"
         >
         <link rel="stylesheet" href="{% static 'build/css/pivottable.min.css' %}">
         {% with theme=theme_obj %}

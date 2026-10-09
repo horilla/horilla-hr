@@ -245,7 +245,6 @@ class EmployeeFilter(HorillaFilterSet):
         # as a second, redundant empty-value radio alongside the "Any"
         # option declared above.
         empty_label=None,
-        initial=True,
         widget=forms.RadioSelect,
     )
 

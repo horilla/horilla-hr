@@ -115,7 +115,6 @@ class EmployeesList(HorillaListView):
     """
 
     model = Employee
-    hidden_filter_tag_values = {"is_active": True}
     filter_class = EmployeeFilter
     view_id = "view-container"
     # Mirrors EmployeeNav.nested_group_by_fields below -- needed here too
@@ -824,7 +823,6 @@ class EmployeeCard(HorillaCardView):
     """
 
     model = Employee
-    hidden_filter_tag_values = {"is_active": True}
     filter_class = EmployeeFilter
 
     def __init__(self, **kwargs: Any) -> None:

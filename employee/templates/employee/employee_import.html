@@ -1,6 +1,6 @@
 {% load static i18n %}
-<div class="oh-modal__dialog-header">
-    <h2 class="oh-modal__dialog-title">
+<div class="oh-modal__dialog-header border-b border-gray-200 pb-3">
+    <h2 class="oh-modal__dialog-title text-base font-semibold text-gray-800">
         {% trans "Import Employee" %}
     </h2>
     <button class="oh-modal__close" aria-label="{% trans 'Close' %}">
@@ -31,38 +31,58 @@
 
             <div id="error-container" style="color: red"></div>
 
-            <div class="modal-body">
-                <div class="oh-dropdown__import-form">
-                    {% if error_message %}
-                        <ul class="errorlist">
-                            <li>{{error_message}}</li>
-                        </ul>
-                    {% endif %}
-                    <label class="oh-dropdown__import-label">
-                        <ion-icon name="cloud-upload" class="oh-dropdown__import-form-icon md hydrated" role="img"
-                            aria-label="{% trans 'cloud upload' %}"></ion-icon>
-                        <span class="oh-dropdown__import-form-title">{% trans "Upload a File" %}</span>
-                        <span class="oh-dropdown__import-form-text">{% trans "Drag and drop files here" %}</span>
-                    </label>
-                    <input type="file" name="file"/ required style="margin-bottom: 0;">
-                    <div class="d-inline float-end mb-2">
-                        {# ?v= : a browser keeps a downloaded template for good, so a changed one needs a new address #}
-                        <a href="{% static 'employee/work_info_import.xlsx' %}?v=2"
-                            class="oh-dropdown__link"
-                            id="workInfoImportButton"
-                            style="text-decoration:none; display:inline-block;"
-                            onclick="return confirm('{% trans "Do you want to download the template?"|escapejs %}')"
-                            download>
-                            <ion-icon name="cloud-download-outline"
-                                    style="font-size:20px; vertical-align: middle;"></ion-icon>
-                            <span>{% trans "Download Template" %}</span>
-                        </a>
-                      </div>
+            <div class="modal-body pt-4">
+                {% if error_message %}
+                    <div role="alert" class="wi-import-alert flex items-start gap-3 mb-4 p-3 rounded-lg border border-red-200 bg-red-50">
+                        <ion-icon name="alert-circle" class="shrink-0 text-red-500" style="font-size:22px;"></ion-icon>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-sm font-semibold text-red-700 mb-0.5">{% trans "Import failed" %}</p>
+                            <p class="text-xs text-red-600 break-words max-h-24 overflow-y-auto">{{ error_message }}</p>
+                            <p class="text-xs text-red-500/80 mt-1">{% trans "Please correct the file and upload it again." %}</p>
+                        </div>
+                        <button type="button" class="shrink-0 text-red-400 hover:text-red-600 transition"
+                            aria-label="{% trans 'Dismiss' %}"
+                            onclick="$(this).closest('.wi-import-alert').remove()">
+                            <ion-icon name="close-outline" style="font-size:18px;"></ion-icon>
+                        </button>
+                    </div>
+                {% endif %}
+                <label for="empImportFile" id="empImportDrop"
+                    class="wi-dropzone relative flex flex-col items-center justify-center w-full h-[6.5rem] border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 cursor-pointer hover:border-brand-600 hover:bg-brand-50 transition">
+                    <div class="wi-drop-empty flex flex-col items-center text-center px-4">
+                        <ion-icon name="cloud-upload-outline" class="text-3xl text-brand-600 mb-1"></ion-icon>
+                        <p class="text-sm font-semibold text-gray-700 mb-1">{% trans "Upload a File" %}</p>
+                        <p class="text-xs text-gray-500">{% trans "Drag and drop files here" %}</p>
+                        <p class="text-[11px] text-gray-400 mt-1">.xlsx, .xls, .csv</p>
+                    </div>
+                    <div class="wi-drop-file hidden flex-col items-center text-center px-4">
+                        <ion-icon name="document-text-outline" class="text-4xl text-brand-600 mb-2"></ion-icon>
+                        <p class="wi-drop-name text-sm font-semibold text-gray-700 max-w-full truncate"></p>
+                        <p class="text-xs text-gray-500 mt-1">{% trans "Click or drop another file to replace" %}</p>
+                    </div>
+                    <input id="empImportFile" type="file" name="file" required
+                        accept=".xlsx,.xls,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                        class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                </label>
+                {# ?v= : a browser keeps a downloaded template for good, so a changed one needs a new address #}
+                <div class="flex items-center gap-3 mt-3">
+                <a href="{% static 'employee/work_info_import.xlsx' %}?v=2"
+                    id="workInfoImportButton"
+                    class="shrink-0 px-4 py-2 border border-brand-600 text-brand-600 rounded-md text-xs flex items-center gap-2 hover:text-white hover:bg-brand-800 transition duration-300"
+                    style="text-decoration:none;"
+                    onclick="return confirm('{% trans "Do you want to download the template?"|escapejs %}')"
+                    download>
+                    <ion-icon name="cloud-download-outline" style="font-size:16px;"></ion-icon>
+                    <span>{% trans "Download Template" %}</span>
+                </a>
+                <p class="text-xs text-gray-500">{% trans "Fill in the template and upload it here." %}</p>
                 </div>
             </div>
-            <div class="modal-footer d-flex flex-row-reverse mt-6 w-100">
-                <input type="submit" class="oh-btn oh-btn--small oh-btn--secondary w-100"
-                    value="{% trans 'Upload' %}" />
+            <div class="modal-footer flex items-center justify-end gap-2 mt-5 pt-4 border-t border-gray-200 w-full">
+                <button type="submit"
+                    class="px-5 py-2 bg-brand-600 text-white rounded-md text-xs font-medium flex items-center gap-2 hover:bg-brand-800 transition duration-300">
+                    <ion-icon name="cloud-upload-outline" style="font-size:16px;"></ion-icon>{% trans "Upload" %}
+                </button>
             </div>
         </form>
     </div>
@@ -101,6 +121,37 @@
             $loader.find(".wi-import-elapsed").text(Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"));
         }, 1000);
     };
+
+    (function () {
+        var drop = document.getElementById("empImportDrop");
+        var input = document.getElementById("empImportFile");
+        if (!drop || !input) return;
+        var showFile = function () {
+            var f = input.files[0];
+            drop.querySelector(".wi-drop-empty").classList.toggle("hidden", !!f);
+            var box = drop.querySelector(".wi-drop-file");
+            box.classList.toggle("hidden", !f);
+            box.classList.toggle("flex", !!f);
+            box.querySelector(".wi-drop-name").textContent = f ? f.name : "";
+        };
+        var active = function (on) {
+            drop.classList.toggle("border-brand-600", on);
+            drop.classList.toggle("bg-brand-50", on);
+        };
+        input.addEventListener("change", showFile);
+        ["dragenter", "dragover"].forEach(function (ev) {
+            drop.addEventListener(ev, function (e) { e.preventDefault(); active(true); });
+        });
+        ["dragleave", "drop"].forEach(function (ev) {
+            drop.addEventListener(ev, function (e) { e.preventDefault(); active(false); });
+        });
+        drop.addEventListener("drop", function (e) {
+            if (e.dataTransfer && e.dataTransfer.files.length) {
+                input.files = e.dataTransfer.files;
+                showFile();
+            }
+        });
+    })();
 
     document.getElementById("workInfoImportButton")
     .dispatchEvent(new MouseEvent("click", {

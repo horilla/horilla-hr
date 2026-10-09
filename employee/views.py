@@ -3087,10 +3087,10 @@ def work_info_import(request):
                 _("%(created_count)s employees created.")
                 % {"created_count": created_count},
             )
-            result = render_to_string("import_popup.html", context)
+            result = render_to_string("employee/employee_import_result.html", context)
             result += """
                         <script>
-                            $('#objectCreateModalTarget').css('max-width', '410px');
+                            $('#objectCreateModalTarget').css('max-width', '440px');
                         </script>
                     """
             return HttpResponse(result)
