@@ -539,7 +539,12 @@ def sortby(
         return result
 
     order = not reverse
-    current_page = query_dict.get(page)
+    page_params = [query_dict.get(page)] + [
+        f"{key}={query_dict.get(key)}"
+        for key in sorted(query_dict)
+        if key.startswith("dynamic_page")
+    ]
+    current_page = "|".join(filter(None, page_params)) or None
     if current_page or is_first_sort:
         order = not order
         if reverse_object.page == current_page and not is_first_sort:
