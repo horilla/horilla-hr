@@ -19,86 +19,86 @@ msgstr ""
 "Plural-Forms: nplurals=1; plural=0;\n"
 
 msgid "Mark selected notifications as unread"
-msgstr ""
+msgstr "将所选通知标记为未读"
 
 msgid "Notifications"
-msgstr ""
+msgstr "通知"
 
 msgid "level"
-msgstr ""
+msgstr "级别"
 
 msgid "recipient"
-msgstr ""
+msgstr "接收者"
 
 msgid "unread"
-msgstr ""
+msgstr "未读"
 
 msgid "actor content type"
-msgstr ""
+msgstr "行为方内容类型"
 
 msgid "actor object id"
-msgstr ""
+msgstr "行为方对象 ID"
 
 msgid "actor"
-msgstr ""
+msgstr "行为方"
 
 msgid "verb"
-msgstr ""
+msgstr "动作"
 
 msgid "description"
-msgstr ""
+msgstr "描述"
 
 msgid "target content type"
-msgstr ""
+msgstr "目标内容类型"
 
 msgid "target object id"
-msgstr ""
+msgstr "目标对象 ID"
 
 msgid "target"
-msgstr ""
+msgstr "目标"
 
 msgid "action object content type"
-msgstr ""
+msgstr "动作对象内容类型"
 
 msgid "action object object id"
-msgstr ""
+msgstr "动作对象 ID"
 
 msgid "action object"
-msgstr ""
+msgstr "动作对象"
 
 msgid "timestamp"
-msgstr ""
+msgstr "时间戳"
 
 msgid "public"
-msgstr ""
+msgstr "公开"
 
 msgid "deleted"
-msgstr ""
+msgstr "已删除"
 
 msgid "emailed"
-msgstr ""
+msgstr "已发送邮件"
 
 msgid "data"
-msgstr ""
+msgstr "数据"
 
 msgid "Notification"
-msgstr ""
+msgstr "通知"
 
 #, python-format
 msgid "%(actor)s %(verb)s %(action_object)s on %(target)s %(timesince)s ago"
-msgstr ""
+msgstr "%(timesince)s前，%(actor)s 在 %(target)s 上 %(verb)s %(action_object)s"
 
 #, python-format
 msgid "%(actor)s %(verb)s %(target)s %(timesince)s ago"
-msgstr ""
+msgstr "%(timesince)s前，%(actor)s %(verb)s %(target)s"
 
 #, python-format
 msgid "%(actor)s %(verb)s %(action_object)s %(timesince)s ago"
-msgstr ""
+msgstr "%(timesince)s前，%(actor)s %(verb)s %(action_object)s"
 
 #, python-format
 msgid "%(actor)s %(verb)s %(timesince)s ago"
-msgstr ""
+msgstr "%(timesince)s前，%(actor)s %(verb)s"
 
 msgid "Make a notification"
-msgstr ""
+msgstr "创建通知"
