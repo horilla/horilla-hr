@@ -11,7 +11,10 @@ is tracked with ``TourProgress`` (the enterprise successor to the legacy
 ``base.DriverViewed`` model).
 """
 
+from django.conf import settings
 from django.db import models
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -256,3 +259,89 @@ class TourProgress(HorillaModel):
         if status in ("completed", "skipped"):
             self.completed_at = timezone.now()
         self.save()
+
+
+class TourTranslation(HorillaModel):
+    """Per-language mirror of a :class:`Tour`'s ``title``/``description``."""
+
+    tour = models.ForeignKey(
+        Tour,
+        on_delete=models.CASCADE,
+        related_name="translations",
+        verbose_name=_("Tour"),
+    )
+    language = models.CharField(
+        max_length=10,
+        choices=settings.LANGUAGES,
+        default="en",
+        verbose_name=_("Language"),
+    )
+    title = models.CharField(max_length=120, verbose_name=_("Title"))
+    description = models.TextField(
+        blank=True, default="", verbose_name=_("Description")
+    )
+
+    class Meta:
+        verbose_name = _("Tour translation")
+        verbose_name_plural = _("Tour translations")
+        unique_together = ("tour", "language")
+
+    def __str__(self):
+        return f"{self.tour.title} ({self.language})"
+
+
+class TourStepTranslation(HorillaModel):
+    """Per-language mirror of a :class:`TourStep`'s ``title``/``description``."""
+
+    tour_step = models.ForeignKey(
+        TourStep,
+        on_delete=models.CASCADE,
+        related_name="translations",
+        verbose_name=_("Tour step"),
+    )
+    language = models.CharField(
+        max_length=10,
+        choices=settings.LANGUAGES,
+        default="en",
+        verbose_name=_("Language"),
+    )
+    title = models.CharField(max_length=120, verbose_name=_("Title"))
+    description = models.TextField(
+        blank=True, default="", verbose_name=_("Description")
+    )
+
+    class Meta:
+        verbose_name = _("Tour step translation")
+        verbose_name_plural = _("Tour step translations")
+        unique_together = ("tour_step", "language")
+
+    def __str__(self):
+        return f"{self.tour_step.title} ({self.language})"
+
+
+def sync_tour_translation(tour):
+    """Keep the English ``TourTranslation`` of ``tour`` mirrored to its current text."""
+    TourTranslation.objects.update_or_create(
+        tour=tour,
+        language="en",
+        defaults={"title": tour.title, "description": tour.description},
+    )
+
+
+def sync_tour_step_translation(tour_step):
+    """Keep the English ``TourStepTranslation`` of ``tour_step`` mirrored to its current text."""
+    TourStepTranslation.objects.update_or_create(
+        tour_step=tour_step,
+        language="en",
+        defaults={"title": tour_step.title, "description": tour_step.description},
+    )
+
+
+@receiver(post_save, sender=Tour)
+def _sync_tour_translation_on_save(sender, instance, **kwargs):
+    sync_tour_translation(instance)
+
+
+@receiver(post_save, sender=TourStep)
+def _sync_tour_step_translation_on_save(sender, instance, **kwargs):
+    sync_tour_step_translation(instance)
