@@ -63,10 +63,11 @@ if apps.is_installed("attendance"):
                     )
                     work_entry.work_record_type = status
                     work_entry.date = date
+                    # WorkRecords.message is max_length=30; the previous
+                    # 36-char text raised DataError on PostgreSQL and
+                    # aborted the transaction for every half-day leave.
                     work_entry.message = (
-                        "Leave"
-                        if status == "ABS"
-                        else _("Half day Attendance need to validate")
+                        "Leave" if status == "ABS" else _("Half day: needs validation")
                     )
                     work_entry.save()
 
