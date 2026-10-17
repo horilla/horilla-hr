@@ -1,0 +1,119 @@
+{% extends 'settings.html' %}
+{% load i18n %}
+{% block settings %}
+    <div class="border border-[#ebebeb] rounded-md overflow-hidden mb-5">
+        <h2 class="text-sm font-semibold bg-[#f3f3f3] px-4 py-3 text-[#333]">
+            {% trans "SCIM Provisioning" %}
+        </h2>
+        <div class="p-4 pb-0">
+            <p class="text-xs text-gray-500 mb-4">
+                {% trans "Let your identity provider (Okta, Microsoft Entra ID, OneLogin, JumpCloud, ...) create, update, deactivate and remove this company's employees. Superuser accounts are never changed by the identity provider." %}
+            </p>
+        </div>
+        {% if no_company %}
+            <div class="px-4 pb-4">
+                <p class="text-xs text-gray-500">
+                    {% trans "SCIM is configured per company. Select a single company (not \"All companies\") to continue." %}
+                </p>
+            </div>
+        {% else %}
+            <div class="px-4 pb-4">
+                <div class="mb-4 p-3 rounded-md bg-[#f8f8f8] border border-[#ebebeb]">
+                    <p class="text-xs font-semibold text-[#333]">{% trans "SCIM base URL" %}</p>
+                    <p class="text-xs text-gray-500 mb-1">{% trans "Enter this as the SCIM connector / tenant URL in your identity provider." %}</p>
+                    <code class="text-xs select-all break-all">{{ base_url }}</code>
+                </div>
+                <form method="post">
+                    {% csrf_token %}
+                    {{ form.as_p }}
+                </form>
+            </div>
+        {% endif %}
+    </div>
+
+    {% if provider %}
+        <div class="border border-[#ebebeb] rounded-md overflow-hidden mb-5">
+            <h2 class="text-sm font-semibold bg-[#f3f3f3] px-4 py-3 text-[#333]">
+                {% trans "Tokens" %}
+            </h2>
+            <div class="p-4">
+                {% if new_token %}
+                    <div class="mb-4 p-3 rounded-md bg-[#fff8e6] border border-[#f5d58a]">
+                        <p class="text-xs font-semibold text-[#333]">{% trans "New token" %}</p>
+                        <p class="text-xs text-gray-500 mb-1">{% trans "Copy it into your identity provider now. It will not be shown again." %}</p>
+                        <code class="text-xs select-all break-all">{{ new_token }}</code>
+                    </div>
+                {% endif %}
+                <form method="post" action="{% url 'scim-token-create' %}" class="mb-4">
+                    {% csrf_token %}
+                    <button type="submit" class="oh-btn oh-btn--secondary">{% trans "Generate token" %}</button>
+                </form>
+                {% if tokens %}
+                    <table class="w-full text-xs">
+                        <thead>
+                            <tr class="text-left text-gray-500">
+                                <th class="py-2">{% trans "Token" %}</th>
+                                <th class="py-2">{% trans "Created" %}</th>
+                                <th class="py-2">{% trans "Last used" %}</th>
+                                <th class="py-2">{% trans "Status" %}</th>
+                                <th class="py-2"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for token in tokens %}
+                                <tr class="border-t border-[#ebebeb]">
+                                    <td class="py-2"><code>{{ token.prefix }}…</code></td>
+                                    <td class="py-2">{{ token.created_at }}</td>
+                                    <td class="py-2">{{ token.last_used_at|default:"-" }}</td>
+                                    <td class="py-2">
+                                        {% if token.is_usable %}{% trans "Active" %}{% else %}{% trans "Revoked" %}{% endif %}
+                                    </td>
+                                    <td class="py-2 text-right">
+                                        {% if token.is_usable %}
+                                            <form method="post" action="{% url 'scim-token-revoke' token.id %}">
+                                                {% csrf_token %}
+                                                <button type="submit" class="oh-btn oh-btn--light">{% trans "Revoke" %}</button>
+                                            </form>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="border border-[#ebebeb] rounded-md overflow-hidden mb-5">
+            <h2 class="text-sm font-semibold bg-[#f3f3f3] px-4 py-3 text-[#333]">
+                {% trans "Recent requests" %}
+            </h2>
+            <div class="p-4">
+                {% if events %}
+                    <table class="w-full text-xs">
+                        <thead>
+                            <tr class="text-left text-gray-500">
+                                <th class="py-2">{% trans "Time" %}</th>
+                                <th class="py-2">{% trans "Request" %}</th>
+                                <th class="py-2">{% trans "Status" %}</th>
+                                <th class="py-2">{% trans "Detail" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for event in events %}
+                                <tr class="border-t border-[#ebebeb]">
+                                    <td class="py-2 whitespace-nowrap">{{ event.created_at }}</td>
+                                    <td class="py-2 break-all"><code>{{ event.method }} {{ event.path }}</code></td>
+                                    <td class="py-2">{{ event.status }}</td>
+                                    <td class="py-2">{{ event.detail }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p class="text-xs text-gray-500">{% trans "No requests received yet." %}</p>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+{% endblock settings %}

@@ -98,6 +98,8 @@ INSTALLED_APPS = [
     "report",
     "whatsapp",
     "horilla_ldap",
+    "horilla_identity",
+    "horilla_scim",
     "horilla_dbtemplate",
     "horilla_tour",
     "master_import",
@@ -145,6 +147,9 @@ REST_FRAMEWORK = {
         # Export and import walk whole tables and build files; a handful a
         # minute is well past what a person does.
         "bulk": env("THROTTLE_BULK", default="6/min"),
+        # SCIM: an IdP syncing a large directory sends bursts of requests;
+        # throttling it below that just makes the sync fail and retry.
+        "scim": env("THROTTLE_SCIM", default="1200/min"),
     },
 }
 
