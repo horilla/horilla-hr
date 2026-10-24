@@ -161,7 +161,7 @@
                                         half-day
                                         {% elif work_record.work_record_type == 'ABS' %}
                                         leave
-                                        {% elif work_record.work_record_type == 'DFT' and work_record.shift_id and not work_record.date in leave_dates and not work_record.date in emp_specific_hols %}
+                                        {% elif work_record.work_record_type == 'DFT' and work_record.shift_id and not work_record.date in emp_specific_hols %}
                                         absent
                                         {% endif %}
                                         {% endif %}
@@ -175,7 +175,7 @@
                                         HP
                                     {% elif work_record.work_record_type == 'ABS' %}
                                         L
-                                    {% elif work_record.work_record_type == 'DFT' and work_record.shift_id and not work_record.date in leave_dates and not work_record.date in emp_specific_hols %}
+                                    {% elif work_record.work_record_type == 'DFT' and work_record.shift_id and not work_record.date in emp_specific_hols %}
                                         <span class="font-light" style="cursor: default">A</span>
                                     {% endif %}
                                 </span>

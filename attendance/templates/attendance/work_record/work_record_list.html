@@ -118,73 +118,75 @@
         </thead>
 
         {% for employee, work_records in data %}
-            <tr>
-                <td style="width: 12%">
-                    <a
-                        style="text-decoration: none"
-                        href="{% url 'employee-view-individual' employee.id %}"
-                    >
-                        {{ employee }}
-                    </a>
-                </td>
-
-                {% for work_record in work_records %}
-                    {% with day=current_month_dates_list|get_item:forloop.counter0 %}
-                        <td
-                            class="days {% if work_record and work_record.date in leave_dates or work_record is None and day in leave_dates %}holiday{% endif %}"
-                            style="text-align:center; cursor:default;
-                        {% if work_record %}
-                            {% if work_record.work_record_type == 'CONF' %}
-                                background-color: #ed4c4c; color: #fff;
-                            {% elif work_record.is_leave_record and work_record.work_record_type == 'FDP' %}
-                                background-color: #c65d0f; color: #fff;
-                            {% elif work_record.work_record_type == 'FDP' %}
-                                background-color: #38c338; color: #fff;
-                            {% elif work_record.work_record_type == 'HDP' %}
-                                background-color: #dfdf52;
-                            {% elif work_record.work_record_type == 'ABS' %}
-                                background-color: #808080; color: #fff;
-                            {% elif work_record.work_record_type == 'DFT' and work_record.shift_id and not work_record.date in leave_dates %}
-                                background-color: #a8b1ff; color: #fff;
-                            {% endif %}
-                        {% endif %}"
+            {% with emp_specific_hols=specific_employee_holidays|get_employee_specific_holidays:employee.pk %}
+                <tr>
+                    <td style="width: 12%">
+                        <a
+                            style="text-decoration: none"
+                            href="{% url 'employee-view-individual' employee.id %}"
                         >
+                            {{ employee }}
+                        </a>
+                    </td>
+
+                    {% for work_record in work_records %}
+                        {% with day=current_month_dates_list|get_item:forloop.counter0 %}
+                            <td
+                                class="days {% if work_record and work_record.date in leave_dates or work_record is None and day in leave_dates or day in emp_specific_hols %}holiday{% endif %}"
+                                style="text-align:center; cursor:default;
                             {% if work_record %}
-                                <div
-                                    {% if work_record.title_message %}
-                                        title="{{work_record.title_message}}"
-                                    {% endif %}
-                                    class="fw-bold"
-                                    onclick="{% if work_record.work_record_type == 'ABS' %}
-                                        window.location.href = `{% url 'request-view' %}?employee_id={{work_record.employee_id.id}}&from_date={{work_record.date|date:'Y-m-d'}}&to_date={{work_record.date|date:'Y-m-d'}}`;
-                                    {% elif work_record.work_record_type != 'DFT' %}
-                                        {% if work_record.work_record_type == 'CONF' %}
-                                            localStorage.setItem('activeTabAttendance', '#tab_1');
-                                        {% else %}
-                                            localStorage.setItem('activeTabAttendance', '#tab_2');
+                                {% if work_record.work_record_type == 'CONF' %}
+                                    background-color: #ed4c4c; color: #fff;
+                                {% elif work_record.is_leave_record and work_record.work_record_type == 'FDP' %}
+                                    background-color: #c65d0f; color: #fff;
+                                {% elif work_record.work_record_type == 'FDP' %}
+                                    background-color: #38c338; color: #fff;
+                                {% elif work_record.work_record_type == 'HDP' %}
+                                    background-color: #dfdf52;
+                                {% elif work_record.work_record_type == 'ABS' %}
+                                    background-color: #808080; color: #fff;
+                                {% elif work_record.work_record_type == 'DFT' and work_record.shift_id and not work_record.date in emp_specific_hols %}
+                                    background-color: #a8b1ff; color: #fff;
+                                {% endif %}
+                            {% endif %}"
+                            >
+                                {% if work_record %}
+                                    <div
+                                        {% if work_record.title_message %}
+                                            title="{{work_record.title_message}}"
                                         {% endif %}
-                                        window.location.href = `{% url 'attendance-view' %}?employee_id={{work_record.employee_id.id}}&attendance_date={{work_record.date|date:'Y-m-d'}}`;
-                                    {% endif %}"
-                                >
-                                    <a class="text-decoration-none" role="button">
-                                        {% if work_record.work_record_type == 'CONF' %}
-                                            !
-                                        {% elif work_record.work_record_type == 'FDP' %}
-                                            P
-                                        {% elif work_record.work_record_type == 'HDP' %}
-                                            HP
-                                        {% elif work_record.work_record_type == 'ABS' %}
-                                            L
-                                        {% elif work_record.work_record_type == 'DFT' and work_record.shift_id and not work_record.date in leave_dates %}
-                                            <span class="fw-light" style="cursor: default">A</span>
-                                        {% endif %}
-                                    </a>
-                                </div>
-                            {% endif %}
-                        </td>
-                    {% endwith %}
-                {% endfor %}
-            </tr>
+                                        class="fw-bold"
+                                        onclick="{% if work_record.work_record_type == 'ABS' %}
+                                            window.location.href = `{% url 'request-view' %}?employee_id={{work_record.employee_id.id}}&from_date={{work_record.date|date:'Y-m-d'}}&to_date={{work_record.date|date:'Y-m-d'}}`;
+                                        {% elif work_record.work_record_type != 'DFT' %}
+                                            {% if work_record.work_record_type == 'CONF' %}
+                                                localStorage.setItem('activeTabAttendance', '#tab_1');
+                                            {% else %}
+                                                localStorage.setItem('activeTabAttendance', '#tab_2');
+                                            {% endif %}
+                                            window.location.href = `{% url 'attendance-view' %}?employee_id={{work_record.employee_id.id}}&attendance_date={{work_record.date|date:'Y-m-d'}}`;
+                                        {% endif %}"
+                                    >
+                                        <a class="text-decoration-none" role="button">
+                                            {% if work_record.work_record_type == 'CONF' %}
+                                                !
+                                            {% elif work_record.work_record_type == 'FDP' %}
+                                                P
+                                            {% elif work_record.work_record_type == 'HDP' %}
+                                                HP
+                                            {% elif work_record.work_record_type == 'ABS' %}
+                                                L
+                                            {% elif work_record.work_record_type == 'DFT' and work_record.shift_id and not work_record.date in emp_specific_hols %}
+                                                <span class="fw-light" style="cursor: default">A</span>
+                                            {% endif %}
+                                        </a>
+                                    </div>
+                                {% endif %}
+                            </td>
+                        {% endwith %}
+                    {% endfor %}
+                </tr>
+            {% endwith %}
         {% endfor %}
     </table>
 </div>

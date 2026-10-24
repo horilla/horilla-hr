@@ -2678,33 +2678,101 @@ def work_records_change_month(request):
             if day
         ]
 
+    page_employees = list(
+        page_emp.object_list.select_related("employee_work_info__shift_id")
+    )
+
     work_records = WorkRecords.objects.filter(
-        date__in=month_dates, employee_id__in=page_emp.object_list
+        date__in=month_dates, employee_id__in=page_employees
     ).select_related("employee_id", "shift_id", "attendance_id")
 
-    work_records_dict = {(wr.employee_id.id, wr.date): wr for wr in work_records}
+    work_records_dict = {(wr.employee_id_id, wr.date): wr for wr in work_records}
 
-    work_record_table = {
-        employee: [
-            work_records_dict.get((employee.id, current_date))
-            for current_date in month_dates
-        ]
-        for employee in all_employees
-    }
-
-    paginated_table = list(work_record_table.items())
-
-    paginator = Paginator(paginated_table, 20)
-    page = paginator.get_page(request.GET.get("page"))
-
+    # Resolve global and employee-specific holidays across the displayed date range.
     specific_employee_holidays = {}
     specific_dates = set()
-    for h in Holidays.objects.filter(
-        is_specific=True, start_date__month=month, start_date__year=year
-    ).prefetch_related("employees"):
-        specific_dates.add(h.start_date)
-        for emp in h.employees.all():
-            specific_employee_holidays.setdefault(emp.pk, set()).add(h.start_date)
+    global_holiday_dates = set()
+    if month_dates:
+        range_start, range_end = min(month_dates), max(month_dates)
+        for h in Holidays.objects.filter(
+            start_date__lte=range_end, end_date__gte=range_start
+        ).prefetch_related("employees"):
+            end_d = h.end_date or h.start_date
+            cur_d = max(h.start_date, range_start)
+            last_d = min(end_d, range_end)
+            hol_days = []
+            while cur_d <= last_d:
+                hol_days.append(cur_d)
+                cur_d += timedelta(days=1)
+
+            if h.is_specific:
+                specific_dates.update(hol_days)
+                for emp in h.employees.all():
+                    specific_employee_holidays.setdefault(emp.pk, set()).update(
+                        hol_days
+                    )
+            else:
+                global_holiday_dates.update(hol_days)
+
+    leave_dates = [
+        d for d in monthly_leave_days(month, year) if d not in specific_dates
+    ]
+
+    # Map each shift to its active working weekdays (excluding 00:00 off-day schedules).
+    shift_ids = {
+        getattr(getattr(emp, "employee_work_info", None), "shift_id_id", None)
+        for emp in page_employees
+    } - {None}
+
+    scheduled_days_by_shift = defaultdict(set)
+    if shift_ids:
+        for shift_id, day_name in (
+            EmployeeShiftSchedule.objects.filter(shift_id__in=shift_ids)
+            .exclude(minimum_working_hour="00:00")
+            .values_list("shift_id", "day__day")
+        ):
+            scheduled_days_by_shift[shift_id].add(day_name.lower())
+
+    today = date.today()
+    work_record_table = {}
+    for employee in page_employees:
+        work_info = getattr(employee, "employee_work_info", None)
+        shift = getattr(work_info, "shift_id", None)
+        date_joining = getattr(work_info, "date_joining", None)
+        emp_holidays = specific_employee_holidays.get(employee.pk, set())
+        scheduled_days = (
+            scheduled_days_by_shift.get(shift.id, set()) if shift else set()
+        )
+
+        emp_records = []
+        for current_date in month_dates:
+            record = work_records_dict.get((employee.id, current_date))
+            is_scheduled_workday = (
+                bool(shift)
+                and current_date <= today
+                and (not date_joining or current_date >= date_joining)
+                and current_date not in global_holiday_dates
+                and current_date not in emp_holidays
+                and current_date.strftime("%A").lower() in scheduled_days
+            )
+
+            # Suppress draft placeholders on non-scheduled days or holidays;
+            # synthesize an unsaved 'DFT' record on unrecorded scheduled workdays.
+            if record is not None and record.work_record_type == "DFT":
+                if not is_scheduled_workday:
+                    record = None
+            elif record is None and is_scheduled_workday:
+                record = WorkRecords(
+                    employee_id=employee,
+                    date=current_date,
+                    work_record_type="DFT",
+                    shift_id=shift,
+                )
+            emp_records.append(record)
+        work_record_table[employee] = emp_records
+
+    page = page_emp
+    page.object_list = list(work_record_table.items())
 
     export_exclude_keys = {"month", "start_date", "end_date", "name_or_badge", "page"}
     export_hidden_filter_params = [
@@ -2743,13 +2811,11 @@ def work_records_change_month(request):
 
     context = {
         "current_month_dates_list": month_dates,
-        "leave_dates": [
-            d for d in monthly_leave_days(month, year) if d not in specific_dates
-        ],
+        "leave_dates": leave_dates,
         "specific_employee_holidays": specific_employee_holidays,
         "data": page,
         "pd": previous_data,
-        "current_date": date.today(),
+        "current_date": today,
         "f": employee_filter_form,
         "month_str": month_str,
         "export_hidden_filter_params": export_hidden_filter_params,
@@ -2937,12 +3003,53 @@ def work_record_export(request):
     formatted_dates = [day.strftime(format_string) for day in all_date_objects]
     data_rows = []
 
+    # Pre-fetch shift schedules to avoid marking employee off-days as DFT in export
+    employees = employees.select_related("employee_work_info__shift_id")
+    shift_ids = {
+        getattr(getattr(emp, "employee_work_info", None), "shift_id_id", None)
+        for emp in employees
+    } - {None}
+
+    scheduled_days_by_shift = defaultdict(set)
+    if shift_ids:
+        for shift_id, day_name in (
+            EmployeeShiftSchedule.objects.filter(shift_id__in=shift_ids)
+            .exclude(minimum_working_hour="00:00")
+            .values_list("shift_id", "day__day")
+        ):
+            scheduled_days_by_shift[shift_id].add(day_name.lower())
+
+    global_holiday_dates = set()
+    if all_date_objects:
+        range_start, range_end = min(all_date_objects), max(all_date_objects)
+        for h in Holidays.objects.filter(
+            is_specific=False, start_date__lte=range_end, end_date__gte=range_start
+        ):
+            end_d = h.end_date or h.start_date
+            cur_d = max(h.start_date, range_start)
+            last_d = min(end_d, range_end)
+            while cur_d <= last_d:
+                global_holiday_dates.add(cur_d)
+                cur_d += timedelta(days=1)
+
+    today = date.today()
     for employee in employees:
         row_data = {"Employee": employee}
+        work_info = getattr(employee, "employee_work_info", None)
+        shift = getattr(work_info, "shift_id", None)
+        date_joining = getattr(work_info, "date_joining", None)
         emp_specific_holidays = specific_employee_holidays.get(employee.pk, set())
+        scheduled_days = (
+            scheduled_days_by_shift.get(shift.id, set()) if shift else set()
+        )
         for day, formatted_day in zip(all_date_objects, formatted_dates):
-            is_holiday_day = day in leave_dates or day in emp_specific_holidays
-            if not is_holiday_day and day <= date.today():
+            is_holiday_day = day in global_holiday_dates or day in emp_specific_holidays
+            is_scheduled_day = (
+                bool(shift)
+                and (not date_joining or day >= date_joining)
+                and day.strftime("%A").lower() in scheduled_days
+            )
+            if not is_holiday_day and is_scheduled_day and day <= today:
                 row_data[formatted_day] = record_lookup.get((employee, day), "DFT")
             else:
                 data = record_lookup.get((employee, day), "")
