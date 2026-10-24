@@ -4,9 +4,9 @@ Three related attendance-web findings, all from the same audit pass:
 GHSA-r59f-4xh4-58cf: the office-IP restriction trusted the first
 X-Forwarded-For value unconditionally, so an attacker who supplies an
 allowed address in that (client-controlled) header bypasses the restriction
-entirely. get_client_ip() now only trusts it as far as AXES_PROXY_COUNT
-says a real reverse proxy sits in front of the app -- the same setting
-django-axes itself already relies on for lockouts.
+entirely. get_client_ip() now believes it only on a connection from a
+trusted reverse proxy (HORILLA_TRUSTED_PROXIES) -- the same address
+django-axes uses for lockouts (horilla.client_ip).
 
 GHSA-j3hc-6v4r-j658: the web clock-in/out endpoints enforced the office-IP
 restriction but not a configured geo-fence, even though the mobile/API path
@@ -26,7 +26,7 @@ from datetime import date
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from attendance.methods.utils import (
@@ -47,30 +47,20 @@ class GetClientIpTests(TestCase):
             request.META["HTTP_X_FORWARDED_FOR"] = xff
         return request
 
-    @mock.patch("django.conf.settings.AXES_IPWARE_PROXY_COUNT", None)
-    @mock.patch(
-        "django.conf.settings.AXES_IPWARE_META_PRECEDENCE_ORDER", ["REMOTE_ADDR"]
-    )
-    def test_x_forwarded_for_is_ignored_with_no_proxy_count_configured(self):
+    @override_settings(HORILLA_TRUSTED_PROXIES=[])
+    def test_x_forwarded_for_is_ignored_with_no_trusted_proxy(self):
         # The reported bypass: an attacker-supplied header must not win when
         # this deployment has never declared a trusted reverse proxy.
         request = self._request(remote_addr="203.0.113.9", xff="10.20.30.7")
         self.assertEqual(get_client_ip(request), "203.0.113.9")
 
-    @mock.patch("django.conf.settings.AXES_IPWARE_PROXY_COUNT", 1)
-    @mock.patch(
-        "django.conf.settings.AXES_IPWARE_META_PRECEDENCE_ORDER",
-        ["HTTP_X_FORWARDED_FOR", "REMOTE_ADDR"],
-    )
-    def test_x_forwarded_for_is_honored_once_a_proxy_count_is_declared(self):
-        # With proxy_count=1, ipware expects the chain to already include
-        # that one hop's own observed address -- exactly what nginx's
-        # $proxy_add_x_forwarded_for appends. A single-entry header (as if
-        # nginx had overwritten rather than appended) is one hop short of
-        # what was declared, so it's correctly treated as unverifiable and
-        # falls back to REMOTE_ADDR instead of being trusted regardless.
-        request = self._request(remote_addr="10.0.0.1", xff="10.20.30.7, 10.0.0.1")
-        self.assertEqual(get_client_ip(request), "10.20.30.7")
+    @override_settings(HORILLA_TRUSTED_PROXIES=["10.0.0.1"])
+    def test_behind_a_trusted_proxy_its_appended_address_is_used(self):
+        # nginx's $proxy_add_x_forwarded_for appends the address it saw, so
+        # the right-most entry is the client; a client-written entry to its
+        # left (here claiming an office address) is ignored.
+        request = self._request(remote_addr="10.0.0.1", xff="10.20.30.7, 81.2.69.160")
+        self.assertEqual(get_client_ip(request), "81.2.69.160")
 
 
 class GeofenceDenialWebTests(TestCase):

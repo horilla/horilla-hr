@@ -644,17 +644,13 @@ AXES_RESET_ON_SUCCESS = True
 # Count only real failures; a lockout response is not itself a new attempt.
 AXES_LOCKOUT_TEMPLATE = None
 AXES_ENABLE_ADMIN = True
-# Behind nginx/ELB the client IP is in X-Forwarded-For. Only trust it when the
-# deployment actually sets a proxy count, otherwise a client can spoof the
-# header and dodge the IP half of the lock.
-AXES_IPWARE_PROXY_COUNT = env.int("AXES_PROXY_COUNT", default=None)
-# With no proxy count declared, ipware takes the first X-Forwarded-For value
-# as-is, so a client could send a fresh header per attempt and the IP half of
-# the lock never matches. Read the header only when AXES_PROXY_COUNT is set;
-# the shipped compose sets it to 1 for its nginx.
-AXES_IPWARE_META_PRECEDENCE_ORDER = (
-    ["HTTP_X_FORWARDED_FOR"] if AXES_IPWARE_PROXY_COUNT else []
-) + ["REMOTE_ADDR"]
+# Behind nginx the client IP is in X-Forwarded-For, but a client can write
+# that header too. horilla/client_ip.py believes it only for a connection from
+# one of these reverse proxies (IPs, CIDR ranges or hostnames; the Docker setup
+# uses "nginx"), reading the entry the proxy itself appended. Empty: no proxy,
+# the header is ignored. Also used for the attendance office-IP restriction.
+HORILLA_TRUSTED_PROXIES = env.list("HORILLA_TRUSTED_PROXIES", default=[])
+AXES_CLIENT_IP_CALLABLE = "horilla.client_ip.client_ip"
 
 
 # ========================================
