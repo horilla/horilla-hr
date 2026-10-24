@@ -604,9 +604,12 @@ def log_login_failed(sender, credentials, request, **kwargs):
 
     username = credentials.get("username", "unknown")
     ip = request.META.get("REMOTE_ADDR", "unknown")
-    session_key = (
-        request.session.session_key or request.session._get_or_create_session_key()
-    )
+    # Attempts and bans are tracked by session key, so the client must keep
+    # one session from its first failed login on. The middleware doesn't
+    # create sessions, and an unsaved key would not reach the client.
+    if not request.session.session_key:
+        request.session.create()
+    session_key = request.session.session_key
 
     # Check if currently banned
     if session_key in ban_time and ban_time[session_key] > time.time():
@@ -661,9 +664,11 @@ class Fail2BanMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        # Only a session that failed a login can be banned, and
+        # log_login_failed creates that one. Creating a session here wrote a
+        # row for every request without a cookie (health checks, devices,
+        # scripts), and such a request was never bannable anyway.
         session_key = request.session.session_key
-        if not session_key:
-            request.session.create()
 
         # Check ban and enforce it
         if session_key in ban_time and ban_time[session_key] > time.time():
