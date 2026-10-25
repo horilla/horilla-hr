@@ -16,7 +16,7 @@ from django.db.models import Q, Sum
 from django.utils.translation import gettext_lazy as _
 
 from base.methods import get_pagination
-from base.models import WEEK_DAYS, CompanyLeaves, Holidays
+from base.models import WEEK_DAYS, CompanyLeaves, EmployeeShiftSchedule, Holidays
 from employee.models import Employee
 
 MONTH_MAPPING = {
@@ -240,6 +240,34 @@ def employee_exists(request):
     return (employee, employee_work_info)
 
 
+def get_shift_schedule(shift, day=None):
+    """
+    Return the shift schedule for the given day, or fall back to the shift's
+    first active working day schedule when the day is an off-day (missing or '00:00').
+    """
+    if not shift:
+        return None
+
+    schedule = None
+    if day is not None:
+        if isinstance(day, str):
+            schedule = EmployeeShiftSchedule.objects.filter(
+                shift_id=shift, day__day=day.lower()
+            ).first()
+        else:
+            schedule = day.day_schedule.filter(shift_id=shift).first()
+
+    # If the employee came to duty on an off-day (no schedule row or minimum_working_hour is 00:00),
+    # fall back to the shift's standard working schedule.
+    if not schedule or schedule.minimum_working_hour in ("", "00:00", None):
+        schedule = (
+            EmployeeShiftSchedule.objects.filter(shift_id=shift)
+            .exclude(minimum_working_hour__in=["", "00:00"])
+            .first()
+        )
+    return schedule
+
+
 def shift_schedule_today(day, shift):
     """
     This function is used to find shift schedules for the day,
@@ -248,13 +276,16 @@ def shift_schedule_today(day, shift):
         shift   : shift instance
         day     : shift day object
     """
-    schedule_today = day.day_schedule.filter(shift_id=shift)
     start_time_sec, end_time_sec, minimum_hour = 0, 0, "00:00"
-    if schedule_today.exists():
-        schedule_today = schedule_today[0]
+    schedule_today = get_shift_schedule(shift=shift, day=day)
+    if schedule_today:
         minimum_hour = schedule_today.minimum_working_hour
-        start_time_sec = strtime_seconds(schedule_today.start_time.strftime("%H:%M"))
-        end_time_sec = strtime_seconds(schedule_today.end_time.strftime("%H:%M"))
+        if schedule_today.start_time:
+            start_time_sec = strtime_seconds(
+                schedule_today.start_time.strftime("%H:%M")
+            )
+        if schedule_today.end_time:
+            end_time_sec = strtime_seconds(schedule_today.end_time.strftime("%H:%M"))
     return (minimum_hour, start_time_sec, end_time_sec)
 
 
@@ -459,9 +490,6 @@ def attendance_day_checking(attendance_date, minimum_hour, employee=None):
     # Convert the string to a datetime object
     attendance_datetime = datetime.strptime(attendance_date, "%Y-%m-%d")
 
-    # Extract name of the day
-    attendance_day = attendance_datetime.strftime("%A")
-
     # Taking all holidays into a list
     leaves = []
     holidays = Holidays.objects.all()
@@ -471,7 +499,7 @@ def attendance_day_checking(attendance_date, minimum_hour, employee=None):
         holidays = holidays.filter(is_specific=False)
     for holi in holidays:
         start_date = holi.start_date
-        end_date = holi.end_date
+        end_date = holi.end_date or holi.start_date
 
         # Convert start_date and end_date to datetime objects
         start_date = datetime.strptime(str(start_date), "%Y-%m-%d")
@@ -489,29 +517,6 @@ def attendance_day_checking(attendance_date, minimum_hour, employee=None):
             minimum_hour = "00:00"
             break
 
-    # Making a dictonary contains week day value and leave day pairs
-    company_leaves = {}
-    company_leave = CompanyLeaves.objects.all()
-    for com_leave in company_leave:
-        a = dict(WEEK_DAYS).get(com_leave.based_on_week_day)
-        b = com_leave.based_on_week
-        company_leaves[b] = a
-
-    # Checking the attendance date is in which week
-    week_in_month = str(((attendance_datetime.day - 1) // 7 + 1) - 1)
-
-    # Checking the attendance date is in the company leave or not
-    for pairs in company_leaves.items():
-        # For all weeks based_on_week is None
-        if str(pairs[0]) == "None":
-            if str(pairs[1]) == str(attendance_day):
-                minimum_hour = "00:00"
-                break
-        # Checking with based_on_week and attendance_date week
-        if str(pairs[0]) == week_in_month:
-            if str(pairs[1]) == str(attendance_day):
-                minimum_hour = "00:00"
-                break
     return minimum_hour
 
 

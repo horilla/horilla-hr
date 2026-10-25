@@ -10,7 +10,7 @@ from base.models import Holidays
 
 
 class TestCompanyLeaveAndRange(HolidayFixtureMixin, TestCase):
-    def test_sunday_company_leave_zeroes_minimum_hour(self):
+    def test_sunday_company_leave_retains_minimum_hour(self):
         from base.models import CompanyLeaves
 
         # Find a past Sunday such that neither it nor the Monday after it is a
@@ -32,9 +32,12 @@ class TestCompanyLeaveAndRange(HolidayFixtureMixin, TestCase):
             based_on_week_day="6",
         )
         company_leave.company_id.set([self.company])
+
+        # Off-days (CompanyLeaves) should now retain the shift's minimum hour
+        # instead of zeroing it out, to allow compensatory off/overtime calculation.
         self.assertEqual(
             attendance_day_checking(str(sunday), "08:00"),
-            "00:00",
+            "08:00",
         )
         monday = sunday + timedelta(days=1)
         self.assertEqual(

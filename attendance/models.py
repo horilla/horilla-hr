@@ -24,6 +24,7 @@ from attendance.methods.utils import (
     attendance_date_validate,
     format_time,
     get_diff_dict,
+    get_shift_schedule,
     month_date_range,
     strtime_seconds,
     validate_hh_mm_ss_format,
@@ -772,15 +773,23 @@ class Attendance(HorillaModel):
 
     def adjust_minimum_hour(self):
         """
-        Set minimum_hour to 00:00 if the attendance date falls on a holiday or company leave.
+        Set minimum_hour to 00:00 if the attendance date falls on a holiday.
+        For off-days (including weekly company leaves) where an employee reports
+        to duty, fall back to the shift's standard working hours if minimum_hour is 00:00.
         """
-        if is_holiday(self.attendance_date, self.employee_id) or is_company_leave(
-            self.attendance_date
-        ):
+        if is_holiday(self.attendance_date, self.employee_id):
             self.minimum_hour = "00:00"
             self.is_holiday = True
         else:
-            self.is_holiday = False
+            # is_company_leave returns an object/string (e.g. "Sunday | None"), so cast it to a boolean
+            self.is_holiday = bool(is_company_leave(self.attendance_date))
+
+            if self.minimum_hour in ("", "00:00", None) and self.shift_id:
+                schedule = get_shift_schedule(
+                    shift=self.shift_id, day=self.attendance_day
+                )
+                if schedule:
+                    self.minimum_hour = schedule.minimum_working_hour
 
     def update_attendance_overtime(self):
         """
@@ -891,8 +900,8 @@ class Attendance(HorillaModel):
             old_pending_today = 0
             old_approved_flag = False
 
-        self.update_attendance_overtime()
         self.adjust_minimum_hour()
+        self.update_attendance_overtime()
         self.handle_overtime_conditions()
 
         if self.attendance_overtime_approve and not old_approved_flag:

@@ -1,9 +1,13 @@
-"""Tests for Attendance.adjust_minimum_hour() holiday handling."""
+"""Tests for Attendance.adjust_minimum_hour() holiday handling and off-day shift minimum hours."""
+
+from datetime import time
 
 from django.test import TestCase
 
+from attendance.methods.utils import shift_schedule_today
 from attendance.models import Attendance
 from attendance.tests.fixtures import HolidayFixtureMixin
+from base.models import CompanyLeaves, EmployeeShiftDay, EmployeeShiftSchedule
 
 
 class TestAttendanceAdjustMinimumHour(HolidayFixtureMixin, TestCase):
@@ -58,3 +62,87 @@ class TestAttendanceAdjustMinimumHour(HolidayFixtureMixin, TestCase):
                 att.is_holiday = True  # pre-set to confirm the else branch resets it
                 att.adjust_minimum_hour()
                 self.assertFalse(att.is_holiday)
+
+
+class TestOffDayMinimumHourFallback(HolidayFixtureMixin, TestCase):
+    """
+    When an employee reports to duty on an off-day (either no schedule row,
+    minimum_working_hour='00:00', or a weekly CompanyLeaves day), the minimum
+    hour must fall back to the shift's standard working schedule rather than '00:00'.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.monday, _ = EmployeeShiftDay.objects.get_or_create(day="monday")
+        cls.saturday, _ = EmployeeShiftDay.objects.get_or_create(day="saturday")
+        cls.sunday, _ = EmployeeShiftDay.objects.get_or_create(day="sunday")
+
+        # Standard working day schedule on Monday (08:30)
+        cls.monday_schedule, _ = EmployeeShiftSchedule.objects.update_or_create(
+            shift_id=cls.shift,
+            day=cls.monday,
+            defaults={
+                "minimum_working_hour": "08:30",
+                "start_time": time(9, 0),
+                "end_time": time(17, 30),
+            },
+        )
+
+        # Off-day schedule on Saturday explicitly set to '00:00'
+        cls.saturday_schedule, _ = EmployeeShiftSchedule.objects.update_or_create(
+            shift_id=cls.shift,
+            day=cls.saturday,
+            defaults={
+                "minimum_working_hour": "00:00",
+                "start_time": None,
+                "end_time": None,
+            },
+        )
+
+        # Ensure Sunday has no schedule row at all for this shift
+        EmployeeShiftSchedule.objects.filter(
+            shift_id=cls.shift, day=cls.sunday
+        ).delete()
+
+    def test_off_day_with_zero_minimum_hour_falls_back_to_shift_hours(self):
+        """Saturday has minimum_working_hour='00:00' -> falls back to shift's 08:30."""
+        min_hour, start_sec, end_sec = shift_schedule_today(
+            day=self.saturday, shift=self.shift
+        )
+        self.assertEqual(min_hour, "08:30")
+        self.assertEqual(start_sec, 9 * 3600)
+        self.assertEqual(end_sec, 17 * 3600 + 30 * 60)
+
+    def test_off_day_without_schedule_row_falls_back_to_shift_hours(self):
+        """Sunday has no schedule row -> falls back to shift's 08:30."""
+        min_hour, start_sec, end_sec = shift_schedule_today(
+            day=self.sunday, shift=self.shift
+        )
+        self.assertEqual(min_hour, "08:30")
+        self.assertEqual(start_sec, 9 * 3600)
+        self.assertEqual(end_sec, 17 * 3600 + 30 * 60)
+
+    def test_company_leave_off_day_retains_shift_minimum_hour(self):
+        """
+        Reporting to duty on a weekly off-day (CompanyLeaves) must retain
+        the shift's minimum_hour instead of resetting it to '00:00'.
+        """
+        weekday_str = str(self.normal_date.weekday())
+        CompanyLeaves.objects.get_or_create(
+            based_on_week=None,
+            based_on_week_day=weekday_str,
+        )
+        att = Attendance(
+            employee_id=self.emp_a,
+            attendance_date=self.normal_date,
+            shift_id=self.shift,
+            attendance_day=self.sunday,
+            minimum_hour="00:00",
+            attendance_worked_hour="09:30",
+            attendance_clock_in_date=self.normal_date,
+        )
+        att.adjust_minimum_hour()
+        att.update_attendance_overtime()
+        self.assertEqual(att.minimum_hour, "08:30")
+        self.assertEqual(att.attendance_overtime, "01:00")

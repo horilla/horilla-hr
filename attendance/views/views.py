@@ -79,6 +79,7 @@ from attendance.methods.utils import (
     Request,
     attendance_day_checking,
     format_time,
+    get_shift_schedule,
     is_reportingmanger,
     monthly_leave_days,
     paginator_qry,
@@ -825,9 +826,7 @@ def form_shift_dynamic_data(request):
     if attendance_date_str is not None and attendance_date_str != "":
         attendance_date = datetime.strptime(attendance_date_str, "%Y-%m-%d").date()
     day = attendance_date.strftime("%A").lower()
-    schedule_today = EmployeeShiftSchedule.objects.filter(
-        shift_id__id=shift_id, day__day=day
-    ).first()
+    schedule_today = get_shift_schedule(shift=shift_id, day=day)
     shift_start_time = ""
     shift_end_time = ""
     minimum_hour = "00:00"
@@ -836,7 +835,7 @@ def form_shift_dynamic_data(request):
         shift_start_time = schedule_today.start_time
         shift_end_time = schedule_today.end_time
         minimum_hour = schedule_today.minimum_working_hour
-        if shift_end_time < shift_start_time:
+        if shift_start_time and shift_end_time and shift_end_time < shift_start_time:
             attendance_clock_out_date = attendance_date + timedelta(days=1)
     worked_hour = minimum_hour
     if attendance_date == date(day=today.day, month=today.month, year=today.year):
@@ -1775,18 +1774,18 @@ def update_fields_based_shift(request):
         else datetime.today().date()
     )
     day = attendance_date.strftime("%A").lower()
-
-    schedule_today = (
-        EmployeeShiftSchedule.objects.filter(shift_id=shift_id, day__day=day).first()
-        if shift_id
-        else None
-    )
+    schedule_today = get_shift_schedule(shift=shift_id, day=day)
 
     shift_start_time = schedule_today.start_time if schedule_today else ""
     shift_end_time = schedule_today.end_time if schedule_today else ""
     minimum_hour = schedule_today.minimum_working_hour if schedule_today else "00:00"
 
-    if schedule_today and shift_end_time < shift_start_time:
+    if (
+        schedule_today
+        and shift_start_time
+        and shift_end_time
+        and shift_end_time < shift_start_time
+    ):
         attendance_clock_out_date = (attendance_date + timedelta(days=1)).strftime(
             "%Y-%m-%d"
         )
@@ -1895,9 +1894,7 @@ def form_date_checking(request):
     if request.POST.get("shift_id"):
         shift_id = request.POST["shift_id"]
         day = attendance_date.strftime("%A").lower()
-        schedule_today = EmployeeShiftSchedule.objects.filter(
-            shift_id__id=shift_id, day__day=day
-        ).first()
+        schedule_today = get_shift_schedule(shift=shift_id, day=day)
 
         # Checking the Shift is present in the selected attendance day.
         if schedule_today is not None:
