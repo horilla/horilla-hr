@@ -5,6 +5,7 @@ import bleach
 from bleach.css_sanitizer import CSSSanitizer
 from django import template
 from django.core.paginator import Page, Paginator
+from django.utils.html import escapejs
 from django.utils.safestring import mark_safe
 
 from base.methods import get_pagination
@@ -628,3 +629,12 @@ def config_perms(user):
                 if user.has_perm(perm):
                     return True
     return False
+
+
+@register.filter
+def escapejs_template(value):
+    """
+    ``escapejs`` for text written inside a JavaScript template literal: also
+    escapes ``$``, which ``escapejs`` leaves alone and which starts ``${...}``.
+    """
+    return mark_safe(escapejs(value).replace("$", "\\u0024"))

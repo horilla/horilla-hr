@@ -15,13 +15,7 @@ from typing import Literal
 HomeRole = Literal["employee", "manager", "hr", "leadership"]
 
 # Charts demoted from default home (still available via Customize).
-DEMOTED_BY_DEFAULT = (
-    "employee_status",
-    "leave_by_department",
-    "department_leave_days",
-    "hiring_timeline",
-    "recruitment_funnel",
-)
+DEMOTED_BY_DEFAULT = ("hiring_timeline",)
 
 # Charts shown by default for manager/HR/leadership when prefs are empty.
 # Employee role does not use the analytics home.
@@ -30,10 +24,7 @@ _BASE_VISIBLE = (
     "gender_distribution",
     "leave_breakdown",
     "leave_trends",
-    "attendance_trend",
-    "department_overtime",
     "attendance_overview",
-    "leave_coverage",
 )
 
 ROLE_DEFAULT_VISIBLE: dict[str, tuple[str, ...]] = {
@@ -47,7 +38,6 @@ ROLE_DEFAULT_VISIBLE: dict[str, tuple[str, ...]] = {
     + (
         "recruitment_pipeline",
         "employee_turnover",
-        "payroll_summary",
     ),
     "employee": (),
 }
@@ -118,8 +108,6 @@ def role_default_prefs(
                 + [
                     "recruitment_pipeline",
                     "employee_turnover",
-                    "payroll_summary",
-                    "leave_coverage",
                 ]
             )
         )

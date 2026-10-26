@@ -1174,29 +1174,29 @@
             <div class="tr-grid">
                 <div class="tr-card tr-card--chart">
                     <div class="tr-card__head">
-                        <div><div class="tr-card__title">{% trans "Hires vs exits" %}</div>
-                        <div class="tr-card__sub">{% trans "By month. Click a column to see the people." %}</div></div>
-                        <div class="tr-legend"><span><i style="background:${GREEN}"></i>{% trans "Hires" %}</span><span><i style="background:${RED}"></i>{% trans "Exits" %}</span></div>
+                        <div><div class="tr-card__title">{% trans "Hires vs exits"|escapejs %}</div>
+                        <div class="tr-card__sub">{% trans "By month. Click a column to see the people."|escapejs %}</div></div>
+                        <div class="tr-legend"><span><i style="background:${GREEN}"></i>{% trans "Hires"|escapejs %}</span><span><i style="background:${RED}"></i>{% trans "Exits"|escapejs %}</span></div>
                     </div>
                     <div id="tr-chart" class="tr-card__plot"></div>
                 </div>
                 <div class="tr-card">
-                    <div class="tr-card__head"><div><div class="tr-card__title">{% trans "Exits by department" %}</div>
-                        <div class="tr-card__sub">{% trans "Click a department to see who left." %}</div></div></div>
+                    <div class="tr-card__head"><div><div class="tr-card__title">{% trans "Exits by department"|escapejs %}</div>
+                        <div class="tr-card__sub">{% trans "Click a department to see who left."|escapejs %}</div></div></div>
                     <div class="tr-rank">
                         ${depts.length ? depts.map((d, i) => `
                             <button type="button" class="tr-rank__row" data-open="department|${trEsc(d.name)}">
                                 <span class="tr-rank__name">${trEsc(d.name)}</span>
                                 <span class="tr-rank__bar"><i style="width:${Math.max(6, d.n / depts[0].n * 100)}%"></i></span>
                                 <span class="tr-rank__n">${d.n}</span>
-                            </button>`).join("") : `<div class="tr-empty">{% trans "No exits in this window." %}</div>`}
+                            </button>`).join("") : `<div class="tr-empty">{% trans "No exits in this window."|escapejs %}</div>`}
                     </div>
                 </div>
             </div>
             <div class="tr-card">
-                <div class="tr-card__head"><div><div class="tr-card__title">{% trans "Month by month" %}</div></div></div>
+                <div class="tr-card__head"><div><div class="tr-card__title">{% trans "Month by month"|escapejs %}</div></div></div>
                 <table class="tr-table">
-                    <thead><tr><th>{% trans "Month" %}</th><th class="tr-num">{% trans "Hires" %}</th><th class="tr-num">{% trans "Exits" %}</th><th class="tr-num">{% trans "Net" %}</th></tr></thead>
+                    <thead><tr><th>{% trans "Month"|escapejs %}</th><th class="tr-num">{% trans "Hires"|escapejs %}</th><th class="tr-num">{% trans "Exits"|escapejs %}</th><th class="tr-num">{% trans "Net"|escapejs %}</th></tr></thead>
                     <tbody>
                         ${months.map((m, i) => {
                             const h = Number(hires[i]) || 0, x = Number(exits[i]) || 0, nt = h - x;
@@ -1260,7 +1260,7 @@
         if (!box) return;
         TR.selected = { dim: dimension, val: value };
         box.hidden = false;
-        box.innerHTML = `<div class="tr-card__head"><div class="tr-card__title">{% trans "Loading…" %}</div></div>`;
+        box.innerHTML = `<div class="tr-card__head"><div class="tr-card__title">{% trans "Loading…"|escapejs %}</div></div>`;
         if (!quiet) box.scrollIntoView({ behavior: "smooth", block: "nearest" });
         try {
             const q = new URLSearchParams(queryString());
@@ -1275,12 +1275,12 @@
                 <div class="tr-card__head">
                     <div><div class="tr-card__title">${trEsc(d.title || "")}</div>
                     <div class="tr-card__sub">${d.count != null ? d.count + " {% trans 'people'|escapejs %}" : ""}${d.message ? " · " + trEsc(d.message) : ""}</div></div>
-                    <button type="button" class="tr-close" aria-label="{% trans 'Close' %}">&times;</button>
+                    <button type="button" class="tr-close" aria-label="{% trans 'Close'|escapejs %}">&times;</button>
                 </div>
                 ${(d.rows || []).length ? `<table class="tr-table"><thead><tr>${cols.map((c) => `<th>${trEsc(c.label)}</th>`).join("")}<th></th></tr></thead>
                 <tbody>${d.rows.map((r) => `<tr>${cols.map((c, i) => `<td>${i === 0 ? `<span class="tr-dot" style="background:${tone}"></span>` : ""}${trEsc(r[c.key])}</td>`).join("")}
-                    <td class="tr-num">${r.url ? `<a class="tr-open" href="${trEsc(r.url)}" target="_blank" rel="noopener">{% trans "Open" %} <ion-icon name="open-outline"></ion-icon></a>` : ""}</td></tr>`).join("")}</tbody></table>`
-                  : `<div class="tr-empty">{% trans "No matching records." %}</div>`}`;
+                    <td class="tr-num">${r.url ? `<a class="tr-open" href="${trEsc(r.url)}" target="_blank" rel="noopener">{% trans "Open"|escapejs %} <ion-icon name="open-outline"></ion-icon></a>` : ""}</td></tr>`).join("")}</tbody></table>`
+                  : `<div class="tr-empty">{% trans "No matching records."|escapejs %}</div>`}`;
             box.querySelector(".tr-close").addEventListener("click", () => { box.hidden = true; TR.selected = null; });
         } catch (err) {
             box.innerHTML = `<div class="tr-card__head"><div class="tr-card__title">${trEsc(err.message || err)}</div></div>`;

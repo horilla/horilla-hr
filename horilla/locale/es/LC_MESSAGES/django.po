@@ -26040,3 +26040,22 @@ msgstr "Plantillas y flujos de mensajes creados correctamente."
 
 #~ msgid "'s Scheduled Interviews"
 #~ msgstr "entrevistas programadas"
+
+#: horilla_views/generic/cbv/views.py
+msgid "Last 7 Days"
+msgstr "Últimos 7 días"
+
+#: horilla_views/generic/cbv/views.py
+msgid "Next 7 Days"
+msgstr "Próximos 7 días"
+
+#: horilla_theme/templates/generic/quick_actions.html
+msgid "Quick filter"
+msgstr "Filtro rápido"
+
+#: offboarding/templates/cbv/exit_process/quick_actions.html
+#: onboarding/templates/cbv/pipeline/onboarding/quick_actions.html
+#: recruitment/templates/cbv/pipeline/quick_actions.html
+#, python-format
+msgid "Quick filter (%(counter)s)"
+msgstr "Filtro rápido (%(counter)s)"

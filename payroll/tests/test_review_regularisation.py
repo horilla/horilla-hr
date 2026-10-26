@@ -86,7 +86,12 @@ class SummaryTableStillWorksTests(TestCase):
             body = handle.read()
 
         self.assertIn(HOST, body)
-        self.assertIn("data-calendar-url", body)
+        # Each row, and so its calendar hook, lives in the row partial the
+        # table includes.
+        self.assertIn("monthly_summary/_summary_row.html", body)
+        row = "attendance/templates/attendance/monthly_summary/_summary_row.html"
+        with open(row, encoding="utf-8") as handle:
+            self.assertIn("data-calendar-url", handle.read())
         # The old copy is gone -- two modals with the same element ids on one
         # page would have the second one's JavaScript driving the first one's
         # markup.

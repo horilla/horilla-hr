@@ -70,6 +70,7 @@
                         type="text"
                         class="text-color-600 ps-8 p-1.5 pb-2 placeholder:text-xs w-full border border-primary-500 rounded-md focus-visible:outline-0 placeholder:text-dark-100 text-sm [transition:.3s] focus:border-primary-600"
                         name="search"
+                        value="{{ form.search.value|default_if_none:'' }}"
                         aria-label="{% trans 'Search Input' %}"
                         placeholder="{% trans 'Search' %}"
                         autocomplete="false"

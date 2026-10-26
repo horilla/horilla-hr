@@ -999,6 +999,30 @@ class QuestionForm(ModelForm):
             )
 
 
+class QuestionModalForm(QuestionForm):
+    """
+    Question form rendered in the generic form modal
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        del self.fields["options"]
+        self.fields["question_type"].required = True
+        self.fields["question_type"].widget.attrs.pop("onchange", None)
+        for number, letter in enumerate("abcd", start=1):
+            self.fields[f"option_{letter}"].label = _("Option %s") % number
+        self.order_fields(
+            [
+                "question_type",
+                "question",
+                "option_a",
+                "option_b",
+                "option_c",
+                "option_d",
+            ]
+        )
+
+
 class ObjectiveCommentForm(ModelForm):
     """
     A form used to add a comment to an employee's objective.

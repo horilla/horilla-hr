@@ -1,9 +1,23 @@
-{% load i18n horillafilters %}
-{% get_company as theme_obj %}
-{% if instance in clashed_due_to_department and instance in clashed_due_to_job_position %}
-    <div align="center" style="background-color: {{ theme_obj.primary_600|default:'rgba(229, 79, 56, 0.13)' }}; border: 1.5px solid {{ theme_obj.primary_600|default:'rgb(229, 79, 56)' }}; border-radius: 12px; padding: 7px; font-weight: bold; font-size: 12px; width: 99%;">{% trans "Same Department & Job Position" %}</div>
-{% elif instance in clashed_due_to_department %}
-    <div align="center" style="background-color: rgb(229 56 226 / 13%); border: 1.5px solid {{ theme_obj.primary_600|default:'rgb(229, 79, 56)' }}; border-radius: 12px; padding: 7px; font-weight: bold; font-size: 1em; width: 99%;">{% trans "Same Department" %}</div>
-{% elif instance in clashed_due_to_job_position %}
-    <div align="center" style="background-color: rgb(56 89 229 / 13%); border: 1.5px solid {{ theme_obj.primary_600|default:'rgb(229, 79, 56)' }}; border-radius: 12px; padding: 7px; font-weight: bold; font-size: 1em; width: 99%;">{% trans "Same Job Position" %}</div>
-{% endif %}
+{% load i18n %}
+{% comment %}
+    "Clashed Due To" pill for the leave clash list. Same pill shape as
+    generic/penalty_badge.html. Context: same_department, same_job_position.
+{% endcomment %}
+<div class="flex justify-center min-w-0">
+    {% if same_department and same_job_position %}
+    <span class="inline-flex max-w-full items-center gap-1 whitespace-nowrap rounded-md border border-danger/30 bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger-dark" title="{% trans 'Same Department & Job Position' %}">
+        <ion-icon name="people-outline"></ion-icon>
+        {% trans "Dept. & Job" %}
+    </span>
+    {% elif same_department %}
+    <span class="inline-flex max-w-full items-center gap-1 whitespace-nowrap rounded-md border border-warning/30 bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning-dark" title="{% trans 'Same Department' %}">
+        <ion-icon name="business-outline"></ion-icon>
+        {% trans "Department" %}
+    </span>
+    {% elif same_job_position %}
+    <span class="inline-flex max-w-full items-center gap-1 whitespace-nowrap rounded-md border border-info-600/30 bg-info-600/10 px-2 py-0.5 text-xs font-medium text-info-700" title="{% trans 'Same Job Position' %}">
+        <ion-icon name="briefcase-outline"></ion-icon>
+        {% trans "Job Position" %}
+    </span>
+    {% endif %}
+</div>

@@ -50,7 +50,7 @@ django-widget-tweaks==1.5.1
 # invalid write, disclosing data the caller's permissions deny on GET --
 # not reachable here, since no view sets AdminRenderer, but pinned past it
 # anyway rather than relying on that staying true).
-djangorestframework==3.18.1
+djangorestframework==3.18.3
 # 5.5.1, not 5.5.0: 5.5.0 caps pyjwt<2.10.0, which pins the JWT library to
 # a version with the advisories below. 5.5.1 drops the cap (pyjwt>=1.7.1).
 djangorestframework-simplejwt==5.5.1
@@ -134,6 +134,12 @@ rapidfuzz>=3.14.6,<4
 # 3.8.x and spacy refuses a model from another minor. Raising this cap
 # means raising the model URL to match, in the same commit.
 spacy>=3.8.16,<3.9
+# preshed 3.0.14 (released 2026-10-24) breaks spacy 3.8.16: loading any model raises
+# "OverflowError: Python int too large to convert to C ssize_t" from the tokenizer, so
+# recruitment.views fails at import and the app does not start
+# (https://github.com/explosion/spaCy/issues/14058). Lift the pin once spacy or preshed
+# ships a fix.
+preshed==3.0.13
 # Not on PyPI -- spacy models are published only as GitHub release assets.
 # Named (PEP 508) form rather than a bare URL so pip knows which package
 # this provides before fetching it. The wheel is py3-none-any, so it is
@@ -165,7 +171,7 @@ msgpack>=1.2.2,<2
 # and thinc. 70.3.0 carries a path traversal (CVE-2025-47273), and
 # pip install --upgrade pip does not upgrade setuptools, so the image kept
 # the old one. Neither spacy nor thinc caps the version.
-setuptools==84.0.0
+setuptools==84.1.0
 
 # Testing
 coverage>=7.0

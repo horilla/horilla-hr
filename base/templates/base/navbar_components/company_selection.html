@@ -11,7 +11,7 @@
                 {% for company in all_companies %}
                     <li class="oh-dropdown__item">
                         <a hx-get="{% url 'update-selected-company' %}?company_id={{company.0}}&next={{ request.path }}"class="oh-dropdown__link">
-                            <img src="{{company.2}}" class="oh-dropdown__lang-icon" style="border-radius: 50%;" />
+                            <img src="{% if company.2 and company.2 != '/404/' %}{{company.2}}{% else %}https://ui-avatars.com/api/?name=C&background=random{% endif %}" class="oh-dropdown__lang-icon" style="border-radius: 50%;" />
                             {{company.1}}
                             {% if company.3 %}
                                 <ion-icon name="checkmark-circle-outline" style="position: relative; top: 3.3px; color: green; font-size: 1.2em;"></ion-icon>

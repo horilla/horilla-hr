@@ -28,11 +28,10 @@
                 </button>
                 <div class="oh-modal__dialog-body p-0 pt-2" id="shiftImportModalBody">
                     <form action="#" id="shiftImportForm" enctype="multipart/form-data">
-                        <div class="oh-modal__dialog-body mr-5" id="uploading" style="display: none">
-                            <div class="loader-container">
-                                <div class="loader"></div>
-                                <div class="loader-text">{% trans "Uploading..." %}</div>
-                            </div>
+                        <div id="uploading" class="oh-upload-loader" role="status" aria-live="polite">
+                            <p class="oh-upload-loader__title">{% trans "Uploading..." %}</p>
+                            <p class="oh-upload-loader__hint">{% trans "Don't refresh the page" %}</p>
+                            <div class="oh-upload-loader__bar"><span></span></div>
                         </div>
 
                         <div id="error-container" style="color: red"></div>
@@ -97,7 +96,7 @@
         form.on("submit", function () {
             event.preventDefault();
             $(".oh-dropdown__import-form").css("display", "none");
-            $("#uploading").css("display", "block");
+            $("#uploading").addClass("htmx-request");
             var formData = new FormData();
             var fileInput = document.querySelector("#shiftImportFile");
             formData.append("file", fileInput.files[0]);
@@ -109,11 +108,20 @@
                 data: formData,
                 processData: false,
                 contentType: false,
+                timeout: 600000,
                 headers: {
                     "X-CSRFToken": getCookie("csrftoken"),
+                    "HX-Request": "true",
                 },
                 xhrFields: {
                     responseType: "blob",
+                },
+                error: function () {
+                    resetShiftImportForm();
+                    Swal.fire({
+                        text: "{% trans 'The import failed. Please try again.'|escapejs %}",
+                        icon: "error",
+                    });
                 },
                 success: function (response, textStatus, xhr) {
                     var errorCount = xhr.getResponseHeader("X-Error-Count");
@@ -131,6 +139,12 @@
                                 }).then(function () {
                                     window.location.reload();
                                 });
+                            } else {
+                                resetShiftImportForm();
+                                Swal.fire({
+                                    text: "{% trans 'No employees were imported. Please check the file and try again.'|escapejs %}",
+                                    icon: "warning",
+                                });
                             }
                         };
                         reader.readAsText(response);
@@ -142,16 +156,18 @@
                             icon: "error",
                             showCancelButton: true,
                             showDenyButton: true,
-                            confirmButtonText: "{% trans 'Download error list & Skip Import'|escapejs %}",
-                            denyButtonText: "{% trans 'Download error list & Continue Import'|escapejs %}",
+                            confirmButtonText: "{% trans 'Download error list & Continue Import'|escapejs %}",
+                            denyButtonText: "{% trans 'Download error list & Skip Import'|escapejs %}",
                             cancelButtonText: i18nMessages.cancel,
-                            confirmButtonColor: "#d33",
-                            denyButtonColor: "#6c757d",
+                            confirmButtonColor: "#008000",
+                            denyButtonColor: "#475569",
+                            cancelButtonColor: "#d33",
                             customClass: {
                                 container: "custom-swal-container",
+                                popup: "oh-swal-stack",
                             },
                         }).then((result) => {
-                            if (result.isConfirmed) {
+                            if (result.isDenied) {
                                 const file = new Blob([response], { type: "text/csv" });
                                 const url = URL.createObjectURL(file);
                                 const link = document.createElement("a");
@@ -163,7 +179,7 @@
                                 URL.revokeObjectURL(url);
                                 link.click();
                                 window.location.reload();
-                            } else if (result.isDenied) {
+                            } else if (result.isConfirmed) {
                                 formData.append("create_rotating_shift", true);
                                 $.ajax({
                                     type: "POST",
@@ -172,11 +188,20 @@
                                     data: formData,
                                     processData: false,
                                     contentType: false,
+                                    timeout: 600000,
                                     headers: {
                                         "X-CSRFToken": getCookie("csrftoken"),
+                                        "HX-Request": "true",
                                     },
                                     xhrFields: {
                                         responseType: "blob",
+                                    },
+                                    error: function () {
+                                        resetShiftImportForm();
+                                        Swal.fire({
+                                            text: "{% trans 'The import failed. Please try again.'|escapejs %}",
+                                            icon: "error",
+                                        });
                                     },
                                     success: function () {
                                         Swal.fire({
@@ -191,8 +216,7 @@
                                     },
                                 });
                             } else {
-                                $(".oh-dropdown__import-form").css("display", "block");
-                                $("#uploading").css("display", "none");
+                                resetShiftImportForm();
                             }
                         });
                     }
@@ -200,6 +224,11 @@
             });
         });
     });
+
+    function resetShiftImportForm() {
+        $("#uploading").removeClass("htmx-request");
+        $(".oh-dropdown__import-form").css("display", "block");
+    }
 
     function template_download(e) {
         e.preventDefault();

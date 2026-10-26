@@ -2959,12 +2959,6 @@
             }
             loadAnnouncements();
 
-            // ─── TODAY'S LEAVE ───
-
-            {% if perms.attendance.view_attendance or home_role == "manager" %}
-            // ─── ATTENDANCE TREND ───
-            {% endif %}
-
             // ─── DEPARTMENT HEADCOUNT ───
             // ─── TICKETS (open tickets only) ───
             {% if perms.helpdesk.view_ticket or request.user.is_superuser %}

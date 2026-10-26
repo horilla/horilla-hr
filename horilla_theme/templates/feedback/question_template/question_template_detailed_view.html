@@ -1,147 +1,31 @@
 {% extends 'index.html' %}
 {% load i18n %}
-{% load widget_tweaks %}
-{% load basefilters %}
 {% block content %}
-    <div class="bg-white p-5 rounded-md shadow-card mb-5">
-        <div class="flex gap-2 md:gap-0 flex-wrap justify-between items-end mb-5 border-b border-dark-50 pb-3">
-            <h3 class="text-md font-semibold">{% trans "Add A Question" %}</h3>
+    <div class="border border-[#ebebeb] rounded-md">
+        <div hx-get="{% url 'question-list-nav' template_id=question_template.id %}" hx-trigger="load"></div>
+
+        <div
+            class="oh-checkpoint-badge mb-2"
+            id="selectedInstances"
+            data-ids="[]"
+            data-clicked=""
+            style="display: none"
+        >
         </div>
 
-        {% if perms.pms.add_question or request.user|filtersubordinates %}
-            <form
-                action="{% url 'question-creation' id=question_template.id %}"
-                id="question_create_form"
-                method="post"
-            >
-                {% csrf_token %}
-                <div class="myform grid md:flex gap-3 w-full">
-                    <div class="flex-1 grid sm:flex gap-3">
-                        <div class="flex w-full sm:w-56">
-                            {% render_field form.question_type class="form-control oh-select--qa-change" %}
-                            {{ form.question_type.errors }}
-                        </div>
-                        <div class="flex-1">
-                            {% trans 'Enter question here' as question_placeholder %}
-                            {% render_field form.question class="form-control" placeholder=question_placeholder %}
-                            <p id="id_question_template_error" class="text-danger mt-1 p-2"></p>
-                        </div>
-                    </div>
-
-                    <button
-                        type="submit"
-                        style="height: 35px"
-                        class="px-4 py-2 bg-brand-600 text-white rounded-md text-xs flex w-28 justify-center items-center gap-2 hover:bg-brand-800 transition duration-300"
-                    >
-                        {% trans "Add Question" %}
-                    </button>
-                </div>
-
-                <!-- This will be shown only when Question Type == "4" (Multiple Choice) -->
-                <div class="oh-link__expanded d-none mt-4">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div class="col-12 col-sm-12 col-md-6 col-lg-3">
-                            <label class="oh-label d-block text-muted fw-bold">{% trans "Option" %} 1</label>
-                            <input
-                                type="text"
-                                name="option_a"
-                                style="width: auto"
-                                class="oh-input oh-input--res-height mt-1"
-                                placeholder="{% trans 'Option #1' %}"
-                            >
-                        </div>
-                        <div class="col-12 col-sm-12 col-md-6 col-lg-3">
-                            <label class="oh-label d-block text-muted fw-bold">{% trans "Option" %} 2</label>
-                            <input
-                                type="text"
-                                name="option_b"
-                                style="width: auto"
-                                class="oh-input oh-input--res-height mt-1"
-                                placeholder="{% trans 'Option #2' %}"
-                            >
-                        </div>
-                        <div class="col-12 col-sm-12 col-md-6 col-lg-3">
-                            <label class="oh-label d-block text-muted fw-bold">{% trans "Option" %} 3</label>
-                            <input
-                                type="text"
-                                name="option_c"
-                                style="width: auto"
-                                class="oh-input oh-input--res-height mt-1"
-                                placeholder="{% trans 'Option #3' %}"
-                            >
-                        </div>
-                        <div class="col-12 col-sm-12 col-md-6 col-lg-3">
-                            <label class="oh-label d-block text-muted fw-bold">{% trans "Option" %} 4</label>
-                            <input
-                                type="text"
-                                name="option_d"
-                                style="width: auto"
-                                class="oh-input oh-input--res-height mt-1"
-                                placeholder="{% trans 'Option #4' %}"
-                            >
-                        </div>
-                    </div>
-                </div>
-            </form>
-        {% endif %}
+        <div class="oh-wrapper" id="listContainer"></div>
     </div>
 
-    <div class="bg-white p-5 rounded-md shadow-card">
-        <div class="flex gap-2 md:gap-0 flex-wrap justify-between items-end mb-5 border-b border-dark-50 pb-3">
-            <h3 class="text-md font-semibold">{% trans "Questions" %}</h3>
-        </div>
-
-        <div class="h-[calc(100vh_-_370px)] overflow-hidden overflow-y-auto" id="questionView">
-            {% include 'feedback/question/question_all.html' %}
-        </div>
-    </div>
-
-    <!-- JS Logic for validation + question type toggle -->
     <script>
-        $(document).ready(function () {
-            // Form submit validation
-            $('#question_create_form').on('submit', function (e) {
-                e.preventDefault();
-                var questionValue = $("#id_question").val();
-                var errorElement = $('#id_question_template_error');
+        function toggleQuestionOptions() {
+            var form = $("#questionFormForm");
+            var isChoice = form.find('select[name="question_type"]').val() === "4";
+            form.find('[id^="id_option_"][id$="_parent_div"]').toggle(isChoice);
+        }
 
-                if (questionValue.trim() === '') {
-                    errorElement.text('This field is required.');
-                    errorElement.insertAfter($('#id_question'));
-                } else {
-                    errorElement.text('');
-                    errorElement.remove();
-                    this.submit();
-                }
-            });
-
-            // Function to toggle .oh-link__expanded
-            function toggleOptionSection(selectElement) {
-                const selectedValue = $(selectElement).val();
-                const $form = $(selectElement).closest("form");
-                const $optionDiv = $form.find(".oh-link__expanded");
-
-                if (selectedValue == "4") {
-                    $optionDiv.removeClass("d-none");
-                } else {
-                    $optionDiv.addClass("d-none");
-                }
-            }
-
-            // Initial check on page load
-            $(".oh-select--qa-change").each(function () {
-                toggleOptionSection(this);
-            });
-
-            // Change handler
-            $(".oh-select--qa-change").on("change", function () {
-                toggleOptionSection(this);
-            });
-
-            // If using select2
-            $(".oh-select--qa-change").on("select2:select", function () {
-                toggleOptionSection(this);
-            });
-        });
+        $(document)
+            .off("change.questionOptions htmx:afterSettle.questionOptions")
+            .on("change.questionOptions", '#questionFormForm select[name="question_type"]', toggleQuestionOptions)
+            .on("htmx:afterSettle.questionOptions", toggleQuestionOptions);
     </script>
 {% endblock %}

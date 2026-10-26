@@ -75,7 +75,7 @@
                     >
                 {% else %}
                     <img
-                        src="{{request.session.selected_company_instance.icon}}"
+                        src="{% if request.session.selected_company_instance.icon and request.session.selected_company_instance.icon != '/404/' %}{{request.session.selected_company_instance.icon}}{% else %}https://ui-avatars.com/api/?name=C&background=random{% endif %}"
                         style="width: 34px; border-radius: 3px"
                     >
                 {% endif %}

@@ -381,12 +381,12 @@ document.querySelectorAll("[data-formula-builder]").forEach(function (root) {
   }
 
 
-  var PROMPT = "{% trans 'Tap a component below to start.' %}";
-  var REMOVE = "{% trans 'Remove' %}";
-  var USING = "{% trans 'using' %}";
-  var ESTIMATED = "{% trans 'estimated' %}";
-  var FAILED = "{% trans 'Could not work it out.' %}";
-  var UNREACHABLE = "{% trans 'Could not reach the server.' %}";
+  var PROMPT = "{% trans 'Tap a component below to start.'|escapejs %}";
+  var REMOVE = "{% trans 'Remove'|escapejs %}";
+  var USING = "{% trans 'using'|escapejs %}";
+  var ESTIMATED = "{% trans 'estimated'|escapejs %}";
+  var FAILED = "{% trans 'Could not work it out.'|escapejs %}";
+  var UNREACHABLE = "{% trans 'Could not reach the server.'|escapejs %}";
 
   // The form's own field stays the source of truth; the builder writes to it.
   var fieldName = root.dataset.formulaField || "formula";
@@ -419,8 +419,8 @@ document.querySelectorAll("[data-formula-builder]").forEach(function (root) {
   // What the notes section says about the service-year figures. Shown only
   // while the formula actually uses one of them.
   var NOTES = {
-    YEARS_OF_SERVICE: "{% trans 'Years of service: counted from the employee joining date to the end of the pay period, with decimals (6.4). Use round(...) for whole years.' %}",
-    YEARS_OF_CONTRACT: "{% trans 'Years of the active contract: counted from the start date of the active contract to the end of the pay period, with decimals (2.5). Use round(...) for whole years.' %}"
+    YEARS_OF_SERVICE: "{% trans 'Years of service: counted from the employee joining date to the end of the pay period, with decimals (6.4). Use round(...) for whole years.'|escapejs %}",
+    YEARS_OF_CONTRACT: "{% trans 'Years of the active contract: counted from the start date of the active contract to the end of the pay period, with decimals (2.5). Use round(...) for whole years.'|escapejs %}"
   };
 
   // code -> human name, so the expression reads as the components the user
@@ -492,7 +492,7 @@ document.querySelectorAll("[data-formula-builder]").forEach(function (root) {
       var used = Object.keys(NOTES).filter(function (code) { return tokens.indexOf(code) !== -1; });
       notes.hidden = !used.length;
       notes.innerHTML = used.length
-        ? "<strong>{% trans 'Note' %}</strong><ul>" + used.map(function (code) {
+        ? "<strong>{% trans 'Note'|escapejs %}</strong><ul>" + used.map(function (code) {
             return "<li><code>" + code + "</code> - " + NOTES[code] + "</li>";
           }).join("") + "</ul>"
         : "";

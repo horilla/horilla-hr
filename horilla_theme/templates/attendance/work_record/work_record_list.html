@@ -1,6 +1,7 @@
 {% load static i18n attendancefilters %}
 
 {% include "filter_tags.html" %}
+<div id="filterTagContainerSectionNav" class="oh-titlebar-container__filters mb-2 mt-0"></div>
 <button
     onclick="$('#workRecordExportModal').addClass('oh-modal--show')"
     id="workrecordExport"
@@ -71,30 +72,13 @@
                     </div>
                 </div>
 
-                {% include 'employee_filters.html' %}
+                {% include 'employee_filters.html' with hide_work_info_filters=True hide_advanced_filters=True %}
 
-                <div class="row mt-2">
-                    <div class="col-sm-12 col-md-12 col-lg-6">
-                        <label class="oh-label">
-                            {% trans "File name:" %}
-                            <input
-                                type="text"
-                                class="oh-input w-100"
-                                name="file_name"
-                                value="{% trans 'Daily Work Status' %}"
-                            >
-                        </label>
-                    </div>
-                    <div class="col-sm-12 col-md-12 col-lg-6">
-                        <label class="oh-label">
-                            {% trans "Format:" %}
-                            <select class="oh-select oh-select-2 w-100" name="format">
-                                <option value="xlsx">{% trans "Excel (.xlsx)" %}</option>
-                                <option value="csv">{% trans "CSV (.csv)" %}</option>
-                            </select>
-                        </label>
-                    </div>
-                </div>
+
+                {% for key, value in export_hidden_filter_params %}
+                    <input type="hidden" name="{{ key }}" value="{{ value }}">
+                {% endfor %}
+
                 <div class="oh-modal__dialog-footer p-0 mt-3">
                     <button type="submit" class="oh-btn oh-btn--secondary oh-btn--shadow">
                         {% trans "Export" %}
@@ -212,37 +196,66 @@
             {% trans "of" %}
             {{ data.paginator.num_pages }}
         </p>
-        <div class="flex gap-3 text-[#666] items-center">
-            {% if data.has_previous %}
+        {% if data.has_previous or data.has_next %}
+            <div class="hlv-pagination inline-flex items-center h-8 gap-0.5 bg-white border border-primary-500 rounded-md px-1 flex-shrink-0">
                 <button
-                    class="text-xs hover:text-primary-600 transition duration-300"
+                    type="button"
+                    class="w-7 h-7 flex items-center justify-center rounded text-xs leading-none transition duration-300 {% if data.has_previous %}text-[#666] hover:bg-[#f5f5f5]{% else %}text-[#ccc] cursor-not-allowed{% endif %}"
+                    {% if data.has_previous %}
+                    hx-target="#workRecordTable"
+                    hx-get="{% url 'work-records-change-month' %}?{{pd}}&page=1"
+                    {% endif %}
+                >
+                    <i class="fa-solid fa-angles-left"></i>
+                </button>
+                <button
+                    type="button"
+                    class="w-7 h-7 flex items-center justify-center rounded text-xs leading-none transition duration-300 {% if data.has_previous %}text-[#666] hover:bg-[#f5f5f5]{% else %}text-[#ccc] cursor-not-allowed{% endif %}"
+                    {% if data.has_previous %}
                     hx-target="#workRecordTable"
                     hx-get="{% url 'work-records-change-month' %}?{{pd}}&page={{ data.previous_page_number }}"
+                    {% endif %}
                 >
-                    <i class="fa-solid fa-arrow-left"></i>
+                    <i class="fa-solid fa-angle-left"></i>
                 </button>
-            {% endif %}
-            <div>
-                <input
-                    type="number"
-                    name="page"
-                    class="w-[30px]"
-                    value="{{data.number}}"
-                    hx-get="{% url 'work-records-change-month' %}?{{pd}}"
-                    hx-target="#workRecordTable"
-                    min="1"
-                > / {{ data.paginator.num_pages }}
-            </div>
-            {% if data.has_next %}
+                <div class="flex items-center gap-1 px-1 h-7 text-xs text-[#666] leading-none">
+                    <input
+                        type="number"
+                        name="page"
+                        min="1"
+                        max="{{ data.paginator.num_pages }}"
+                        value="{{ data.number }}"
+                        title="{% trans 'Enter a page number and press Enter' %}"
+                        class="w-9 h-6 m-0 py-0 px-1 text-center text-xs leading-6 border border-[#e6e6e6] rounded outline-none focus:border-primary-600 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        hx-target="#workRecordTable"
+                        hx-get="{% url 'work-records-change-month' %}?{{pd}}"
+                        hx-trigger="keyup[keyCode==13] changed, blur changed"
+                        onclick="this.select()"
+                    >
+                    <span class="inline-flex items-center h-6 leading-none whitespace-nowrap">/ {{ data.paginator.num_pages }}</span>
+                </div>
                 <button
-                    class="text-xs hover:text-primary-600 transition duration-300"
+                    type="button"
+                    class="w-7 h-7 flex items-center justify-center rounded text-xs leading-none transition duration-300 {% if data.has_next %}text-[#666] hover:bg-[#f5f5f5]{% else %}text-[#ccc] cursor-not-allowed{% endif %}"
+                    {% if data.has_next %}
                     hx-target="#workRecordTable"
                     hx-get="{% url 'work-records-change-month' %}?{{pd}}&page={{ data.next_page_number }}"
+                    {% endif %}
                 >
-                    <i class="fa-solid fa-arrow-right"></i>
+                    <i class="fa-solid fa-angle-right"></i>
                 </button>
-            {% endif %}
-        </div>
+                <button
+                    type="button"
+                    class="w-7 h-7 flex items-center justify-center rounded text-xs leading-none transition duration-300 {% if data.has_next %}text-[#666] hover:bg-[#f5f5f5]{% else %}text-[#ccc] cursor-not-allowed{% endif %}"
+                    {% if data.has_next %}
+                    hx-target="#workRecordTable"
+                    hx-get="{% url 'work-records-change-month' %}?{{pd}}&page={{ data.paginator.num_pages }}"
+                    {% endif %}
+                >
+                    <i class="fa-solid fa-angles-right"></i>
+                </button>
+            </div>
+        {% endif %}
     </div>
 {% endif %}
 

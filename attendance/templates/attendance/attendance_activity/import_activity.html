@@ -1,5 +1,5 @@
 {% load i18n %}
-<div class="oh-modal__dialog-header pb-0">
+<div class="oh-modal__dialog-header">
     <h2 class="oh-modal__dialog-title" id="activityImportLabel">
         {% trans "Import Check-in / Check-out Log" %}
     </h2>
@@ -15,18 +15,16 @@
         hx-encoding="multipart/form-data"
         hx-target="#objectCreateModalTarget"
         hx-swap="outerHTML"
+        hx-timeout="600000"
+        hx-indicator="#uploading"
         class="oh-profile-section"
         id="activityImportForm"
     >
         {% csrf_token %}
-        <div id="uploading" class="oh-modal__dialog-body mr-5" style="display: none">
-            <div class="loader-container" style="margin: auto">
-                <div class="loader"></div>
-                <div class="loader-text">{% trans "Uploading..." %}</div>
-                <div class="text-center" style="-webkit-text-stroke: medium">
-                    {% trans "Don't refresh the page" %}
-                </div>
-            </div>
+        <div id="uploading" class="oh-upload-loader" role="status" aria-live="polite">
+            <p class="oh-upload-loader__title">{% trans "Uploading..." %}</p>
+            <p class="oh-upload-loader__hint">{% trans "Don't refresh the page" %}</p>
+            <div class="oh-upload-loader__bar"><span></span></div>
         </div>
 
         <div id="uploadContainer">
@@ -36,11 +34,13 @@
                 <span class="oh-dropdown__import-form-text">{% trans "Drag and drop files here" %}</span>
             </label>
             <input type="file" name="activity_import" required>
-            <div class="d-flex flex-row-reverse">
-                <button type="submit" class="oh-btn oh-btn--small oh-btn--secondary mt-3">
-                    {% trans "Upload" %}
-                </button>
+            <div class="float-end">
+                <a href="{% url 'attendance-activity-import-excel' %}" class="oh-dropdown__link" download>
+                    <ion-icon name="cloud-download-outline"></ion-icon>
+                    <span>{% trans "Download Template" %}</span>
+                </a>
             </div>
+            <button type="submit">{% trans "Upload" %}</button>
         </div>
     </form>
 </div>
@@ -74,11 +74,6 @@
                     }
                 });
             }
-        });
-
-        $('#activityImportForm').on('submit', function () {
-            $('#uploadContainer').hide();
-            $('#uploading').show();
         });
     });
 </script>

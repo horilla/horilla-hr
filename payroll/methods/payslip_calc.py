@@ -493,6 +493,10 @@ def calculate_tax_deduction(*_args, **kwargs):
         # Templates say how their kind behaves; they are never deducted. See
         # payroll/system_components.py.
         .exclude(is_system=True)
+        # (sequence, pk), as for allowances (component_engine): without it the
+        # order was whatever the database returned for the union, which
+        # changed between runs.
+        .order_by("sequence", "pk")
     )
     deductions_amt = []
     serialized_deductions = []
@@ -580,6 +584,10 @@ def calculate_pre_tax_deduction(*_args, **kwargs):
         # Templates say how their kind behaves; they are never deducted. See
         # payroll/system_components.py.
         .exclude(is_system=True)
+        # (sequence, pk), as for allowances (component_engine): without it the
+        # order was whatever the database returned for the union, which
+        # changed between runs.
+        .order_by("sequence", "pk")
     )
     # Installment deductions
     installments = deductions.filter(is_installment=True)
@@ -676,6 +684,10 @@ def calculate_post_tax_deduction(*_args, **kwargs):
         # Templates say how their kind behaves; they are never deducted. See
         # payroll/system_components.py.
         .exclude(is_system=True)
+        # (sequence, pk), as for allowances (component_engine): without it the
+        # order was whatever the database returned for the union, which
+        # changed between runs.
+        .order_by("sequence", "pk")
     )
     # Installment deductions
     installments = deductions.filter(is_installment=True)

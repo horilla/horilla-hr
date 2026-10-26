@@ -1507,7 +1507,16 @@ $(".requested-attendance-row").change(function () {
 if (window.CURRENT_LANGUAGE != 'de') {
 
     $(".dateformat_changer").each(function (index, element) {
-        var currentDate = $(element).text().trim();
+        // Some list tables (e.g. the Requested Attendances tab) wrap the cell's
+        // text in a ".truncate" div so long dates ellipsize instead of wrapping
+        // across lines. $(element).text(...) below replaces the WHOLE element's
+        // contents, so writing straight to the ".dateformat_changer" cell itself
+        // would delete that wrapper along with its truncation styling -- update
+        // the wrapper's own text instead when one exists, and fall back to the
+        // element itself everywhere else (plain, unwrapped usages).
+        var $target = $(element).find(".truncate").first();
+        if (!$target.length) $target = $(element);
+        var currentDate = $target.text().trim();
         // Checking currentDate value is a date or None value.
         if (/[\.,\-\/]/.test(currentDate)) {
             var formattedDate = dateFormatter.getFormattedDate(currentDate);
@@ -1518,7 +1527,7 @@ if (window.CURRENT_LANGUAGE != 'de') {
             var formattedDate = "None";
         }
 
-        $(element).text(formattedDate);
+        $target.text(formattedDate);
 
     });
 }
@@ -1530,13 +1539,15 @@ if (window.CURRENT_LANGUAGE === 'de') {
     if (["DD-MM-YYYY", "DD.MM.YYYY", "DD/MM/YYYY", "MM/DD/YYYY", "YYYY-MM-DD", "YYYY/MM/DD", "MMM. D, YYYY", "D MMM. YYYY"].includes(for_mat)) {
 
         $(".dateformat_changer").each(function (index, element) {
-            var currentDate = $(element).text().trim();
+            var $target = $(element).find(".truncate").first();
+            if (!$target.length) $target = $(element);
+            var currentDate = $target.text().trim();
             let eng_date = '';  // Initialize eng_date at the start of each iteration
 
             // Check if currentDate is empty or equals "None"
             if (!currentDate || currentDate.toLowerCase() === "none") {
                 eng_date = 'None';  // Reset the eng_date to 'None' if it's invalid
-                $(element).text(eng_date);  // Set to 'None' in the DOM
+                $target.text(eng_date);  // Set to 'None' in the DOM
                 return;
             }
             // Create a mapping of month names from different languages to English
@@ -1554,7 +1565,7 @@ if (window.CURRENT_LANGUAGE === 'de') {
 
             // Check if the date is valid
             if (isNaN(date.getTime())) {
-                $(element).text(currentDate);  // Set to 'Invalid Date' in the DOM
+                $target.text(currentDate);  // Set to 'Invalid Date' in the DOM
                 return;
             }
             // Format the date in English using Intl.DateTimeFormat
@@ -1573,15 +1584,17 @@ if (window.CURRENT_LANGUAGE === 'de') {
                 formattedDate = formattedDate.replace(/Oct. /g, ' Okt. ');
                 formattedDate = formattedDate.replace(/Dec. /g, ' Dez. ');
             }
-            $(element).text(formattedDate);  // Set the formatted date in the DOM
+            $target.text(formattedDate);  // Set the formatted date in the DOM
         });
     }
     else {
         $(".dateformat_changer").each(function (index, element) {
-            var currentDate = $(element).text().trim();
+            var $target = $(element).find(".truncate").first();
+            if (!$target.length) $target = $(element);
+            var currentDate = $target.text().trim();
             if (["MMMM D, YYYY", "DD MMMM, YYYY"].includes(for_mat) & window.CURRENT_LANGUAGE === 'de') {
                 if (isNaN(currentDate)) {
-                    $(element).text(currentDate);
+                    $target.text(currentDate);
                     return;
                 }
             }
@@ -1593,7 +1606,7 @@ if (window.CURRENT_LANGUAGE === 'de') {
             } else {
                 var formattedDate = "None";
             }
-            $(element).text(formattedDate);  // Set the formatted date in the DOM
+            $target.text(formattedDate);  // Set the formatted date in the DOM
         });
     }
 }
@@ -1608,7 +1621,9 @@ var formattedDate = dateFormatter.getFormattedDate(currentDate);
 
 // Iterate through all elements with the 'timeformat_changer' class and format their content
 $(".timeformat_changer").each(function (index, element) {
-    var currentTime = $(element).text().trim();
+    var $target = $(element).find(".truncate").first();
+    if (!$target.length) $target = $(element);
+    var currentTime = $target.text().trim();
 
     if (currentTime === 'midnight') {
         if (timeFormatter.timeFormat === 'hh:mm A') {
@@ -1632,7 +1647,7 @@ $(".timeformat_changer").each(function (index, element) {
     } else {
         var formattedTime = "None";
     }
-    $(element).text(formattedTime);
+    $target.text(formattedTime);
 });
 
 // Display the formatted time wherever needed

@@ -32,6 +32,16 @@ date and open a fresh Unreleased above it.
 ### Security      — vulnerabilities fixed; link the advisory and credit the reporter
 -->
 
+### Fixed
+
+- Payroll: deductions on a payslip are now worked out in Sequence order (then creation
+  order), as the Sequence field says. They were gathered without an order, so a
+  deduction that uses the value of another one, such as a percentage of the provident
+  fund, could come out as 0 or as the right amount depending on the order the database
+  returned them. A deduction that reads another one with a higher Sequence than its own
+  now reads 0 when a payslip is regenerated, so give the deduction it reads the lower
+  Sequence. Payslips that are already generated do not change.
+
 ## [2.2.0] — 2026-10-21
 
 Feature release. Payroll gets a new engine (configurable components, batch runs, tax

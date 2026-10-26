@@ -1801,18 +1801,20 @@ class EmployeeShiftScheduleForm(ModelForm):
         Validation to day field
         """
         if not self.instance.pk:
-            days = self.cleaned_data["day"]
-            for day in days:
-                attendance = EmployeeShiftSchedule.objects.filter(
-                    day=day, shift_id=self.data["shift_id"]
-                ).first()
-                if attendance is not None:
-                    raise ValidationError(
-                        _("Shift schedule is already exist for {day}").format(
-                            day=_(day.day)
+            days = self.cleaned_data.get("day")
+            shift_id = self.data.get("shift_id")
+            if days and shift_id:
+                for day in days:
+                    attendance = EmployeeShiftSchedule.objects.filter(
+                        day=day, shift_id=shift_id
+                    ).first()
+                    if attendance is not None:
+                        raise ValidationError(
+                            _("Shift schedule is already exist for {day}").format(
+                                day=_(day.day)
+                            )
                         )
-                    )
-            if days.first() is None:
+            if not days or days.first() is None:
                 raise ValidationError(_("Employee not chosen"))
             return days.first()
 
@@ -3705,6 +3707,7 @@ class PenaltyAccountForm(ModelForm):
     def __init__(self, *args, **kwargs):
         employee = kwargs.pop("employee", None)
         super().__init__(*args, **kwargs)
+        self.employee = employee
         if apps.is_installed("leave") and employee:
             LeaveType = get_horilla_model_class(app_label="leave", model="leavetype")
             available_leaves = employee.available_leave.all()
@@ -3712,6 +3715,68 @@ class PenaltyAccountForm(ModelForm):
                 id__in=available_leaves.values_list("leave_type_id", flat=True)
             )
             self.fields["leave_type_id"].queryset = assigned_leave_types
+
+    def clean(self):
+        """Reject deduct leaves that exceed the employee's available or carry forward balance."""
+        cleaned_data = super().clean()
+        leave_type = cleaned_data.get("leave_type_id")
+        minus_leaves = cleaned_data.get("minus_leaves")
+        if not (apps.is_installed("leave") and self.employee and leave_type):
+            return cleaned_data
+        if not minus_leaves:
+            return cleaned_data
+
+        self.instance.leave_type_id = leave_type
+        self.instance.minus_leaves = minus_leaves
+
+        available = self.employee.available_leave.filter(
+            leave_type_id=leave_type
+        ).first()
+        if not available:
+            raise ValidationError(
+                {
+                    "leave_type_id": _(
+                        "This employee has no balance for the selected leave type."
+                    )
+                }
+            )
+
+        unit = round(minus_leaves * 2) / 2
+        if cleaned_data.get("deduct_from_carry_forward"):
+            balance = available.carryforward_days
+            label = _("carry forward days")
+        else:
+            balance = available.available_days
+            label = _("available days")
+        if unit > balance:
+            raise ValidationError(
+                {
+                    "minus_leaves": _(
+                        "Deduct leaves cannot exceed the %(label)s (%(balance)s)."
+                    )
+                    % {"label": label, "balance": balance}
+                }
+            )
+        return cleaned_data
+
+
+class PenaltyAccountCreateForm(PenaltyAccountForm):
+    """
+    Form to add a penalty for an employee from the Penalty tab.
+    """
+
+    employee_id = forms.ModelChoiceField(
+        queryset=Employee.objects.filter(is_active=True),
+        label=_("Employee"),
+    )
+    field_order = ["employee_id"]
+
+    def clean(self):
+        employee = self.cleaned_data.get("employee_id")
+        self.employee = employee
+        if employee:
+            self.instance.employee_id = employee
+        return super().clean()
 
 
 # ---------------------------------------------------------------------------

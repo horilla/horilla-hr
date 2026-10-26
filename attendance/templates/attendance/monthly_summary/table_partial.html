@@ -39,12 +39,17 @@
   .ms-table-wrap {
     position: relative;
   }
-  .ms-table-wrap .table-wrapper {
-    max-height: 60vh;
-    overflow: auto;
+  /* The same card the Employee list sits in: white, 8px padding, small radius, soft shadow. */
+  .ms-table-wrap .oh-table_sticky--wrapper {
+    position: relative;
     background: #fff;
-    border: 1px solid hsl(213, 22%, 88%);
-    border-radius: 10px;
+    padding: 8px;
+    border-radius: 6px;
+    box-shadow: 0 0 10px 0 rgba(0, 0, 0, 0.05);
+  }
+  .ms-table-wrap .table-wrapper {
+    max-height: calc(100vh - 260px);
+    overflow: auto;
     width: 100%;
   }
   /* Column sizing mirrors the real Employee list table exactly
@@ -55,6 +60,10 @@
   .ms-table-wrap .fixed-table {
     table-layout: auto;
     width: 100%;
+    /* border-separate with the default 2px spacing, as the Employee list: every cell is
+       its own bordered box rather than a ruled grid. */
+    border-collapse: separate;
+    border-spacing: 2px;
   }
   /* Sticky header */
   .ms-table-wrap .fixed-table thead tr {
@@ -66,11 +75,17 @@
     min-width: 85px;
     white-space: nowrap;
     font-size: .875rem;
-    padding: 6px;
+    font-weight: 500;
+    padding: 1px;
     height: auto !important;
     background-color: #fff !important;
-    border-bottom: 2px solid hsl(213, 22%, 88%) !important;
+    border: 1px solid #efefef;
+    border-radius: 2px;
   }
+  /* A little slimmer than the Employee list's header (5px, not 6px, above and below). */
+  .ms-table-wrap .fixed-table th > div { padding: 5px 6px; }
+  .ms-table-wrap .fixed-table th[style*="text-align:center"] > div { justify-content: center; }
+  .ms-table-wrap .fixed-table th:not(:first-child):not(:has(> div)) { padding: 5px 7px; }
   /* Room for the column-toggle button overlaid at the header row's
      top-right corner (see .ms-table-wrap's absolutely-positioned toggle
      button below), so it doesn't sit on top of the last column's label. */
@@ -91,16 +106,18 @@
        (horilla_list_table.html's text-[#666], including its own name
        cell) — was previously unset here, inheriting plain black. */
     color: #666;
-    border-bottom: 1px solid hsl(213, 22%, 93%);
+    border: 1px solid #efefef;
+    border-radius: 2px;
   }
   /* Constrain employee name so it doesn't blow out the column */
-  .ms-table-wrap .fixed-table td:nth-child(2) .oh-profile__name {
-    font-size: .875rem;
-    max-width: 160px;
+  .ms-table-wrap .fixed-table td:nth-child(2) .oh-profile { width: 100%; justify-content: normal; align-items: center; }
+  .ms-table-wrap .fixed-table td:nth-child(2) .oh-profile__avatar { flex: 0 0 auto; }
+  .ms-table-wrap .fixed-table td:nth-child(2) .oh-profile > span {
+    flex: 1 1 auto;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    display: inline-block;
   }
   /* Row hover */
   .ms-table-wrap .fixed-table tbody tr:hover td {
@@ -159,12 +176,13 @@
     border-right: none !important;
   }
   /* Dark mode */
-  body.dark .ms-table-wrap .table-wrapper { background: #1a1a1a; border-color: #444444; }
-  body.dark .ms-table-wrap .fixed-table td { background-color: #1a1a1a !important; color: #dfdfdf; border-bottom-color: #444444; }
+  body.dark .ms-table-wrap .oh-table_sticky--wrapper { background: #1a1a1a; }
+  body.dark .ms-table-wrap .fixed-table th, body.dark .ms-table-wrap .fixed-table td { border-color: #444444; }
+  body.dark .ms-table-wrap .fixed-table td { background-color: #1a1a1a !important; color: #dfdfdf; }
   body.dark .ms-table-wrap .fixed-table td:first-child,
   body.dark .ms-table-wrap .fixed-table td:nth-child(2),
   body.dark .ms-table-wrap .fixed-table td:nth-child(3) { background-color: #1a1a1a !important; }
-  body.dark .ms-table-wrap .fixed-table thead th { background-color: #1a1a1a !important; color: #dfdfdf; border-bottom-color: #444444; }
+  body.dark .ms-table-wrap .fixed-table thead th { background-color: #1a1a1a !important; color: #dfdfdf; }
   body.dark .ms-table-wrap .fixed-table tbody tr:hover td { background-color: #2e2e2e !important; }
   body.dark .ms-table-wrap .fixed-table tbody tr:hover td:first-child,
   body.dark .ms-table-wrap .fixed-table tbody tr:hover td:nth-child(2),
@@ -196,6 +214,108 @@
   body.dark .ms-table-wrap .fixed-table tbody tr.highlight-selected td:nth-child(2) {
     background-color: color-mix(in srgb, var(--primary-600, #E54F38) 12%, #1a1a1a) !important;
   }
+
+  /* Group By bar -- the Employee directory's "Grouped by" breadcrumb. */
+  .ms-ngb-bar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding: 4px 48px 10px 6px; }  /* room for the column-toggle button at the corner */
+  .ms-ngb-levels { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+  .ms-ngb-title { display: inline-flex; align-items: center; gap: 4px; font-size: .75rem; font-weight: 500; color: #6F6D66; margin-right: 2px; }
+  .ms-ngb-title ion-icon { font-size: 13px; }
+  .ngb-crumb-row { display: inline-flex; align-items: center; gap: 6px; }
+  .ngb-crumb-row:first-of-type .ngb-crumb-sep { display: none; }
+  .ngb-crumb-sep { color: #C7C4BA; font-size: 11px; }
+  .ngb-crumb-pill { display: inline-flex; align-items: center; gap: 4px; background: #fff; border: 1px solid #DEDBD4; border-radius: 6px; padding: 2px 8px; }
+  .ngb-crumb-badge { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: #FCEEEA; color: var(--primary-600, #E54F38); font-size: 9px; font-weight: 700; flex: 0 0 auto; }
+  .ngb-crumb-select-wrap { position: relative; display: inline-flex; align-items: center; }
+  .ngb-crumb-select-trigger { display: inline-flex; align-items: center; gap: 4px; height: 20px; line-height: 20px; padding: 0; margin: 0; background: transparent; border: 0; font-size: .75rem; font-weight: 500; color: #4B4A45; cursor: pointer; }
+  .ngb-crumb-select-trigger ion-icon { font-size: 11px; color: #6F6D66; pointer-events: none; }
+  .ngb-crumb-dropdown { display: none; position: absolute; top: 100%; left: 0; margin-top: 4px; z-index: 30; min-width: 150px; background: #fff; border: 1px solid #EAE8E3; border-radius: 8px; box-shadow: 0 0 20px rgba(0, 0, 0, .08); }
+  .ngb-crumb-select-wrap.force-open .ngb-crumb-dropdown { display: block; }
+  .ngb-crumb-dropdown ul { margin: 0; padding: 4px 0; list-style: none; font-size: .75rem; }
+  .ngb-crumb-option { width: 100%; text-align: left; padding: 6px 12px; white-space: nowrap; background: transparent; border: 0; cursor: pointer; transition: background .12s, color .12s; }
+  .ngb-crumb-option.is-current { color: var(--primary-600, #E54F38); font-weight: 600; }
+  .ngb-crumb-option:disabled { color: #C7C4BA; cursor: not-allowed; }
+  .ngb-crumb-option:not(:disabled):hover { background: #F7F6F3; color: #DB6D62; }
+  .ngb-crumb-remove { display: inline-flex; align-items: center; padding: 0; line-height: 1; background: transparent; border: 0; color: #6b7280; cursor: pointer; }
+  .ngb-crumb-remove:hover { color: #ef4444; }
+  .ngb-crumb-remove ion-icon { font-size: 12px; }
+  .ms-ngb-add { display: inline-flex; align-items: center; gap: 4px; font-size: .75rem; font-weight: 500; color: var(--primary-600, #E54F38); background: transparent; border: 0; cursor: pointer; }
+  .ms-ngb-add:hover { text-decoration: underline; }
+  .ms-ngb-actions { display: flex; align-items: center; gap: 6px; }
+  .ms-ngb-btn { display: inline-flex; align-items: center; gap: 4px; font-size: .75rem; font-weight: 500; color: #4B4A45; background: #fff; border: 1px solid #DEDBD4; border-radius: 6px; padding: 4px 10px; cursor: pointer; transition: background .12s; }
+  .ms-ngb-btn:hover { background: #F7F6F3; }
+  .ms-ngb-btn ion-icon { font-size: 13px; }
+
+  /* Group rows: one header across the whole table, as in the Employee directory -- the count in a
+     red circle, the name, the field it groups by at the right, and the open/close chevron. The
+     content is as wide as the visible table, not the scrolled width, so the tag and chevron stay
+     in view while the columns scroll sideways. */
+  .ms-table-wrap .table-wrapper { container-type: inline-size; }
+  .ms-table-wrap .fixed-table tbody tr.ms-group-row { --gbg: #FCEEEA; --gbg-hover: #FAE2DB; --gline: #F0C9BC; cursor: pointer; }
+  .ms-table-wrap .fixed-table tbody tr.ms-group-row[data-depth="1"],
+  .ms-table-wrap .fixed-table tbody tr.ms-group-row[data-depth="2"] { --gbg: #F1EFEA; --gbg-hover: #E9E6DE; --gline: #DEDBD4; }
+  /* The cell only carries the gap around each group; the card inside it is the group. */
+  .ms-table-wrap .fixed-table tbody tr.ms-group-row td {
+    position: static !important; width: auto !important; min-width: 0 !important; height: auto !important;
+    padding: 6px 4px 0 !important; text-align: left !important; background-color: #fff !important;
+    border-color: transparent !important; box-shadow: none; color: #4B4A45;
+  }
+  .ms-table-wrap .fixed-table tbody tr.ms-group-row:hover td { background-color: #fff !important; }
+  /* An open group's header stays pinned under the column headers while its rows scroll, and is
+     pushed away as the group ends. The script sets each header's `top` (below the column header
+     and any open parent group) and shortens it as the group's last row passes. */
+  .ms-table-wrap .fixed-table tbody tr.ms-group-row.is-open { position: sticky; z-index: 4; top: var(--ms-head-h, 31px); }
+  /* The grouped Employee list sets its column headers in small capitals; the same here. */
+  .ms-table-wrap .fixed-table.ms-grouped thead th { font-size: 11px; text-transform: uppercase; letter-spacing: .02em; }
+  .ms-table-wrap .fixed-table.ms-grouped thead th ion-icon, .ms-table-wrap .fixed-table.ms-grouped thead th .fa-solid { font-size: 11px; }
+  /* A group is drawn with the Employee directory's own measurements (nested_group_by_node.html):
+     a level-0 group is a card with an 8px radius and a light border, its tinted header 14px by 8px;
+     the count a 22px red circle at 11px, the name 13.5px semibold; the field tag 10px uppercase and
+     the chevron 14px at the right. Deeper levels are plain tinted rows divided by a 2px rule, indented
+     22px a level, with an 18px outlined count, a 12.5px name and a small 12px chevron. */
+  .ms-group-card {
+    position: sticky; left: 7px; width: calc(100cqw - var(--ms-sbw, 0px) - 14px);
+    background: #fff; border: 1px solid #EAE8E3; border-radius: 8px; overflow: hidden; padding-bottom: 8px;
+  }
+  .ms-group-row.is-open .ms-group-card { padding-bottom: 0; border-radius: 8px 8px 0 0; }
+  .ms-group-row[data-depth="1"] .ms-group-card, .ms-group-row[data-depth="2"] .ms-group-card {
+    border: 0; border-top: 2px solid #DEDBD4; border-radius: 0; padding-bottom: 0;
+  }
+  .ms-group-head { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: var(--gbg); transition: background .12s; }
+  .ms-group-row[data-depth="1"] .ms-group-head, .ms-group-row[data-depth="2"] .ms-group-head {
+    padding: 5px 14px 5px calc((var(--d, 0) + 1) * 22px);
+  }
+  .ms-group-row:hover .ms-group-head { background: var(--gbg-hover); }
+  .ms-group-row.is-open .ms-group-head { border-bottom: 2px solid var(--gline); }
+  .ms-group-row[data-depth="1"].is-open .ms-group-head, .ms-group-row[data-depth="2"].is-open .ms-group-head { border-bottom-width: 1px; }
+  .ms-group-return { font-size: 13px; color: #C7C4BA; flex: 0 0 auto; }
+  .ms-group-pill { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
+  .ms-group-row[data-depth="1"] .ms-group-pill, .ms-group-row[data-depth="2"] .ms-group-pill {
+    gap: 6px; background: #F6F5F1; border-radius: 6px; padding: 2px 8px 2px 4px;
+  }
+  .ms-group-count { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
+                    min-width: 22px; height: 22px; padding: 0 6px; border-radius: 9999px; background: var(--primary-600, #E54F38); color: #fff;
+                    font-size: 11px; font-weight: 600; line-height: 1; }
+  .ms-group-row[data-depth="1"] .ms-group-count, .ms-group-row[data-depth="2"] .ms-group-count {
+    min-width: 18px; height: 18px; padding: 0 4px; background: #fff; color: #6F6D66; border: 1px solid #DEDBD4; font-size: 10px;
+  }
+  .ms-group-name { font-size: 13.5px; font-weight: 600; color: #374151; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ms-group-row[data-depth="1"] .ms-group-name, .ms-group-row[data-depth="2"] .ms-group-name { font-size: 12.5px; }
+  .ms-group-unset { font-style: italic; font-weight: 500; }
+  .ms-group-tag { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; font-size: 10px; font-weight: 600;
+                  letter-spacing: .025em; text-transform: uppercase; color: var(--primary-600, #E54F38); white-space: nowrap; }
+  .ms-group-row[data-depth="1"] .ms-group-tag, .ms-group-row[data-depth="2"] .ms-group-tag { color: #4b5563; }
+  .ms-group-tag ion-icon { font-size: 11px; }
+  .ms-group-chevron { display: inline-flex; flex: 0 0 auto; color: #4b5563; font-size: 14px; margin-left: 12px; transition: transform .15s; }
+  .ms-group-row[data-depth="1"] .ms-group-chevron, .ms-group-row[data-depth="2"] .ms-group-chevron { font-size: 12px; }
+  .ms-group-row.is-open .ms-group-chevron { transform: rotate(180deg); }
+  body.dark .ms-table-wrap .fixed-table tbody tr.ms-group-row { --gbg: #3a2a26; --gbg-hover: #46322d; }
+  body.dark .ms-table-wrap .fixed-table tbody tr.ms-group-row[data-depth="1"],
+  body.dark .ms-table-wrap .fixed-table tbody tr.ms-group-row[data-depth="2"] { --gbg: #2c2c2c; --gbg-hover: #363636; }
+  body.dark .ms-table-wrap .fixed-table tbody tr.ms-group-row td { color: #dfdfdf; }
+  body.dark .ms-group-card { background: #1a1a1a; border-color: #444444; }
+  body.dark .ms-table-wrap .fixed-table tbody tr.ms-group-row td, body.dark .ms-table-wrap .fixed-table tbody tr.ms-group-row:hover td { background-color: #1a1a1a !important; }
+  body.dark .ms-group-name { color: #dfdfdf; }
+  body.dark .ms-group-pill { background: transparent !important; }
 
   /* Clickable metric cells */
   .ms-metric-cell {
@@ -282,7 +402,7 @@
     <p class="ms-stat-card__value" style="color:#28a745;">{{ summary_totals.total_present|floatformat:"-1" }}</p>
   </div>
   <div class="ms-stat-card" style="border-top: 3px solid #dc3545;">
-    <div class="ms-stat-card__label">{% trans "Total Absent / Missing Out" %}</div>
+    <div class="ms-stat-card__label">{% trans "Total Absent / Missing Out / Short Hours" %}</div>
     <p class="ms-stat-card__value" style="color:#dc3545;">{{ summary_totals.total_absent|floatformat:"-1" }}</p>
   </div>
   <div class="ms-stat-card" style="border-top: 3px solid #0d6efd;">
@@ -528,7 +648,8 @@ reloadSelectedCount($('.count_msAttendance'),'selectedInstances');">
        since this is a bespoke table, not a HorillaListView. Drag-to-
        reorder is intentionally not implemented, so no drag handles or
        "drag to reorder" hint are shown — only show/hide. -->
-  <div style="position:absolute; top:6px; right:24px; z-index:7;">
+  <div class="oh-table_sticky--wrapper">
+  <div id="ms-columns-anchor" style="position:absolute; top:12px; right:16px; z-index:7;">
     <button type="button" id="ms-columns-toggle"
             class="oh-sticky-dropdown_btn is-column-config-trigger"
             title="{% trans 'Customize columns' %}"
@@ -638,9 +759,47 @@ reloadSelectedCount($('.count_msAttendance'),'selectedInstances');">
       </div>
     </div>
   </div>
-  <div class="oh-table_sticky--wrapper">
+  {% if grouped %}
+  {# The Employee directory's "Grouped by" bar: numbered level pills you can change or remove, + Add level, Expand / Collapse All. #}
+  <div class="ms-ngb-bar">
+    <div class="ms-ngb-levels" id="ngbBreadcrumbLevels" data-max-levels="{{ group_options|length }}">
+      <span class="ms-ngb-title"><ion-icon name="git-branch-outline"></ion-icon>{% trans "Grouped by" %}</span>
+      {% for key, label in group_selected %}
+      <div class="ngb-crumb-row">
+        <ion-icon name="chevron-forward-outline" class="ngb-crumb-sep"></ion-icon>
+        <div class="ngb-crumb-pill">
+          <span class="ngb-crumb-badge">{{ forloop.counter }}</span>
+          <span class="ngb-crumb-select-wrap">
+            <button type="button" class="ngb-crumb-select-trigger" onclick="ngbCrumbToggle(this)">
+              <span class="ngb-crumb-select-label">{{ label }}</span>
+              <ion-icon name="chevron-down-outline"></ion-icon>
+            </button>
+            <div class="ngb-crumb-dropdown">
+              <ul>
+                {% for option_key, option_label in group_options %}
+                <li><button type="button" class="ngb-crumb-option{% if option_key == key %} is-current{% endif %}"
+                            data-value="{{ option_key }}" onclick="ngbCrumbPick(this)"
+                            {% if option_key != key and option_key in group_selected_keys %}disabled{% endif %}>{{ option_label }}</button></li>
+                {% endfor %}
+              </ul>
+            </div>
+          </span>
+          <button type="button" class="ngb-crumb-remove" title="{% trans 'Remove level' %}" onclick="ngbCrumbRemove(this)"><ion-icon name="close-outline"></ion-icon></button>
+        </div>
+      </div>
+      {% endfor %}
+      {% if group_selected|length < group_options|length %}
+      <button type="button" class="ms-ngb-add" onclick="ngbCrumbAdd(this)">+ {% trans "Add level" %}</button>
+      {% endif %}
+    </div>
+    <div class="ms-ngb-actions">
+      <button type="button" class="ms-ngb-btn" id="ms-groups-expand"><ion-icon name="chevron-expand-outline"></ion-icon>{% trans "Expand All" %}</button>
+      <button type="button" class="ms-ngb-btn" id="ms-groups-collapse"><ion-icon name="contract-outline"></ion-icon>{% trans "Collapse All" %}</button>
+    </div>
+  </div>
+  {% endif %}
     <div class="table-wrapper">
-      <table class="fixed-table">
+      <table class="fixed-table{% if grouped %} ms-grouped{% endif %}">
         <thead>
           <tr>
             <th style="text-align:center;">
@@ -713,7 +872,7 @@ reloadSelectedCount($('.count_msAttendance'),'selectedInstances');">
                 <span>{% trans "Present" %}</span>
               </div>
             </th>
-            <th data-col="absent" style="text-align:center;" title="{% trans 'Absent / Missing Out' %}">
+            <th data-col="absent" style="text-align:center;" title="{% trans 'Absent, missing clock-out and short hours' %}">
               <div class="flex gap-1.5 items-center justify-center cursor-pointer"
                    hx-get="{% url 'attendance-monthly-summary-table' %}?{{ pd }}&sort=absent&dir={% if sort_key == 'absent' and sort_dir == 'asc' %}desc{% else %}asc{% endif %}"
                    hx-target="#summary-table-container" hx-swap="innerHTML">
@@ -831,98 +990,19 @@ reloadSelectedCount($('.count_msAttendance'),'selectedInstances');">
           </tr>
         </thead>
         <tbody>
-          {% for row in rows %}
-          <tr class="ms-summary-row"
-              data-calendar-url="{% url 'attendance-monthly-summary-calendar' %}?employee_id={{ row.employee.pk }}&from_date={{ from_date }}&to_date={{ to_date }}"
-              data-present="{{ row.present }}"
-              data-absent="{{ row.absent }}"
-              data-paid="{{ row.paid_leave }}"
-              data-unpaid="{{ row.unpaid_leave }}"
-              data-weekoff="{{ row.week_off }}"
-              data-holiday="{{ row.holiday }}"
-              data-conflict="{{ row.conflict_days }}"
-              data-unresolved="{{ row.unresolved_conflicts }}"
-              data-regularized="{{ row.resolved_conflicts }}">
-            <td onclick="event.stopPropagation()" style="text-align:center;">
-              <input
-                  type="checkbox"
-                  class="list-table-row custom-checkbox w-4 h-4 bg-[#E9EDF7] rounded-sm text-primary-600 cursor-pointer"
-                  title="{% trans 'Select Row' %}"
-                  value="{{ row.employee.pk }}"
-                  onclick="event.stopPropagation();"
-                  onchange="
-                      element = $(this)
-                      highlightRow(element);
-                      $(document).ready(function () {
-                          if (!element.is(':checked')) {
-                          removeId(element, 'selectedInstances')
-                          }
-                          reloadSelectedCount($('#count_msAttendance'),'selectedInstances');
-                          reloadSelectedCount($('.count_msAttendance'),'selectedInstances');
-                      });
-                  "
-              >
-            </td>
-            <td>
-              <div class="oh-profile oh-profile--md w-full justify-normal">
-                <div class="oh-profile__avatar mr-1" style="width:22px;height:22px;">
-                  <img src="{{ row.employee.get_avatar }}" class="oh-profile__image" alt="">
-                </div>
-                <span class="oh-profile__name oh-text--dark ms-2">{{ row.employee.get_full_name }}</span>
-              </div>
-            </td>
-            <td style="font-size:.78rem;">{{ row.employee.badge_id|default:"&mdash;" }}</td>
-            <td>{{ row.employee.employee_work_info.department_id.department|default:"&mdash;" }}</td>
-            <td class="ms-metric-cell" style="text-align:center;font-weight:600;"
-                data-url="{% url 'attendance-monthly-summary-detail' %}?employee_id={{ row.employee.pk }}&from_date={{ from_date }}&to_date={{ to_date }}&metric=present">{{ row.present|floatformat:"-1" }}</td>
-            <td class="ms-metric-cell" style="text-align:center;font-weight:600;"
-                data-url="{% url 'attendance-monthly-summary-detail' %}?employee_id={{ row.employee.pk }}&from_date={{ from_date }}&to_date={{ to_date }}&metric=absent">{{ row.absent|floatformat:"-1" }}</td>
-            <td class="ms-metric-cell" style="text-align:center;font-weight:600;"
-                data-url="{% url 'attendance-monthly-summary-detail' %}?employee_id={{ row.employee.pk }}&from_date={{ from_date }}&to_date={{ to_date }}&metric=paid_leave">{{ row.paid_leave }}</td>
-            <td class="ms-metric-cell" style="text-align:center;font-weight:600;"
-                data-url="{% url 'attendance-monthly-summary-detail' %}?employee_id={{ row.employee.pk }}&from_date={{ from_date }}&to_date={{ to_date }}&metric=unpaid_leave">{{ row.unpaid_leave }}</td>
-            <td style="text-align:center;">{{ row.total_working }}</td>
-            <td class="ms-metric-cell" style="text-align:center;font-weight:600;"
-                data-url="{% url 'attendance-monthly-summary-detail' %}?employee_id={{ row.employee.pk }}&from_date={{ from_date }}&to_date={{ to_date }}&metric=week_off">{{ row.week_off }}</td>
-            <td class="ms-metric-cell" style="text-align:center;font-weight:600;"
-                data-url="{% url 'attendance-monthly-summary-detail' %}?employee_id={{ row.employee.pk }}&from_date={{ from_date }}&to_date={{ to_date }}&metric=holiday">{{ row.holiday }}</td>
-            {% if row.conflict_days %}
-            <td class="ms-metric-cell" style="text-align:center;font-weight:600;"
-                data-url="{% url 'attendance-monthly-summary-detail' %}?employee_id={{ row.employee.pk }}&from_date={{ from_date }}&to_date={{ to_date }}&metric=conflict">
-              {% if row.resolved_conflicts == row.conflict_days %}
-                {# All resolved: green number + âœ" #}
-                <span style="color:#30a180;" title="All {{ row.conflict_days }} conflict{{ row.conflict_days|pluralize }} resolved">
-                  {{ row.conflict_days }} <span style="font-size:.7rem;">&#10003;</span>
-                </span>
-              {% elif row.resolved_conflicts %}
-                {# Partial: amber total + green fraction #}
-                <span title="{{ row.conflict_days }} conflict{{ row.conflict_days|pluralize }}, {{ row.resolved_conflicts }} resolved">
-                  <span style="color:#bd652e;">{{ row.conflict_days }}</span>
-                  <span style="color:#30a180;font-size:.72rem;margin-left:2px;">({{ row.resolved_conflicts }}&#10003;)</span>
-                </span>
+          {% if grouped %}
+            {% for item in group_items %}
+              {% if item.kind == "group" %}
+                {% include "attendance/monthly_summary/_summary_group_row.html" with node=item %}
               {% else %}
-                {# None resolved: amber number #}
-                <span style="color:#bd652e;" title="{{ row.conflict_days }} unresolved conflict{{ row.conflict_days|pluralize }}">
-                  {{ row.conflict_days }}
-                </span>
+                {% include "attendance/monthly_summary/_summary_row.html" with row=item.row anc=item.anc depth=item.depth indent=item.indent %}
               {% endif %}
-            </td>
-            {% else %}
-            <td style="text-align:center;color:#ced4da;font-size:.78rem;">&mdash;</td>
-            {% endif %}
-            <td style="text-align:center;font-weight:600;font-size:.82rem;">{{ row.worked_label }}</td>
-            <td style="text-align:center;font-weight:600;font-size:.82rem;">{{ row.regular_label }}</td>
-            <td style="text-align:center;font-size:.82rem;height:auto !important;padding:6px 16px !important;"
-                title="{% trans 'Regular' %}: {{ row.ot_regular_label }} &#183; {% trans 'Week Off' %}: {{ row.ot_week_off_label }} &#183; {% trans 'Holiday' %}: {{ row.ot_holiday_label }}">
-              <div style="font-weight:600;">{{ row.overtime_label }}</div>
-              <div style="font-size:.66rem;color:#9ca3af;font-weight:500;white-space:nowrap;">
-                {% if row.ot_regular_seconds %}<span title="{% trans 'Regular OT' %}">R {{ row.ot_regular_label }}</span>{% endif %}
-                {% if row.ot_week_off_seconds %}<span title="{% trans 'Week Off OT' %}">{% if row.ot_regular_seconds %} &#183; {% endif %}WO {{ row.ot_week_off_label }}</span>{% endif %}
-                {% if row.ot_holiday_seconds %}<span title="{% trans 'Holiday OT' %}">{% if row.ot_regular_seconds or row.ot_week_off_seconds %} &#183; {% endif %}HO {{ row.ot_holiday_label }}</span>{% endif %}
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
+            {% endfor %}
+          {% else %}
+            {% for row in rows %}
+              {% include "attendance/monthly_summary/_summary_row.html" with row=row %}
+            {% endfor %}
+          {% endif %}
         </tbody>
       </table>
     </div>
@@ -1203,6 +1283,158 @@ reloadSelectedCount($('.count_msAttendance'),'selectedInstances');">
      CSS) without its Alpine/backend-persisted (ToggleColumn/ColumnOrder)
      wiring, and without drag-to-reorder. -->
 <script>
+  // Group By: group rows open and close the rows beneath them. Everything starts closed, so
+  // the table opens as a list of groups with their totals; a row shows only while none of its
+  // ancestor groups is closed (data-anc lists them all, so nested groups work at any depth).
+(function () {
+    var table = document.getElementById('msAttendanceTable');
+    if (!table) return;
+    var groups = Array.prototype.slice.call(table.querySelectorAll('tbody tr.ms-group-row'));
+    if (!groups.length) return;
+    var closed = {};
+    groups.forEach(function (g) { closed[g.getAttribute('data-gid')] = true; });
+
+    // The cards are as wide as the visible part of the table, which is narrower by the width of
+    // the vertical scrollbar once it appears (opening groups makes the table taller).
+    var scroller = table.querySelector('.table-wrapper');
+    function fitCards() {
+      if (!scroller) return;
+      scroller.style.setProperty('--ms-sbw', (scroller.offsetWidth - scroller.clientWidth) + 'px');
+      // Where an open group's header pins: straight under the column header, whatever its height.
+      var head = table.querySelector('thead');
+      if (head) scroller.style.setProperty('--ms-head-h', head.getBoundingClientRect().height + 'px');
+    }
+    window.addEventListener('resize', fitCards);
+
+    // Pin each open group's header under the column header (and under its open parent group), and let
+    // the next stretch of table push it away: its `top` shrinks once its last row nears the top.
+    var byGid = {};
+    groups.forEach(function (g) { byGid[g.getAttribute('data-gid')] = g; });
+    var stickQueued = false;
+    function stick() {
+      stickQueued = false;
+      if (!scroller) return;
+      var thead = table.querySelector('thead');
+      var base0 = thead ? thead.getBoundingClientRect().height : 0;
+      var wrapTop = scroller.getBoundingClientRect().top;
+      var rows = Array.prototype.slice.call(table.querySelectorAll('tbody tr'));
+      groups.forEach(function (g) {
+        var open = g.classList.contains('is-open') && g.style.display !== 'none';
+        if (!open) { g.style.top = ''; return; }
+        var depth = parseInt(g.getAttribute('data-depth'), 10) || 0;
+        var offset = base0;
+        (g.getAttribute('data-anc') || '').split(' ').forEach(function (id) {
+          if (id && byGid[id]) offset += byGid[id].getBoundingClientRect().height;
+        });
+        // The last row still shown that belongs to this group (anything until a header of the same or a higher level).
+        var last = null;
+        for (var i = rows.indexOf(g) + 1; i < rows.length; i++) {
+          var r = rows[i];
+          if (r.classList.contains('ms-group-row') && (parseInt(r.getAttribute('data-depth'), 10) || 0) <= depth) break;
+          if (r.style.display !== 'none') last = r;
+        }
+        if (!last) { g.style.top = offset + 'px'; return; }
+        var lastBottom = last.getBoundingClientRect().bottom - wrapTop;
+        g.style.top = Math.min(offset, lastBottom - g.getBoundingClientRect().height) + 'px';
+      });
+    }
+    function queueStick() {
+      if (stickQueued) return;
+      stickQueued = true;
+      setTimeout(stick, 16);
+    }
+    if (scroller) scroller.addEventListener('scroll', queueStick, { passive: true });
+
+    function refresh() {
+      table.querySelectorAll('tbody tr[data-anc]').forEach(function (tr) {
+        var hide = tr.getAttribute('data-anc').split(' ').some(function (id) { return id && closed[id]; });
+        tr.style.display = hide ? 'none' : '';
+      });
+      var anyOpen = false;
+      groups.forEach(function (g) {
+        var open = !closed[g.getAttribute('data-gid')];
+        g.classList.toggle('is-open', open);
+        anyOpen = anyOpen || open;
+      });
+      fitCards();
+      queueStick();
+    }
+
+    table.addEventListener('click', function (e) {
+      var row = e.target.closest && e.target.closest('tr.ms-group-row');
+      if (!row) return;
+      var id = row.getAttribute('data-gid');
+      closed[id] = !closed[id];
+      refresh();
+    });
+    var expandBtn = document.getElementById('ms-groups-expand');
+    var collapseBtn = document.getElementById('ms-groups-collapse');
+    if (expandBtn) expandBtn.addEventListener('click', function () {
+      groups.forEach(function (g) { closed[g.getAttribute('data-gid')] = false; });
+      refresh();
+    });
+    if (collapseBtn) collapseBtn.addEventListener('click', function () {
+      groups.forEach(function (g) { closed[g.getAttribute('data-gid')] = true; });
+      refresh();
+    });
+    refresh();
+  })();
+
+  // The "Grouped by" pills: open a level's field list, pick another field, remove a level, or add one.
+  window.ngbCrumbToggle = function (btn) {
+    var wrap = btn.closest('.ngb-crumb-select-wrap');
+    var wasOpen = wrap.classList.contains('force-open');
+    document.querySelectorAll('.ngb-crumb-select-wrap.force-open').forEach(function (w) { w.classList.remove('force-open'); });
+    if (!wasOpen) wrap.classList.add('force-open');
+  };
+  function crumbIndex(el) {
+    var row = el.closest('.ngb-crumb-row');
+    return Array.prototype.indexOf.call(row.parentElement.querySelectorAll('.ngb-crumb-row'), row);
+  }
+  window.ngbCrumbPick = function (opt) { msSetGroupLevel(crumbIndex(opt), opt.getAttribute('data-value')); };
+  window.ngbCrumbRemove = function (btn) { msRemoveGroupLevel(crumbIndex(btn)); };
+  window.ngbCrumbAdd = function (btn) {
+    // A new, still-empty pill: nothing changes until a field is picked in it.
+    var rows = btn.parentElement.querySelectorAll('.ngb-crumb-row');
+    var clone = rows[rows.length - 1].cloneNode(true);
+    clone.querySelector('.ngb-crumb-select-label').textContent = btn.getAttribute('data-select') || 'Select field';
+    clone.querySelectorAll('.ngb-crumb-option').forEach(function (o) { o.classList.remove('is-current'); });
+    clone.querySelector('.ngb-crumb-badge').textContent = rows.length + 1;
+    btn.parentElement.insertBefore(clone, btn);
+    var used = Array.prototype.map.call(rows, function (r) { return r.querySelector('.ngb-crumb-select-label').textContent; });
+    clone.querySelectorAll('.ngb-crumb-option').forEach(function (o) { o.disabled = used.indexOf(o.textContent) >= 0; });
+    var wrap = clone.querySelector('.ngb-crumb-select-wrap');
+    document.querySelectorAll('.ngb-crumb-select-wrap.force-open').forEach(function (w) { w.classList.remove('force-open'); });
+    wrap.classList.add('force-open');
+    btn.style.display = 'none';
+  };
+
+
+(function () {
+  // The columns button sits over the right end of the column header, centred on it: the header's
+  // row starts below whatever is above the table (the grouped view's "Grouped by" bar), and the
+  // vertical scrollbar takes room from the right once the table is taller than its box.
+  var root = document.getElementById('msAttendanceTable');
+  if (!root) return;
+  var anchor = root.querySelector('#ms-columns-anchor');
+  var scroller = root.querySelector('.table-wrapper');
+  var head = root.querySelector('thead');
+  if (!anchor || !scroller || !head) return;
+  function place() {
+    var buttonH = anchor.firstElementChild ? anchor.firstElementChild.offsetHeight : 26;
+    anchor.style.top = Math.round(scroller.offsetTop + (head.getBoundingClientRect().height - buttonH) / 2) + 'px';
+    anchor.style.right = (8 + (scroller.offsetWidth - scroller.clientWidth) + 6) + 'px';
+  }
+  place();
+  window.addEventListener('resize', place);
+  if (window.ResizeObserver) {
+    var observer = new ResizeObserver(place);
+    observer.observe(scroller);
+    var tbl = root.querySelector('table');
+    if (tbl) observer.observe(tbl);
+  }
+})();
+
 (function () {
   var STORAGE_KEY = 'ms_summary_hidden_columns';
   var table = document.getElementById('msAttendanceTable');

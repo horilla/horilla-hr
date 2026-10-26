@@ -299,7 +299,7 @@
                                                 </a>
                                             </li>
                                         {% endif %}
-                                        {% if perms.employee.change_employee %}
+                                        {% if perms.employee.delete_employee %}
                                             <li class="oh-dropdown__item">
                                                 <a href="#" class="oh-dropdown__link" id="archiveEmployees">
                                                     {% trans "Archive" %}
@@ -310,6 +310,8 @@
                                                     {% trans "Un-Archive" %}
                                                 </a>
                                             </li>
+                                        {% endif %}
+                                        {% if perms.employee.change_employee %}
                                             <li class="oh-dropdown__item">
                                                 <a
                                                     hx-get="{% url 'employee-bulk-mail' %}"

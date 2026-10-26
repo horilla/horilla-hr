@@ -449,6 +449,36 @@ def sync_roster_shifts():
             pass
 
 
+def clear_expired_sessions():
+    """
+    Delete expired sessions. Django keeps them until `clearsessions` runs, and
+    nothing ran it, so the session table only grew: an expired session can
+    never be used again, but its row (and the user id in it) stayed for good.
+    """
+    from importlib import import_module
+
+    from django.conf import settings
+    from django.utils import timezone
+
+    store = import_module(settings.SESSION_ENGINE).SessionStore
+    # Database-backed engines (db, cached_db) can say how many rows go;
+    # cache and cookie engines expire sessions by themselves.
+    model = store.get_model_class() if hasattr(store, "get_model_class") else None
+    expired = (
+        model.objects.filter(expire_date__lt=timezone.now()).count() if model else None
+    )
+    try:
+        store.clear_expired()
+    except NotImplementedError:
+        logger.info(
+            "Session engine %s cannot clear expired sessions",
+            settings.SESSION_ENGINE,
+        )
+        return
+    if model:
+        logger.info("Cleared %s expired sessions", expired)
+
+
 # The job1..job6 ids are historical and deliberately preserved so existing
 # jobstore rows are replaced rather than duplicated. Note job5/job6 are swapped
 # relative to declaration order -- that is how they have always been persisted.
@@ -462,3 +492,11 @@ register_job(undo_work_type, "interval", job_id="job6", hours=4)
 register_job(switch_work_type, "interval", job_id="job5", hours=4)
 register_job(recurring_holiday, "interval", hours=4)
 register_job(sync_roster_shifts, "interval", hours=4)
+register_job(
+    clear_expired_sessions,
+    "cron",
+    job_id="clear_expired_sessions",
+    hour=3,
+    minute=0,
+    misfire_grace_time=3600 * 6,
+)

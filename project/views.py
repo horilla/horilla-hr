@@ -498,7 +498,11 @@ def project_bulk_export(request):
     for project in projects:
         data = {
             "Title": f"{project.title}",
-            "Managers": f"{',' .join([manager.employee_first_name + ' ' + manager.employee_last_name for manager in project.managers.all()]) if project.managers.exists() else ''}",
+            # (an employee may have no last name)
+            "Managers": ", ".join(
+                f"{manager.employee_first_name or ''} {manager.employee_last_name or ''}".strip()
+                for manager in project.managers.all()
+            ),
             "Status": f"{project.status}",
             "Start Date": f'{project.start_date.strftime("%Y-%m-%d")}',
             "End Date": f'{project.end_date.strftime("%Y-%m-%d") if project.end_date else ""}',

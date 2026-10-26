@@ -25990,3 +25990,22 @@ msgstr "Modèles de messages et flux créés avec succès."
 
 #~ msgid "'s Scheduled Interviews"
 #~ msgstr "entrevues planifiées"
+
+#: horilla_views/generic/cbv/views.py
+msgid "Last 7 Days"
+msgstr "7 derniers jours"
+
+#: horilla_views/generic/cbv/views.py
+msgid "Next 7 Days"
+msgstr "7 prochains jours"
+
+#: horilla_theme/templates/generic/quick_actions.html
+msgid "Quick filter"
+msgstr "Filtre rapide"
+
+#: offboarding/templates/cbv/exit_process/quick_actions.html
+#: onboarding/templates/cbv/pipeline/onboarding/quick_actions.html
+#: recruitment/templates/cbv/pipeline/quick_actions.html
+#, python-format
+msgid "Quick filter (%(counter)s)"
+msgstr "Filtre rapide (%(counter)s)"

@@ -1,4 +1,16 @@
 {% load i18n %}
+<style>
+    #confirmModal .swal2-icon {
+        font-size: 0.7rem;
+        margin: 1.1rem auto 0.4rem;
+    }
+    #confirmModal .swal2-title {
+        font-size: 1.1rem;
+        padding: 0.2rem 1rem 0;
+        margin: 0;
+        font-weight: bold;
+    }
+</style>
 <div
     class="oh-modal oh-modal--show"
     role="dialog"
@@ -90,21 +102,21 @@
                     </div>
                 {% endfor %}
 
-                <div class="swal2-actions" style="display: flex; direction: rtl">
+                <div class="swal2-actions" style="display: flex; direction: rtl; gap: 8px; margin-bottom: 15px">
                     <div class="swal2-loader"></div>
                     <button
                         type="submit"
-                        class="swal2-deny swal2-styled mb-4"
+                        class="swal2-deny px-4 py-2 text-white rounded-md text-xs flex items-center gap-2 transition duration-300"
                         aria-label="{% trans 'Submit' %}"
-                        style="display: inline-block; background-color: #008000"
+                        style="display: inline-block; background-color: #008000; --swal2-confirm-button-background-color: #008000; --swal2-action-button-outline: 0 0 0 3px rgba(0, 128, 0, 0.5);"
                     >
                         {% trans "Submit" %}
                     </button>
                     <button
                         type="button"
-                        class="swal2-confirm swal2-styled oh-modal__cancel mb-4"
+                        class="swal2-confirm oh-modal__cancel px-4 py-2 text-white rounded-md text-xs flex items-center gap-2 transition duration-300"
                         aria-label="{% trans 'Cancel' %}"
-                        style="display: inline-block; background-color: #d33"
+                        style="display: inline-block; background-color: #d33; --swal2-cancel-button-background-color: #6c757d; --swal2-action-button-outline: 0 0 0 3px rgba(221, 51, 51, 0.5);"
                     >
                         {% trans "Cancel" %}
                     </button>

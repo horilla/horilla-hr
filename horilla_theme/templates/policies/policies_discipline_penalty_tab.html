@@ -1,0 +1,21 @@
+{% load i18n %}
+
+<div class="border border-[#ebebeb] rounded-md mb-5">
+    <div hx-get="{% url 'penalty-records-nav' %}?{{ request.GET.urlencode }}" hx-trigger="load"></div>
+
+    <p class="text-xs text-gray-500 mt-1 ml-2">
+        {% trans "Penalties applied to employees for late arrivals, early departures and leave." %}
+    </p>
+
+    <div
+        class="oh-checkpoint-badge mb-2"
+        id="selectedInstances"
+        data-ids="[]"
+        data-clicked=""
+        style="display: none"
+    >
+    </div>
+
+    <div class="oh-wrapper" id="listContainer">
+    </div>
+</div>

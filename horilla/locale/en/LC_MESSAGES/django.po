@@ -30235,3 +30235,22 @@ msgstr "Shift Requests"
 
 #~ msgid "user-group-update"
 #~ msgstr "Update"
+
+#: horilla_views/generic/cbv/views.py
+msgid "Last 7 Days"
+msgstr ""
+
+#: horilla_views/generic/cbv/views.py
+msgid "Next 7 Days"
+msgstr ""
+
+#: horilla_theme/templates/generic/quick_actions.html
+msgid "Quick filter"
+msgstr ""
+
+#: offboarding/templates/cbv/exit_process/quick_actions.html
+#: onboarding/templates/cbv/pipeline/onboarding/quick_actions.html
+#: recruitment/templates/cbv/pipeline/quick_actions.html
+#, python-format
+msgid "Quick filter (%(counter)s)"
+msgstr ""

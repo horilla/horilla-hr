@@ -1,0 +1,29 @@
+{% load i18n %}
+{% for note in page_obj %}
+
+                                    <div class="note-card relative p-3 pr-10 rounded-xl bg-primary-200 border-l-4 border-l-primary-600">
+                                        {% if request.user.is_authenticated or note.updated_user == candidate %}
+                                            <button
+                                                type="button"
+                                                class="absolute top-2 right-2 flex items-center justify-center w-7 h-7 rounded-full hover:bg-white text-danger [transition:.3s]"
+                                                aria-label="{% trans 'Close note' %}"
+                                                hx-get="{% url 'note-delete-individual' note.id %}"
+                                                title="{% trans 'delete' %}"
+                                                hx-swap="delete"
+                                                hx-target="closest .note-card"
+                                                hx-on:click="setTimeout(() => {reloadMessage(this);},250);"
+                                            >
+                                                <i class="fa-solid fa-xmark text-xs"></i>
+                                            </button>
+                                        {% endif %}
+                                        <p class="text-sm mb-1">{{ note.description }}</p>
+                                        <small class="flex items-center flex-wrap gap-1 text-xs text-color-600">
+                                            <i class="fa-regular fa-user"></i>
+                                            {{ note.updated_user }}
+                                            <span>@</span>
+                                            {{ note.stage_id }}
+                                        </small>
+                                    </div>
+
+                            {% endfor %}
+{% include "candidate/tracking/load_more.html" with section="notes" %}

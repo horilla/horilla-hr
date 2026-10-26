@@ -18,7 +18,7 @@
 	{% else %}
         <button
             title="{% trans 'Approve' %}"
-            class="oh-btn oh-btn--light-bkg flex-1 px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
+            class="oh-btn oh-btn--success opacity-50 cursor-not-allowed flex-1 px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
             disabled
         >
             <ion-icon name="checkmark-outline"></ion-icon>
@@ -42,7 +42,7 @@
 	{% else %}
         <button
             title="{% trans 'Reject' %}"
-            class="oh-btn oh-btn--light-bkg flex-1 px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
+            class="oh-btn oh-btn--danger opacity-50 cursor-not-allowed flex-1 px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
             disabled
         >
             <ion-icon name="close-circle-outline"></ion-icon>
@@ -87,7 +87,7 @@
         </button>
     {% else %}
         <button
-            class="oh-btn oh-btn--light-bkg flex-1 px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
+            class="oh-btn oh-btn--danger opacity-50 cursor-not-allowed flex-1 px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
             title="{% trans 'Delete' %}"
             disabled
         >

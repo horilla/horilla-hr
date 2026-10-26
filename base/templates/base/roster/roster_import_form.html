@@ -12,20 +12,21 @@
             hx-target="#genericModalBody"
             hx-swap="innerHTML"
             hx-encoding="multipart/form-data"
+            hx-timeout="600000"
+            hx-indicator="#rosterUploading"
             class="oh-profile-section"
         >
             {% csrf_token %}
 
-            <div class="oh-modal__dialog-body mr-5" id="rosterUploading" style="display: none">
-                <div class="loader-container">
-                    <div class="loader"></div>
-                    <div class="loader-text">{% trans "Uploading..." %}</div>
-                </div>
+            <div id="rosterUploading" class="oh-upload-loader" role="status" aria-live="polite">
+                <p class="oh-upload-loader__title">{% trans "Uploading..." %}</p>
+                <p class="oh-upload-loader__hint">{% trans "Don't refresh the page" %}</p>
+                <div class="oh-upload-loader__bar"><span></span></div>
             </div>
 
             <div id="error-container" style="color: red"></div>
 
-            <div class="modal-body">
+            <div class="modal-body" id="uploadContainer">
                 <div class="oh-dropdown__import-form">
                     {% if error %}
                         <ul class="errorlist"><li>{{ error }}</li></ul>
@@ -113,5 +114,5 @@ function rosterAskDownload() {
   });
 }
 
-    rosterAskDownload();
+    {% if not error %}rosterAskDownload();{% endif %}
 </script>

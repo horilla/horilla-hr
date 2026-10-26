@@ -30,7 +30,7 @@ and to_date.
             align-items:center;justify-content:center;">
   <div id="cal-modal-inner"
        style="background:#fff;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.25);
-              width:min(94vw,860px);max-height:92vh;overflow:hidden;display:flex;
+              width:min(96vw,1240px);max-height:94vh;overflow:hidden;display:flex;
               flex-direction:column;position:relative;">
     <button id="cal-modal-close"
             onclick="document.getElementById('cal-modal-overlay').style.display='none'"
@@ -163,6 +163,7 @@ and to_date.
   // in a half-closed state (popover gone but cells still highlighted, or
   // vice versa).
   window.msCalClosePanel = function () {
+    setTimeout(function () { if (window.msCalSweepTooltips) window.msCalSweepTooltips(); }, 0);
     var floating = document.getElementById('crp-tip-float');
     if (floating) floating.remove();
     if (window._crpDdOpen) window._crpDdOpen();
@@ -195,6 +196,8 @@ and to_date.
     var panel = document.getElementById('cal-resolve-panel');
     if (!panel || panel.style.display === 'none') return;
     if (panel.contains(e.target)) return;
+    // The status lists float outside the panel: scrolling one is not scrolling the calendar.
+    if (e.target.closest && e.target.closest('.crp-dd-list')) return;
     window.msCalClosePanel();
   }, true);
 
@@ -821,6 +824,62 @@ and to_date.
   });
   // The popover closing, or scrolling, must not leave the bubble behind.
   document.addEventListener('scroll', _crpTipHide, true);
+
+  // Hovering a summary chip highlights the days that count in it and dims every other day.
+  // A split or half day carries two groups, so it lights up under both of its chips.
+  function _calHighlight(group) {
+    document.querySelectorAll('#cal-modal-content .cal-cell[data-date]').forEach(function (cell) {
+      var on = (cell.dataset.groups || '').split(' ').indexOf(group) >= 0;
+      cell.classList.toggle('cal-hl', on);
+      cell.classList.toggle('cal-dim', !on);
+      cell.style.background = '';
+      // A day drawn in two halves lights only the half that belongs to the chip; the
+      // other half is greyed out so the cell reads as half of this status.
+      if (on && cell.dataset.halves) {
+        var halves = cell.dataset.halves.split(',').map(function (p) { return p.split('|'); });
+        if (halves.length === 2 && (halves[0][0] === group) !== (halves[1][0] === group)) {
+          var faded = '#e5e7eb';
+          var first = halves[0][0] === group ? halves[0][1] : faded;
+          var second = halves[1][0] === group ? halves[1][1] : faded;
+          cell.style.background = 'linear-gradient(135deg, ' + first + ' 50%, ' + second + ' 50%)';
+        }
+      }
+    });
+  }
+  function _calHighlightOff() {
+    document.querySelectorAll('#cal-modal-content .cal-cell.cal-dim, #cal-modal-content .cal-cell.cal-hl').forEach(function (cell) {
+      cell.classList.remove('cal-dim', 'cal-hl');
+      cell.style.background = '';
+    });
+  }
+  document.addEventListener('mouseover', function (e) {
+    var chip = e.target.closest && e.target.closest('.cal-summary-item[data-group]');
+    if (chip) _calHighlight(chip.dataset.group);
+  });
+  document.addEventListener('mouseout', function (e) {
+    var chip = e.target.closest && e.target.closest('.cal-summary-item[data-group]');
+    if (chip && !(e.relatedTarget && chip.contains(e.relatedTarget))) _calHighlightOff();
+  });
+
+  // The app turns every title into a jQuery UI tooltip, and jQuery UI only closes one when the
+  // pointer leaves its element. When the element is removed or hidden under the pointer -- a day
+  // popover closing, the calendar being refreshed, the modal closing -- no leave ever comes and
+  // the bubble stays on screen. Sweep out any bubble whose element is gone or no longer shown.
+  function _calSweepTooltips() {
+    document.querySelectorAll('.ui-tooltip').forEach(function (bubble) {
+      var holder = bubble.id ? document.querySelector('[aria-describedby~="' + bubble.id + '"]') : null;
+      var gone = !holder || !holder.isConnected || !holder.getClientRects().length;
+      if (gone) bubble.remove();
+    });
+  }
+  window.msCalSweepTooltips = _calSweepTooltips;
+  var _calSweepQueued = false;
+  document.addEventListener('mousemove', function () {
+    if (_calSweepQueued) return;
+    _calSweepQueued = true;
+    setTimeout(function () { _calSweepQueued = false; _calSweepTooltips(); }, 50);
+  });
+  document.addEventListener('click', function () { setTimeout(_calSweepTooltips, 0); }, true);
 
 })();
 </script>

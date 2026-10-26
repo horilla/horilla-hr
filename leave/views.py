@@ -5073,7 +5073,7 @@ def cut_available_leave(request, instance_id):
     form = PenaltyAccountForm(employee=instance.employee_id)
     available = AvailableLeave.objects.filter(employee_id=instance.employee_id)
     if request.method == "POST":
-        form = PenaltyAccountForm(request.POST)
+        form = PenaltyAccountForm(request.POST, employee=instance.employee_id)
         if form.is_valid():
             penalty_instance = form.instance
             penalty = PenaltyAccounts()
@@ -5086,7 +5086,7 @@ def cut_available_leave(request, instance_id):
             penalty.minus_leaves = penalty_instance.minus_leaves
             penalty.penalty_amount = penalty_instance.penalty_amount
             penalty.save()
-            form = PenaltyAccountForm()
+            form = PenaltyAccountForm(employee=instance.employee_id)
             messages.success(request, _("Penalty/Fine added"))
     return render(
         request,

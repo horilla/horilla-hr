@@ -83,10 +83,13 @@ def cell_tooltip(value) -> str:
     Tooltip text for a list-table cell: plain text collapsed to single spaces.
     Cells rendering interactive widgets get no tooltip — stripping their tags
     would concatenate hidden text (e.g. every option of a select).
+    A cell carrying a data-no-tooltip attribute opts out of the tooltip too.
     """
     from django.utils.html import strip_tags
 
     text = str(value)
+    if "data-no-tooltip" in text:
+        return ""
     if re.search(r"<\s*(select|input|textarea|button|form)\b", text, re.IGNORECASE):
         return ""
     # strip_tags removes tag markup but not the text content of <style>/<script>

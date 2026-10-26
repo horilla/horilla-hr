@@ -1,0 +1,93 @@
+{% load i18n %}
+{# One employee row of the summary table. #}
+          <tr class="ms-summary-row"{% if anc %} data-anc="{{ anc }}" data-depth="{{ depth }}" style="display:none"{% endif %}
+    data-calendar-url="{% url 'attendance-monthly-summary-calendar' %}?employee_id={{ row.employee.pk }}&from_date={{ from_date }}&to_date={{ to_date }}"
+    data-present="{{ row.present }}"
+    data-absent="{{ row.absent }}"
+    data-paid="{{ row.paid_leave }}"
+    data-unpaid="{{ row.unpaid_leave }}"
+    data-weekoff="{{ row.week_off }}"
+    data-holiday="{{ row.holiday }}"
+    data-conflict="{{ row.conflict_days }}"
+    data-unresolved="{{ row.unresolved_conflicts }}"
+    data-regularized="{{ row.resolved_conflicts }}">
+  <td onclick="event.stopPropagation()" style="text-align:center;">
+    <input
+        type="checkbox"
+        class="list-table-row custom-checkbox w-4 h-4 bg-[#E9EDF7] rounded-sm text-primary-600 cursor-pointer"
+        title="{% trans 'Select Row' %}"
+        value="{{ row.employee.pk }}"
+        onclick="event.stopPropagation();"
+        onchange="
+            element = $(this)
+            highlightRow(element);
+            $(document).ready(function () {
+                if (!element.is(':checked')) {
+                removeId(element, 'selectedInstances')
+                }
+                reloadSelectedCount($('#count_msAttendance'),'selectedInstances');
+                reloadSelectedCount($('.count_msAttendance'),'selectedInstances');
+            });
+        "
+    >
+  </td>
+  <td{% if anc %} style="padding-left:{{ indent }}px"{% endif %}>
+    <div class="oh-profile oh-profile--md w-full justify-normal">
+      <div class="oh-profile__avatar mr-1" style="width:22px;height:22px;">
+        <img src="{{ row.employee.get_avatar }}" data-src="{{ row.employee.get_avatar }}" class="oh-profile__image oh-table-img avatar-thumb" alt="" width="22">
+      </div>
+      <span class="truncate" title="{{ row.employee.get_full_name }}">{{ row.employee.get_full_name }}</span>
+    </div>
+  </td>
+  <td>{{ row.employee.badge_id|default:"" }}</td>
+  <td>{{ row.employee.employee_work_info.department_id.department|default:"" }}</td>
+  <td class="ms-metric-cell" style="text-align:center;font-weight:600;"
+      data-url="{% url 'attendance-monthly-summary-detail' %}?employee_id={{ row.employee.pk }}&from_date={{ from_date }}&to_date={{ to_date }}&metric=present">{{ row.present|floatformat:"-1" }}</td>
+  <td class="ms-metric-cell" style="text-align:center;font-weight:600;"
+      data-url="{% url 'attendance-monthly-summary-detail' %}?employee_id={{ row.employee.pk }}&from_date={{ from_date }}&to_date={{ to_date }}&metric=absent">{{ row.absent|floatformat:"-1" }}</td>
+  <td class="ms-metric-cell" style="text-align:center;font-weight:600;"
+      data-url="{% url 'attendance-monthly-summary-detail' %}?employee_id={{ row.employee.pk }}&from_date={{ from_date }}&to_date={{ to_date }}&metric=paid_leave">{{ row.paid_leave }}</td>
+  <td class="ms-metric-cell" style="text-align:center;font-weight:600;"
+      data-url="{% url 'attendance-monthly-summary-detail' %}?employee_id={{ row.employee.pk }}&from_date={{ from_date }}&to_date={{ to_date }}&metric=unpaid_leave">{{ row.unpaid_leave }}</td>
+  <td style="text-align:center;">{{ row.total_working }}</td>
+  <td class="ms-metric-cell" style="text-align:center;font-weight:600;"
+      data-url="{% url 'attendance-monthly-summary-detail' %}?employee_id={{ row.employee.pk }}&from_date={{ from_date }}&to_date={{ to_date }}&metric=week_off">{{ row.week_off }}</td>
+  <td class="ms-metric-cell" style="text-align:center;font-weight:600;"
+      data-url="{% url 'attendance-monthly-summary-detail' %}?employee_id={{ row.employee.pk }}&from_date={{ from_date }}&to_date={{ to_date }}&metric=holiday">{{ row.holiday }}</td>
+  {% if row.conflict_days %}
+  <td class="ms-metric-cell" style="text-align:center;font-weight:600;"
+      data-url="{% url 'attendance-monthly-summary-detail' %}?employee_id={{ row.employee.pk }}&from_date={{ from_date }}&to_date={{ to_date }}&metric=conflict">
+    {% if row.resolved_conflicts == row.conflict_days %}
+      {# All resolved: green number + âœ" #}
+      <span style="color:#30a180;" title="All {{ row.conflict_days }} conflict{{ row.conflict_days|pluralize }} resolved">
+        {{ row.conflict_days }} <span style="font-size:.7rem;">&#10003;</span>
+      </span>
+    {% elif row.resolved_conflicts %}
+      {# Partial: amber total + green fraction #}
+      <span title="{{ row.conflict_days }} conflict{{ row.conflict_days|pluralize }}, {{ row.resolved_conflicts }} resolved">
+        <span style="color:#bd652e;">{{ row.conflict_days }}</span>
+        <span style="color:#30a180;font-size:.72rem;margin-left:2px;">({{ row.resolved_conflicts }}&#10003;)</span>
+      </span>
+    {% else %}
+      {# None resolved: amber number #}
+      <span style="color:#bd652e;" title="{{ row.conflict_days }} unresolved conflict{{ row.conflict_days|pluralize }}">
+        {{ row.conflict_days }}
+      </span>
+    {% endif %}
+  </td>
+  {% else %}
+  <td style="text-align:center;"></td>
+  {% endif %}
+  <td style="text-align:center;">{{ row.worked_label }}</td>
+  <td style="text-align:center;">{{ row.regular_label }}</td>
+  {# One line like every other row: the total, then the split in small grey beside it. #}
+  <td style="text-align:center;"
+      title="{% trans 'Regular' %}: {{ row.ot_regular_label }} &#183; {% trans 'Week Off' %}: {{ row.ot_week_off_label }} &#183; {% trans 'Holiday' %}: {{ row.ot_holiday_label }}">
+    {{ row.overtime_label }}
+    <span style="font-size:.7rem;color:#9ca3af;margin-left:6px;">
+      {% if row.ot_regular_seconds %}<span title="{% trans 'Regular OT' %}">R {{ row.ot_regular_label }}</span>{% endif %}
+      {% if row.ot_week_off_seconds %}<span title="{% trans 'Week Off OT' %}">{% if row.ot_regular_seconds %} &#183; {% endif %}WO {{ row.ot_week_off_label }}</span>{% endif %}
+      {% if row.ot_holiday_seconds %}<span title="{% trans 'Holiday OT' %}">{% if row.ot_regular_seconds or row.ot_week_off_seconds %} &#183; {% endif %}HO {{ row.ot_holiday_label }}</span>{% endif %}
+    </span>
+  </td>
+</tr>

@@ -543,7 +543,7 @@ class ShortHalfTests(HalfDayLeaveNaturalTests):
         self._attend("04:30")
         cell = self._cell()
         self.assertEqual(cell["status"], "split")
-        self.assertEqual(cell["split_style"], "--h1:#86efac;--h2:#f9a8d4")
+        self.assertEqual(cell["split_style"], "--h1:#86efac;--h2:#fca5a5")
 
     def test_the_strip_counts_a_present_half_and_a_short_half(self):
         from attendance.views.summary import _build_calendar_context
@@ -553,8 +553,7 @@ class ShortHalfTests(HalfDayLeaveNaturalTests):
             "cal_summary"
         ]
         self.assertEqual(
-            (strip["present"], strip["short"], strip["absent"], strip["paid_leave"]),
-            (0.5, 0.5, 0, 0),
+            (strip["present"], strip["absent"], strip["paid_leave"]), (0.5, 0.5, 0)
         )
 
     def test_under_half_the_shift_is_still_a_short_day(self):
@@ -781,3 +780,113 @@ class DayHoursSaveTests(PopoverStatusTests):
         html = self._panel()
         # Nothing on that day and no shift set up: the 8h default is assumed and says so.
         self.assertIn("no shift minimum is set, so 8:00 is assumed", html)
+
+    def test_a_short_day_counts_with_absent_in_the_strip_and_has_no_chip_of_its_own(
+        self,
+    ):
+        from attendance.views.summary import _build_calendar_context
+
+        self._attend("01:00")
+        context = _build_calendar_context(self.employee, WEDNESDAY, WEDNESDAY)
+        self.assertEqual(context["cal_summary"]["absent"], 1)
+        self.assertNotIn("short", context["cal_summary"])
+
+    def test_the_absent_popover_lists_short_hours_days_with_what_was_worked(self):
+        from django.urls import reverse
+
+        self._attend("01:00")
+        self._panel()  # logs the HR user in
+        response = self.client.get(
+            reverse("attendance-monthly-summary-detail"),
+            {
+                "employee_id": self.employee.pk,
+                "from_date": WEDNESDAY.isoformat(),
+                "to_date": WEDNESDAY.isoformat(),
+                "metric": "absent",
+            },
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertContains(response, "Wed, 02 Sep 2026")
+        self.assertContains(response, "Short hours 1h 00m / 8h 00m")
+
+    def test_a_half_day_of_hours_is_not_listed_as_a_short_day(self):
+        from django.urls import reverse
+
+        self._attend("06:00")
+        self._panel()
+        response = self.client.get(
+            reverse("attendance-monthly-summary-detail"),
+            {
+                "employee_id": self.employee.pk,
+                "from_date": WEDNESDAY.isoformat(),
+                "to_date": WEDNESDAY.isoformat(),
+                "metric": "absent",
+            },
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertNotContains(response, "Short hours")
+
+
+class ChipHoverGroupTests(HalfDayLeaveNaturalTests):
+    """Each day knows which summary chips it counts in, for the hover highlight."""
+
+    def test_groups_for_each_kind_of_day(self):
+        from attendance.views.summary import cell_groups
+
+        self.assertEqual(cell_groups("present", None, None), "present")
+        self.assertEqual(cell_groups("absent", None, None), "absent")
+        self.assertEqual(cell_groups("short", None, None), "absent")
+        self.assertEqual(cell_groups("paid_leave", None, None), "paid_leave")
+        self.assertEqual(cell_groups("unpaid_leave", None, None), "unpaid_leave")
+        self.assertEqual(cell_groups("week_off", None, None), "week_off")
+        self.assertEqual(cell_groups("holiday", None, None), "holiday")
+        self.assertEqual(cell_groups("future", None, None), "")
+
+    def test_a_half_day_and_a_split_belong_to_both_of_their_chips(self):
+        from attendance.views.summary import cell_groups
+
+        self.assertEqual(cell_groups("half_present", None, None), "paid_leave present")
+        self.assertEqual(cell_groups("half_absent", None, None), "absent present")
+        self.assertEqual(
+            cell_groups("split", ("P", "UL"), None), "present unpaid_leave"
+        )
+        self.assertEqual(cell_groups("split", ("P", "SH"), None), "absent present")
+        self.assertIn("conflict", cell_groups("present", None, "paid_leave"))
+
+    def test_the_calendar_carries_the_groups_and_the_chips_name_theirs(self):
+        from django.template.loader import render_to_string
+
+        from attendance.views.summary import _build_calendar_context
+
+        self._leave(breakdown="second_half")
+        context = _build_calendar_context(self.employee, WEDNESDAY, WEDNESDAY)
+        html = render_to_string(
+            "attendance/monthly_summary/calendar_modal.html", context
+        )
+        self.assertIn('data-groups="absent paid_leave"', html)
+        for group in (
+            "present",
+            "absent",
+            "paid_leave",
+            "unpaid_leave",
+            "week_off",
+            "holiday",
+        ):
+            self.assertIn('data-group="%s"' % group, html)
+
+    def test_two_half_days_carry_their_halves_in_drawing_order(self):
+        from attendance.views.summary import cell_halves_data
+
+        self.assertEqual(
+            cell_halves_data("split", ("P", "PL")), "present|#86efac,paid_leave|#93c5fd"
+        )
+        self.assertEqual(
+            cell_halves_data("split", ("A", "PL")), "absent|#fca5a5,paid_leave|#93c5fd"
+        )
+        self.assertEqual(
+            cell_halves_data("half_present", None), "present|#86efac,paid_leave|#93c5fd"
+        )
+        self.assertEqual(
+            cell_halves_data("half_absent", None), "absent|#fca5a5,present|#86efac"
+        )
+        self.assertEqual(cell_halves_data("present", None), "")

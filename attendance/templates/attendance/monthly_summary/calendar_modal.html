@@ -18,6 +18,11 @@
   border-bottom: 1px solid #cbd5e1;
   background: #f1f5f9;
 }
+/* Hovering a summary chip lights up its days and dims the rest. */
+.cal-summary-item[data-group] { cursor: default; transition: background-color .12s; }
+.cal-summary-item[data-group]:hover { background-color: #f3f4f6; }
+.cal-cell { transition: opacity .12s, filter .12s, box-shadow .12s; }
+.cal-cell.cal-dim { opacity: .2; filter: grayscale(.6); }
 .cal-summary-item {
   flex: 1 1 70px;
   display: flex;
@@ -81,7 +86,7 @@
 }
 
 /* ── Calendar body ────────────────────────────────────────────────────────── */
-.cal-body { padding: 16px 20px 20px; overflow-y: auto; max-height: calc(90vh - 200px); position: relative; }
+.cal-body { padding: 16px 24px 24px; overflow-y: auto; max-height: calc(94vh - 220px); position: relative; }
 .cal-month-label {
   font-size: .8rem;
   font-weight: 700;
@@ -108,9 +113,9 @@
 }
 .cal-cell {
   border-radius: 6px;
-  min-height: 44px;
-  padding: 4px 5px;
-  font-size: .72rem;
+  min-height: 62px;
+  padding: 6px 8px;
+  font-size: .76rem;
   position: relative;
   cursor: pointer;
   transition: opacity .12s, outline .12s;
@@ -236,7 +241,7 @@
 .cal-half_absent    { background: linear-gradient(135deg, #fca5a5 50%, #86efac 50%); color: #1f2937; }
 .cal-split          { background: linear-gradient(135deg, var(--h1, #86efac) 50%, var(--h2, #fca5a5) 50%); color: #1f2937; }
 .cal-partial_hours  { background: #67e8f9; color: #155e75; }
-.cal-short          { background: #f9a8d4; color: #831843; }
+.cal-short          { background: #fca5a5; color: #7f1d1d; }
 .cal-absent         { background: #fca5a5; color: #7f1d1d; }
 /* Not happened yet and nothing recorded: greyed, not counted, not clickable. */
 .cal-future       { background: #f1f5f9; color: #94a3b8; opacity: .75; cursor: not-allowed !important; pointer-events: none; }
@@ -345,36 +350,32 @@
 
 <!-- ── Summary strip ─────────────────────────────────────────────────────── -->
 <div class="cal-summary">
-  <div class="cal-summary-item">
+  <div class="cal-summary-item" data-group="present">
     <span class="cal-summary-val cal-stat-present">{{ cal_summary.present }}</span>
     <span class="cal-summary-lbl">{% trans "Present" %}</span>
   </div>
-  <div class="cal-summary-item">
-    <span class="cal-summary-val cal-stat-short">{{ cal_summary.short }}</span>
-    <span class="cal-summary-lbl">{% trans "Short Hours" %}</span>
-  </div>
-  <div class="cal-summary-item">
+  <div class="cal-summary-item" data-group="absent" title="{% trans 'Absent, missing clock-out and short hours' %}">
     <span class="cal-summary-val cal-stat-absent">{{ cal_summary.absent }}</span>
-    <span class="cal-summary-lbl">{% trans "Absent / MO" %}</span>
+    <span class="cal-summary-lbl">{% trans "Absent / MO / Short" %}</span>
   </div>
-  <div class="cal-summary-item">
+  <div class="cal-summary-item" data-group="paid_leave">
     <span class="cal-summary-val cal-stat-paid">{{ cal_summary.paid_leave }}</span>
     <span class="cal-summary-lbl">{% trans "Paid Leave" %}</span>
   </div>
-  <div class="cal-summary-item">
+  <div class="cal-summary-item" data-group="unpaid_leave">
     <span class="cal-summary-val cal-stat-unpaid">{{ cal_summary.unpaid_leave }}</span>
     <span class="cal-summary-lbl">{% trans "Unpaid Leave" %}</span>
   </div>
-  <div class="cal-summary-item">
+  <div class="cal-summary-item" data-group="week_off">
     <span class="cal-summary-val cal-stat-weekoff">{{ cal_summary.week_off }}</span>
     <span class="cal-summary-lbl">{% trans "Week Off" %}</span>
   </div>
-  <div class="cal-summary-item">
+  <div class="cal-summary-item" data-group="holiday">
     <span class="cal-summary-val cal-stat-holiday">{{ cal_summary.holiday }}</span>
     <span class="cal-summary-lbl">{% trans "Holiday" %}</span>
   </div>
   {% if cal_summary.conflict %}
-  <div class="cal-summary-item" style="background:#fff4ed;">
+  <div class="cal-summary-item" data-group="conflict" style="background:#fff4ed;">
     <span class="cal-summary-val" style="color:#e85d04;">{{ cal_summary.conflict }}</span>
     <span class="cal-summary-lbl" style="color:#92400e;">{% trans "Conflicts" %}</span>
   </div>
@@ -433,6 +434,8 @@
         {% else %}
           <div class="cal-cell cal-{{ cell.status }}{% if cell.is_conflict %} cal-has-conflict{% elif cell.resolution %} cal-resolved-conflict{% endif %}"
                data-date="{{ cell.date|date:'Y-m-d' }}"
+               data-groups="{{ cell.groups }}"
+               data-halves="{{ cell.halves_data }}"
                title="{{ cell.date|date:'d M Y' }}{% if cell.split_label %} — {{ cell.split_label }}{% elif cell.detail %} — {{ cell.detail }}{% endif %}{% if cell.conflict_with == 'paid_leave' or cell.conflict_with == 'unpaid_leave' %} ⚠ conflicts with {{ cell.conflict_with }}{% elif cell.conflict_with == 'holiday_ot' %} HO — Holiday Overtime{% elif cell.conflict_with == 'week_off_ot' %} WO — Week Off Overtime{% elif cell.conflict_with == 'regular_ot' %} OT — Overtime{% elif cell.resolution %} ✓ resolved{% endif %}{% if not readonly %}{% trans ' — Ctrl/Shift-click to select multiple days' %}{% endif %}"
                {% if not readonly %}onclick="msCalCellClick(event, this, '{{ cell.date|date:'Y-m-d' }}', '{{ cell.conflict_with|default:'' }}', '{{ cell.detail|default:''|escapejs }}')"{% endif %}
                {% if cell.split_style %}style="{{ cell.split_style }}{% if readonly %};cursor:default{% endif %}"{% elif readonly %}style="cursor:default;"{% endif %}>
@@ -470,8 +473,7 @@
 <div class="cal-legend">
   <div class="cal-legend-item"><div class="cal-legend-dot cal-present"></div> {% trans "Present (Full)" %}</div>
   <div class="cal-legend-item"><div class="cal-legend-dot cal-split" style="--h1:#86efac;--h2:#93c5fd"></div> {% trans "Split Day (two halves)" %}</div>
-  <div class="cal-legend-item"><div class="cal-legend-dot cal-short"></div> {% trans "Short Hours" %}</div>
-  <div class="cal-legend-item"><div class="cal-legend-dot cal-absent"></div> {% trans "Absent / Missing Out" %}</div>
+  <div class="cal-legend-item"><div class="cal-legend-dot cal-absent"></div> {% trans "Absent / Missing Out / Short Hours" %}</div>
   <div class="cal-legend-item"><div class="cal-legend-dot cal-paid_leave"></div> {% trans "Paid Leave" %}</div>
   <div class="cal-legend-item"><div class="cal-legend-dot cal-unpaid_leave"></div> {% trans "Unpaid Leave" %}</div>
   <div class="cal-legend-item"><div class="cal-legend-dot cal-week_off"></div> {% trans "Week Off" %}</div>

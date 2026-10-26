@@ -5,7 +5,7 @@
     <div class="d-flex justify-content-between">
         <button
             class="oh-btn oh-btn--secondary"
-            onclick="window.location.href = `{% url 'work-record-export' %}?{{pd}}`"
+            onclick="hlvDownloadWithProgress(`{% url 'work-record-export' %}?{{pd}}`)"
         >
             <ion-icon
                 name="download-outline"

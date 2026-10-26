@@ -245,7 +245,7 @@
         }).then(function (html) {
             $preview.html(html);
         }).catch(function () {
-            $preview.html('<p class="text-danger">{% trans "Unable to load preview" %}</p>');
+            $preview.html('<p class="text-danger">{% trans "Unable to load preview"|escapejs %}</p>');
         });
     }
 

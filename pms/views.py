@@ -2596,7 +2596,9 @@ def question_delete(request, id):
         QuestionOptions.objects.filter(question_id=question).delete()
         question.delete()
         messages.success(request, _("Question deleted successfully!"))
-        return HttpResponse("<script>reloadMessage();</script>")
+        return HttpResponse(
+            "<script>reloadMessage();$('.reload-record').click();</script>"
+        )
 
     except Question.DoesNotExist:
         error_msg = _("Question not found.")
@@ -2677,24 +2679,10 @@ def question_template_detailed_view(request, template_id, **kwargs):
     if not question_template:
         messages.error(request, _("Question template does not exist"))
         return redirect("question-template-view")
-    questions = question_template.question.all().order_by("-id")
-    question_types = ["text", "ratings", "boolean", "multi-choices", "likert"]
-    options = QuestionOptions.objects.filter(question_id__in=questions)
-
-    # passing individual form
-    question_form_list = [QuestionForm(instance=question) for question in questions]
-    context = {
-        "question_template": question_template,
-        "questions": questions,
-        "question_options": options,
-        "question_types": question_types,
-        "form": QuestionForm,
-        "form_list": question_form_list,
-    }
     return render(
         request,
         "feedback/question_template/question_template_detailed_view.html",
-        context,
+        {"question_template": question_template},
     )
 
 

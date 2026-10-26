@@ -58,11 +58,11 @@
     {%for field,values in filter_dict.items %} {% if values %}
     {% with translation_field=field|filter_field %}
     <span class="oh-titlebar__tag filter-field" >
-      {% trans translation_field %} :
+      {% trans translation_field|force_escape|escapejs_template %} :
 	  {% for value in values %}
-		${fieldLabel("{% trans value %}", "{{field}}")}
+		${fieldLabel("{% trans value|force_escape|escapejs %}", "{{field|force_escape|escapejs_template}}")}
 	  {% endfor %}
-      <button class="oh-titlebar__tag-close" onclick="clearFilterFromTag($(this))" data-x-field="{{field}}">
+      <button class="oh-titlebar__tag-close" onclick="clearFilterFromTag($(this))" data-x-field="{{field|force_escape|escapejs_template}}">
         <ion-icon
           name="close-outline"
           role="img"

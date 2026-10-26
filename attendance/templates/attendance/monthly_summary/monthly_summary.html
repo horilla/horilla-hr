@@ -418,6 +418,43 @@
                   </div>
                 </div>
               </div>
+              <!-- Group By: the same control the Employee directory has -- numbered levels, each a
+                   field and a remove button, "+ Add level", and a preview of the chain. Choosing
+                   a field applies it straight away. The levels post as repeated nested_fields,
+                   the parameter the grouped Employee lists use. -->
+              <div class="oh-accordion oh-accordion--top-divider">
+                <div class="oh-accordion-header"
+                     onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');">
+                  <span class="oh-filter-section-icon"><ion-icon name="layers-outline"></ion-icon></span>
+                  {% trans "Group By" %}
+                </div>
+                <div class="oh-accordion-body">
+                  <div id="nestedGroupByLevels" class="space-y-1.5" data-max-levels="{{ group_max_levels }}">
+                    {% for value in nested_selected %}
+                    <div class="flex items-center gap-1.5 nested-group-by-row">
+                      <span class="ngb-level-badge shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-md bg-primary-100 text-primary-700 text-[11px] font-semibold"></span>
+                      {# Not .oh-select: rows are cloned, and cloning a Select2-initialised select breaks the copy. #}
+                      <select
+                          onchange="ngbUpdatePreview(); ngbUpdateDisabledOptions(); $('#ms-apply-filter').click();"
+                          class="ngb-field-select oh-input w-100 border border-[#DEDBD4] rounded-md px-2 py-1.5 text-sm"
+                          name="nested_fields"
+                          style="margin-bottom: 0;">
+                        <option value="">{% trans "Select" %}</option>
+                        {% for key, label in group_options %}
+                        <option value="{{ key }}"{% if key == value %} selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                      </select>
+                      <button type="button"
+                              class="shrink-0 inline-flex items-center justify-center w-5 h-5 text-sm leading-none text-red-500 hover:text-red-600"
+                              onclick="ngbRemoveLevel(this)"
+                              title="{% trans 'Remove level' %}">&times;</button>
+                    </div>
+                    {% endfor %}
+                  </div>
+                  <button type="button" class="text-xs text-primary-600 hover:underline mt-2" onclick="ngbAddLevel(this)">+ {% trans "Add level" %}</button>
+                  <div id="nestedGroupByPreview" class="text-xs text-gray-600 mt-2 pt-2 border-t border-[#EAE8E3]"></div>
+                </div>
+              </div>
             </div>
             <div class="oh-filter-panel__footer">
               {% comment %}
@@ -633,7 +670,85 @@ var MS_MULTI_FIELDS = [
 // whatever the server actually renders for it, which is exactly what kept
 // "Clear all" looking like it had done nothing: the server-side state was
 // genuinely reset, but the browser quietly refilled the input anyway).
+// Group By levels -- the Employee directory's own behaviour (generic/horilla_nav.html): numbered
+// rows, a field can be picked once, "+ Add level" up to the number of fields, a preview of the chain.
+function ngbRenumber() {
+  $('#nestedGroupByLevels .nested-group-by-row').each(function (i) {
+    $(this).find('.ngb-level-badge').text(i + 1);
+  });
+}
+function ngbUpdatePreview() {
+  var labels = [];
+  $('#nestedGroupByLevels select').each(function () {
+    if ($(this).val()) labels.push($(this).find('option:selected').text());
+  });
+  $('#nestedGroupByPreview').text(labels.length > 1 ? "{% trans 'Preview'|escapejs %}: " + labels.join(' › ') : '');
+}
+// Disables a field in the other rows once a level has picked it.
+function ngbUpdateDisabledOptions() {
+  var chosen = $('#nestedGroupByLevels select').map(function () { return $(this).val(); }).get().filter(Boolean);
+  $('#nestedGroupByLevels select').each(function () {
+    var own = $(this).val();
+    $(this).find('option').each(function () {
+      if (!$(this).val()) return;
+      $(this).prop('disabled', $(this).val() !== own && chosen.indexOf($(this).val()) !== -1);
+    });
+  });
+}
+function ngbAddLevel() {
+  var $container = $('#nestedGroupByLevels');
+  var maxLevels = parseInt($container.attr('data-max-levels'), 10) || 3;
+  if ($container.find('.nested-group-by-row').length >= maxLevels) return;
+  var $row = $container.find('.nested-group-by-row').first().clone();
+  $row.find('select').val('');
+  $container.append($row);
+  ngbRenumber(); ngbUpdatePreview(); ngbUpdateDisabledOptions();
+}
+function ngbRemoveLevel(btn) {
+  var $container = $('#nestedGroupByLevels');
+  if ($container.find('.nested-group-by-row').length <= 1) {
+    // The only level: clear it, which is the same as no grouping.
+    $container.find('select').val('');
+  } else {
+    $(btn).closest('.nested-group-by-row').remove();
+  }
+  ngbRenumber(); ngbUpdatePreview(); ngbUpdateDisabledOptions();
+  $('#ms-apply-filter').click();
+}
+function msClearGroupLevels() {
+  var $container = $('#nestedGroupByLevels');
+  $container.find('.nested-group-by-row:gt(0)').remove();
+  $container.find('select').val('');
+  ngbRenumber(); ngbUpdatePreview(); ngbUpdateDisabledOptions();
+}
+$(function () { ngbRenumber(); ngbUpdatePreview(); ngbUpdateDisabledOptions(); });
+
+// The "Grouped by" breadcrumb above the grouped table edits these same levels, so the filter
+// panel and the breadcrumb can never disagree: every change lands here, then Apply refreshes.
+function msSetGroupLevel(index, value) {
+  var $container = $('#nestedGroupByLevels');
+  var max = parseInt($container.attr('data-max-levels'), 10) || 3;
+  while ($container.find('.nested-group-by-row').length <= index && $container.find('.nested-group-by-row').length < max) {
+    ngbAddLevel();
+  }
+  $container.find('.nested-group-by-row').eq(index).find('select').val(value);
+  ngbUpdatePreview(); ngbUpdateDisabledOptions();
+  $('#ms-apply-filter').click();
+}
+function msRemoveGroupLevel(index) {
+  var $container = $('#nestedGroupByLevels');
+  var $rows = $container.find('.nested-group-by-row');
+  if ($rows.length <= 1) { $rows.find('select').val(''); } else { $rows.eq(index).remove(); }
+  ngbRenumber(); ngbUpdatePreview(); ngbUpdateDisabledOptions();
+  $('#ms-apply-filter').click();
+}
+document.addEventListener('click', function (e) {
+  if (e.target.closest && e.target.closest('.ngb-crumb-select-wrap')) return;
+  document.querySelectorAll('.ngb-crumb-select-wrap.force-open').forEach(function (w) { w.classList.remove('force-open'); });
+});
+
 function msClearAllFilters() {
+  msClearGroupLevels();
   var search = document.getElementById('ms-search-input');
   if (search) search.value = '';
   var nameOrBadge = document.getElementById('ms-name-or-badge-input');
@@ -684,6 +799,12 @@ function msRenderFilterTags() {
       value: selected.map(function (o) { return o.text; }).join(', '),
     });
   });
+  var groupNames = Array.from(document.querySelectorAll('#nestedGroupByLevels select'))
+    .filter(function (s) { return s.value; })
+    .map(function (s) { return s.options[s.selectedIndex].text; });
+  if (groupNames.length) {
+    chips.push({ key: 'nested_fields', label: "{% trans 'Group by'|escapejs %}", value: groupNames.join(' › ') });
+  }
   var activeEl = document.querySelector('[name="is_active"]:checked');
   if (activeEl && activeEl.value) {
     chips.push({
@@ -767,6 +888,8 @@ document.getElementById('ms-filter-tags').addEventListener('click', function (e)
   } else if (key === 'is_active') {
     var anyRadio = document.querySelector('[name="is_active"][value=""]');
     if (anyRadio) anyRadio.checked = true;
+  } else if (key === 'nested_fields') {
+    msClearGroupLevels();
   } else {
     var field = document.querySelector('[name="' + key + '"]');
     if (field) {

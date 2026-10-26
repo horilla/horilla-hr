@@ -77,15 +77,17 @@
             hx-post="{% url 'leave-cut-penalty' instance.id %}?{{pd}}"
             hx-target="#penaltyModalBody"
         >
-            {{ form.errors }}
+            {{ form.non_field_errors }}
             <div class="">
                 <div class="oh-input__group mb-3">
                     <label class="text-xs font-medium" for="id_leave_type_id">{% trans "Leave Type" %}</label>
                     {{ form.leave_type_id }}
+                    {{ form.leave_type_id.errors }}
                 </div>
                 <div class="oh-input__group mb-3">
-                    <label class="text-xs font-medium" for="id_minus_leaves">{% trans "Minus Leave" %}</label>
+                    <label class="text-xs font-medium" for="id_minus_leaves">{% trans "Deduct Leave" %}</label>
                     {{ form.minus_leaves }}
+                    {{ form.minus_leaves.errors }}
                 </div>
                 <div class="oh-input__group mb-3">
                     <label
@@ -93,10 +95,12 @@
                         for="id_deduct_from_carry_forward"
                     >{% trans "Deduct From Carryforward" %}</label>
                     {{ form.deduct_from_carry_forward }}
+                    {{ form.deduct_from_carry_forward.errors }}
                 </div>
                 <div class="oh-input__group">
                     <label class="text-xs font-medium" for="id_penalty_amount">{% trans "Penalty Amount" %}</label>
                     {{ form.penalty_amount }}
+                    {{ form.penalty_amount.errors }}
                 </div>
             </div>
 

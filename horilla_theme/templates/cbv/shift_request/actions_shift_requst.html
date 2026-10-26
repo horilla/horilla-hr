@@ -60,11 +60,11 @@
                     <a class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
                         hx-confirm="{% trans 'Are you sure you want to delete this shift request?' %}"
                         hx-post="{% url 'shift-request-delete' instance.id %}" hx-target="#shift-container"
-                        title="{% trans 'Remove' %}">
+                        title="{% trans 'Delete' %}">
                         <ion-icon name="trash-outline"></ion-icon>
                     </a>
                 {% else %}
-                    <button class="oh-btn oh-btn--light-bkg oh-btn--sq-sm" disabled title="{% trans 'Remove' %}"><ion-icon
+                    <button class="oh-btn oh-btn--light-bkg oh-btn--sq-sm" disabled title="{% trans 'Delete' %}"><ion-icon
                             name="trash-outline"></ion-icon></button>
                 {% endif %}
             {% endif %}

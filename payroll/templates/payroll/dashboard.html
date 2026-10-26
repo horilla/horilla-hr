@@ -478,6 +478,7 @@ function pdInit() {
     // ── Standard tooltip and chip legend (same as the main dashboard) ──
     const subTextColor = isDark ? '#64748b' : '#94a3b8';
     const escHtml = v => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const fmtMoneyHtml = v => escHtml(fmtMoney(v));
     const TOOLTIP_STYLE = { theme: isDark ? 'dark' : 'light', style: { fontSize: '12px' } };
     const LEGEND_STYLE = { position: 'bottom', labels: { colors: textColor }, fontSize: '11px', fontWeight: 500, markers: { width: 8, height: 8, radius: 3 }, itemMargin: { horizontal: 8 } };
     const tipCard = (title, rows) => `<div class="pd-tip"><div class="pd-tip__title">${escHtml(title)}</div>`
@@ -663,32 +664,32 @@ function pdInit() {
             const changeIcon = !hasPrev || data.change_pct === 0 ? '→' : data.change_pct > 0 ? '↑' : '↓';
             const changeClass = !hasPrev ? 'pd-badge--muted' : data.change_pct > 0 ? 'pd-badge--amber' : data.change_pct < 0 ? 'pd-badge--green' : 'pd-badge--blue';
             const netCompare = hasPrev
-                ? `<span class="pd-badge ${changeClass}">${changeIcon} ${Math.abs(data.change_pct)}%</span><span class="pd-kpi-card__vs">{% trans "vs"|escapejs %} ${data.prev_month} · ${fmtMoney(data.prev_net)}</span>`
+                ? `<span class="pd-badge ${changeClass}">${changeIcon} ${Math.abs(data.change_pct)}%</span><span class="pd-kpi-card__vs">{% trans "vs"|escapejs %} ${data.prev_month} · ${fmtMoneyHtml(data.prev_net)}</span>`
                 : `<span class="pd-kpi-card__vs">{% trans "No paid payslips in"|escapejs %} ${data.prev_month}</span>`;
             document.getElementById('pd-kpi-grid').innerHTML = `
                 <a href="{% url 'view-payslip' %}?start_date_from=${fromInput.value}&start_date_till=${toInput.value}&filter_applied=1" class="pd-kpi-card">
-                    <div class="pd-kpi-card__icon pd-kpi-card__icon--green" style="font-weight:700;">${CURRENCY_SYMBOL}</div>
+                    <div class="pd-kpi-card__icon pd-kpi-card__icon--green" style="font-weight:700;">${escHtml(CURRENCY_SYMBOL)}</div>
                     <div class="pd-kpi-card__label">{% trans "Net Payroll"|escapejs %}</div>
-                    <div class="pd-kpi-card__value">${fmtMoney(data.total_net)}</div>
+                    <div class="pd-kpi-card__value">${fmtMoneyHtml(data.total_net)}</div>
                     <div class="pd-kpi-card__sub pd-kpi-card__sub--compare">${netCompare}</div>
                 </a>
                 <a href="{% url 'view-payslip' %}?start_date_from=${fromInput.value}&start_date_till=${toInput.value}&filter_applied=1" class="pd-kpi-card">
                     <div class="pd-kpi-card__icon pd-kpi-card__icon--blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></div>
                     <div class="pd-kpi-card__label">{% trans "Gross Pay"|escapejs %}</div>
-                    <div class="pd-kpi-card__value">${fmtMoney(data.total_gross)}</div>
+                    <div class="pd-kpi-card__value">${fmtMoneyHtml(data.total_gross)}</div>
                     <div class="pd-kpi-card__sub"><span class="pd-badge pd-badge--blue">${data.total_payslips} {% trans "Payslips"|escapejs %}</span></div>
                 </a>
                 <a href="{% url 'view-payslip' %}?start_date_from=${fromInput.value}&start_date_till=${toInput.value}&filter_applied=1" class="pd-kpi-card">
                     <div class="pd-kpi-card__icon pd-kpi-card__icon--red"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg></div>
                     <div class="pd-kpi-card__label">{% trans "Deductions"|escapejs %}</div>
-                    <div class="pd-kpi-card__value">${fmtMoney(data.total_deductions)}</div>
+                    <div class="pd-kpi-card__value">${fmtMoneyHtml(data.total_deductions)}</div>
                     <div class="pd-kpi-card__sub"><span class="pd-badge pd-badge--blue">${data.month}</span></div>
                 </a>
                 <a href="{% url 'view-loan' %}?open_tab=1&settled=False&filter_applied=1" class="pd-kpi-card">
                     <div class="pd-kpi-card__icon pd-kpi-card__icon--amber"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg></div>
                     <div class="pd-kpi-card__label">{% trans "Active Loans"|escapejs %}</div>
                     <div class="pd-kpi-card__value">${data.active_loans}</div>
-                    <div class="pd-kpi-card__sub">${data.loan_amount > 0 ? '<span class="pd-badge pd-badge--amber">' + fmtMoney(data.loan_amount) + ' {% trans "Total"|escapejs %}</span>' : '<span class="pd-badge pd-badge--green">{% trans "No Active Loans"|escapejs %}</span>'}</div>
+                    <div class="pd-kpi-card__sub">${data.loan_amount > 0 ? '<span class="pd-badge pd-badge--amber">' + fmtMoneyHtml(data.loan_amount) + ' {% trans "Total"|escapejs %}</span>' : '<span class="pd-badge pd-badge--green">{% trans "No Active Loans"|escapejs %}</span>'}</div>
                 </a>
                 <a href="{% url 'view-reimbursement' %}?open_tab=1&status=requested&type=reimbursement&filter_applied=1" class="pd-kpi-card">
                     <div class="pd-kpi-card__icon pd-kpi-card__icon--purple"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
@@ -1008,7 +1009,7 @@ function pdInit() {
             setCountBadge('pd-loans-count', data.loans.length);
             if (!data.loans.length) { el.innerHTML = '<div class="pd-info-panel__empty">{% trans "No active loans"|escapejs %}</div>'; return; }
             el.innerHTML = data.loans.map(l => {
-                return `<a href="${loanUrlFor(l.employee_id)}" class="pd-list-item" title="{% trans "Remaining"|escapejs %}: ${fmtMoney(l.remaining)} / ${fmtMoney(l.amount)}">
+                return `<a href="${loanUrlFor(l.employee_id)}" class="pd-list-item" title="{% trans "Remaining"|escapejs %}: ${fmtMoneyHtml(l.remaining)} / ${fmtMoneyHtml(l.amount)}">
                     <div class="pd-list-item__info">
                         <div class="pd-list-item__name">${l.employee}</div>
                         <div class="pd-list-item__detail">${l.title} · ${l.type}</div>

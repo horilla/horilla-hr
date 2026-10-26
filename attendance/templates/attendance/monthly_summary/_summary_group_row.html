@@ -1,0 +1,17 @@
+{% load i18n %}
+{# One group of the summary table: a single header row across the table, like the Employee directory's group headers. #}
+<tr class="ms-group-row" data-gid="{{ node.gid }}" data-depth="{{ node.depth }}"{% if node.anc %} data-anc="{{ node.anc }}" style="display:none"{% endif %}>
+  <td colspan="15">
+    <div class="ms-group-card" style="--d:{{ node.depth }}">
+      <div class="ms-group-head">
+        {% if node.depth %}<ion-icon name="return-down-forward-outline" class="ms-group-return"></ion-icon>{% endif %}
+        <span class="ms-group-pill">
+          <span class="ms-group-count" title="{% trans 'Employees in this group' %}">{{ node.count }}</span>
+          <span class="ms-group-name{% if node.is_unset %} ms-group-unset{% endif %}" title="{{ node.level_name }}: {{ node.label }}">{{ node.label }}</span>
+        </span>
+        <span class="ms-group-tag"><ion-icon name="list-outline"></ion-icon>{{ node.level_name }}</span>
+        <span class="ms-group-chevron"><ion-icon name="chevron-down-outline"></ion-icon></span>
+      </div>
+    </div>
+  </td>
+</tr>

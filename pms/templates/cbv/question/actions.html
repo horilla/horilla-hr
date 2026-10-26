@@ -1,0 +1,40 @@
+{% load i18n %}
+{% load basefilters %}
+{% if perms.pms.change_question or perms.pms.delete_question or request.user|filtersubordinates %}
+    <div class="flex items-center justify-center gap-1" onclick="event.stopPropagation()">
+        {% if perms.pms.change_question or request.user|filtersubordinates %}
+            <a
+                class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
+                data-toggle="oh-modal-toggle"
+                data-target="#genericModal"
+                hx-get="{% url 'question-form-update' pk=instance.id %}"
+                hx-target="#genericModalBody"
+                title="{% trans 'Update' %}"
+            >
+                <ion-icon
+                    name="create-outline"
+                    role="img"
+                    class="md hydrated"
+                    aria-label="create outline"
+                ></ion-icon>
+            </a>
+        {% endif %}
+        {% if perms.pms.delete_question or request.user|filtersubordinates %}
+            <a
+                class="oh-btn oh-btn--danger oh-btn--sq-sm"
+                title="{% trans 'Delete' %}"
+                hx-confirm="{% trans 'Do you want to delete the question?' %}"
+                hx-post="{% url 'question-delete' id=instance.id %}"
+                hx-target="closest tr"
+                hx-swap="outerHTML"
+            >
+                <ion-icon
+                    name="trash-outline"
+                    role="img"
+                    class="md hydrated"
+                    aria-label="trash outline"
+                ></ion-icon>
+            </a>
+        {% endif %}
+    </div>
+{% endif %}

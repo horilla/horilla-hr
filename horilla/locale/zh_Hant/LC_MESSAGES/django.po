@@ -26518,3 +26518,22 @@ msgstr "訊息模板和流創建成功。"
 
 #~ msgid "Employee instance already exist"
 #~ msgstr "員工實例已存在"
+
+#: horilla_views/generic/cbv/views.py
+msgid "Last 7 Days"
+msgstr "最近 7 天"
+
+#: horilla_views/generic/cbv/views.py
+msgid "Next 7 Days"
+msgstr "未來 7 天"
+
+#: horilla_theme/templates/generic/quick_actions.html
+msgid "Quick filter"
+msgstr "快速篩選"
+
+#: offboarding/templates/cbv/exit_process/quick_actions.html
+#: onboarding/templates/cbv/pipeline/onboarding/quick_actions.html
+#: recruitment/templates/cbv/pipeline/quick_actions.html
+#, python-format
+msgid "Quick filter (%(counter)s)"
+msgstr "快速篩選（%(counter)s）"

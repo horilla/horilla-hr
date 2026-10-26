@@ -137,6 +137,7 @@ BREADCRUMB_URL_NAMES = {
     "configuration": _("Configuration"),
     "standard": "Standard Reports",
     "explorer": "Explorer",
+    "work-status": _("Work Status"),
 }
 
 sidebar_urls = [
@@ -163,7 +164,7 @@ sidebar_urls = [
     "view-payslip",
     "filing-status-view",
     "attendance-view",
-    "work-records",
+    "work-status",
     "request-attendance-view",
     "attendance-overtime-view",
     "monthly-summary",

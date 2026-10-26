@@ -79,8 +79,8 @@
   function setProgress(p) {
     bar.style.width = p + "%";
     percentEl.textContent = p + "%";
-    stageEl.textContent = p < 10 ? "{% trans 'Reading Your File…' %}"
-      : p < 90 ? "{% trans 'Checking Each Row…' %}" : "{% trans 'Summarising…' %}";
+    stageEl.textContent = p < 10 ? "{% trans 'Reading Your File…'|escapejs %}"
+      : p < 90 ? "{% trans 'Checking Each Row…'|escapejs %}" : "{% trans 'Summarising…'|escapejs %}";
   }
   function stopPolling() { if (timer) { clearInterval(timer); timer = null; } }
 
@@ -92,7 +92,7 @@
   function syncButtons() {
     var n = pendingCount();
     saveBtn.style.display = n ? "" : "none";
-    saveBtn.querySelector("span").textContent = "{% trans 'Save Changes & Recheck' %} (" + n + ")";
+    saveBtn.querySelector("span").textContent = "{% trans 'Save Changes & Recheck'|escapejs %} (" + n + ")";
     // What was checked is what gets imported, so unsaved changes wait for a recheck:
     // the button stays visible, shows what it would import now, and is disabled until then.
     if (!last) { importBtn.style.display = "none"; return; }
@@ -102,12 +102,12 @@
     });
     var count = Math.max(last.valid - leaving, 0);
     importBtn.textContent = last.mode === "both"
-      ? "{% trans 'Import' %} " + count + " " + (count === 1 ? "{% trans 'Record' %}" : "{% trans 'Records' %}")
+      ? "{% trans 'Import'|escapejs %} " + count + " " + (count === 1 ? "{% trans 'Record'|escapejs %}" : "{% trans 'Records'|escapejs %}")
       : last.mode === "update"
-      ? "{% trans 'Update' %} " + count + " " + (count === 1 ? "{% trans 'Record' %}" : "{% trans 'Records' %}")
-      : "{% trans 'Import' %} " + count + " " + (count === 1 ? "{% trans 'Valid Record' %}" : "{% trans 'Valid Records' %}");
+      ? "{% trans 'Update'|escapejs %} " + count + " " + (count === 1 ? "{% trans 'Record'|escapejs %}" : "{% trans 'Records'|escapejs %}")
+      : "{% trans 'Import'|escapejs %} " + count + " " + (count === 1 ? "{% trans 'Valid Record'|escapejs %}" : "{% trans 'Valid Records'|escapejs %}");
     importBtn.disabled = n > 0 || count === 0;
-    importBtn.title = n > 0 ? "{% trans 'Save changes & recheck first' %}" : "";
+    importBtn.title = n > 0 ? "{% trans 'Save changes & recheck first'|escapejs %}" : "";
     importBtn.style.display = last.valid || n ? "" : "none";
   }
 
@@ -147,7 +147,7 @@
         stopPolling();
         progress.style.display = "none";
         body.style.display = "";
-        body.innerHTML = '<div class="mi__alert mi__alert--bad">{% trans "The check could not be completed." %} ' + (e.message || "") + "</div>";
+        body.innerHTML = '<div class="mi__alert mi__alert--bad">{% trans "The check could not be completed."|escapejs %} ' + (e.message || "") + "</div>";
       });
   }
 
@@ -226,13 +226,13 @@
   importBtn.addEventListener("click", function () {
     if (!last) return;
     document.getElementById("mi-confirm-title").textContent = last.mode === "both"
-      ? "{% trans 'Create or update' %} " + last.valid + " {% trans 'records?' %}"
+      ? "{% trans 'Create or update'|escapejs %} " + last.valid + " {% trans 'records?'|escapejs %}"
       : last.mode === "update"
-      ? "{% trans 'Update' %} " + last.valid + " {% trans 'existing records?' %}"
-      : "{% trans 'Import' %} " + last.valid + " {% trans 'valid records?' %}";
+      ? "{% trans 'Update'|escapejs %} " + last.valid + " {% trans 'existing records?'|escapejs %}"
+      : "{% trans 'Import'|escapejs %} " + last.valid + " {% trans 'valid records?'|escapejs %}";
     document.getElementById("mi-confirm-text").textContent = last.error_count
-      ? last.error_count + " {% trans 'rows with errors will be skipped and listed afterwards.' %}"
-      : "{% trans 'Every row in the file passed the check.' %}";
+      ? last.error_count + " {% trans 'rows with errors will be skipped and listed afterwards.'|escapejs %}"
+      : "{% trans 'Every row in the file passed the check.'|escapejs %}";
     confirmBox.style.display = "flex";
   });
   document.getElementById("mi-confirm-cancel").addEventListener("click", function () { confirmBox.style.display = "none"; });

@@ -84,7 +84,7 @@
         </button>
     {% endif %}
 
-    {# Remove #}
+    {# Delete #}
     {% if is_requester or can_delete or can_manage %}
         {% if instance.approved == False and instance.canceled == False %}
             <form
@@ -96,22 +96,22 @@
                 <button
                     type="submit"
                     class="oh-btn oh-btn--light-bkg px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
-                    title="{% trans 'Remove' %}"
+                    title="{% trans 'Delete' %}"
                 >
                     <ion-icon name="trash-outline"></ion-icon>
-                    {% trans "Remove" %}
+                    {% trans "Delete" %}
                 </button>
             </form>
         {% else %}
-            <button class="oh-btn oh-btn--light-bkg px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300" disabled title="{% trans 'Remove' %}">
+            <button class="oh-btn oh-btn--light-bkg px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300" disabled title="{% trans 'Delete' %}">
                 <ion-icon name="trash-outline"></ion-icon>
-                {% trans "Remove" %}
+                {% trans "Delete" %}
             </button>
         {% endif %}
     {% else %}
-        <button class="oh-btn oh-btn--light-bkg px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300" disabled title="{% trans 'Remove' %}">
+        <button class="oh-btn oh-btn--light-bkg px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300" disabled title="{% trans 'Delete' %}">
             <ion-icon name="trash-outline"></ion-icon>
-            {% trans "Remove" %}
+            {% trans "Delete" %}
         </button>
     {% endif %}
 </div>

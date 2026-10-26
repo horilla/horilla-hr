@@ -2,12 +2,14 @@
 recruitment/cbv/pipeline.py
 """
 
+import json
 from typing import Any
 
 from django.contrib import messages
 from django.core.cache import cache as CACHE
 from django.db.models import Count, Q
 from django.http import HttpResponse as DjangoHttpResponse
+from django.http import JsonResponse
 from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
 from django.utils.http import urlencode
@@ -911,6 +913,26 @@ class CandidateCard(HorillaKanbanView):
             related_groups = related_groups.filter(recruitment_id=rec_id)
 
         return related_groups
+
+    def kanban_move_item(self):
+        """
+        Move the dragged candidate, and tell the board when the move filled
+        the recruitment's vacancy (the kanban script shows it as a popup).
+        """
+        response = super().kanban_move_item()
+        if response.status_code != 200:
+            return response
+        stage = self.resolve_kanban_group(self.request.POST.get("groupId"))
+        if (
+            stage
+            and stage.stage_type == "hired"
+            and stage.recruitment_id.is_vacancy_filled()
+        ):
+            payload = json.loads(response.content)
+            payload["message"] = str(_("Vacancy is filled"))
+            payload["vacancy"] = stage.recruitment_id.vacancy
+            return JsonResponse(payload)
+        return response
 
 
 @method_decorator(login_required, name="dispatch")

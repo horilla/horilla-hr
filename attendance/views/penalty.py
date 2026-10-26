@@ -45,7 +45,7 @@ def cut_available_leave(request, instance_id):
     else:
         available = QuerySet().none()
     if request.method == "POST":
-        form = PenaltyAccountForm(request.POST)
+        form = PenaltyAccountForm(request.POST, employee=instance.employee_id)
         if form.is_valid():
             penalty_instance = form.instance
             penalty = PenaltyAccounts()
@@ -61,7 +61,7 @@ def cut_available_leave(request, instance_id):
 
             penalty.save()
             messages.success(request, _("Penalty/Fine added"))
-            form = PenaltyAccountForm()
+            form = PenaltyAccountForm(employee=instance.employee_id)
     return render(
         request,
         "attendance/penalty/form.html",

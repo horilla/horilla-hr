@@ -63,7 +63,7 @@
         <!-- Load global.css after Select2 to ensure custom styles override Select2 defaults -->
         <link
             rel="stylesheet"
-            href="{% static 'horilla_theme/assets/css/global.css' %}"
+            href="{% static 'horilla_theme/assets/css/global.css' %}?v=2"
         >
         {% comment %} ?v= busts browser caches when this stylesheet changes
            (same trick as tourController.js in footer_scripts.html) - bump it

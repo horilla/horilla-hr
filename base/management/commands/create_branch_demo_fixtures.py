@@ -612,7 +612,7 @@ RECRUITMENT_EXTRA_STAGES = [
     ("Technical Test", "test", 2),
     ("Interview", "interview", 3),
     ("Hired", "hired", 4),
-    ("Cancelled Candidates", "cancelled", 50),
+    ("Rejected Candidates", "cancelled", 50),
 ]
 # Candidates per stage for each recruitment, so the dashboard's Recruitment
 # Pipeline Trend lines take visibly different shapes instead of overlapping.

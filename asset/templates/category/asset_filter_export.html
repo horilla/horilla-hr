@@ -86,6 +86,31 @@
                     </div>
                 </div>
             </div>
+            <div class="row">
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label class="oh-label">
+                            <input
+                                type="checkbox"
+                                id="select-all-export-fields"
+                                checked
+                                onchange="$(this).closest('form').find('input[name=selected_fields]').prop('checked', $(this).is(':checked'))"
+                            > {% trans "Select All" %}
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                {% for field, heading in export_columns %}
+                    <div class="col-sm-12 col-md-6 col-lg-4">
+                        <div class="oh-input-group">
+                            <label class="oh-label">
+                                <input type="checkbox" name="selected_fields" value="{{ field }}" checked> {% trans heading %}
+                            </label>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
             <div class="oh-modal__dialog-footer p-0 pt-3">
                 <button class="oh-btn oh-btn--secondary oh-btn--small">{% trans "Export" %}</button>
             </div>

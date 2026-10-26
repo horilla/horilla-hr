@@ -51,4 +51,20 @@
     <div class="oh-activity-sidebar" id="activitySidebar" style="z-index: 1000">
         <div class="oh-activity-sidebar__body" id="commentContainer"></div>
     </div>
+
+    <div class="oh-modal" id="penaltyViewModal" role="dialog" aria-hidden="true">
+        <div class="oh-modal__dialog" style="max-width: 1050px">
+            <div class="oh-modal__dialog-header">
+                <button
+                    type="button"
+                    class="oh-modal__close--custom"
+                    aria-label="{% trans 'Close' %}"
+                    onclick="$('#penaltyViewModal').removeClass('oh-modal--show')"
+                >
+                    <ion-icon name="close-outline"></ion-icon>
+                </button>
+            </div>
+            <div class="oh-modal__dialog-body" id="penaltyViewModalBody"></div>
+        </div>
+    </div>
 {% endblock content %}

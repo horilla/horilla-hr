@@ -11,6 +11,7 @@ from django.db.models import Value
 from django.db.models.functions import Concat
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
+from django.utils.html import escape
 from django.utils.translation import gettext_lazy as _
 
 from base.horilla_company_manager import HorillaCompanyManager
@@ -994,6 +995,44 @@ class Question(HorillaModel):
 
     def __str__(self):
         return self.question
+
+    def get_question_col(self):
+        """
+        Question text with its multiple-choice options listed underneath
+        """
+        html = f"<div class='pb-3' data-no-tooltip>{escape(self.question)}</div>"
+        prefetched = getattr(self, "prefetched_options", None)
+        if prefetched is None:
+            prefetched = self.question_options.all()
+        options = next(iter(prefetched), None)
+        if not options:
+            return html
+        items = "".join(
+            f'<span class="inline-block mr-3">{number}. {escape(value)}</span>'
+            for number, value in enumerate(
+                (
+                    options.option_a,
+                    options.option_b,
+                    options.option_c,
+                    options.option_d,
+                ),
+                start=1,
+            )
+            if value
+        )
+        if items:
+            html += f'<div class="text-xs text-[#999] whitespace-normal">{items}</div>'
+        return html
+
+    def action_col(self):
+        """
+        For action column
+        """
+
+        return render_template(
+            path="cbv/question/actions.html",
+            context={"instance": self},
+        )
 
 
 class QuestionOptions(HorillaModel):

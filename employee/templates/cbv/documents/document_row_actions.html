@@ -22,7 +22,7 @@
     {% if instance.document_request_id %}
         {% if perms.horilla_documents.change_documentrequest %}
             {% if not instance.document or instance.status == "approved" %}
-                <button class="oh-btn oh-btn--light-bkg oh-btn--sq-sm" disabled title="{% trans 'Approve' %}">
+                <button class="oh-btn oh-btn--success oh-btn--sq-sm opacity-50 cursor-not-allowed" disabled title="{% trans 'Approve' %}">
                     <ion-icon name="checkmark-outline"></ion-icon>
                 </button>
             {% else %}
@@ -37,7 +37,7 @@
             {% endif %}
 
             {% if not instance.document or instance.status == "rejected" %}
-                <button class="oh-btn oh-btn--light-bkg oh-btn--sq-sm" disabled title="{% trans 'Reject' %}">
+                <button class="oh-btn oh-btn--danger oh-btn--sq-sm opacity-50 cursor-not-allowed" disabled title="{% trans 'Reject' %}">
                     <ion-icon name="close-outline"></ion-icon>
                 </button>
             {% else %}
@@ -55,10 +55,10 @@
             {% endif %}
         {% endif %}
     {% else %}
-        <button class="oh-btn oh-btn--light-bkg oh-btn--sq-sm" disabled title="{% trans 'Approve' %}">
+        <button class="oh-btn oh-btn--success oh-btn--sq-sm opacity-50 cursor-not-allowed" disabled title="{% trans 'Approve' %}">
             <ion-icon name="checkmark-outline"></ion-icon>
         </button>
-        <button class="oh-btn oh-btn--light-bkg oh-btn--sq-sm" disabled title="{% trans 'Reject' %}">
+        <button class="oh-btn oh-btn--danger oh-btn--sq-sm opacity-50 cursor-not-allowed" disabled title="{% trans 'Reject' %}">
             <ion-icon name="close-outline"></ion-icon>
         </button>
     {% endif %}

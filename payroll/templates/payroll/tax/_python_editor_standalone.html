@@ -82,7 +82,7 @@
     var body = new FormData();
     body.append("code", code.value);
     body.append("sample_income", sample.value);
-    show("{% trans 'Running…' %}", true);
+    show("{% trans 'Running…'|escapejs %}", true);
     fetch("{% url 'test-py-code' %}", {
       method: "POST",
       body: body,
@@ -91,12 +91,12 @@
       .then(function (r) { return r.json().then(function (d) { return {ok: r.ok, data: d}; }); })
       .then(function (res) {
         if (res.ok && res.data.ok) {
-          show("{% trans 'Tax on' %} " + res.data.sample_income + " = " + res.data.result, true);
+          show("{% trans 'Tax on'|escapejs %} " + res.data.sample_income + " = " + res.data.result, true);
         } else {
-          show(res.data.error || "{% trans 'Could not run the formula.' %}", false);
+          show(res.data.error || "{% trans 'Could not run the formula.'|escapejs %}", false);
         }
       })
-      .catch(function () { show("{% trans 'Could not reach the server.' %}", false); });
+      .catch(function () { show("{% trans 'Could not reach the server.'|escapejs %}", false); });
   });
 
   document.getElementById("pySave" + pk).addEventListener("click", function () {
@@ -106,13 +106,13 @@
       headers: {"HX-Request": "true"},
       data: {csrfmiddlewaretoken: getCookie("csrftoken"), code: code.value},
       success: function () {
-        show("{% trans 'Saved.' %}", true);
+        show("{% trans 'Saved.'|escapejs %}", true);
         $('#reloadMessagesButton').click();
       },
       // The endpoint validates against the sandbox policy and returns the
       // reason; surface it rather than failing silently.
       error: function (xhr) {
-        var msg = "{% trans 'Could not save.' %}";
+        var msg = "{% trans 'Could not save.'|escapejs %}";
         try { msg = JSON.parse(xhr.responseText).message || msg; } catch (err) {}
         show(msg, false);
       }

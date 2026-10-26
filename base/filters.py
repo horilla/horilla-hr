@@ -7,9 +7,10 @@ import uuid
 
 import django_filters
 from django import forms
+from django.apps import apps
 from django.db.models import Q, Value
 from django.db.models.functions import Coalesce, Concat
-from django.utils.translation import gettext as __
+from django.utils.translation import gettext_lazy as _
 from django_filters import CharFilter, DateFilter, filters
 
 from base.models import (
@@ -68,11 +69,11 @@ class ShiftRequestFilter(HorillaFilterSet):
 
     status = django_filters.ChoiceFilter(
         method="filter_status",
-        label=__("Status"),
+        label=_("Status"),
         choices=[
-            ("requested", __("Requested")),
-            ("approved", __("Approved")),
-            ("canceled", __("Canceled")),
+            ("requested", _("Requested")),
+            ("approved", _("Approved")),
+            ("canceled", _("Canceled")),
         ],
     )
     # Dedicated comma-separated "Name or Badge ID" search, alongside the
@@ -81,7 +82,7 @@ class ShiftRequestFilter(HorillaFilterSet):
     # name_or_badge; see horilla.filters.filter_name_or_badge_terms for
     # the shared matching logic.
     name_or_badge = django_filters.CharFilter(
-        method="filter_name_or_badge", label=__("Name or Badge ID")
+        method="filter_name_or_badge", label=_("Name or Badge ID")
     )
 
     # HorillaFilterSet.ajax_fields (generic AJAX-loaded combobox mechanism,
@@ -94,21 +95,21 @@ class ShiftRequestFilter(HorillaFilterSet):
             "queryset_fn": lambda request: Employee.objects.filter(is_active=True),
             "display_fn": lambda obj: obj.get_full_name(),
             "search_fields": ["employee_first_name", "employee_last_name", "badge_id"],
-            "placeholder": __("Search employee..."),
+            "placeholder": _("Search employee..."),
         },
         "shift_id": {
             "key": "shift-request-requested-shift",
             "queryset_fn": lambda request: EmployeeShift.objects.all(),
             "display_fn": lambda obj: obj.employee_shift,
             "search_fields": ["employee_shift"],
-            "placeholder": __("Select shift..."),
+            "placeholder": _("Select shift..."),
         },
         "previous_shift_id": {
             "key": "shift-request-previous-shift",
             "queryset_fn": lambda request: EmployeeShift.objects.all(),
             "display_fn": lambda obj: obj.employee_shift,
             "search_fields": ["employee_shift"],
-            "placeholder": __("Select shift..."),
+            "placeholder": _("Select shift..."),
         },
         "employee_id__employee_work_info__job_position_id": {
             "key": "shift-request-job-position",
@@ -117,21 +118,21 @@ class ShiftRequestFilter(HorillaFilterSet):
             ).all(),
             "display_fn": lambda obj: str(obj),
             "search_fields": ["job_position", "department_id__department"],
-            "placeholder": __("Select job position..."),
+            "placeholder": _("Select job position..."),
         },
         "employee_id__employee_work_info__department_id": {
             "key": "shift-request-department",
             "queryset_fn": lambda request: Department.objects.all(),
             "display_fn": lambda obj: obj.department,
             "search_fields": ["department"],
-            "placeholder": __("Select department..."),
+            "placeholder": _("Select department..."),
         },
         "employee_id__employee_work_info__work_type_id": {
             "key": "shift-request-work-type",
             "queryset_fn": lambda request: WorkType.objects.all(),
             "display_fn": lambda obj: obj.work_type,
             "search_fields": ["work_type"],
-            "placeholder": __("Select work type..."),
+            "placeholder": _("Select work type..."),
         },
         "employee_id__employee_work_info__job_role_id": {
             "key": "shift-request-job-role",
@@ -140,28 +141,28 @@ class ShiftRequestFilter(HorillaFilterSet):
             ).all(),
             "display_fn": lambda obj: str(obj),
             "search_fields": ["job_role", "job_position_id__job_position"],
-            "placeholder": __("Select job role..."),
+            "placeholder": _("Select job role..."),
         },
         "employee_id__employee_work_info__reporting_manager_id": {
             "key": "shift-request-reporting-manager",
             "queryset_fn": lambda request: Employee.objects.filter(is_active=True),
             "display_fn": lambda obj: obj.get_full_name(),
             "search_fields": ["employee_first_name", "employee_last_name", "badge_id"],
-            "placeholder": __("Search employee..."),
+            "placeholder": _("Search employee..."),
         },
         "employee_id__employee_work_info__company_id": {
             "key": "shift-request-company",
             "queryset_fn": lambda request: Company.objects.all(),
             "display_fn": lambda obj: obj.company,
             "search_fields": ["company"],
-            "placeholder": __("Select company..."),
+            "placeholder": _("Select company..."),
         },
         "employee_id__employee_work_info__shift_id": {
             "key": "shift-request-work-info-shift",
             "queryset_fn": lambda request: EmployeeShift.objects.all(),
             "display_fn": lambda obj: obj.employee_shift,
             "search_fields": ["employee_shift"],
-            "placeholder": __("Select shift..."),
+            "placeholder": _("Select shift..."),
         },
     }
 
@@ -197,7 +198,7 @@ class ShiftRequestFilter(HorillaFilterSet):
         super().__init__(data=data, queryset=queryset, request=request, prefix=prefix)
         for field in self.form.fields.keys():
             self.form.fields[field].widget.attrs["id"] = f"{uuid.uuid4()}"
-        self.form.fields["name_or_badge"].widget.attrs["placeholder"] = __(
+        self.form.fields["name_or_badge"].widget.attrs["placeholder"] = _(
             "e.g. John, PEP01, PEP02"
         )
 
@@ -249,11 +250,11 @@ class WorkTypeRequestFilter(HorillaFilterSet):
     )
     status = django_filters.ChoiceFilter(
         method="filter_status",
-        label=__("Status"),
+        label=_("Status"),
         choices=[
-            ("requested", __("Requested")),
-            ("approved", __("Approved")),
-            ("canceled", __("Canceled")),
+            ("requested", _("Requested")),
+            ("approved", _("Approved")),
+            ("canceled", _("Canceled")),
         ],
     )
     search = CharFilter(method=filter_by_name)
@@ -263,7 +264,7 @@ class WorkTypeRequestFilter(HorillaFilterSet):
     # horilla.filters.filter_name_or_badge_terms for the shared matching
     # logic.
     name_or_badge = django_filters.CharFilter(
-        method="filter_name_or_badge", label=__("Name or Badge ID")
+        method="filter_name_or_badge", label=_("Name or Badge ID")
     )
 
     # HorillaFilterSet.ajax_fields (generic AJAX-loaded combobox mechanism,
@@ -276,21 +277,21 @@ class WorkTypeRequestFilter(HorillaFilterSet):
             "queryset_fn": lambda request: Employee.objects.filter(is_active=True),
             "display_fn": lambda obj: obj.get_full_name(),
             "search_fields": ["employee_first_name", "employee_last_name", "badge_id"],
-            "placeholder": __("Search employee..."),
+            "placeholder": _("Search employee..."),
         },
         "work_type_id": {
             "key": "work-type-request-requested-work-type",
             "queryset_fn": lambda request: WorkType.objects.all(),
             "display_fn": lambda obj: obj.work_type,
             "search_fields": ["work_type"],
-            "placeholder": __("Select work type..."),
+            "placeholder": _("Select work type..."),
         },
         "previous_work_type_id": {
             "key": "work-type-request-previous-work-type",
             "queryset_fn": lambda request: WorkType.objects.all(),
             "display_fn": lambda obj: obj.work_type,
             "search_fields": ["work_type"],
-            "placeholder": __("Select work type..."),
+            "placeholder": _("Select work type..."),
         },
         "employee_id__employee_work_info__job_position_id": {
             "key": "work-type-request-job-position",
@@ -299,21 +300,21 @@ class WorkTypeRequestFilter(HorillaFilterSet):
             ).all(),
             "display_fn": lambda obj: str(obj),
             "search_fields": ["job_position", "department_id__department"],
-            "placeholder": __("Select job position..."),
+            "placeholder": _("Select job position..."),
         },
         "employee_id__employee_work_info__department_id": {
             "key": "work-type-request-department",
             "queryset_fn": lambda request: Department.objects.all(),
             "display_fn": lambda obj: obj.department,
             "search_fields": ["department"],
-            "placeholder": __("Select department..."),
+            "placeholder": _("Select department..."),
         },
         "employee_id__employee_work_info__work_type_id": {
             "key": "work-type-request-work-info-work-type",
             "queryset_fn": lambda request: WorkType.objects.all(),
             "display_fn": lambda obj: obj.work_type,
             "search_fields": ["work_type"],
-            "placeholder": __("Select work type..."),
+            "placeholder": _("Select work type..."),
         },
         "employee_id__employee_work_info__job_role_id": {
             "key": "work-type-request-job-role",
@@ -322,28 +323,28 @@ class WorkTypeRequestFilter(HorillaFilterSet):
             ).all(),
             "display_fn": lambda obj: str(obj),
             "search_fields": ["job_role", "job_position_id__job_position"],
-            "placeholder": __("Select job role..."),
+            "placeholder": _("Select job role..."),
         },
         "employee_id__employee_work_info__reporting_manager_id": {
             "key": "work-type-request-reporting-manager",
             "queryset_fn": lambda request: Employee.objects.filter(is_active=True),
             "display_fn": lambda obj: obj.get_full_name(),
             "search_fields": ["employee_first_name", "employee_last_name", "badge_id"],
-            "placeholder": __("Search employee..."),
+            "placeholder": _("Search employee..."),
         },
         "employee_id__employee_work_info__company_id": {
             "key": "work-type-request-company",
             "queryset_fn": lambda request: Company.objects.all(),
             "display_fn": lambda obj: obj.company,
             "search_fields": ["company"],
-            "placeholder": __("Select company..."),
+            "placeholder": _("Select company..."),
         },
         "employee_id__employee_work_info__shift_id": {
             "key": "work-type-request-shift",
             "queryset_fn": lambda request: EmployeeShift.objects.all(),
             "display_fn": lambda obj: obj.employee_shift,
             "search_fields": ["employee_shift"],
-            "placeholder": __("Select shift..."),
+            "placeholder": _("Select shift..."),
         },
     }
 
@@ -378,7 +379,7 @@ class WorkTypeRequestFilter(HorillaFilterSet):
         super().__init__(data=data, queryset=queryset, request=request, prefix=prefix)
         for field in self.form.fields.keys():
             self.form.fields[field].widget.attrs["id"] = f"{uuid.uuid4()}"
-        self.form.fields["name_or_badge"].widget.attrs["placeholder"] = __(
+        self.form.fields["name_or_badge"].widget.attrs["placeholder"] = _(
             "e.g. John, PEP01, PEP02"
         )
 
@@ -430,7 +431,7 @@ class RotatingShiftAssignFilters(HorillaFilterSet):
     # horilla.filters.filter_name_or_badge_terms for the shared matching
     # logic.
     name_or_badge = django_filters.CharFilter(
-        method="filter_name_or_badge", label=__("Name or Badge ID")
+        method="filter_name_or_badge", label=_("Name or Badge ID")
     )
 
     # HorillaFilterSet.ajax_fields (generic AJAX-loaded combobox mechanism,
@@ -443,42 +444,42 @@ class RotatingShiftAssignFilters(HorillaFilterSet):
             "queryset_fn": lambda request: Employee.objects.filter(is_active=True),
             "display_fn": lambda obj: obj.get_full_name(),
             "search_fields": ["employee_first_name", "employee_last_name", "badge_id"],
-            "placeholder": __("Search employee..."),
+            "placeholder": _("Search employee..."),
         },
         "rotating_shift_id": {
             "key": "rotating-shift-assign-rotating-shift",
             "queryset_fn": lambda request: RotatingShift.objects.all(),
             "display_fn": lambda obj: obj.name,
             "search_fields": ["name"],
-            "placeholder": __("Select rotating shift..."),
+            "placeholder": _("Select rotating shift..."),
         },
         "current_shift": {
             "key": "rotating-shift-assign-current-shift",
             "queryset_fn": lambda request: EmployeeShift.objects.all(),
             "display_fn": lambda obj: obj.employee_shift,
             "search_fields": ["employee_shift"],
-            "placeholder": __("Select shift..."),
+            "placeholder": _("Select shift..."),
         },
         "next_shift": {
             "key": "rotating-shift-assign-next-shift",
             "queryset_fn": lambda request: EmployeeShift.objects.all(),
             "display_fn": lambda obj: obj.employee_shift,
             "search_fields": ["employee_shift"],
-            "placeholder": __("Select shift..."),
+            "placeholder": _("Select shift..."),
         },
         "employee_id__employee_work_info__company_id": {
             "key": "rotating-shift-assign-company",
             "queryset_fn": lambda request: Company.objects.all(),
             "display_fn": lambda obj: obj.company,
             "search_fields": ["company"],
-            "placeholder": __("Select company..."),
+            "placeholder": _("Select company..."),
         },
         "employee_id__employee_work_info__department_id": {
             "key": "rotating-shift-assign-department",
             "queryset_fn": lambda request: Department.objects.all(),
             "display_fn": lambda obj: obj.department,
             "search_fields": ["department"],
-            "placeholder": __("Select department..."),
+            "placeholder": _("Select department..."),
         },
         "employee_id__employee_work_info__job_position_id": {
             "key": "rotating-shift-assign-job-position",
@@ -487,7 +488,7 @@ class RotatingShiftAssignFilters(HorillaFilterSet):
             ).all(),
             "display_fn": lambda obj: str(obj),
             "search_fields": ["job_position", "department_id__department"],
-            "placeholder": __("Select job position..."),
+            "placeholder": _("Select job position..."),
         },
         "employee_id__employee_work_info__job_role_id": {
             "key": "rotating-shift-assign-job-role",
@@ -496,28 +497,28 @@ class RotatingShiftAssignFilters(HorillaFilterSet):
             ).all(),
             "display_fn": lambda obj: str(obj),
             "search_fields": ["job_role", "job_position_id__job_position"],
-            "placeholder": __("Select job role..."),
+            "placeholder": _("Select job role..."),
         },
         "employee_id__employee_work_info__work_type_id": {
             "key": "rotating-shift-assign-work-type",
             "queryset_fn": lambda request: WorkType.objects.all(),
             "display_fn": lambda obj: obj.work_type,
             "search_fields": ["work_type"],
-            "placeholder": __("Select work type..."),
+            "placeholder": _("Select work type..."),
         },
         "employee_id__employee_work_info__reporting_manager_id": {
             "key": "rotating-shift-assign-reporting-manager",
             "queryset_fn": lambda request: Employee.objects.filter(is_active=True),
             "display_fn": lambda obj: obj.get_full_name(),
             "search_fields": ["employee_first_name", "employee_last_name", "badge_id"],
-            "placeholder": __("Search employee..."),
+            "placeholder": _("Search employee..."),
         },
         "employee_id__employee_work_info__shift_id": {
             "key": "rotating-shift-assign-work-info-shift",
             "queryset_fn": lambda request: EmployeeShift.objects.all(),
             "display_fn": lambda obj: obj.employee_shift,
             "search_fields": ["employee_shift"],
-            "placeholder": __("Select shift..."),
+            "placeholder": _("Select shift..."),
         },
     }
 
@@ -552,7 +553,7 @@ class RotatingShiftAssignFilters(HorillaFilterSet):
 
     def __init__(self, data=None, queryset=None, *, request=None, prefix=None):
         super().__init__(data=data, queryset=queryset, request=request, prefix=prefix)
-        self.form.fields["name_or_badge"].widget.attrs["placeholder"] = __(
+        self.form.fields["name_or_badge"].widget.attrs["placeholder"] = _(
             "e.g. John, PEP01, PEP02"
         )
 
@@ -592,7 +593,7 @@ class RotatingWorkTypeAssignFilter(HorillaFilterSet):
     # horilla.filters.filter_name_or_badge_terms for the shared matching
     # logic.
     name_or_badge = django_filters.CharFilter(
-        method="filter_name_or_badge", label=__("Name or Badge ID")
+        method="filter_name_or_badge", label=_("Name or Badge ID")
     )
 
     # HorillaFilterSet.ajax_fields (generic AJAX-loaded combobox mechanism,
@@ -605,42 +606,42 @@ class RotatingWorkTypeAssignFilter(HorillaFilterSet):
             "queryset_fn": lambda request: Employee.objects.filter(is_active=True),
             "display_fn": lambda obj: obj.get_full_name(),
             "search_fields": ["employee_first_name", "employee_last_name", "badge_id"],
-            "placeholder": __("Search employee..."),
+            "placeholder": _("Search employee..."),
         },
         "rotating_work_type_id": {
             "key": "rotating-work-type-assign-rotating-work-type",
             "queryset_fn": lambda request: RotatingWorkType.objects.all(),
             "display_fn": lambda obj: obj.name,
             "search_fields": ["name"],
-            "placeholder": __("Select rotating work type..."),
+            "placeholder": _("Select rotating work type..."),
         },
         "current_work_type": {
             "key": "rotating-work-type-assign-current-work-type",
             "queryset_fn": lambda request: WorkType.objects.all(),
             "display_fn": lambda obj: obj.work_type,
             "search_fields": ["work_type"],
-            "placeholder": __("Select work type..."),
+            "placeholder": _("Select work type..."),
         },
         "next_work_type": {
             "key": "rotating-work-type-assign-next-work-type",
             "queryset_fn": lambda request: WorkType.objects.all(),
             "display_fn": lambda obj: obj.work_type,
             "search_fields": ["work_type"],
-            "placeholder": __("Select work type..."),
+            "placeholder": _("Select work type..."),
         },
         "employee_id__employee_work_info__company_id": {
             "key": "rotating-work-type-assign-company",
             "queryset_fn": lambda request: Company.objects.all(),
             "display_fn": lambda obj: obj.company,
             "search_fields": ["company"],
-            "placeholder": __("Select company..."),
+            "placeholder": _("Select company..."),
         },
         "employee_id__employee_work_info__department_id": {
             "key": "rotating-work-type-assign-department",
             "queryset_fn": lambda request: Department.objects.all(),
             "display_fn": lambda obj: obj.department,
             "search_fields": ["department"],
-            "placeholder": __("Select department..."),
+            "placeholder": _("Select department..."),
         },
         "employee_id__employee_work_info__job_position_id": {
             "key": "rotating-work-type-assign-job-position",
@@ -649,7 +650,7 @@ class RotatingWorkTypeAssignFilter(HorillaFilterSet):
             ).all(),
             "display_fn": lambda obj: str(obj),
             "search_fields": ["job_position", "department_id__department"],
-            "placeholder": __("Select job position..."),
+            "placeholder": _("Select job position..."),
         },
         "employee_id__employee_work_info__job_role_id": {
             "key": "rotating-work-type-assign-job-role",
@@ -658,28 +659,28 @@ class RotatingWorkTypeAssignFilter(HorillaFilterSet):
             ).all(),
             "display_fn": lambda obj: str(obj),
             "search_fields": ["job_role", "job_position_id__job_position"],
-            "placeholder": __("Select job role..."),
+            "placeholder": _("Select job role..."),
         },
         "employee_id__employee_work_info__work_type_id": {
             "key": "rotating-work-type-assign-work-info-work-type",
             "queryset_fn": lambda request: WorkType.objects.all(),
             "display_fn": lambda obj: obj.work_type,
             "search_fields": ["work_type"],
-            "placeholder": __("Select work type..."),
+            "placeholder": _("Select work type..."),
         },
         "employee_id__employee_work_info__reporting_manager_id": {
             "key": "rotating-work-type-assign-reporting-manager",
             "queryset_fn": lambda request: Employee.objects.filter(is_active=True),
             "display_fn": lambda obj: obj.get_full_name(),
             "search_fields": ["employee_first_name", "employee_last_name", "badge_id"],
-            "placeholder": __("Search employee..."),
+            "placeholder": _("Search employee..."),
         },
         "employee_id__employee_work_info__shift_id": {
             "key": "rotating-work-type-assign-shift",
             "queryset_fn": lambda request: EmployeeShift.objects.all(),
             "display_fn": lambda obj: obj.employee_shift,
             "search_fields": ["employee_shift"],
-            "placeholder": __("Select shift..."),
+            "placeholder": _("Select shift..."),
         },
     }
 
@@ -714,7 +715,7 @@ class RotatingWorkTypeAssignFilter(HorillaFilterSet):
 
     def __init__(self, data=None, queryset=None, *, request=None, prefix=None):
         super().__init__(data=data, queryset=queryset, request=request, prefix=prefix)
-        self.form.fields["name_or_badge"].widget.attrs["placeholder"] = __(
+        self.form.fields["name_or_badge"].widget.attrs["placeholder"] = _(
             "e.g. John, PEP01, PEP02"
         )
 
@@ -809,7 +810,7 @@ class MultipleApprovalConditionFilter(HorillaFilterSet):
             "department",
         ]
 
-    def search_method(self, queryset, _, value):
+    def search_method(self, queryset, name, value):
         """
         This method is used to search department
         """
@@ -850,7 +851,7 @@ class RotatingShiftFilter(HorillaFilterSet):
         model = RotatingShift
         fields = ["name", "shift1", "shift2"]
 
-    def search_method(self, queryset, _, value):
+    def search_method(self, queryset, name, value):
         """
         This method is used to search employees and objective
         """
@@ -893,7 +894,7 @@ class RotatingWorkTypeFilter(HorillaFilterSet):
 
     search = django_filters.CharFilter(method="search_method")
 
-    def search_method(self, queryset, _, value):
+    def search_method(self, queryset, name, value):
         """
         This method is used to search employees and objective
         """
@@ -941,7 +942,7 @@ class CompanyFilter(FilterSet):
 
     search = CharFilter(method="search_method")
 
-    def search_method(self, queryset, _, value):
+    def search_method(self, queryset, name, value):
         """
         This method is used to search company and objective
         """
@@ -969,7 +970,7 @@ class MailServerFilter(HorillaFilterSet):
         model = DynamicEmailConfiguration
         fields = ["username"]
 
-    def search_method(self, queryset, _, value):
+    def search_method(self, queryset, name, value):
         """
         This method is used to mail server
         """
@@ -997,7 +998,7 @@ class HolidayFilter(HorillaFilterSet):
     )
     available_for_all = filters.BooleanFilter(
         method="filter_available_for_all",
-        label=__("Available for all"),
+        label=_("Available for all"),
     )
 
     class Meta:
@@ -1021,7 +1022,7 @@ class HolidayFilter(HorillaFilterSet):
             f"{self.Meta.model()._meta.get_field('end_date').verbose_name} Till"
         )
 
-    def filter_available_for_all(self, queryset, _, value):
+    def filter_available_for_all(self, queryset, name, value):
         """
         Holidays not restricted to specific departments/positions/
         employees (is_specific=False) are available for everyone.
@@ -1043,19 +1044,19 @@ class HolidayFilter(HorillaFilterSet):
             {
                 "key": "start_date",
                 "field": "start_date",
-                "label": str(__("Start Date")),
+                "label": str(_("Start Date")),
                 "type": "date_range",
             },
             {
                 "key": "end_date",
                 "field": "end_date",
-                "label": str(__("End Date")),
+                "label": str(_("End Date")),
                 "type": "date_range",
             },
             {
                 "key": "created_at",
                 "field": "created_at",
-                "label": str(__("Created At")),
+                "label": str(_("Created At")),
                 "type": "date_range",
             },
         ]
@@ -1099,36 +1100,36 @@ class CompanyLeaveFilter(HorillaFilterSet):
             "based_on_week_day": ["exact"],
         }
 
-    def filter_week_day(self, queryset, _, value):
+    def filter_week_day(self, queryset, name, value):
         week_qry = CompanyLeaves.objects.none()
         weekday_values = []
         week_values = []
         WEEK_DAYS = [
-            ("0", __("Monday")),
-            ("1", __("Tuesday")),
-            ("2", __("Wednesday")),
-            ("3", __("Thursday")),
-            ("4", __("Friday")),
-            ("5", __("Saturday")),
-            ("6", __("Sunday")),
+            ("0", _("Monday")),
+            ("1", _("Tuesday")),
+            ("2", _("Wednesday")),
+            ("3", _("Thursday")),
+            ("4", _("Friday")),
+            ("5", _("Saturday")),
+            ("6", _("Sunday")),
         ]
         WEEKS = [
-            (None, __("All")),
-            ("0", __("First Week")),
-            ("1", __("Second Week")),
-            ("2", __("Third Week")),
-            ("3", __("Fourth Week")),
-            ("4", __("Fifth Week")),
+            (None, _("All")),
+            ("0", _("First Week")),
+            ("1", _("Second Week")),
+            ("2", _("Third Week")),
+            ("3", _("Fourth Week")),
+            ("4", _("Fifth Week")),
         ]
 
         for day_value, day_name in WEEK_DAYS:
             if value.lower() in day_name.lower():
                 weekday_values.append(day_value)
         for day_value, day_name in WEEKS:
-            if value.lower() in day_name.lower() and value.lower() != __("All").lower():
+            if value.lower() in day_name.lower() and value.lower() != _("All").lower():
                 week_values.append(day_value)
                 week_qry = queryset.filter(based_on_week__in=week_values)
-            elif value.lower() in __("All").lower():
+            elif value.lower() in _("All").lower():
                 week_qry = queryset.filter(based_on_week__isnull=True)
         return queryset.filter(based_on_week_day__in=weekday_values) | week_qry
 
@@ -1141,6 +1142,105 @@ class PenaltyFilter(FilterSet):
     class Meta:
         model = PenaltyAccounts
         fields = "__all__"
+        exclude = ["additional_info"]
+
+
+class PenaltyAccountFilter(HorillaFilterSet):
+    """
+    Filter for the Penalty tab under Policies & Discipline.
+    """
+
+    search = CharFilter(method="search_method")
+    name_or_badge = CharFilter(
+        method="filter_name_or_badge", label=_("Name or Badge ID")
+    )
+    penalty_type = django_filters.ChoiceFilter(
+        label=_("Penalty Type"),
+        choices=[
+            ("late_early", _("Late Come / Early Out")),
+            ("leave", _("Leave")),
+            ("manual", _("Manual")),
+        ],
+        method="filter_penalty_type",
+    )
+    date_from = DateFilter(
+        method="filter_date_from",
+        label=_("From Date"),
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+    date_till = DateFilter(
+        method="filter_date_till",
+        label=_("To Date"),
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+    amount_min = django_filters.NumberFilter(
+        field_name="penalty_amount", lookup_expr="gte", label=_("Minimum Amount")
+    )
+    amount_max = django_filters.NumberFilter(
+        field_name="penalty_amount", lookup_expr="lte", label=_("Maximum Amount")
+    )
+
+    class Meta:
+        model = PenaltyAccounts
+        fields = ["leave_type_id"] if apps.is_installed("leave") else []
+
+    def search_method(self, queryset, name, value):
+        """
+        Search by employee name or badge id.
+        """
+        return filter_by_name(queryset, name, value)
+
+    def filter_name_or_badge(self, queryset, name, value):
+        """
+        Comma-separated employee name or badge id search.
+        """
+        return filter_name_or_badge_terms(
+            queryset,
+            value,
+            "employee_id__employee_first_name",
+            "employee_id__employee_last_name",
+            "employee_id__badge_id",
+        )
+
+    def filter_penalty_type(self, queryset, name, value):
+        """
+        Split penalties into late come / early out, leave and manual penalties.
+        """
+        if value == "late_early":
+            return queryset.filter(late_early_id__isnull=False)
+        if value == "leave":
+            return queryset.filter(leave_request_id__isnull=False)
+        return queryset.filter(
+            late_early_id__isnull=True, leave_request_id__isnull=True
+        )
+
+    @staticmethod
+    def _penalty_date_q(lookup, value):
+        """
+        Match the date a penalty was applied for: the attendance date, the
+        leave start date, or the created date of a manual penalty.
+        """
+        return (
+            Q(**{f"late_early_id__attendance_id__attendance_date__{lookup}": value})
+            | Q(**{f"leave_request_id__start_date__{lookup}": value})
+            | Q(
+                late_early_id__isnull=True,
+                leave_request_id__isnull=True,
+                **{f"created_at__date__{lookup}": value},
+            )
+        )
+
+    def filter_date_from(self, queryset, name, value):
+        """
+        Penalties applied on or after the date.
+        """
+        return queryset.filter(self._penalty_date_q("gte", value))
+
+    def filter_date_till(self, queryset, name, value):
+        """
+        Penalties applied on or before the date.
+        """
+        return queryset.filter(self._penalty_date_q("lte", value))
 
 
 class MailLogFilter(HorillaFilterSet):
@@ -1184,7 +1284,7 @@ class RosterFilter(HorillaFilterSet):
 
     employee = django_filters.ModelMultipleChoiceFilter(
         queryset=Employee.objects.filter(is_active=True),
-        label=__("Employee"),
+        label=_("Employee"),
     )
     # queryset=Department.objects.all() directly (not deferred to
     # queryset=None + a real assignment in __init__ like the pre-modern
@@ -1196,19 +1296,19 @@ class RosterFilter(HorillaFilterSet):
     # time), same as every other ajax_fields queryset_fn in this file.
     department = django_filters.ModelChoiceFilter(
         queryset=Department.objects.all(),
-        label=__("Department"),
+        label=_("Department"),
         widget=forms.Select(attrs={"class": "oh-select oh-select-2 w-100"}),
     )
     from_date = django_filters.DateFilter(
         field_name="date",
         lookup_expr="gte",
-        label=__("From Date"),
+        label=_("From Date"),
         widget=forms.DateInput(attrs={"type": "date", "class": "oh-input w-100"}),
     )
     to_date = django_filters.DateFilter(
         field_name="date",
         lookup_expr="lte",
-        label=__("To Date"),
+        label=_("To Date"),
         widget=forms.DateInput(attrs={"type": "date", "class": "oh-input w-100"}),
     )
     # NOT the shared horilla.filters.filter_by_name -- that helper assumes
@@ -1227,7 +1327,7 @@ class RosterFilter(HorillaFilterSet):
     # name_or_badge; see horilla.filters.filter_name_or_badge_terms for
     # the shared matching logic.
     name_or_badge = django_filters.CharFilter(
-        method="filter_name_or_badge", label=__("Name or Badge ID")
+        method="filter_name_or_badge", label=_("Name or Badge ID")
     )
 
     # HorillaFilterSet.ajax_fields (generic AJAX-loaded combobox mechanism,
@@ -1238,14 +1338,14 @@ class RosterFilter(HorillaFilterSet):
             "queryset_fn": lambda request: Employee.objects.filter(is_active=True),
             "display_fn": lambda obj: obj.get_full_name(),
             "search_fields": ["employee_first_name", "employee_last_name", "badge_id"],
-            "placeholder": __("Search employee..."),
+            "placeholder": _("Search employee..."),
         },
         "department": {
             "key": "roster-department",
             "queryset_fn": lambda request: Department.objects.all(),
             "display_fn": lambda obj: obj.department,
             "search_fields": ["department"],
-            "placeholder": __("Select department..."),
+            "placeholder": _("Select department..."),
         },
     }
 
@@ -1255,7 +1355,7 @@ class RosterFilter(HorillaFilterSet):
 
     def __init__(self, data=None, queryset=None, *, request=None, prefix=None):
         super().__init__(data=data, queryset=queryset, request=request, prefix=prefix)
-        self.form.fields["name_or_badge"].widget.attrs["placeholder"] = __(
+        self.form.fields["name_or_badge"].widget.attrs["placeholder"] = _(
             "e.g. John, PEP01, PEP02"
         )
 
@@ -1307,13 +1407,13 @@ class RosterFilter(HorillaFilterSet):
             {
                 "key": "date",
                 "field": "date",
-                "label": str(__("Date")),
+                "label": str(_("Date")),
                 "type": "date_range",
             },
             {
                 "key": "created_at",
                 "field": "created_at",
-                "label": str(__("Created At")),
+                "label": str(_("Created At")),
                 "type": "date_range",
             },
         ]

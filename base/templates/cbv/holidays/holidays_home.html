@@ -47,14 +47,15 @@
                         hx-post="{%url 'holidays-info-import' %}"
                         hx-encoding="multipart/form-data"
                         hx-target="#holidayImport"
+                        hx-timeout="600000"
+                        hx-indicator="#uploading"
                         id="holidaysImportForm"
                     >
                         {% csrf_token %}
-                        <div class="oh-modal__dialog-body mr-5" id="uploading" style="display: none">
-                            <div class="loader-container">
-                                <div class="loader"></div>
-                                <div class="loader-text">{% trans "Uploading..." %}</div>
-                            </div>
+                        <div id="uploading" class="oh-upload-loader" role="status" aria-live="polite">
+                            <p class="oh-upload-loader__title">{% trans "Uploading..." %}</p>
+                            <p class="oh-upload-loader__hint">{% trans "Don't refresh the page" %}</p>
+                            <div class="oh-upload-loader__bar"><span></span></div>
                         </div>
                         <div id="uploadContainer">
                             <label class="oh-dropdown__import-label" for="importHoliday">

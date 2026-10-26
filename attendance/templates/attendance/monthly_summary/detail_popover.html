@@ -190,13 +190,14 @@
 {% elif metric == "absent" %}
   <div class="ms-pop-header" style="border-top:3px solid #dc3545;">
     <ion-icon name="close-circle-outline" style="color:#dc3545;"></ion-icon>
-    {% trans "Absent / Missing Out" %}
+    {% trans "Absent / Missing Out / Short Hours" %}
   </div>
   <div class="ms-pop-body">
     {% if records %}
       {% for r in records %}
       <div class="ms-pop-row">
         <span class="ms-pop-date" style="color:#dc3545;">{{ r.date|date:"D, d M Y" }}</span>
+        {% if r.short %}<span class="ms-pop-reg-badge" style="background:#fee2e2;color:#991b1b;" title="{% trans 'Worked / required' %}">{% trans "Short hours" %} {{ r.worked_label }}</span>{% endif %}
         {% if r.half %}<span class="ms-pop-reg-badge" style="background:#fee2e2;color:#991b1b;">{% trans "Half" %}</span>{% endif %}
         {% if r.is_regularized %}<span class="ms-pop-reg-badge"><ion-icon name="checkmark-circle-outline" style="font-size:.7rem;"></ion-icon>{% trans "Regularized" %}</span>{% endif %}
       </div>

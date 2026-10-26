@@ -125,7 +125,7 @@
                       {% if perms.payroll.change_payslip %}
                         <form action="{% url 'delete-payslip' payslip.id %}" onsubmit="return confirm('{% trans "Are you sure you want to delete this payslip?"|escapejs %}');" method='post'>
                           {% csrf_token %}
-                          <button type='submit' class="oh-btn oh-btn--danger w-100" title="{% trans 'Remove' %}"><ion-icon name="trash-outline"></ion-icon></button>
+                          <button type='submit' class="oh-btn oh-btn--danger w-100" title="{% trans 'Delete' %}"><ion-icon name="trash-outline"></ion-icon></button>
                         </form>
                       {% endif %}
                     </div>

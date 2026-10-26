@@ -94,12 +94,23 @@ class RoleDefaultPrefsTests(SimpleTestCase):
         for expected in ROLE_DEFAULT_VISIBLE["manager"]:
             self.assertIn(expected, visible)
 
-    def test_hr_includes_turnover_not_payroll(self):
+    def test_hr_includes_turnover(self):
         prefs = role_default_prefs("hr")
         visible = {p["id"] for p in prefs if p["visible"]}
         self.assertIn("employee_turnover", visible)
-        self.assertNotIn("payroll_summary", visible)
         self.assertIn("gender_distribution", visible)
+
+    def test_every_default_chart_has_a_card(self):
+        """Every chart id in the defaults has a card in templates/dashboard.html."""
+        import re
+        from pathlib import Path
+
+        text = Path("templates/dashboard.html").read_text(encoding="utf-8")
+        cards = set(re.findall(r'data-chart-id="([a-z_]+)"', text))
+        named = {p["id"] for p in role_default_prefs("leadership")}
+        for visible in ROLE_DEFAULT_VISIBLE.values():
+            named.update(visible)
+        self.assertEqual(named - cards, set())
 
 
 class PrefsMigrationTests(SimpleTestCase):
@@ -111,14 +122,14 @@ class PrefsMigrationTests(SimpleTestCase):
 
     def test_modern_prefs_preserved(self):
         modern = [
-            {"id": "attendance_trend", "visible": True},
+            {"id": "leave_trends", "visible": True},
             {"id": "gender_distribution", "visible": False},
         ]
         self.assertEqual(_normalize_dashboard_chart_prefs(modern), modern)
 
     def test_modern_prefs_guard_helper(self):
         self.assertTrue(
-            _charts_use_modern_prefs([{"id": "attendance_trend", "visible": True}])
+            _charts_use_modern_prefs([{"id": "leave_trends", "visible": True}])
         )
         self.assertFalse(_charts_use_modern_prefs(["gender_chart"]))
         self.assertFalse(_charts_use_modern_prefs([]))

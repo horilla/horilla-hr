@@ -38,7 +38,7 @@
                 {% if instance.attendance_overtime_approve %}
                     <button
                         type="button"
-                        class="oh-btn oh-btn--light-bkg oh-btn--success oh-btn--sq-sm oh-btn--disabled"
+                        class="oh-btn oh-btn--success oh-btn--sq-sm oh-btn--disabled"
                         title="{% trans 'Approved' %}"
                         onclick="event.stopPropagation()"
                     >
@@ -47,7 +47,7 @@
                 {% elif minot <= instance.overtime_second %}
                     <button
                         type="button"
-                        class="oh-btn oh-btn--light-bkg oh-btn--success oh-btn--sq-sm"
+                        class="oh-btn oh-btn--success oh-btn--sq-sm"
                         title="{% trans 'Approve Overtime' %}"
                         onclick="event.preventDefault(); event.stopPropagation(); (function(pk){
                             Swal.fire({

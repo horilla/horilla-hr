@@ -2015,7 +2015,7 @@
                     .then((r) => r.json())
                     .then((data) => {
                         document.getElementById("am-kpi-grid").innerHTML = `
-                    <a href="{% url 'request-attendance-view' %}?open_tab=2&attendance_date=${data.date}&filter_applied=on" class="am-kpi-card">
+                    <a href="{% url 'employee-view' %}?checked_in_on=${data.date}&is_active=True&filter_applied=on" class="am-kpi-card">
                         <div class="am-kpi-card__icon am-kpi-card__icon--green"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg></div>
                         <div class="am-kpi-card__label">{% trans "Checked In Today"|escapejs %}</div>
                         <div class="am-kpi-card__value">${data.present_today}</div>

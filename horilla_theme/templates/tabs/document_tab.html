@@ -109,7 +109,7 @@
                             {% if perms.horilla_documents.change_documentrequest %}
                                 {% if document.status == "requested" %}
                                     <button
-                                        class="oh-btn oh-btn--sq-sm bg-primary-300 text-dark-700 hover:bg-success hover:text-white"
+                                        class="oh-btn oh-btn--sq-sm oh-btn--success"
                                         hx-get="{% url 'document-approve' document.id %}"
                                         title="{% trans 'Approve' %}"
                                         onclick="event.stopPropagation()"
@@ -129,8 +129,9 @@
                                     </button>
                                 {% elif document.status == "approved" %}
                                     <button
-                                        class="oh-btn oh-btn--sq-sm bg-primary-300 text-dark-700 hover:bg-success hover:text-white opacity-50 cursor-not-allowed"
+                                        class="oh-btn oh-btn--sq-sm oh-btn--success opacity-50 cursor-not-allowed"
                                         title="{% trans 'Approve' %}"
+                                        disabled
                                         onclick="event.stopPropagation()"
                                     >
                                         <ion-icon class="me-1" name="checkmark-outline"></ion-icon>
@@ -149,7 +150,7 @@
                                     </button>
                                 {% else %}
                                     <button
-                                        class="oh-btn oh-btn--sq-sm bg-primary-300 text-dark-700 hover:bg-success hover:text-white"
+                                        class="oh-btn oh-btn--sq-sm oh-btn--success"
                                         hx-get="{% url 'document-approve' document.id %}"
                                         title="{% trans 'Approve' %}"
                                         onclick="event.stopPropagation()"
@@ -157,8 +158,9 @@
                                         <ion-icon class="me-1" name="checkmark-outline"></ion-icon>
                                     </button>
                                     <button
-                                        class="oh-btn oh-btn--sq-sm bg-danger text-white hover:bg-danger-dark transition opacity-50 cursor-not-allowed"
+                                        class="oh-btn oh-btn--sq-sm bg-danger text-white opacity-50 cursor-not-allowed"
                                         title="{% trans 'Reject' %}"
+                                        disabled
                                         onclick="event.stopPropagation()"
                                     >
                                         <ion-icon class="me-1" name="close-outline"></ion-icon>

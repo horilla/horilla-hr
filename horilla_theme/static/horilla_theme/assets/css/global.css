@@ -1479,6 +1479,25 @@ input[type="checkbox"].custom-checkbox:hover {
   cursor: pointer;
 }
 
+/* Clickable list rows (row_attrs with hx-get / onclick / data-toggle): show
+   the pointer over the whole row, not only on its inner buttons. Covers the
+   Tailwind <table> lists (generic/horilla_list_table.html, group rows, the
+   pipeline/candidate tables) as well as the div-based sticky tables. */
+tr[hx-get],
+tr[hx-post],
+tr[onclick],
+tr[data-toggle],
+tr[data-href],
+tr[href],
+tr[hx-get] > td,
+tr[hx-post] > td,
+tr[onclick] > td,
+tr[data-toggle] > td,
+tr[data-href] > td,
+tr[href] > td {
+  cursor: pointer;
+}
+
 .oh-sticky-table__td,
 .oh-sticky-table__th,
 .oh-sticky-table__sd {

@@ -26084,3 +26084,22 @@ msgstr "Nachrichtenvorlagen und Flows erfolgreich erstellt."
 
 #~ msgid "'s Scheduled Interviews"
 #~ msgstr "'s geplante Interviews"
+
+#: horilla_views/generic/cbv/views.py
+msgid "Last 7 Days"
+msgstr "Letzte 7 Tage"
+
+#: horilla_views/generic/cbv/views.py
+msgid "Next 7 Days"
+msgstr "Nächste 7 Tage"
+
+#: horilla_theme/templates/generic/quick_actions.html
+msgid "Quick filter"
+msgstr "Schnellfilter"
+
+#: offboarding/templates/cbv/exit_process/quick_actions.html
+#: onboarding/templates/cbv/pipeline/onboarding/quick_actions.html
+#: recruitment/templates/cbv/pipeline/quick_actions.html
+#, python-format
+msgid "Quick filter (%(counter)s)"
+msgstr "Schnellfilter (%(counter)s)"

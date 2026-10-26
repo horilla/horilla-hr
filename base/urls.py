@@ -84,11 +84,6 @@ urlpatterns = [
         name="dashboard-kpi-data",
     ),
     path(
-        "dashboard/api/attendance-trend/",
-        dashboard_module.dashboard_attendance_trend,
-        name="dashboard-attendance-trend",
-    ),
-    path(
         "dashboard/api/leave-breakdown/",
         dashboard_module.dashboard_leave_breakdown,
         name="dashboard-leave-breakdown",
@@ -109,39 +104,9 @@ urlpatterns = [
         name="dashboard-announcements",
     ),
     path(
-        "dashboard/api/announcements/<int:pk>/",
-        dashboard_module.dashboard_announcement_detail,
-        name="dashboard-announcement-detail",
-    ),
-    path(
-        "dashboard/api/todays-leave/",
-        dashboard_module.dashboard_todays_leave,
-        name="dashboard-todays-leave",
-    ),
-    path(
-        "dashboard/api/leave-coverage/",
-        dashboard_module.dashboard_leave_coverage,
-        name="dashboard-leave-coverage",
-    ),
-    path(
-        "dashboard/api/upcoming-holidays/",
-        dashboard_module.dashboard_upcoming_holidays,
-        name="dashboard-upcoming-holidays",
-    ),
-    path(
         "dashboard/api/birthdays-anniversaries/",
         dashboard_module.dashboard_birthdays_anniversaries,
         name="dashboard-birthdays-anniversaries",
-    ),
-    path(
-        "dashboard/api/recruitment-pipeline/",
-        dashboard_module.dashboard_recruitment_pipeline,
-        name="dashboard-recruitment-pipeline",
-    ),
-    path(
-        "dashboard/api/payroll-summary/",
-        dashboard_module.dashboard_payroll_summary,
-        name="dashboard-payroll-summary",
     ),
     path(
         "dashboard/api/pending-approvals/",
@@ -154,34 +119,14 @@ urlpatterns = [
         name="dashboard-turnover",
     ),
     path(
-        "dashboard/api/employee-status/",
-        dashboard_module.dashboard_employee_status,
-        name="dashboard-employee-status",
-    ),
-    path(
         "dashboard/api/attendance-overview/",
         dashboard_module.dashboard_attendance_overview,
         name="dashboard-attendance-overview",
     ),
     path(
-        "dashboard/api/department-overtime/",
-        dashboard_module.dashboard_department_overtime,
-        name="dashboard-department-overtime",
-    ),
-    path(
         "dashboard/api/leave-trends/",
         dashboard_module.dashboard_leave_trends,
         name="dashboard-leave-trends",
-    ),
-    path(
-        "dashboard/api/leave-by-department/",
-        dashboard_module.dashboard_leave_by_department,
-        name="dashboard-leave-by-department",
-    ),
-    path(
-        "dashboard/api/department-leave-days/",
-        dashboard_module.dashboard_department_leave_days,
-        name="dashboard-department-leave-days",
     ),
     path(
         "dashboard/api/hiring-timeline/",
@@ -197,11 +142,6 @@ urlpatterns = [
         "dashboard/save-prefs/",
         dashboard_module.save_dashboard_prefs,
         name="dashboard-save-prefs",
-    ),
-    path(
-        "dashboard/load-prefs/",
-        dashboard_module.load_dashboard_prefs,
-        name="dashboard-load-prefs",
     ),
     path(
         "dashboard/dismiss-setup-checklist/",
@@ -2022,8 +1962,23 @@ urlpatterns = [
     # path("view-penalties", views.view_penalties, name="view-penalties"),
     path("view-penalties/", penalty.ViewPenaltyList.as_view(), name="view-penalties"),
     path(
+        "penalty-records-list/",
+        penalty.PenaltyRecordsList.as_view(),
+        name="penalty-records-list",
+    ),
+    path(
+        "penalty-records-nav/",
+        penalty.PenaltyRecordsNav.as_view(),
+        name="penalty-records-nav",
+    ),
+    path(
+        "penalty-records-create/",
+        penalty.PenaltyRecordsFormView.as_view(),
+        name="penalty-records-create",
+    ),
+    path(
         "delete-penalties/<int:penalty_id>/",
-        views.delete_penalities,
+        views.delete_penalties,
         name="delete-penalties",
     ),
     path(

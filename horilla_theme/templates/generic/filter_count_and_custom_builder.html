@@ -251,7 +251,7 @@
     // A field-less lookup <select> renders as an empty, borderless-looking
     // box before any field is picked -- easy to mistake for broken. A
     // disabled placeholder option (mirroring the Field select's own
-    // "{% trans "Field" %}" option) makes that pre-selection state read as
+    // "{% trans "Field"|escapejs %}" option) makes that pre-selection state read as
     // "not applicable yet" instead of "empty/broken".
     function buildLookupPlaceholderOption() {
         var opt = document.createElement('option');

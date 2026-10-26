@@ -241,13 +241,6 @@ class ListCandidates(HorillaListView):
 
     row_status_class = "hired-{hired} canceled-{canceled}"
 
-    # row_attrs = """
-    #             {is_employee_converted}
-    #             hx-get='{get_details_candidate}'
-    #             data-toggle="oh-modal-toggle"
-    #             data-target="#genericModal"
-    #             hx-target="#genericModalBody"
-    #             """
     row_attrs = """
                 {is_employee_converted}
                 hx-get="{get_profile_url}?instance_ids={ordered_ids}"
@@ -257,9 +250,6 @@ class ListCandidates(HorillaListView):
                 class="cursor-pointer"
                 """
 
-    # Mirrors CandidateNav.nested_group_by_fields below -- List and Nav
-    # are separate classes/templates (see employee/cbv/employees.py's
-    # EmployeesList/EmployeeNav for the same split).
     nested_group_by_fields = [
         ("recruitment_id", _("Recruitment")),
         ("job_position_id", _("Job Position")),

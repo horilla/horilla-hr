@@ -1,352 +1,130 @@
-{% load static i18n recruitmentfilters horillafilters %}
-{% get_company as theme_obj %}
+{% load static i18n %}
+{% load recruitmentfilters horillafilters %}
+{% if not theme_obj %}{% get_def_theme as theme_obj %}{% endif %}
 <!DOCTYPE html>
 <html lang="en">
-    <!-- Previous head section remains the same -->
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>{% trans "Application Tracking" %}</title>
+        <link href="{% static 'horilla_theme/assets/css/tailwind.css' %}" rel="stylesheet">
+        <title>
+            {% blocktrans with company_name=tracking_company.company|default:white_label_company_name %}Application Tracking - {{ company_name }}{% endblocktrans %}
+        </title>
         <link
-            href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css"
-            rel="stylesheet"
+            rel="apple-touch-icon"
+            sizes="180x180"
+            href="{% if tracking_company.icon %}{{tracking_company.icon.url}}{% elif white_label_company.icon %}{{white_label_company.icon.url}} {% else %}{% static 'favicons/apple-touch-icon.png' %}{% endif %}"
         >
         <link
-            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-            rel="stylesheet"
+            rel="icon"
+            type="image/png"
+            sizes="32x32"
+            href="{% if tracking_company.icon %}{{tracking_company.icon.url}}{% elif white_label_company.icon %}{{white_label_company.icon.url}} {% else %}{% static 'favicons/favicon-32x32.png' %}{% endif %}"
         >
-        <link rel="stylesheet" href="{% static 'build/css/style.min.css' %}">
+        <link
+            rel="icon"
+            type="image/png"
+            sizes="16x16"
+            href="{% if tracking_company.icon %}{{tracking_company.icon.url}}{% elif white_label_company.icon %}{{white_label_company.icon.url}} {% else %}{% static 'favicons/favicon-16x16.png' %}{% endif %}"
+        >
         <link
             rel="stylesheet"
-            type="text/css"
-            href="{% static 'css/style.css' %}"
+            href="/static/horilla_theme/assets/css/global.css"
         >
+        <link
+            rel="stylesheet"
+            href="/static/horilla_theme/assets/css/v1_styles.css"
+        >
+        <script src='{% static "horilla_theme/assets/js/tailwindcdn.js" %}'></script>
+        <script>
+            window.tailwind.config = {
+                theme: {
+                    colors: {
+                        white: '#FFFFFF',
+                        primary: {
+                            50:  '{{ theme_obj.primary_50  | default:"#f6f6f6" }}',
+                            100: '{{ theme_obj.primary_100 | default:"#FFF5F1" }}',
+                            200: '{{ theme_obj.primary_200 | default:"#FEF6F5" }}',
+                            300: '{{ theme_obj.primary_300 | default:"#FCEDEB" }}',
+                            400: '{{ theme_obj.primary_400 | default:"#FBE5E1" }}',
+                            500: '{{ theme_obj.primary_500 | default:"#F7C8C1" }}',
+                            600: '{{ theme_obj.primary_600 | default:"#E54F38" }}',
+                            700: '{{ theme_obj.primary_700 | default:"#ce4732" }}',
+                            800: '{{ theme_obj.primary_800 | default:"#AC3B2A" }}',
+                            900: '{{ theme_obj.primary_900 | default:"#672419" }}',
+                        },
+                        brand: {
+                            50:  '{{ theme_obj.primary_50  | default:"#f6f6f6" }}',
+                            100: '{{ theme_obj.primary_100 | default:"#FFF5F1" }}',
+                            200: '{{ theme_obj.primary_200 | default:"#FEF6F5" }}',
+                            300: '{{ theme_obj.primary_300 | default:"#FCEDEB" }}',
+                            400: '{{ theme_obj.primary_400 | default:"#FBE5E1" }}',
+                            500: '{{ theme_obj.primary_500 | default:"#F7C8C1" }}',
+                            600: '{{ theme_obj.primary_600 | default:"#E54F38" }}',
+                            700: '{{ theme_obj.primary_700 | default:"#ce4732" }}',
+                            800: '{{ theme_obj.primary_800 | default:"#AC3B2A" }}',
+                            900: '{{ theme_obj.primary_900 | default:"#672419" }}',
+                        },
+                        dark: {
+                            50:  '{{ theme_obj.dark_50  | default:"#E6E6E6" }}',
+                            100: '{{ theme_obj.dark_100 | default:"#A8A8A8" }}',
+                            200: '{{ theme_obj.dark_200 | default:"#515151" }}',
+                            300: '{{ theme_obj.dark_300 | default:"#501C14" }}',
+                            400: '{{ theme_obj.dark_400 | default:"#64748B" }}',
+                            500: '{{ theme_obj.dark_500 | default:"#190906" }}',
+                            600: '{{ theme_obj.dark_600 | default:"#000000" }}',
+                        },
+                        secondary: {
+                            50:  '{{ theme_obj.secondary_50  | default:"#f8fafc" }}',
+                            100: '{{ theme_obj.secondary_100 | default:"#f1f5f9" }}',
+                            200: '{{ theme_obj.secondary_200 | default:"#e2e8f0" }}',
+                            300: '{{ theme_obj.secondary_300 | default:"#cbd5e1" }}',
+                            400: '{{ theme_obj.secondary_400 | default:"#FBE5E1" }}',
+                            500: '{{ theme_obj.secondary_500 | default:"#F7C8C1" }}',
+                            600: '{{ theme_obj.secondary_600 | default:"#E54F38" }}',
+                            700: '{{ theme_obj.secondary_700 | default:"#334155" }}',
+                            800: '{{ theme_obj.secondary_800 | default:"#1e293b" }}',
+                            900: '{{ theme_obj.secondary_900 | default:"#0f172a" }}',
+                        },
+                        color: { 600: '#374151' },
+                        success: { light: "#86efac", DEFAULT: "#22c55e", dark: "#15803d" },
+                        warning: { light: "#fde68a", DEFAULT: "#f59e0b", dark: "#b45309" },
+                        danger:  { light: "#fca5a5", DEFAULT: "#ef4444", dark: "#b91c1c" },
+                    },
+                    extend: {
+                        boxShadow: { card: "0px 0px 10px rgba(0, 0, 0, 0.05)" },
+                        spacing: { 18: "4.5rem", 72: "18rem", 84: "21rem", 96: "24rem" },
+                        borderRadius: { "4xl": "2rem", "5xl": "2.5rem" },
+                        fontSize: { xxs: "0.625rem" },
+                        height: { "screen-50": "50vh", "screen-75": "75vh" },
+                    },
+                },
+            };
+        </script>
         <script src="{% static '/jquery/jquery.min.js' %}"></script>
+        <link rel="stylesheet" href="{% static 'cdn/font-awsome/css/all.min.css' %}">
         <style>
-            body {
-                min-height: 100vh;
-                margin: 0;
-                padding: 0;
-                background-color: #f8f9fa;
+            .oh-rate {
+                height: auto;
             }
 
-            .tracking-container {
-                width: 80%;
-                margin: 0 auto;
-                padding: 1rem;
+            .oh-rate > label {
+                cursor: default !important;
+                pointer-events: none;
             }
 
-            @media (min-width: 768px) {
-                .tracking-container {
-                    padding: 2rem;
-                }
+            .tracking-scroll::-webkit-scrollbar {
+                width: 6px;
+                height: 6px;
             }
 
-            .tracking-card {
-                position: relative;
-                height: 100%;
-                margin-bottom: 1rem;
-                padding: 1rem;
-                border-radius: 8px;
-                background: white;
-                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            }
-
-            .profile-image {
-                width: 50px;
-                height: 50px;
-                object-fit: cover;
-                border-radius: 50%;
-            }
-
-            .status-badge {
-                display: inline-block;
-                margin: 0.5rem 0;
-                padding: 0.5rem 1rem;
-                border-radius: 20px;
-                font-size: 0.875rem;
-                white-space: nowrap;
-            }
-
-            .status-badge.pending {
-                background-color: #fff3cd;
-                color: #856404;
-            }
-
-            .status-badge.success {
-                background-color: #d4edda;
-                color: #155724;
-            }
-
-            .status-badge.danger {
-                background-color: #f8d7da;
-                color: #721c24;
-            }
-
-            .status-badge i {
-                margin-right: 0.5rem;
-            }
-
-            .interview-item {
-                padding: 1rem 0;
-                border-bottom: 1px solid #e9ecef;
-            }
-
-            .interview-item:last-child {
-                border-bottom: none;
-            }
-
-            .interview-date,
-            .interview-time,
-            .interview-interviewer {
-                margin-bottom: 0.5rem;
-                color: #6c757d;
-                font-size: 0.875rem;
-            }
-
-            .interview-description {
-                margin-top: 0.5rem;
-                padding-left: 0.75rem;
-                border-left: 3px solid #e9ecef;
-                color: #6c757d;
-                font-size: 0.875rem;
-            }
-
-            .interviewer-chip {
-                display: inline-block;
-                margin-right: 0.25rem;
-                margin-bottom: 0.25rem;
-                padding: 0.25rem 0.5rem;
-                border-radius: 12px;
-                background-color: #e9ecef;
-                font-size: 0.8125rem;
-                white-space: nowrap;
-            }
-
-            .document-card {
-                margin-bottom: 1rem;
-                transition: all 0.3s ease;
-            }
-
-            .document-card:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            }
-
-            .note-card {
-                position: relative;
-                margin-bottom: 1rem;
-                border-left: 4px solid #007bff;
-            }
-
-            .note-close-btn {
-                display: flex;
-                position: absolute;
-                top: 0.5rem;
-                right: 0.5rem;
-                align-items: center;
-                justify-content: center;
-                width: 28px;
-                height: 28px;
-                padding: 0;
-                border: none;
-                border-radius: 50%;
-                background-color: #fff;
-                color: #dc3545;
-                font-size: 14px;
-                cursor: pointer;
-                transition: all 0.2s ease;
-            }
-
-            .note-close-btn:hover {
-                background: #e9ecef;
-                color: #dc3545;
-            }
-
-            .note-card .card-body {
-                padding-right: 2.5rem;
-            }
-
-            @media (max-width: 768px) {
-                .note-close-btn {
-                    width: 32px;
-                    height: 32px;
-                    font-size: 16px;
-                }
-            }
-
-            .document-list, .notes-list, .interview-list {
-                height: 400px;
-                overflow-y: auto;
-            }
-
-            .notes-list {
-                height: 340px;
-            }
-
-            .status-completed {
-                color: #28a745;
-            }
-
-            .status-expired {
-                color: #dc3545;
-            }
-
-            .status-upcoming {
-                color: #ffc107;
-            }
-
-            .status-today {
-                color: #007bff;
-            }
-
-            @media (max-width: 576px) {
-                h2.h4 {
-                    font-size: 1.25rem;
-                }
-                h3.h5 {
-                    font-size: 1.125rem;
-                }
-                .interview-description {
-                    font-size: 0.8125rem;
-                }
-                .status-badge {
-                    font-size: 0.8125rem;
-                }
-            }
-
-            .row {
-                --bs-gutter-x: 1rem;
-                --bs-gutter-y: 1rem;
-            }
-
-            @media (min-width: 768px) {
-                .row {
-                    --bs-gutter-x: 1.5rem;
-                    --bs-gutter-y: 1.5rem;
-                }
-            }
-
-            .oh-rate:not(:checked) > label:hover,
-            .oh-rate:not(:checked) > label:hover ~ label {
-                color: #ccc;
-            }
-
-            .tracking-card {
-                padding: 1rem;
-            }
-
-            @media (min-width: 768px) {
-                .tracking-card {
-                    padding: 1.5rem;
-                }
-            }
-
-            .btn,
-            .form-control {
-                padding: 0.375rem 0.75rem;
-            }
-
-            .bg-orange {
-                background-color: {{ theme_obj.primary_600|default:'#e54f38' }};
-            }
-
-            @media (max-width: 576px) {
-                .btn,
-                .form-control {
-                    padding: 0.25rem 0.5rem;
-                    font-size: 0.875rem;
-                }
-            }
-
-            .d-flex {
-                gap: 0.5rem;
-            }
-
-            @media (max-width: 576px) {
-                .btn,
-                .form-control {
-                    min-height: 44px;
-                }
-
-                .document-card .card-body {
-                    padding: 0.75rem;
-                }
-            }
-
-            @media (max-width: 767.98px) {
-                .mobile-section-gap {
-                    margin-bottom: 1.5rem;
-                }
-            }
-
-            .tracking-card {
-                margin-bottom: 1.5rem;
-            }
-
-            @media (min-width: 768px) {
-                .tracking-card {
-                    margin-bottom: 0;
-                }
-            }
-
-            .custom-dialog {
-                max-width: 1000px;
-                max-height: 800px;
-            }
-
-            .oh-not-found {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                height: 50vh;
-                opacity: 0.5;
-            }
-
-            .file-validation {
-                padding: 15px;
-                border: 1px solid transparent;
-                border-radius: 4px;
-                border-color: #d6e9c6;
-                background-color: #d8e7f0;
-                color: #4f5bd9;
-            }
-
-            .banner-container {
-                z-index: 2;
-                position: absolute;
-                top: 25px;
-                right: -43px;
-                padding: 8px 76px;
-                transform: rotate(34deg);
-                background-color: #40ac40;
-                color: white;
-                font-size: 12px;
-                text-align: center;
-                clip-path: polygon(26% 0, 81% 0, 91% 94%, 0 115%);
-            }
-
-            @media (max-width: 768px) {
-                .banner-container {
-                    top: 20px;
-                    right: -33px;
-                    padding: 6px 56px;
-                    font-size: 10px;
-                }
-            }
-
-            @media (max-width: 480px) {
-                .banner-container {
-                    top: 17px;
-                    right: -29px;
-                    padding: 5px 50px;
-                    font-size: 8px;
-                }
+            .tracking-scroll::-webkit-scrollbar-thumb {
+                border-radius: 9999px;
+                background: #cbd5e1;
             }
         </style>
     </head>
-    <body>
+    <body class="bg-[{{theme_obj.primary_50}}] font-[Inter,_sans-serif] min-h-screen text-dark-600">
         {% now "Y-m-d" as now %}
         <div id="reloadMessages">{% include "generic/messages.html" %}</div>
         <button
@@ -358,207 +136,177 @@
         >
         </button>
 
-        <div class="tracking-container">
-            <div class="row justify-content-center mb-4">
-                <div class="col-12 col-md-10 col-lg-6">
-                    <div class="tracking-card">
-                        {% if candidate.converted %}
-                            <div class="banner-container fw-bold">
-                                <span>{% trans "Converted" %}</span>
+        <!-- Top bar -->
+        <header class="sticky top-0 z-20 bg-white/90 backdrop-blur shadow-card">
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3 min-w-0">
+                    <img
+                        src="{% if tracking_company.icon %}{{tracking_company.icon.url}}{% elif white_label_company.icon %}{{white_label_company.icon.url}}{% else %}{% static 'horilla_theme/assets/img/logo.svg' %}{% endif %}"
+                        alt=""
+                        width="34"
+                    >
+                    <span class="text-lg font-semibold truncate">{% firstof tracking_company.company white_label_company_name %}</span>
+                    <span class="hidden sm:inline text-sm text-color-600 border-l border-dark-50 pl-3">{% trans "Application Tracking" %}</span>
+                </div>
+                <div class="flex items-center gap-2 text-sm text-color-600">
+                    <img src="{{ candidate.get_avatar }}" alt="" class="w-8 h-8 rounded-full object-cover">
+                    <span class="hidden sm:inline">{{ candidate.get_full_name|title }}</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col gap-6">
+
+            <!-- Hero -->
+            <section class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-600 to-brand-800 text-white shadow-card">
+                <div class="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-white/10"></div>
+                <div class="absolute -bottom-24 right-24 w-48 h-48 rounded-full bg-white/10"></div>
+                <div class="relative p-6 sm:p-8 flex flex-col md:flex-row md:items-center gap-6">
+                    <img
+                        src="{{ candidate.get_avatar }}"
+                        alt="{% trans 'Profile' %}"
+                        class="w-24 h-24 rounded-full object-cover ring-4 ring-white/40 shrink-0"
+                    >
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm text-white/80 mb-1">{% trans "Your application for" %}</p>
+                        <h1 class="text-2xl sm:text-3xl font-bold leading-tight">{{ candidate.get_job_position }}</h1>
+                        <p class="mt-1 text-white/90">
+                            {{ candidate.get_full_name|title }}
+                            <span class="mx-1 text-white/60">&middot;</span>
+                            {{ candidate.recruitment_id.title }}
+                        </p>
+                        {% if check_candidate_self_tracking_rating %}
+                            <div class="oh-rate mt-2">
+                                {% for i in "54321" %}
+                                    <input
+                                        type="radio"
+                                        id="star{{i}}{{candidate.id}}"
+                                        name="rating"
+                                        class="rating-radio"
+                                        value="{{i}}"
+                                        disabled
+                                        {% if candidate.candidate_rating.all|avg_rating:candidate == i %}checked{% endif %}
+                                    >
+                                    <label for="star{{i}}{{candidate.id}}">5</label>
+                                {% endfor %}
                             </div>
                         {% endif %}
-                        <div class="d-flex align-items-center mb-3 flex-wrap">
-                            <img
-                                src="{{ candidate.get_avatar }}"
-                                alt="{% trans 'Profile' %}"
-                                width="50px"
-                                class="profile-image me-3 mb-2"
-                            >
-                            <div>
-                                <h2 class="h4 mb-1">
-                                    {{ candidate.get_full_name|title }}
-                                </h2>
-                                {% if check_candidate_self_tracking_rating %}
-                                    <div class="d-block mb-0">
-                                        <div class="oh-rate">
-                                            {% for i in "54321" %}
-                                                <input
-                                                    type="radio"
-                                                    id="star{{i}}{{candidate.id}}"
-                                                    name="rating"
-                                                    class="rating-radio"
-                                                    value="{{i}}"
-                                                    disabled
-                                                    {% if candidate.candidate_rating.all|avg_rating:candidate == i %}
-                                                        checked
-                                                    {% endif %}
-                                                >
-                                                <label for="star{{i}}{{candidate.id}}">5</label>
-                                            {% endfor %}
-                                        </div>
-                                        <span id="rating-radio-error"></span>
-                                    </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="mb-3 d-flex justify-content-between">
-                            <h5 class="text-secondary">
-                                {{ candidate.recruitment_id.title }} /
-                                {{ candidate.stage_id.stage }}
-                            </h5>
-                            <div class="oh-recuritment_tag">
-                                {{ candidate.get_job_position }}
-                            </div>
-                        </div>
+                    </div>
+                    <div class="flex flex-col items-start md:items-end gap-3 shrink-0">
                         {% if candidate.hired or candidate.converted %}
-                            <span class="status-badge success">
-                                <i class="fas fa-check-circle me-2"></i>
+                            <span class="inline-flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-full bg-white text-success-dark">
+                                <i class="fa-solid fa-circle-check"></i>
                                 {% trans "Congratulation on your selection" %}
                             </span>
                         {% elif candidate.canceled %}
-                            <span class="status-badge danger">
-                                <i class="fas fa-times-circle me-2"></i>
+                            <span class="inline-flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-full bg-white text-danger-dark">
+                                <i class="fa-solid fa-circle-xmark"></i>
                                 {% trans "You not selected" %}
                             </span>
                         {% else %}
-                            <span class="status-badge pending">
-                                <i class="fas fa-clock me-2"></i>
+                            <span class="inline-flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-full bg-white text-warning-dark">
+                                <i class="fa-solid fa-hourglass-half"></i>
                                 {% trans "Application under review" %}
                             </span>
                         {% endif %}
-                    </div>
-                </div>
-            </div>
-
-            <div class="row">
-                <div class="col-12 col-md-6 col-lg-4 order-1 order-md-2">
-                    <div class="tracking-card">
-                        <h3 class="h5 mb-4 fw-bold">{% trans "Documents" %}</h3>
-                        <div class="document-list">
-                            {% for document in candidate.candidatedocument_set.all %}
-                                <div class="document-card card">
-                                    <div
-                                        class="card-body"
-                                        hx-get="{% url 'candidate-view-file' document.id %}"
-                                        hx-target="#viewFile"
-                                        data-toggle="oh-modal-toggle"
-                                        data-target="#viewFileModal"
-                                    >
-                                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                                            <div>
-                                                <h6 class="mb-1">{{ document.title }}</h6>
-                                                <small
-                                                    class="text-muted"
-                                                    title="{{document.document_request_id.description}}"
-                                                >{{ document.document_request_id.description|truncatechars:50 }}</small>
-                                            </div>
-                                            {% if document.document %}
-                                                {% if document.status == "approved" %}
-                                                    <span class="badge text-success p-2">{% trans "Approved" %}</span>
-                                                {% elif document.status == "rejected" %}
-                                                    <span class="badge text-danger p-2">{% trans "Rejected" %}</span>
-                                                {% else %}
-                                                    <span class="badge text-info p-2">{% trans "Uploaded" %}</span>
-                                                {% endif %}
-                                            {% else %}
-                                                <button
-                                                    class="btn oh-btn--secondary border-0 px-3 py-1 small"
-                                                    hx-get="{% url 'candidate-file-upload' document.id %}"
-                                                    hx-target="#objectCreateModalTarget"
-                                                    data-document-id="{{ document.id }}"
-                                                    data-toggle="oh-modal-toggle"
-                                                    data-target="#objectCreateModal"
-                                                    onclick="event.stopPropagation()"
-                                                >
-                                                    {% trans "Add" %}
-                                                </button>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                </div>
-                            {% empty %}
-                                <div class="d-flex justify-content-center align-items-center" style="height: 40vh">
-                                    <div class="text-center">
-                                        <div style="width: 30%; margin: 10% auto">
-                                            <img
-                                                class="oh-404__image mb-3"
-                                                style="width: 100%"
-                                                src="{% static 'images/ui/joiningchart.png' %}"
-                                                alt="{% trans 'No documents' %}"
-                                            >
-                                        </div>
-                                        <h5 class="oh-404__subtitle">{% trans "No document requests found." %}</h5>
-                                    </div>
-                                </div>
-                            {% endfor %}
+                        {% if candidate.converted %}
+                            <span class="text-xs font-medium px-3 py-1 rounded-full bg-white/20">
+                                <i class="fa-solid fa-user-check mr-1"></i>{% trans "Converted" %}
+                            </span>
+                        {% endif %}
+                        <div class="flex gap-3">
+                            <div class="text-center px-4 py-2 rounded-xl bg-white/15">
+                                <div class="text-xl font-bold leading-none">{{ interviews_count }}</div>
+                                <div class="text-xs text-white/80 mt-1">{% trans "Interviews" %}</div>
+                            </div>
+                            <div class="text-center px-4 py-2 rounded-xl bg-white/15">
+                                <div class="text-xl font-bold leading-none">{{ pending_documents_count }}</div>
+                                <div class="text-xs text-white/80 mt-1">{% trans "Pending docs" %}</div>
+                            </div>
                         </div>
                     </div>
                 </div>
+            </section>
 
-                <div class="col-12 col-md-6 col-lg-4 order-2 order-md-1">
-                    <div class="tracking-card">
-                        <h3 class="h5 mb-4 fw-bold">{% trans "Scheduled Interviews" %}</h3>
-                        <div class="interview-list">
-                            {% for interview in interviews %}
-                                <div class="interview-item">
-                                    <div class="interview-date">
-                                        {% trans "Date" %}: {{ interview.interview_date }}
-                                    </div>
-                                    <div class="interview-time">{% trans "Time" %}: {{ interview.interview_time }}</div>
-                                    <div class="interview-interviewer">
-                                        {% trans "Interviewer" %}:
-                                        <div class="mt-1">
-                                            {% for interviewer in  interview.employee_id.all %}
-                                                <span class="interviewer-chip">
-                                                    <i class="fas fa-user-circle me-1"></i>
-                                                    {{ interviewer }}
-                                                </span>
-                                            {% endfor %}
-                                        </div>
-                                    </div>
-                                    <div class="interview-description">
-                                        {{ interview.description }}
-                                    </div>
-                                    {% if interview.completed %}
-                                        <div class="d-flex align-items-center mt-2 status-completed">
-                                            <i class="fas fa-check-circle interview-status-icon"></i>
-                                            {% trans "Interview Completed" %}
-                                        </div>
-                                    {% elif interview.interview_date|date:"Y-m-d" < now %}
-                                        <div class="d-flex align-items-center mt-2 status-completed text-danger">
-                                            <i class="fas fa-close interview-status-icon"></i>
-                                            {% trans "Expired Interview" %}
-                                        </div>
-                                    {% elif interview.interview_date|date:"Y-m-d" > now %}
-                                        <div class="d-flex align-items-center mt-2 status-upcoming">
-                                            <i class="fas fa-clock interview-status-icon"></i>
-                                            {% trans "Upcoming Interview" %}
-                                        </div>
-                                    {% elif interview.interview_date|date:"Y-m-d" == now and not interview.completed %}
-                                        <div class="d-flex align-items-center mt-2 status-today">
-                                            <i class="fas fa-calendar-day interview-status-icon"></i>
-                                            {% trans "Interview Today" %}
-                                        </div>
+            <!-- Pipeline progress -->
+            {% if stages %}
+                <section class="bg-white rounded-2xl shadow-card p-6">
+                    <h2 class="text-base font-semibold mb-5">{% trans "Application progress" %}</h2>
+                    <div class="tracking-scroll overflow-x-auto px-2 pt-3 pb-3">
+                        <ol class="flex min-w-max sm:min-w-0">
+                            {% for stage in stages %}
+                                <li class="relative flex-1 min-w-[110px] flex flex-col items-center text-center">
+                                    {% if not forloop.first %}
+                                        <span class="absolute top-4 right-1/2 w-full h-0.5 {% if stage.state == 'done' or stage.state == 'current' or stage.state == 'rejected' %}bg-success{% else %}bg-dark-50{% endif %}"></span>
                                     {% endif %}
-                                </div>
-                            {% empty %}
-                                <div class="d-flex justify-content-center align-items-center" style="height: 40vh">
-                                    <div>
-                                        <div style="width: 30%; margin: 10% auto" class="oh-tracking-card">
-                                            <img style="width: 100%" src="{% static 'images/ui/interview.png' %}">
-                                        </div>
-                                        <h5 class="oh-404__subtitle mt-4 ml-2">
-                                            {% trans "No interviews are scheduled for this candidate" %}
-                                        </h5>
-                                    </div>
-                                </div>
+                                    <span class="relative z-10 flex items-center justify-center w-8 h-8 rounded-full text-sm
+                                        {% if stage.state == 'done' %}bg-success text-white
+                                        {% elif stage.state == 'current' %}bg-brand-600 text-white ring-4 ring-primary-400
+                                        {% elif stage.state == 'rejected' %}bg-danger text-white ring-4 ring-danger-light
+                                        {% else %}bg-white border-2 border-dark-50 text-dark-100{% endif %}">
+                                        {% if stage.state == 'done' %}
+                                            <i class="fa-solid fa-check"></i>
+                                        {% elif stage.state == 'rejected' %}
+                                            <i class="fa-solid fa-xmark"></i>
+                                        {% else %}
+                                            {{ forloop.counter }}
+                                        {% endif %}
+                                    </span>
+                                    <span class="mt-2 px-1 text-xs sm:text-sm {% if stage.state == 'current' %}font-semibold text-brand-700{% elif stage.state == 'rejected' %}font-semibold text-danger-dark{% elif stage.state == 'done' %}text-dark-600{% else %}text-dark-100{% endif %}">
+                                        {{ stage.name }}
+                                    </span>
+                                </li>
                             {% endfor %}
-                        </div>
+                        </ol>
                     </div>
-                </div>
+                </section>
+            {% endif %}
 
-                <div class="col-12 col-md-6 col-lg-4 order-3">
-                    <div class="tracking-card" id="note">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+
+                <!-- Interviews timeline -->
+                <section class="lg:col-span-2 bg-white rounded-2xl shadow-card p-6">
+                    <div class="flex items-center justify-between mb-5">
+                        <h2 class="text-base font-semibold">{% trans "Scheduled Interviews" %}</h2>
+                        <span class="text-xs px-2 py-1 rounded-full bg-secondary-100 text-color-600">{{ interviews_count }}</span>
+                    </div>
+                    {% if interviews_page.paginator.count %}
+                        <div class="tracking-scroll max-h-[560px] overflow-y-auto pr-2 flex flex-col gap-4">
+                            {% include "candidate/tracking/interviews_items.html" with page_obj=interviews_page %}
+                        </div>
+                    {% else %}
+                        <div class="flex flex-col items-center text-center py-12">
+                            <img class="w-28 mb-4 opacity-90" src="{% static 'images/ui/interview.png' %}" alt="">
+                            <p class="text-color-600">{% trans "No interviews are scheduled for this candidate" %}</p>
+                        </div>
+                    {% endif %}
+                </section>
+
+                <div class="flex flex-col gap-6">
+
+                    <!-- Documents -->
+                    <section class="bg-white rounded-2xl shadow-card p-6">
+                        <div class="flex items-center justify-between mb-5">
+                            <h2 class="text-base font-semibold">{% trans "Documents" %}</h2>
+                            {% if pending_documents_count %}
+                                <span class="text-xs font-medium px-2 py-1 rounded-full bg-warning/10 text-warning-dark">
+                                    {{ pending_documents_count }} {% trans "pending" %}
+                                </span>
+                            {% endif %}
+                        </div>
+                        <div class="tracking-scroll max-h-[320px] overflow-y-auto pr-1 flex flex-col gap-3">
+                            {% include "candidate/tracking/documents_items.html" with page_obj=documents_page %}
+                            {% if not documents_page.paginator.count %}
+                                <div class="flex flex-col items-center text-center py-8">
+                                    <img class="w-20 mb-3 opacity-90" src="{% static 'images/ui/joiningchart.png' %}" alt="{% trans 'No documents' %}">
+                                    <p class="text-sm text-color-600">{% trans "No document requests found." %}</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </section>
+
+                    <!-- Notes -->
+                    <section class="bg-white rounded-2xl shadow-card p-6" id="note">
                         {% if messages %}
                             <div class="oh-wrapper">
                                 {% for message in messages %}
@@ -570,92 +318,49 @@
                                 {% endfor %}
                                 <script>
                                     setTimeout(function () {
-                                    $(".oh-modal__close").click();
+                                        $(".oh-modal__close").click();
                                     }, 1000);
                                 </script>
                             </div>
                         {% endif %}
-                        <h3 class="h5 mb-4 fw-bold">{% trans "Notes" %}</h3>
-                        <div class="mb-4">
-                            <div class="form-group">
-                                <form
-                                    hx-post="{% url 'candidate-add-notes' candidate.id %}"
-                                    hx-target="#note"
-                                    hx-select="#note"
-                                    hx-swap="outerHTML"
-                                    id="commentForm"
-                                >
-                                    {% csrf_token %}
-                                    <input
-                                        type="text"
-                                        name="description"
-                                        class="form-control mb-2"
-                                        placeholder="{% trans 'Add notes' %}"
-                                    >
-                                    <button type="submit" id="commentButton" hidden class="btn btn-primary w-100">
-                                        {% trans "Add Note" %}
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                        <div class="notes-list">
-                            {% for note in candidate.stagenote_set.all reversed %}
-                                {% if note.candidate_can_view %}
-                                    <div class="note-card card">
-                                        {% if request.user.is_authenticated or note.updated_user == candidate %}
-                                            <button
-                                                class="note-close-btn"
-                                                aria-label="{% trans 'Close note' %}"
-                                                hx-get="{% url 'note-delete-individual' note.id %}"
-                                                title="{% trans 'delete' %}"
-                                                hx-swap="delete"
-                                                hx-target="closest .card"
-                                                hx-on:click="setTimeout(() => {reloadMessage(this);},250);"
-                                            >
-                                                <ion-icon
-                                                    name="close-outline"
-                                                    style="font-size: 24px; color: red"
-                                                    role="img"
-                                                    class="md hydrated"
-                                                    aria-label="{% trans 'close outline' %}"
-                                                ></ion-icon>
-                                            </button>
-                                        {% endif %}
-                                        <div class="card-body">
-                                            <p class="mb-1">
-                                                {{ note.description }}
-                                            </p>
-                                            <small class="text-muted d-flex align-items-center flex-wrap">
-                                                <i class="far fa-user me-1"></i>
-                                                {{ note.updated_user }}
-                                                <span>@</span>
-                                                {{ note.stage_id }}
-                                            </small>
-                                        </div>
-                                    </div>
-                                {% endif %}
-                            {% empty %}
-                                <div class="d-flex justify-content-center" style="height: 40vh">
-                                    <div class="text-center">
-                                        <div style="width: 25%; margin: 10% auto">
-                                            <img
-                                                class="oh-404__image mb-3"
-                                                style="width: 100%"
-                                                src="{% static 'images/ui/no_documents.png' %}"
-                                                alt="{% trans 'No documents' %}"
-                                            >
-                                        </div>
-                                        <h5 class="oh-404__subtitle">
-                                            {% trans "No notes have been added for this candidate." %}
-                                        </h5>
-                                    </div>
+                        <h2 class="text-base font-semibold mb-5">{% trans "Notes" %}</h2>
+                        <form
+                            hx-post="{% url 'candidate-add-notes' candidate.id %}"
+                            hx-target="#note"
+                            hx-select="#note"
+                            hx-swap="outerHTML"
+                            id="commentForm"
+                            class="relative mb-4"
+                        >
+                            {% csrf_token %}
+                            <input
+                                type="text"
+                                name="description"
+                                placeholder="{% trans 'Add notes' %}"
+                                class="text-color-600 w-full border border-dark-50 rounded-xl p-3 pr-12 focus-visible:outline-0 placeholder:text-[#00000041] placeholder:font-medium text-sm [transition:.3s] {% if theme_obj %} focus:border-[{{theme_obj.primary_700}}] {% else %} focus:border-primary-600 {% endif %}"
+                            >
+                            <button
+                                type="submit"
+                                id="commentButton"
+                                title="{% trans 'Add Note' %}"
+                                class="absolute top-1/2 right-2 -translate-y-1/2 w-8 h-8 rounded-lg bg-brand-600 hover:bg-brand-800 text-white flex items-center justify-center [transition:.3s]"
+                            >
+                                <i class="fa-solid fa-paper-plane text-xs"></i>
+                            </button>
+                        </form>
+                        <div class="tracking-scroll max-h-[300px] overflow-y-auto pr-1 flex flex-col gap-3">
+                            {% include "candidate/tracking/notes_items.html" with page_obj=notes_page %}
+                            {% if not notes_page.paginator.count %}
+                                <div class="flex flex-col items-center text-center py-8">
+                                    <img class="w-20 mb-3 opacity-90" src="{% static 'images/ui/no_documents.png' %}" alt="{% trans 'No documents' %}">
+                                    <p class="text-sm text-color-600">{% trans "No notes have been added for this candidate." %}</p>
                                 </div>
-                            {% endfor %}
+                            {% endif %}
                         </div>
-                    </div>
+                    </section>
                 </div>
             </div>
-        </div>
+        </main>
 
         <div
             class="oh-modal"
@@ -664,16 +369,11 @@
             aria-labelledby="viewFileModal"
             aria-hidden="true"
         >
-            <div class="oh-modal__dialog custom-dialog">
+            <div class="oh-modal__dialog" style="max-width: 1000px">
                 <div class="oh-modal__dialog-header">
                     <span class="oh-modal__dialog-title" id="viewFileModalLabel">{% trans "View File" %}</span>
                     <button class="oh-modal__close" aria-label="{% trans 'Close' %}">
-                        <ion-icon
-                            name="close-outline"
-                            role="img"
-                            class="md hydrated"
-                            aria-label="{% trans 'close outline' %}"
-                        ></ion-icon>
+                        <ion-icon name="close-outline" role="img" class="md hydrated" aria-label="{% trans 'close outline' %}"></ion-icon>
                     </button>
                 </div>
                 <div class="oh-modal__dialog-body" id="viewFile"></div>
@@ -689,10 +389,10 @@
             <div class="oh-modal__dialog" id="objectCreateModalTarget"></div>
         </div>
 
+        <script src="{% url 'javascript-catalog' %}"></script>
         <script src="{% static '/index/index.js' %}"></script>
         <script src="{% static 'build/js/web.frontend.min.js' %}"></script>
         <script src="{% static 'htmx/htmx.min.js' %}"></script>
-        <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
-        <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
+        <script type="module" src="{% static 'images/ionicons/ui_icons/ionicons/ionicons.esm.js' %}"></script>
     </body>
 </html>

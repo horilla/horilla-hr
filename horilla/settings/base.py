@@ -222,6 +222,8 @@ MIDDLEWARE = [
     "horilla.horilla_middlewares.SVGSecurityMiddleware",
     "horilla.horilla_middlewares.MissingParameterMiddleware",
     "horilla.horilla_middlewares.BulkDeleteSummaryMiddleware",
+    "horilla.horilla_middlewares.ExportDownloadCookieMiddleware",
+    "horilla.horilla_middlewares.ExportOptionsMiddleware",
     "auditlog.middleware.AuditlogMiddleware",
     # Last: needs request.user from AuthenticationMiddleware, and
     # converts a PermissionDenied from the Axes backend into the
@@ -379,6 +381,11 @@ WSGI_APPLICATION = "horilla.wsgi.application"
 # ========================================
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = env("TIME_ZONE", default="Asia/Kolkata")
+# First day of the week for calendar-week ranges such as the Quick Date
+# "This Week" / "Last Week": 0 = Sunday, 1 = Monday ... 6 = Saturday.
+# Monday matches the attendance dashboard and the other week filters.
+# Read as text: an empty or invalid value falls back to Monday (see week_start).
+HORILLA_FIRST_DAY_OF_WEEK = env("HORILLA_FIRST_DAY_OF_WEEK", default="1")
 USE_I18N = True
 USE_TZ = True
 

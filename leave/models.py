@@ -1293,31 +1293,32 @@ class LeaveRequest(HorillaModel):
     def clashed_due_to(self):
         """
         method for rendering clashed_due_to col in clashes
-        """
-        overlapping_requests = LeaveRequest.objects.filter(
-            Q(
-                employee_id__employee_work_info__department_id=self.employee_id.get_department()
-            )
-            | Q(
-                employee_id__employee_work_info__job_position_id=self.employee_id.get_job_position()
-            ),
-            start_date__lte=self.end_date,
-            end_date__gte=self.start_date,
-        )
 
-        clashed_due_to_department = overlapping_requests.filter(
-            employee_id__employee_work_info__department_id=self.employee_id.get_department()
+        Each row is a request that clashes with the one whose clash list is
+        open (the pk in the view-clashes URL), so compare the row's employee
+        against that reference request's employee.
+        """
+        reference = self
+        request = getattr(_thread_locals, "request", None)
+        match = getattr(request, "resolver_match", None)
+        if match and match.url_name == "view-clashes":
+            reference = (
+                LeaveRequest.objects.filter(pk=match.kwargs.get("pk")).first() or self
+            )
+        same_department = (
+            self.employee_id.get_department() == reference.employee_id.get_department()
         )
-        clashed_due_to_job_position = overlapping_requests.filter(
-            employee_id__employee_work_info__job_position_id=self.employee_id.get_job_position()
+        same_job_position = (
+            self.employee_id.get_job_position()
+            == reference.employee_id.get_job_position()
         )
 
         return render_template(
             path="cbv/leave_requests/clashed_due_to.html",
             context={
                 "instance": self,
-                "clashed_due_to_department": clashed_due_to_department,
-                "clashed_due_to_job_position": clashed_due_to_job_position,
+                "same_department": same_department,
+                "same_job_position": same_job_position,
             },
         )
 
@@ -1447,12 +1448,12 @@ class LeaveRequest(HorillaModel):
             context={"instance": self},
         )
 
-    def penality_col(self):
+    def penalty_col(self):
         """
-        method for penality coloumn
+        method for penalty coloumn
         """
         return render_template(
-            path="cbv/leave_requests/penality.html",
+            path="cbv/leave_requests/penalty.html",
             context={"instance": self},
         )
 
@@ -2105,6 +2106,8 @@ class LeaveRequest(HorillaModel):
                             employee_id__employee_work_info__job_position_id=self.employee_id.get_job_position()
                         )
                     ),
+                    # same scope as the clash list (LeaveClashListView)
+                    employee_id__employee_work_info__company_id=work_info.first().company_id,
                     start_date__lte=self.end_date,
                     end_date__gte=self.start_date,
                 )

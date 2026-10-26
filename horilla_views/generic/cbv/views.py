@@ -46,6 +46,7 @@ from horilla.nested_group_by import nested_group_by_queryset
 from horilla.signals import post_generic_import, pre_generic_import
 from horilla_views import models
 from horilla_views.cbv_methods import (  # update_initial_cache,
+    WEEK,
     assign_related,
     dedupe_single_value_params,
     export_xlsx,
@@ -98,6 +99,19 @@ def register_dynamic_url(route: str, view, name: str = None) -> None:
         urlpatterns.append(path(route, view, name=name))
     else:
         urlpatterns.append(path(route, view))
+
+
+# Quick Date menu of list and card views. "This Week" and "Last Week" are
+# calendar weeks (cbv_methods.week_start); the 7-day ranges include today.
+QUICK_DATE_RANGES = [
+    (_("Yesterday"), -1, None),
+    (_("Today"), 0, None),
+    (_("Tomorrow"), 1, None),
+    (_("This Week"), WEEK, 0),
+    (_("Last Week"), WEEK, -1),
+    (_("Last 7 Days"), -6, 0),
+    (_("Next 7 Days"), 0, 6),
+]
 
 
 @method_decorator(hx_request_required, name="dispatch")
@@ -164,12 +178,7 @@ class HorillaListView(ListView):
     show_filter_tags: bool = True
     show_saved_filters: bool = True
     show_quick_date_filters: bool = False
-    quick_date_ranges: list = [
-        (_("Yesterday"), -1, None),
-        (_("Today"), 0, None),
-        (_("Tomorrow"), 1, None),
-        (_("This Week"), 0, 7),
-    ]
+    quick_date_ranges: list = QUICK_DATE_RANGES
     quick_date_fields: tuple = ("", "", "")
     filter_keys_to_remove: list = []
     # {field: value} pairs not shown as filter tags (still applied), e.g. a default
@@ -1744,12 +1753,7 @@ class HorillaCardView(ListView):
 
     show_filter_tags: bool = True
     show_quick_date_filters: bool = False
-    quick_date_ranges: list = [
-        (_("Yesterday"), -1, None),
-        (_("Today"), 0, None),
-        (_("Tomorrow"), 1, None),
-        (_("This Week"), 0, 7),
-    ]
+    quick_date_ranges: list = QUICK_DATE_RANGES
     quick_date_fields: tuple = ("", "", "")
     filter_keys_to_remove: list = []
     # {field: value} pairs not shown as filter tags (still applied), e.g. a default
@@ -2298,7 +2302,7 @@ class HorillaNavView(TemplateView):
     actions: list = []
     group_by_fields: list = []
     nested_group_by_fields: list = []
-    filter_form_context_name: str = ""
+    filter_form_context_name: str = "form"
     filter_instance: FilterSet = None
     filter_instance_context_name: str = ""
     filter_body_template: str = ""
@@ -2623,9 +2627,16 @@ class HorillaProfileView(DetailView):
 
         return view
 
+    def get_status_ribbon(self, instance):
+        """
+        Override to show a corner ribbon, e.g. {"label": _("Rejected"), "variant": "danger"}.
+        """
+        return None
+
     def get_context_data(self, **kwargs: Any) -> dict:
         context = super().get_context_data(**kwargs)
         context["instance"] = context["object"]
+        context["status_ribbon"] = self.get_status_ribbon(context["instance"])
         context["tabs"] = self.tabs
         context["view_id"] = self.view_id
         active_tab = models.ActiveTab.objects.filter(

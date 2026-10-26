@@ -72,7 +72,7 @@ SPLIT_HALVES = {
     "PL": ("paid_leave", _("Paid Leave"), "#93c5fd"),
     "UL": ("unpaid_leave", _("Unpaid Leave"), "#fdba74"),
     # Only worked out from the clock: the half of a day that fell short. Unpaid, like absence.
-    "SH": ("absent", _("Short Hours"), "#f9a8d4"),
+    "SH": ("absent", _("Short Hours"), "#fca5a5"),
 }
 
 
@@ -92,7 +92,7 @@ SPLIT_TINTS = {
     "A": "#fee2e2",
     "PL": "#dbeafe",
     "UL": "#ffedd5",
-    "SH": "#fce7f3",
+    "SH": "#fee2e2",
 }
 
 
@@ -283,10 +283,181 @@ def day_history(employee, date, status_pill):
     return entries
 
 
+def cell_groups(status, halves, conflict_with):
+    """Which summary chips a calendar day belongs to, for the hover highlight.
+
+    A day can belong to two: a split day or a Half Day counts in both halves' chips.
+    """
+    groups = set()
+    if status in ("present", "half_present", "half_absent", "partial_hours"):
+        groups.add("present")
+    if status in ("absent", "short", "half_absent"):
+        groups.add("absent")
+    if status in ("paid_leave", "half_present"):
+        groups.add("paid_leave")
+    if status == "unpaid_leave":
+        groups.add("unpaid_leave")
+    if status in ("week_off", "holiday"):
+        groups.add(status)
+    for code in halves or ():
+        groups.add(SPLIT_HALVES[code][0])
+    if conflict_with in ("paid_leave", "unpaid_leave"):
+        groups.add("conflict")
+    return " ".join(sorted(groups))
+
+
+def cell_halves_data(status, halves):
+    """ "group|colour,group|colour" for a day drawn in two halves, in drawing order, else "".
+
+    The hover highlight uses it to light only the half that belongs to the chip.
+    """
+    if halves:
+        pairs = [(SPLIT_HALVES[code][0], SPLIT_HALVES[code][2]) for code in halves]
+    elif status == "half_present":
+        pairs = [("present", "#86efac"), ("paid_leave", "#93c5fd")]
+    elif status == "half_absent":
+        pairs = [("absent", "#fca5a5"), ("present", "#86efac")]
+    else:
+        return ""
+    return ",".join(f"{group}|{colour}" for group, colour in pairs)
+
+
 def _secs_to_label(secs):
     """Format a duration in seconds as 'Hh MMm'."""
     secs = int(secs or 0)
     return f"{secs // 3600}h {(secs % 3600) // 60:02d}m"
+
+
+# ---------------------------------------------------------------- group by
+# What the summary can be grouped by, in the order the Group By picker offers it:
+# key -> (label, how to read that value off an employee).
+def _work_info_value(employee, attr, name_attr=None):
+    info = getattr(employee, "employee_work_info", None)
+    value = getattr(info, attr, None) if info else None
+    if value is None:
+        return None
+    return getattr(value, name_attr) if name_attr else value
+
+
+SUMMARY_GROUP_FIELDS = {
+    "department": (
+        _("Department"),
+        lambda e: _work_info_value(e, "department_id", "department"),
+    ),
+    "job_position": (
+        _("Job Position"),
+        lambda e: _work_info_value(e, "job_position_id", "job_position"),
+    ),
+    "shift": (_("Shift"), lambda e: _work_info_value(e, "shift_id", "employee_shift")),
+    "work_type": (
+        _("Work Type"),
+        lambda e: _work_info_value(e, "work_type_id", "work_type"),
+    ),
+    "company": (_("Company"), lambda e: _work_info_value(e, "company_id", "company")),
+    "reporting_manager": (
+        _("Reporting Manager"),
+        lambda e: (lambda m: m.get_full_name() if m else None)(
+            _work_info_value(e, "reporting_manager_id")
+        ),
+    ),
+}
+MAX_GROUP_LEVELS = 3
+
+_GROUP_SUM_KEYS = (
+    "present",
+    "absent",
+    "paid_leave",
+    "unpaid_leave",
+    "week_off",
+    "holiday",
+    "conflict_days",
+    "resolved_conflicts",
+    "worked_seconds",
+    "regular_seconds",
+    "overtime_seconds",
+)
+
+
+def parse_group_fields(values):
+    """The requested group levels, in order: known keys only, no repeats, at most three."""
+    keys = []
+    for value in values:
+        if value in SUMMARY_GROUP_FIELDS and value not in keys:
+            keys.append(value)
+    return keys[:MAX_GROUP_LEVELS]
+
+
+def build_group_items(rows, keys, page_groups=None):
+    """
+    Nest the summary rows by the given group levels.
+
+    Returns (top_level_nodes, flatten): top_level_nodes is the tree (so the caller can
+    page it), and flatten(nodes) turns any slice of it into the flat, ordered list the
+    table draws -- group rows and employee rows, each knowing its depth and the ids of
+    the groups above it so the page can collapse them.
+    """
+    labels = {key: SUMMARY_GROUP_FIELDS[key][1] for key in keys}
+
+    def group(items, level, path):
+        read = labels[keys[level]]
+        buckets = {}
+        for row in items:
+            buckets.setdefault(read(row["employee"]), []).append(row)
+        # Named groups alphabetically, the "not set" bucket last.
+        ordered = sorted(
+            buckets, key=lambda v: (v is None, str(v).lower() if v is not None else "")
+        )
+        nodes = []
+        for index, value in enumerate(ordered):
+            members = buckets[value]
+            gid = f"{path}-{index}" if path else f"g{index}"
+            node = {
+                "kind": "group",
+                "gid": gid,
+                "depth": level,
+                "label": str(value) if value is not None else str(_("Not Set")),
+                "is_unset": value is None,
+                "level_name": str(SUMMARY_GROUP_FIELDS[keys[level]][0]),
+                "count": len(members),
+                "totals": {k: sum(r[k] for r in members) for k in _GROUP_SUM_KEYS},
+            }
+            totals = node["totals"]
+            node["worked_label"] = _secs_to_label(totals["worked_seconds"])
+            node["regular_label"] = _secs_to_label(totals["regular_seconds"])
+            node["overtime_label"] = _secs_to_label(totals["overtime_seconds"])
+            if level + 1 < len(keys):
+                node["children"] = group(members, level + 1, gid)
+                node["rows"] = []
+            else:
+                node["children"] = []
+                node["rows"] = members
+            nodes.append(node)
+        return nodes
+
+    top = group(rows, 0, "")
+
+    def flatten(nodes, ancestors=()):
+        out = []
+        for node in nodes:
+            item = dict(node)
+            item["anc"] = " ".join(ancestors)
+            item["indent"] = 8 + node["depth"] * 16
+            out.append(item)
+            chain = ancestors + (node["gid"],)
+            out.extend(flatten(node["children"], chain))
+            for row in node["rows"]:
+                out.append(
+                    {
+                        "kind": "row",
+                        "row": row,
+                        "depth": node["depth"] + 1,
+                        "anc": " ".join(chain),
+                        "indent": 8 + (node["depth"] + 1) * 16,
+                    }
+                )
+        return out
+
+    return top, flatten
 
 
 def _count_leave_days_in_range(leave_qs, from_date, to_date, off_dates):
@@ -994,10 +1165,17 @@ def attendance_monthly_summary(request):
             request.GET.getlist("employee_work_info__company_id"),
             request.GET.getlist("employee_work_info__reporting_manager_id"),
             request.GET.getlist("employee_work_info__tags"),
+            parse_group_fields(request.GET.getlist("nested_fields")),
         )
         if present
     )
     context["active_filter_count"] = active_filter_count
+    chosen = parse_group_fields(request.GET.getlist("nested_fields"))
+    context["group_options"] = [
+        (key, label) for key, (label, _read) in SUMMARY_GROUP_FIELDS.items()
+    ]
+    context["nested_selected"] = chosen or [""]
+    context["group_max_levels"] = MAX_GROUP_LEVELS
     return render(request, "attendance/monthly_summary/monthly_summary.html", context)
 
 
@@ -1106,10 +1284,28 @@ def attendance_monthly_summary_table(request):
     select_all_ids = json.dumps([row["employee"].pk for row in rows])
     total_employee_count = len(rows)
 
-    rows = paginator_qry(rows, request.GET.get("page"))
+    # Group By: the rows nested by up to three levels. Pagination then works on the
+    # top-level groups (so a group is never split across pages) and every group row
+    # carries the totals of the people inside it.
+    group_keys = parse_group_fields(request.GET.getlist("nested_fields"))
+    group_items = []
+    if group_keys:
+        top_groups, flatten = build_group_items(rows, group_keys)
+        rows = paginator_qry(top_groups, request.GET.get("page"))
+        group_items = flatten(list(rows))
+    else:
+        rows = paginator_qry(rows, request.GET.get("page"))
 
     context = {
         "rows": rows,
+        "grouped": bool(group_keys),
+        "group_options": [
+            (key, label) for key, (label, _read) in SUMMARY_GROUP_FIELDS.items()
+        ],
+        "group_selected": [(key, SUMMARY_GROUP_FIELDS[key][0]) for key in group_keys],
+        "group_selected_keys": group_keys,
+        "group_items": group_items,
+        "group_labels": [str(SUMMARY_GROUP_FIELDS[k][0]) for k in group_keys],
         "total_working": total_working,
         "summary_totals": summary_totals,
         "from_date": from_date.isoformat(),
@@ -1534,13 +1730,48 @@ def attendance_monthly_summary_detail(request):
             if _res in _res_non_absent or parse_split(_res)
         }
         _half_absent_days -= {d for d in _half_absent_days if d in resolution_map}
+
+        # A day worked for less than half the shift is a short-hours day, counted as absent too.
+        from attendance.methods.utils import strtime_seconds as _ss_abs
+        from attendance.models import GraceTime as _GT_abs
+
+        _dg_abs = _GT_abs.objects.filter(is_default=True, is_active=True).first()
+        _grace_abs = (_dg_abs.allowed_time_in_secs or 0) if _dg_abs else 0
+        _holiday_abs = {
+            d
+            for h in Holidays.objects.filter(
+                start_date__lte=to_date, end_date__gte=from_date
+            )
+            for d in _iter_dates(max(h.start_date, from_date), min(h.end_date, to_date))
+        }
+        _short_days = {}
+        for _row in Attendance.objects.filter(
+            employee_id=emp, attendance_date__range=(from_date, to_date)
+        ).values("attendance_date", "at_work_second", "minimum_hour"):
+            _d = _row["attendance_date"]
+            _min = _ss_abs(_row["minimum_hour"]) if _row.get("minimum_hour") else 0
+            _worked = _row["at_work_second"] or 0
+            if (
+                _min > 0
+                and _d not in resolution_map
+                and _d not in off_set
+                and _d not in _holiday_abs
+                and _d not in leave_dates
+                and _d not in _part
+                and _worked < max(0, _min - _grace_abs) / 2
+            ):
+                _short_days[_d] = (
+                    f"{_worked // 3600}h {(_worked % 3600) // 60:02d}m / {_min // 3600}h {(_min % 3600) // 60:02d}m"
+                )
         context["records"] = [
             {
                 "date": d,
                 "is_regularized": d in resolution_map,
                 "half": d in _half_absent_days,
+                "short": d in _short_days,
+                "worked_label": _short_days.get(d, ""),
             }
-            for d in sorted(_absent_set | _half_absent_days)
+            for d in sorted(_absent_set | _half_absent_days | set(_short_days))
         ]
 
     elif metric == "conflict":
@@ -2167,6 +2398,8 @@ def _build_calendar_context(emp, from_date, to_date, show_future_leave=False):
                                     else ""
                                 ),
                                 "halves": _halves or (),
+                                "groups": cell_groups(status, _halves, conflict_with),
+                                "halves_data": cell_halves_data(status, _halves),
                                 "split_label": (
                                     split_label(SPLIT_PREFIX + "+".join(_halves))
                                     if status == "split" and _halves
@@ -2187,7 +2420,6 @@ def _build_calendar_context(emp, from_date, to_date, show_future_leave=False):
         "half_present": 0,
         "half_absent": 0,
         "split": 0,
-        "short": 0,
         "absent": 0,
         "present": 0,
         "paid_leave": 0,
@@ -2218,6 +2450,9 @@ def _build_calendar_context(emp, from_date, to_date, show_future_leave=False):
                     cal_summary["full_present"] += 1
                 elif _s == "half_present":
                     cal_summary["half_present"] += 1
+                elif _s == "short":
+                    # Short hours is a kind of absence: it is counted with Absent / Missing Out.
+                    cal_summary["absent"] += 1
                 elif _s in cal_summary:
                     cal_summary[_s] += 1
                 if _c.get("conflict_with") in ("paid_leave", "unpaid_leave"):
@@ -2236,14 +2471,12 @@ def _build_calendar_context(emp, from_date, to_date, show_future_leave=False):
                 elif _s == "split":
                     for _code in _c.get("halves") or ():
                         _bucket = SPLIT_HALVES[_code][0]
-                        if _code == "SH":
-                            cal_summary["short"] += 0.5
-                        elif _bucket == "present":
+                        if _bucket == "present":
                             cal_summary["present"] += 0.5
                         else:
                             cal_summary[_bucket] += 0.5
     # Whole numbers stay whole; half days show as .5.
-    for _k in ("present", "short", "absent", "paid_leave", "unpaid_leave"):
+    for _k in ("present", "absent", "paid_leave", "unpaid_leave"):
         if not cal_summary[_k] % 1:
             cal_summary[_k] = int(cal_summary[_k])
 
@@ -2530,7 +2763,7 @@ def attendance_monthly_summary_conflict_resolve(request):
         # Two-colour pills, the same halves as the calendar cell and the button.
         "half_present": ("linear-gradient(90deg,#d1fae5 50%,#dbeafe 50%)", "#1e3a8a"),
         "half_absent": ("linear-gradient(90deg,#fee2e2 50%,#d1fae5 50%)", "#7f1d1d"),
-        "short": ("#ede9fe", "#3730a3"),
+        "short": ("#fee2e2", "#991b1b"),
         "mo": ("#fee2e2", "#991b1b"),
         "absent": ("#fee2e2", "#991b1b"),
         "paid_leave": ("#dbeafe", "#1e40af"),

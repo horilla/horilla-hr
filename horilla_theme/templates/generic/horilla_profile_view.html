@@ -80,6 +80,42 @@
     body.dark .emp-profile-meta-chip i {
         color: var(--primary-600, #e54f38) !important;
     }
+    .emp-status-ribbon {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        z-index: 2;
+        width: 78px;
+        height: 78px;
+        pointer-events: none;
+        filter: drop-shadow(-1px -1px 1px rgba(0, 0, 0, 0.25));
+    }
+    .emp-status-ribbon::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: var(--ribbon-bg, #64748b);
+        border-bottom-right-radius: 1rem;
+        clip-path: polygon(100% 0, 100% 100%, 0 100%);
+    }
+    .emp-status-ribbon--danger { --ribbon-bg: #e11d1d; }
+    .emp-status-ribbon--success { --ribbon-bg: #16a34a; }
+    .emp-status-ribbon--warning { --ribbon-bg: #facc15; --ribbon-fg: #422006; }
+    .emp-status-ribbon--orange { --ribbon-bg: #f97316; }
+    .emp-status-ribbon--info { --ribbon-bg: #2563eb; }
+    .emp-status-ribbon--secondary { --ribbon-bg: #64748b; }
+    .emp-status-ribbon span {
+        position: absolute;
+        bottom: 23px;
+        right: 23px;
+        transform: translate(50%, 50%) rotate(-45deg);
+        color: var(--ribbon-fg, #fff);
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
 </style>
 
 <div class="emp-profile-page space-y-4" id="{{view_id|safe}}">
@@ -94,6 +130,11 @@
 
     <!-- Profile header -->
     <section class="emp-profile-card rounded-2xl bg-white p-4 shadow-card sm:p-6">
+        {% if status_ribbon %}
+            <div class="emp-status-ribbon emp-status-ribbon--{{ status_ribbon.variant|default:'secondary' }}" role="status" title="{{ status_ribbon.label }}">
+                <span>{{ status_ribbon.label }}</span>
+            </div>
+        {% endif %}
         <div class="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
             <div class="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
                 <div class="relative shrink-0 self-start sm:self-center">

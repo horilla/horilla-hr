@@ -496,6 +496,11 @@ urlpatterns = [
         name="policies-discipline-action-type-tab",
     ),
     path(
+        "policies-discipline/penalty-tab/",
+        policies.policies_discipline_penalty_tab,
+        name="policies-discipline-penalty-tab",
+    ),
+    path(
         "employee-settings-view/",
         employee_settings.employee_settings_view,
         name="employee-settings-view",

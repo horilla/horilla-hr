@@ -1,13 +1,10 @@
 # Horilla HRMS
 
 [![License: LGPL v2.1](https://img.shields.io/badge/License-LGPL%20v2.1-blue.svg)](https://www.gnu.org/licenses/lgpl-2.1)
-[![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![Django](https://img.shields.io/badge/django-5.0+-green.svg)](https://www.djangoproject.com/)
+[![Python](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![Django](https://img.shields.io/badge/django-5.2-green.svg)](https://www.djangoproject.com/)
 [![Stars](https://img.shields.io/github/stars/horilla/horilla-hr)](https://github.com/horilla/horilla-hr/stargazers)
 [![Forks](https://img.shields.io/github/forks/horilla/horilla-hr)](https://github.com/horilla/horilla-hr/network/members)
-
-> [!IMPORTANT]
-> **`2.0` is now this repository’s default branch.** Use it to run or deploy Horilla (a plain `git clone` checks it out). To contribute code, branch from and open PRs against `dev/v2.0` — GitHub still pre-selects `2.0` as the PR base, so switch it manually. v1 (`1.0`/`master`) is deprioritized, with fixes considered case-by-case rather than on a guaranteed schedule. Full details → [Discussion #1127](https://github.com/horilla/horilla-hr/discussions/1127).
 
 > **A comprehensive, free, and open-source Human Resource Management System (HRMS) designed to streamline HR operations and enhance organizational efficiency.**
 
@@ -23,6 +20,16 @@
 - 📊 **Performance Management** - Goal setting, reviews, and continuous feedback
 - 🏢 **Asset Management** - Track and manage company resources
 - 🎫 **Helpdesk** - Centralized HR support and ticketing system
+- 🗂️ **Project Management** - Projects, tasks and timesheets
+- 📄 **Documents** - Employee document requests and approvals
+- 📈 **Dashboards & Reports** - Role-based dashboards, and reports you can export or schedule by email
+- 📥 **Master Data Import** - Bring in employees, leave balances, assets and salary structures from spreadsheets
+
+### Platform & Integrations
+- 🔌 **REST API** - Token-based API used by the mobile app
+- ✉️ **Automations** - Email and in-app notifications sent when records are created, updated or deleted
+- 🔗 **Integrations** - LDAP, Google Meet, Google Drive backup and WhatsApp
+- 🧩 **Optional add-on apps** - Geofencing, Face Detection and Outlook (Microsoft 365) mail ship in the repository but are not enabled by default
 
 
 ## 📋 Table of Contents
@@ -31,6 +38,7 @@
 - [Quick Start](#-quick-start)
 - [Installation](#-installation)
 - [Deployment](#-deployment)
+- [Upgrading](#-upgrading)
 - [Contributing](#-contributing)
 - [Security](#-security)
 - [Support](#-support)
@@ -52,7 +60,7 @@ Published for `linux/amd64` and `linux/arm64` as
 [`horilla/horilla-hr`](https://hub.docker.com/r/horilla/horilla-hr):
 
 ```bash
-docker pull horilla/horilla-hr:2.1.5
+docker pull horilla/horilla-hr:2.2.0
 ```
 
 Pin an exact version in production rather than `latest`, so a deploy cannot
@@ -116,7 +124,19 @@ python manage.py collectstatic
 
 # Run development server
 python manage.py runserver
+
+# In a second terminal: run the background scheduler
+python manage.py run_scheduler
 ```
+
+On a new database the sign-in page shows an **Initialize Database** button. It
+asks for the `DB_INIT_PASSWORD` from your `.env`, then lets you create the first
+administrator.
+
+> **Run the scheduler.** Scheduled jobs (for example automatic payslips, leave resets, work
+> records, shift rotation, contract expiry, document and asset reminders, clearing
+> expired sessions) only run while `run_scheduler` is running. The Docker Compose
+> file starts it for you as the `scheduler` service.
 
 
 ## 🛠 Installation
@@ -141,6 +161,14 @@ For production deployment guides including Nginx, Apache, and cloud platforms:
 ### 📖 [Deployment Guide → docs.horilla.com/technical/v2.0/doc/deployment/nginx-gunicorn](https://docs.horilla.com/technical/v2.0/doc/deployment/nginx-gunicorn)
 
 
+## 🔄 Upgrading
+
+1. Read [CHANGELOG.md](CHANGELOG.md) and the [GitHub releases](https://github.com/horilla/horilla-hr/releases) for the versions you are skipping.
+2. Back up the database and the media volume.
+3. **Docker image:** change the pinned tag in your Compose file, then `docker compose pull && docker compose up -d`. Migrations are applied automatically when the container starts.
+4. **Docker Compose from this repository** (it builds the image locally): `git pull`, then `docker compose up -d --build`.
+5. **From source:** `git pull`, `pip install -r requirements.txt`, `python manage.py migrate`, `python manage.py compilemessages`, `python manage.py collectstatic`, then restart the web server and the scheduler.
+
 ## 🤝 Contributing
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
@@ -161,6 +189,13 @@ git checkout -b feature/your-feature-name
 # Install development dependencies
 pip install -r requirements.txt
 
+# Enable the formatting and lint hooks (Black, isort, ruff)
+pip install pre-commit
+pre-commit install
+
+# Run the tests for the app you changed
+python manage.py test employee
+
 # Submit pull request
 ```
 
@@ -169,19 +204,20 @@ pip install -r requirements.txt
 ### Code Standards
 
 - Follow [PEP 8](https://pep8.org/) for Python code
-- Use [Black](https://black.readthedocs.io/) for code formatting
-- Write tests for new features
+- Format with [Black](https://black.readthedocs.io/) and sort imports with isort (`--profile black`); the pre-commit hooks above also run [ruff](https://docs.astral.sh/ruff/)
+- Write tests for new features, and run the tests of the apps you changed (`make test-smoke` runs the full CI smoke set)
+- New user-visible strings go through Django's translation functions
 - Update documentation for user-facing changes
 
 ## 🔒 Security
 
 ### Security Features
 
-- 🔐 **Authentication & Authorization** - Role-based access control
-- 🛡️ **Data Protection** - Encrypted sensitive data storage
-- 🔍 **Audit Trails** - Comprehensive activity logging
-- 🚫 **Input Validation** - XSS and injection protection
-- 🔒 **Session Security** - Secure session management
+- 🔐 **Authentication & Authorization** - Permission-based access control
+- 🔑 **Two-Factor Login** - Optional one-time code sent by email
+- 🛡️ **Brute-Force Protection** - Account lockout after repeated failed logins, and rate limiting on the API
+- 🔍 **Audit Trails** - Change history on records across the modules
+- 🚫 **Input Validation** - XSS checks on saved text
 
 ### Reporting Security Issues
 
@@ -191,7 +227,7 @@ Please report security vulnerabilities via [GitHub Private Vulnerability Reporti
 
 - Always use HTTPS in production
 - Regularly update dependencies
-- Use strong passwords and enable 2FA
+- Use strong passwords and enable the optional two-factor login
 - Monitor logs for suspicious activities
 
 ## 📞 Support
@@ -201,7 +237,7 @@ Please report security vulnerabilities via [GitHub Private Vulnerability Reporti
 - 📖 **Documentation**: [docs.horilla.com](https://docs.horilla.com)
 - 💬 **GitHub Discussions**: [GitHub Discussions](https://github.com/horilla/horilla-hr/discussions)
 - 🐛 **Bug Reports**: [GitHub Issues](https://github.com/horilla/horilla-hr/issues)
-- ✨ **Feature Requests**: [GitHub Issues](https://github.com/horilla/horilla-hr/issues)
+- ✨ **Feature Requests**: [GitHub Issues](https://github.com/horilla/horilla-hr/issues), or share an idea in [GitHub Discussions](https://github.com/horilla/horilla-hr/discussions/categories/ideas)
 
 ### Professional Support
 

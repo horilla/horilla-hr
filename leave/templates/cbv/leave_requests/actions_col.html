@@ -38,7 +38,7 @@
             {# Delete Button #}
             {% if can_manage or can_delete or leave_manager %}
                 <button
-                    class="oh-btn {% if instance.status != 'requested' %}oh-btn--light-bkg{% else %}oh-btn--danger{% endif %} oh-btn--sq-sm" {% if instance.status != 'requested' %}disabled{% endif %}
+                    class="oh-btn oh-btn--danger oh-btn--sq-sm {% if instance.status != 'requested' %}opacity-50 cursor-not-allowed{% endif %}" {% if instance.status != 'requested' %}disabled{% endif %}
                     title="{% trans 'Delete' %}"
                     id="delete-link"
                     {% if instance.status == 'requested' %}
@@ -50,7 +50,7 @@
                     <ion-icon name="trash-outline"></ion-icon>
                 </button>
             {% else %}
-                <button class="oh-btn oh-btn--light-bkg oh-btn--sq-sm" disabled title="{% trans 'Delete' %}">
+                <button class="oh-btn oh-btn--danger oh-btn--sq-sm opacity-50 cursor-not-allowed" disabled title="{% trans 'Delete' %}">
                     <ion-icon name="trash-outline"></ion-icon>
                 </button>
             {% endif %}

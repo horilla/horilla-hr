@@ -89,11 +89,11 @@
         function showRefreshAutomationsAlert() {
             $("#refreshAutomationsBanner").css("display", "flex");
             Swal.fire({
-                title: "{% trans 'Refresh Automations required' %}",
-                text: "{% trans 'Changes to mail automations will not take effect on records until you run Refresh Automations.' %}",
+                title: "{% trans 'Refresh Automations required'|escapejs %}",
+                text: "{% trans 'Changes to mail automations will not take effect on records until you run Refresh Automations.'|escapejs %}",
                 icon: "info",
                 confirmButtonColor: "#008000",
-                confirmButtonText: "{% trans 'OK' %}",
+                confirmButtonText: "{% trans 'OK'|escapejs %}",
             });
         }
 

@@ -9,9 +9,14 @@
 </div>
 <div class="oh-modal__dialog-body" id="assetImportModalBody">
     <div id="AssetImportResponse"></div>
-    <form hx-post="{% url 'asset-import' %}" hx-encoding="multipart/form-data" hx-target="#AssetImportResponse" class="oh-profile-section">
+    <form hx-post="{% url 'asset-import' %}" hx-encoding="multipart/form-data" hx-target="#AssetImportResponse" hx-timeout="600000" hx-indicator="#uploading" class="oh-profile-section">
         {% csrf_token %}
-        <div class="oh-dropdown__import-form">
+        <div id="uploading" class="oh-upload-loader" role="status" aria-live="polite">
+            <p class="oh-upload-loader__title">{% trans "Uploading..." %}</p>
+            <p class="oh-upload-loader__hint">{% trans "Don't refresh the page" %}</p>
+            <div class="oh-upload-loader__bar"><span></span></div>
+        </div>
+        <div class="oh-dropdown__import-form" id="uploadContainer">
             <label class="oh-dropdown__import-label" for="uploadFile">
                 <ion-icon name="cloud-upload" class="oh-dropdown__import-form-icon"></ion-icon>
                 <span class="oh-dropdown__import-form-title">{% trans "Upload a File" %}</span>

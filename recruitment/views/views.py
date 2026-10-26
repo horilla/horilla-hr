@@ -3311,6 +3311,136 @@ def candidate_logout(request):
     return redirect("candidate_login")
 
 
+TRACKING_PAGE_SIZE = 5
+
+
+def _candidate_tracking_sections(candidate):
+    """
+    The three lists shown on the tracking page, keyed by the section name the
+    "load more" endpoint uses.
+    """
+    return {
+        "interviews": candidate.candidate_interview.annotate(
+            is_today=Case(
+                When(interview_date=date.today(), then=0),
+                default=1,
+                output_field=IntegerField(),
+            )
+        ).order_by("is_today", "-interview_date", "interview_time", "-id"),
+        "documents": candidate.candidatedocument_set.select_related(
+            "document_request_id"
+        ).order_by("-id"),
+        "notes": candidate.stagenote_set.filter(candidate_can_view=True)
+        .select_related("stage_id", "updated_by")
+        .order_by("-id"),
+    }
+
+
+def _candidate_tracking_context(candidate):
+    """
+    Build the context for the candidate application tracking page, including
+    the recruitment pipeline progress (done / current / upcoming per stage).
+    Interviews, documents and notes are paginated; the first page is rendered
+    here and the rest is loaded on scroll by `candidate_tracking_items`.
+    """
+    sections = _candidate_tracking_sections(candidate)
+    pages = {
+        name: Paginator(queryset, TRACKING_PAGE_SIZE).get_page(1)
+        for name, queryset in sections.items()
+    }
+
+    stages = []
+    if candidate.recruitment_id_id:
+        # Hired is the end of the pipeline whatever its stored sequence is
+        # (stages added later get a higher sequence than the Hired stage).
+        pipeline = sorted(
+            (
+                stage
+                for stage in candidate.recruitment_id.stage_set.all()
+                if stage.stage_type != "cancelled"
+            ),
+            key=lambda stage: (
+                stage.stage_type == "hired",
+                stage.sequence or 0,
+                stage.id,
+            ),
+        )
+        current_index = next(
+            (
+                i
+                for i, stage in enumerate(pipeline)
+                if stage.id == candidate.stage_id_id
+            ),
+            -1,
+        )
+        for index, stage in enumerate(pipeline):
+            if candidate.canceled and index == current_index:
+                state = "rejected"
+            elif candidate.hired or candidate.converted:
+                state = "done"
+            elif index < current_index:
+                state = "done"
+            elif index == current_index:
+                state = "current"
+            else:
+                state = "upcoming"
+            stages.append({"name": stage.stage, "state": state})
+
+    # The page wears the colour theme of the company the candidate is
+    # recruited for, not the viewer's session (candidates are anonymous).
+    from horilla_theme.models import CompanyTheme, HorillaColorTheme
+
+    company = (
+        candidate.recruitment_id.company_id if candidate.recruitment_id_id else None
+    )
+    company_theme = (
+        CompanyTheme.objects.filter(company=company).select_related("theme").first()
+        if company
+        else None
+    )
+    theme_obj = (
+        company_theme.theme
+        if company_theme and company_theme.theme
+        else HorillaColorTheme.objects.filter(is_default=True).first()
+    )
+
+    return {
+        "theme_obj": theme_obj,
+        "tracking_company": company,
+        "candidate": candidate,
+        "stages": stages,
+        "interviews_page": pages["interviews"],
+        "documents_page": pages["documents"],
+        "notes_page": pages["notes"],
+        "interviews_count": pages["interviews"].paginator.count,
+        "documents_count": pages["documents"].paginator.count,
+        "notes_count": pages["notes"].paginator.count,
+        "pending_documents_count": sections["documents"]
+        .filter(Q(document__isnull=True) | Q(document=""))
+        .count(),
+    }
+
+
+@candidate_login_required
+def candidate_tracking_items(request, cand_id, section):
+    """
+    Next page of one of the tracking page's lists (interviews, documents or
+    notes), rendered as rows plus the next "load more" trigger.
+    """
+    candidate = candidate_reachable_by(request, cand_id)
+    if candidate is None:
+        return HttpResponse(status=404)
+    queryset = _candidate_tracking_sections(candidate).get(section)
+    if queryset is None:
+        return HttpResponse(status=404)
+    page_obj = Paginator(queryset, TRACKING_PAGE_SIZE).get_page(request.GET.get("page"))
+    return render(
+        request,
+        f"candidate/tracking/{section}_items.html",
+        {"candidate": candidate, "page_obj": page_obj},
+    )
+
+
 @candidate_login_required
 def candidate_self_status_tracking(request):
     """
@@ -3326,17 +3456,10 @@ def candidate_self_status_tracking(request):
             return redirect("candidate-login/")
 
         candidate = Candidate.objects.get(pk=candidate_id)
-        interviews = candidate.candidate_interview.annotate(
-            is_today=Case(
-                When(interview_date=date.today(), then=0),
-                default=1,
-                output_field=IntegerField(),
-            )
-        ).order_by("is_today", "-interview_date", "interview_time")
         return render(
             request,
             "candidate/candidate_self_tracking.html",
-            {"candidate": candidate, "interviews": interviews},
+            _candidate_tracking_context(candidate),
         )
     return render(request, "404.html")
 
@@ -3366,18 +3489,11 @@ def candidate_self_status_tracking_managers_view(request, cand_id):
             return redirect("candidate-login/")
 
         candidate = Candidate.objects.get(pk=candidate_id)
-        interviews = candidate.candidate_interview.annotate(
-            is_today=Case(
-                When(interview_date=date.today(), then=0),
-                default=1,
-                output_field=IntegerField(),
-            )
-        ).order_by("is_today", "-interview_date", "interview_time")
 
         return render(
             request,
             "candidate/candidate_self_tracking.html",
-            {"candidate": candidate, "interviews": interviews},
+            _candidate_tracking_context(candidate),
         )
     return render(request, "404.html")
 
@@ -4527,10 +4643,7 @@ def candidate_add_notes(request, cand_id):
     return render(
         request,
         "candidate/candidate_self_tracking.html",
-        {
-            "candidate": candidate,
-            "note_form": form,
-        },
+        {**_candidate_tracking_context(candidate), "note_form": form},
     )
 
 

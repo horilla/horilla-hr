@@ -11,6 +11,6 @@
     <a hx-get="{% url 'outlook_server_change' instance.id %}?instance_ids={{ instance.ordered_ids }}" onclick="event.stopPropagation()" hx-target="#genericModalBody" data-toggle="oh-modal-toggle" data-target="#genericModal" class="oh-btn oh-btn--light-bkg w-100" title="{% trans 'Edit' %}"><ion-icon name="create-outline" role="img" class="md hydrated" aria-label="create outline"></ion-icon></a>
   {% endif %}
   {% if perms.outlook_auth.delete_azureapi %}
-    <a onclick="event.stopPropagation()" hx-get="{% url 'generic-delete' %}?pk={{instance.pk}}&model=outlook_auth.AzureApi" data-toggle="oh-modal-toggle" data-target="#deleteConfirmation" hx-target="#deleteConfirmationBody" type="submit" class="oh-btn oh-btn--danger w-100" title="{% trans 'Remove' %}"><ion-icon name="trash-outline" role="img" class="md hydrated" aria-label="trash outline"></ion-icon></a>
+    <a onclick="event.stopPropagation()" hx-get="{% url 'generic-delete' %}?pk={{instance.pk}}&model=outlook_auth.AzureApi" data-toggle="oh-modal-toggle" data-target="#deleteConfirmation" hx-target="#deleteConfirmationBody" type="submit" class="oh-btn oh-btn--danger w-100" title="{% trans 'Delete' %}"><ion-icon name="trash-outline" role="img" class="md hydrated" aria-label="trash outline"></ion-icon></a>
   {% endif %}
 </div>

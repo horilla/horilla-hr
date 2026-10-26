@@ -1,0 +1,13 @@
+{% load i18n %}
+{% if page_obj.has_next %}
+    <div
+        class="flex items-center justify-center gap-2 py-3 text-xs text-color-600"
+        hx-get="{% url 'candidate-tracking-items' candidate.id section %}?page={{ page_obj.next_page_number }}"
+        hx-trigger="intersect once, click"
+        hx-swap="outerHTML"
+        role="button"
+    >
+        <i class="fa-solid fa-circle-notch fa-spin"></i>
+        {% trans "Loading more..." %}
+    </div>
+{% endif %}

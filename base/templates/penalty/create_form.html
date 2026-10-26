@@ -1,0 +1,152 @@
+{% load i18n %}
+{% load horillafilters %}
+
+<div class="oh-modal__dialog-header">
+    <button
+        type="button"
+        class="oh-modal__close--custom"
+        aria-label="{% trans 'Close' %}"
+        onclick="$(this).parents().closest('.oh-modal--show').toggleClass('oh-modal--show')"
+    >
+        <ion-icon name="close-outline"></ion-icon>
+    </button>
+</div>
+
+<div class="oh-modal__dialog-body">
+    <div class="oh-timeoff-modal__profile-content">
+        <div class="flex items-center gap-5 mb-5">
+            <div>
+                <p class="mb-1 text-sm font-semibold">
+                    {% trans "Create Penalty" %}
+                </p>
+                <p class="text-xs text-[#666]">
+                    {% trans "Add a penalty for an employee" %}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="oh-general__tab-target oh-profile-section bg-[white] rounded-md border border-dark-50 w-full">
+      <div class="oh-profile-section__card">
+        <form
+            id="penaltyCreateForm"
+            hx-post="{% url 'penalty-records-create' %}"
+            hx-target="#genericModalBody"
+        >
+            {{ form.non_field_errors }}
+            <div class="">
+                <div class="oh-input__group mb-3">
+                    <label class="text-xs font-medium" for="id_employee_id">{% trans "Employee" %}</label>
+                    {{ form.employee_id }}
+                    {{ form.employee_id.errors }}
+                </div>
+                <div class="oh-input__group mb-3">
+                    <label class="text-xs font-medium" for="id_leave_type_id">{% trans "Leave Type" %}</label>
+                    {{ form.leave_type_id }}
+                    {{ form.leave_type_id.errors }}
+                </div>
+                <div class="oh-input__group mb-3">
+                    <label class="text-xs font-medium" for="id_minus_leaves">{% trans "Deduct Leave" %}</label>
+                    {{ form.minus_leaves }}
+                    {{ form.minus_leaves.errors }}
+                </div>
+                <div class="oh-input__group mb-3">
+                    <label
+                        class="text-xs font-medium"
+                        for="id_deduct_from_carry_forward"
+                    >{% trans "Deduct From Carryforward" %}</label>
+                    {{ form.deduct_from_carry_forward }}
+                    {{ form.deduct_from_carry_forward.errors }}
+                </div>
+                <div class="oh-input__group">
+                    <label class="text-xs font-medium" for="id_penalty_amount">{% trans "Penalty Amount" %}</label>
+                    {{ form.penalty_amount }}
+                    {{ form.penalty_amount.errors }}
+                </div>
+            </div>
+
+            <input type="submit" id="penaltyCreateSubmit" hidden>
+        </form>
+
+        {% if "leave"|app_installed %}
+            <div id="penaltyBalanceNotes">
+                <table class="fixed-table w-full mt-4">
+                    <thead class="sticky top-0 bg-[white] z-[1]">
+                        <tr class="border-b border-[#ececec]">
+                            <th class="text-sm font-medium text-left p-3">
+                                {% trans "Leave Type" %}
+                            </th>
+                            <th class="text-sm font-medium text-left p-3">
+                                {% trans "Available Days" %}
+                            </th>
+                            <th class="text-sm font-medium text-left p-3">
+                                {% trans "Carry Forward Days" %}
+                            </th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for acc in available %}
+                            <tr class="border-b border-[#f3f3f3]">
+                                <td class="text-sm text-left p-3 text-[#666]">
+                                    {{ acc.leave_type_id }}
+                                </td>
+                                <td class="text-sm text-left p-3 text-[#666]">
+                                    {{ acc.available_days }}
+                                </td>
+                                <td class="text-sm text-left p-3 text-[#666]">
+                                    {{ acc.carryforward_days }}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <ol class="mt-4 list-decimal ml-5 text-xs">
+                    <li class="italic text-gray-700 mb-1">
+                        {% trans "Select an employee to see their leave balance" %}
+                    </li>
+                    <li class="italic text-gray-700 mb-1">
+                        {% trans "Leave type is optional when 'deduct leave' is 0" %}
+                    </li>
+                    <li class="italic text-gray-700 mb-1">
+                        {% trans "Deduct leave cannot be more than the employee's available days" %}
+                    </li>
+                    <li class="italic text-gray-700 mb-1">
+                        {% trans "Penalty amount will affect payslip on the date" %}
+                    </li>
+                    <li class="italic text-gray-700 mb-1">
+                        {% trans "By default deduct leave will cut/deduct from available leaves" %}
+                    </li>
+                    <li class="italic text-gray-700">
+                        {% trans "By enabling 'Deduct from carry forward' leave will cut/deduct from carry forward days" %}
+                    </li>
+                </ol>
+            </div>
+        {% endif %}
+        <div class="d-flex flex-row-reverse">
+            <button
+                onclick="$('#penaltyCreateSubmit').click()"
+                class="oh-btn oh-btn--secondary mt-4 mr-0 pl-4 pr-5 oh-btn--w-100-resp"
+            >
+                {% trans "Save" %}
+            </button>
+        </div>
+      </div>
+    </div>
+</div>
+
+{% if "leave"|app_installed %}
+    <script>
+        $(document)
+            .off("change.penaltyBalance")
+            .on("change.penaltyBalance", "#penaltyCreateForm [name='employee_id']", function () {
+                $.get("{% url 'penalty-records-create' %}", { employee_id: $(this).val() }, function (html) {
+                    var fresh = $("<div>").append($.parseHTML(html)).find("#penaltyBalanceNotes");
+                    if (fresh.length) {
+                        $("#penaltyBalanceNotes").replaceWith(fresh);
+                    }
+                });
+            });
+    </script>
+{% endif %}

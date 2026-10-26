@@ -46,15 +46,41 @@
                         id="{{view_id}}ExportColumns"
                     >
 
+                    <div class="hlv-export-options" style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin:0 0 12px">
+                        <div>
+                            <label for="{{view_id|safe}}ExportName" style="display:block;margin-bottom:4px;font-size:13px;color:#6b7280;">{% trans "File name" %}</label>
+                            <input
+                                type="text"
+                                id="{{view_id|safe}}ExportName"
+                                name="export_file_name"
+                                value="{{view.export_file_name}}"
+                                maxlength="100"
+                                autocomplete="off"
+                                placeholder="{% trans 'Leave blank for the default name' %}"
+                                style="width:100%;border:1px solid #e5e7eb;border-radius:6px;padding:8px 10px;font-size:14px;background:#fff;color:#374151;outline:none;"
+                            >
+                        </div>
+                        <div>
+                            <label for="{{view_id|safe}}ExportFormat" style="display:block;margin-bottom:4px;font-size:13px;color:#6b7280;">{% trans "Format" %}</label>
+                            <select
+                                id="{{view_id|safe}}ExportFormat"
+                                name="format"
+                                style="width:100%;border:1px solid #e5e7eb;border-radius:6px;padding:8px 10px;font-size:14px;background:#fff;color:#374151;outline:none;"
+                            >
+                                {% for format in export_formats %}
+                                    <option value="{{format.0}}">{{ format.1 }} (.{{ format.0 }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
                     <div class="row">
                         <div class="col-sm-12 col-md-12 col-lg-12">
                             <div
                                 class="oh-input-group d-flex justify-content-between"
                                 style="align-items: center"
                             >
-                                <label
-                                    class="oh-label"
-                                    style="color: {{ theme_obj.primary_700|default:'hsl(8deg 76.82% 46.12%)' }}"
+                                <label class="oh-label"
                                 >
                                     <input
                                         type="checkbox"
@@ -68,15 +94,8 @@
                         )
                         .change()"
                                     >
-                                    {% trans "Select All Columns" %}
+                                    {% trans "Select All" %}
                                 </label>
-                                <select name="format" style="height: 30px">
-                                    {% for format in export_formats %}
-                                        <option value="{{format.0}}">
-                                            {{ format.1 }}
-                                        </option>
-                                    {% endfor %}
-                                </select>
                             </div>
                         </div>
                     </div>
@@ -120,20 +139,6 @@
                             name="export_fields"
                             value="{{export_fields}}"
                         >
-                        <label
-                            class="oh-label"
-                            style="color: {{ theme_obj.primary_700|default:'hsl(8deg 76.82% 46.12%)' }}"
-                        >
-                            {% trans "File name:" %}
-                            <br>
-                            <input
-                                type="text"
-                                class="oh-input"
-                                required
-                                name="export_file_name"
-                                value="{{view.export_file_name}}"
-                            >
-                        </label>
                         {% for col in export_fields %}
                             <div class="col-sm-12 col-md-6 col-lg-4">
                                 <div class="oh-input-group">

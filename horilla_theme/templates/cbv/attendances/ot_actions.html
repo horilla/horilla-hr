@@ -7,7 +7,7 @@
                 {% if instance.attendance_overtime_approve %}
                     <button
                         type="button"
-                        class="oh-btn oh-btn--light-bkg oh-btn--success oh-btn--sq-sm oh-btn--disabled"
+                        class="oh-btn oh-btn--success oh-btn--sq-sm oh-btn--disabled"
                         title="{% trans 'Approved' %}"
                         onclick="event.stopPropagation()"
                     >
@@ -16,7 +16,7 @@
                 {% elif minot <= instance.overtime_second %}
                     <button
                         type="button"
-                        class="oh-btn oh-btn--light-bkg oh-btn--success oh-btn--sq-sm"
+                        class="oh-btn oh-btn--success oh-btn--sq-sm"
                         title="{% trans 'Approve Overtime' %}"
                         onclick="event.preventDefault(); event.stopPropagation(); (function(pk){
                             Swal.fire({
@@ -49,7 +49,7 @@
                 {% elif instance.overtime_second >= 60 %}
                     <button
                         type="button"
-                        class="oh-btn oh-btn--light-bkg oh-btn--success oh-btn--sq-sm"
+                        class="oh-btn oh-btn--success oh-btn--sq-sm"
                         title="{% trans 'Approve Overtime (OT < min.OT)' %}"
                         onclick="event.preventDefault(); event.stopPropagation(); (function(pk){
                             Swal.fire({
@@ -105,7 +105,7 @@
                     <button
                         type="submit"
                         class="oh-btn oh-btn--danger oh-btn--sq-sm"
-                        title="{% trans 'Remove' %}"
+                        title="{% trans 'Delete' %}"
                         onclick="return confirm('{% trans "Are you sure want to delete this attendance?"|escapejs %}')"
                     >
                         <ion-icon name="trash-outline"></ion-icon>

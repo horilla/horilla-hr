@@ -391,6 +391,24 @@ class Attendance(HorillaModel):
             context={"instance": self},
         )
 
+    def penalty_col(self):
+        """
+        Penalty badges of the late come / early out records of this attendance.
+        """
+
+        penalised = [
+            late_early
+            for late_early in self.late_come_early_out.all()
+            if late_early.get_penalties_count()
+        ]
+        if not penalised:
+            return render_template(
+                path="generic/penalty_badge.html",
+                context={"count": 0},
+            )
+
+        return " ".join(late_early.penalties_column() for late_early in penalised)
+
     def my_attendance_subtitle(self):
         """
         Detail view subtitle
@@ -925,6 +943,126 @@ class Attendance(HorillaModel):
                 ot.refresh_from_db(fields=["overtime_second"])
             self.update_ot(ot)
 
+    @classmethod
+    def approve_overtime_bulk(cls, attendances, user=None):
+        """
+        Approve the overtime of many attendances at once.
+
+        Calling save() per record costs ~0.1s each (re-deriving the row, the
+        audit logs, and rebuilding the whole month's hour account every time),
+        which made approving a few hundred rows take minutes. Approving only
+        flips the approval flag and credits the approved seconds, so do just
+        that: one bulk update (with the same history rows save() leaves), one
+        audit-log insert, and one monthly overtime update per employee/month.
+        Worked and pending hours don't change on approval, so the month
+        rebuild save() does is not needed.
+
+        Returns the attendances that were approved (already-approved ones are
+        skipped).
+        """
+        from collections import defaultdict
+
+        from simple_history.utils import bulk_update_with_history
+
+        pending = [att for att in attendances if not att.attendance_overtime_approve]
+        if not pending:
+            return []
+
+        previous_seconds = {
+            att.pk: att.approved_overtime_second or 0 for att in pending
+        }
+        for att in pending:
+            att.attendance_overtime_approve = True
+            att.approved_overtime_second = att.overtime_second or 0
+
+        with transaction.atomic():
+            bulk_update_with_history(
+                pending,
+                cls,
+                ["attendance_overtime_approve", "approved_overtime_second"],
+                default_user=user if getattr(user, "is_authenticated", False) else None,
+            )
+
+            totals = defaultdict(int)
+            employees = {}
+            for att in pending:
+                employees[att.employee_id_id] = att.employee_id
+                key = (
+                    att.employee_id_id,
+                    att.attendance_date.strftime("%B").lower(),
+                    # AttendanceOverTime.year is a text field.
+                    str(att.attendance_date.year),
+                )
+                totals[key] += att.approved_overtime_second
+            existing = {
+                (ot.employee_id_id, ot.month, ot.year): ot
+                for ot in AttendanceOverTime.objects.filter(
+                    employee_id__in=list(employees.values()),
+                    year__in={key[2] for key in totals},
+                    month__in={key[1] for key in totals},
+                )
+            }
+            to_update = []
+            for key, seconds in totals.items():
+                employee_ot = existing.get(key)
+                if employee_ot is None:
+                    # First overtime for this month: a full save() fills in the
+                    # remaining text fields and the month sequence.
+                    employee_ot = AttendanceOverTime(
+                        employee_id=employees[key[0]],
+                        month=key[1],
+                        year=key[2],
+                        hour_account_second=0,
+                        hour_pending_second=0,
+                        overtime_second=seconds,
+                    )
+                    employee_ot.save()
+                    continue
+                employee_ot.overtime_second = (
+                    employee_ot.overtime_second or 0
+                ) + seconds
+                employee_ot.overtime = format_time(employee_ot.overtime_second)
+                to_update.append(employee_ot)
+            if to_update:
+                AttendanceOverTime.objects.bulk_update(
+                    to_update, ["overtime_second", "overtime"]
+                )
+
+        # Audit log entries, as save() would have left. Not worth failing the
+        # approval over.
+        with contextlib.suppress(Exception), transaction.atomic():
+            from auditlog.cid import get_cid
+            from auditlog.models import LogEntry
+            from django.contrib.contenttypes.models import ContentType
+
+            content_type = ContentType.objects.get_for_model(cls)
+            now = timezone.now()
+            cid = get_cid()
+            actor = user if getattr(user, "is_authenticated", False) else None
+            LogEntry.objects.bulk_create(
+                [
+                    LogEntry(
+                        content_type=content_type,
+                        object_pk=str(att.pk),
+                        object_id=att.pk,
+                        object_repr=str(att)[:200],
+                        action=LogEntry.Action.UPDATE,
+                        changes={
+                            "attendance_overtime_approve": ["False", "True"],
+                            "approved_overtime_second": [
+                                str(previous_seconds[att.pk]),
+                                str(att.approved_overtime_second),
+                            ],
+                        },
+                        actor=actor,
+                        timestamp=now,
+                        cid=cid,
+                    )
+                    for att in pending
+                ]
+            )
+        return pending
+
     def serialize(self):
         """
         Used to serialize attendance instance
@@ -1437,14 +1575,14 @@ class AttendanceLateComeEarlyOut(HorillaModel):
         ]
         return dict(choices).get(self.type)
 
-    def penalities_column(self):
+    def penalties_column(self):
         """
-        To get penalities
+        To get penalties
 
         """
 
         return render_template(
-            path="cbv/late_come_and_early_out/penality.html",
+            path="cbv/late_come_and_early_out/penalty.html",
             context={"instance": self},
         )
 

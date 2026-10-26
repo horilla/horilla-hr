@@ -16074,10 +16074,8 @@ msgstr "小于 (<)"
 msgid "Between"
 msgstr ""
 
-#, fuzzy
-#| msgid "First Week"
 msgid "Last Week"
-msgstr "第一周"
+msgstr "上周"
 
 #, fuzzy
 #| msgid "Last Day"
@@ -30268,3 +30266,22 @@ msgstr "消息模板和流创建成功。"
 
 #~ msgid "Employee instance already exist"
 #~ msgstr "员工实例已存在"
+
+#: horilla_views/generic/cbv/views.py
+msgid "Last 7 Days"
+msgstr "最近 7 天"
+
+#: horilla_views/generic/cbv/views.py
+msgid "Next 7 Days"
+msgstr "未来 7 天"
+
+#: horilla_theme/templates/generic/quick_actions.html
+msgid "Quick filter"
+msgstr "快速筛选"
+
+#: offboarding/templates/cbv/exit_process/quick_actions.html
+#: onboarding/templates/cbv/pipeline/onboarding/quick_actions.html
+#: recruitment/templates/cbv/pipeline/quick_actions.html
+#, python-format
+msgid "Quick filter (%(counter)s)"
+msgstr "快速筛选（%(counter)s）"

@@ -159,6 +159,15 @@ def policies_discipline_action_type_tab(request):
 
 @login_required
 @hx_request_required
+def policies_discipline_penalty_tab(request):
+    """
+    HTMX tab body for penalties under policies & discipline.
+    """
+    return render(request, "policies/policies_discipline_penalty_tab.html")
+
+
+@login_required
+@hx_request_required
 @permission_required("employee.add_policy")
 def create_policy(request):
     """

@@ -25990,3 +25990,22 @@ msgstr "تم إنشاء قوالب الرسائل وتدفقاتها بنجاح.
 
 #~ msgid "There are no skills added at this moment."
 #~ msgstr "لم تتم إضافة أي مهارات في الوقت الحالي."
+
+#: horilla_views/generic/cbv/views.py
+msgid "Last 7 Days"
+msgstr "آخر 7 أيام"
+
+#: horilla_views/generic/cbv/views.py
+msgid "Next 7 Days"
+msgstr "الأيام السبعة القادمة"
+
+#: horilla_theme/templates/generic/quick_actions.html
+msgid "Quick filter"
+msgstr "تصفية سريعة"
+
+#: offboarding/templates/cbv/exit_process/quick_actions.html
+#: onboarding/templates/cbv/pipeline/onboarding/quick_actions.html
+#: recruitment/templates/cbv/pipeline/quick_actions.html
+#, python-format
+msgid "Quick filter (%(counter)s)"
+msgstr "تصفية سريعة (%(counter)s)"

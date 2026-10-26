@@ -799,6 +799,26 @@ urlpatterns = [
         name="nav-question-template",
     ),
     path(
+        "question-list-nav/<int:template_id>/",
+        question_template.QuestionListNav.as_view(),
+        name="question-list-nav",
+    ),
+    path(
+        "question-list-view/<int:template_id>/",
+        question_template.QuestionListView.as_view(),
+        name="question-list-view",
+    ),
+    path(
+        "question-form-create/<int:template_id>/",
+        question_template.QuestionFormView.as_view(),
+        name="question-form-create",
+    ),
+    path(
+        "question-form-update/<int:pk>/",
+        question_template.QuestionFormView.as_view(),
+        name="question-form-update",
+    ),
+    path(
         "period-view/",
         period.PeriodView.as_view(),
         name="period-view",

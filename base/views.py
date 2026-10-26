@@ -8768,7 +8768,7 @@ def view_penalties(request):
 
 @login_required
 @permission_required("base.delete_penaltyaccounts")
-def delete_penalities(request, penalty_id):
+def delete_penalties(request, penalty_id):
     penalty = PenaltyAccounts.objects.filter(id=penalty_id).first()
     if not penalty:
         return HorillaRedirect(

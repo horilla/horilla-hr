@@ -32,6 +32,7 @@ from pms.models import (
     Meetings,
     Objective,
     Period,
+    Question,
     QuestionTemplate,
 )
 
@@ -1107,6 +1108,18 @@ class QuestionTemplateFilter(FilterSet):
         fields = [
             "question_template",
         ]
+
+
+class QuestionFilter(FilterSet):
+    """
+    Filter through Question model
+    """
+
+    search = django_filters.CharFilter(field_name="question", lookup_expr="icontains")
+
+    class Meta:
+        model = Question
+        fields = ["question", "question_type"]
 
 
 class PeriodFilter(HorillaFilterSet):

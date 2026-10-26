@@ -12,7 +12,7 @@
                 <ion-icon name="close-circle-outline"></ion-icon>
             </a>
         {% else %}
-            <button class="oh-btn oh-btn--light-bkg oh-btn--sq-sm" title="{% if instance.cancellation_requested %}{% trans 'Cancellation already requested' %}{% else %}{% trans 'Cancel' %}{% endif %}" disabled>
+            <button class="oh-btn oh-btn--danger opacity-50 cursor-not-allowed oh-btn--sq-sm" title="{% if instance.cancellation_requested %}{% trans 'Cancellation already requested' %}{% else %}{% trans 'Cancel' %}{% endif %}" disabled>
                 <ion-icon name="close-circle-outline"></ion-icon>
             </button>
         {% endif %}
@@ -35,7 +35,7 @@
                 class="oh-btn oh-btn--light-bkg oh-btn--sq-sm" title="{% trans 'Edit' %}" disabled>
                 <ion-icon name="create-outline" ></ion-icon>
             </button>
-            <button class="oh-btn oh-btn--light-bkg oh-btn--sq-sm" title="{% trans 'Delete' %}" disabled>
+            <button class="oh-btn oh-btn--danger opacity-50 cursor-not-allowed oh-btn--sq-sm" title="{% trans 'Delete' %}" disabled>
                 <ion-icon name="trash-outline"></ion-icon>
             </button>
         {% endif %}

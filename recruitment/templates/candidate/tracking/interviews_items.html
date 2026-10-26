@@ -1,0 +1,47 @@
+{% load i18n %}
+{% now "Y-m-d" as now %}
+{% for interview in page_obj %}
+                                <article class="flex gap-4 p-4 rounded-xl border border-dark-50 hover:shadow-card [transition:.3s]">
+                                    <div class="shrink-0 w-16 h-16 rounded-xl flex flex-col items-center justify-center bg-primary-300 text-primary-700">
+                                        <span class="text-xl font-bold leading-none">{{ interview.interview_date|date:"d" }}</span>
+                                        <span class="text-xs uppercase mt-1">{{ interview.interview_date|date:"M Y" }}</span>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex flex-wrap items-center justify-between gap-2">
+                                            <div class="flex items-center gap-2 text-sm font-medium">
+                                                <i class="fa-regular fa-clock text-color-600"></i>
+                                                {{ interview.interview_time|time:"g:i A" }}
+                                            </div>
+                                            {% if interview.completed %}
+                                                <span class="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-success/10 text-success-dark">
+                                                    <i class="fa-solid fa-circle-check"></i>{% trans "Interview Completed" %}
+                                                </span>
+                                            {% elif interview.interview_date|date:"Y-m-d" < now %}
+                                                <span class="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-danger/10 text-danger-dark">
+                                                    <i class="fa-solid fa-circle-xmark"></i>{% trans "Expired Interview" %}
+                                                </span>
+                                            {% elif interview.interview_date|date:"Y-m-d" > now %}
+                                                <span class="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-warning/10 text-warning-dark">
+                                                    <i class="fa-solid fa-hourglass-half"></i>{% trans "Upcoming Interview" %}
+                                                </span>
+                                            {% else %}
+                                                <span class="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-primary-300 text-primary-700">
+                                                    <i class="fa-solid fa-calendar-day"></i>{% trans "Interview Today" %}
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                        {% if interview.description %}
+                                            <p class="mt-2 text-sm text-color-600">{{ interview.description }}</p>
+                                        {% endif %}
+                                        <div class="mt-3 flex flex-wrap items-center gap-2">
+                                            <span class="text-xs text-color-600">{% trans "Interviewer" %}:</span>
+                                            {% for interviewer in interview.employee_id.all %}
+                                                <span class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-secondary-100 text-color-600">
+                                                    <i class="fa-solid fa-circle-user"></i>{{ interviewer }}
+                                                </span>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </article>
+                            {% endfor %}
+{% include "candidate/tracking/load_more.html" with section="interviews" %}

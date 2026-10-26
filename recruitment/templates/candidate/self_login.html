@@ -1,43 +1,159 @@
 {% load static i18n %}
+{% load horillafilters %}
+{% get_def_theme as theme_obj %}
 <!DOCTYPE html>
 <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>{% trans "Application Tracking" %}</title>
-        <link rel="stylesheet" href="{% static 'build/css/style.min.css' %}">
+        <link href="{% static 'horilla_theme/assets/css/tailwind.css' %}" rel="stylesheet">
+        <title>
+            {% blocktrans with company_name=white_label_company_name %}Application Tracking - {{ company_name }}{% endblocktrans %}
+        </title>
+        <link
+            rel="apple-touch-icon"
+            sizes="180x180"
+            href="{% if white_label_company.icon %}{{white_label_company.icon.url}} {% else %}{% static 'favicons/apple-touch-icon.png' %}{% endif %}"
+        >
+        <link
+            rel="icon"
+            type="image/png"
+            sizes="32x32"
+            href="{% if white_label_company.icon %}{{white_label_company.icon.url}} {% else %}{% static 'favicons/favicon-32x32.png' %}{% endif %}"
+        >
+        <link
+            rel="icon"
+            type="image/png"
+            sizes="16x16"
+            href="{% if white_label_company.icon %}{{white_label_company.icon.url}} {% else %}{% static 'favicons/favicon-16x16.png' %}{% endif %}"
+        >
+        <link
+            rel="stylesheet"
+            href="/static/horilla_theme/assets/css/global.css"
+        >
+        <link
+            rel="stylesheet"
+            href="/static/horilla_theme/assets/css/v1_styles.css"
+        >
+        <script src='{% static "horilla_theme/assets/js/tailwindcdn.js" %}'></script>
+        <script>
+            window.tailwind.config = {
+                theme: {
+                    colors: {
+                        white: '#FFFFFF',
+                        primary: {
+                            50:  '{{ theme_obj.primary_50  | default:"#f6f6f6" }}',
+                            100: '{{ theme_obj.primary_100 | default:"#FFF5F1" }}',
+                            200: '{{ theme_obj.primary_200 | default:"#FEF6F5" }}',
+                            300: '{{ theme_obj.primary_300 | default:"#FCEDEB" }}',
+                            400: '{{ theme_obj.primary_400 | default:"#FBE5E1" }}',
+                            500: '{{ theme_obj.primary_500 | default:"#F7C8C1" }}',
+                            600: '{{ theme_obj.primary_600 | default:"#E54F38" }}',
+                            700: '{{ theme_obj.primary_700 | default:"#ce4732" }}',
+                            800: '{{ theme_obj.primary_800 | default:"#AC3B2A" }}',
+                            900: '{{ theme_obj.primary_900 | default:"#672419" }}',
+                        },
+                        brand: {
+                            50:  '{{ theme_obj.primary_50  | default:"#f6f6f6" }}',
+                            100: '{{ theme_obj.primary_100 | default:"#FFF5F1" }}',
+                            200: '{{ theme_obj.primary_200 | default:"#FEF6F5" }}',
+                            300: '{{ theme_obj.primary_300 | default:"#FCEDEB" }}',
+                            400: '{{ theme_obj.primary_400 | default:"#FBE5E1" }}',
+                            500: '{{ theme_obj.primary_500 | default:"#F7C8C1" }}',
+                            600: '{{ theme_obj.primary_600 | default:"#E54F38" }}',
+                            700: '{{ theme_obj.primary_700 | default:"#ce4732" }}',
+                            800: '{{ theme_obj.primary_800 | default:"#AC3B2A" }}',
+                            900: '{{ theme_obj.primary_900 | default:"#672419" }}',
+                        },
+                        dark: {
+                            50:  '{{ theme_obj.dark_50  | default:"#E6E6E6" }}',
+                            100: '{{ theme_obj.dark_100 | default:"#A8A8A8" }}',
+                            200: '{{ theme_obj.dark_200 | default:"#515151" }}',
+                            300: '{{ theme_obj.dark_300 | default:"#501C14" }}',
+                            400: '{{ theme_obj.dark_400 | default:"#64748B" }}',
+                            500: '{{ theme_obj.dark_500 | default:"#190906" }}',
+                            600: '{{ theme_obj.dark_600 | default:"#000000" }}',
+                        },
+                        secondary: {
+                            50:  '{{ theme_obj.secondary_50  | default:"#f8fafc" }}',
+                            100: '{{ theme_obj.secondary_100 | default:"#f1f5f9" }}',
+                            200: '{{ theme_obj.secondary_200 | default:"#e2e8f0" }}',
+                            300: '{{ theme_obj.secondary_300 | default:"#cbd5e1" }}',
+                            400: '{{ theme_obj.secondary_400 | default:"#FBE5E1" }}',
+                            500: '{{ theme_obj.secondary_500 | default:"#F7C8C1" }}',
+                            600: '{{ theme_obj.secondary_600 | default:"#E54F38" }}',
+                            700: '{{ theme_obj.secondary_700 | default:"#334155" }}',
+                            800: '{{ theme_obj.secondary_800 | default:"#1e293b" }}',
+                            900: '{{ theme_obj.secondary_900 | default:"#0f172a" }}',
+                        },
+                        color: { 600: '#374151' },
+                        success: { light: "#86efac", DEFAULT: "#22c55e", dark: "#15803d" },
+                        warning: { light: "#fde68a", DEFAULT: "#f59e0b", dark: "#b45309" },
+                        danger:  { light: "#fca5a5", DEFAULT: "#ef4444", dark: "#b91c1c" },
+                    },
+                    extend: {
+                        boxShadow: { card: "0px 0px 10px rgba(0, 0, 0, 0.05)" },
+                        spacing: { 18: "4.5rem", 72: "18rem", 84: "21rem", 96: "24rem" },
+                        borderRadius: { "4xl": "2rem", "5xl": "2.5rem" },
+                        fontSize: { xxs: "0.625rem" },
+                        height: { "screen-50": "50vh", "screen-75": "75vh" },
+                    },
+                },
+            };
+        </script>
+        <script src="{% static '/jquery/jquery.min.js' %}"></script>
     </head>
-    <body>
-        <form action="{% url 'candidate-login' %}" method="post">
-            {% csrf_token %}
-            <div align="center">
-                <div class="oh-kanban-card oh-joblist_card w-50 mt-5">
-                    <h5 class="oh-job__post">{% trans "Enter Credentials" %}</h5>
-                    {% if error %}
-                        <div class="oh-alert-container">
-                            <div class="oh-alert oh-alert--animated oh-alert--danger">
-                                {{ error }}
-                            </div>
-                        </div>
-                    {% endif %}
-                    <label for="email" class="mt-2">{% trans "Email" %}</label>
-                    <input type="text" id="email" name="email" class="oh-input w-100" placeholder="{% trans 'Email' %}">
-                    <label for="phone" class="mt-2">{% trans "Phone" %}</label>
-                    <input type="text" id="phone" name="phone" class="oh-input w-100" placeholder="{% trans 'Phone' %}">
-                    <div class="oh-job__apply-btn">
-                        <button
-                            type="submit"
-                            href="#"
-                            class="oh-btn oh-btn--secondary"
-                            role="button"
-                            data-toggle="oh-modal-toggle"
-                            data-target="#jobDetailModal"
-                        >
-                            {% trans 'Show Result' %}
-                        </button>
+    <body class="bg-[{{theme_obj.primary_200}}] font-[Inter,_sans-serif]">
+
+        <div class="h-screen w-full flex items-center justify-center">
+            <div class="bg-white p-[50px] rounded-2xl [box-shadow:0px_0px_25px_#a1a1a1] w-[450px] max-w-[calc(100%-32px)]">
+                <img
+                    src="{% if white_label_company.icon %}{{white_label_company.icon.url}}{% else %}{% static 'horilla_theme/assets/img/logo.svg' %}{% endif %}"
+                    alt=""
+                    class="m-auto mb-4"
+                    width="80"
+                >
+                <h1 class="text-3xl font-bold mb-2 text-center">
+                    {% trans "Application Tracking" %}
+                </h1>
+                <p class="mb-5 text-center text-sm text-color-600">
+                    {% trans "Enter your credentials to view your application status." %}
+                </p>
+                {% if error %}
+                    <div class="mb-4 p-3 rounded-md border border-danger-light bg-white text-danger-dark text-sm text-center">
+                        {{ error }}
                     </div>
-                </div>
+                {% endif %}
+                <form action="{% url 'candidate-login' %}" method="post" class="oh-form-group">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="email" class="text-sm text-color-600">{% trans "Email" %}</label>
+                        <input
+                            type="text"
+                            id="email"
+                            name="email"
+                            placeholder="{% trans 'e.g. adam.luis@horilla.com' %}"
+                            class="text-color-600 w-full border border-dark-50 rounded-md p-3 mt-1 focus-visible:outline-0 placeholder:text-[#00000041] placeholder:font-medium text-xs [transition:.3s] {% if theme_obj %} focus:border-[{{theme_obj.primary_700}}] {% else %} focus:border-primary-600 {% endif %}"
+                        >
+                    </div>
+                    <div class="mb-3">
+                        <label for="phone" class="text-sm text-color-600">{% trans "Phone" %}</label>
+                        <input
+                            type="text"
+                            id="phone"
+                            name="phone"
+                            placeholder="{% trans 'Enter Phone Number' %}"
+                            class="text-color-600 w-full border border-dark-50 rounded-md p-3 mt-1 focus-visible:outline-0 placeholder:text-[#00000041] placeholder:font-medium text-xs [transition:.3s] {% if theme_obj %} focus:border-[{{theme_obj.primary_700}}] {% else %} focus:border-primary-600 {% endif %}"
+                        >
+                    </div>
+                    <button
+                        type="submit"
+                        class="p-3 mt-3 bg-brand-600 hover:bg-brand-800 w-full flex gap-3 justify-center rounded-md text-[white] [transition:.3s]"
+                    >
+                        <img src='{% static "horilla_theme/assets/icons/sign.svg" %}' alt=""> {% trans "Show Result" %}
+                    </button>
+                </form>
             </div>
-        </form>
+        </div>
     </body>
 </html>

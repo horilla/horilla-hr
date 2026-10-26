@@ -76,7 +76,7 @@
         {% endif %}
     {% endif %}
 
-    {# Remove #}
+    {# Delete #}
     {% if is_owner or can_delete or can_manage %}
         {% if instance.approved == False and instance.canceled == False %}
             <a
@@ -84,15 +84,15 @@
                 hx-confirm="{% trans 'Are you sure you want to delete this shift request?' %}"
                 hx-post="{% url 'shift-request-delete' instance.id %}"
                 hx-target="#shift-container"
-                title="{% trans 'Remove' %}"
+                title="{% trans 'Delete' %}"
             >
                 <ion-icon name="trash-outline"></ion-icon>
-                {% trans "Remove" %}
+                {% trans "Delete" %}
             </a>
         {% else %}
-            <button class="oh-btn oh-btn--light-bkg px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300" disabled title="{% trans 'Remove' %}">
+            <button class="oh-btn oh-btn--light-bkg px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300" disabled title="{% trans 'Delete' %}">
                 <ion-icon name="trash-outline"></ion-icon>
-                {% trans "Remove" %}
+                {% trans "Delete" %}
             </button>
         {% endif %}
     {% endif %}

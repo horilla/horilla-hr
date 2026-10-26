@@ -38,7 +38,7 @@
                 {% if instance.is_validate_request %}
                     <button
                         type="button"
-                        class="oh-btn oh-btn--light-bkg oh-btn--success oh-btn--sq-sm"
+                        class="oh-btn oh-btn--success oh-btn--sq-sm"
                         title="{% trans 'Validate' %}"
                         onclick="event.preventDefault(); event.stopPropagation(); showApproveAlert($(this).data('req'))"
                         data-req="/attendance/request-attendance-view/?id={{ instance.id }}"
@@ -48,7 +48,7 @@
                 {% else %}
                     <button
                         type="button"
-                        class="oh-btn oh-btn--light-bkg oh-btn--success oh-btn--sq-sm"
+                        class="oh-btn oh-btn--success oh-btn--sq-sm"
                         title="{% trans 'Validate' %}"
                         onclick="event.preventDefault(); event.stopPropagation(); (function(pk){
                             Swal.fire({

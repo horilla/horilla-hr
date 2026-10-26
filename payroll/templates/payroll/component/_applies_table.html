@@ -125,9 +125,9 @@ Selection lives in hidden inputs, not the rows, because rows come and go.
     var everyone = flag && flag.checked;
     if (all && !query) all.checked = !!everyone;
     count.textContent = everyone
-      ? "{% trans 'All active employees' %}" + (excluded.size ? " ({% trans 'except' %} " + excluded.size + " {% trans 'outside a structure' %})" : "")
-      : (structureCount + picked.size) + " {% trans 'employees' %} ("
-        + structureCount + " {% trans 'via structures' %}, " + picked.size + " {% trans 'outside' %})";
+      ? "{% trans 'All active employees'|escapejs %}" + (excluded.size ? " ({% trans 'except'|escapejs %} " + excluded.size + " {% trans 'outside a structure'|escapejs %})" : "")
+      : (structureCount + picked.size) + " {% trans 'employees'|escapejs %} ("
+        + structureCount + " {% trans 'via structures'|escapejs %}, " + picked.size + " {% trans 'outside'|escapejs %})";
     body.querySelectorAll("[data-applies-row]").forEach(paint);
     titleHeader();
   }
@@ -137,11 +137,11 @@ Selection lives in hidden inputs, not the rows, because rows come and go.
     if (!all) return;
     all.title = query
       ? (all.checked
-          ? "{% trans 'Clear the employees this search found' %}"
-          : "{% trans 'Select every employee this search found' %}")
+          ? "{% trans 'Clear the employees this search found'|escapejs %}"
+          : "{% trans 'Select every employee this search found'|escapejs %}")
       : (all.checked
-          ? "{% trans 'Stop applying to every active employee' %}"
-          : "{% trans 'Apply to every active employee' %}");
+          ? "{% trans 'Stop applying to every active employee'|escapejs %}"
+          : "{% trans 'Apply to every active employee'|escapejs %}");
   }
 
   function load(reset) {

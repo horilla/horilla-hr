@@ -5,7 +5,7 @@
   <meta charset="utf-8" />
   <style>
   @page {
-    size: A4 {% if headers|length > 5 %}landscape{% else %}portrait{% endif %};
+    size: {% if headers|length > 12 %}A3 landscape{% elif headers|length > 5 %}A4 landscape{% else %}A4 portrait{% endif %};
     margin: 10mm;
   }
 
@@ -66,8 +66,8 @@
 
   th, td {
     border: 1px solid #555;
-    padding: 1px;
-    font-size: 9px;
+    padding: 2px;
+    font-size: {% if headers|length > 18 %}7px{% elif headers|length > 12 %}8px{% else %}9px{% endif %};
     vertical-align: top;
     text-align: left;
 
@@ -75,6 +75,10 @@
     overflow-wrap: break-word;
     word-break: break-word;
     white-space: normal;
+    /* xhtml2pdf ignores the three properties above; this is the one it
+       honours for breaking a word (an email, "Technologies") that is wider
+       than its column instead of letting it run into the next cell. */
+    -pdf-word-wrap: CJK;
   }
 
   th {
@@ -82,10 +86,12 @@
     font-weight: 600;
   }
 
-  td.sn {
-    width: 20px;
+  th.sn, td.sn {
+    width: 24px;
     text-align: left;
     font-weight: 600;
+    /* the serial column must not be broken up like the data columns */
+    -pdf-word-wrap: normal;
   }
 
   tr:nth-child(even) {

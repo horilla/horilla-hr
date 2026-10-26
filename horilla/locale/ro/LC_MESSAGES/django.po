@@ -25606,3 +25606,22 @@ msgstr "Șabloanele de mesaje și fluxurile au fost create cu succes."
 
 #~ msgid "Enable Whatsapp"
 #~ msgstr "Activează WhatsApp"
+
+#: horilla_views/generic/cbv/views.py
+msgid "Last 7 Days"
+msgstr "Ultimele 7 zile"
+
+#: horilla_views/generic/cbv/views.py
+msgid "Next 7 Days"
+msgstr "Următoarele 7 zile"
+
+#: horilla_theme/templates/generic/quick_actions.html
+msgid "Quick filter"
+msgstr "Filtru rapid"
+
+#: offboarding/templates/cbv/exit_process/quick_actions.html
+#: onboarding/templates/cbv/pipeline/onboarding/quick_actions.html
+#: recruitment/templates/cbv/pipeline/quick_actions.html
+#, python-format
+msgid "Quick filter (%(counter)s)"
+msgstr "Filtru rapid (%(counter)s)"

@@ -25,6 +25,17 @@ from horilla.http.response import HorillaRedirect
 from horilla.methods import get_horilla_model_class
 
 
+def company_icon_url(company):
+    """
+    The company's logo URL, or "" when it has none.
+
+    FieldFile.url is patched in horilla/models.py to answer "/404/" for an empty
+    field; that string must not reach the session or an <img src>.
+    """
+    icon = getattr(company, "icon", None)
+    return icon.url if icon else ""
+
+
 class AllCompany:
     """
     Dummy class for the "all companies" switcher entry.
@@ -75,7 +86,8 @@ def get_companies(request):
     if scoped:
         company_qs = company_qs.filter(id__in=allowed_ids or [])
     companies = list(
-        [company.id, company.company, company.icon.url, False] for company in company_qs
+        [company.id, company.company, company_icon_url(company), False]
+        for company in company_qs
     )
     if scoped and assigned_ids and len(assigned_ids) >= 2:
         companies = [
@@ -187,7 +199,7 @@ def update_selected_company(request):
 
     company = {
         "company": company.company,
-        "icon": company.icon.url,
+        "icon": company_icon_url(company),
         "text": text,
         "id": company.id,
     }

@@ -1037,6 +1037,11 @@ urlpatterns = [
         name="candidate-document-delete",
     ),
     path(
+        "candidate-tracking-items/<int:cand_id>/<str:section>/",
+        views.candidate_tracking_items,
+        name="candidate-tracking-items",
+    ),
+    path(
         "candidate-add-notes/<int:cand_id>/",
         views.candidate_add_notes,
         name="candidate-add-notes",

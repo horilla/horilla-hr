@@ -52,6 +52,10 @@ class EmployeeProfileView(HorillaProfileView):
     def get_queryset(self):
         return Employee.objects.entire()
 
+    def get_status_ribbon(self, instance):
+        if not instance.is_active:
+            return {"label": _("Archived"), "variant": "secondary"}
+
     def dispatch(self, request, *args, **kwargs):
 
         if not request.user.is_authenticated:

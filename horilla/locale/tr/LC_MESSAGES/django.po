@@ -25788,3 +25788,22 @@ msgstr "Mesaj şablonları ve akışları başarıyla oluşturuldu."
 
 #~ msgid "Mail not send to %(candidate_name)s"
 #~ msgstr "Posta %(candidate_name)s adresine gönderilemiyor"
+
+#: horilla_views/generic/cbv/views.py
+msgid "Last 7 Days"
+msgstr "Son 7 Gün"
+
+#: horilla_views/generic/cbv/views.py
+msgid "Next 7 Days"
+msgstr "Sonraki 7 Gün"
+
+#: horilla_theme/templates/generic/quick_actions.html
+msgid "Quick filter"
+msgstr "Hızlı filtre"
+
+#: offboarding/templates/cbv/exit_process/quick_actions.html
+#: onboarding/templates/cbv/pipeline/onboarding/quick_actions.html
+#: recruitment/templates/cbv/pipeline/quick_actions.html
+#, python-format
+msgid "Quick filter (%(counter)s)"
+msgstr "Hızlı filtre (%(counter)s)"

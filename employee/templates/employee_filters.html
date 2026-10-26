@@ -21,6 +21,7 @@
         </div>
     </div>
 
+    {% if not hide_work_info_filters %}
     <div class="oh-accordion">
         <div class="oh-accordion-header">{% trans "Work Info" %}</div>
         <div class="oh-accordion-body">
@@ -106,7 +107,9 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
+    {% if not hide_advanced_filters %}
     <div class="oh-accordion">
         <div class="oh-accordion-header">{% trans "Advanced" %}</div>
         <div class="oh-accordion-body">
@@ -152,5 +155,6 @@
             </div>
         </div>
     </div>
+    {% endif %}
 </div>
 <script src="{% static '/base/filter.js' %}"></script>

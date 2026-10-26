@@ -319,7 +319,7 @@ have), and components that measure attendance report that instead of a guess.
     var tag = "";
     if (taxBase && taxBase === head.key) {
       tag = ' <span class="ss-example__head-tag">' +
-        "{% trans 'Income tax is read from this' %}</span>";
+        "{% trans 'Income tax is read from this'|escapejs %}</span>";
     }
 
     return '<div class="ss-example__head">' +
@@ -356,7 +356,7 @@ have), and components that measure attendance report that instead of a guess.
     }
     return '<div class="ss-example__heads">' +
       '<div class="ss-example__heads-title">' +
-      "{% trans 'Each equation is the one payroll itself uses.' %}</div>" +
+      "{% trans 'Each equation is the one payroll itself uses.'|escapejs %}</div>" +
       data.heads.map(function (head) { return headBlock(head, taxBase); }).join("") +
       "</div>";
   }
@@ -373,27 +373,27 @@ have), and components that measure attendance report that instead of a guess.
   function notes(data) {
     var rows = [];
 
-    var period = "<b>" + data.calendar_days + "</b> {% trans 'calendar days' %}, " +
-      "<b>" + data.worked_days + "</b> {% trans 'of' %} " + data.working_days +
-      " {% trans 'working days' %}";
+    var period = "<b>" + data.calendar_days + "</b> {% trans 'calendar days'|escapejs %}, " +
+      "<b>" + data.worked_days + "</b> {% trans 'of'|escapejs %} " + data.working_days +
+      " {% trans 'working days'|escapejs %}";
     if (data.lop_days) {
-      period += " — {% trans 'after' %} <b>" + data.lop_days +
-        "</b> {% trans 'loss-of-pay days' %}";
+      period += " — {% trans 'after'|escapejs %} <b>" + data.lop_days +
+        "</b> {% trans 'loss-of-pay days'|escapejs %}";
     }
-    rows.push(noteRow("{% trans 'Sample period' %}", period));
+    rows.push(noteRow("{% trans 'Sample period'|escapejs %}", period));
 
     rows.push(noteRow(
-      "{% trans 'Income tax' %}",
+      "{% trans 'Income tax'|escapejs %}",
       data.tax_included
-        ? "{% trans 'Included, worked out by the same code a payslip uses. A real employee takes their filing status from their contract.' %}"
-        : "{% trans 'Not included — choose a filing status above to see it.' %}"
+        ? "{% trans 'Included, worked out by the same code a payslip uses. A real employee takes their filing status from their contract.'|escapejs %}"
+        : "{% trans 'Not included — choose a filing status above to see it.'|escapejs %}"
     ));
 
     if (data.employer_total) {
       rows.push(noteRow(
-        "{% trans 'Employer share' %}",
+        "{% trans 'Employer share'|escapejs %}",
         "<b>" + money(data.employer_total) + "</b> — " +
-        "{% trans 'a company cost on top of gross, not taken from the employee.' %}"
+        "{% trans 'a company cost on top of gross, not taken from the employee.'|escapejs %}"
       ));
     }
 
@@ -404,30 +404,30 @@ have), and components that measure attendance report that instead of a guess.
     var html = [];
 
     if (data.earning_lines.length) {
-      html.push(group("{% trans 'Earnings' %}"));
+      html.push(group("{% trans 'Earnings'|escapejs %}"));
       data.earning_lines.forEach(function (line) { html.push(lineRow(line)); });
-      html.push(subtotal("{% trans 'Gross pay' %}", data.gross_pay));
+      html.push(subtotal("{% trans 'Gross pay'|escapejs %}", data.gross_pay));
     }
 
     if (data.deduction_lines.length || data.tax_line || data.lop_line) {
-      html.push(group("{% trans 'Deductions' %}"));
+      html.push(group("{% trans 'Deductions'|escapejs %}"));
       // Loss of pay first, as a payslip lists it: it is about the days
       // worked, before anything worked out from what those days earned.
       if (data.lop_line) { html.push(lineRow(data.lop_line)); }
       data.deduction_lines.forEach(function (line) { html.push(lineRow(line)); });
       // Tax last, because it is worked out on what the deductions above leave.
       if (data.tax_line) { html.push(lineRow(data.tax_line)); }
-      html.push(subtotal("{% trans 'Total deductions' %}", data.deductions_total));
+      html.push(subtotal("{% trans 'Total deductions'|escapejs %}", data.deductions_total));
     }
 
     if (!html.length) {
       publishWorking("");
       body.innerHTML = '<div class="ss-example__muted">' +
-        "{% trans 'This structure has no components yet.' %}</div>";
+        "{% trans 'This structure has no components yet.'|escapejs %}</div>";
       return;
     }
 
-    html.push(subtotal("{% trans 'Net pay' %}", data.net_pay, "ss-example__net"));
+    html.push(subtotal("{% trans 'Net pay'|escapejs %}", data.net_pay, "ss-example__net"));
 
     publishWorking(headsSection(data));
 
@@ -442,15 +442,15 @@ have), and components that measure attendance report that instead of a guess.
       var gap = data.ctc_gap;
       var message;
       if (ok) {
-        message = "{% trans 'Earnings and employer share account for the whole CTC.' %}";
+        message = "{% trans 'Earnings and employer share account for the whole CTC.'|escapejs %}";
       } else if (gap > 0) {
-        message = "{% trans 'Short of the CTC by' %} " + money(gap) +
+        message = "{% trans 'Short of the CTC by'|escapejs %} " + money(gap) +
           (data.mode === "ctc_down"
-            ? " — {% trans 'add a balance earning to absorb the remainder.' %}"
-            : " — {% trans 'the package would cost less than the CTC quoted.' %}");
+            ? " — {% trans 'add a balance earning to absorb the remainder.'|escapejs %}"
+            : " — {% trans 'the package would cost less than the CTC quoted.'|escapejs %}");
       } else {
-        message = "{% trans 'Over the CTC by' %} " + money(-gap) +
-          " — {% trans 'the components add up to more than the package quoted.' %}";
+        message = "{% trans 'Over the CTC by'|escapejs %} " + money(-gap) +
+          " — {% trans 'the components add up to more than the package quoted.'|escapejs %}";
       }
       out += '<div class="ss-example__recon ss-example__recon--' +
         (ok ? "ok" : "gap") + '">' + message + "</div>";
@@ -495,7 +495,7 @@ have), and components that measure attendance report that instead of a guess.
       .catch(function () {
         publishWorking("");
         body.innerHTML =
-          '<div class="ss-example__error">{% trans "Could not reach the server." %}</div>';
+          '<div class="ss-example__error">{% trans "Could not reach the server."|escapejs %}</div>';
       });
   });
 })();

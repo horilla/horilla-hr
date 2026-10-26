@@ -29,7 +29,7 @@
                 {% if instance.approved == False and instance.canceled == False %}
                     <a hx-confirm="{% trans 'Are you sure you want to delete this work type request?' %}"
                         hx-post="{% url 'work-type-request-delete' instance.id  %}" hx-target="#work-shift"
-                        class="oh-btn oh-btn--danger oh-btn--sq-sm" title="{% trans 'Remove' %}">
+                        class="oh-btn oh-btn--danger oh-btn--sq-sm" title="{% trans 'Delete' %}">
 
                         <ion-icon name="trash-outline"></ion-icon>
                     </a>

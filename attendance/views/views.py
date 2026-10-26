@@ -25,6 +25,7 @@ import contextlib
 import io
 import json
 import os
+import threading
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from urllib.parse import parse_qs, urlparse
@@ -34,7 +35,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.core.validators import validate_ipv46_address
-from django.db import transaction
+from django.db import connection, transaction
 from django.db.models import ProtectedError
 from django.forms import ValidationError
 from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
@@ -1598,37 +1599,89 @@ def approve_bulk_overtime(request):
     This method is used to approve bulk of attendance
     """
     ids = json.loads(request.POST.get("ids", "[]"))
-    otapprove_ids = []
-    filtered_ids = []
-    for attendance_id in ids:
+    valid_ids = []
+    for raw_id in ids:
         try:
-            attendance = Attendance.objects.get(id=attendance_id)
-            if attendance.employee_id.employee_user_id != request.user:
-                filtered_ids.append(attendance_id)
-        except (Attendance.DoesNotExist, OverflowError, ValueError):
+            valid_ids.append(int(raw_id))
+        except (TypeError, ValueError, OverflowError):
             messages.error(request, _("Attendance not found"))
-    if request.user.is_superuser:
-        filtered_ids = ids
-    for attendance_id in filtered_ids:
-        try:
-            attendance = Attendance.objects.get(id=attendance_id)
+
+    # One query for the whole selection rather than one per id.
+    found = {
+        attendance.id: attendance
+        for attendance in Attendance.objects.filter(id__in=valid_ids).select_related(
+            "employee_id", "employee_id__employee_user_id"
+        )
+    }
+    for missing_id in set(valid_ids) - set(found):
+        messages.error(request, _("Attendance not found"))
+
+    candidates = []
+    for attendance in found.values():
+        # Superusers may approve their own overtime; everyone else may not.
+        if (
+            not request.user.is_superuser
+            and attendance.employee_id.employee_user_id == request.user
+        ):
+            continue
+        candidates.append(attendance)
+
+    try:
+        otapprove_ids = Attendance.approve_overtime_bulk(candidates, request.user)
+    except Exception:
+        # Fall back to one-by-one so a single bad record can't stop the rest.
+        logger.exception("Bulk overtime approval failed, approving one by one")
+        otapprove_ids = []
+        # Re-read: the failed attempt had already flagged the in-memory rows.
+        fresh = Attendance.objects.filter(
+            id__in=[attendance.pk for attendance in candidates]
+        ).select_related("employee_id", "employee_id__employee_user_id")
+        for attendance in fresh:
             if attendance.attendance_overtime_approve:
-                continue  # already approved: nothing to do, counted as skipped
-            attendance.attendance_overtime_approve = True
-            attendance.save()
+                continue
+            try:
+                with transaction.atomic():
+                    attendance.attendance_overtime_approve = True
+                    attendance.save()
+            except Exception:
+                logger.exception(
+                    "Overtime approval failed for attendance %s", attendance.pk
+                )
+                continue
             otapprove_ids.append(attendance)
-            notify.send(
-                request.user.employee_get,
-                recipient=attendance.employee_id.employee_user_id,
-                verb=gettext_noop(
-                    "Overtime approved for %(attendance_date)s's attendance"
-                ),
-                verb_params={"attendance_date": str(attendance.attendance_date)},
-                redirect=reverse("attendance-overtime-view") + f"?id={attendance.id}",
-                icon="checkmark",
+
+    # Notifying each employee costs ~30ms apiece (and fails quietly when push
+    # isn't configured), so send them in the background rather than making the
+    # approver wait for hundreds of them.
+    if otapprove_ids:
+        sender = request.user.employee_get
+        notifications = [
+            (
+                attendance.employee_id.employee_user_id,
+                str(attendance.attendance_date),
+                reverse("attendance-overtime-view") + f"?id={attendance.id}",
             )
-        except (Attendance.DoesNotExist, OverflowError, ValueError):
-            messages.error(request, _("Attendance not found"))
+            for attendance in otapprove_ids
+        ]
+
+        def send_overtime_notifications():
+            try:
+                for recipient, attendance_date, redirect_url in notifications:
+                    with contextlib.suppress(Exception):
+                        notify.send(
+                            sender,
+                            recipient=recipient,
+                            verb=gettext_noop(
+                                "Overtime approved for %(attendance_date)s's attendance"
+                            ),
+                            verb_params={"attendance_date": attendance_date},
+                            redirect=redirect_url,
+                            icon="checkmark",
+                        )
+            finally:
+                connection.close()
+
+        threading.Thread(target=send_overtime_notifications, daemon=True).start()
     if otapprove_ids:
         messages.success(request, _(" {} Overtime approved".format(len(otapprove_ids))))
 
@@ -2653,6 +2706,41 @@ def work_records_change_month(request):
         for emp in h.employees.all():
             specific_employee_holidays.setdefault(emp.pk, set()).add(h.start_date)
 
+    export_exclude_keys = {"month", "start_date", "end_date", "name_or_badge", "page"}
+    export_hidden_filter_params = [
+        (key, value)
+        for key, values in request.GET.lists()
+        if key not in export_exclude_keys
+        for value in values
+    ]
+
+    data_dict = parse_qs(previous_data)
+    get_key_instances(Employee, data_dict)
+    for key, values in list(data_dict.items()):
+        # The month field's own <input> lives inside the same <form> as the
+        # filter panel (see work_record_view.html) and that form's hx-get
+        # already has "?{{pd}}" (the previously applied query string) baked
+        # into its URL -- submitting it adds the input's own current value
+        # on top, so "month" (and nothing else, since it's the only field
+        # both inside this form and repeated into pd this way) ends up
+        # twice in request.GET with the same value. Harmless to the actual
+        # filtering, but duplicated the tag's displayed text.
+        deduped = list(dict.fromkeys(values))
+        # working_today is a tri-state Yes/No/Unknown select, not a
+        # multi-choice field -- unlike Employee/Department/... (which
+        # submit "" and get dropped by the `{% if values %}` check in
+        # filter_tags.html when untouched), an untouched tri-state still
+        # submits its "unknown" default, which isn't a filter the user
+        # actually applied.
+        if (
+            key == "working_today"
+            and deduped
+            and deduped[0].strip().lower() == "unknown"
+        ):
+            del data_dict[key]
+            continue
+        data_dict[key] = deduped
+
     context = {
         "current_month_dates_list": month_dates,
         "leave_dates": [
@@ -2664,6 +2752,8 @@ def work_records_change_month(request):
         "current_date": date.today(),
         "f": employee_filter_form,
         "month_str": month_str,
+        "export_hidden_filter_params": export_hidden_filter_params,
+        "filter_dict": data_dict,
     }
 
     return render(request, "attendance/work_record/work_record_list.html", context)

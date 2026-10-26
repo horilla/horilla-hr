@@ -87,7 +87,7 @@ class LeaveRequestsListView(HorillaListView):
         (_("Leave Clash"), "leave_clash_col"),
         (_("Status"), "custom_status_col"),
         (_("Comment"), "comment_sidebar"),
-        (_("Penalities"), "penality_col"),
+        (_("Penalties"), "penalty_col"),
     ]
 
     default_columns = [
@@ -121,7 +121,7 @@ class LeaveRequestsListView(HorillaListView):
     header_attrs = {
         "leave_requests_custom_emp_col": """ style="width:200px !important;" """,
         "option": """ style="width:200px !important;" """,
-        "penality_col": """ style="width:160px !important;" """,
+        "penalty_col": """ style="width:160px !important;" """,
     }
 
     row_status_indications = [
@@ -675,6 +675,7 @@ class LeaveClashListView(LeaveRequestsListView):
                     | Q(
                         employee_id__employee_work_info__job_position_id=record.employee_id.employee_work_info.job_position_id
                     ),
+                    employee_id__employee_work_info__company_id=record.employee_id.employee_work_info.company_id,
                     start_date__lte=record.end_date,
                     end_date__gte=record.start_date,
                 )
@@ -687,7 +688,7 @@ class LeaveClashListView(LeaveRequestsListView):
     columns = [
         col
         for col in LeaveRequestsListView.columns
-        if col[1] not in ["leave_clash_col", "penality_col", "actions_col"]
+        if col[1] not in ["leave_clash_col", "penalty_col", "actions_col"]
     ] + [(_("Clashed Due To"), "clashed_due_to")]
 
     row_status_class = ""

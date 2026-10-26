@@ -43,7 +43,7 @@
           background: hsl(1, 100%, 61%);
           color: white;"
         class="oh-btn w-100"
-        title="{% trans 'Remove' %}"
+        title="{% trans 'Delete' %}"
         hx-get="{% url 'generic-delete' %}?model=recruitment.recruitment&pk={{instance.id}}"
         data-toggle="oh-modal-toggle"
         data-target="#deleteConfirmation"

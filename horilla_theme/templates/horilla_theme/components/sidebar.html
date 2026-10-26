@@ -570,7 +570,7 @@
             <div class="flex items-center gap-2 min-w-0 flex-1">
                 {% if request.session.selected_company_instance %}
                     <img
-                        src="{{ request.session.selected_company_instance.icon }}"
+                        src="{% if request.session.selected_company_instance.icon and request.session.selected_company_instance.icon != '/404/' %}{{ request.session.selected_company_instance.icon }}{% else %}/static/horilla_theme/assets/img/horilla-logo.png{% endif %}"
                         class="oh-sidebar-label w-7 h-7 rounded-full flex-shrink-0"
                         title="{{ request.session.selected_company_instance.company }}"
                         alt="{{ request.session.selected_company_instance.company }}"

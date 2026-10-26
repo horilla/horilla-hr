@@ -443,8 +443,8 @@ previewed is what gets written.
     var shortEl = form.querySelector("[data-pe-short]");
     if (uncovered > 0) {
       shortEl.hidden = false;
-      shortEl.textContent = "{% trans 'Deductions exceed gross pay by' %} "
-        + uncovered.toFixed(2) + " — {% trans 'capped, and this much would not be taken.' %}";
+      shortEl.textContent = "{% trans 'Deductions exceed gross pay by'|escapejs %} "
+        + uncovered.toFixed(2) + " — {% trans 'capped, and this much would not be taken.'|escapejs %}";
     } else {
       shortEl.hidden = true;
     }

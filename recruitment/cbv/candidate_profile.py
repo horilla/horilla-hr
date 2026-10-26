@@ -35,6 +35,9 @@ class CandidateProfileView(HorillaProfileView):
     push_url = "candidate-view-individual"
     key_name = "cand_id"
 
+    def get_queryset(self):
+        return Candidate.objects.get_queryset()
+
     def dispatch(self, request, *args, **kwargs):
         # This endpoint returns only the profile fragment; direct browser opens should
         # land on the full candidate page that loads this fragment via HTMX.
@@ -48,6 +51,12 @@ class CandidateProfileView(HorillaProfileView):
                 redirect_url = f"{redirect_url}?{query_string}"
             return redirect(redirect_url)
         return super().dispatch(request, *args, **kwargs)
+
+    def get_status_ribbon(self, instance):
+        if instance.canceled:
+            return {"label": _("Rejected"), "variant": "danger"}
+        if not instance.is_active:
+            return {"label": _("Archived"), "variant": "secondary"}
 
     actions = [
         {

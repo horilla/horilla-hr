@@ -805,8 +805,9 @@ class PenaltyAccountListView(HorillaListView):
         (_("Minus Days"), "minus_leaves"),
         (_("Deducted From CFD"), "get_deduct_from_carry_forward"),
         (_("Penalty amount"), "penalty_amount"),
-        (_("Created Date"), "created_at"),
+        (_("Date"), "penalty_date_col"),
         (_("Penalty Type"), "penalty_type_col"),
+        (_("Applied For"), "penalty_reference_col"),
     ]
 
     confirm_text = _("Are you sure you want to delete this penalty?")
