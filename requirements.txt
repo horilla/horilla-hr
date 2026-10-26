@@ -74,7 +74,7 @@ XlsxWriter==3.2.9
 # which XSS-checks the rendered body before wkhtmltopdf sees it.
 pdfkit==1.0.0
 PyMuPDF>=1.28.2,<2
-reportlab==4.0.9
+reportlab==5.1.0
 xhtml2pdf==0.2.17
 
 # Web scraping & HTML
