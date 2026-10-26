@@ -128,7 +128,7 @@ arabic-reshaper==3.0.1
 click==8.5.0
 phonenumbers==9.0.39
 pycountry==24.6.1
-python-bidi>=0.6.11,<0.7
+python-bidi>=0.6.12,<0.7
 rapidfuzz>=3.14.6,<4
 # Capped below 3.9 deliberately: the model wheel below is built for spacy
 # 3.8.x and spacy refuses a model from another minor. Raising this cap
