@@ -32,6 +32,66 @@ date and open a fresh Unreleased above it.
 ### Security      — vulnerabilities fixed; link the advisory and credit the reporter
 -->
 
+## [2.2.1] — 2026-10-DD
+
+Patch release. It brings in the dependency security updates that landed after 2.2.0,
+repairs fresh source installs and image builds that broke when a spaCy dependency
+released a bad version, and carries the fixes and polish merged since.
+
+**Upgrading from 2.2.0:** run `python manage.py migrate` (one new migration in `base`,
+additive). See *Upgrading* below.
+
+### Added
+
+- Employee: a Penalty tab on Policies and Disciplinary Actions, to list, create and
+  delete penalties.
+- Attendance: nested Group By on the monthly summary with pinned group headers, a columns
+  button on the header row, highlighting of a summary chip's days on hover, and bulk
+  overtime approval in a single update.
+- Exports: every export dialog now asks for a file name and a format (Excel, CSV or
+  PDF), shows an "Exporting..." progress dialog and uses the same column picker; the
+  asset export gains a column picker.
+- Recruitment: redesigned candidate login and application-tracking pages.
+- Profiles: a corner ribbon marks archived employees and candidates ("Archived") and
+  rejected candidates ("Rejected").
+- Base: expired sessions are now cleared daily at 03:00 in the configured time zone
+  (database-backed sessions; needs the scheduler process, as other background jobs do).
+- Settings: `HORILLA_FIRST_DAY_OF_WEEK` sets the first day of the week for the "This
+  Week" and "Last Week" quick dates (0 = Sunday, 1 = Monday ... 6 = Saturday). Monday by
+  default, and for an empty or invalid value.
+- Recruitment: dragging a candidate into a Hired stage that fills the vacancy shows a
+  "Vacancy is filled" popup.
+
+### Changed
+
+- Quick dates: "This Week" now covers the calendar week (it was today plus seven
+  days), starting on Monday by default. "Last Week", "Last 7 Days" and "Next 7 Days" are
+  added, and the dropdown is labelled "Quick filter".
+- Attendance: Short Hours counts with Absent in the calendar strip and legend, and the
+  monthly summary says so.
+- Recruitment: the stage that holds rejected candidates is now created as "Rejected
+  Candidates" (it was "Cancelled Candidates"). Stages that already exist keep their name.
+  Recording a rejection moves the candidate into that stage, and moving a candidate out
+  of it clears the rejected flag.
+- Attendance: the Daily Work Status page moved from `/attendance/work-records/` to
+  `/attendance/work-status/`; update bookmarks and links.
+- Delete tooltips and labels that read "Remove" now read "Delete" in recruitment,
+  project, payroll, mail, leave and the shared theme.
+- PMS: the question template detail view uses the shared list view.
+- Polish: loading animation on the import screens, a pointer cursor over clickable list
+  rows, and standard button colours in several lists.
+- Dependencies: Django REST framework 3.18.3 and setuptools 84.1.0 (see *Security*);
+  `preshed` is pinned to 3.0.13 (see *Fixed*).
+
+### Removed
+
+- Twelve dashboard endpoints that nothing in Horilla called, left over from the dashboard
+  redesign: attendance trend, leave coverage, payroll summary, department overtime,
+  leave by department, department leave days, employee status, today's leave, upcoming
+  holidays, recruitment pipeline, announcement detail, and the read side of saved
+  preferences (`/dashboard/load-prefs/`; saving is unchanged). Anyone scripting against
+  those `/dashboard/` URLs should check them.
+
 ### Fixed
 
 - Payroll: deductions on a payslip are now worked out in Sequence order (then creation
@@ -41,6 +101,55 @@ date and open a fresh Unreleased above it.
   returned them. A deduction that reads another one with a higher Sequence than its own
   now reads 0 when a payslip is regenerated, so give the deduction it reads the lower
   Sequence. Payslips that are already generated do not change.
+- Installs: `preshed` 3.0.14 makes spaCy fail while loading its model, which stopped a
+  fresh `pip install -r requirements.txt` and image builds from producing a working app.
+  `preshed` is pinned to 3.0.13 until spaCy or preshed ships a fix.
+- Attendance dashboards: employees without a shift are expected only on the days they
+  check in, approved leave is treated the same way on both dashboards, and the on-time
+  and Checked In Today figures match who is checked in.
+- Leave: the clashed-requests modal scopes clashes to the company and compares against
+  the request that was opened.
+- Base: the shift schedule form no longer fails when the shift or day is missing, and a
+  company without a logo no longer shows a broken image in the sidebar.
+- Employee: the bulk Archive and Un-Archive actions are shown only to users who may
+  delete employees (the server already required it), and the confirmation dialog is
+  restyled. Penalties: validation of deducted leave, and two typos.
+- Recruitment: a rejected candidate can be dragged out of the Rejected stage on the
+  pipeline.
+- Exports: long values no longer overlap in PDF exports, and the project export no
+  longer fails when a manager has no last name.
+- Translated text containing quotes or other special characters no longer breaks the
+  JavaScript on a page.
+- Docker: nginx rate-limits login attempts rather than every request to the login page,
+  so a session that expired no longer ends in a 429 on the login form.
+
+### Security
+
+Dependency updates:
+
+- Django REST framework 3.18.3 closes
+  [GHSA-33wh-fxxf-88vv](https://github.com/advisories/GHSA-33wh-fxxf-88vv),
+  [GHSA-3547-9m27-7rxg](https://github.com/advisories/GHSA-3547-9m27-7rxg) and
+  [GHSA-xw6w-gcfp-cf8m](https://github.com/advisories/GHSA-xw6w-gcfp-cf8m).
+- setuptools 84.1.0 closes
+  [GHSA-xmj3-9gf7-h52w](https://github.com/advisories/GHSA-xmj3-9gf7-h52w).
+
+### Upgrading
+
+- Run `migrate`.
+- Source installs: run `pip install -r requirements.txt` again.
+- Restart the scheduler (`manage.py run_scheduler`) so the new session-cleanup job is
+  registered.
+- Docker with the bundled nginx: `docker/nginx.conf` is mounted from your checkout, so
+  update it (git pull) and restart nginx to get the login rate-limit fix.
+- Installations whose own settings replace `MIDDLEWARE` should add
+  `horilla.horilla_middlewares.ExportDownloadCookieMiddleware` and
+  `horilla.horilla_middlewares.ExportOptionsMiddleware`, which the export dialogs use.
+- API clients: no API version change (`API_VERSION` unchanged).
+
+```bash
+docker pull horilla/horilla-hr:2.2.1
+```
 
 ## [2.2.0] — 2026-10-21
 
@@ -658,7 +767,8 @@ Secret — message delivery stops until it is set.
 docker pull horilla/horilla-hr:2.1.1
 ```
 
-[Unreleased]: https://github.com/horilla/horilla-hr/compare/2.2.0...HEAD
+[Unreleased]: https://github.com/horilla/horilla-hr/compare/2.2.1...HEAD
+[2.2.1]: https://github.com/horilla/horilla-hr/compare/2.2.0...2.2.1
 [2.2.0]: https://github.com/horilla/horilla-hr/compare/2.1.8...2.2.0
 [2.1.8]: https://github.com/horilla/horilla-hr/compare/2.1.7...2.1.8
 [2.1.7]: https://github.com/horilla/horilla-hr/compare/2.1.6...2.1.7

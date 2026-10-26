@@ -60,7 +60,7 @@ Published for `linux/amd64` and `linux/arm64` as
 [`horilla/horilla-hr`](https://hub.docker.com/r/horilla/horilla-hr):
 
 ```bash
-docker pull horilla/horilla-hr:2.2.0
+docker pull horilla/horilla-hr:2.2.1
 ```
 
 Pin an exact version in production rather than `latest`, so a deploy cannot
