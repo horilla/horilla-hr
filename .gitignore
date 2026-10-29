@@ -71,7 +71,6 @@ instance/
 
 # Sphinx documentation
 docs/_build/
-docs/_plan/
 
 # PyBuilder
 target/
@@ -165,7 +164,3 @@ CLAUDE.md
 .mcp.safe.json
 .claudeignore
 .specify/
-
-
-# graphify knowledge-graph output (graph, report, extraction cache) — regenerated locally.
-graphify-out

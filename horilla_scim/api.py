@@ -16,7 +16,7 @@ from urllib.parse import unquote_plus
 
 from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.http import Http404
 from django.utils import timezone
@@ -28,7 +28,7 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from base.models import Department, JobPosition
-from employee.models import Employee
+from employee.models import Employee, EmployeeWorkInformation
 from horilla_identity.models import ExternalIdentity
 from horilla_identity.services import provisioning
 from horilla_identity.services.provisioning import ProvisioningError
@@ -63,6 +63,11 @@ def _redacted_path(request):
     if not query:
         return request.path
     return request.path + "?" + _QUOTED.sub('"***"', unquote_plus(query))
+
+
+def _loggable(text):
+    # PostgreSQL refuses NUL in text columns; the event must still be logged.
+    return text.replace("\x00", "")
 
 
 def _check_external_id(value):
@@ -115,6 +120,12 @@ class ScimView(APIView):
             exc = ScimError(400, "invalidValue", "; ".join(exc.messages))
         elif isinstance(exc, Http404):
             exc = ScimError(404, None, "Resource not found.")
+        elif isinstance(exc, IntegrityError):
+            # Two simultaneous creates of the same user pass the uniqueness
+            # check together; the database refuses the second one.
+            exc = ScimError(
+                409, "uniqueness", "A user with this userName or e-mail already exists."
+            )
         elif isinstance(exc, exceptions.ParseError):
             exc = ScimError(400, "invalidSyntax", str(exc.detail))
         elif isinstance(
@@ -132,7 +143,12 @@ class ScimView(APIView):
 
         if isinstance(exc, ScimError):
             return Response(exc.as_dict(), status=exc.status)
-        return super().handle_exception(exc)
+        # Anything else is a bug, but the IdP still gets a SCIM error body
+        # rather than Django's HTML 500 page.
+        logger.exception("Unexpected error in SCIM request")
+        return Response(
+            ScimError(500, None, "Internal server error.").as_dict(), status=500
+        )
 
     def finalize_response(self, request, response, *args, **kwargs):
         response = super().finalize_response(request, response, *args, **kwargs)
@@ -146,9 +162,9 @@ class ScimView(APIView):
                 ScimEvent.objects.create(
                     provider=provider,
                     method=request.method,
-                    path=_redacted_path(request)[:255],
+                    path=_loggable(_redacted_path(request))[:255],
                     status=response.status_code,
-                    detail=detail,
+                    detail=_loggable(detail),
                 )
             except Exception:
                 logger.exception("Could not record SCIM event")
@@ -193,14 +209,19 @@ class SchemasView(ScimView):
 
 class UserMixin:
     def identities(self):
+        # The identity link alone is not enough: an employee HR moved to
+        # another company is no longer this provider's to see or change.
         return ExternalIdentity.objects.filter(
             source=ExternalIdentity.SOURCE_SCIM,
             provider_id=self.provider.pk,
             company_id=self.provider.company_id,
             unlinked_at__isnull=True,
+            user__employee_get__employee_work_info__company_id=self.provider.company_id,
         ).select_related("user")
 
     def get_identity(self, scim_id):
+        if "\x00" in scim_id:
+            raise Http404
         identity = self.identities().filter(subject=scim_id).first()
         if identity is None:
             raise Http404
@@ -218,7 +239,8 @@ class UserMixin:
             .filter(employee_user_id=identity.user_id)
             .first()
         )
-        if employee is None:
+        work_info = getattr(employee, "employee_work_info", None)
+        if work_info is None or work_info.company_id_id != self.provider.company_id:
             raise Http404
         return employee
 
@@ -229,7 +251,7 @@ class UserMixin:
 
     # -- attribute -> work info --------------------------------------------
 
-    def resolve_work_info(self, attrs, creating):
+    def resolve_work_info(self, attrs, creating, employee=None):
         company = self.provider.company
         work_info = {}
 
@@ -245,6 +267,9 @@ class UserMixin:
             department = self.provider.default_department
         if department is not None:
             work_info["department_id"] = department
+        elif not creating and attrs.department in (None, ""):
+            # Explicitly cleared (PATCH remove, or replace with "").
+            work_info["department_id"] = None
 
         position = None
         if attrs.title not in (UNSET, None, ""):
@@ -260,6 +285,8 @@ class UserMixin:
             position = self.provider.default_job_position
         if position is not None:
             work_info["job_position_id"] = position
+        elif not creating and attrs.title in (None, ""):
+            work_info["job_position_id"] = None
 
         if creating:
             if self.provider.default_shift_id:
@@ -279,11 +306,36 @@ class UserMixin:
                         .filter(employee_user_id=manager_identity.user_id)
                         .first()
                     )
+            if manager is not None and employee is not None:
+                self.check_manager(employee, manager)
             # An unknown manager is ignored: IdPs often send the report
             # before the manager exists here, and resend it later.
             if manager is not None or not attrs.manager_id:
                 work_info["reporting_manager_id"] = manager
         return work_info
+
+    @staticmethod
+    def check_manager(employee, manager):
+        if manager.pk == employee.pk:
+            raise ScimError(400, "invalidValue", "A user cannot be their own manager.")
+        # Walk up from the new manager; reaching the employee means a loop.
+        seen = set()
+        current = manager
+        while current is not None and current.pk not in seen and len(seen) < 100:
+            seen.add(current.pk)
+            info = (
+                EmployeeWorkInformation.objects.entire()
+                .filter(employee_id=current)
+                .select_related("reporting_manager_id")
+                .first()
+            )
+            current = info.reporting_manager_id if info else None
+            if current is not None and current.pk == employee.pk:
+                raise ScimError(
+                    400,
+                    "invalidValue",
+                    "This manager assignment would create a reporting loop.",
+                )
 
     def deactivate(self, identity, employee):
         # An employee HR already archived is not marked, so a later
@@ -329,7 +381,7 @@ class UserMixin:
                 if attrs.employee_number is UNSET
                 else (attrs.employee_number or "")
             ),
-            work_info=self.resolve_work_info(attrs, creating=False),
+            work_info=self.resolve_work_info(attrs, creating=False, employee=employee),
         )
         if attrs.external_id is not UNSET:
             identity.external_id = attrs.external_id or ""
@@ -355,8 +407,12 @@ class UsersView(UserMixin, ScimView):
         count = min(max(count, 0), schemas.MAX_RESULTS)
 
         total = queryset.count()
+        # Past the end there is nothing to fetch; skipping the query also
+        # keeps a huge startIndex from overflowing PostgreSQL's OFFSET.
         page = (
-            list(queryset[start_index - 1 : start_index - 1 + count]) if count else []
+            list(queryset[start_index - 1 : start_index - 1 + count])
+            if count and start_index <= total
+            else []
         )
         resources = [self.render_user(identity) for identity in page]
         return Response(schemas.list_response(resources, total, start_index))
@@ -468,12 +524,30 @@ class UsersView(UserMixin, ScimView):
         return identity, employee
 
 
+# Attributes a PATCH "remove" may not take away.
+_REQUIRED = {
+    "user_name": "userName",
+    "email": "emails",
+    "given_name": "name.givenName",
+    "active": "active",
+}
+
+
 class UserDetailView(UserMixin, ScimView):
     def get(self, request, scim_id):
         return Response(self.render_user(self.get_identity(scim_id)))
 
     @transaction.atomic
     def put(self, request, scim_id):
+        """
+        Update the user from a full document.
+
+        Attributes the document leaves out are kept, not cleared. RFC 7644
+        §3.5.1 describes PUT as a replacement, but Okta's PUT only carries the
+        attributes mapped in the provider, so a replacement would wipe the
+        title, department or manager HR maintains in Horilla. To clear an
+        attribute, send it empty (or null), or PATCH "remove" it.
+        """
         identity = self.get_identity(scim_id)
         employee = self.employee_of(identity)
         attrs = parse_user(request.data)
@@ -490,10 +564,25 @@ class UserDetailView(UserMixin, ScimView):
         patched = apply_patch(current, request.data)
 
         before, after = parse_user(current), parse_user(patched)
-        # Only hand changed attributes to the update, so a PATCH of one field
-        # cannot trip uniqueness checks or rewrite work info it did not touch.
         for name in vars(after):
-            if name != "extra" and getattr(after, name) == getattr(before, name):
+            if name in ("extra", "display_name"):
+                continue
+            old, new = getattr(before, name), getattr(after, name)
+            if name in _REQUIRED and new in (UNSET, None, ""):
+                if old not in (UNSET, None, ""):
+                    raise ScimError(
+                        400,
+                        "mutability",
+                        f"'{_REQUIRED[name]}' is required and cannot be removed.",
+                    )
+                setattr(after, name, UNSET)
+            elif new is UNSET and old is not UNSET:
+                # Removed by the PATCH (RFC 7644 §3.5.2.2): clear it.
+                setattr(after, name, None)
+            elif new == old:
+                # Only hand changed attributes to the update, so a PATCH of
+                # one field cannot trip uniqueness checks or rewrite work
+                # info it did not touch.
                 setattr(after, name, UNSET)
         self.update_from(identity, employee, after)
         return Response(self.render_user(identity))

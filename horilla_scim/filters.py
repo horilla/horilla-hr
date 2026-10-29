@@ -28,6 +28,11 @@ _LOOKUPS = {
 
 def parse_filter(expression):
     """Return a ``{lookup: value}`` dict for ``ExternalIdentity.objects.filter``."""
+    if "\x00" in (expression or ""):
+        # PostgreSQL refuses NUL in a query parameter (ValueError, a 500).
+        raise ScimError(
+            400, "invalidFilter", "Filters must not contain NUL characters."
+        )
     match = _EQ.match(expression or "")
     if not match:
         raise ScimError(

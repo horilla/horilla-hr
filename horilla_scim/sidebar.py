@@ -1,14 +1,14 @@
 """
-Adds the SCIM entry to the Settings sidebar's Identity & Access section.
+Adds the SCIM entry to the Settings sidebar's Integrations section.
 Imported from apps.py ready().
 """
 
 from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
 
-from base.sidebar import IdentityAccessSettings
+from base.sidebar import IntegrationsSettings
 
-IdentityAccessSettings.items.append(
+IntegrationsSettings.items.append(
     {
         "label": _("SCIM Provisioning"),
         "url": reverse_lazy("scim-settings"),

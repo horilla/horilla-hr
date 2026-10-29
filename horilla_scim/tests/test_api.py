@@ -5,12 +5,14 @@ the request shapes Okta and Microsoft Entra ID actually send.
 
 import json
 from datetime import timedelta
+from unittest import mock
 
 from django.contrib.auth.models import Permission
+from django.db import IntegrityError
 from django.test import Client, TestCase
 from django.utils import timezone
 
-from base.models import Department
+from base.models import Department, JobPosition
 from employee.models import Employee, EmployeeWorkInformation
 from horilla.horilla_middlewares import set_selected_company
 from horilla.testkit import make_company, make_employee, make_user
@@ -708,3 +710,235 @@ class AdminTests(TestCase):
         self.assertEqual(
             self.client.get("/admin/horilla_scim/scimtoken/").status_code, 403
         )
+
+
+class RobustnessTests(ScimTestCase):
+    """Input PostgreSQL refuses, and unexpected errors, must come back as SCIM
+    errors: IdPs read an HTML 500 as an outage."""
+
+    def assert_scim_error(self, response, status, scim_type=None):
+        self.assertEqual(response.status_code, status, response.content)
+        body = response.json()
+        self.assertIn("urn:ietf:params:scim:api:messages:2.0:Error", body["schemas"])
+        if scim_type:
+            self.assertEqual(body["scimType"], scim_type)
+
+    def test_nul_in_username_is_400(self):
+        doc = user_doc(
+            user_name="ann\x00@acme.test", emails=[{"value": "ann@acme.test"}]
+        )
+        self.assert_scim_error(self.call("post", "/Users", doc), 400, "invalidValue")
+        self.assertFalse(
+            Employee.objects.entire().filter(email="ann@acme.test").exists()
+        )
+
+    def test_nul_in_name_is_400(self):
+        doc = user_doc(name={"givenName": "A\x00nn", "familyName": "Lee"})
+        self.assert_scim_error(self.call("post", "/Users", doc), 400, "invalidValue")
+
+    def test_nul_in_patched_name_is_400(self):
+        created = self.create_user()
+        response = self.call(
+            "patch",
+            f"/Users/{created['id']}",
+            patch_doc({"op": "replace", "path": "name.familyName", "value": "L\x00"}),
+        )
+        self.assert_scim_error(response, 400, "invalidValue")
+        self.assertEqual(self.employee().employee_last_name, "Lee")
+
+    def test_nul_in_filter_is_400(self):
+        response = self.call("get", "/Users?filter=userName%20eq%20%22a%00b%22")
+        self.assert_scim_error(response, 400, "invalidFilter")
+        self.assertEqual(ScimEvent.objects.filter(status=400).count(), 1)
+
+    def test_nul_in_id_is_404(self):
+        self.assert_scim_error(self.call("get", "/Users/a%00b"), 404)
+
+    def test_huge_start_index_is_an_empty_page(self):
+        self.create_user()
+        response = self.call("get", "/Users?startIndex=99999999999999999999")
+        self.assertEqual(response.status_code, 200, response.content)
+        body = response.json()
+        self.assertEqual(body["totalResults"], 1)
+        self.assertEqual(body["Resources"], [])
+
+    def test_concurrent_create_integrity_error_is_409(self):
+        with mock.patch(
+            "horilla_scim.api.provisioning.create_employee",
+            side_effect=IntegrityError("duplicate key"),
+        ):
+            response = self.call("post", "/Users", user_doc())
+        self.assert_scim_error(response, 409, "uniqueness")
+
+    def test_unexpected_error_is_scim_500(self):
+        with mock.patch(
+            "horilla_scim.api.provisioning.create_employee",
+            side_effect=RuntimeError("boom"),
+        ), self.assertLogs("horilla_scim.api", level="ERROR"):
+            response = self.call("post", "/Users", user_doc())
+        self.assert_scim_error(response, 500)
+        self.assertNotIn("boom", response.json()["detail"])
+
+
+class MalformedShapeTests(ScimTestCase):
+    def assert_invalid(self, doc, method="post", path="/Users"):
+        response = self.call(method, path, doc)
+        self.assertEqual(response.status_code, 400, response.content)
+        self.assertEqual(response.json()["scimType"], "invalidValue")
+
+    def test_name_as_string(self):
+        self.assert_invalid(user_doc(name="Ann Lee"))
+
+    def test_emails_as_object(self):
+        self.assert_invalid(user_doc(emails={"value": "ann@acme.test"}))
+
+    def test_phone_numbers_as_number(self):
+        self.assert_invalid(user_doc(phoneNumbers=5551234))
+
+    def test_enterprise_extension_as_string(self):
+        self.assert_invalid(user_doc(**{ENTERPRISE_USER: "Engineering"}))
+
+    def test_manager_as_number(self):
+        self.assert_invalid(user_doc(**{ENTERPRISE_USER: {"manager": 7}}))
+
+    def test_malformed_put_changes_nothing(self):
+        created = self.create_user()
+        self.assert_invalid(
+            user_doc(name="Annie"), method="put", path=f"/Users/{created['id']}"
+        )
+        self.assertEqual(self.employee().employee_first_name, "Ann")
+
+
+class PatchRemoveTests(ScimTestCase):
+    """RFC 7644 §3.5.2.2: "remove" clears the attribute."""
+
+    def setUp(self):
+        super().setUp()
+        self.department = Department.objects.create(department="Engineering")
+        self.department.company_id.add(self.company)
+        self.position = JobPosition.objects.create(
+            job_position="Engineer", department_id=self.department
+        )
+        self.position.company_id.add(self.company)
+        self.boss = self.create_user(user_name="boss@acme.test", externalId="m")
+        self.user = self.create_user(
+            title="Engineer",
+            phoneNumbers=[{"value": "5551234", "type": "work"}],
+            **{
+                ENTERPRISE_USER: {
+                    "department": "Engineering",
+                    "employeeNumber": "E-1",
+                    "manager": {"value": self.boss["id"]},
+                }
+            },
+        )
+        self.path = f"/Users/{self.user['id']}"
+
+    def remove(self, path):
+        return self.call("patch", self.path, patch_doc({"op": "remove", "path": path}))
+
+    def work_info(self):
+        return EmployeeWorkInformation.objects.entire().get(employee_id=self.employee())
+
+    def test_setup_values(self):
+        info = self.work_info()
+        self.assertEqual(info.department_id, self.department)
+        self.assertEqual(info.job_position_id, self.position)
+        self.assertEqual(info.reporting_manager_id, self.employee("boss@acme.test"))
+        self.assertEqual(self.employee().phone, "5551234")
+
+    def test_remove_manager(self):
+        response = self.remove(f"{ENTERPRISE_USER}:manager")
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertIsNone(self.work_info().reporting_manager_id)
+        self.assertNotIn("manager", response.json()[ENTERPRISE_USER])
+
+    def test_remove_phone_numbers(self):
+        self.assertEqual(self.remove("phoneNumbers").status_code, 200)
+        self.assertEqual(self.employee().phone, "")
+
+    def test_remove_phone_number_by_filter(self):
+        self.assertEqual(self.remove('phoneNumbers[type eq "work"]').status_code, 200)
+        self.assertEqual(self.employee().phone, "")
+
+    def test_remove_title_and_department(self):
+        self.assertEqual(self.remove("title").status_code, 200)
+        self.assertEqual(self.remove(f"{ENTERPRISE_USER}:department").status_code, 200)
+        info = self.work_info()
+        self.assertIsNone(info.job_position_id)
+        self.assertIsNone(info.department_id)
+
+    def test_remove_employee_number(self):
+        self.assertEqual(
+            self.remove(f"{ENTERPRISE_USER}:employeeNumber").status_code, 200
+        )
+        self.assertIsNone(self.employee().badge_id)
+
+    def test_remove_required_attribute_is_400(self):
+        for path in ("userName", "emails", "name.givenName", "active"):
+            response = self.remove(path)
+            self.assertEqual(response.status_code, 400, path)
+            self.assertEqual(response.json()["scimType"], "mutability")
+        self.assertEqual(self.employee().employee_first_name, "Ann")
+
+    def test_put_keeps_omitted_attributes(self):
+        # Documented: PUT merges, so an IdP that does not map an attribute
+        # cannot wipe what HR maintains in Horilla.
+        response = self.call("put", self.path, user_doc())
+        self.assertEqual(response.status_code, 200, response.content)
+        info = self.work_info()
+        self.assertEqual(info.job_position_id, self.position)
+        self.assertEqual(info.reporting_manager_id, self.employee("boss@acme.test"))
+        self.assertEqual(self.employee().phone, "5551234")
+
+
+class CompanyMoveTests(ScimTestCase):
+    def test_employee_moved_to_another_company_is_hidden(self):
+        created = self.create_user()
+        EmployeeWorkInformation.objects.entire().filter(
+            employee_id=self.employee()
+        ).update(company_id=make_company("Globex"))
+        path = f"/Users/{created['id']}"
+        self.assertEqual(self.call("get", path).status_code, 404)
+        self.assertEqual(self.call("get", "/Users").json()["totalResults"], 0)
+        response = self.call(
+            "patch",
+            path,
+            patch_doc({"op": "replace", "path": "name.givenName", "value": "X"}),
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(self.call("delete", path).status_code, 404)
+        self.assertEqual(self.employee().employee_first_name, "Ann")
+
+
+class ManagerTests(ScimTestCase):
+    def set_manager(self, user, manager):
+        return self.call(
+            "patch",
+            f"/Users/{user['id']}",
+            patch_doc(
+                {
+                    "op": "replace",
+                    "path": f"{ENTERPRISE_USER}:manager",
+                    "value": {"value": manager["id"]},
+                }
+            ),
+        )
+
+    def test_self_manager_is_400(self):
+        created = self.create_user()
+        response = self.set_manager(created, created)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["scimType"], "invalidValue")
+
+    def test_manager_loop_is_400(self):
+        ann = self.create_user()
+        bob = self.create_user(user_name="bob@acme.test", externalId="b")
+        cat = self.create_user(user_name="cat@acme.test", externalId="c")
+        self.assertEqual(self.set_manager(ann, bob).status_code, 200)
+        self.assertEqual(self.set_manager(bob, cat).status_code, 200)
+        self.assertEqual(self.set_manager(cat, ann).status_code, 400)
+        info = EmployeeWorkInformation.objects.entire().get(
+            employee_id=self.employee("cat@acme.test")
+        )
+        self.assertIsNone(info.reporting_manager_id)

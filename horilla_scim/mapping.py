@@ -81,18 +81,37 @@ class UserAttributes:
         return None
 
 
+def _reject_nul(value, key):
+    # PostgreSQL refuses NUL in text columns and raises ValueError (a 500).
+    if isinstance(value, str) and "\x00" in value:
+        raise ScimError(
+            400, "invalidValue", f"'{key}' must not contain NUL characters."
+        )
+    return value
+
+
+def _multi_valued(doc, key):
+    """A multi-valued attribute: UNSET, None, or a list of objects."""
+    values = get_ci(doc, key, UNSET)
+    if values is UNSET or values is None:
+        return values
+    if not isinstance(values, list) or not all(isinstance(v, dict) for v in values):
+        raise ScimError(400, "invalidValue", f"'{key}' must be a list of objects.")
+    return values
+
+
 def parse_user(doc):
     if not isinstance(doc, dict):
         raise ScimError(400, "invalidSyntax", "Request body must be a JSON object.")
     attrs = UserAttributes()
 
-    def _str(key, source=doc):
+    def _str(key, source=doc, label=None):
         value = get_ci(source, key, UNSET)
         if value is UNSET or value is None:
             return value
-        if not isinstance(value, (str, int)):
-            raise ScimError(400, "invalidValue", f"'{key}' must be a string.")
-        return str(value).strip()
+        if not isinstance(value, (str, int)) or isinstance(value, bool):
+            raise ScimError(400, "invalidValue", f"'{label or key}' must be a string.")
+        return _reject_nul(str(value), label or key).strip()
 
     attrs.user_name = _str("userName")
     attrs.external_id = _str("externalId")
@@ -101,20 +120,22 @@ def parse_user(doc):
 
     name = get_ci(doc, "name", UNSET)
     if isinstance(name, dict):
-        attrs.given_name = _str("givenName", name)
-        attrs.family_name = _str("familyName", name)
+        attrs.given_name = _str("givenName", name, "name.givenName")
+        attrs.family_name = _str("familyName", name, "name.familyName")
+    elif name is not UNSET and name is not None:
+        raise ScimError(400, "invalidValue", "'name' must be an object.")
 
-    emails = get_ci(doc, "emails", UNSET)
+    emails = _multi_valued(doc, "emails")
     if emails is not UNSET:
         entry = _pick(emails, "work")
-        attrs.email = (
-            (str(get_ci(entry, "value", "")).strip() or None) if entry else None
-        )
+        value = _str("value", entry, "emails.value") if entry else None
+        attrs.email = value if value not in (UNSET, None, "") else None
 
-    phones = get_ci(doc, "phoneNumbers", UNSET)
+    phones = _multi_valued(doc, "phoneNumbers")
     if phones is not UNSET:
         entry = _pick(phones, "work")
-        attrs.phone = (str(get_ci(entry, "value", "")).strip() or "") if entry else ""
+        value = _str("value", entry, "phoneNumbers.value") if entry else None
+        attrs.phone = value if value not in (UNSET, None) else ""
 
     active = get_ci(doc, "active", UNSET)
     if active is not UNSET and active is not None:
@@ -126,10 +147,16 @@ def parse_user(doc):
         attrs.department = _str("department", enterprise)
         manager = get_ci(enterprise, "manager", UNSET)
         if isinstance(manager, dict):
-            attrs.manager_id = _str("value", manager)
+            attrs.manager_id = _str("value", manager, "manager.value")
         elif manager is None or isinstance(manager, str):
             # Some IdPs send the manager id directly, or null to clear it.
-            attrs.manager_id = manager
+            attrs.manager_id = _reject_nul(manager, "manager")
+        elif manager is not UNSET:
+            raise ScimError(400, "invalidValue", "'manager' must be an object.")
+    elif enterprise is not UNSET and enterprise is not None:
+        raise ScimError(
+            400, "invalidValue", "The enterprise User extension must be an object."
+        )
     return attrs
 
 
