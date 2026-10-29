@@ -1,0 +1,51 @@
+<div id="actionTypeFormContainer">
+    {% include "generic/horilla_form.html" %}
+</div>
+
+<script>
+    // "Enable login block" (block_option) only makes sense for Suspension/
+    // Dismissal (it blocks login for the period of suspension/dismissal) --
+    // a Warning has no such period, so hide it for that choice. Same
+    // reasoning/field already handled server-side (ActionTypeFormView.
+    // get_context_data) for an existing instance being edited, and
+    // client-side for DisciplinaryActionForm's own "Action" field
+    // (disciplinary_actions/forms/create_form.html's actionChange) -- this
+    // is the same toggle for Action Type's own "Action Type" field,
+    // done directly off its own selected value (no AJAX round trip needed,
+    // unlike the Disciplinary Action form, since that value is already
+    // on the client here).
+    function syncActionTypeBlockOption() {
+        var $select = $("#id_action_type");
+        if (!$select.length) return;
+        var $blockDiv = $select.closest("form").find("#id_block_option_parent_div");
+        if (!$blockDiv.length) return;
+        if ($select.val() === "warning" || !$select.val()) {
+            $blockDiv.hide();
+        } else {
+            $blockDiv.show();
+        }
+    }
+
+    $(document)
+        .off("change.actionTypeBlockOption")
+        .on("change.actionTypeBlockOption", "#id_action_type", function () {
+            syncActionTypeBlockOption();
+            // Select2 (see htmxSelect2.js's .oh-select sweep) should already
+            // close on selecting a value -- closing it again here explicitly
+            // is a harmless no-op when it already did, and a safety net for
+            // the one report of it staying open.
+            if ($(this).hasClass("select2-hidden-accessible")) {
+                $(this).select2("close");
+            }
+        });
+
+    // Reflects whatever value is already selected (editing an existing
+    // instance) the moment this form loads, and again if this fragment
+    // reloads via htmx (e.g. reopening the modal).
+    syncActionTypeBlockOption();
+    $(document)
+        .off("htmx:afterSettle.actionTypeBlockOption")
+        .on("htmx:afterSettle.actionTypeBlockOption", function () {
+            syncActionTypeBlockOption();
+        });
+</script>

@@ -15,6 +15,18 @@
             {% if level > 0 %}
                 <ion-icon name="return-down-forward-outline" style="font-size:13px; color:#C7C4BA; flex-shrink:0;"></ion-icon>
             {% endif %}
+            {% if bulk_select_option and node.count %}
+                <span class="inline-flex items-center" onclick="event.stopPropagation()">
+                    <input
+                        type="checkbox"
+                        class="hlv-group-select custom-checkbox w-4 h-4 bg-[#E9EDF7] rounded-sm text-primary-600 cursor-pointer"
+                        data-select-ids="{{ node|node_ids_json }}"
+                        data-store-key="{{ selected_instances_key_id|default:'selectedInstances' }}"
+                        title="{% trans 'Select all in this group' %}"
+                        onchange="hlvToggleGroupSelect(this, '#{{ view_id|safe }}', '{{ selected_instances_key_id|default:'selectedInstances' }}')"
+                    >
+                </span>
+            {% endif %}
             <span class="inline-flex items-center {% if level > 0 %}gap-1.5 bg-[#F6F5F1] rounded-md pl-1 pr-2 py-0.5{% else %}gap-2.5{% endif %}">
                 <span
                     class="inline-flex items-center justify-center rounded-full font-semibold {% if level == 0 %}min-w-[22px] h-[22px] px-1.5 text-[11px] bg-primary-600 text-white{% else %}min-w-[18px] h-[18px] px-1 text-[10px] bg-white text-[#6F6D66] border border-[#DEDBD4]{% endif %}"

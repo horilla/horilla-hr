@@ -305,6 +305,10 @@ input[type="file"] {
   height: 35px;
 }
 
+textarea.oh-input {
+  height: auto;
+}
+
 .oh-input::placeholder,
 .oh-select::placeholder {
   font-size: 0.75rem;
@@ -1513,6 +1517,10 @@ table .oh-btn-group a {
 .oh-btn--disabled {
   opacity: 0.5;
   cursor: not-allowed !important;
+  /* Stays hoverable so the not-allowed cursor shows; clicks are swallowed by
+     the guard in static/index/index.js (a link must not navigate, and a click
+     must not fall through to the row behind it). */
+  pointer-events: auto;
 }
 
 .oh-btn--disabled:focus,
@@ -4860,6 +4868,282 @@ th[id$="mail_indication-header"] {
 /* Summernote hide-bug workaround */
 textarea[data-summernote]:has(+ .note-editor) {
   display: none !important;
+}
+
+/* Summernote rich-text editor */
+.note-editor.note-frame {
+  border: 1px solid var(--primary-500, #f7c8c1);
+  border-radius: 10px;
+  box-shadow: none;
+  background: #fff;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.note-editor.note-frame:focus-within {
+  border-color: var(--primary-600, #e54f38);
+  box-shadow: 0 0 0 3px var(--primary-300, #fcedeb);
+}
+.note-editor.note-frame.fullscreen {
+  border-radius: 0;
+}
+.note-editor.note-frame .note-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 0;
+  padding: 4px 6px;
+  margin: 0;
+  background: var(--primary-300, #fcedeb);
+  border: 0;
+  border-bottom: 1px solid var(--primary-500, #f7c8c1);
+  border-radius: 10px 10px 0 0;
+}
+.note-editor.note-frame .note-toolbar > .note-btn-group {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 1px 0 0;
+  padding-right: 2px;
+  border-right: 1px solid var(--primary-500, #f7c8c1);
+}
+.note-editor.note-frame .note-toolbar > .note-btn-group:last-child {
+  border-right: 0;
+  padding-right: 0;
+}
+.note-editor.note-frame .note-toolbar .note-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 4px;
+  margin: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: #4b5563;
+  font-size: 13px;
+  box-shadow: none;
+  transition:
+    background-color 0.12s ease,
+    color 0.12s ease;
+}
+.note-editor.note-frame .note-toolbar .note-btn:hover,
+.note-editor.note-frame .note-toolbar .note-btn:focus {
+  background: var(--primary-500, #f7c8c1);
+  border-color: transparent;
+  color: #111827;
+}
+.note-editor.note-frame .note-toolbar .note-btn.active,
+.note-editor.note-frame .note-toolbar .note-btn:active {
+  background: transparent;
+  border-color: transparent;
+  color: var(--primary-600, #e54f38);
+}
+.note-editor.note-frame .note-toolbar .note-btn [class^="note-icon-"] {
+  font-size: 13px;
+}
+.note-editor.note-frame .note-dropdown-menu {
+  padding: 6px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(16, 24, 40, 0.12);
+}
+.note-editor.note-frame .note-dropdown-menu .note-dropdown-item {
+  border-radius: 6px;
+}
+.note-editor.note-frame .note-dropdown-menu .note-dropdown-item:hover {
+  background: #f1f3f6;
+}
+.note-editor.note-frame .note-editing-area .note-editable {
+  padding: 14px 16px;
+  background: #fff;
+  color: #1f2937;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.note-editor.note-frame .note-editing-area .note-placeholder {
+  padding: 14px 16px;
+  color: #9ca3af;
+  font-size: 14px;
+}
+.note-editor.note-frame .note-editing-area .note-codable {
+  padding: 14px 16px;
+}
+.note-editor.note-frame .note-statusbar {
+  background: transparent;
+  border-top: 0;
+  border-radius: 0 0 10px 10px;
+}
+.note-editor.note-frame .note-statusbar .note-resizebar {
+  height: 8px;
+  padding: 0;
+  border-radius: 0 0 10px 10px;
+  transition: background-color 0.15s ease;
+}
+.note-editor.note-frame .note-statusbar .note-resizebar:hover {
+  background: var(--primary-300, #fcedeb);
+}
+.note-editor.note-frame .note-statusbar .note-icon-bar {
+  display: none;
+}
+.note-editor.note-frame.fullscreen .note-statusbar {
+  border-radius: 0;
+}
+
+.note-modal-backdrop {
+  background: #0f172a;
+  opacity: 0.45;
+}
+.note-modal .note-modal-content {
+  overflow: hidden;
+  margin-top: 8vh;
+  border: 0;
+  border-radius: 12px;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+}
+.note-modal .note-modal-header {
+  padding: 16px 24px;
+  border: 0;
+  border-bottom: 1px solid #eef0f3;
+}
+.note-modal .note-modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+}
+.note-modal .note-modal-body {
+  padding: 20px 24px;
+}
+.note-modal .note-form-label {
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+}
+.note-modal .note-input {
+  padding: 9px 12px;
+  border: 1px solid #d5dae1;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #1f2937;
+  background: #fff;
+  box-shadow: none;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.note-modal .note-input:focus {
+  outline: 0;
+  border-color: var(--primary-600, #e54f38);
+  box-shadow: 0 0 0 3px var(--primary-300, #fcedeb);
+}
+.note-modal .note-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  height: auto;
+  padding: 14px 24px;
+  background: #f8f9fb;
+  border-top: 1px solid #eef0f3;
+}
+.note-modal .note-modal-footer .note-btn,
+.note-modal .note-btn-primary {
+  float: none;
+  height: auto;
+  padding: 8px 18px;
+  border: 1px solid var(--primary-600, #e54f38);
+  border-radius: 8px;
+  background: var(--primary-600, #e54f38);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+}
+.note-modal .note-modal-footer .note-btn:hover,
+.note-modal .note-btn-primary:hover,
+.note-modal .note-btn-primary:focus {
+  background: var(--primary-700, #ce4732);
+  border-color: var(--primary-700, #ce4732);
+  color: #fff;
+}
+.note-modal .note-modal-footer .note-btn.disabled,
+.note-modal .note-modal-footer .note-btn[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+body.dark .note-editor.note-frame {
+  background: #1b1b1b;
+  border-color: #444;
+}
+body.dark .note-editor.note-frame .note-toolbar .note-btn {
+  background: transparent;
+  border-color: transparent !important;
+  color: #cbd5e1 !important;
+}
+body.dark .note-editor.note-frame .note-toolbar .note-btn:hover,
+body.dark .note-editor.note-frame .note-toolbar .note-btn:focus {
+  background: #2d2d2d;
+  color: #fff !important;
+}
+body.dark .note-editor.note-frame .note-toolbar .note-btn.active,
+body.dark .note-editor.note-frame .note-toolbar .note-btn:active {
+  background: transparent;
+  color: var(--primary-600, #e54f38) !important;
+}
+body.dark .note-editor.note-frame .note-toolbar > .note-btn-group {
+  border-right-color: #3a3a3a;
+}
+body.dark .note-editor.note-frame .note-dropdown-menu {
+  background: #1b1b1b;
+  border-color: #444;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+}
+body.dark .note-editor.note-frame .note-dropdown-menu .note-dropdown-item {
+  color: #dfdfdf;
+}
+body.dark .note-editor.note-frame .note-dropdown-menu .note-dropdown-item:hover {
+  background: #2d2d2d;
+}
+body.dark .note-editor.note-frame .note-editing-area .note-editable {
+  background: #242424;
+  color: #e5e7eb;
+}
+body.dark .note-editor.note-frame .note-statusbar {
+  background: transparent;
+}
+body.dark .note-editor.note-frame .note-statusbar .note-resizebar:hover {
+  background: #2d2d2d;
+}
+body.dark .note-modal .note-modal-content {
+  background: #1b1b1b;
+  color: #dfdfdf;
+}
+body.dark .note-modal .note-modal-header,
+body.dark .note-modal .note-modal-footer {
+  border-color: #333;
+}
+body.dark .note-modal .note-modal-footer {
+  background: #151515;
+}
+body.dark .note-modal .note-modal-title {
+  color: #f3f4f6;
+}
+body.dark .note-modal .note-form-label {
+  color: #cbd5e1;
+}
+body.dark .note-modal .note-input {
+  background: #111;
+  border-color: #444;
+  color: #e5e7eb;
+}
+body.dark .note-modal .note-modal-footer .note-btn,
+body.dark .note-modal .note-btn-primary {
+  background: var(--primary-600, #e54f38);
+  border-color: var(--primary-600, #e54f38) !important;
+  color: #fff !important;
 }
 
 /* Write / Preview tab toggle (e.g. recruitment send-mail modal) */

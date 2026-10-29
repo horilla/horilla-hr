@@ -11,7 +11,7 @@
         hx-get="{% url 'add-more-approval-managers' %}?managers_count={{ managers_count }}"
         role="button"
         id = "addmangerButton"
-        style="color: green"
+        style="color: inherit"
         >{% trans "Add Manager" %}</button>
 </div>
 
@@ -34,18 +34,7 @@
             $(parentDiv).find('.oh-label__info').remove();
         }
 
-        $("#id_condition_operator").change(function() {
-            var selectedValue = $(this).val();
-            if (selectedValue == "range") {
-                $("#id_condition_start_value_parent_div").remove();
-                $("#id_condition_end_value_parent_div").remove();
-            }
-            else{
-            $("#id_condition_value_parent_div").show();
-            $("#id_condition_start_value_parent_div").remove();
-            $("#id_condition_end_value_parent_div").remove();
-            }
-        });
+
         var managerid = "multiApprovalManager_" + managersCount
         var divElement = document.createElement('div');
         divElement.id = managerid;
@@ -53,7 +42,7 @@
         var anchorElement = document.createElement('a');
         anchorElement.setAttribute('role', 'button');
         anchorElement.setAttribute('id', 'addmanger');
-        anchorElement.className = 'oh-btn oh-btn--x-small oh-btn--success-outline';
+        anchorElement.className = 'oh-btn oh-btn--x-small oh-btn--secondary-outline';
         anchorElement.innerHTML = '<ion-icon name="add-outline" class="me-1"></ion-icon>{% trans "Add Manager"|escapejs %}';
 
         divElement.appendChild(anchorElement);
@@ -85,6 +74,20 @@
 
         executeOnce();
 
+        // Once the user actually changes the operator, the swap (above) owns
+        // #id_condition_value_parent_div's contents from here on -- show it
+        // again (executeOnce may have hidden it, for an existing "range"
+        // condition whose Start/End values were shown via the pair below
+        // instead) and get rid of that separate, originally-rendered pair
+        // entirely, or a submitted "range" condition would carry two
+        // same-named condition_start_value/condition_end_value inputs (this
+        // pre-existing one, still holding the record's old values, plus the
+        // freshly swapped-in one) and the server could read either.
+        $("#id_condition_operator").on("change", function () {
+            $("#id_condition_value_parent_div").show();
+            $("#id_condition_start_value_parent_div").remove();
+            $("#id_condition_end_value_parent_div").remove();
+        });
 
         $(document).on('htmx:afterSwap', function(event) {
           $(document).off('click', '#addshift').on('click', '#addshift', function(event) {

@@ -4,22 +4,16 @@
 <div id="formContainer">
     {% include "generic/horilla_form.html" %}
     <button hidden hx-target="#multiApprovalManager_0" hx-swap="outerHTML"
-        hx-get="{% url 'add-more-approval-managers' %}" role="button" id="addmangerButton" style="color: green">
+        hx-get="{% url 'add-more-approval-managers' %}" role="button" id="addmangerButton" style="color: inherit">
         {% trans "Add Manager" %}
     </button>
 </div>
 
 <script>
     $(document).ready(function () {
-        $("#id_condition_start_value_parent_div").hide();
-        $("#id_condition_end_value_parent_div").hide();
-        $("#id_condition_operator").change(function () {
-            var selectedValue = $(this).val();
-            if (selectedValue === "range") {
-                $("#id_condition_start_value_parent_div").remove();
-                $("#id_condition_end_value_parent_div").remove();
-            }
-        });
+
+        $("#id_condition_start_value_parent_div").remove();
+        $("#id_condition_end_value_parent_div").remove();
 
         var divElement = document.createElement('div');
         divElement.id = 'multiApprovalManager_0';
@@ -27,7 +21,7 @@
         var anchorElement = document.createElement('a');
         anchorElement.setAttribute('role', 'button');
         anchorElement.setAttribute('id', 'addmanger');
-        anchorElement.className = 'oh-btn oh-btn--x-small oh-btn--success-outline';
+        anchorElement.className = 'oh-btn oh-btn--x-small oh-btn--secondary-outline';
         anchorElement.innerHTML = '<ion-icon name="add-outline" class="me-1"></ion-icon>{% trans "Add Manager"|escapejs %}';
 
         divElement.appendChild(anchorElement);

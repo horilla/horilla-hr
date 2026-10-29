@@ -479,6 +479,23 @@ def clear_expired_sessions():
         logger.info("Cleared %s expired sessions", expired)
 
 
+def trim_scheduler_history():
+    """
+    Delete scheduler job-run history older than HORILLA_SCHEDULER_HISTORY_DAYS.
+    django_apscheduler records a row for every run of every job and never
+    removes them, so with jobs that run every minute the table grows by
+    thousands of rows a day.
+    """
+    from django.conf import settings
+    from django.utils import timezone
+    from django_apscheduler.models import DjangoJobExecution
+
+    days = getattr(settings, "HORILLA_SCHEDULER_HISTORY_DAYS", 7)
+    cutoff = timezone.now() - timedelta(days=days)
+    deleted, _ = DjangoJobExecution.objects.filter(run_time__lte=cutoff).delete()
+    logger.info("Deleted %s scheduler job runs older than %s days", deleted, days)
+
+
 # The job1..job6 ids are historical and deliberately preserved so existing
 # jobstore rows are replaced rather than duplicated. Note job5/job6 are swapped
 # relative to declaration order -- that is how they have always been persisted.
@@ -498,5 +515,13 @@ register_job(
     job_id="clear_expired_sessions",
     hour=3,
     minute=0,
+    misfire_grace_time=3600 * 6,
+)
+register_job(
+    trim_scheduler_history,
+    "cron",
+    job_id="trim_scheduler_history",
+    hour=3,
+    minute=15,
     misfire_grace_time=3600 * 6,
 )

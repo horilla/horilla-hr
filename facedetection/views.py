@@ -1,5 +1,5 @@
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib.auth.decorators import permission_required
 from django.http import QueryDict
 from django.shortcuts import redirect, render
 from django.utils.decorators import method_decorator
@@ -12,7 +12,7 @@ from rest_framework.views import APIView
 
 from base.models import Company
 from facedetection.forms import FaceDetectionSetupForm
-from horilla.decorators import hx_request_required
+from horilla.decorators import hx_request_required, login_required
 from horilla.http.response import HorillaRedirect
 
 from .serializers import *

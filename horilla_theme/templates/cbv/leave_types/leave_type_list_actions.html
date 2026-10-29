@@ -9,7 +9,7 @@
             class="oh-btn oh-btn--light-bkg oh-btn--sq-sm text-success"
             title="{% trans 'Assign' %}"
         >
-            <ion-icon name="checkmark-done-outline"></ion-icon>
+            <ion-icon name="person-add-outline"></ion-icon>
         </a>
     {% else %}
         <a
@@ -18,8 +18,33 @@
             title="{% trans 'Assign' %}"
             class="oh-btn oh-btn--light-bkg oh-btn--disabled oh-btn--sq-sm text-success"
         >
-            <ion-icon name="checkmark-done-outline"></ion-icon>
+            <ion-icon name="person-add-outline"></ion-icon>
         </a>
+    {% endif %}
+
+    {% if perms.leave.change_leavetype %}
+        {% with due_count=instance.due_reset_count %}
+        {% if due_count %}
+            <button
+                type="button"
+                onclick="runLeaveTypeReset('{% url 'leave-type-run-missed-resets' instance.id %}', '{{ instance.name|escapejs }}', {{ due_count }})"
+                class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
+                title="{% trans 'Run missed resets' %}"
+            >
+                <ion-icon name="refresh-outline"></ion-icon>
+            </button>
+        {% else %}
+            <button
+                type="button"
+                tabindex="-1"
+                aria-disabled="true"
+                title="{% if instance.reset %}{% trans 'No overdue resets' %}{% else %}{% trans 'This leave type does not reset' %}{% endif %}"
+                class="oh-btn oh-btn--light-bkg oh-btn--disabled oh-btn--sq-sm"
+            >
+            <ion-icon name="refresh-outline"></ion-icon>
+        </button>
+        {% endif %}
+        {% endwith %}
     {% endif %}
 
     {% if perms.leave.change_leavetype and perms.leave.add_availableleave %}
@@ -27,10 +52,9 @@
             <a
                 href="#"
                 hx-get="{% url 'type-update' instance.id %}?compensatory=True"
-                hx-target="#ohMainContent"
-                hx-select="#ohMainContent"
-                hx-push-url="true"
-                hx-swap="outerHTML"
+                data-toggle="oh-modal-toggle"
+                data-target="#objectUpdateModal"
+                hx-target="#objectUpdateModalTarget"
                 class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
                 title="{% trans 'Update' %}"
             >
@@ -40,10 +64,9 @@
             <a
                 href="#"
                 hx-get="{% url 'type-update' instance.id %}"
-                hx-target="#ohMainContent"
-                hx-select="#ohMainContent"
-                hx-push-url="true"
-                hx-swap="outerHTML"
+                data-toggle="oh-modal-toggle"
+                data-target="#objectUpdateModal"
+                hx-target="#objectUpdateModalTarget"
                 class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
                 title="{% trans 'Update' %}"
             >

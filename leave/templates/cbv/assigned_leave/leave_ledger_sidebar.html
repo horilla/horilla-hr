@@ -16,10 +16,20 @@
             <div class="w-10 h-10 shrink-0 rounded-full bg-primary-600 text-white flex items-center justify-center font-bold text-sm">
                 {{ instance.employee_id|stringformat:"s"|slice:":1"|upper }}
             </div>
-            <div class="min-w-0">
+            <div class="min-w-0 flex-1">
                 <p class="font-semibold text-dark-200 truncate">{{ instance.employee_id }}</p>
                 <p class="text-xs text-dark-100 truncate">{{ instance.leave_type_id }}</p>
             </div>
+            {% if reset_due and perms.leave.change_availableleave %}
+                <button type="button"
+                    class="oh-btn oh-btn--secondary shrink-0"
+                    title="{% trans 'Run missed reset' %}"
+                    hx-post="{% url 'leave-balance-reset' instance.id %}"
+                    hx-target="#leaveLedgerContainer"
+                    hx-confirm="{% trans 'Run the missed reset for this leave balance now?' %}">
+                    <ion-icon name="refresh-outline" class="me-1"></ion-icon>{% trans "Run reset" %}
+                </button>
+            {% endif %}
         </div>
         <div class="grid grid-cols-2 gap-2">
             <div class="bg-white rounded-lg border border-secondary-200 px-3 py-2">
@@ -37,7 +47,25 @@
         </div>
     </div>
 
-    {% if forecast %}
+    {% if forecast and reset_due %}
+        <div class="rounded-xl border border-secondary-200 bg-secondary-50 p-3 mb-3">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 shrink-0 rounded-full flex items-center justify-center bg-white border border-secondary-200">
+                    <ion-icon name="alert-circle-outline" class="text-primary-600 text-base"></ion-icon>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <p class="text-sm font-medium text-dark-200 truncate">{% trans "Scheduled reset overdue" %}</p>
+                    <p class="text-xs text-dark-100">{{ forecast.date }}</p>
+                </div>
+                <div class="text-right shrink-0">
+                    <p class="text-sm font-semibold text-dark-200">
+                        {% if forecast.credit >= 0 %}+{% endif %}{{ forecast.credit|floatformat:"-2" }}
+                    </p>
+                    <p class="text-xs text-dark-100">{% trans "Bal." %} {{ forecast.balance|floatformat:"-2" }}</p>
+                </div>
+            </div>
+        </div>
+    {% elif forecast %}
         <div class="flex items-center gap-3 py-2.5 mb-1 opacity-60 cursor-not-allowed" title="{% trans 'Forecasted -- not yet applied' %}">
             <div class="w-8 h-8 shrink-0 rounded-full flex items-center justify-center bg-secondary-100 border border-dashed border-secondary-300">
                 <ion-icon name="time-outline" class="text-dark-100 text-base"></ion-icon>
@@ -70,6 +98,15 @@
                     <div class="min-w-0 flex-1">
                         <p class="text-sm font-medium text-dark-200 truncate">{{ row.label }}</p>
                         <p class="text-xs text-dark-100">{{ row.date }}</p>
+                        {% if row.source == "manual" %}
+                            <span class="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-warning-light text-warning-dark">
+                                {% trans "Manual" %}{% if row.by %} &middot; {{ row.by }}{% endif %}
+                            </span>
+                        {% elif row.source == "scheduler" %}
+                            <span class="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-secondary-100 text-dark-100">
+                                {% trans "Scheduled" %}
+                            </span>
+                        {% endif %}
                         {% if row.carryforward_amount %}
                             <span class="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-warning-light text-warning-dark">
                                 {% blocktrans with amount=row.carryforward_amount|floatformat:"-2" %}Incl. {{ amount }} from carryforward{% endblocktrans %}
@@ -92,3 +129,10 @@
         </div>
     {% endif %}
 </div>
+
+{% if after_reset %}
+    <script>
+        $("#reloadMessagesButton").click();
+        $(".reload-record").click();
+    </script>
+{% endif %}

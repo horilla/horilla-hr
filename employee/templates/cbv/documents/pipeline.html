@@ -51,19 +51,98 @@
      height (which changes once something is selected and "Unselect (N)"
      stops being display:none), unlike two independently-positioned sticky
      siblings would. */
+  /* The toolbar's Quick filter dropdown (z-20, generic/quick_actions.html) has to
+     open over the pinned #docToolbarPanel below it (also z-20, later in the
+     DOM, so it would otherwise paint on top and cut the dropdown off). Must stay
+     below the pinned Document Requests title bar (z-30,
+     requests_document_tab.html) or the scrolled toolbar paints over it. */
   #{{view_id}}StickyHeader {
-    position: sticky;
-    top: 123px;
-    z-index: 20;
-    background: #fff;
+    position: relative;
+    z-index: 25;
   }
   #{{view_id}}StickyHeader > .flex.flex-wrap.justify-between.items-center {
     padding-top: 0.5rem;
     padding-bottom: 0.5rem;
   }
+  /* Like the group-by lists: the select / filter toolbar sits on the page
+     above the card, and only the "Grouped by" + column header panel is pinned. */
+  #docToolbarPanel,
+  #{{view_id}} .accordion-btn {
+    user-select: none;
+  }
+  #docToolbarPanel {
+    position: sticky;
+    top: 123px;
+    z-index: 20;
+  }
+
+  /* Same column heading look as the group-by lists (nested_group_by_table.html):
+     small, uppercase, semi-bold. */
+  #docToolbarPanel thead th {
+    color: #45443E;
+    font-weight: 600 !important;
+    font-size: 11px !important;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+  /* Group headers, tree backdrop and data hand-off use the exact tints of the
+     group-by lists (nested_group_by_table.html). */
+  #{{view_id}} .accordion-btn {
+    background: #FCEEEA !important;
+    border-radius: 0 !important;
+  }
+  #{{view_id}} .accordion-btn:hover {
+    background: #FAE2DB !important;
+  }
+  #{{view_id}} .accordion-btn.doc-open {
+    border-bottom: 2px solid #F0C9BC;
+  }
+  #{{view_id}} .accordion-panel {
+    background: #fff;
+  }
+  /* One compact "No records" look for every group: the one the server renders
+     for a group that was opened by hand and the one Expand All fills in
+     locally share this markup (an illustration x dozens of groups was also
+     slow to paint). */
+  #{{view_id}} .accordion-panel .oh-wrapper {
+    height: auto !important;
+    padding: 0 !important;
+  }
+  #{{view_id}} .accordion-panel .oh-wrapper > div {
+    height: auto !important;
+    box-shadow: none !important;
+    padding: 1.25rem 1rem !important;
+  }
+  #{{view_id}} .accordion-panel .oh-wrapper img {
+    display: none !important;
+  }
+  #{{view_id}} .accordion-panel .oh-wrapper p {
+    margin: 0 !important;
+    font-size: 0.875rem;
+  }
+  /* The group's pager lives in its header (moved there by docMovePager, like
+     the group-by lists), so the select / pager row above its rows is gone. */
+  #{{view_id}} .accordion-panel .hlv-container > .flex.flex-wrap.justify-between.items-center {
+    display: none;
+  }
+  /* Expand All / Collapse All touch every group at once; animating dozens of
+     panels together is what made them stutter, so they snap instead. */
+  #{{view_id}}.doc-bulk .accordion-panel,
+  #{{view_id}}.doc-bulk .accordion-btn {
+    transition: none !important;
+  }
+  #{{view_id}} .accordion-btn.doc-open + .accordion-panel {
+    border-top: 0;
+  }
 </style>
 
-<div id="{{view_id}}" class="accordion-wrapper space-y-1.5">
+<div id="{{view_id}}">
+  {% comment %}
+    Marks the page as a tab/pipeline host: every group's list otherwise calls
+    reloadMessage() when it loads (unless a .HTV element exists), and each of
+    those extra swaps re-runs all the page's global swap handlers.
+  {% endcomment %}
+  <span class="HTV" hidden></span>
   <button
       class="reload-record"
       hidden
@@ -76,10 +155,26 @@
 
   <div id="{{view_id}}StickyHeader">
     {% include "generic/quick_actions.html" %}
+  </div>
 
+  <div class="bg-white p-4 rounded-md shadow-card relative">
     {% if groups %}
 
-    <div class="bg-white border border-[#EAE8E3] rounded-lg mb-1.5 overflow-hidden px-2">
+    <div id="docToolbarPanel" class="bg-white rounded-t-md border border-b-0 border-[#EAE8E3] overflow-hidden">
+      <div class="flex justify-end items-center flex-wrap gap-2 px-3 py-2 border-b border-[#EAE8E3]">
+        <div class="flex items-center gap-1.5">
+          <button
+            type="button"
+            class="inline-flex items-center gap-1 text-xs font-medium text-[#4B4A45] border border-[#DEDBD4] rounded-md px-2.5 py-1 hover:bg-[#F7F6F3] transition-colors"
+            onclick="docSetAllGroups(true)"
+          ><ion-icon name="chevron-expand-outline" style="font-size:13px;"></ion-icon>{% trans "Expand All" %}</button>
+          <button
+            type="button"
+            class="inline-flex items-center gap-1 text-xs font-medium text-[#4B4A45] border border-[#DEDBD4] rounded-md px-2.5 py-1 hover:bg-[#F7F6F3] transition-colors"
+            onclick="docSetAllGroups(false)"
+          ><ion-icon name="contract-outline" style="font-size:13px;"></ion-icon>{% trans "Collapse All" %}</button>
+        </div>
+      </div>
       <table class="fixed-table w-full table-fixed border-separate">
         {% include "cbv/documents/_document_colgroup.html" %}
         <thead>
@@ -90,14 +185,7 @@
                   type="checkbox"
                   class="bulk-list-table-row custom-checkbox w-4 h-4 bg-[#E9EDF7] rounded-sm text-primary-600 cursor-pointer"
                   title="{% trans 'Select All' %}"
-                  onchange="
-                    $('#{{view_id}}').find('.list-table-row').prop('checked', $(this).is(':checked')).change();
-                    $(document).ready(function () {
-                      reloadSelectedCount($('#count_{{view_id|safe}}'), 'selectedInstances');
-                      reloadSelectedCount($('.count_{{view_id|safe}}'), 'selectedInstances');
-                      updateDocRequestGroupCounts();
-                    });
-                  "
+                  onchange="docToggleSelectAll(this.checked)"
                 >
               </div>
             </th>
@@ -110,8 +198,8 @@
       </table>
     </div>
     {% endif %}
-  </div>
 
+  <div class="accordion-wrapper bg-[#F7F6F3] p-1.5 rounded-b-xl space-y-1.5">
   {% if not groups %}
   <div class="flex flex-col items-center justify-center py-4">
     <img src="/static/horilla_theme/assets/img/no-records.svg" alt="" width="120" class="mb-2 opacity-80">
@@ -122,8 +210,9 @@
   <div id="{{selected_instances_key_name}}{{ group.id }}" data-ids="[]"></div>
   <div class="accordion-item bg-white border border-[#EAE8E3] rounded-lg overflow-hidden">
     <button
-      class="accordion-btn w-full flex justify-between gap-3 md:gap-0 items-center flex-wrap px-3 py-1.5 text-sm transition-colors bg-primary-100 text-primary-600 hover:bg-primary-200"
+      class="accordion-btn w-full flex justify-between gap-3 md:gap-0 items-center flex-wrap px-3.5 py-2 text-sm transition-colors bg-primary-100 text-primary-600 hover:bg-primary-200"
       data-group-id="{{ group.id }}"
+      data-doc-count="{{ group.filtered_document_count }}"
       hx-get="{{url}}?{% for parameter in parameters %}{{parameter|format:group}}&{% endfor %}{{request.GET.urlencode}}"
       hx-target="#docRequest{{ group.id }}"
       hx-trigger="doRequest"
@@ -131,6 +220,17 @@
       hx-on:click="toggleDocAccordion(this); rememberDocGroupOpenState(this);"
     >
       <div class="flex items-center gap-2.5">
+        {% if group.filtered_document_count %}
+        <span class="inline-flex items-center" onclick="event.stopPropagation()">
+          <input
+            type="checkbox"
+            class="doc-group-select custom-checkbox w-4 h-4 bg-[#E9EDF7] rounded-sm text-primary-600 cursor-pointer"
+            data-select-ids="{{ group.select_ids }}"
+            title="{% trans 'Select all in this group' %}"
+            onchange="docToggleGroupSelect(this)"
+          >
+        </span>
+        {% endif %}
         <span
           class="inline-flex items-center justify-center rounded-full font-semibold min-w-[22px] h-[22px] px-1.5 text-[11px] bg-primary-600 text-white"
           title="{{ group.filtered_document_count }} {% trans 'Documents' %}"
@@ -139,7 +239,30 @@
         </span>
         <span class="text-[13.5px] font-semibold text-gray-700">{{ group }}</span>
       </div>
-      <div class="flex items-center gap-3">
+      <div class="doc-header-right flex items-center gap-3">
+        {% if group.doc_pages > 1 %}
+        <span data-doc-pager data-pages="{{ group.doc_pages }}" data-page="1">
+          <div class="hlv-pagination inline-flex items-center h-8 gap-0.5 bg-white border border-primary-500 rounded-md px-1 flex-shrink-0">
+            <span role="button" tabindex="0" data-doc-page="first" class="w-7 h-7 flex items-center justify-center rounded text-xs leading-none transition duration-300 text-[#ccc] cursor-not-allowed"><i class="fa-solid fa-angles-left"></i></span>
+            <span role="button" tabindex="0" data-doc-page="prev" class="w-7 h-7 flex items-center justify-center rounded text-xs leading-none transition duration-300 text-[#ccc] cursor-not-allowed"><i class="fa-solid fa-angle-left"></i></span>
+            <div class="flex items-center gap-1 px-1 h-7 text-xs text-[#666] leading-none">
+              <input
+                type="number"
+                min="1"
+                max="{{ group.doc_pages }}"
+                value="1"
+                data-doc-page-input
+                title="{% trans 'Enter a page number and press Enter' %}"
+                class="w-9 h-6 m-0 py-0 px-1 text-center text-xs leading-6 border border-[#e6e6e6] rounded outline-none focus:border-primary-600 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                onclick="this.select()"
+              >
+              <span class="inline-flex items-center h-6 leading-none whitespace-nowrap">/ {{ group.doc_pages }}</span>
+            </div>
+            <span role="button" tabindex="0" data-doc-page="next" class="w-7 h-7 flex items-center justify-center rounded text-xs leading-none transition duration-300 text-[#666] hover:bg-[#f5f5f5]"><i class="fa-solid fa-angle-right"></i></span>
+            <span role="button" tabindex="0" data-doc-page="last" class="w-7 h-7 flex items-center justify-center rounded text-xs leading-none transition duration-300 text-[#666] hover:bg-[#f5f5f5]"><i class="fa-solid fa-angles-right"></i></span>
+          </div>
+        </span>
+        {% endif %}
         <span onclick="event.stopPropagation()">
           <div class="inline-block dropdown-wrapper text-md">
             <a class="cursor-pointer dropdown-toggle block w-4" title="{% trans 'Actions' %}">
@@ -164,7 +287,7 @@
             </div>
           </div>
         </span>
-        <span class="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/50 transition-colors shrink-0">
+        <span class="w-6 h-6 flex items-center justify-center rounded-full hover:bg-[#F3F2EE] transition-colors shrink-0">
           <ion-icon class="icon text-sm text-gray-600" name="chevron-down-outline"></ion-icon>
         </span>
       </div>
@@ -177,6 +300,8 @@
     </div>
   </div>
   {% endfor %}
+  </div>
+  </div>
 </div>
 
 <script>
@@ -199,7 +324,8 @@
     function toggleDocAccordion(btn) {
         var panel = btn.nextElementSibling;
         var icon = btn.querySelector(".icon");
-        var isOpen = panel.style.maxHeight && panel.style.maxHeight !== "0px";
+        var isOpen = docIsOpen(btn);
+        btn.classList.toggle("doc-open", !isOpen);
         if (!isOpen) {
             panel.style.maxHeight = panel.scrollHeight + "px";
             if (icon) icon.setAttribute("name", "chevron-up-outline");
@@ -209,16 +335,244 @@
         }
     }
 
+    // The group-by lists show each group's pager in the group header, whether
+    // or not the group is open. Same here: the header carries its own pager
+    // (rendered with the page, from the group's row count). Using it loads
+    // that page of the group's rows (opening the group if needed), and
+    // whenever a group's list loads, the header pager is synced to the page
+    // the list is showing.
+    function docSetPager(btn, page) {
+        var wrap = btn.querySelector("[data-doc-pager]");
+        if (!wrap) return;
+        var pages = parseInt(wrap.getAttribute("data-pages"), 10) || 1;
+        page = Math.max(1, Math.min(pages, parseInt(page, 10) || 1));
+        wrap.setAttribute("data-page", page);
+        wrap.querySelector("[data-doc-page-input]").value = page;
+        var enabled = ["text-[#666]", "hover:bg-[#f5f5f5]"];
+        var disabled = ["text-[#ccc]", "cursor-not-allowed"];
+        wrap.querySelectorAll("[data-doc-page]").forEach(function (b) {
+            var kind = b.getAttribute("data-doc-page");
+            var off = (kind === "first" || kind === "prev") ? page <= 1 : page >= pages;
+            enabled.forEach(function (c) { b.classList.toggle(c, !off); });
+            disabled.forEach(function (c) { b.classList.toggle(c, off); });
+        });
+    }
+
+    function docGoToPage(btn, page) {
+        var wrap = btn.querySelector("[data-doc-pager]");
+        var pages = parseInt(wrap.getAttribute("data-pages"), 10) || 1;
+        page = Math.max(1, Math.min(pages, parseInt(page, 10) || 1));
+        docSetPager(btn, page);
+        var panel = btn.nextElementSibling;
+        if (!docIsOpen(btn)) {
+            setDocGroupVisual(btn, true);
+            saveDocOpenGroups(document.getElementById("{{view_id}}"));
+        }
+        var url = new URL(btn.getAttribute("hx-get"), window.location.origin);
+        url.searchParams.set("page", page);
+        if (typeof htmx !== "undefined") {
+            panel.removeAttribute("data-doc-pending");
+            htmx.ajax("GET", url.pathname + url.search, { target: panel, swap: "innerHTML" });
+        }
+    }
+
+    // Bound on each pager itself (not delegated at the document): the header is
+    // a <button> that toggles its group, so the click has to be stopped here
+    // before it bubbles up to it.
+    document.querySelectorAll("#{{view_id}} [data-doc-pager]").forEach(function (wrap) {
+        wrap.addEventListener("click", function (e) {
+            e.stopPropagation();
+            var control = e.target.closest("[data-doc-page]");
+            if (!control) return;
+            var btn = wrap.closest(".accordion-btn");
+            var page = parseInt(wrap.getAttribute("data-page"), 10) || 1;
+            var pages = parseInt(wrap.getAttribute("data-pages"), 10) || 1;
+            var kind = control.getAttribute("data-doc-page");
+            var target = kind === "first" ? 1 : kind === "prev" ? page - 1 : kind === "next" ? page + 1 : pages;
+            if (target < 1 || target > pages || target === page) return;
+            docGoToPage(btn, target);
+        });
+    });
+    $(document).off("keydown.docHeaderPager change.docHeaderPager").on("keydown.docHeaderPager", "#{{view_id}} [data-doc-page-input]", function (e) {
+        if (e.key !== "Enter") return;
+        e.preventDefault();
+        docGoToPage(this.closest(".accordion-btn"), this.value);
+    }).on("change.docHeaderPager", "#{{view_id}} [data-doc-page-input]", function () {
+        docGoToPage(this.closest(".accordion-btn"), this.value);
+    });
+
+    document.addEventListener("htmx:afterSettle", function (e) {
+        var panel = e.target && e.target.closest ? e.target.closest('.accordion-panel[id^="docRequest"]') : null;
+        if (!panel) return;
+        var input = panel.querySelector(".hlv-pagination input[name=page]");
+        var btn = panel.previousElementSibling;
+        if (input && btn) docSetPager(btn, input.value);
+        else if (btn && panel.querySelector("table")) docSetPager(btn, 1);
+    });
+
+    // Expand All / Collapse All, like the group-by lists.
+    //
+    // Every group's rows arrive through its own htmx request, and each swap
+    // makes the page's global observers (Tailwind, Alpine, the footer scripts)
+    // re-scan the whole, ever-growing DOM -- so asking for every group at once
+    // froze the page for many seconds. So Expand All opens every group at
+    // once, but only fetches rows for the groups that are (nearly) on screen,
+    // one at a time, and fetches the rest as they are scrolled towards.
+    // Groups known to be empty are filled locally without any request, panel
+    // animations are off while it runs, and the open set is stored once.
+    {% trans "No records available at the moment" as docEmptyText %}
+    {% trans "Loading..." as docLoadingText %}
+    var DOC_EMPTY_HTML =
+        '<div class="oh-wrapper h-full doc-group-empty" align="center"><div class="bg-white p-6 rounded-md shadow-card">' +
+        '<div class="flex flex-col items-center justify-center">' +
+        '<p class="text-[#666] mb-5">{{ docEmptyText|escapejs }}</p></div></div></div>';
+    var DOC_LOADING_HTML =
+        '<div class="doc-group-loading flex items-center justify-center text-xs text-[#6F6D66]" style="height:96px">' +
+        '{{ docLoadingText|escapejs }}</div>';
+
+    var docLoadQueue = [];
+    var docLoadBusy = false;
+    var docLoadObserver = null;
+
+    // A group counts as open if ANY of the signals says so (class, chevron or
+    // panel height): groups opened by a click, restored from the last visit or
+    // opened by Expand All can otherwise disagree, and Collapse All must close
+    // every one of them.
+    // Fetches a group's rows into its panel. Goes through htmx.ajax() on the
+    // panel rather than triggering the header's "doRequest" event: on a slow
+    // page load the header has not been processed by htmx yet when the open
+    // groups are restored, the trigger found nothing listening and the group
+    // stayed open but empty (until the tab was clicked again).
+    function docLoadGroup(btn) {
+        var panel = btn.nextElementSibling;
+        if (typeof htmx === "undefined") return false;
+        htmx.ajax("GET", btn.getAttribute("hx-get"), { target: panel, swap: "innerHTML" });
+        return true;
+    }
+
+    function docIsOpen(btn) {
+        var icon = btn.querySelector(".icon");
+        var maxHeight = btn.nextElementSibling.style.maxHeight;
+        return (
+            btn.classList.contains("doc-open") ||
+            (!!icon && icon.getAttribute("name") === "chevron-up-outline") ||
+            (!!maxHeight && maxHeight !== "0px")
+        );
+    }
+
+    function setDocGroupVisual(btn, open) {
+        var panel = btn.nextElementSibling;
+        var icon = btn.querySelector(".icon");
+        btn.classList.toggle("doc-open", open);
+        if (icon) icon.setAttribute("name", open ? "chevron-up-outline" : "chevron-down-outline");
+        panel.style.maxHeight = open ? "none" : null;
+    }
+
+    function saveDocOpenGroups(root) {
+        var open = [];
+        root.querySelectorAll(".accordion-btn").forEach(function (btn) {
+            if (docIsOpen(btn)) open.push(btn.getAttribute("data-group-id"));
+        });
+        try {
+            sessionStorage.setItem("docRequestOpenGroups", JSON.stringify(open));
+        } catch (e) {}
+    }
+
+    function docLoadNext() {
+        if (docLoadBusy) return;
+        var panel = docLoadQueue.shift();
+        if (!panel) return;
+        var btn = panel.previousElementSibling;
+        // Collapsed again (or already loaded) while it waited its turn.
+        if (!btn.classList.contains("doc-open") || panel.getAttribute("data-doc-pending") !== "1") {
+            return docLoadNext();
+        }
+        docLoadBusy = true;
+        var events = ["htmx:afterSettle", "htmx:responseError", "htmx:sendError"];
+        var settled = false;
+        var go = function () {
+            if (settled) return;
+            settled = true;
+            events.forEach(function (name) { panel.removeEventListener(name, go); });
+            panel.removeAttribute("data-doc-pending");
+            docLoadBusy = false;
+            setTimeout(docLoadNext, 30);
+        };
+        events.forEach(function (name) { panel.addEventListener(name, go); });
+        setTimeout(go, 10000);
+        if (!docLoadGroup(btn)) go();
+    }
+
+    function docWatchPanel(panel) {
+        if (!("IntersectionObserver" in window)) {
+            docLoadQueue.push(panel);
+            return docLoadNext();
+        }
+        if (!docLoadObserver) {
+            docLoadObserver = new IntersectionObserver(function (entries) {
+                entries.forEach(function (entry) {
+                    if (!entry.isIntersecting) return;
+                    docLoadObserver.unobserve(entry.target);
+                    docLoadQueue.push(entry.target);
+                });
+                docLoadNext();
+            }, { rootMargin: "300px 0px" });
+        }
+        docLoadObserver.observe(panel);
+    }
+
+    // Opens one group without fetching it up front: an empty group is filled
+    // locally, any other is fetched once it is (nearly) on screen. Used by
+    // Expand All and when the open groups are restored after a reload.
+    function docOpenGroup(btn) {
+        var panel = btn.nextElementSibling;
+        setDocGroupVisual(btn, true);
+        if (panel.querySelector(".hlv-container, .oh-wrapper, .doc-group-empty")) return; // already loaded
+        if (parseInt(btn.getAttribute("data-doc-count"), 10) === 0) {
+            panel.innerHTML = DOC_EMPTY_HTML;
+        } else {
+            panel.innerHTML = DOC_LOADING_HTML;
+            panel.setAttribute("data-doc-pending", "1");
+            docWatchPanel(panel);
+        }
+    }
+
+    function docSetAllGroups(open) {
+        var root = document.getElementById("{{view_id}}");
+        if (!root) return;
+        var btns = Array.prototype.slice.call(root.querySelectorAll(".accordion-btn")).filter(function (btn) {
+            return docIsOpen(btn) !== open;
+        });
+        if (!btns.length) return;
+        root.classList.add("doc-bulk");
+
+        btns.forEach(function (btn) {
+            var panel = btn.nextElementSibling;
+            if (open) return docOpenGroup(btn);
+            setDocGroupVisual(btn, false);
+            panel.removeAttribute("data-doc-pending");
+            if (docLoadObserver) docLoadObserver.unobserve(panel);
+        });
+        saveDocOpenGroups(root);
+        setTimeout(function () { root.classList.remove("doc-bulk"); }, 400);
+    }
+
     // toggleDocAccordion() measures scrollHeight synchronously on click, but
     // the panel's actual content (the document table, or the "no records"
     // card) only arrives afterwards via the accordion button's own hx-get -
     // so the max-height it sets is measured against the still-empty panel
     // and never updated once real content lands, clipping everything past
     // that near-zero height. Re-measure once htmx swaps the content in.
+    var docCountsTimer;
+    function scheduleDocCounts(delay) {
+        clearTimeout(docCountsTimer);
+        docCountsTimer = setTimeout(updateDocRequestGroupCounts, delay || 80);
+    }
+
     document.addEventListener("htmx:afterSwap", function (e) {
         var panel = e.target;
         if (!panel.id || panel.id.indexOf("docRequest") !== 0) return;
-        updateDocRequestGroupCounts();
+        scheduleDocCounts();
         if (!panel.style.maxHeight || panel.style.maxHeight === "0px") return;
         panel.style.maxHeight = panel.scrollHeight + "px";
         // The "no records" illustration can still be mid-download at swap
@@ -240,12 +594,73 @@
         "htmx:afterSettle.docRequestSelectFix",
         function () {
             if (!$('[id^="docRequest"]').length) return;
-            setTimeout(updateDocRequestGroupCounts, 450);
+            scheduleDocCounts(450);
         }
     );
 
 
+    // Header "Select All": picks every document of every group (ids come from
+    // the server), not only the rows of groups that happen to be loaded, then
+    // checks whichever of those rows are on screen. Groups loaded later are
+    // checked from the same store as they arrive.
+    function docToggleSelectAll(checked) {
+        var storeKey = "{{selected_instances_key_id|default:'selectedInstances'}}";
+        var viewSel = "#{{view_id}}";
+        if (checked) {
+            addToSelectedId({{ select_all_ids|default:'[]'|safe }}, storeKey);
+            selectSelected(viewSel, storeKey);
+        } else {
+            clearSelection(storeKey);
+            $(viewSel).find(".list-table-row").prop("checked", false).trigger("change");
+            $(viewSel).find(".highlight-selected").removeClass("highlight-selected");
+        }
+        reloadSelectedCount($("#count_{{view_id|safe}}"), storeKey);
+        reloadSelectedCount($(".count_{{view_id|safe}}"), storeKey);
+        updateDocRequestGroupCounts();
+    }
+
+    // Select-all checkbox in a group's header: every document of that group
+    // (all its pages, loaded or not), leaving the other groups' selection alone.
+    function docToggleGroupSelect(cb) {
+        var storeKey = "{{selected_instances_key_id|default:'selectedInstances'}}";
+        var viewSel = "#{{view_id}}";
+        if (cb.checked) {
+            addToSelectedId($(cb).attr("data-select-ids"), storeKey);
+            selectSelected(viewSel, storeKey);
+            reloadSelectedCount($("#count_{{view_id|safe}}"), storeKey);
+            reloadSelectedCount($(".count_{{view_id|safe}}"), storeKey);
+        } else {
+            hlvUnselectRecords(cb, viewSel, storeKey);
+        }
+        updateDocRequestGroupCounts();
+    }
+
+    // Keeps every select-all checkbox (each group's, and the header's for all
+    // groups) in line with the selection: checked when all its documents are
+    // selected, indeterminate when only some are.
+    var DOC_ALL_IDS = {{ select_all_ids|default:'[]'|safe }};
+    function docSyncSelectAllBoxes() {
+        var storeKey = "{{selected_instances_key_id|default:'selectedInstances'}}";
+        var selected = new Set(
+            JSON.parse(ensureSelectionStore(storeKey).attr("data-ids") || "[]").map(String)
+        );
+        function apply(el, ids) {
+            var n = 0;
+            ids.forEach(function (id) { if (selected.has(String(id))) n++; });
+            el.checked = ids.length > 0 && n === ids.length;
+            el.indeterminate = n > 0 && n < ids.length;
+        }
+        $("#{{view_id}} .doc-group-select").each(function () {
+            var ids = [];
+            try { ids = JSON.parse(this.getAttribute("data-select-ids") || "[]"); } catch (e) {}
+            apply(this, ids);
+        });
+        var header = document.querySelector("#docToolbarPanel .bulk-list-table-row");
+        if (header) apply(header, DOC_ALL_IDS);
+    }
+
     function updateDocRequestGroupCounts() {
+        docSyncSelectAllBoxes();
         $('[id^="docRequest"]').each(function () {
             var $panel = $(this);
             var count = $panel.find(".list-table-row:checked").length;
@@ -286,12 +701,9 @@
     );
 
 
+    // The selection store is the source of truth (it also holds documents of
+    // groups that are not loaded), so it is never rebuilt from the rows on screen.
     function reconcileDocRequestSelection() {
-        var ids = [];
-        $("#{{view_id}} .list-table-row:checked").each(function () {
-            ids.push(String($(this).val()));
-        });
-        $("#selectedInstances").attr("data-ids", JSON.stringify(ids));
         updateDocRequestGroupCounts();
         reloadSelectedCount($("#count_{{view_id|safe}}"), "selectedInstances");
         reloadSelectedCount($(".count_{{view_id|safe}}"), "selectedInstances");
@@ -357,24 +769,16 @@
         }
 
         groupsToOpen.forEach(function (savedGroupId) {
-            // A real .click() here would race hyperscript's own click-binding
-            // for this freshly-swapped-in button (it isn't necessarily bound
-            // yet), so its "on click ... trigger doRequest" condition can
-            // silently no-op and leave the panel empty. Drive both halves of
-            // what a real click does explicitly instead: flip the open/closed
-            // visuals via toggleDocAccordion(), and fire the "doRequest"
-            // htmx trigger directly via htmx's own API rather than through
-            // hyperscript at all.
+            // Not a real .click(): it would race hyperscript's own click-binding
+            // for this freshly-swapped-in button. Open through docOpenGroup()
+            // instead, the same lazy path as Expand All -- toggleDocAccordion()
+            // measured the still-empty panel here (0px) and left every
+            // restored group open but clipped and empty.
             setTimeout(function () {
                 var savedBtn = document.querySelector(
                     '#{{view_id}} .accordion-btn[data-group-id="' + savedGroupId + '"]'
                 );
-                if (savedBtn) {
-                    toggleDocAccordion(savedBtn);
-                    if (typeof htmx !== "undefined") {
-                        htmx.trigger(savedBtn, "doRequest");
-                    }
-                }
+                if (savedBtn && !docIsOpen(savedBtn)) docOpenGroup(savedBtn);
             }, 150);
         });
     })();

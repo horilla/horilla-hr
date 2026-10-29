@@ -198,6 +198,49 @@ function hlvUnselectRecords(btn, viewSelector, storeKey) {
     reloadSelectedCount($(`.count_${viewId}`), storeKey);
 }
 
+/**
+ * Select-all checkbox in a group's header (.hlv-group-select): selects (or
+ * drops) every record of that group -- all its pages, loaded or not -- in the
+ * shared selection, leaving the other groups' selection alone.
+ */
+function hlvToggleGroupSelect(cb, viewSelector, storeKey) {
+    storeKey = storeKey || "selectedInstances";
+    if (cb.checked) {
+        addToSelectedId($(cb).attr("data-select-ids"), storeKey);
+        selectSelected(viewSelector, storeKey);
+        var viewId = (viewSelector || "").replace(/^#/, "");
+        reloadSelectedCount($(`#count_${viewId}`), storeKey);
+        reloadSelectedCount($(`.count_${viewId}`), storeKey);
+    } else {
+        hlvUnselectRecords(cb, viewSelector, storeKey);
+    }
+    hlvSyncGroupSelectBoxes(storeKey);
+}
+
+// Group header checkboxes mirror the selection: checked when every record of
+// the group is selected, indeterminate when only some are.
+function hlvSyncGroupSelectBoxes(storeKey) {
+    storeKey = storeKey || "selectedInstances";
+    var $boxes = $(".hlv-group-select");
+    if (!$boxes.length) return;
+    var selected = new Set(
+        JSON.parse(ensureSelectionStore(storeKey).attr("data-ids") || "[]").map(String)
+    );
+    $boxes.each(function () {
+        if ((this.getAttribute("data-store-key") || "selectedInstances") !== storeKey) return;
+        var ids = [];
+        try {
+            ids = JSON.parse(this.getAttribute("data-select-ids") || "[]");
+        } catch (e) {}
+        var n = 0;
+        ids.forEach(function (id) {
+            if (selected.has(String(id))) n++;
+        });
+        this.checked = ids.length > 0 && n === ids.length;
+        this.indeterminate = n > 0 && n < ids.length;
+    });
+}
+
 // Used by the "Unselect"/"Unselect All Records" actions so the clear is
 // persisted synchronously - the MutationObserver mirror below is async
 // (fires on the next microtask), which left a window where hitting reload
@@ -347,25 +390,6 @@ function togglePublicComments() {
     } else {
         $('#id_public_comments_parent_div').show();
     }
-}
-
-function attendanceDateChange(selectElement) {
-    var selectedDate = selectElement.val();
-    let parentForm = selectElement.parents().closest("form");
-    var shiftId = parentForm.find("[name=shift_id]").val();
-
-    $.ajax({
-        type: "post",
-        url: "/attendance/update-date-details/",
-        data: {
-            csrfmiddlewaretoken: getCookie("csrftoken"),
-            attendance_date: selectedDate,
-            shift_id: shiftId,
-        },
-        success: function (response) {
-            parentForm.find("[name=minimum_hour]").val(response.minimum_hour);
-        },
-    });
 }
 
 function getAssignedLeave(employeeElement) {
@@ -725,6 +749,7 @@ function highlightRow(checkbox) {
 }
 
 function reloadSelectedCount(targetElement, storeKey = "selectedInstances") {
+    hlvSyncGroupSelectBoxes(storeKey);
     var count = JSON.parse(
         ensureSelectionStore(storeKey).attr("data-ids") || "[]"
     ).length;
@@ -1698,33 +1723,20 @@ $(document).on("click", function (event) {
 });
 
 $(document).on("htmx:afterSwap", function () {
-    // Only initialize elements that aren't already a live Summernote editor.
-    // Re-calling .summernote(options) on one that already is can leave the
-    // original textarea visible again alongside the rich editor UI (see
-    // initializeSummernote() below, which guards the same way for the same
-    // reason) -- this handler fires on EVERY htmx swap anywhere on the page,
-    // so a modal reopened more than once was hitting this repeatedly.
     $("[data-summernote]").each(function () {
         var $source = $(this);
+        // Skip editors that are already initialized.
         if ($source.next(".note-editor").length > 0) {
             return;
         }
-        // Summernote hides the field it is attached to. The browser cannot
-        // focus a hidden control to report a constraint violation, so a
-        // `required` one aborts the whole submit ("An invalid form control
-        // ... is not focusable") — no submit event, no request, and the Save
-        // button appears dead. Leave the required check to the server, which
-        // renders its error inline under the field.
+        // Hidden required fields block form submit; the server validates instead.
         this.removeAttribute("required");
         $source.summernote({
-            height: 300,
+            height: 200,
             codeviewFilter: false,
             codeviewIframeFilter: false,
             callbacks: {
                 onChange: function (contents) {
-                    // Write back to the edited field itself — targeting
-                    // [name="body"] pushed the text into an unrelated field
-                    // whenever the editor was attached to anything else.
                     $source.val(contents);
                 },
             },
@@ -1732,13 +1744,7 @@ $(document).on("htmx:afterSwap", function () {
     });
 });
 
-// Global "type '{' for sender/receiver data" mail-body hint, called by
-// send-mail forms (employee, recruitment candidate, etc.) after their own
-// searchWords-aware Summernote init. Previously lived only in the legacy
-// templates/sidebar.html, which the active theme's index.html no longer
-// includes -- every caller's `typeof initializeSummernote === 'function'`
-// check silently failed, so the hint dropdown never appeared even though
-// the base editor (initialized above) still worked.
+// Mail-body "{" hint used by the send-mail forms.
 function preloadData(item, candId, preloadedData, callback) {
     $.ajax({
         type: "get",
@@ -1756,18 +1762,11 @@ function initializeSummernote(candId, searchWords) {
     var preloadedData = {};
     var mentions = Object.keys(searchWords);
     var $body = $("[name='body']");
-    // A caller invoked more than once for the same open (e.g. a stale,
-    // re-accumulated event listener) would otherwise re-call .summernote()
-    // on an already-live editor, which can leave the source textarea
-    // visible again alongside the rich editor UI. Destroy any existing
-    // instance first so exactly one clean editor (with hint) results
-    // regardless of how many times this runs.
+    // Destroy any existing editor so repeated calls leave exactly one.
     if ($body.next(".note-editor").length > 0) {
         $body.summernote("destroy");
     }
-    // Same hidden-required trap as the [data-summernote] init above: the
-    // browser cannot report a violation on the hidden source field, so a
-    // `required` mail body silently blocks the whole form submit.
+    // Hidden required fields block form submit; the server validates instead.
     $body.each(function () {
         this.removeAttribute("required");
     });
@@ -2231,11 +2230,73 @@ function hlvReadCookie(name) {
     return match ? decodeURIComponent(match[1]) : null;
 }
 
+// Export forms and links download into a hidden iframe, so the page stays put
+// and an error page the server answers with can be told apart from a file: a
+// file never fires the iframe's load event (the cookie reports it instead), an
+// HTML response does.
+var hlvExportFrame = null;
+var hlvExportPending = false;
+
+function hlvExportFrameEl() {
+    if (!hlvExportFrame && document.body) {
+        var frame = document.createElement("iframe");
+        frame.name = "hlvExportFrame";
+        frame.setAttribute("aria-hidden", "true");
+        frame.style.display = "none";
+        frame.addEventListener("load", function () {
+            if (!hlvExportPending) return;
+            var doc = null;
+            try {
+                doc = frame.contentDocument;
+            } catch (err) {
+                doc = null;
+            }
+            if (!doc || !doc.location || doc.location.href === "about:blank") return;
+            // A PDF shown inline is still a file; the cookie reports it.
+            if (/pdf/i.test(doc.contentType || "")) return;
+            var alert = doc.querySelector(".oh-alert-container .oh-alert, .oh-alert");
+            var text = alert && alert.textContent.replace(/\s+/g, " ").trim();
+            hlvExportFinish();
+            hlvExportResult(false, text);
+        });
+        document.body.appendChild(frame);
+        hlvExportFrame = frame;
+    }
+    return hlvExportFrame;
+}
+$(hlvExportFrameEl);
+
+// The result dialog, laid out like the bulk delete one. `text` is the reason
+// shown on failure (a generic one when the server gave none).
+function hlvExportResult(ok, text) {
+    if (typeof Swal === "undefined") return;
+    var m = hlvMessages();
+    Swal.fire({
+        title: ok
+            ? m.exportSuccessful || hlvExportText("Export Successful", "Export Successful")
+            : m.exportFailed || hlvExportText("Export Failed", "Export Failed"),
+        icon: ok ? "success" : "error",
+        width: "24rem",
+        customClass: { icon: "oh-hlv-result-icon" },
+        html:
+            '<p style="color:#6b7280;font-size:13px;margin:0">' +
+            hlvEscape(
+                text ||
+                    (ok
+                        ? hlvExportText("Your file has been exported.", "Your file has been exported.")
+                        : hlvExportText("The export failed. Please try again.", "The export failed. Please try again."))
+            ) +
+            "</p>",
+        confirmButtonText: m.close || "Close",
+    });
+}
+
 function hlvExportFinish() {
     if (hlvExportTimer) {
         clearInterval(hlvExportTimer);
         hlvExportTimer = null;
     }
+    hlvExportPending = false;
     document.cookie = "hlv_export_done=; Max-Age=0; path=/";
     if (typeof Swal !== "undefined") {
         var popup = Swal.getPopup && Swal.getPopup();
@@ -2263,10 +2324,12 @@ function hlvExportStart(token) {
         allowEscapeKey: false,
         showConfirmButton: false,
     });
+    hlvExportPending = !!token;
     var started = Date.now();
     hlvExportTimer = setInterval(function () {
         var done = token && hlvReadCookie("hlv_export_done") === token;
         if (done || Date.now() - started > 180000) hlvExportFinish();
+        if (done) hlvExportResult(true);
     }, 300);
 }
 
@@ -2278,7 +2341,10 @@ function hlvExportToken() {
 function hlvDownloadWithProgress(url) {
     var token = hlvExportToken();
     hlvExportStart(token);
-    window.location.href = url + (url.indexOf("?") === -1 ? "?" : "&") + "hlv_export_token=" + token;
+    var target = url + (url.indexOf("?") === -1 ? "?" : "&") + "hlv_export_token=" + token;
+    var frame = hlvExportFrameEl();
+    if (frame) frame.src = target;
+    else window.location.href = target;
 }
 
 // Capture phase, so this runs before inline onsubmit handlers (some of which
@@ -2300,8 +2366,17 @@ document.addEventListener(
         input.name = "hlv_export_token";
         input.value = token;
         form.appendChild(input);
+        // Submit into the hidden iframe; the target goes back once every handler
+        // has had its say (a native submit happens right after this event).
+        var frame = hlvExportFrameEl();
+        var oldTarget = form.getAttribute("target");
+        if (frame) form.setAttribute("target", frame.name);
         setTimeout(function () {
             input.remove();
+            if (frame) {
+                if (oldTarget === null) form.removeAttribute("target");
+                else form.setAttribute("target", oldTarget);
+            }
             if (!e.defaultPrevented) hlvExportStart(token);
         }, 0);
     },
@@ -2601,7 +2676,10 @@ function hlvQuickExport(opts) {
         hlvExportStart(null);
         return hlvNativeAjax.call($, $.extend({}, opts, {
             __hlvPlain: true,
-            complete: [function () { hlvExportFinish(); }].concat(opts.complete || []),
+            complete: [function (xhr, status) {
+                hlvExportFinish();
+                if (status !== "abort") hlvExportResult(status === "success");
+            }].concat(opts.complete || []),
         }));
     };
     hlvExportStart(null);
@@ -2627,9 +2705,10 @@ function hlvQuickExport(opts) {
                         xhrFields: opts.xhrFields,
                         success: function (blob, status, xhr) {
                             hlvSaveBlob(blob, xhr, (choice.name || info.filename || "export") + "." + choice.format);
+                            hlvExportResult(true);
                         },
                         error: function () {
-                            Swal.fire({ icon: "error", text: hlvExportText("The export failed. Please try again.", "The export failed. Please try again.") });
+                            hlvExportResult(false);
                         },
                         complete: [function () { hlvExportFinish(); }].concat(opts.complete || []),
                     }));
@@ -2655,6 +2734,22 @@ $(function () {
         return original.apply(this, arguments);
     };
 });
+
+// Disabled action buttons do nothing. A disabled <button> already swallows its
+// click; links styled as disabled (.oh-btn--disabled / aria-disabled) would
+// otherwise navigate (href="#" jumps / reloads) or let the click reach the
+// row behind them (which opens its detail modal).
+document.addEventListener(
+    "click",
+    function (e) {
+        var el = e.target && e.target.closest && e.target.closest(".oh-btn--disabled, a[aria-disabled='true']");
+        if (!el) return;
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+    },
+    true
+);
 
 var hlvNativeAjax = $.ajax;
 $.ajax = function (url, settings) {

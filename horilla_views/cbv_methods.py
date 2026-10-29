@@ -158,6 +158,20 @@ def decorator_with_arguments(decorator):
     return wrapper
 
 
+def unauthenticated_response(request):
+    """
+    Full page refresh for HTMX requests, otherwise redirect to the login page.
+    """
+    if request.headers.get("HX-Request"):
+        return HttpResponse(status=204, headers={"HX-Refresh": "true"})
+    login_url = reverse("login")
+    params = urlencode(request.GET)
+    url = f"{login_url}?next={request.path}"
+    if params:
+        url += f"&{params}"
+    return redirect(url)
+
+
 def login_required(view_func):
     """
     Decorator to check authenticity of users
@@ -175,12 +189,7 @@ def login_required(view_func):
         if path == "" or path == "/":
             request.session["title"] = "Dashboard".upper()
         if not request.user.is_authenticated:
-            login_url = reverse("login")
-            params = urlencode(request.GET)
-            url = f"{login_url}?next={request.path}"
-            if params:
-                url += f"&{params}"
-            return redirect(url)
+            return unauthenticated_response(request)
         try:
             func = view_func(self, request, *args, **kwargs)
         except KeyError:
@@ -237,12 +246,7 @@ def owner_can_enter(
             self.request = request
 
         if not request.user.is_authenticated:
-            login_url = reverse("login")
-            params = urlencode(request.GET)
-            url = f"{login_url}?next={request.path}"
-            if params:
-                url += f"&{params}"
-            return redirect(url)
+            return unauthenticated_response(request)
 
         instance_id = None
         if kwargs:

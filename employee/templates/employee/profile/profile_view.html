@@ -151,11 +151,7 @@
             border-left: 4px solid red !important;
             border-radius: 5px 0 0 4px;
         }
-        .status-cancelled {
-            border-left: 4px solid grey !important;
-            border-radius: 5px 0 0 4px;
-        }
-        .status-requested {
+                .status-requested {
             border-left: 4px solid orange !important;
             border-radius: 5px 0 0 4px;
         }
@@ -270,16 +266,11 @@
         <div class="oh-modal__dialog">
             <div class="oh-modal__dialog-header">
                 <h2 class="oh-modal__dialog-title" id="editModal1ModalLabel">
-                    {% trans "Rejection" %}
-                    <button
-                        class="oh-modal_close--custom"
-                        onclick="$('#rejectModal').removeClass('oh-modal--show')"
-                        aria-label="{% trans 'Close' %}"
-                        style="margin-left: 80%; border: none; background: none"
-                    >
-                        <ion-icon name="close-outline"></ion-icon>
-                    </button>
+                    {% trans "Rejection Reason" %}
                 </h2>
+                <button type="button" class="oh-modal__close--custom" onclick="$(this).closest('.oh-modal--show').removeClass('oh-modal--show')" aria-label="Close">
+                    <ion-icon name="close-outline" role="img" class="md hydrated" aria-label="close outline"></ion-icon>
+                </button>
             </div>
             <div class="oh-modal__dialog-body" id="rejectForm"></div>
         </div>

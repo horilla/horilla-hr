@@ -8,31 +8,6 @@
     hx-target="#genericModalBody"
 >
 
-    {# Penalty Button #}
-    {% if can_manage or can_penalty or leave_manager %}
-        <button
-            data-toggle="oh-modal-toggle"
-            data-target="#penaltyModal"
-            hx-target="#penaltyModalBody"
-            hx-get="{% url 'leave-cut-penalty' instance.id %}"
-            type="button"
-            class="oh-btn oh-btn--warning px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
-            title="{% trans 'Penalty' %}"
-        >
-            <ion-icon name="information-circle-outline"></ion-icon>
-            {% trans "Penalty" %}
-        </button>
-    {% else %}
-        <button
-            class="oh-btn oh-btn--light-bkg px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
-            title="{% trans 'Penalty' %}"
-            disabled
-        >
-            <ion-icon name="information-circle-outline"></ion-icon>
-            {% trans "Penalty" %}
-        </button>
-    {% endif %}
-
     {% if instance.status == 'cancel_requested' %}
         {# Approve / Reject Cancellation Buttons #}
         {% if can_change or can_manage or leave_manager %}
@@ -80,7 +55,7 @@
         </a>
     {% else %}
         <button
-            class="oh-btn oh-btn--light-bkg px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
+            class="oh-btn oh-btn--success oh-btn--disabled px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
             title="{% trans 'Approve' %}"
             disabled
         >
@@ -106,7 +81,7 @@
             </a>
         {% else %}
             <button
-                class="oh-btn oh-btn--light-bkg px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
+                class="oh-btn oh-btn--danger oh-btn--disabled px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
                 title="{% trans 'Reject' %}"
                 disabled
             >
@@ -116,7 +91,7 @@
         {% endif %}
     {% else %}
         <button
-            class="oh-btn oh-btn--light-bkg px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
+            class="oh-btn oh-btn--danger oh-btn--disabled px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
             title="{% trans 'Reject' %}"
             disabled
         >
@@ -127,10 +102,35 @@
 
     {% endif %}
 
+    {# Penalty Button #}
+    {% if can_manage or can_penalty or leave_manager %}
+        <button
+            data-toggle="oh-modal-toggle"
+            data-target="#penaltyModal"
+            hx-target="#penaltyModalBody"
+            hx-get="{% url 'leave-cut-penalty' instance.id %}"
+            type="button"
+            class="oh-btn oh-btn--warning px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
+            title="{% trans 'Penalty' %}"
+        >
+            <ion-icon name="information-circle-outline"></ion-icon>
+            {% trans "Penalty" %}
+        </button>
+    {% else %}
+        <button
+            class="oh-btn oh-btn--warning oh-btn--disabled px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
+            title="{% trans 'Penalty' %}"
+            disabled
+        >
+            <ion-icon name="information-circle-outline"></ion-icon>
+            {% trans "Penalty" %}
+        </button>
+    {% endif %}
+
     {# Edit Button #}
     {% if can_manage or can_change or leave_manager %}
         <button
-            class="oh-btn oh-btn--light-bkg px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
+            class="oh-btn oh-btn--light-bkg {% if instance.end_date < current_date %}oh-btn--disabled{% endif %} px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
             title="{% trans 'Edit' %}"
             data-toggle="oh-modal-toggle"
             data-target="#genericModal"
@@ -158,7 +158,7 @@
     {# Delete Button #}
     {% if can_manage or can_delete or leave_manager %}
         <button
-            class="oh-btn {% if instance.status == 'requested' %}oh-btn--danger{% else %}oh-btn--light-bkg{% endif %} px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
+            class="oh-btn oh-btn--danger {% if instance.status != 'requested' %}oh-btn--disabled{% endif %} px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
             title="{% trans 'Delete' %}"
             id="delete-link"
             {% if instance.status == 'requested' %}
@@ -174,7 +174,7 @@
         </button>
     {% else %}
         <button
-            class="oh-btn oh-btn--light-bkg px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
+            class="oh-btn oh-btn--danger oh-btn--disabled px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
             title="{% trans 'Delete' %}"
             disabled
         >

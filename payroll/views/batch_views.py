@@ -25,6 +25,7 @@ from datetime import date, timedelta
 
 from django.contrib import messages
 from django.db import transaction
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
@@ -305,14 +306,13 @@ def batch_reopen(request, batch_id):
 def wizard_scope(request):
     """Which period, and who is in it."""
     settings = _settings_for(request)
-    # Last month, not this one: payroll is run once the month is over, so the
-    # period that is complete is the one people almost always want. The dates
-    # stay editable.
-    last_month_day = date.today().replace(day=1) - timedelta(days=1)
-    period = settings.period_for(last_month_day)
+    # The last period that has finished, not the current one: payroll is run once
+    # the period is over, so that is the one people almost always want. The start
+    # stays editable (the end follows from it).
+    period = settings.last_completed_period(date.today())
 
     if request.method == "POST":
-        form = PayrollBatchScopeForm(request.POST, period=period)
+        form = PayrollBatchScopeForm(request.POST, period=period, settings=settings)
         if form.is_valid():
             employees = form.selected_employees()
             request.session[SESSION_KEY] = {
@@ -323,7 +323,7 @@ def wizard_scope(request):
             }
             return redirect("payroll-batch-review")
     else:
-        form = PayrollBatchScopeForm(period=period)
+        form = PayrollBatchScopeForm(period=period, settings=settings)
 
     return render(
         request,
@@ -505,31 +505,126 @@ def wizard_generate_slice(request, batch_id):
 
 @login_required
 @permission_required("payroll.change_payslipautogenerate")
-def pay_period_settings(request):
-    """The company's pay period. One row per company, created on first save."""
+def pay_period_settings(request, pk=None):
+    """
+    A company's pay period. One row per company (and one for all companies).
+
+    Without ``pk`` this is the signed-in user's own company: its row, or a new one that starts
+    from the setting now in force. With ``pk`` it is that row, which is how the Payroll Settings
+    list edits any company's. ``?new=1`` opens a blank row for a company still without one.
+    """
     from base.auth_backends import stamp_company_on_create
 
-    instance = _settings_for(request)
+    creating = bool(request.GET.get("new") or request.POST.get("new"))
+    if pk is not None:
+        instance = get_object_or_404(PayPeriodSettings.objects.entire(), pk=pk)
+    elif creating:
+        instance = PayPeriodSettings()
+    else:
+        company = getattr(
+            getattr(request.user, "employee_get", None), "get_company", lambda: None
+        )()
+        instance = PayPeriodSettings.objects.entire().filter(company_id=company).first()
+        if instance is None:
+            # No row of its own yet: start from what is in force, saved as this company's.
+            in_force = PayPeriodSettings.for_company(company)
+            instance = PayPeriodSettings(
+                company_id=company,
+                cycle_start_day=in_force.cycle_start_day,
+                pay_day_offset=in_force.pay_day_offset,
+                pay_day_of_month=in_force.pay_day_of_month,
+            )
+    # ?modal=1: the same form, loaded into a dialog -- the run wizard's, or the settings list's.
+    modal = bool(request.GET.get("modal")) and bool(request.META.get("HTTP_HX_REQUEST"))
+    from_list = request.GET.get("then") == "list"
+    with_company = from_list
     if request.method == "POST":
-        form = PayPeriodSettingsForm(request.POST, instance=instance)
+        form = PayPeriodSettingsForm(
+            request.POST, instance=instance, modal=modal, with_company=with_company
+        )
         if form.is_valid():
             obj = form.save(commit=False)
-            if not obj.pk:
+            if not obj.pk and obj.company_id_id is None and not with_company:
                 stamp_company_on_create(obj)
             obj.save()
             messages.success(request, _("Pay period saved."))
+            if modal and from_list:
+                return HttpResponse(
+                    "<script>$('#genericModal').removeClass('oh-modal--show');"
+                    "htmx.ajax('GET', '%s', {target: '#payPeriodListContainer', swap: 'innerHTML'});</script>"
+                    % reverse("pay-period-list")
+                )
+            if modal:
+                # The page behind the dialog shows dates drawn from this setting.
+                return HttpResponse("<script>window.location.reload();</script>")
             return HorillaRedirect(request, reverse("pay-period-settings"))
     else:
-        form = PayPeriodSettingsForm(instance=instance)
+        form = PayPeriodSettingsForm(
+            instance=instance, modal=modal, with_company=with_company
+        )
 
     start, end = instance.period_for(date.today())
     return render(
         request,
-        "payroll/batch/pay_period_settings.html",
+        (
+            "payroll/batch/pay_period_settings_modal.html"
+            if modal
+            else "payroll/batch/pay_period_settings.html"
+        ),
         {
             "form": form,
             "example_start": start,
             "example_end": end,
             "example_pay_date": instance.pay_date_for(end),
+            "today": date.today(),
+            "modal_body_id": "genericModalBody" if from_list else "pbSettingsModalBody",
+            "post_url": request.get_full_path(),
+            "show_company": with_company,
+            "heading": _("Pay period") if not instance.pk else _("Pay period"),
         },
     )
+
+
+@login_required
+@permission_required("payroll.delete_payslipautogenerate")
+def pay_period_delete(request, pk):
+    """Remove one company's pay period; that company then falls back to the all-companies one."""
+    if request.method != "POST":
+        return HorillaRedirect(request, reverse("payroll-settings"))
+    row = PayPeriodSettings.objects.entire().filter(pk=pk).first()
+    if row is None:
+        messages.error(request, _("Pay period not found."))
+    else:
+        row.delete()
+        messages.success(request, _("Pay period deleted."))
+    return HorillaRedirect(request)
+
+
+@login_required
+@permission_required("payroll.add_payslip")
+def pay_period_generate(request, pk):
+    """Generate payslips now for a company's last completed pay period."""
+    if request.method != "POST":
+        return HorillaRedirect(request, reverse("payroll-settings"))
+    from payroll.scheduler import generate_for_setting
+
+    row = PayPeriodSettings.objects.entire().filter(pk=pk).first()
+    if row is None:
+        messages.error(request, _("Pay period not found."))
+        return HorillaRedirect(request)
+    start, end = row.manual_period()
+    created = generate_for_setting(row, date.today(), force=True)
+    period = f"{start.day} {start:%b %Y} \u2013 {end.day} {end:%b %Y}"
+    if created:
+        messages.success(
+            request,
+            _("%(n)s payslips generated for %(period)s.")
+            % {"n": created, "period": period},
+        )
+    else:
+        messages.info(
+            request,
+            _("No new payslips: everyone already has one for %(period)s.")
+            % {"period": period},
+        )
+    return HorillaRedirect(request)

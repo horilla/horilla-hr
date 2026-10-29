@@ -38,6 +38,7 @@ from base.methods import (
     filter_own_records,
     get_key_instances,
     get_next_month_same_date,
+    get_nth_month_same_date,
     has_export_access,
     sortby,
 )
@@ -1682,7 +1683,12 @@ def edit_installment_amount(request):
 
         # If there are no deductions after the current one and a new installment amount is calculated,
         if len(deductions_after) == 0 and new_installment != 0:
-            date = get_next_month_same_date(deduction.one_time_date)
+            if loan.installment_start_date:
+                date = get_nth_month_same_date(
+                    loan.installment_start_date, len(deductions)
+                )
+            else:
+                date = get_next_month_same_date(deduction.one_time_date)
             installment = create_deductions(loan, new_installment, date)
             loan.deduction_ids.add(installment)
 

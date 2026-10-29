@@ -180,6 +180,7 @@
             {{ r.clock_in|default:"—" }}{% if r.clock_out %} – {{ r.clock_out }}{% endif %}
             &nbsp;({{ r.worked_h }}h{{ r.worked_m|stringformat:"02d" }}m)
           </div>
+          {% if r.reason %}<div style="font-size:.7rem;color:#92400e;">&#9888; {{ r.reason }}</div>{% endif %}
         </div>
       {% endfor %}
     {% else %}

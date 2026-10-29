@@ -139,6 +139,12 @@ against the top of an 85vh dialog instead of shrinking to fit.
             {% endif %}
         {% endfor %} {% endcomment %}
 
+        {% if detail_note_method %}
+            <div class="text-xs text-[#565E6C] bg-[#f8f8f8] rounded-md p-3 mb-3">
+                {{ object|getattribute:detail_note_method|safe }}
+            </div>
+        {% endif %}
+
         <div class="m-3" id="enlargeattachmentContainer"></div>
         <div class="flex flex-wrap justify-between gap-2 md:gap-1 hdv__foot">
             {% if actions or action_method %}

@@ -20,7 +20,6 @@ appended to INSTALLED_APPS as an import side effect in
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from django.core.exceptions import ObjectDoesNotExist
 from django.test import SimpleTestCase
 
 from horilla_api.api_views.attendance.views import geofence_denial
@@ -37,23 +36,24 @@ class _Req:
 
 
 def _company(fence):
-    """A company whose ``geo_fencing`` reverse relation yields ``fence``."""
-
-    class _Company:
-        @property
-        def geo_fencing(self):
-            if fence is None:
-                # What Django's reverse one-to-one raises when absent.
-                raise ObjectDoesNotExist("no fence configured")
-            return fence
-
-    return _Company()
+    """A company whose fence (its own, else the global one) is ``fence``."""
+    return SimpleNamespace(fence=fence)
 
 
 LOCATION_CHECK = "geofencing.views.GeoFencingEmployeeLocationCheckAPIView.post"
 
 
 class GeofenceFailClosedTests(SimpleTestCase):
+    def setUp(self):
+        # geofence_denial asks GeoFencing.for_company(company); resolve it from the stand-in
+        # company instead of the database
+        patcher = patch(
+            "geofencing.models.GeoFencing.for_company",
+            side_effect=lambda company: company.fence,
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_enabled_fence_denies_when_check_raises(self):
         """The regression: an erroring check must NOT allow the punch."""
         req = _Req(_company(SimpleNamespace(start=True)))

@@ -146,10 +146,29 @@
 </div>
 <script>
     $(document).ready(function () {
-        $("select").on("select2:select", function (e) {
-            $(".leave-message").hide();
-            $(this).closest("select")[0].dispatchEvent(new Event("change"));
-        });
+        // This script tag re-runs every time a form modal built on this
+        // template is (re)opened via htmx (htmx re-executes <script> tags in
+        // swapped content, and $(document).ready() runs its callback
+        // immediately once the real document-ready event has already fired,
+        // i.e. on every one of those re-runs, not just the first). A plain
+        // $("select").on(...) binds directly to whatever <select> elements
+        // exist on the page at that moment, without removing whatever this
+        // same block already bound the last time a modal was opened --
+        // stacking one more duplicate "select2:select" handler on every
+        // select each time, rather than replacing it. Selecting an option
+        // then dispatched one redundant native "change" event per
+        // accumulated handler in rapid succession, confusing select2 into
+        // not closing after a selection. Delegating from `document` (so it
+        // keeps matching selects added later, not just ones present right
+        // now) and namespacing + off-before-on (so re-running this script
+        // replaces the previous handler instead of stacking another) fixes
+        // both.
+        $(document)
+            .off("select2:select.genericFormSelect")
+            .on("select2:select.genericFormSelect", "select", function (e) {
+                $(".leave-message").hide();
+                $(this).closest("select")[0].dispatchEvent(new Event("change"));
+            });
 
         $(document)
             .off("input.clearFieldErrors change.clearFieldErrors", "input, select, textarea")

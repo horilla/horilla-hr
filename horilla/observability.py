@@ -302,7 +302,7 @@ def scheduler_metrics():
     process from whichever process is asked -- the web workers can serve this
     even though they no longer run jobs themselves.
     """
-    import time
+    from django.utils import timezone
 
     lines = [
         "# HELP horilla_scheduler_jobs_registered Jobs currently in the jobstore.",
@@ -317,7 +317,7 @@ def scheduler_metrics():
 
         # A scheduler that died leaves next_run_time in the past and drifting;
         # this is the number worth alerting on.
-        overdue = DjangoJob.objects.filter(next_run_time__lt=time.time()).count()
+        overdue = DjangoJob.objects.filter(next_run_time__lt=timezone.now()).count()
         lines += [
             "# HELP horilla_scheduler_jobs_overdue Jobs whose next run time has passed.",
             "# TYPE horilla_scheduler_jobs_overdue gauge",
@@ -329,8 +329,11 @@ def scheduler_metrics():
         for status in statuses:
             counts[status] = counts.get(status, 0) + 1
         lines += [
-            "# HELP horilla_scheduler_executions_total Job executions by status.",
-            "# TYPE horilla_scheduler_executions_total counter",
+            # A gauge, not a counter: trim_scheduler_history deletes runs older
+            # than HORILLA_SCHEDULER_HISTORY_DAYS, so the totals can go down.
+            "# HELP horilla_scheduler_executions_total Job executions by status, "
+            "over the retained history.",
+            "# TYPE horilla_scheduler_executions_total gauge",
         ]
         for status, count in sorted(counts.items()):
             lines.append(

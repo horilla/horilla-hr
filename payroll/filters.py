@@ -37,7 +37,7 @@ from payroll.models.models import (
     Reimbursement,
     SalaryStructure,
 )
-from payroll.models.payroll_batch import PayrollBatch
+from payroll.models.payroll_batch import PayPeriodSettings, PayrollBatch
 from payroll.models.tax_models import TaxBracket
 
 
@@ -1048,6 +1048,19 @@ class PayslipAutoGenerateFilter(HorillaFilterSet):
         """
 
         return ((queryset.filter(company_id__company__icontains=value))).distinct()
+
+
+class PayPeriodSettingsFilter(HorillaFilterSet):
+    """Search the pay period settings by company."""
+
+    search = django_filters.CharFilter(method="search_method")
+
+    class Meta:
+        model = PayPeriodSettings
+        fields = ["company_id"]
+
+    def search_method(self, queryset, _, value):
+        return queryset.filter(company_id__company__icontains=value).distinct()
 
 
 class PayrollBatchFilter(HorillaFilterSet):

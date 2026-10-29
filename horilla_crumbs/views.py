@@ -1,8 +1,9 @@
 import copy
 from urllib.parse import urlparse
 
-from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
+
+from horilla.decorators import login_required
 
 
 @login_required

@@ -422,6 +422,7 @@ def validate_attendance_request(request, attendance_id):
         "shift_id": None,
         "work_type_id": None,
         "attendance_worked_hour": None,
+        "minimum_hour": None,
         "batch_attendance_id": None,
     }
     if attendance.request_type == "create_request":
@@ -921,7 +922,6 @@ def edit_validate_attendance(request, attendance_id):
 
 
 @login_required
-@hx_request_required
 def get_employee_shift(request):
     """
     method used to get employee shift
@@ -930,18 +930,5 @@ def get_employee_shift(request):
     shift = None
     if employee_id:
         employee = Employee.objects.get(id=employee_id)
-        shift = employee.get_shift
-    form = NewRequestForm()
-    if request.GET.get("bulk") and eval_validate(request.GET.get("bulk")):
-        form = BulkAttendanceRequestForm()
-    form.fields["shift_id"].queryset = EmployeeShift.objects.all()
-    form.fields["shift_id"].widget.attrs["hx-trigger"] = "load,change"
-    form.fields["shift_id"].initial = shift
-    shift_id = render_to_string(
-        "requests/attendance/form_field.html",
-        {
-            "field": form["shift_id"],
-            "shift": shift,
-        },
-    )
-    return HttpResponse(f"{shift_id}")
+        shift = employee.get_shift()
+    return JsonResponse({"shift_id": shift.id if shift else ""})

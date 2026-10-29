@@ -246,6 +246,16 @@ urlpatterns = [
         views.leave_balance_ledger,
         name="leave-balance-ledger",
     ),
+    path(
+        "leave-balance-reset/<int:pk>/",
+        views.leave_balance_reset,
+        name="leave-balance-reset",
+    ),
+    path(
+        "leave-type-run-missed-resets/<int:pk>/",
+        views.leave_type_run_missed_resets,
+        name="leave-type-run-missed-resets",
+    ),
     # path("available-leave-update/<int:pk>",assigned_leave.AssignedLeaveFormView.as_view(),name="available-leave-update"),
     path(
         "assign-delete/<int:obj_id>/", views.leave_assign_delete, name="assign-delete"

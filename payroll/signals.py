@@ -2,7 +2,7 @@ from datetime import datetime
 
 from django.apps import apps
 from django.db.models import Q
-from django.db.models.signals import m2m_changed, post_save, pre_save
+from django.db.models.signals import m2m_changed, post_delete, post_save, pre_save
 from django.dispatch import receiver
 
 from employee.models import Employee, EmployeeWorkInformation
@@ -15,6 +15,7 @@ from payroll.models.models import (
     LoanAccount,
     Payslip,
 )
+from payroll.models.tax_models import PayrollSettings
 
 
 @receiver(m2m_changed, sender=EncashmentGeneralSettings.employees.through)
@@ -177,3 +178,10 @@ def create_installments(sender, instance, created, **kwargs):
                         installments.append(installment)
 
                 instance.deduction_ids.add(*installments)
+
+
+@receiver(post_save, sender=PayrollSettings)
+@receiver(post_delete, sender=PayrollSettings)
+def forget_remembered_payroll_settings(sender, **kwargs):
+    """A currency change shows at once, even later in the same request."""
+    PayrollSettings.forget_remembered()

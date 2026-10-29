@@ -3,7 +3,6 @@
 
 from django import get_version
 from django.conf import settings
-from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.utils.decorators import method_decorator
@@ -13,6 +12,7 @@ from django.views.decorators.cache import never_cache
 from django.views.generic import ListView
 from swapper import load_model
 
+from horilla.decorators import login_required
 from notifications import settings as notification_settings
 from notifications.helpers import get_notification_list
 from notifications.utils import slug2id

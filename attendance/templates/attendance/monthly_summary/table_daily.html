@@ -1,0 +1,217 @@
+{% load i18n %}
+{# Day-wise view of the monthly summary: employees down, one column per date, the day's status in each cell. #}
+
+<style>
+  .dv-wrap { overflow: auto; max-height: calc(100vh - 260px); border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; }
+  .dv-table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; font-size: .78rem; }
+  .dv-table th, .dv-table td { border-bottom: 1px solid #f1f2f4; border-right: 1px solid #f1f2f4; padding: 0; text-align: center; }
+  .dv-table thead th { position: sticky; top: 0; z-index: 3; background: #f9fafb; padding: 6px 0; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb; }
+  .dv-emp { position: sticky; left: 0; z-index: 2; background: #fff; box-sizing: border-box; height: 48px; min-width: 190px; max-width: 190px; padding: 4px 12px !important; text-align: left !important; cursor: pointer; }
+  .dv-table thead th.dv-emp { z-index: 4; background: #f9fafb; cursor: default; }
+  .dv-emp-name { display: block; font-weight: 600; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dv-emp-badge { display: block; font-size: .68rem; color: #9ca3af; }
+  .dv-emp:hover .dv-emp-name { color: hsl(8, 77%, 56%); }
+  /* Every day is the same square, header and cells alike, so the split days' diagonal is a true corner-to-corner one. */
+  .dv-day { width: 48px; min-width: 48px; max-width: 48px; box-sizing: border-box; }
+  .dv-day small { display: block; font-size: .62rem; font-weight: 500; color: #9ca3af; text-transform: uppercase; }
+  .dv-day.weekend { background: #f3f4f6 !important; }
+  .dv-day.today { box-shadow: inset 0 -3px 0 hsl(8, 77%, 56%); }
+  /* One size for every code, split days included. */
+  /* A cell is a white square with a rounded chip in it: the chip carries the status colour and
+     a white letter code; a split day's chip is cut corner to corner. */
+  .dv-cell { position: relative; box-sizing: border-box; width: 48px; min-width: 48px; max-width: 48px; height: 48px; font-size: .66rem; font-weight: 700; line-height: 1; cursor: pointer; background: #fff; }
+  .dv-table tbody tr { height: 48px; }
+  .dv-chip { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; margin: 0 auto; border-radius: 8px; color: #1f2937; letter-spacing: .01em; }
+  .dv-cell:hover .dv-chip { filter: brightness(1.05); }
+  .dv-dot { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid #fff; box-sizing: border-box; }
+  .dv-dot--conflict { background: #e85d04; }
+  .dv-dot--resolved { background: #10b981; }
+  /* The status colours: the light ones the calendar uses, with dark letters. */
+  .dv-present { background: #86efac; color: #14532d; }
+  .dv-half_present { background: linear-gradient(to bottom right, #86efac 50%, #93c5fd 50%); color: #1f2937; }
+  .dv-half_absent { background: linear-gradient(to bottom right, #fca5a5 50%, #86efac 50%); color: #1f2937; }
+  .dv-split { background: linear-gradient(to bottom right, var(--h1, #86efac) 50%, var(--h2, #fca5a5) 50%); color: #1f2937; }
+  .dv-partial_hours { background: #67e8f9; color: #155e75; }
+  .dv-short, .dv-absent { background: #fca5a5; color: #7f1d1d; }
+  .dv-paid_leave { background: #93c5fd; color: #1e3a8a; }
+  .dv-unpaid_leave { background: #fdba74; color: #7c2d12; }
+  .dv-week_off, .dv-weekend { background: #c4b5fd; color: #4c1d95; }
+  .dv-holiday { background: #5eead4; color: #134e4a; }
+  .dv-future { background: #eef1f5; color: #94a3b8; }
+  .dv-none { background: transparent; }
+  /* Hover: the row and the column of the day under the pointer, marked by accent lines along
+     their edges. Lines, not a tint over the cells: a tint dulls every colour it covers. */
+  .dv-table tr.dv-hover-row > td { box-shadow: inset 0 1px 0 #ee7a66, inset 0 -1px 0 #ee7a66; }
+  .dv-table td.dv-hover-col, .dv-table th.dv-hover-col { box-shadow: inset 1px 0 0 #ee7a66, inset -1px 0 0 #ee7a66; }
+  .dv-table tr.dv-hover-row > td.dv-hover-col { box-shadow: inset 0 1px 0 #ee7a66, inset 0 -1px 0 #ee7a66, inset 1px 0 0 #ee7a66, inset -1px 0 0 #ee7a66; }
+  /* The hovered row and column also get a tinted background: on the white cell behind each chip,
+     so the chips keep their own colours. Where they cross, a little stronger. */
+  .dv-table tr.dv-hover-row > td.dv-cell, .dv-table td.dv-cell.dv-hover-col { background: #fdeee8; }
+  .dv-table tr.dv-hover-row > td.dv-cell.dv-hover-col { background: #fbddd2; }
+  .dv-table thead th.dv-hover-col { background: #ffe8de; color: #c2410c; }
+  .dv-table tr.dv-hover-row > td.dv-emp { background: #fff1e8; }
+  .dv-table tr.dv-hover-row .dv-emp-name { color: #c2410c; }
+  .dv-table td.dv-cell.dv-cell-hover { outline: 1px solid #6b7280; outline-offset: -1px; z-index: 1; }
+  body.dark .dv-table tr.dv-hover-row > td.dv-emp { background: #3a2a22; }
+  body.dark .dv-table tr.dv-hover-row > td.dv-cell, body.dark .dv-table td.dv-cell.dv-hover-col { background: #2c221e; }
+  body.dark .dv-table tr.dv-hover-row > td.dv-cell.dv-hover-col { background: #3a2a22; }
+  body.dark .dv-table thead th.dv-hover-col { background: #3a2a22; color: #fdba74; }
+  /* The regularise popover, floating next to the clicked day (the calendar styles the same box). */
+  #cal-resolve-panel { display: none; position: fixed; z-index: 100010; width: min(380px, calc(100vw - 16px)); max-height: min(660px, calc(100vh - 24px)); overflow-y: auto; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; box-shadow: 0 14px 36px rgba(15,23,42,.25); }
+  #cal-resolve-panel:has(.crp-shell) { overflow: hidden; }
+  #cal-resolve-panel.panel-conflict { border-color: #e85d04; }
+  #cal-resolve-panel.panel-resolved { border-color: #10b981; }
+  #cal-resolve-panel.panel-ot { border-color: #0f766e; }
+  /* A half-day leave still ahead: the leave half in its colour, the rest in the upcoming colour.
+     After the status colours above, so it is not overridden by them. */
+  .dv-split.dv-ahead { background: linear-gradient(to bottom right, var(--h1) 50%, var(--h2) 50%); color: #0f2a5c; }
+  body.dark .dv-cell { --cal-upcoming: #2a2a2a; }
+  .dv-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px; font-size: .72rem; color: #4b5563; }
+  .dv-legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .dv-legend i { display: inline-block; width: 14px; height: 14px; border-radius: 3px; }
+  .dv-note { padding: 28px; text-align: center; color: #6b7280; border: 1px dashed #d1d5db; border-radius: 8px; }
+  body.dark .dv-wrap, body.dark .dv-emp { background: #1a1a1a; }
+  body.dark .dv-table thead th, body.dark .dv-table thead th.dv-emp { background: #222; color: #dfdfdf; }
+  body.dark .dv-emp-name { color: #dfdfdf; }
+  body.dark .dv-day.weekend { background: #2a2a2a !important; }
+  body.dark .dv-future { background: #2a2a2a; color: #6b7280; }
+  body.dark .dv-cell { background: #1a1a1a; }
+  body.dark .dv-dot { border-color: #1a1a1a; }
+  body.dark .dv-table th, body.dark .dv-table td { border-color: #333; }
+</style>
+
+{% if too_long %}
+  <div class="dv-note">
+    {% blocktrans %}The Day-Wise View Shows Up To {{ max_days }} Days At A Time. Choose A Shorter Date Range.{% endblocktrans %}
+  </div>
+{% else %}
+  <div class="flex items-center justify-between mb-2" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+    <div style="font-size:.8rem;color:#6b7280;">
+      {{ period_text }} &middot; {{ total_employee_count }} {% trans "Employees" %}
+      <span style="margin-left:8px;color:#9ca3af;">{% trans "Click A Name To Open The Calendar, Or A Day To Regularise Just That Day." %}</span>
+    </div>
+
+    {% if page.has_previous or page.has_next %}
+      <div class="inline-flex items-center gap-0.5 bg-white border border-[#e6e6e6] rounded-md p-1 flex-shrink-0">
+        <button type="button" class="w-6 h-6 flex items-center justify-center rounded text-[10px] {% if page.has_previous %}text-[#666] hover:bg-[#f5f5f5]{% else %}text-[#ccc] cursor-not-allowed{% endif %}"
+                {% if page.has_previous %}hx-target="#summary-table-container" hx-swap="innerHTML" hx-get="{% url 'attendance-monthly-summary-table' %}?{{ pd }}&page={{ page.previous_page_number }}"{% endif %}>
+          <i class="fa-solid fa-angle-left"></i>
+        </button>
+        <div class="flex items-center gap-1 px-1 text-xs text-[#666]">{{ page.number }} / {{ page.paginator.num_pages }}</div>
+        <button type="button" class="w-6 h-6 flex items-center justify-center rounded text-[10px] {% if page.has_next %}text-[#666] hover:bg-[#f5f5f5]{% else %}text-[#ccc] cursor-not-allowed{% endif %}"
+                {% if page.has_next %}hx-target="#summary-table-container" hx-swap="innerHTML" hx-get="{% url 'attendance-monthly-summary-table' %}?{{ pd }}&page={{ page.next_page_number }}"{% endif %}>
+          <i class="fa-solid fa-angle-right"></i>
+        </button>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="dv-wrap">
+    <table class="dv-table" id="dvTable" data-page="{{ page.number }}"
+           data-resolve-url="{% url 'attendance-monthly-summary-conflict-resolve' %}"
+           data-bulk-resolve-url="{% url 'attendance-monthly-summary-conflict-bulk-resolve' %}"
+           data-calendar-page-url="{% url 'attendance-monthly-summary-calendar' %}">
+      <thead>
+        <tr>
+          <th class="dv-emp">{% trans "Employee" %}</th>
+          {% for day in days %}
+            <th class="dv-day{% if day.weekend %} weekend{% endif %}{% if day.today %} today{% endif %}" title="{{ day.date|date:'D, d M Y' }}">
+              {{ day.date|date:"j" }}<small>{{ day.date|date:"D" }}</small>
+            </th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td class="dv-emp"
+                data-calendar-url="{% url 'attendance-monthly-summary-calendar' %}?employee_id={{ row.employee.pk }}&from_date={{ from_date }}&to_date={{ to_date }}">
+              <span class="dv-emp-name">{{ row.employee.get_full_name }}</span>
+              <span class="dv-emp-badge">{{ row.employee.badge_id|default:"" }}</span>
+            </td>
+            {% for cell in row.cells %}
+              <td class="dv-cell"
+                  title="{{ cell.title }}"
+                  {% if cell.date %}data-day-popover="1" data-employee="{{ row.employee.pk }}" data-date="{{ cell.date }}" data-from="{{ from_date }}" data-to="{{ to_date }}" data-conflict-type="{{ cell.conflict_with }}"{% endif %}>
+                {% if cell.status != "none" %}
+                  <span class="dv-chip dv-{{ cell.status }}{% if cell.ahead %} dv-split dv-ahead{% endif %}"{% if cell.style %} style="{{ cell.style }}"{% endif %}>{{ cell.code }}</span>
+                {% endif %}
+                {% if cell.conflict %}<span class="dv-dot dv-dot--conflict"></span>{% elif cell.resolved %}<span class="dv-dot dv-dot--resolved"></span>{% endif %}
+              </td>
+            {% endfor %}
+          </tr>
+        {% empty %}
+          <tr><td class="dv-emp" colspan="{{ days|length|add:1 }}" style="text-align:center !important;padding:24px !important;color:#9ca3af;">{% trans "No Employees Match The Filters." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="dv-legend">
+    <span><i class="dv-present"></i>{% trans "Present" %} (P)</span>
+    <span><i class="dv-half_present"></i>{% trans "Half Day" %} (HD)</span>
+    <span><i class="dv-half_absent"></i>{% trans "Half Absent" %} (HA)</span>
+    <span><i class="dv-split"></i>{% trans "Split Day" %}</span>
+    <span><i class="dv-absent"></i>{% trans "Absent / Short Hours" %} (A / SH)</span>
+    <span><i class="dv-paid_leave"></i>{% trans "Paid Leave" %} (PL)</span>
+    <span><i class="dv-unpaid_leave"></i>{% trans "Unpaid Leave" %} (UL)</span>
+    <span><i class="dv-week_off"></i>{% trans "Week Off" %} (WO)</span>
+    <span><i class="dv-holiday"></i>{% trans "Holiday" %} (H)</span>
+    <span><i class="dv-future"></i>{% trans "Upcoming" %}</span>
+    <span><i class="dv-dot dv-dot--conflict" style="position:static;border-radius:50%;width:9px;height:9px;"></i>{% trans "Conflict" %}</span>
+  </div>
+{% endif %}
+
+{% include "attendance/monthly_summary/_calendar_modal_host.html" %}
+
+<script>
+// Hovering a day marks its row and its column. Done by script (classes on the row and on every
+// cell of the column) because CSS alone cannot reach a column.
+(function () {
+  var table = document.getElementById('dvTable');
+  if (!table) return;
+  var rowEl = null, colEls = [], cellEl = null;
+  function clear() {
+    if (rowEl) rowEl.classList.remove('dv-hover-row');
+    colEls.forEach(function (el) { el.classList.remove('dv-hover-col'); });
+    if (cellEl) cellEl.classList.remove('dv-cell-hover');
+    rowEl = cellEl = null;
+    colEls = [];
+  }
+  table.addEventListener('mouseover', function (e) {
+    var td = e.target.closest && e.target.closest('td');
+    if (!td || td === cellEl) return;
+    clear();
+    rowEl = td.parentElement;
+    rowEl.classList.add('dv-hover-row');
+    if (td.classList.contains('dv-cell')) {
+      cellEl = td;
+      td.classList.add('dv-cell-hover');
+      var index = td.cellIndex;
+      for (var i = 0; i < table.rows.length; i++) {
+        var cell = table.rows[i].cells[index];
+        if (cell) { cell.classList.add('dv-hover-col'); colEls.push(cell); }
+      }
+    }
+  });
+  table.addEventListener('mouseleave', clear);
+})();
+</script>
+
+<script>
+// A day regularised in the calendar changes this grid: reload it (same page) once the calendar closes.
+(function () {
+  if (window._dvSavedBound) return;
+  window._dvSavedBound = true;
+  document.addEventListener('attendance-calendar-saved', function () {
+    var table = document.getElementById('dvTable');
+    var form = document.getElementById('summary-filter-form');
+    if (!table || !form) return;
+    var params = new URLSearchParams(new FormData(form));
+    if (table.dataset.page) params.set('page', table.dataset.page);
+    htmx.ajax('GET', "{% url 'attendance-monthly-summary-table' %}?" + params.toString(), {
+      target: '#summary-table-container', swap: 'innerHTML',
+    });
+  });
+})();
+</script>

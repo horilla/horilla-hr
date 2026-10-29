@@ -2938,6 +2938,14 @@ class MultipleApproveConditionForm(ModelForm):
         "multi_approval_manager": 12,
     }
 
+    # "Contains" (icontains) is left out here deliberately -- every
+    # condition_field this form offers (base/models.py's FIELD_CHOICE) is a
+    # numeric/choice value (days, leave type, etc.), not free text, so a
+    # substring match never made sense as a selectable operator. Still kept
+    # in base/models.py's own CONDITION_CHOICE (the model field's full
+    # choice list), so an existing record already saved with it continues
+    # to display correctly via get_condition_operator() -- only new/edited
+    # conditions can no longer choose it from this form.
     CONDITION_CHOICE = [
         ("equal", _("Equal (==)")),
         ("notequal", _("Not Equal (!=)")),
@@ -2946,7 +2954,6 @@ class MultipleApproveConditionForm(ModelForm):
         ("gt", _("Greater Than (>)")),
         ("le", _("Less Than or Equal To (<=)")),
         ("ge", _("Greater Than or Equal To (>=)")),
-        ("icontains", _("Contains")),
     ]
 
     multi_approval_manager = forms.ChoiceField(
@@ -2962,7 +2969,7 @@ class MultipleApproveConditionForm(ModelForm):
                 "class": "oh-select oh-select-2 mb-2",
                 "hx-trigger": "change",
                 "hx-target": "#conditionValueDiv",
-                "hx-get": "condition-value-fields",
+                "hx-get": reverse_lazy("condition-value-fields"),
             },
         ),
         label=_("Condition Operator"),
@@ -2977,9 +2984,11 @@ class MultipleApproveConditionForm(ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        choices = [("reporting_manager_id", _("Reporting Manager"))] + [
-            (employee.pk, str(employee)) for employee in Employee.objects.all()
-        ]
+        choices = (
+            [("", "---------")]
+            + [("reporting_manager_id", _("Reporting Manager"))]
+            + [(employee.pk, str(employee)) for employee in Employee.objects.all()]
+        )
         self.fields["multi_approval_manager"].choices = choices
 
 

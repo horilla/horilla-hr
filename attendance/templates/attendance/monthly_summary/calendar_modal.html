@@ -86,6 +86,11 @@
 }
 
 /* ── Calendar body ────────────────────────────────────────────────────────── */
+/* In the modal the header, the two summary strips and the legend stay put; only the months
+   scroll, in one scrollbar. (The read-only dashboard copy keeps its plain flow.) */
+#cal-modal-content > .cal-header, #cal-modal-content > .cal-summary,
+#cal-modal-content > .cal-hours-strip, #cal-modal-content > .cal-legend { flex: 0 0 auto; }
+#cal-modal-content > .cal-body { flex: 1 1 auto; min-height: 0; max-height: none; overflow-y: auto; }
 .cal-body { padding: 16px 24px 24px; overflow-y: auto; max-height: calc(94vh - 220px); position: relative; }
 .cal-month-label {
   font-size: .8rem;
@@ -247,6 +252,8 @@
 .cal-future       { background: #f1f5f9; color: #94a3b8; opacity: .75; cursor: not-allowed !important; pointer-events: none; }
 .dark .cal-future { background: #2a2a2a; color: #6b7280; }
 .cal-paid_leave   { background: #93c5fd; color: #1e3a8a; }
+.dark .cal-split--ahead { --cal-upcoming: #2a2a2a; }
+.cal-split--ahead { background: linear-gradient(135deg, var(--h1) 50%, var(--h2) 50%); color: #1e3a8a; }
 .cal-unpaid_leave { background: #fdba74; color: #7c2d12; }
 .cal-week_off     { background: #c4b5fd; color: #4c1d95; }
 .cal-holiday      { background: #5eead4; color: #134e4a; }
@@ -374,6 +381,12 @@
     <span class="cal-summary-val cal-stat-holiday">{{ cal_summary.holiday }}</span>
     <span class="cal-summary-lbl">{% trans "Holiday" %}</span>
   </div>
+  {% if cal_summary.upcoming %}
+  <div class="cal-summary-item">
+    <span class="cal-summary-val" style="color:#6b7280;">{{ cal_summary.upcoming }}</span>
+    <span class="cal-summary-lbl">{% trans "Upcoming" %}</span>
+  </div>
+  {% endif %}
   {% if cal_summary.conflict %}
   <div class="cal-summary-item" data-group="conflict" style="background:#fff4ed;">
     <span class="cal-summary-val" style="color:#e85d04;">{{ cal_summary.conflict }}</span>
@@ -432,11 +445,11 @@
             <div class="cal-day-num">{{ cell.day }}</div>
           </div>
         {% else %}
-          <div class="cal-cell cal-{{ cell.status }}{% if cell.is_conflict %} cal-has-conflict{% elif cell.resolution %} cal-resolved-conflict{% endif %}"
+          <div class="cal-cell cal-{{ cell.status }}{% if cell.future_part %} cal-split cal-split--ahead{% endif %}{% if cell.is_conflict %} cal-has-conflict{% elif cell.resolution %} cal-resolved-conflict{% endif %}"
                data-date="{{ cell.date|date:'Y-m-d' }}"
                data-groups="{{ cell.groups }}"
                data-halves="{{ cell.halves_data }}"
-               title="{{ cell.date|date:'d M Y' }}{% if cell.split_label %} — {{ cell.split_label }}{% elif cell.detail %} — {{ cell.detail }}{% endif %}{% if cell.conflict_with == 'paid_leave' or cell.conflict_with == 'unpaid_leave' %} ⚠ conflicts with {{ cell.conflict_with }}{% elif cell.conflict_with == 'holiday_ot' %} HO — Holiday Overtime{% elif cell.conflict_with == 'week_off_ot' %} WO — Week Off Overtime{% elif cell.conflict_with == 'regular_ot' %} OT — Overtime{% elif cell.resolution %} ✓ resolved{% endif %}{% if not readonly %}{% trans ' — Ctrl/Shift-click to select multiple days' %}{% endif %}"
+               title="{{ cell.date|date:'d M Y' }}{% if cell.split_label %} — {{ cell.split_label }}{% elif cell.detail %} — {{ cell.detail }}{% endif %}{% if cell.conflict_with == 'paid_leave' or cell.conflict_with == 'unpaid_leave' %} ⚠ {% if cell.conflict_reason %}{{ cell.conflict_reason }}{% else %}conflicts with {{ cell.conflict_with }}{% endif %}{% elif cell.conflict_with == 'holiday_ot' %} HO — Holiday Overtime{% elif cell.conflict_with == 'week_off_ot' %} WO — Week Off Overtime{% elif cell.conflict_with == 'regular_ot' %} OT — Overtime{% elif cell.resolution %} ✓ resolved{% endif %}{% if not readonly %}{% trans ' — Ctrl/Shift-click to select multiple days' %}{% endif %}"
                {% if not readonly %}onclick="msCalCellClick(event, this, '{{ cell.date|date:'Y-m-d' }}', '{{ cell.conflict_with|default:'' }}', '{{ cell.detail|default:''|escapejs }}')"{% endif %}
                {% if cell.split_style %}style="{{ cell.split_style }}{% if readonly %};cursor:default{% endif %}"{% elif readonly %}style="cursor:default;"{% endif %}>
             <div class="cal-day-num">{{ cell.day }}</div>

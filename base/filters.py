@@ -28,6 +28,7 @@ from base.models import (
     JobPosition,
     JobRole,
     MultipleApprovalCondition,
+    MultipleApprovalManagers,
     PenaltyAccounts,
     Roster,
     RotatingShift,
@@ -803,6 +804,11 @@ class RotatingShiftRequestReGroup:
 class MultipleApprovalConditionFilter(HorillaFilterSet):
 
     search = django_filters.CharFilter(method="search_method")
+    approval_manager = django_filters.ModelChoiceFilter(
+        queryset=Employee.objects.all(),
+        method="approval_manager_method",
+        label=_("Approval Manager"),
+    )
 
     class Meta:
         model = MultipleApprovalCondition
@@ -816,6 +822,16 @@ class MultipleApprovalConditionFilter(HorillaFilterSet):
         """
 
         return (queryset.filter(department__department__icontains=value)).distinct()
+
+    def approval_manager_method(self, queryset, name, value):
+        """
+        Keep only conditions where the chosen employee is one of the
+        configured approval managers (any sequence position).
+        """
+        condition_ids = MultipleApprovalManagers.objects.filter(
+            employee_id=value.pk
+        ).values_list("condition_id", flat=True)
+        return queryset.filter(id__in=condition_ids).distinct()
 
 
 class EmployeeShiftFilter(FilterSet):
@@ -1182,7 +1198,9 @@ class PenaltyAccountFilter(HorillaFilterSet):
 
     class Meta:
         model = PenaltyAccounts
-        fields = ["leave_type_id"] if apps.is_installed("leave") else []
+        fields = (
+            ["leave_type_id", "leave_request_id"] if apps.is_installed("leave") else []
+        )
 
     def search_method(self, queryset, name, value):
         """

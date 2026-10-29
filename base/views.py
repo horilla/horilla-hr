@@ -7075,33 +7075,25 @@ def add_more_approval_managers(request):
         "next_hx_target": next_hx_target,
         "current_hx_target": current_hx_target,
     }
-    if managers_count:
-        managers_count = int(managers_count) + 1
-        field_name = f"multi_approval_manager_{managers_count}"
-        choices = [("reporting_manager_id", _("Reporting Manager"))] + [
-            (employee.pk, str(employee)) for employee in Employee.objects.all()
-        ]
-        form.fields[field_name] = forms.ChoiceField(
-            choices=choices,
-            widget=forms.Select(
-                attrs={
-                    "class": "oh-select oh-select-2 mb-3",
-                    "name": field_name,
-                    "id": f"id_{field_name}",
-                }
-            ),
-            required=False,
-        )
-        context["managers_count"] = managers_count
-        context["field_html"] = form[field_name].as_widget()
-    else:
-        form.fields["multi_approval_manager"].widget.attrs.update(
-            {
-                "name": f"multi_approval_manager_{str(int(hx_target_split[-1]) + 1)}",
-                "id": f"id_multi_approval_manager_{str(int(hx_target_split[-1]) + 1)}",
+    next_index = (
+        int(managers_count) + 1 if managers_count else int(hx_target_split[-1]) + 1
+    )
+    field_name = f"multi_approval_manager_{next_index}"
+    choices = [("reporting_manager_id", _("Reporting Manager"))] + [
+        (employee.pk, str(employee)) for employee in Employee.objects.all()
+    ]
+    form.fields[field_name] = forms.ChoiceField(
+        choices=choices,
+        widget=forms.Select(
+            attrs={
+                "class": "oh-select oh-select-2 mb-3",
+                "id": f"id_{field_name}",
             }
-        )
-        context["form"] = form
+        ),
+        required=False,
+    )
+    context["managers_count"] = next_index
+    context["field_html"] = form[field_name].as_widget()
 
     field_html = render_to_string(
         "multi_approval_condition/add_more_approval_manager.html", context

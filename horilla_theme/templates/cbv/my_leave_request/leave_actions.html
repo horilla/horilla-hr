@@ -7,8 +7,8 @@
                 data-target="#cancelModal"
                 hx-get="{% url 'user-request-cancel' instance.id %}"
                 hx-target="#cancelForm"
-                title="{% trans 'Request Cancellation' %}"
-                class="oh-btn oh-btn--light-bkg oh-btn--danger oh-btn--sq-sm">
+                title="{% trans 'Cancel' %}"
+                class="oh-btn oh-btn--danger oh-btn--sq-sm">
                 <ion-icon name="close-circle-outline"></ion-icon>
             </a>
         {% else %}

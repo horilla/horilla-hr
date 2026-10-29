@@ -43,18 +43,32 @@
                 <span class="label">{% trans 'Select' %}</span>
                 ({{ queryset.paginator.count }})
             </button>
+        {% elif grouped_select_total and not group_select %}
+            {# Grouped list: the "queryset" is a stub, so the count and ids come from the full filtered set via ?select_all=true #}
+            <button
+                type="button"
+                id="select_{{ view_id }}"
+                data-total-count="{{ grouped_select_total }}"
+                data-select-url="{{ request.get_full_path }}"
+                data-store-key="{{ selected_instances_key_id }}"
+                class="quick-bulk-action px-4 py-2 bg-transparent border border-primary-600 text-primary-600 rounded-md text-xs hover:bg-primary-600 hover:text-white transition duration-300"
+                onclick="hlvSelectAllRecords(this, '#{{ root_view_id|default:view_id|safe }}', '{{ selected_instances_key_id }}')"
+            >
+                <span class="label">{% trans 'Select' %}</span>
+                ({{ grouped_select_total }})
+            </button>
         {% elif group_select and queryset.paginator.count %}
             <button
                 type="button"
                 id="select_{{ view_id }}"
-                data-total-count="{{ queryset.paginator.count }}"
+                data-total-count="{{ select_total_count|default:queryset.paginator.count }}"
                 data-select-ids="{{ select_all_ids|default:'[]' }}"
                 data-store-key="{{ selected_instances_key_id }}"
                 class="quick-bulk-action px-4 py-2 bg-transparent border border-primary-600 text-primary-600 rounded-md text-xs hover:bg-primary-600 hover:text-white transition duration-300"
                 onclick="hlvSelectAllRecords(this, '#{{ root_view_id|default:view_id|safe }}', '{{ selected_instances_key_id }}')"
             >
                 <span class="label">{% trans 'Select' %}</span>
-                ({{ queryset.paginator.count }})
+                ({{ select_total_count|default:queryset.paginator.count }})
             </button>
         {% endif %}
         {% if quick_export %}

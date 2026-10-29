@@ -146,32 +146,21 @@ class LeaveTypeNavView(HorillaNavView):
         super().__init__(**kwargs)
         self.search_url = reverse("leave-type-list")
         if self.request.user.has_perm("leave.add_leavetype"):
+            # Previous (full page) workflow:
+            # self.create_attrs = f"""
+            #                         href="#"
+            #                         hx-get="{reverse_lazy('type-creation')}"
+            #                         hx-target="#ohMainContent"
+            #                         hx-select="#ohMainContent"
+            #                         hx-push-url="true"
+            #                         hx-swap="outerHTML"
+            #                     """
             self.create_attrs = f"""
-                                    href="#"
+                                    data-toggle="oh-modal-toggle"
+                                    data-target="#objectCreateModal"
                                     hx-get="{reverse_lazy('type-creation')}"
-                                    hx-target="#ohMainContent"
-                                    hx-select="#ohMainContent"
-                                    hx-push-url="true"
-                                    hx-swap="outerHTML"
+                                    hx-target="#objectCreateModalTarget"
                                 """
-            self.view_types = [
-                {
-                    "type": "list",
-                    "icon": "list-outline",
-                    "url": reverse("leave-type-list"),
-                    "attrs": f"""
-                            title='{_("List")}'
-                            """,
-                },
-                {
-                    "type": "card",
-                    "icon": "grid-outline",
-                    "url": reverse("leave-type-card-view"),
-                    "attrs": f"""
-                            title='{_("Card")}'
-                            """,
-                },
-            ]
 
     nav_title = _("Leave Types")
     filter_body_template = "cbv/leave_types/leave_type_filter.html"

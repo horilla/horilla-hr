@@ -1,0 +1,25 @@
+{% load widget_tweaks %}
+{% comment %}
+One field of the leave type form, laid out like payroll/component/_field.html:
+label with its help icon on one line, then the control, then errors.
+`.form-input-items` is the hook the show / hide script toggles.
+Arguments: field, label, help, required, extra (extra classes), switch_id
+(for the yes / no switches that are backed by a hidden yes / no field), col.
+{% endcomment %}
+<div class="col-12 col-md-{{ col|default:6 }} oh-component-field form-input-items {{ extra }}">
+  <div class="oh-component-field__label">
+    <label class="oh-label mb-0{% if required %} required-star{% endif %}"
+           for="{% if switch_id %}{{ switch_id }}{% else %}{{ field.id_for_label }}{% endif %}">{{ label }}</label>
+    {% if help %}<span class="oh-info" title="{{ help }}"></span>{% endif %}
+  </div>
+  {% if switch_id %}
+    <div class="oh-switch" style="width:30px">
+      <input type="checkbox" class="oh-switch__checkbox yesOrNo" id="{{ switch_id }}">
+    </div>
+  {% elif field.field.widget.input_type == "checkbox" %}
+    <div class="oh-switch" style="width:30px">{{ field|add_class:"oh-switch__checkbox" }}</div>
+  {% else %}
+    {{ field|add_class:"form-control" }}
+  {% endif %}
+  {{ field.errors }}
+</div>

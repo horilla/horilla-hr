@@ -1,0 +1,428 @@
+{% load i18n widget_tweaks %}
+{% comment %}
+Leave Type create / update, shown in a modal (#objectCreateModal / #objectUpdateModal).
+Same layout as the Allowance and Deduction forms (payroll/component/_component_form.html):
+a step rail, headed sections, two-column fields, Previous / Next. componentForm.js drives
+the stepping. Every field stays in the DOM and the form posts once, so data is kept
+between steps.
+{% endcomment %}
+<style>
+  .oh-component-form [hidden] { display: none !important; }
+  .oh-component-form__section { width: 100%; margin: 18px 0 2px; }
+  .oh-component-form__heading { display: flex; align-items: baseline; gap: 10px; width: 100%; }
+  .oh-component-form__heading h3 {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .06em; color: #6b7280; margin: 0; white-space: nowrap;
+  }
+  .oh-component-form__heading .rule { flex: 1; height: 1px; background: #e5e7eb; }
+  .oh-component-form__hint { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+  .oh-component-field__label { display: flex; align-items: center; gap: 6px; min-height: 22px; margin-bottom: 4px; }
+  .oh-component-field__label .oh-info { flex: 0 0 auto; margin: 0; }
+  .oh-component-field { margin-bottom: 12px; }
+  /* ConditionForm puts fixed inline sizes on selects / inputs; use the form-control look */
+  .oh-component-form .form-control {
+    width: 100% !important; height: auto !important; border-radius: 6px !important;
+    padding: 0.5rem 0.75rem !important; border: 1px solid #e6e7eb !important; font-size: 0.9rem;
+  }
+  .oh-component-form .select2-container { width: 100% !important; }
+  .oh-component-form .emp-photo-zone:hover { border-color: var(--primary-500, #F7C8C1); }
+
+  /* ---- steps ---- */
+  .oh-steps { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 0 4px; margin-bottom: 4px; }
+  .oh-steps__step {
+    flex: 1 1 180px; min-width: 0; display: flex; align-items: center; gap: 10px;
+    border: 1px solid #e6e7eb; border-radius: 10px; background: #fff;
+    padding: 10px 12px; cursor: pointer; text-align: left; position: relative;
+  }
+  .oh-steps__step:hover { border-color: #cfd2da; }
+  .oh-steps__num {
+    flex: 0 0 auto; width: 24px; height: 24px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: #eceef2; color: #6b7280; font-size: 12px; font-weight: 700;
+  }
+  .oh-steps__text { min-width: 0; display: block; }
+  .oh-steps__label {
+    display: block; font-size: 13px; font-weight: 600; color: #1f2430;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .oh-steps__hint {
+    display: block; font-size: 11.5px; color: #9ca3af;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .oh-steps__step.is-current { border-color: var(--primary-600, #e54f38); box-shadow: inset 0 0 0 1px var(--primary-600, #e54f38); }
+  .oh-steps__step.is-current .oh-steps__num { background: var(--primary-600, #e54f38); color: #fff; }
+  .oh-steps__step.is-done .oh-steps__num { background: #d6e9e1; color: #0f7b5f; }
+  .oh-steps__flag {
+    position: absolute; top: 6px; right: 8px; width: 16px; height: 16px; border-radius: 50%;
+    background: #b00020; color: #fff; font-size: 11px; font-weight: 700; line-height: 16px; text-align: center;
+  }
+  .oh-step-panel[hidden] { display: none !important; }
+  .oh-step-nav { display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 14px; padding-top: 14px; border-top: 1px solid #ececf0; }
+  .oh-step-nav__spacer { flex: 1; }
+  .oh-step-nav [hidden] { display: none !important; }
+  .step-field-error { color: #b00020; font-size: 0.75rem; margin-top: 2px; }
+  @media (max-width: 640px) {
+    .oh-steps__hint { display: none; }
+    .oh-steps__step { flex: 1 1 100%; }
+  }
+</style>
+
+<div class="oh-modal__dialog-header">
+  <h2 class="oh-modal__dialog-title">{% if form.instance.pk %}{% trans "Update Leave Type" %}{% else %}{% trans "Create Leave Type" %}{% endif %}</h2>
+  <button type="button" class="oh-modal__close--custom"
+          onclick="$(this).closest('.oh-modal--show').removeClass('oh-modal--show')"
+          aria-label="{% trans 'Close' %}">
+    <ion-icon name="close-outline" role="img" class="md hydrated" aria-label="{% trans 'close outline' %}"></ion-icon>
+  </button>
+</div>
+
+<div class="oh-modal__dialog-body oh-modal__dialog-relative">
+<form id="leaveTypeForm" method="post" enctype="multipart/form-data" novalidate
+      hx-post="{{ post_url }}"
+      hx-target="closest .oh-modal__dialog"
+      hx-swap="innerHTML"
+      hx-encoding="multipart/form-data">
+  {% csrf_token %}
+  <div class="oh-general__tab-target oh-profile-section oh-component-form">
+    <div class="oh-profile-section__card row">
+      <div class="row" style="padding-right:0">
+        <div class="col-12" style="padding-right:0">{{ form.non_field_errors }}</div>
+
+        <div class="col-12 oh-steps" role="tablist" data-steps>
+          <button type="button" class="oh-steps__step" role="tab" data-step-tab="basics" aria-controls="step-basics">
+            <span class="oh-steps__num">1</span>
+            <span class="oh-steps__text">
+              <span class="oh-steps__label">{% trans "Basic Details" %}</span>
+              <span class="oh-steps__hint">{% trans "Name, payment, request rules and exclusions." %}</span>
+            </span>
+            <span class="oh-steps__flag" data-step-flag hidden title="{% trans 'Something on this step needs attention' %}">!</span>
+          </button>
+          <button type="button" class="oh-steps__step" role="tab" data-step-tab="rules" aria-controls="step-rules">
+            <span class="oh-steps__num">2</span>
+            <span class="oh-steps__text">
+              <span class="oh-steps__label">{% trans "Leave Rules" %}</span>
+              <span class="oh-steps__hint">{% trans "Limits, reset and carryforward." %}</span>
+            </span>
+            <span class="oh-steps__flag" data-step-flag hidden title="{% trans 'Something on this step needs attention' %}">!</span>
+          </button>
+        </div>
+
+        {# ── Step 1: Basic Details ── #}
+        <div class="col-12 oh-step-panel" id="step-basics" data-step-panel="basics" role="tabpanel">
+        <div class="row" style="padding-right:0">
+          <div class="oh-component-form__section col-12">
+            <div class="oh-component-form__heading"><h3>{% trans "What this leave type is" %}</h3><span class="rule"></span></div>
+          </div>
+          {% include "leave/leave_type/_leave_type_field.html" with field=form.name label=_("Name") required=True %}
+          {% include "leave/leave_type/_leave_type_field.html" with field=form.payment_type label=_("Leave Payment") help=_("Paid leave is not deducted from the payslip, unpaid leave is treated as loss of pay, and a custom percentage pays only that share of the day.") %}
+          {% include "leave/leave_type/_leave_type_field.html" with field=form.payment_percentage label=_("Payment Percentage") required=True help=_("Share of the daily pay given for each day of this leave, between 0 and 100.") extra="hidden" %}
+          <div hidden>{{ form.payment }}</div>
+
+          <div class="oh-component-form__section col-12">
+            <div class="oh-component-form__heading"><h3>{% trans "Request rules" %}</h3><span class="rule"></span></div>
+          </div>
+          {% include "leave/leave_type/_leave_type_field.html" with field=form.require_approval switch_id="id_approval" label=_("Require Approval") help=_("When on, a leave request of this type must be approved by the reporting manager before it is confirmed.") %}
+          {% include "leave/leave_type/_leave_type_field.html" with field=form.require_attachment switch_id="id_attachment" label=_("Require Attachment") help=_("When on, employees must upload a supporting document (for example a medical certificate) with the request.") %}
+          {% include "leave/leave_type/_leave_type_field.html" with field=form.is_encashable label=_("Encashable") help=_("Allow the unused balance of this leave type to be converted into a cash payout.") %}
+          <div class="oh-component-form__section col-12">
+            <div class="oh-component-form__heading"><h3>{% trans "Exclusions" %}</h3><span class="rule"></span></div>
+          </div>
+          {% include "leave/leave_type/_leave_type_field.html" with field=form.exclude_company_leave switch_id="id_exclude_comp_leave" label=_("Exclude Company Weekoff") help=_("When on, company weekoff days that fall within the leave dates are not counted as leave days.") %}
+          {% include "leave/leave_type/_leave_type_field.html" with field=form.exclude_holiday switch_id="id_exclude_public_leave" label=_("Exclude Holidays") help=_("When on, public holidays that fall within the leave dates are not counted as leave days.") %}
+          <div class="oh-component-form__section col-12">
+            <div class="oh-component-form__heading"><h3>{% trans "Icon" %}</h3><span class="rule"></span></div>
+          </div>
+          <div class="col-12 col-md-6 oh-component-field">
+            <div class="oh-component-field__label"><label class="oh-label mb-0" for="id_icon">{% trans "Icon" %}</label></div>
+            <div class="d-flex align-items-center" style="gap:12px">
+              <label for="id_icon" class="emp-photo-zone w-20 h-20 border-2 border-dashed border-secondary-300 rounded-xl flex items-center justify-center bg-secondary-50 overflow-hidden cursor-pointer transition-colors mb-0" id="iconDropZone" style="width:40px;height:40px;flex:0 0 auto;border-radius:8px">
+                <img id="iconPreview"
+                     src="{% if form.instance.icon %}{{ form.instance.icon.url }}{% else %}https://ui-avatars.com/api/?name=LT&background=e5e7eb&color=6b7280{% endif %}"
+                     data-default-src="https://ui-avatars.com/api/?name=LT&background=e5e7eb&color=6b7280"
+                     data-has-existing="{% if form.instance.icon %}1{% else %}0{% endif %}"
+                     alt="{% trans 'Leave type icon' %}" class="preview w-full h-full object-cover">
+              </label>
+              <div>
+                <div class="text-xxs text-dark-100" style="font-size:11px">{% trans "Upload JPG, PNG or SVG" %}</div>
+                <button type="button" id="removeIconBtn" class="{% if not form.instance.icon %}hidden {% endif %}text-xxs text-danger border-0 bg-transparent p-0 cursor-pointer font-bold">{% trans "Remove Icon" %}</button>
+              </div>
+            </div>
+            <div class="hidden">{{ form.icon }}</div>
+            {{ form.icon.errors }}
+          </div>
+
+        </div>
+        </div>
+
+        {# ── Step 2: Leave Rules ── #}
+        <div class="col-12 oh-step-panel" id="step-rules" data-step-panel="rules" role="tabpanel" hidden>
+        <div class="row" style="padding-right:0">
+          <div class="oh-component-form__section col-12">
+            <div class="oh-component-form__heading"><h3>{% trans "Leave balance" %}</h3><span class="rule"></span></div>
+          </div>
+          {% include "leave/leave_type/_leave_type_field.html" with field=form.limit_leave label=_("Limit Leave Days") help=_("Turn on to cap the number of days available. When off, the leave type has no day limit.") %}
+          {% include "leave/leave_type/_leave_type_field.html" with field=form.count label=_("Total Days") required=True help=_("Number of days an employee can take in each reset period (or in total when there is no reset).") %}
+          <div hidden>{{ form.period_in }}{{ form.total_days }}</div>
+
+          <div class="oh-component-form__section col-12">
+            <div class="oh-component-form__heading"><h3>{% trans "Reset" %}</h3><span class="rule"></span></div>
+          </div>
+          {% include "leave/leave_type/_leave_type_field.html" with field=form.reset label=_("Reset Leave Balance") help=_("Restore the leave balance automatically at the end of every reset period.") %}
+          {% include "leave/leave_type/_leave_type_field.html" with field=form.reset_based label=_("Reset Period") required=True help=_("How often the leave balance is reset.") extra="hidden" %}
+          {% include "leave/leave_type/_leave_type_field.html" with field=form.reset_month label=_("Reset Month") required=True extra="hidden" %}
+          {% include "leave/leave_type/_leave_type_field.html" with field=form.reset_day label=_("Reset Day") required=True extra="hidden" %}
+          {% include "leave/leave_type/_leave_type_field.html" with field=form.reset_weekend label=_("Reset Weekday") required=True extra="hidden" %}
+          {% include "leave/leave_type/_leave_type_field.html" with field=form.custom_reset_days label=_("Custom Reset Days") help=_("Number of days after which the leave balance is reset.") extra="hidden" %}
+
+          <div class="oh-component-form__section col-12" id="carryforwardSection">
+            <div class="oh-component-form__heading"><h3>{% trans "Carryforward" %}</h3><span class="rule"></span></div>
+          </div>
+          {% include "leave/leave_type/_leave_type_field.html" with field=form.carryforward_type label=_("Carryforward Type") help=_("What happens to the unused balance when the leave resets: lost, carried forward, or carried forward until it expires.") extra="hidden" %}
+          {% include "leave/leave_type/_leave_type_field.html" with field=form.carryforward_max label=_("Carryforward Maximum") help=_("The maximum number of days that can be carried forward to the next period.") extra="hidden" %}
+          {% include "leave/leave_type/_leave_type_field.html" with field=form.carryforward_expiry_method label=_("Expiry Method") help=_("First Expiry Date: all carried forward balances expire together on the first expiry date set below, then again after every expiry duration. Employee Assignment Date: each employee's balance expires one expiry duration after the date the leave was assigned to them, and again after every further duration.") extra="hidden" %}
+          {% include "leave/leave_type/_leave_type_field.html" with field=form.carryforward_expire_date label=_("First Expiry Date") help=_("The date on which carryforward leave resets to 0 for all employees. After this reset, the date moves forward by the expiry duration.") extra="hidden" %}
+          {% include "leave/leave_type/_leave_type_field.html" with field=form.carryforward_expire_in label=_("Carryforward Expires In") help=_("How long the carried forward leave stays valid. Used together with the expiry period.") extra="hidden" %}
+          {% include "leave/leave_type/_leave_type_field.html" with field=form.carryforward_expire_period label=_("Carryforward Expiry Period") help=_("The unit of time (days, months or years) for the carryforward expiry.") extra="hidden" %}
+
+        </div>
+        </div>
+
+        <div class="col-12" style="padding-right:0">
+          <div class="oh-step-nav">
+            <button type="button" class="oh-btn oh-btn--light" data-step-back hidden>
+              <ion-icon name="chevron-back-outline" class="mr-1"></ion-icon>
+              {% trans "Previous" %}
+            </button>
+            <span class="oh-step-nav__spacer"></span>
+            <button type="submit" class="oh-btn oh-btn--secondary" data-step-save hidden>
+              {% if form.instance.pk %}{% trans "Update" %}{% else %}{% trans "Save" %}{% endif %}
+            </button>
+            <button type="button" class="oh-btn oh-btn--secondary" data-step-next>
+              {% trans "Next" %}
+              <ion-icon name="chevron-forward-outline" class="ml-1"></ion-icon>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div hidden>{{ form.require_approval }}{{ form.require_attachment }}{{ form.exclude_company_leave }}{{ form.exclude_holiday }}</div>
+</form>
+</div>
+
+<script>
+(function () {
+    var $form = $("#leaveTypeForm");
+    if (!$form.length) return;
+    var f = function (sel) { return $form.find(sel); };
+
+    // ── Icon upload / remove ──
+    var $iconInput = f("#id_icon"), $iconPreview = f("#iconPreview"), $removeIconBtn = f("#removeIconBtn");
+    var $iconClear = f("#icon-clear_id, [name='icon-clear']");
+    var defaultIconSrc = $iconPreview.data("default-src");
+    var hasExistingIcon = String($iconPreview.data("has-existing")) === "1";
+    function hasSelectedFile() { return $iconInput[0] && $iconInput[0].files && $iconInput[0].files.length > 0; }
+    function toggleRemoveIconButton() {
+        $removeIconBtn.toggleClass("hidden", !(hasExistingIcon || hasSelectedFile()));
+    }
+    $iconInput.on("change", function () {
+        var file = this.files[0];
+        if (file && file.type.startsWith("image/")) {
+            var reader = new FileReader();
+            reader.addEventListener("load", function () { $iconPreview.attr("src", reader.result); });
+            reader.readAsDataURL(file);
+            $iconClear.prop("checked", false);
+        }
+        toggleRemoveIconButton();
+    });
+    $removeIconBtn.on("click", function () {
+        $iconInput.val("");
+        $iconPreview.attr("src", defaultIconSrc);
+        hasExistingIcon = false;
+        $iconClear.prop("checked", true);
+        toggleRemoveIconButton();
+    });
+    toggleRemoveIconButton();
+
+    // ── Show / hide dependent fields ──
+    function toggleInput($input, shouldShow) {
+        var $wrap = $input.closest(".form-input-items");
+        if (!$input.length || !$wrap.length) return;
+        if (shouldShow) {
+            $wrap.removeClass("hidden");
+            $input.prop("required", true);
+            if (!$input.hasClass("select2-hidden-accessible")) $input.css("display", "").show();
+            $wrap.find(".select2-container").show();
+        } else {
+            $wrap.addClass("hidden");
+            $input.prop("required", false);
+        }
+    }
+    function field(name) { return f("[name='" + name + "']"); }
+
+    function syncResetFields() {
+        var on = field("reset").is(":checked");
+        var based = field("reset_based").val();
+        var cf = field("carryforward_type").val();
+        toggleInput(field("reset_based"), on);
+        toggleInput(field("carryforward_type"), on);
+        toggleInput(field("reset_month"), on && based === "yearly");
+        toggleInput(field("reset_day"), on && (based === "yearly" || based === "monthly"));
+        toggleInput(field("reset_weekend"), on && based === "weekly");
+        toggleInput(field("custom_reset_days"), on && based === "custom");
+        toggleInput(field("carryforward_max"), on && (cf === "carryforward" || cf === "carryforward expire"));
+        var expires = on && cf === "carryforward expire";
+        toggleInput(field("carryforward_expiry_method"), expires);
+        toggleInput(field("carryforward_expire_in"), expires);
+        toggleInput(field("carryforward_expire_period"), expires);
+        var showDate = expires && field("carryforward_expiry_method").val() === "first_expiry_date";
+        toggleInput(field("carryforward_expire_date"), showDate);
+        // Under "Employee Assignment Date" the date keeps its grid slot (just
+        // invisible) so the duration / period fields don't shift position.
+        field("carryforward_expire_date").closest(".form-input-items")
+            .css("visibility", expires && !showDate ? "hidden" : "")
+            .toggleClass("hidden", !expires);
+        f("#carryforwardSection").toggleClass("hidden", !on);
+    }
+    function syncLimit() { toggleInput(field("count"), field("limit_leave").is(":checked")); }
+    function syncPayment() {
+        var custom = f("#id_payment_type").val() === "custom";
+        toggleInput(f("#id_payment_percentage"), custom);
+        if (!custom) f("#id_payment_percentage").val("");
+        // keep the legacy "payment" field in step with the payment type
+        f("#id_payment").val(f("#id_payment_type").val() === "paid" ? "paid" : "unpaid");
+    }
+
+    // Yes / No switches are backed by hidden yes/no fields
+    var yesNo = [
+        ["#id_approval", "#id_require_approval"],
+        ["#id_attachment", "#id_require_attachment"],
+        ["#id_exclude_comp_leave", "#id_exclude_company_leave"],
+        ["#id_exclude_public_leave", "#id_exclude_holiday"],
+    ];
+    yesNo.forEach(function (p) { f(p[0]).prop("checked", f(p[1]).val() !== "no"); });
+    f(".yesOrNo").on("change", function () {
+        yesNo.forEach(function (p) { f(p[1]).val(f(p[0]).is(":checked") ? "yes" : "no"); });
+    });
+
+    // Total days (hidden) follows count and unit
+    f("#id_period_in, #id_count").on("change", function () {
+        var days = {day: 1, month: 30, year: 365}[f("#id_period_in").val()] || 0;
+        f("#id_total_days").val(days * (f("#id_count").val() || 0));
+    });
+
+    field("limit_leave").on("change", syncLimit);
+    field("reset").on("change", syncResetFields);
+    field("reset_based").on("change", syncResetFields);
+    field("carryforward_type").on("change", syncResetFields);
+    field("carryforward_expiry_method").on("change", syncResetFields);
+    f("#id_payment_type").on("change", syncPayment);
+    syncResetFields(); syncLimit(); syncPayment();
+
+    if ($.fn.select2) {
+        f("select").select2({width: "100%", dropdownParent: $form.closest(".oh-modal__dialog")});
+    }
+
+    // ── Step validation ──
+    // componentForm.js shows / hides the steps; this only gates moving forward
+    // and submitting on the required fields of the steps being left.
+    function panels() { return Array.prototype.slice.call($form[0].querySelectorAll("[data-step-panel]")); }
+    function firstInvalid(panel) {
+        var els = panel.querySelectorAll("input[required], select[required], textarea[required]");
+        for (var i = 0; i < els.length; i++) {
+            var el = els[i];
+            if ($(el).closest(".hidden").length || $(el).closest("[style*='display: none']").length || el.disabled) continue;
+            if (!(el.value || "").trim()) return el;
+        }
+        return null;
+    }
+    function validatePanel(panel) {
+        $(panel).find(".step-field-error").remove();
+        var bad = firstInvalid(panel);
+        if (!bad) {
+            $form.find('[data-step-tab="' + panel.dataset.stepPanel + '"] [data-step-flag]').prop("hidden", true);
+            return true;
+        }
+        var $bad = $(bad), isSel2 = $bad.hasClass("select2-hidden-accessible");
+        (isSel2 ? $bad.next(".select2") : $bad).after('<div class="step-field-error">{% trans "This field is required." %}</div>');
+        $form.find('[data-step-tab="' + panel.dataset.stepPanel + '"] [data-step-flag]').prop("hidden", false);
+        if (!isSel2) bad.focus();
+        return false;
+    }
+    function goTo(index) {
+        var ps = panels(), key = ps[index].dataset.stepPanel;
+        ps.forEach(function (p) { p.hidden = p.dataset.stepPanel !== key; });
+        $form.find("[data-step-tab]").each(function () {
+            $(this).toggleClass("is-current", this.dataset.stepTab === key);
+        });
+        $form.find("[data-step-back]").prop("hidden", index === 0);
+        $form.find("[data-step-next]").prop("hidden", index === ps.length - 1);
+        syncSave();
+    }
+    function currentIndex() {
+        return panels().findIndex(function (p) { return !p.hidden; });
+    }
+    function syncSave() {
+        $form.find("[data-step-save]").prop("hidden", currentIndex() !== panels().length - 1);
+    }
+    // Watch the step panels only: syncSave() sets "hidden" on the Save button, so
+    // observing the whole form would re-trigger itself forever.
+    var panelObserver = new MutationObserver(syncSave);
+    panels().forEach(function (p) { panelObserver.observe(p, {attributes: true, attributeFilter: ["hidden"]}); });
+
+    // Re-check a step as soon as the user edits it, so the warning goes away once it is fixed
+    $form.on("input change", "input, select, textarea", function () {
+        var panel = $(this).closest("[data-step-panel]")[0];
+        if (panel && $(panel).find(".step-field-error").length) validatePanel(panel);
+    });
+
+    // Returns the index of the first invalid step among [from, to), or -1
+    function firstBadStep(from, to) {
+        var ps = panels();
+        for (var i = from; i < to; i++) if (!validatePanel(ps[i])) return i;
+        return -1;
+    }
+
+    // Registered once for the page; looks the form up at event time.
+    if (!window.__leaveTypeStepGuard) {
+        window.__leaveTypeStepGuard = true;
+        document.addEventListener("click", function (e) {
+            var form = e.target.closest && e.target.closest("#leaveTypeForm");
+            if (!form) return;
+            var next = e.target.closest("[data-step-next]"), tab = e.target.closest("[data-step-tab]");
+            if (!next && !tab) return;
+            var ps = Array.prototype.slice.call(form.querySelectorAll("[data-step-panel]"));
+            var from = ps.findIndex(function (p) { return !p.hidden; });
+            var to = next ? from + 1 : ps.findIndex(function (p) { return p.dataset.stepPanel === tab.dataset.stepTab; });
+            if (to <= from) return;
+            var bad = window.__leaveTypeFirstBadStep(form, from, to);
+            if (bad !== -1) { e.preventDefault(); e.stopImmediatePropagation(); }
+        }, true);
+        // Enter walks forward instead of saving half the form
+        document.addEventListener("keydown", function (e) {
+            if (e.key !== "Enter" || !e.target.closest) return;
+            var form = e.target.closest("#leaveTypeForm");
+            if (!form || e.target.tagName === "TEXTAREA" || e.target.tagName === "BUTTON") return;
+            var next = form.querySelector("[data-step-next]");
+            if (next && !next.hidden) { e.preventDefault(); next.click(); }
+        });
+    }
+    // The page-level handler above calls whichever form is currently open.
+    window.__leaveTypeFirstBadStep = function (form, from, to) {
+        var bad = firstBadStep(from, to);
+        if (bad !== -1 && bad !== currentIndex()) goTo(bad);
+        return bad;
+    };
+
+    // Nothing is posted until every step is valid.
+    $form[0].addEventListener("htmx:beforeRequest", function (e) {
+        if (e.target !== $form[0]) return;
+        var bad = firstBadStep(0, panels().length);
+        if (bad !== -1) {
+            e.preventDefault();
+            if (bad !== currentIndex()) goTo(bad);
+        }
+    });
+    syncSave();
+})();
+</script>

@@ -9,8 +9,8 @@
         </div>
     </div>
 {% endif %}
-<div class="oh-modal__dialog-header pb-0">
-    <h2 class="oh-modal__dialog-title" id="rejectTitle">
+<div class="oh-modal__dialog-header">
+    <h2 class="oh-modal__dialog-title font-semibold" id="rejectTitle">
         {% trans "Reject Leave Allocation Request" %}
     </h2>
     <button
@@ -28,7 +28,6 @@
         class="oh-profile-section"
     >
         <div class="col-sm-12 col-md-12 col-lg-12">
-            <label class="oh-label">{% trans "Reason" %}</label>
             {{ form.reason }} {{ form.errors }}
         </div>
         <div class="oh-modal__dialog-footer p-0 pt-2">

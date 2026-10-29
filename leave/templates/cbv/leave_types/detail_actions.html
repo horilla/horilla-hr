@@ -5,8 +5,9 @@
                     {% if compensatory %}
                         <a href="#"
                             hx-get="{% url 'type-update' instance.id %}?compensatory=True"
-                            hx-target="#listContainer"
-                            hx-swap="innerHTML"
+                            data-toggle="oh-modal-toggle"
+                            data-target="#objectUpdateModal"
+                            hx-target="#objectUpdateModalTarget"
                             class="oh-btn oh-btn--light-bkg oh-btn--secondary w-100">
                             <ion-icon class="me-1" name="create-outline"></ion-icon>
                             {% trans "Edit" %}
@@ -14,8 +15,9 @@
                     {% else %}
                     <a href="#"
                         hx-get="{% url 'type-update' instance.id %}"
-                        hx-target="#listContainer"
-                        hx-swap="innerHTML"
+                        data-toggle="oh-modal-toggle"
+                        data-target="#objectUpdateModal"
+                        hx-target="#objectUpdateModalTarget"
                         class="oh-btn oh-btn--light-bkg oh-btn--secondary w-50">
                         <ion-icon class="me-1" name="create-outline"></ion-icon>
                         {% trans "Edit" %}

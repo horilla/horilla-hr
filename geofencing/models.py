@@ -18,6 +18,21 @@ class GeoFencing(models.Model):
     )
     start = models.BooleanField(default=False)
 
+    @classmethod
+    def for_company(cls, company):
+        """
+        The fence that applies to ``company``: its own, else the global one (the row with no
+        company), else None. A company-specific fence overrides the global one - including a
+        company fence that is switched off (``start=False``), which turns the fence off for
+        that company even while the global one is on.
+        """
+        fence = None
+        if company is not None:
+            fence = cls.objects.filter(company_id=company).first()
+        if fence is None:
+            fence = cls.objects.filter(company_id__isnull=True).first()
+        return fence
+
     def clean(self):
         if self.company_id is None:
             qs = GeoFencing.objects.filter(company_id__isnull=True)

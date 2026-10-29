@@ -35,22 +35,16 @@
           <div style="padding:1.1rem 1rem 1rem;">
             <div class="pb__fields pb__fields--two">
               <div class="pb__field pb__field-full">
-                <label class="oh-label" for="{{ form.boundary.id_for_label }}">{{ form.boundary.label }}</label>
-                {{ form.boundary }}
-                {% if form.boundary.help_text %}<div class="pb__field-help">{{ form.boundary.help_text }}</div>{% endif %}
-                {% for error in form.boundary.errors %}<div class="pb__problem pb__problem--blocking">{{ error }}</div>{% endfor %}
+                <label class="oh-label" for="{{ form.cycle_start_day.id_for_label }}">{{ form.cycle_start_day.label }}</label>
+                {{ form.cycle_start_day }}
+                {% if form.cycle_start_day.help_text %}<div class="pb__field-help">{{ form.cycle_start_day.help_text }}</div>{% endif %}
+                {% for error in form.cycle_start_day.errors %}<div class="pb__problem pb__problem--blocking">{{ error }}</div>{% endfor %}
               </div>
               <div class="pb__field">
-                <label class="oh-label" for="{{ form.pay_day_offset.id_for_label }}">{{ form.pay_day_offset.label }}</label>
-                {{ form.pay_day_offset }}
-                {% if form.pay_day_offset.help_text %}<div class="pb__field-help">{{ form.pay_day_offset.help_text }}</div>{% endif %}
-                {% for error in form.pay_day_offset.errors %}<div class="pb__problem pb__problem--blocking">{{ error }}</div>{% endfor %}
-              </div>
-              <div class="pb__field">
-                <label class="oh-label" for="{{ form.input_cutoff_days.id_for_label }}">{{ form.input_cutoff_days.label }}</label>
-                {{ form.input_cutoff_days }}
-                {% if form.input_cutoff_days.help_text %}<div class="pb__field-help">{{ form.input_cutoff_days.help_text }}</div>{% endif %}
-                {% for error in form.input_cutoff_days.errors %}<div class="pb__problem pb__problem--blocking">{{ error }}</div>{% endfor %}
+                <label class="oh-label" for="{{ form.pay_day.id_for_label }}">{{ form.pay_day.label }}</label>
+                {{ form.pay_day }}
+                {% if form.pay_day.help_text %}<div class="pb__field-help">{{ form.pay_day.help_text }}</div>{% endif %}
+                {% for error in form.pay_day.errors %}<div class="pb__problem pb__problem--blocking">{{ error }}</div>{% endfor %}
               </div>
             </div>
             {% for error in form.non_field_errors %}
@@ -83,4 +77,5 @@
 
   </section>
 </main>
+
 {% endblock content %}

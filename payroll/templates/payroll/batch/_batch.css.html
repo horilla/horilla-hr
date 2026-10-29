@@ -353,6 +353,26 @@ apart the moment they were written twice.
 
   /* The delete on a run row. Quiet until the row is hovered: it is destructive
      and should not be the thing the eye lands on in a list. */
+  /* A field that is shown but not typed: the period end follows from the start. */
+  .pb__readonly { background: #f3f4f6 !important; color: #4b5563; cursor: not-allowed; }
+  .pb__fieldnote { margin-top: 4px; font-size: .72rem; color: #9ca3af; min-height: 1em; }
+
+  /* A short explanation behind an info icon, shown on hover or keyboard focus. */
+  .pb__tip { position: relative; display: inline-flex; vertical-align: middle; margin-left: 6px; color: #9ca3af; cursor: help; outline: none; }
+  .pb__tip > ion-icon { font-size: 1rem; }
+  .pb__tip:hover, .pb__tip:focus { color: var(--primary-600, #e54f38); }
+  .pb__tip-body {
+    display: none; position: absolute; left: -8px; top: calc(100% + 8px); z-index: 30; width: 300px;
+    padding: 10px 12px; background: #1f2937; color: #e5e7eb; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.25);
+    font-size: .74rem; font-weight: 500; line-height: 1.45; text-transform: none; letter-spacing: 0; cursor: default;
+  }
+  .pb__tip-body::before { content: ""; position: absolute; left: 12px; top: -5px; width: 10px; height: 10px; background: #1f2937; transform: rotate(45deg); }
+  .pb__tip:hover .pb__tip-body, .pb__tip:focus .pb__tip-body, .pb__tip:focus-within .pb__tip-body { display: block; }
+  .pb__example { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 4px 0 2px; padding: 10px 12px; border-radius: 8px; background: #f8fafc; border: 1px solid #eef0f3; font-size: .8rem; color: #374151; }
+  .pb__example > div + div { margin-left: 14px; }
+  .pb__example-k { font-size: .62rem; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #9ca3af; }
+  .pb__example b { font-weight: 700; }
+
   .pb__rowbtn {
     border: 0; background: none; cursor: pointer; padding: 4px 6px;
     color: #9ca3af; line-height: 0; border-radius: 6px;

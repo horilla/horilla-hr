@@ -4,13 +4,13 @@ Recruitment dashboard views: the page, the KPI summary and the chart data.
 
 from datetime import date, timedelta
 
-from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils.translation import gettext as _
 
 from employee.models import Employee
+from horilla.decorators import login_required
 from horilla.methods import handle_no_permission
 from recruitment.models import Recruitment, Stage
 

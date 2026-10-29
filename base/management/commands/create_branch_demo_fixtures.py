@@ -1765,13 +1765,13 @@ class ExtrasMixin:
         if department:
             freeze = RestrictLeave.objects.create(
                 title="Quarter-end Sales Freeze",
-                department=department,
                 start_date=datetime.date(today.year, 12, 22),
                 end_date=datetime.date(today.year, 12, 31),
                 include_all=False,
                 description="Leave is restricted while the quarter is being closed.",
                 company_id=company,
             )
+            freeze.department.set([department])
             freeze.spesific_leave_types.set(types[:1])
 
         # Comments on a few existing requests.

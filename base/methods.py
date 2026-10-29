@@ -1705,6 +1705,18 @@ def get_next_month_same_date(date_obj):
     return date(day=day, month=month, year=year)
 
 
+def get_nth_month_same_date(start_date, months):
+    """
+    Date `months` months after `start_date`, keeping the start day where the
+    month has it and clamping to the month's last day where it does not.
+    """
+    month_index = start_date.month - 1 + months
+    year = start_date.year + month_index // 12
+    month = month_index % 12 + 1
+    day = min(start_date.day, calendar.monthrange(year, month)[1])
+    return date(day=day, month=month, year=year)
+
+
 def get_subordinates(request):
     """
     This method is used to filter out subordinates queryset element.

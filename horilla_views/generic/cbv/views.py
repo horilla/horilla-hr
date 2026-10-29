@@ -62,6 +62,7 @@ from horilla_views.cbv_methods import (  # update_initial_cache,
     sortby,
     split_by_import_reference,
     structured,
+    unauthenticated_response,
     update_saved_filter_cache,
 )
 from horilla_views.forms import DynamicBulkUpdateForm, ToggleColumnForm
@@ -419,7 +420,7 @@ class HorillaListView(ListView):
 
         hidden_fields = []
         existing_instance = None
-        if self.request:
+        if self.request and self.show_toggle_form:
             existing_instance = models.ToggleColumn.objects.filter(
                 user_id=self.request.user, path=self.request.path_info
             ).first()
@@ -553,6 +554,8 @@ class HorillaListView(ListView):
         if request and len(nested_fields) >= 1:
             self.template_name = "generic/nested_group_by_table.html"
             # Skip flat list pagination; the nested engine paginates top-level groupers itself.
+            # The toolbar's "Select (N)" still counts every record the filter matches.
+            context["grouped_select_total"] = queryset.count()
             context["queryset"] = queryset[:1]
             try:
                 context["nested_groups"] = nested_group_by_queryset(
@@ -583,6 +586,7 @@ class HorillaListView(ListView):
                 self.group_by_template_name or "generic/group_by_table.html"
             )
             # group_by paginates groupers itself; keep a tiny queryset so bulk-select chrome (`queryset|length`) still works.
+            context["grouped_select_total"] = queryset.count()
             context["queryset"] = queryset[:1]
             try:
                 context["groups"] = group_by_queryset(
@@ -1496,6 +1500,7 @@ class HorillaDetailedView(DetailView):
     cols: dict = {}
     instance = None
     empty_template = None
+    detail_note_method: str = ""
 
     # Opt-in: pin the title row and the action row, and give the body between
     # them a bounded height instead of letting the whole dialog scroll. Off by
@@ -1586,6 +1591,7 @@ class HorillaDetailedView(DetailView):
         context["action_method"] = self.action_method
         context["cols"] = self.cols
         context["sticky_chrome"] = self.sticky_chrome
+        context["detail_note_method"] = self.detail_note_method
 
         if instance_ids:
             prev_id, next_id = closest_numbers(instance_ids, pk)
@@ -2747,7 +2753,7 @@ class HorillaProfileView(DetailView):
 def dispatch_profile_tab(request, tab_key: str, pk: int, *args, **kwargs):
     """Resolve any HorillaProfileView tab through one static route, looking the view up in _tab_view_registry (avoids racy per-tab URL registration across worker processes)."""
     if not request.user.is_authenticated:
-        return redirect(f"{reverse('login')}?next={request.path}")
+        return unauthenticated_response(request)
     view_func = HorillaProfileView._tab_view_registry.get(tab_key)
     if view_func is None:
         raise Http404(f"No profile tab registered for '{tab_key}'")

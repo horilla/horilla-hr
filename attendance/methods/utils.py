@@ -204,8 +204,13 @@ def geofence_denial_web(request, company):
     from geofencing.models import GeoFencing
 
     if company is None:
+        # "All companies" is selected, so the clock-in/out view has no company of its own. The
+        # punch still belongs to the employee, whose own company decides which fence applies.
+        employee = getattr(request.user, "employee_get", None)
+        company = employee.get_company() if employee else None
+    if company is None:
         return None
-    fence = GeoFencing.objects.filter(company_id=company).first()
+    fence = GeoFencing.for_company(company)
     if fence is None or not fence.start:
         return None
 

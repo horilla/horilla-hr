@@ -1,0 +1,25 @@
+{% load i18n %}
+<div class="oh-dropdown__filter-body">
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header">
+            <span class="oh-filter-section-icon"><ion-icon name="business-outline"></ion-icon></span>
+            {% trans "Multiple Approval Rules" %}
+        </div>
+        <div class="oh-accordion-body">
+            <div class="row">
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label class="oh-label" for="{{form.department.id_for_label}}">{% trans "Department" %}</label>
+                        {{form.department}}
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label class="oh-label" for="{{form.approval_manager.id_for_label}}">{% trans "Approval Manager" %}</label>
+                        {{form.approval_manager}}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

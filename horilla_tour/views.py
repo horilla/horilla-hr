@@ -15,7 +15,6 @@ Two surfaces:
 from typing import Any
 
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required as auth_login_required
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
@@ -23,6 +22,7 @@ from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_GET, require_POST
 
+from horilla.decorators import login_required as auth_login_required
 from horilla.decorators import permission_required
 from horilla_tour.filters import TourFilter
 from horilla_tour.forms import TourForm, TourStepForm

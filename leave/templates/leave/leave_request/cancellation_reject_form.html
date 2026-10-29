@@ -4,13 +4,7 @@
     hx-on::after-request="if(event.detail.successful){$('#rejectModal').removeClass('oh-modal--show');}">
     <div class="oh-general__tab-target oh-profile-section">
       <div class="col-sm-12 col-md-12 col-lg-12">
-        <label class="oh-label">{% trans "Reason for Rejection" %}</label>
-        <style>
-          #rejectCancellationReasonWrapper textarea {
-            min-height: 120px;
-          }
-        </style>
-        <div id="rejectCancellationReasonWrapper">{{ form.reason }}</div>
+        <div>{{ form.reason }}</div>
         {{ form.errors }}
       </div>
       <div class="d-flex flex-row-reverse">

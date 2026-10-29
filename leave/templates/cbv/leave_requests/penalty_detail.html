@@ -1,0 +1,11 @@
+{% load i18n %}
+{% url "view-penalties" as penalties_url %}
+<div class="mb-2 flex gap-5 items-center">
+    <span class="font-medium text-xs text-[#565E6C] w-32 flex-shrink-0">{% trans "Penalties" %}</span>
+    <div class="text-xs font-semibold flex gap-5 min-w-0 items-center">
+        :
+        <span>
+            {% include "generic/penalty_badge.html" with count=instance.get_penalties_count url_base=penalties_url query="leave_request_id" obj_id=instance.id %}
+        </span>
+    </div>
+</div>

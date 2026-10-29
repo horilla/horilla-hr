@@ -4271,6 +4271,14 @@ async function loadFromLocalStorage() {
 }
 
 $(document).on("htmx:afterSwap", async function (evt) {
+    // Every swap re-downloads and re-runs the per-app actions.js scripts below,
+    // which re-binds the shift / work type / attendance page handlers. The
+    // Document Requests groups (each one a large list swapped in on demand)
+    // have none of those elements, so skip it there: it was the biggest single
+    // cost of opening a group.
+    if (evt.target && evt.target.id && evt.target.id.indexOf("docRequest") === 0) {
+        return;
+    }
     if ($('[role="tooltip"]:not(.apexcharts-tooltip):visible').length) {
         $('[role="tooltip"]:not(.apexcharts-tooltip)').hide();
     }

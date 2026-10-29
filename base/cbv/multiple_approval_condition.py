@@ -108,9 +108,12 @@ class MultipleApprovalConditionNav(HorillaNavView):
                                 hx-target="#genericModalBody"
                                 hx-get="{reverse('multiple-level-approval-create')}"
                                 """
+        if self.request.user.has_perm("base.view_multipleapprovalcondition"):
+            self.filter_body_template = "cbv/multiple_approval_condition/filter.html"
 
     nav_title = _("Multiple Approval Rules")
     filter_instance = MultipleApprovalConditionFilter()
+    modern_filter = True
     # "#listContainer" is a generic id every tab's own content template
     # reuses (e.g. the sibling "Leave Types" tab on the same Leave Settings
     # page) - once both tabs have been visited, both live in the DOM at once
@@ -141,6 +144,7 @@ class MultipleApprovalConditionDetailView(HorillaDetailedView):
         ]
 
     action_method = "detail_actions"
+    detail_note_method = "get_description"
 
     model = MultipleApprovalCondition
     title = _("Details")
@@ -170,33 +174,58 @@ class MultipleApprovalConditionFormView(HorillaFormView):
         self.form.fields["condition_operator"].widget.attrs["hx-swap"] = "innerHTML"
         return context
 
+    def get_submitted_managers(self):
+        """
+        Every submitted "Add Manager" slot, in the order they were added.
+
+        The first slot is always named "multi_approval_manager"; each one
+        added afterward via the "Add Manager" button gets
+        "multi_approval_manager_<n>" (base/views.py's add_more_approval_
+        managers), so collecting just the exact key "multi_approval_manager"
+        (the create path used to, via request.POST.getlist()) silently
+        dropped every manager beyond the first. Sorted by that numeric
+        suffix (the first slot sorts before all of them) so the resulting
+        list still reflects the order managers were actually added in,
+        regardless of dict/POST key order.
+        """
+        entries = []
+        for key, value in self.request.POST.items():
+            if not value:
+                continue
+            if key == "multi_approval_manager":
+                entries.append((0, value))
+            elif key.startswith("multi_approval_manager_"):
+                suffix = key[len("multi_approval_manager_") :]
+                if suffix.isdigit():
+                    entries.append((int(suffix), value))
+        entries.sort(key=lambda pair: pair[0])
+        return [value for _, value in entries]
+
     def form_valid(self, form: MultipleApproveConditionForm) -> HttpResponse:
         if form.is_valid():
+            condition_approval_managers = self.get_submitted_managers()
+            if not condition_approval_managers:
+                form.add_error(None, _("At least one approval manager is required."))
+                return self.form_invalid(form)
             instance = form.save()
-            sequence = 0
-            if form.instance.pk:
-                MultipleApprovalManagers.objects.filter(
-                    condition_id=self.form.instance
-                ).delete()
-                message = _("Multiple approval condition Created Successfully")
-                condition_approval_managers = self.request.POST.getlist(
-                    "multi_approval_manager"
+            MultipleApprovalManagers.objects.filter(
+                condition_id=self.form.instance
+            ).delete()
+            message = _("Multiple approval condition Created Successfully")
+            for sequence, emp_id in enumerate(condition_approval_managers, start=1):
+                reporting_manager = None
+                try:
+                    employee_id = int(emp_id)
+                except:
+                    employee_id = None
+                    reporting_manager = emp_id
+                MultipleApprovalManagers.objects.create(
+                    condition_id=instance,
+                    sequence=sequence,
+                    employee_id=employee_id,
+                    reporting_manager=reporting_manager,
                 )
-                for emp_id in condition_approval_managers:
-                    sequence += 1
-                    reporting_manager = None
-                    try:
-                        employee_id = int(emp_id)
-                    except:
-                        employee_id = None
-                        reporting_manager = emp_id
-                    MultipleApprovalManagers.objects.create(
-                        condition_id=instance,
-                        sequence=sequence,
-                        employee_id=employee_id,
-                        reporting_manager=reporting_manager,
-                    )
-                messages.success(self.request, message)
+            messages.success(self.request, message)
             return self.HttpResponse()
         return super().form_valid(form)
 
@@ -247,28 +276,28 @@ class EditApprovalConditionFormView(MultipleApprovalConditionFormView):
 
     def form_valid(self, form: MultipleApproveConditionForm) -> HttpResponse:
         if form.is_valid():
+            condition_approval_managers = self.get_submitted_managers()
+            if not condition_approval_managers:
+                form.add_error(None, _("At least one approval manager is required."))
+                return self.form_invalid(form)
             instance = form.save()
-            sequence = 0
-            if self.form.instance.pk:
-                MultipleApprovalManagers.objects.filter(
-                    condition_id=self.form.instance
-                ).delete()
-                message = _("Multiple approval condition updated Successfully")
-                for key, value in self.request.POST.items():
-                    if key.startswith("multi_approval_manager"):
-                        sequence += 1
-                        reporting_manager = None
-                        try:
-                            employee_id = int(value)
-                        except:
-                            employee_id = None
-                            reporting_manager = value
-                        MultipleApprovalManagers.objects.create(
-                            condition_id=instance,
-                            sequence=sequence,
-                            employee_id=employee_id,
-                            reporting_manager=reporting_manager,
-                        )
-                messages.success(self.request, message)
+            MultipleApprovalManagers.objects.filter(
+                condition_id=self.form.instance
+            ).delete()
+            message = _("Multiple approval condition updated Successfully")
+            for sequence, emp_id in enumerate(condition_approval_managers, start=1):
+                reporting_manager = None
+                try:
+                    employee_id = int(emp_id)
+                except:
+                    employee_id = None
+                    reporting_manager = emp_id
+                MultipleApprovalManagers.objects.create(
+                    condition_id=instance,
+                    sequence=sequence,
+                    employee_id=employee_id,
+                    reporting_manager=reporting_manager,
+                )
+            messages.success(self.request, message)
             return self.HttpResponse()
         return super().form_valid(form)

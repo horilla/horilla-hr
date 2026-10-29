@@ -134,6 +134,7 @@ class DynamicActionTypeFormView(HorillaFormView):
 
     model = Actiontype
     form_class = ActiontypeForm
+    template_name = "cbv/action_type/create_form.html"
     new_display_title = _("Create Action Type")
     is_dynamic_create_view = True
 

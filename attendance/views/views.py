@@ -1835,6 +1835,63 @@ def update_fields_based_shift(request):
 
 
 @login_required
+def get_shift_based_fields(request):
+    """
+    Return the shift driven attendance field values as JSON.
+    """
+    shift_id = request.GET.get("shift_id")
+    employee_ids = [emp_id for emp_id in request.GET.getlist("employee_id") if emp_id]
+    employee = (
+        Employee.objects.filter(id=employee_ids[0]).first()
+        if len(employee_ids) == 1
+        else None
+    )
+    attendance_date_str = request.GET.get("attendance_date")
+    attendance_date = (
+        datetime.strptime(attendance_date_str, "%Y-%m-%d").date()
+        if attendance_date_str
+        else datetime.today().date()
+    )
+    day = attendance_date.strftime("%A").lower()
+    schedule_today = (
+        EmployeeShiftSchedule.objects.filter(shift_id=shift_id, day__day=day).first()
+        if shift_id
+        else None
+    )
+
+    shift_start_time = schedule_today.start_time if schedule_today else ""
+    shift_end_time = schedule_today.end_time if schedule_today else ""
+    minimum_hour = schedule_today.minimum_working_hour if schedule_today else "00:00"
+
+    if schedule_today and shift_end_time < shift_start_time:
+        attendance_clock_out_date = attendance_date + timedelta(days=1)
+    else:
+        attendance_clock_out_date = attendance_date
+
+    if attendance_date == datetime.today().date():
+        shift_end_time = datetime.now().time()
+        worked_hour = "00:00"
+    else:
+        worked_hour = minimum_hour
+
+    minimum_hour = attendance_day_checking(str(attendance_date), minimum_hour, employee)
+    return JsonResponse(
+        {
+            "attendance_clock_in": (
+                shift_start_time.strftime("%H:%M") if shift_start_time else ""
+            ),
+            "attendance_clock_out": (
+                shift_end_time.strftime("%H:%M") if shift_end_time else ""
+            ),
+            "attendance_clock_in_date": attendance_date.strftime("%Y-%m-%d"),
+            "attendance_clock_out_date": attendance_clock_out_date.strftime("%Y-%m-%d"),
+            "attendance_worked_hour": worked_hour,
+            "minimum_hour": minimum_hour,
+        }
+    )
+
+
+@login_required
 @hx_request_required
 def update_worked_hour_field(request):
     """
@@ -2574,17 +2631,12 @@ def delete_comment_file(request):
 @login_required
 @manager_can_enter("attendance.view_attendance")
 def work_records(request):
-    today = date.today()
-    previous_data = request.GET.urlencode()
-    employee_filter_form = EmployeeFilter(request.GET)
-    context = {
-        "current_date": today,
-        "pd": previous_data,
-        "f": employee_filter_form,
-    }
-    return render(
-        request, "attendance/work_record/work_record_view.html", context=context
-    )
+    """
+    Deprecated: the Daily Work Status page. The Monthly Summary's Day-wise view shows the same
+    grid (and the last regularisation of each day), so this address now opens that. The page and
+    its template are kept, unlinked, until they are removed.
+    """
+    return redirect(f"{reverse('attendance-monthly-summary')}?view=daily")
 
 
 @login_required

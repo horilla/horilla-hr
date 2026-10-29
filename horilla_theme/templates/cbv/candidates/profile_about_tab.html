@@ -1,88 +1,194 @@
 {% load i18n %}
-<div class="grid gap-4 lg:grid-cols-2">
-    <!-- Personal Information -->
-    <section>
-        <div class="overflow-hidden rounded-xl border border-[#ebebeb] h-full">
+<div class="grid gap-4 lg:grid-cols-12">
+    <section class="lg:col-span-4">
+        <div class="h-full overflow-hidden rounded-xl border border-[#ebebeb]">
             <div class="flex items-center justify-between bg-[#f3f3f3] px-3 py-3">
                 <h3 class="text-sm font-semibold text-[#333]">{% trans "Personal Information" %}</h3>
             </div>
-            <div class="bg-white px-3 py-3">
-                <dl>
-                    <div class="flex items-baseline justify-between gap-3 py-2">
-                        <dt class="text-xs font-medium text-color-600">{% trans "Date of birth" %}</dt>
-                        <dd class="text-right text-sm {% if candidate.dob %}font-medium text-dark-500{% else %}italic text-dark-100{% endif %}">
-                            {{ candidate.dob|date:"SHORT_DATE_FORMAT"|default:_("Not set") }}
-                        </dd>
-                    </div>
-                    <div class="flex items-baseline justify-between gap-3 py-2">
-                        <dt class="text-xs font-medium text-color-600">{% trans "Address" %}</dt>
-                        <dd class="text-right text-sm {% if candidate.address %}font-medium text-dark-500{% else %}italic text-dark-100{% endif %}">
-                            {{ candidate.address|default:_("Not set") }}
-                        </dd>
-                    </div>
-                    <div class="flex items-baseline justify-between gap-3 py-2">
-                        <dt class="text-xs font-medium text-color-600">{% trans "Country" %}</dt>
-                        <dd class="text-right text-sm {% if candidate.country %}font-medium text-dark-500{% else %}italic text-dark-100{% endif %}">
-                            {{ candidate.country|default:_("Not set") }}
-                        </dd>
-                    </div>
-                    <div class="flex items-baseline justify-between gap-3 py-2">
-                        <dt class="text-xs font-medium text-color-600">{% trans "State" %}</dt>
-                        <dd class="text-right text-sm {% if candidate.state %}font-medium text-dark-500{% else %}italic text-dark-100{% endif %}">
-                            {{ candidate.state|default:_("Not set") }}
-                        </dd>
-                    </div>
-                    <div class="flex items-baseline justify-between gap-3 py-2">
-                        <dt class="text-xs font-medium text-color-600">{% trans "City" %}</dt>
-                        <dd class="text-right text-sm {% if candidate.city %}font-medium text-dark-500{% else %}italic text-dark-100{% endif %}">
-                            {{ candidate.city|default:_("Not set") }}
-                        </dd>
-                    </div>
-                </dl>
+            <div class="divide-y divide-secondary-100 bg-white">
+                <div class="px-3 py-3">
+                    <p class="mb-1.5 text-xxs font-semibold uppercase tracking-wide text-dark-100">
+                        {% trans "Basic" %}
+                    </p>
+                    <dl>
+                        <div class="flex items-baseline justify-between gap-3 py-2">
+                            <dt class="text-xs font-medium text-color-600">{% trans "Date of birth" %}</dt>
+                            <dd class="text-right text-sm {% if candidate.dob %}font-medium text-dark-500{% else %}italic text-dark-100{% endif %}">
+                                {{ candidate.dob|default:_("Not set") }}
+                            </dd>
+                        </div>
+                        <div class="flex items-baseline justify-between gap-3 py-2">
+                            <dt class="text-xs font-medium text-color-600">{% trans "Gender" %}</dt>
+                            <dd class="text-right text-sm {% if candidate.get_gender_display %}font-medium text-dark-500{% else %}italic text-dark-100{% endif %}">
+                                {{ candidate.get_gender_display|default:_("Not set") }}
+                            </dd>
+                        </div>
+                    </dl>
+                </div>
+                <div class="px-3 py-3">
+                    <p class="mb-1.5 text-xxs font-semibold uppercase tracking-wide text-dark-100">
+                        {% trans "Address" %}
+                    </p>
+                    <dl>
+                        <div class="flex items-baseline justify-between gap-3 py-2">
+                            <dt class="text-xs font-medium text-color-600">{% trans "Address" %}</dt>
+                            <dd class="text-right text-sm {% if candidate.address %}font-medium text-dark-500{% else %}italic text-dark-100{% endif %}">
+                                {{ candidate.address|default:_("Not set") }}
+                            </dd>
+                        </div>
+                        <div class="flex items-baseline justify-between gap-3 py-2">
+                            <dt class="text-xs font-medium text-color-600">{% trans "City" %}</dt>
+                            <dd class="text-right text-sm {% if candidate.city %}font-medium text-dark-500{% else %}italic text-dark-100{% endif %}">
+                                {{ candidate.city|default:_("Not set") }}
+                            </dd>
+                        </div>
+                        <div class="flex items-baseline justify-between gap-3 py-2">
+                            <dt class="text-xs font-medium text-color-600">{% trans "State" %}</dt>
+                            <dd class="text-right text-sm {% if candidate.state %}font-medium text-dark-500{% else %}italic text-dark-100{% endif %}">
+                                {{ candidate.state|default:_("Not set") }}
+                            </dd>
+                        </div>
+                        <div class="flex items-baseline justify-between gap-3 py-2">
+                            <dt class="text-xs font-medium text-color-600">{% trans "Country" %}</dt>
+                            <dd class="text-right text-sm {% if candidate.country %}font-medium text-dark-500{% else %}italic text-dark-100{% endif %}">
+                                {{ candidate.country|default:_("Not set") }}
+                            </dd>
+                        </div>
+                    </dl>
+                </div>
             </div>
         </div>
     </section>
-
-    <!-- Recruitment Information -->
-    <section>
-        <div class="overflow-hidden rounded-xl border border-[#ebebeb] h-full">
+    <section class="lg:col-span-8">
+        <div class="h-full overflow-hidden rounded-xl border border-[#ebebeb]">
             <div class="flex items-center justify-between bg-[#f3f3f3] px-3 py-3">
                 <h3 class="text-sm font-semibold text-[#333]">{% trans "Recruitment Information" %}</h3>
             </div>
+            <div class="divide-y divide-secondary-100 bg-white">
+                <div class="px-3 py-3">
+                    <p class="mb-1.5 text-xxs font-semibold uppercase tracking-wide text-dark-100">
+                        {% trans "Application" %}
+                    </p>
+                    <dl>
+                        <div class="flex items-baseline justify-between gap-3 py-2">
+                            <dt class="text-xs font-medium text-color-600">{% trans "Recruitment" %}</dt>
+                            <dd class="text-right text-sm {% if candidate.stage_id.recruitment_id %}font-medium text-dark-500{% else %}italic text-dark-100{% endif %}">
+                                {{ candidate.stage_id.recruitment_id|default:_("Not set") }}
+                            </dd>
+                        </div>
+                        <div class="flex items-baseline justify-between gap-3 py-2">
+                            <dt class="text-xs font-medium text-color-600">{% trans "Applied Position" %}</dt>
+                            <dd class="text-right text-sm {% if candidate.job_position_id %}font-medium text-dark-500{% else %}italic text-dark-100{% endif %}">
+                                {{ candidate.job_position_id|default:_("Not set") }}
+                            </dd>
+                        </div>
+                        <div class="flex items-baseline justify-between gap-3 py-2">
+                            <dt class="text-xs font-medium text-color-600">{% trans "Current Stage" %}</dt>
+                            <dd class="text-right text-sm {% if candidate.stage_id %}font-medium text-dark-500{% else %}italic text-dark-100{% endif %}">
+                                {{ candidate.stage_id|default:_("Not set") }}
+                            </dd>
+                        </div>
+                        <div class="flex items-baseline justify-between gap-3 py-2">
+                            <dt class="text-xs font-medium text-color-600">{% trans "Offer Letter Status" %}</dt>
+                            <dd class="text-right text-sm {% if candidate.get_offer_letter_status_display %}font-medium text-dark-500{% else %}italic text-dark-100{% endif %}">
+                                {{ candidate.get_offer_letter_status_display|default:_("Not set") }}
+                            </dd>
+                        </div>
+                        <div class="flex items-baseline justify-between gap-3 py-2">
+                            <dt class="text-xs font-medium text-color-600">{% trans "Hired" %}</dt>
+                            <dd class="text-right text-sm font-medium text-dark-500">{% if candidate.hired %}{% trans "Yes" %}{% else %}{% trans "No" %}{% endif %}</dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </section>
+{% if candidate.rejected_candidate %}
+    <section class="lg:col-span-6">
+        <div class="h-full overflow-hidden rounded-xl border border-[#ebebeb]">
+            <div class="flex items-center justify-between bg-[#f3f3f3] px-3 py-3">
+                <h3 class="text-sm font-semibold text-[#333]">{% trans "Rejection Details" %}</h3>
+                {% if perms.recruitment.change_candidate %}
+                    <button
+                        type="button"
+                        hx-get="{% url 'add-to-rejected-candidates' %}?candidate_id={{ candidate.id }}"
+                        hx-target="#genericModalBody"
+                        hx-swap="innerHTML"
+                        data-toggle="oh-modal-toggle"
+                        data-target="#genericModal"
+                        class="flex items-center text-primary-600 hover:text-primary-700"
+                        title="{% trans 'Edit Rejection Details' %}"
+                    >
+                        <ion-icon name="create-outline" class="text-base"></ion-icon>
+                    </button>
+                {% endif %}
+            </div>
             <div class="bg-white px-3 py-3">
                 <dl>
                     <div class="flex items-baseline justify-between gap-3 py-2">
-                        <dt class="text-xs font-medium text-color-600">{% trans "Recruitment" %}</dt>
-                        <dd class="text-right text-sm {% if candidate.stage_id.recruitment_id %}font-medium text-dark-500{% else %}italic text-dark-100{% endif %}">
-                            {{ candidate.stage_id.recruitment_id|default:_("Not set") }}
-                        </dd>
-                    </div>
-                    <div class="flex items-baseline justify-between gap-3 py-2">
-                        <dt class="text-xs font-medium text-color-600">{% trans "Applied Position" %}</dt>
-                        <dd class="text-right text-sm {% if candidate.job_position_id %}font-medium text-dark-500{% else %}italic text-dark-100{% endif %}">
-                            {{ candidate.job_position_id|default:_("Not set") }}
-                        </dd>
-                    </div>
-                    <div class="flex items-baseline justify-between gap-3 py-2">
-                        <dt class="text-xs font-medium text-color-600">{% trans "Current Stage" %}</dt>
-                        <dd class="text-right text-sm {% if candidate.stage_id %}font-medium text-dark-500{% else %}italic text-dark-100{% endif %}">
-                            {{ candidate.stage_id|default:_("Not set") }}
-                        </dd>
-                    </div>
-                    <div class="flex items-baseline justify-between gap-3 py-2">
-                        <dt class="text-xs font-medium text-color-600">{% trans "Offer Letter Status" %}</dt>
-                        <dd class="text-right text-sm {% if candidate.offer_letter_status %}font-medium text-dark-500{% else %}italic text-dark-100{% endif %}">
-                            {{ candidate.get_offer_letter_status_display|default:_("Not set") }}
-                        </dd>
-                    </div>
-                    <div class="flex items-baseline justify-between gap-3 py-2">
-                        <dt class="text-xs font-medium text-color-600">{% trans "Hired" %}</dt>
+                        <dt class="text-xs font-medium text-color-600">{% trans "Reject Reasons" %}</dt>
                         <dd class="text-right text-sm font-medium text-dark-500">
-                            {% if candidate.is_hired %}{% trans "Yes" %}{% else %}{% trans "No" %}{% endif %}
+                            {% for reason in candidate.rejected_candidate.reject_reason_id.all %}{{ reason.title }}{% if not forloop.last %}, {% endif %}{% empty %}<span class="italic text-dark-100">{% trans "Not set" %}</span>{% endfor %}
+                        </dd>
+                    </div>
+                    <div class="flex items-baseline justify-between gap-3 py-2">
+                        <dt class="text-xs font-medium text-color-600">{% trans "Description" %}</dt>
+                        <dd class="text-right text-sm {% if candidate.rejected_candidate.description %}font-medium text-dark-500{% else %}italic text-dark-100{% endif %}">
+                            {{ candidate.rejected_candidate.description|default:_("Not set") }}
+                        </dd>
+                    </div>
+                    <div class="flex items-baseline justify-between gap-3 py-2">
+                        <dt class="text-xs font-medium text-color-600">{% trans "Rejected On" %}</dt>
+                        <dd class="text-right text-sm {% if candidate.rejected_candidate.created_at|date:'SHORT_DATE_FORMAT' %}font-medium text-dark-500{% else %}italic text-dark-100{% endif %}">
+                            {{ candidate.rejected_candidate.created_at|date:'SHORT_DATE_FORMAT'|default:_("Not set") }}
                         </dd>
                     </div>
                 </dl>
             </div>
         </div>
     </section>
+{% endif %}
+{% if candidate.converted_employee_id %}
+    <section class="lg:col-span-6">
+        <div class="h-full overflow-hidden rounded-xl border border-[#ebebeb]">
+            <div class="flex items-center justify-between bg-[#f3f3f3] px-3 py-3">
+                <h3 class="text-sm font-semibold text-[#333]">{% trans "Employee Details" %}</h3>
+            </div>
+            <div class="bg-white px-3 py-3">
+                <dl>
+                    <div class="flex items-baseline justify-between gap-3 py-2">
+                        <dt class="text-xs font-medium text-color-600">{% trans "Employee" %}</dt>
+                        <dd class="text-right text-sm font-medium text-dark-500">
+                            <a href="{% url 'employee-view-individual' candidate.converted_employee_id.pk %}" class="text-primary-600 hover:underline">{{ candidate.converted_employee_id.get_full_name }}</a>
+                        </dd>
+                    </div>
+                    <div class="flex items-baseline justify-between gap-3 py-2">
+                        <dt class="text-xs font-medium text-color-600">{% trans "Badge ID" %}</dt>
+                        <dd class="text-right text-sm {% if candidate.converted_employee_id.badge_id %}font-medium text-dark-500{% else %}italic text-dark-100{% endif %}">
+                            {{ candidate.converted_employee_id.badge_id|default:_("Not set") }}
+                        </dd>
+                    </div>
+                    <div class="flex items-baseline justify-between gap-3 py-2">
+                        <dt class="text-xs font-medium text-color-600">{% trans "Department" %}</dt>
+                        <dd class="text-right text-sm {% if candidate.converted_employee_id.employee_work_info.department_id %}font-medium text-dark-500{% else %}italic text-dark-100{% endif %}">
+                            {{ candidate.converted_employee_id.employee_work_info.department_id|default:_("Not set") }}
+                        </dd>
+                    </div>
+                    <div class="flex items-baseline justify-between gap-3 py-2">
+                        <dt class="text-xs font-medium text-color-600">{% trans "Job Position" %}</dt>
+                        <dd class="text-right text-sm {% if candidate.converted_employee_id.employee_work_info.job_position_id %}font-medium text-dark-500{% else %}italic text-dark-100{% endif %}">
+                            {{ candidate.converted_employee_id.employee_work_info.job_position_id|default:_("Not set") }}
+                        </dd>
+                    </div>
+                    <div class="flex items-baseline justify-between gap-3 py-2">
+                        <dt class="text-xs font-medium text-color-600">{% trans "Joining Date" %}</dt>
+                        <dd class="text-right text-sm {% if candidate.converted_employee_id.employee_work_info.date_joining|date:'SHORT_DATE_FORMAT' %}font-medium text-dark-500{% else %}italic text-dark-100{% endif %}">
+                            {{ candidate.converted_employee_id.employee_work_info.date_joining|date:'SHORT_DATE_FORMAT'|default:_("Not set") }}
+                        </dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+    </section>
+{% endif %}
 </div>

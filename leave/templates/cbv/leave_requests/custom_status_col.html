@@ -9,7 +9,7 @@
         {{multiple_approvals.approved|length}} / {{multiple_approvals.managers|length}} {% trans "Approved" %}
       </div>
     {% else %}
-    <div style="text-align: center;">{{ instance.get_status_display }}</div>
+    <div>{{ instance.get_status_display }}</div>
 
     {% endif %}
 {% endwith %}

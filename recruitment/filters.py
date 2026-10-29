@@ -6,6 +6,7 @@ This page is used to register filter for recruitment models
 """
 
 import ast
+import json
 import uuid
 
 import django_filters
@@ -24,6 +25,13 @@ def _filter_source_not_set(qs, name, value):
     if value:
         return qs.filter(Q(source__isnull=True) | Q(source=""), referral__isnull=True)
     return qs
+
+
+def _survey_question_choices():
+    questions = set()
+    for (answer_json,) in RecruitmentSurveyAnswer.objects.values_list("answer_json"):
+        questions.update(CandidateFilter._survey_answers(answer_json))
+    return [(q, q) for q in sorted(questions)]
 
 
 def _filter_recruitment_by_obj_id(qs, name, value):
@@ -71,6 +79,14 @@ class CandidateFilter(HorillaFilterSet):
         method=_filter_has_referral,
         widget=django_filters.widgets.BooleanWidget(),
     )
+    rejected = django_filters.BooleanFilter(
+        method="filter_rejected",
+        widget=django_filters.widgets.BooleanWidget(),
+    )
+    survey_question = django_filters.ChoiceFilter(
+        method="filter_survey", choices=_survey_question_choices
+    )
+    survey_response = django_filters.CharFilter(method="filter_survey")
     source_not_set = django_filters.BooleanFilter(
         method=_filter_source_not_set,
         widget=django_filters.widgets.BooleanWidget(),
@@ -363,60 +379,66 @@ class CandidateFilter(HorillaFilterSet):
             form_fields[field].widget.attrs["id"] = str(uuid.uuid4())
 
         self._update_field_labels(form_fields)
-        choices = []
-        try:
-            survey_answers = RecruitmentSurveyAnswer.objects.all()
-            for survey in survey_answers:
-                candidate = survey.candidate_id
-                answer_json = survey.answer_json
-
-                # Parse JSON if stored as string
-                if isinstance(answer_json, str):
-                    try:
-                        answer_json = ast.literal_eval(answer_json)
-                    except Exception:
-                        continue
-
-                # Extract questions & answers
-                for question, answer_list in answer_json.items():
-                    if question == "csrfmiddlewaretoken":
-                        continue
-
-                    answer = (
-                        ", ".join(answer_list)
-                        if isinstance(answer_list, list)
-                        else str(answer_list)
-                    )
-
-                    choices.append(
-                        (
-                            candidate.pk,
-                            f"Q: {question} || Ans: {answer} || {candidate.get_full_name()}",
-                        )
-                    )
-        except:
-            pass
-
-        # Add filter dynamically
-        survey_answer_by = django_filters.MultipleChoiceFilter(
-            choices=choices,
-            field_name="recruitmentsurveyanswer__candidate_id",
-            label=_("Survey Answer By"),
+        self.form.fields["survey_question"].widget.attrs.update(
+            {"class": "oh-select oh-select-2 w-100", "style": "width:100% !important;"}
         )
-        self.filters["survey_answer_by"] = survey_answer_by
-        self.form.fields["survey_answer_by"] = survey_answer_by.field
-        self.form.fields["survey_answer_by"].widget.attrs.update(
-            {
-                "data-placeholder": _("Select survey answers..."),
-                # Was "survey-select" -- that class was never targeted by
-                # any select2 init handler (horilla_theme's htmxSelect2.js
-                # only auto-initializes ".oh-select"/".oh-select-ajax"),
-                # so this field always rendered as a bare unstyled
-                # <select multiple> regardless of how many choices it had.
-                "class": "oh-select w-100",
-                "style": "width:100% !important;",
-            }
+        self.form.fields["survey_response"].widget.attrs.update(
+            {"class": "oh-input w-100", "placeholder": _("Response contains...")}
         )
+
+    @staticmethod
+    def _survey_answers(answer_json):
+        """
+        Normalise a stored survey answer into {question: answer_text}.
+        """
+        if isinstance(answer_json, str):
+            try:
+                answer_json = json.loads(answer_json)
+            except ValueError:
+                try:
+                    answer_json = ast.literal_eval(answer_json)
+                except (ValueError, SyntaxError):
+                    return {}
+        if not isinstance(answer_json, dict):
+            return {}
+        return {
+            question: (
+                ", ".join(map(str, answer))
+                if isinstance(answer, (list, tuple))
+                else str(answer)
+            )
+            for question, answer in answer_json.items()
+            if question != "csrfmiddlewaretoken"
+        }
+
+    def filter_survey(self, queryset, name, value):
+        """
+        Filter candidates by survey question and/or response text. When both
+        are given they must match within the same question.
+        """
+        question = (self.data.get("survey_question") or "").strip()
+        response = (self.data.get("survey_response") or "").strip().lower()
+        if not question and not response:
+            return queryset
+        candidate_ids = set()
+        answers = RecruitmentSurveyAnswer.objects.filter(
+            candidate_id__in=queryset
+        ).values_list("candidate_id", "answer_json")
+        for candidate_id, answer_json in answers:
+            for q, a in self._survey_answers(answer_json).items():
+                if question and q != question:
+                    continue
+                if response and response not in a.lower():
+                    continue
+                candidate_ids.add(candidate_id)
+                break
+        return queryset.filter(pk__in=candidate_ids)
+
+    def filter_rejected(self, queryset, name, value):
+        """
+        Rejected candidates are those with a RejectedCandidate record.
+        """
+        return queryset.filter(rejected_candidate__isnull=not value)
 
     def _update_field_labels(self, form_fields):
         """Helper method to update field labels from model verbose names"""

@@ -16,5 +16,14 @@
         //     toggleLeaveType()
         // })
         $("#id_job_position_parent_div").attr("id", "restrictLeaveJobPosition")
+        // select2 only fires a native "change" (which htmx listens for) on
+        // select; removing a department must refresh the job positions too.
+        $("#id_department")
+            .off("select2:unselect.restrictLeave select2:clear.restrictLeave")
+            .on("select2:unselect.restrictLeave select2:clear.restrictLeave", function () {
+                var el = this;
+                // let select2 update the underlying value first
+                setTimeout(function () { el.dispatchEvent(new Event("change")); }, 0);
+            });
     })
 </script>

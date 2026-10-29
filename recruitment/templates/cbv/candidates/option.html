@@ -50,20 +50,25 @@
             </button>
         {% else %}
             {% if perms.recruitment.add_rejectedcandidate or request.user|is_stagemanager %}
-                <button type="button"
-                        class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
-                        hx-get="{% url 'add-to-rejected-candidates' %}?candidate_id={{ instance.id }}"
-                        hx-target="#genericModalBody"
-                        data-toggle="oh-modal-toggle"
-                        data-target="#genericModal"
-                        {% if instance.is_offer_rejected %}
-                            style="background: #ff3b38 !important; color: white;"
+                {% if instance.is_offer_rejected %}
+                    <button type="button"
+                            class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
+                            style="background: #ff4500a3 !important; color: white; opacity: 60%; cursor: not-allowed;"
                             title="{% trans 'Added In Rejected Candidates' %}"
-                        {% else %}
-                            title="{% trans 'Add To Rejected Candidates' %}"
-                        {% endif %}>
-                    <ion-icon name="thumbs-down-outline"></ion-icon>
-                </button>
+                            disabled>
+                        <ion-icon name="thumbs-down-outline"></ion-icon>
+                    </button>
+                {% else %}
+                    <button type="button"
+                            class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
+                            hx-get="{% url 'add-to-rejected-candidates' %}?candidate_id={{ instance.id }}"
+                            hx-target="#genericModalBody"
+                            data-toggle="oh-modal-toggle"
+                            data-target="#genericModal"
+                            title="{% trans 'Add To Rejected Candidates' %}">
+                        <ion-icon name="thumbs-down-outline"></ion-icon>
+                    </button>
+                {% endif %}
             {% endif %}
         {% endif %}
         <button type="button"

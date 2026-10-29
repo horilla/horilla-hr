@@ -707,6 +707,7 @@ class AttendancesFormView(HorillaFormView):
     form_class = AttendanceForm
     model = Attendance
     new_display_title = _("Add Attendances")
+    template_name = "requests/attendance/attendance_form.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -739,6 +740,7 @@ class AttendanceUpdateFormView(HorillaFormView):
 
     model = Attendance
     form_class = AttendanceUpdateForm
+    template_name = "requests/attendance/attendance_form.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

@@ -128,6 +128,18 @@
                     data-group="{{forloop.counter}}"
                 >
                     <div class="flex items-center gap-2">
+                        {% if bulk_select_option and group.list|length %}
+                            <span class="inline-flex items-center" onclick="event.stopPropagation()">
+                                <input
+                                    type="checkbox"
+                                    class="hlv-group-select custom-checkbox w-4 h-4 bg-[#E9EDF7] rounded-sm text-primary-600 cursor-pointer"
+                                    data-select-ids="{{ group.list.paginator.object_list|id_list_json }}"
+                                    data-store-key="{{ selected_instances_key_id|default:'selectedInstances' }}"
+                                    title="{% trans 'Select all in this group' %}"
+                                    onchange="hlvToggleGroupSelect(this, '#{{ view_id|safe }}', '{{ selected_instances_key_id|default:'selectedInstances' }}')"
+                                >
+                            </span>
+                        {% endif %}
                         <span
                             class="w-6 h-6 bg-primary-600 rounded-full text-white flex items-center justify-center text-xs"
                             title="{{group.list.paginator.count}} {% trans 'Records' %}"

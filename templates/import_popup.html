@@ -1,6 +1,6 @@
 {% load i18n %}
-<div class="oh-modal__dialog" style="max-width: 440px">
-<div class="px-6 py-6 text-center">
+<div class="swal2-container swal2-center swal2-backdrop-show" style="position:fixed; inset:0; display:flex; align-items:center; justify-content:center; padding:1rem;">
+<div class="px-6 py-6 text-center" style="background:#fff; border-radius:0.5rem; width:440px; max-width:100%; box-shadow:0 12px 28px rgba(0,0,0,.2);">
     {% if created_count == 0 %}
         <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-amber-600">
             <ion-icon name="warning-outline" style="font-size:30px;"></ion-icon>

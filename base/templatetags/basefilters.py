@@ -185,12 +185,14 @@ def is_manager_of(user, instance, field_name="employee_id"):
     if not hasattr(user, "_horilla_is_manager_of_cache"):
         user._horilla_is_manager_of_cache = {}
     cache = user._horilla_is_manager_of_cache
-    key = (getattr(employee, "id", None), getattr(target_employee, "id", None))
-    if key not in cache:
-        cache[key] = EmployeeWorkInformation.objects.filter(
-            reporting_manager_id=employee, employee_id=target_employee
-        ).exists()
-    return cache[key]
+    manager_id = getattr(employee, "id", None)
+    if manager_id not in cache:
+        cache[manager_id] = set(
+            EmployeeWorkInformation.objects.filter(
+                reporting_manager_id=employee
+            ).values_list("employee_id", flat=True)
+        )
+    return getattr(target_employee, "id", None) in cache[manager_id]
 
 
 @register.filter(name="is_reportingmanager")

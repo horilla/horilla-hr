@@ -1,4 +1,5 @@
-from datetime import datetime
+from django.utils import timezone
+from django.utils.translation import gettext_noop
 
 from horilla.scheduling import register_job
 from horilla.signals import post_scheduler, pre_scheduler
@@ -6,50 +7,19 @@ from horilla.signals import post_scheduler, pre_scheduler
 
 def leave_reset():
     pre_scheduler.send(sender=leave_reset)
+    from leave.methods import run_missed_resets
     from leave.models import LeaveType
 
-    today = datetime.now()
-    today_date = today.date()
+    today = timezone.localtime()
+    today_date = timezone.localdate()
     leave_types = LeaveType.objects.filter(reset=True)
-    # Looping through filtered leave types with reset is true
     for leave_type in leave_types:
-        # Looping through all available leaves
-        available_leaves = leave_type.employee_available_leave.all()
-
-        for available_leave in available_leaves:
-            reset_date = available_leave.reset_date
-            expired_date = available_leave.expired_date
-            # <= (not ==): the job only runs every few hours inside a
-            # separate run_scheduler process, so a reset_date that's
-            # already in the past (a missed tick) must still be caught
-            # here -- otherwise that employee's leave never resets again.
-            # Matches the expired_date check right below, which already
-            # uses <=.
-            if reset_date and reset_date <= today_date:
-                available_leave.update_carryforward()
-                # new_reset_date = available_leave.set_reset_date(assigned_date=today_date,available_leave = available_leave)
-                new_reset_date = available_leave.set_reset_date(
-                    assigned_date=today_date, available_leave=available_leave
-                )
-                available_leave.reset_date = new_reset_date
-                available_leave._change_reason = "Leave reset"
-                available_leave.save()
-            if expired_date and expired_date <= today_date:
-                new_expired_date = available_leave.set_expired_date(
-                    available_leave=available_leave, assigned_date=today_date
-                )
-                available_leave.expired_date = new_expired_date
-                available_leave._change_reason = "Carryforward expired"
-                available_leave.save()
-
-        if (
-            leave_type.carryforward_expire_date
-            and leave_type.carryforward_expire_date <= today_date
-        ):
-            leave_type.carryforward_expire_date = leave_type.set_expired_date(
-                today_date
-            )
-            leave_type.save()
+        run_missed_resets(
+            leave_type,
+            reset_reason=gettext_noop("Leave reset"),
+            expiry_reason=gettext_noop("Carryforward expired"),
+            today_date=today_date,
+        )
     post_scheduler.send(
         sender=leave_reset,
         **{

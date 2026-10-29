@@ -42,7 +42,7 @@ and to_date.
             onmouseleave="this.style.background='none';this.style.color='#6c757d';">
       <ion-icon name="close-outline" style="font-size:1.4rem;pointer-events:none;"></ion-icon>
     </button>
-    <div id="cal-modal-content" style="overflow-y:auto;flex:1;"></div>
+    <div id="cal-modal-content" style="display:flex;flex-direction:column;overflow:hidden;flex:1;min-height:0;"></div>
   </div>
 </div>
 
@@ -71,7 +71,10 @@ and to_date.
     if (e.key === 'Escape') overlay.style.display = 'none';
   });
 
-  window.openAttendanceCalendar = function (url) {
+  // ``openDate`` (YYYY-MM-DD): once the calendar is up, open that day's regularise popover.
+  window.openAttendanceCalendar = function (url, openDate) {
+    standalone = false;
+    document.querySelectorAll('[data-standalone]').forEach(function (el) { el.remove(); });
     // Hide the metric hover popover if visible
     var pop = document.getElementById('ms-pop');
     if (pop) pop.style.display = 'none';
@@ -84,11 +87,73 @@ and to_date.
 
     fetch(url, { headers: { 'HX-Request': 'true', 'X-Requested-With': 'XMLHttpRequest' } })
       .then(function (r) { return r.text(); })
-      .then(function (html) { content.innerHTML = html; })
+      .then(function (html) {
+        content.innerHTML = html;
+        if (openDate) {
+          setTimeout(function () {
+            var cell = content.querySelector('.cal-cell[data-date="' + openDate + '"]');
+            if (cell && !cell.classList.contains('cal-future')) cell.click();
+          }, 80);
+        }
+      })
       .catch(function () {
         content.innerHTML = '<p style="padding:24px;color:#dc3545;">Failed to load calendar.</p>';
       });
   };
+
+  // ── Day popover on its own (the day-wise grid) ──────────────────────────────
+  // A day cell opens the regularise popover next to it, without the calendar. The popover's
+  // own code reads its context from #cal-data and lives in #cal-resolve-panel, so those two
+  // are made here, marked data-standalone, and removed again when the popover is done.
+  var standalone = false;
+
+  function _standaloneRemove() {
+    document.querySelectorAll('[data-standalone]').forEach(function (el) { el.remove(); });
+  }
+
+  // Called when a save has gone through: tidy up, then tell the page so it can refresh itself.
+  function _standaloneDone() {
+    if (!standalone) return;
+    standalone = false;
+    content.innerHTML = '';
+    window.msCalClosePanel();
+    _standaloneRemove();
+    document.dispatchEvent(new CustomEvent('attendance-calendar-saved'));
+  }
+
+  window.msOpenDayPopover = function (cell) {
+    var table = cell.closest('[data-resolve-url]');
+    if (!table) return;
+    _standaloneRemove();
+    content.innerHTML = '';   // no calendar behind it: only the popover's own elements exist
+    standalone = true;
+
+    var data = document.createElement('div');
+    data.id = 'cal-data';
+    data.dataset.standalone = '1';
+    data.style.display = 'none';
+    data.dataset.emp = cell.dataset.employee;
+    data.dataset.from = cell.dataset.from;
+    data.dataset.to = cell.dataset.to;
+    data.dataset.resolveUrl = table.dataset.resolveUrl;
+    data.dataset.bulkResolveUrl = table.dataset.bulkResolveUrl;
+    data.dataset.calendarUrl = table.dataset.calendarPageUrl;  // not data-calendar-url: that would open the calendar
+    document.body.appendChild(data);
+
+    var panel = document.createElement('div');
+    panel.id = 'cal-resolve-panel';
+    panel.dataset.standalone = '1';
+    document.body.appendChild(panel);
+
+    window.msCalLoadResolve(cell, cell.dataset.date, cell.dataset.conflictType || '', '');
+  };
+
+  document.addEventListener('click', function (e) {
+    var cell = e.target.closest && e.target.closest('[data-day-popover]');
+    if (!cell) return;
+    e.preventDefault();
+    window.msOpenDayPopover(cell);
+  });
 
   // Row click â†’ open calendar  (metric cell hover still shows popover separately)
   // Anything carrying data-calendar-url opens it: a summary table row, or the
@@ -98,7 +163,7 @@ and to_date.
     var trigger = e.target.closest && e.target.closest('[data-calendar-url]');
     if (!trigger) return;
     e.preventDefault();
-    window.openAttendanceCalendar(trigger.dataset.calendarUrl);
+    window.openAttendanceCalendar(trigger.dataset.calendarUrl, trigger.dataset.openDate);
   });
 
   // â"€â"€ Conflict resolution helpers (called from calendar cell onclick attrs) â"€
@@ -133,7 +198,13 @@ and to_date.
   function _positionResolvePanel(panel, cellEl) {
     if (!cellEl) return;
     var modalInner = document.getElementById('cal-modal-inner');
-    var bounds = (modalInner || document.documentElement).getBoundingClientRect();
+    // Inside the calendar: its own box. On its own (the day-wise grid): the visible window,
+    // not the document's box, which is as tall as the whole scrolled page.
+    var inner = modalInner ? modalInner.getBoundingClientRect() : null;
+    // The modal's box exists even while the modal is closed, then it measures 0 x 0.
+    var bounds = inner && inner.width > 0
+      ? inner
+      : { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight };
     var eRect = cellEl.getBoundingClientRect();
 
     var panelWidth  = panel.offsetWidth  || 340;
@@ -361,7 +432,7 @@ and to_date.
       },
       body: body.toString(),
     }).then(function (r) { return r.text(); })
-      .then(function (html) { content.innerHTML = html; calChanged = true; })
+      .then(function (html) { content.innerHTML = html; calChanged = true; _standaloneDone(); })
       .catch(function () {
         content.innerHTML = '<p style="padding:24px;color:#dc3545;">Failed to save.</p>';
       });
@@ -473,7 +544,7 @@ and to_date.
         var natural = Math.min(250, list.scrollHeight);
         var down = below >= natural || below >= above;
         var maxH = Math.min(250, list.scrollHeight, down ? below : above);
-        list.style.cssText = 'position:fixed;z-index:100000;left:' + r.left + 'px;width:' + r.width + 'px;max-height:'
+        list.style.cssText = 'position:fixed;z-index:100020;left:' + r.left + 'px;width:' + r.width + 'px;max-height:'
           + maxH + 'px;' + (down ? 'top:' + (r.bottom + 4) + 'px' : 'bottom:' + (window.innerHeight - r.top + 4) + 'px');
         window._crpDdOpen = closeList;
       }
@@ -607,7 +678,7 @@ and to_date.
         conflict_type: conflictType,
       })
     }).then(function (r) { return r.text(); })
-      .then(function (html) { content.innerHTML = html; calChanged = true; })
+      .then(function (html) { content.innerHTML = html; calChanged = true; _standaloneDone(); })
       .catch(function () {
         content.innerHTML = '<p style="padding:24px;color:#dc3545;">Failed to save resolution.</p>';
       });
@@ -714,7 +785,7 @@ and to_date.
     fetch(ctx.calendarUrl + '?employee_id=' + ctx.empId + '&from_date=' + ctx.fromDate + '&to_date=' + ctx.toDate, {
       headers: { 'HX-Request': 'true', 'X-Requested-With': 'XMLHttpRequest' },
     }).then(function (r) { return r.text(); })
-      .then(function (html) { content.innerHTML = html; calChanged = true; });
+      .then(function (html) { content.innerHTML = html; calChanged = true; _standaloneDone(); });
   };
 
   window.msCalSaveDay = function (conflictType) {
@@ -771,7 +842,7 @@ and to_date.
           cancelButtonText: foot.dataset.warnNo,
           confirmButtonColor: '#e54f38',
           // The calendar modal sits above the library's default layer.
-          didOpen: function () { Swal.getContainer().style.zIndex = '100000'; },
+          didOpen: function () { Swal.getContainer().style.zIndex = '100030'; },
         }).then(function (result) { if (result.isConfirmed) send(); });
         return;
       }

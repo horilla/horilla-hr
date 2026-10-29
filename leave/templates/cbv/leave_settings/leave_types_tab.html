@@ -1,58 +1,240 @@
 {% load i18n static %}
 
 <style>
-.paid--dot{
-  background-color:yellowgreen;
-}
-.unpaid--dot{
-  background-color:orange;
-}
+	.paid--dot {
+		background-color: yellowgreen;
+	}
+	.unpaid--dot {
+		background-color: orange;
+	}
 
-.payment-paid{
-  border-left: 3.4px solid yellowgreen !important;
-  border-radius: 4px 0 0 4px;
-}
-.payment-unpaid{
-  border-left: 3.4px solid orange !important;
-  border-radius: 4px 0 0 4px;
-}
+	.payment-paid {
+		border-left: 3.4px solid yellowgreen !important;
+		border-radius: 4px 0 0 4px;
+	}
+	.payment-unpaid {
+		border-left: 3.4px solid orange !important;
+		border-radius: 4px 0 0 4px;
+	}
 </style>
 
-<div class="oh-inner-sidebar-content border border-[#ebebeb] rounded-md mb-5" id="leaveTypesTabRoot">
-    <div hx-get="{% url 'leave-type-navbar' %}" hx-trigger="load"></div>
+<div
+	class="oh-inner-sidebar-content border border-[#ebebeb] rounded-md mb-5"
+	id="leaveTypesTabRoot"
+>
+	<div hx-get="{% url 'leave-type-navbar' %}" hx-trigger="load"></div>
 
-    <p class="text-xs text-gray-500 mt-1 ml-2">
-        {% trans "Define the different types of leave employees can request, along with payment and carry-forward rules." %}
-    </p>
+	<p class="text-xs text-gray-500 mt-1 ml-2">
+		{% trans "Define the different types of leave employees can request, along with payment and carry-forward rules." %}
+	</p>
 
-    <div
-        class="oh-checkpoint-badge mb-2"
-        id="selectedInstances"
-        data-ids="[]"
-        data-clicked=""
-        style="display: none"
-    >
-    </div>
+	<div
+		class="oh-checkpoint-badge mb-2"
+		id="selectedInstances"
+		data-ids="[]"
+		data-clicked=""
+		style="display: none"
+	></div>
 
-    <div
-        class="oh-wrapper"
-        hx-get="{% url 'leave-type-list' %}?{{ request.GET.urlencode }}"
-        hx-trigger="load"
-        id="listContainer"
-    >
-    </div>
+	<div
+		class="oh-wrapper"
+		hx-get="{% url 'leave-type-list' %}?{{ request.GET.urlencode }}"
+		hx-trigger="load"
+		id="listContainer"
+	></div>
 </div>
 
 <script src="{% static '/candidate/bulk.js' %}"></script>
 <script src="{% static 'cbv/deleteFunc.js' %}"></script>
 <script>
-  function refreshLeaveTypeListContainer() {
-    if (typeof htmx === "undefined") return;
-    var query = window.location.search || "";
-    var url = "{% url 'leave-type-list' %}" + query;
-    htmx.ajax("GET", url, { target: "#listContainer", swap: "innerHTML" });
-  }
-  document.addEventListener("reloadLeaveTypeList", function () {
-    refreshLeaveTypeListContainer();
-  });
+	function refreshLeaveTypeListContainer() {
+		if (typeof htmx === "undefined") return;
+		var query = window.location.search || "";
+		var url = "{% url 'leave-type-list' %}" + query;
+		htmx.ajax("GET", url, { target: "#listContainer", swap: "innerHTML" });
+	}
+
+	function runLeaveTypeReset(url, name, dueCount) {
+		var t = function (text) {
+			return typeof gettext === "function" ? gettext(text) : text;
+		};
+		var esc = function (value) {
+			return $("<div>")
+				.text(value === null || value === undefined ? "" : value)
+				.html();
+		};
+		var card = function (value, label, border, bg, color) {
+			return (
+				'<div style="flex:1;border:1px solid ' +
+				border +
+				";background:" +
+				bg +
+				';border-radius:8px;padding:8px 0"><div style="font-size:18px;font-weight:600;color:' +
+				color +
+				'">' +
+				value +
+				'</div><div style="font-size:10px;font-weight:500;letter-spacing:.05em;text-transform:uppercase;color:' +
+				color +
+				'">' +
+				label +
+				"</div></div>"
+			);
+		};
+		var rowStyle =
+			"display:flex;justify-content:space-between;gap:12px;padding:6px 10px;font-size:13px;text-align:left;";
+		var showResult = function (data) {
+			var icon, title, text;
+			if (!data.reset && !data.failed) {
+				icon = "info";
+				title = t("Reset Result");
+				text = t("Nothing was overdue, so no balances were changed.");
+			} else if (!data.reset) {
+				icon = "warning";
+				title = t("Reset Result");
+				text = t("No balances could be reset.");
+			} else if (data.failed) {
+				icon = "warning";
+				title = t("Reset Completed with Warnings");
+				text = t("Some balances could not be reset.");
+			} else {
+				icon = "success";
+				title = t("Reset Successful");
+				text = t("All overdue balances were reset.");
+			}
+			var failedOn = data.failed > 0;
+			var html =
+				'<p style="color:#6b7280;font-size:13px;margin:0">' +
+				esc(name) +
+				" - " +
+				esc(text) +
+				"</p>" +
+				'<div style="display:flex;gap:8px;margin-top:12px">' +
+				card(data.reset, t("Reset"), "#bbf7d0", "#f0fdf4", "#15803d") +
+				card(
+					data.not_due,
+					t("Not due"),
+					"#e5e7eb",
+					"#f9fafb",
+					"#1f2937",
+				) +
+				card(
+					data.failed,
+					t("Failed"),
+					failedOn ? "#fecaca" : "#e5e7eb",
+					failedOn ? "#fef2f2" : "#f9fafb",
+					failedOn ? "#dc2626" : "#9ca3af",
+				) +
+				"</div>";
+			if (data.reset_rows.length) {
+				html +=
+					'<div style="margin-top:12px;border:1px solid #e5e7eb;border-radius:8px;max-height:180px;overflow-y:auto">' +
+					data.reset_rows
+						.map(function (row) {
+							return (
+								'<div style="' +
+								rowStyle +
+								'"><span style="color:#1f2937">' +
+								esc(row.name) +
+								'</span><span style="color:#6b7280;white-space:nowrap">' +
+								esc(row.before) +
+								" &rarr; " +
+								esc(row.after) +
+								"</span></div>"
+							);
+						})
+						.join("") +
+					(data.reset > data.reset_rows.length
+						? '<div style="' +
+							rowStyle +
+							'color:#6b7280">+ ' +
+							(data.reset - data.reset_rows.length) +
+							" " +
+							t("more") +
+							"</div>"
+						: "") +
+					"</div>";
+			}
+			if (data.failed_rows.length) {
+				html +=
+					'<div style="margin-top:12px;border:1px solid #fecaca;border-radius:8px;max-height:120px;overflow-y:auto">' +
+					data.failed_rows
+						.map(function (row) {
+							return (
+								'<div style="' +
+								rowStyle +
+								'flex-direction:column;gap:0"><span style="color:#1f2937">' +
+								esc(row.name) +
+								'</span><span style="color:#dc2626;font-size:12px">' +
+								esc(row.error) +
+								"</span></div>"
+							);
+						})
+						.join("") +
+					"</div>";
+			}
+			return Swal.fire({
+				title: title,
+				icon: icon,
+				width: "28rem",
+				customClass: { icon: "oh-hlv-result-icon" },
+				html: html,
+				confirmButtonText: t("Close"),
+			}).then(function () {
+				if (data.reset) refreshLeaveTypeListContainer();
+			});
+		};
+		var showError = function (message) {
+			Swal.fire({
+				icon: "error",
+				text: message || t("The reset failed. Please try again."),
+			});
+		};
+		Swal.fire({
+			title: t("Run missed resets"),
+			text:
+				name +
+				" - " +
+				interpolate(
+					ngettext(
+						"%s leave balance needs a reset.",
+						"%s leave balances need a reset.",
+						dueCount,
+					),
+					[dueCount],
+				) +
+				" " +
+				t("Run the missed resets now?"),
+			icon: "question",
+			width: "24rem",
+			showCancelButton: true,
+			confirmButtonText: t("Confirm"),
+			cancelButtonText: t("Cancel"),
+		}).then(function (answer) {
+			if (!answer.isConfirmed) return;
+			hlvBulkDeleteProgress(0, t("Running missed resets"));
+			fetch(url, {
+				method: "POST",
+				credentials: "same-origin",
+				headers: {
+					"X-CSRFToken": getCookie("csrftoken"),
+					"HX-Request": "true",
+				},
+			})
+				.then(function (response) {
+					return response.json().then(function (data) {
+						return { ok: response.ok, data: data };
+					});
+				})
+				.then(function (result) {
+					if (result.ok) showResult(result.data);
+					else showError(result.data.error);
+				})
+				.catch(function () {
+					showError();
+				});
+		});
+	}
+	document.addEventListener("reloadLeaveTypeList", function () {
+		refreshLeaveTypeListContainer();
+	});
 </script>

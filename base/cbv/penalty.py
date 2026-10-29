@@ -119,11 +119,19 @@ class PenaltyRecordsNav(HorillaNavView):
     template_name = "generic/inline_nav.html"
     nav_title = _("Penalties")
     filter_instance = PenaltyAccountFilter()
+    filter_form_context_name = "form"
     search_swap_target = "#listContainer"
+    modern_filter = True
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.search_url = reverse("penalty-records-list")
+        # filter_instance alone doesn't render the Filter button/panel --
+        # HorillaNavView (horilla_views/generic/cbv/views.py) only shows it
+        # when filter_body_template is set too (same pattern DisciplinaryActionsNav
+        # uses, employee/cbv/disciplinary_actions.py), which this class never did.
+        if self.request.user.has_perm("base.view_penaltyaccounts"):
+            self.filter_body_template = "penalty/filters.html"
         if self.request.user.has_perm("base.add_penaltyaccounts"):
             self.create_attrs = f"""
                                 onclick="event.stopPropagation();"

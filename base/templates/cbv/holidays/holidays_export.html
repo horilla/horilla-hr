@@ -27,6 +27,20 @@
                 </div>
                 <div class="oh-accordion-body">
                     <div class="row">
+                        <div class="col-sm-12 col-md-12 col-lg-6">
+                            <div class="oh-input-group">
+                                <label class="oh-label">
+                                    <input
+                                        type="checkbox"
+                                        id="select-all-fields"
+                                        onchange="$(this).closest('form').find('[name=selected_fields]').prop('checked', this.checked)"
+                                    />
+                                    {% trans "Select All" %}
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
                         {% for field in export_column.selected_fields %}
                             <div class="col-sm-12 col-md-12 col-lg-6">
                                 <div class="oh-input-group">

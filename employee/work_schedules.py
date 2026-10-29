@@ -4,10 +4,9 @@ employee/work_schedules.py
 Work Schedules landing page with tabbed rotating shift, work type, and roster sections.
 """
 
-from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 
-from horilla.decorators import hx_request_required
+from horilla.decorators import hx_request_required, login_required
 
 
 @login_required

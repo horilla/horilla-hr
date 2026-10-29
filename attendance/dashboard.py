@@ -7,7 +7,6 @@ Accessible at /attendance/dashboard/modern/ alongside the existing dashboard.
 import calendar
 from datetime import date, datetime, timedelta
 
-from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q, Sum
 from django.http import JsonResponse
 from django.shortcuts import render
@@ -15,6 +14,7 @@ from django.utils.translation import gettext as _
 
 from base.decorators import manager_can_enter
 from base.models import Department, EmployeeShift, WorkType
+from horilla.decorators import login_required
 
 
 def _parse_period(request):

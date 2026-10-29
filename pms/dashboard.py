@@ -6,14 +6,13 @@ Accessible at /pms/dashboard/modern/ alongside the existing dashboard.
 
 from datetime import date, timedelta
 
-from django.contrib.auth.decorators import login_required
 from django.db.models import Avg, Case, Count, FloatField, IntegerField, Q, Sum, When
 from django.db.models.functions import Coalesce
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
 
-from horilla.decorators import permission_required
+from horilla.decorators import login_required, permission_required
 
 
 def _parse_period(request):

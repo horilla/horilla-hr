@@ -158,6 +158,55 @@ class ScopeTests(Fixture):
         for employee in self.people:
             self.assertIn(employee.pk, stashed["employee_ids"])
 
+    def test_the_end_is_the_start_plus_the_days_of_the_starts_month(self):
+        for start, end in (
+            (date(2026, 9, 1), date(2026, 9, 30)),
+            (date(2026, 9, 15), date(2026, 10, 14)),  # September has 30 days
+            (date(2026, 10, 15), date(2026, 11, 14)),  # October has 31
+            (date(2026, 2, 10), date(2026, 3, 9)),  # February has 28
+            (date(2028, 2, 10), date(2028, 3, 9)),  # 2028 is a leap year: 29
+            (date(2026, 12, 20), date(2027, 1, 19)),  # across the year
+        ):
+            with self.subTest(start=start):
+                self.assertEqual(PayPeriodSettings.period_end_for(start), end)
+
+    def test_a_posted_end_date_is_ignored_and_worked_out_from_the_start(self):
+        self.client.post(
+            reverse("payroll-batch-scope"),
+            {
+                "batch_name": "Cross month",
+                "period_start": "2026-09-15",
+                "period_end": "2026-09-20",
+                "scope": "all",
+            },
+        )
+        state = self.client.session[SESSION_KEY]
+        self.assertEqual(state["period_start"], "2026-09-15")
+        self.assertEqual(state["period_end"], "2026-10-14")
+
+    def test_the_end_may_be_left_out_altogether(self):
+        self.client.post(
+            reverse("payroll-batch-scope"),
+            {"batch_name": "No end", "period_start": "2026-03-01", "scope": "all"},
+        )
+        self.assertEqual(self.client.session[SESSION_KEY]["period_end"], "2026-03-31")
+
+    def test_the_end_field_is_shown_read_only(self):
+        html = self.client.get(reverse("payroll-batch-scope")).content.decode()
+        end_input = html.split('name="period_end"')[1].split(">")[0]
+        self.assertIn("readonly", end_input)
+
+    def test_the_default_name_follows_the_period(self):
+        from payroll.forms.batch_forms import suggest_batch_name
+
+        self.assertEqual(
+            suggest_batch_name(date(2026, 9, 1), date(2026, 9, 30)), "September 2026"
+        )
+        self.assertEqual(
+            suggest_batch_name(date(2026, 9, 15), date(2026, 10, 14)),
+            "15 Sep 2026 – 14 Oct 2026",
+        )
+
     def test_a_future_period_is_refused(self):
         response = self.client.post(
             reverse("payroll-batch-scope"),
@@ -519,10 +568,10 @@ class PayPeriodTests(Fixture):
     def test_saving_creates_the_row_for_this_company(self):
         self.client.post(
             reverse("pay-period-settings"),
-            {"boundary": "calendar_month", "pay_day_offset": 3, "input_cutoff_days": 2},
+            {"cycle_start_day": 1, "pay_day": "day:3"},
         )
         settings = PayPeriodSettings.objects.entire().get()
-        self.assertEqual(settings.pay_day_offset, 3)
+        self.assertEqual(settings.pay_day_of_month, 3)
 
     def test_the_pay_date_shown_follows_the_offset(self):
         PayPeriodSettings.objects.create(pay_day_offset=5)
@@ -576,3 +625,89 @@ class ReopenTests(DeleteTests):
     def test_a_get_changes_nothing(self):
         self.client.get(self.url)
         self.assertTrue(PayrollBatch.objects.filter(pk=self.batch.pk).exists())
+
+
+class CycleSettingsFlowTests(Fixture):
+    def test_saved_cycle_drives_the_wizard_default_and_its_hint(self):
+        response = self.client.post(
+            reverse("pay-period-settings"),
+            {"cycle_start_day": "15", "pay_day": "day:1"},
+        )
+        self.assertIn(response.status_code, (200, 302))
+        saved = PayPeriodSettings.objects.entire().get()
+        self.assertEqual(saved.cycle_start_day, 15)
+
+        page = self.client.get(reverse("payroll-batch-scope"))
+        start, end = saved.last_completed_period(date.today())
+        self.assertEqual(page.context["form"].initial["period_start"], start)
+        self.assertEqual(page.context["form"].initial["period_end"], end)
+        self.assertEqual(start.day, 15)
+        self.assertContains(page, "Cycle starting on the 15th of each month")
+
+    def test_the_settings_page_has_the_single_period_choice(self):
+        html = self.client.get(reverse("pay-period-settings")).content.decode()
+        self.assertIn('name="cycle_start_day"', html)
+        self.assertNotIn('name="boundary"', html)
+        self.assertNotIn("pb-cycle-day-field", html)
+        self.assertIn("Last day", html)
+        self.assertIn(">28th<", html)
+
+
+class SettingsModalTests(Fixture):
+    def _modal(self, method="get", data=None):
+        url = reverse("pay-period-settings") + "?modal=1"
+        call = getattr(self.client, method)
+        return (
+            call(url, data or {}, HTTP_HX_REQUEST="true")
+            if method == "post"
+            else call(url, HTTP_HX_REQUEST="true")
+        )
+
+    def test_the_wizard_opens_the_setting_in_a_modal_not_a_page(self):
+        html = self.client.get(reverse("payroll-batch-scope")).content.decode()
+        self.assertIn('id="pbSettingsModal"', html)
+        self.assertIn('hx-get="%s?modal=1"' % reverse("pay-period-settings"), html)
+        self.assertIn('data-target="#pbSettingsModal"', html)
+
+    def test_the_modal_is_just_the_form_without_the_page_around_it(self):
+        html = self._modal().content.decode()
+        self.assertIn('id="pbSettingsForm"', html)
+        self.assertNotIn("<html", html)
+        self.assertNotIn("Payroll runs", html)
+
+    def test_saving_in_the_modal_stores_it_and_reloads_the_page_behind(self):
+        response = self._modal(
+            "post",
+            {"cycle_start_day": "15", "pay_day": "day:1"},
+        )
+        self.assertContains(response, "window.location.reload()")
+        saved = PayPeriodSettings.objects.entire().get()
+        self.assertEqual(saved.cycle_start_day, 15)
+
+    def test_a_bad_day_comes_back_as_the_form_with_its_error(self):
+        response = self._modal("post", {"cycle_start_day": "32", "pay_day": "day:1"})
+        self.assertContains(response, 'id="pbSettingsForm"')
+        self.assertContains(response, "pb__problem")
+        self.assertFalse(PayPeriodSettings.objects.entire().exists())
+
+    def test_the_full_page_still_works_without_the_modal_flag(self):
+        html = self.client.get(reverse("pay-period-settings")).content.decode()
+        self.assertIn("When a pay month begins and ends", html)
+
+    def test_the_modal_explains_the_rule_in_a_tooltip_and_carries_a_live_example(self):
+        html = self._modal().content.decode()
+        self.assertIn('class="pb__tip"', html)
+        self.assertIn('role="tooltip"', html)
+        self.assertNotIn('class="pb__field-help"', html)
+        self.assertIn('id="pb-example"', html)
+        self.assertIn('data-today="%s"' % date.today().isoformat(), html)
+        self.assertNotIn("Next period", html)
+        self.assertNotIn("input_cutoff_days", html)
+        self.assertNotIn('class="pb__pill', html)
+        self.assertIn("This period", html)
+
+    def test_a_day_of_the_month_pay_day_can_be_saved_in_the_modal(self):
+        response = self._modal("post", {"cycle_start_day": "30", "pay_day": "day:31"})
+        self.assertContains(response, "window.location.reload()")
+        saved = PayPeriodSettings.objects.entire().get()
+        self.assertEqual((saved.cycle_start_day, saved.pay_day_of_month), (30, 31))

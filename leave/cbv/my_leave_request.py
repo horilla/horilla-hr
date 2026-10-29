@@ -415,7 +415,7 @@ class MyLeaveRequestForm(HorillaFormView):
                 holiday_dates = holiday_dates_list(holidays)
                 company_leaves = CompanyLeaves.objects.all()
                 company_leave_dates = company_leave_dates_list(
-                    company_leaves, start_date
+                    company_leaves, start_date, end_date
                 )
                 if (
                     leave_type.exclude_company_leave == "yes"
@@ -596,7 +596,9 @@ class MyLeaveRequestSingleForm(HorillaFormView):
         holidays = Holidays.objects.filter(Q(is_specific=False) | Q(employees=employee))
         holiday_dates = holiday_dates_list(holidays)
         company_leaves = CompanyLeaves.objects.all()
-        company_leave_dates = company_leave_dates_list(company_leaves, start_date)
+        company_leave_dates = company_leave_dates_list(
+            company_leaves, start_date, end_date
+        )
         if (
             leave_type.exclude_company_leave == "yes"
             and leave_type.exclude_holiday == "yes"

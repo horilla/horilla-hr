@@ -1023,5 +1023,6 @@ class RejectReasonFormView(HorillaFormView):
             message = "Candidate reject reason saved"
             messages.success(self.request, _(message))
             form.save()
-            return self.HttpResponse()
+            # Refresh the page so the saved rejection details are shown.
+            return self.HttpResponse(script="window.location.reload();")
         return super().form_valid(form)

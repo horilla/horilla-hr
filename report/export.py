@@ -205,7 +205,7 @@ def _currency_format() -> tuple[str, str]:
         if django_apps.is_installed("payroll"):
             from payroll.models.tax_models import PayrollSettings
 
-            settings_row = PayrollSettings.objects.first()
+            settings_row = PayrollSettings.for_selected_company()
             if settings_row:
                 return (
                     settings_row.currency_symbol or "$",

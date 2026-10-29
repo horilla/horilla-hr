@@ -13,6 +13,15 @@
             white-space: normal;
             text-overflow: clip;
         }
+
+        /* Each avatar carries its own position:relative + z-index (2-5) to
+           get the overlap order. Without a stacking context on the stack,
+           those z-indexes compete with the sticky <thead> (z-index:1) and
+           the avatars paint over the header when rows scroll beneath it.
+           isolation:isolate confines them to the cell. */
+        .oh-manager-cell {
+            isolation: isolate;
+        }
     </style>
 
     <div hx-get="{% url 'meetings-nav' %}?{{request.GET.urlencode}}" hx-trigger="load"></div>

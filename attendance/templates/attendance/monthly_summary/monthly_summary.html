@@ -102,12 +102,34 @@
     text-decoration: none; cursor: pointer;
   }
   .ms-download-template:hover { color: hsl(8, 77%, 56%); }
+  .ms-template-row { display: flex; align-items: center; gap: 6px; }
+  .ms-template-tip { width: 280px; left: auto; right: -8px; }
+  .ms-template-tip::after { left: auto; right: 14px; }
+  .ms-template-tip div + div { margin-top: 4px; }
+  .ms-template-tip b { font-weight: 600; }
   .ms-download-template ion-icon { font-size: 18px; }
 
   /* Same fixed height as the buttons above, so the row's four controls --
      two date inputs, the search box, the buttons -- share one edge instead
      of each control supplying its own idea of how tall it is. */
   .ms-toolbar-row .oh-input { height: 2.375rem !important; margin-bottom: 0 !important; }
+
+  /* The Summary / Day-wise buttons: the same height as the search box and the other buttons
+     (they were a few pixels shorter, which left the group sitting off the row's edge), a
+     square icon button, and a small gap between the two like the employee list's switch. */
+  /* Even rhythm: every control is one 2.375rem-tall box and the gap between any two is the
+     row's own 0.5rem, as in the employee nav. No control carries a margin of its own. */
+  /* Only the toolbar's own controls: the filter panel is nested in this row, and its fields keep
+     their labels' spacing. */
+  .ms-toolbar-row > div > .oh-btn-group, .ms-toolbar-row > div > .ms-search { margin: 0 !important; }
+  .ms-toolbar-row .ms-search { width: 18.5rem; max-width: 100%; }
+  .ms-toolbar-row .ms-view-group { display: inline-flex; align-items: center; gap: .25rem; }
+  .ms-toolbar-row .ms-view-btn {
+    display: inline-flex !important; align-items: center; justify-content: center;
+    height: 2.375rem !important; width: 2.75rem; padding: 0 !important;
+    border-radius: .375rem; line-height: 1;
+  }
+  .ms-toolbar-row .ms-view-btn ion-icon { font-size: 1.05rem; }
 
   /* The dropdown menu, made explicit for the same reason as the buttons
      above: Actions is the row's last/rightmost control, and whatever was
@@ -157,10 +179,17 @@
   <div class="oh-container"  style="padding-top:1.25rem;">
 
     <!-- Search + Filter bar -->
+    {% comment %}
+      hx-sync: whichever request starts last wins. The page's first (unfiltered) table request and the
+      filter saveFilters.js puts back on load would otherwise race, and the slower one overwrote the other.
+    {% endcomment %}
     <form id="summary-filter-form"
           hx-get="{% url 'attendance-monthly-summary-table' %}"
           hx-target="#summary-table-container"
+          hx-sync="#summary-table-container:replace"
           hx-push-url="false">
+      {# Summary (totals per employee) or Day-wise (a column per date); every request carries it. #}
+      <input type="hidden" name="view" id="ms-view" value="{{ view }}">
 
       {% comment %}
       Title and toolbar on one row -- title left, search/date/Filter/
@@ -168,13 +197,13 @@
       Every control below keeps its existing hx-get/hx-trigger/id; only
       this wrapper and the title's position changed.
       {% endcomment %}
-      <div class="ms-toolbar-row flex flex-wrap justify-between items-center gap-2 mb-3">
+      <div class="ms-toolbar-row flex flex-wrap justify-between items-center gap-2 mb-4">
         <h3 class="oh-main__titlebar-title fw-bold mb-0">
           {% trans "Monthly Attendance Summary" %}
         </h3>
         <div class="flex flex-wrap items-center gap-2">
         <!-- Search -->
-        <div class="oh-input-group" style="position:relative;width:200px;">
+        <div class="oh-input-group ms-search" style="position:relative;">
           <ion-icon name="search-outline" class="oh-input-group__icon oh-input-group__icon--left"
                     style="position:absolute;top:50%;left:10px;transform:translateY(-50%);font-size:.85rem;color:#9ca3af;"></ion-icon>
           <input type="text"
@@ -186,6 +215,7 @@
                  hx-get="{% url 'attendance-monthly-summary-table' %}"
                  hx-target="#summary-table-container"
                  hx-trigger="input changed delay:400ms"
+                 hx-sync="#summary-table-container:replace"
                  hx-include="#summary-filter-form"
                  class="oh-input"
                  style="padding-left:28px;padding-right:26px;height:2.375rem;margin-bottom:0;">
@@ -200,29 +230,25 @@
           </button>
         </div>
 
-        <!-- Date range -->
-        <input type="date"
-               name="from_date"
-               id="ms-from-date"
-               value="{{ from_date }}"
-               title="{% trans 'From' %}"
-               hx-get="{% url 'attendance-monthly-summary-table' %}"
-               hx-target="#summary-table-container"
-               hx-trigger="change"
-               hx-include="#summary-filter-form"
-               class="oh-input"
-               style="width:145px;height:2.375rem;margin-bottom:0;">
-        <input type="date"
-               name="to_date"
-               id="ms-to-date"
-               value="{{ to_date }}"
-               title="{% trans 'To' %}"
-               hx-get="{% url 'attendance-monthly-summary-table' %}"
-               hx-target="#summary-table-container"
-               hx-trigger="change"
-               hx-include="#summary-filter-form"
-               class="oh-input"
-               style="width:145px;height:2.375rem;margin-bottom:0;">
+        <!-- View: the list, a column per date, or the summary dashboard. The same icon
+             buttons as the employee list / kanban switch (generic/horilla_nav.html). -->
+        <div class="ms-view-group text-[#000]" role="group" aria-label="{% trans 'View' %}">
+          <button type="button" data-view="list" title="{% trans 'List' %}"
+                  class="tab-btn bg-white px-4 py-2 rounded-md text-xs flex items-center gap-2 border transition duration-300 border-primary-500 ms-view-btn{% if view == 'list' %} oh-view-btn--active{% endif %}"
+                  onclick="msSetView('list')">
+            <ion-icon name="list-outline"></ion-icon>
+          </button>
+          <button type="button" data-view="daily" title="{% trans 'Day-Wise' %}"
+                  class="tab-btn bg-white px-4 py-2 rounded-md text-xs flex items-center gap-2 border transition duration-300 border-primary-500 ms-view-btn{% if view == 'daily' %} oh-view-btn--active{% endif %}"
+                  onclick="msSetView('daily')">
+            <ion-icon name="calendar-outline"></ion-icon>
+          </button>
+          <button type="button" data-view="summary" title="{% trans 'Summary' %}"
+                  class="tab-btn bg-white px-4 py-2 rounded-md text-xs flex items-center gap-2 border transition duration-300 border-primary-500 ms-view-btn{% if view == 'summary' %} oh-view-btn--active{% endif %}"
+                  onclick="msSetView('summary')">
+            <ion-icon name="pie-chart-outline"></ion-icon>
+          </button>
+        </div>
 
         <!-- Modern slide-over filter panel (generic/modern_filter_panel.html)
              -- same offcanvas used by Attendance/Late Arrival/Check-in Log/
@@ -265,6 +291,16 @@
                      autocomplete="off">
             </div>
             <div class="oh-filter-panel__body">
+              <!-- The period: every view and the export use it. Applied with the other filters. -->
+              <div class="oh-input-group">
+                <label class="oh-label">{% trans "Date Range" %}</label>
+                <div style="display:flex;gap:8px;">
+                  <input type="date" name="from_date" id="ms-from-date" value="{{ from_date }}"
+                         title="{% trans 'From' %}" class="oh-input w-100">
+                  <input type="date" name="to_date" id="ms-to-date" value="{{ to_date }}"
+                         title="{% trans 'To' %}" class="oh-input w-100">
+                </div>
+              </div>
               <!-- Outside any accordion (always visible, not collapsible) --
                    same placement as every other modernized filter panel this
                    session: primary/most-used search, shouldn't be hidden
@@ -511,7 +547,7 @@
         on ::after, which cannot be turned off with a color or display
         override the way an real icon element could.
         {% endcomment %}
-        <div class="oh-btn-group ml-2">
+        <div class="oh-btn-group">
           <div class="oh-dropdown" x-data="{open: false}"
                @mouseenter="open = true" @mouseleave="open = false">
             <button type="button" class="oh-btn">
@@ -523,8 +559,14 @@
                 <li class="oh-dropdown__item">
                   <a id="export-btn" class="oh-dropdown__link"
                      href="{% url 'attendance-monthly-summary-export' %}?{{ pd }}">
-                    <ion-icon name="download-outline" class="me-1"></ion-icon>
                     <span id="export-btn-label">{% trans "Export XLSX" %}</span>
+                  </a>
+                </li>
+                <li class="oh-dropdown__item">
+                  <a href="#" class="oh-dropdown__link"
+                     data-toggle="oh-modal-toggle" data-target="#msRangeModal"
+                     @click="open=false">
+                    {% trans "Default Date Range" %}
                   </a>
                 </li>
                 {% if perms.attendance.change_attendance %}
@@ -532,8 +574,7 @@
                   <a href="#" class="oh-dropdown__link"
                      data-toggle="oh-modal-toggle" data-target="#msRegImportModal"
                      @click="open=false">
-                    <ion-icon name="cloud-upload-outline" class="me-1"></ion-icon>
-                    {% trans "Upload filled sheet" %}
+                    {% trans "Import Day-Wise Sheet" %}
                   </a>
                 </li>
                 {% endif %}
@@ -560,26 +601,86 @@
     would submit the wrong one). Matches attendance_nav.html's own
     #attendanceImport, likewise a sibling of the page's main filter form.
     {% endcomment %}
-    {% if perms.attendance.change_attendance %}
-    <div class="oh-modal" id="msRegImportModal" role="dialog" aria-labelledby="msRegImportModal" aria-hidden="true">
-      <div class="oh-modal__dialog" style="max-width:480px;">
+    <div class="oh-modal" id="msRangeModal" role="dialog" aria-labelledby="msRangeModalLabel" aria-hidden="true">
+      <div class="oh-modal__dialog">
         <div class="oh-modal__dialog-header">
-          <h2 class="oh-modal__dialog-title">{% trans "Upload filled sheet" %}</h2>
+          <h2 class="oh-modal__dialog-title" id="msRangeModalLabel">{% trans "Default Date Range" %}</h2>
           <button class="oh-modal__close" aria-label="{% trans 'Close' %}">
             <ion-icon name="close-outline"></ion-icon>
           </button>
         </div>
         <div class="oh-modal__dialog-body">
-          <form method="post" action="{% url 'attendance-regularisation-import' %}"
+          <style>
+            .ms-range-preview { margin: 0 0 6px; font-size: .88rem; font-weight: 400; line-height: 1.4; color: #374151; }
+            .ms-range-preview b { font-weight: 600; font-size: inherit; }
+            .ms-range-warn { margin: 0 0 8px; font-size: .8rem; line-height: 1.4; color: #b7791f; }
+            .ms-range-hint { margin: 0 0 14px; font-size: .78rem; line-height: 1.4; color: #9ca3af; }
+            .ms-range-error { margin: 0 0 12px; font-size: .8rem; color: #dc2626; }
+            body.dark .ms-range-preview { color: #e5e7eb; }
+            .ms-range-tip { position: relative; display: inline-flex; vertical-align: middle; margin-left: 4px; outline: none; cursor: help; }
+            .ms-range-tip ion-icon { font-size: 15px; color: #9ca3af; }
+            .ms-range-tip:hover ion-icon, .ms-range-tip:focus ion-icon { color: #e54f38; }
+            .ms-range-tip-body { display: none; position: absolute; left: -8px; bottom: calc(100% + 8px); width: 250px; z-index: 5;
+                                 padding: 9px 12px; border-radius: 8px; background: #1f2937; color: #f9fafb; text-transform: none;
+                                 font-size: .76rem; font-weight: 400; line-height: 1.4; box-shadow: 0 8px 20px rgba(15, 23, 42, .25); }
+            .ms-range-tip-body::after { content: ""; position: absolute; left: 14px; top: 100%; border: 6px solid transparent; border-top-color: #1f2937; }
+            .ms-range-tip:hover .ms-range-tip-body, .ms-range-tip:focus .ms-range-tip-body { display: block; }
+          </style>
+          <div class="oh-input__group mb-3">
+            <label class="oh-input__label" for="ms-range-mode">{% trans "Range" %}</label>
+            <select id="ms-range-mode" class="oh-select oh-select--lg w-100" onchange="msRangeChanged()">
+              {% for choice in range_choices %}
+              <option value="{{ choice.key }}" data-text="{{ choice.text }}"
+                      {% if choice.key == range_mode %}selected{% endif %}>{{ choice.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="oh-input__group mb-3" id="ms-range-custom" style="display:none;">
+            <label class="oh-input__label" for="ms-range-day">
+              {% trans "Start Day" %}
+              <span class="ms-range-tip" tabindex="0">
+                <ion-icon name="information-circle-outline"></ion-icon>
+                <span class="ms-range-tip-body" role="tooltip">
+                  {% trans "The Cycle Starts On The Chosen Day And Runs For As Many Days As That Month Has. From The 15th Of October It Runs To The 14th Of November." %}
+                </span>
+              </span>
+            </label>
+            <select id="ms-range-day" class="oh-select oh-select--lg w-100" onchange="msRangeChanged()">
+              {% for day, label, rule, note in start_day_choices %}
+              <option value="{{ day }}" data-text="{{ rule }}" data-note="{{ note }}" {% if day == start_day %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <p class="ms-range-preview" id="ms-range-preview"><b id="ms-range-preview-text">{% for choice in range_choices %}{% if choice.key == range_mode %}{% if choice.key == "custom" %}{% for day, label, rule, note in start_day_choices %}{% if day == start_day %}{{ rule }}{% endif %}{% endfor %}{% else %}{{ choice.text }}{% endif %}{% endif %}{% endfor %}</b></p>
+          <p class="ms-range-warn" id="ms-range-note" style="display:none;"></p>
+          <p class="ms-range-hint">{% trans "Every Option Covers One Full Month; The Dates Follow The Calendar." %}</p>
+          <p class="ms-range-error" id="ms-range-error" style="display:none;"></p>
+          <div class="oh-modal__dialog-footer p-0">
+            <button type="button" class="oh-btn oh-btn--secondary oh-btn--shadow pl-5 pr-5" onclick="msSaveRange(this)">
+              {% trans "Save And Apply" %}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if perms.attendance.change_attendance %}
+    <div class="oh-modal" id="msRegImportModal" role="dialog" aria-labelledby="msRegImportModal" aria-hidden="true">
+      <div class="oh-modal__dialog" style="max-width:480px;">
+        <div class="oh-modal__dialog-header">
+          <h2 class="oh-modal__dialog-title">{% trans "Import Day-Wise Sheet" %}</h2>
+          <button class="oh-modal__close" aria-label="{% trans 'Close' %}">
+            <ion-icon name="close-outline"></ion-icon>
+          </button>
+        </div>
+        <div class="oh-modal__dialog-body">
+          <form method="post" action="{% url 'attendance-daywise-import' %}"
                 enctype="multipart/form-data">
             {% csrf_token %}
-            {# The period the stated totals belong to, not read from the sheet. #}
-            <input type="hidden" name="from_date" value="{{ from_date|date:'Y-m-d' }}">
-            <input type="hidden" name="to_date" value="{{ to_date|date:'Y-m-d' }}">
             <label class="oh-dropdown__import-label" for="ms-reg-file">
               <ion-icon name="cloud-upload" class="oh-dropdown__import-form-icon"></ion-icon>
-              <span class="oh-dropdown__import-form-title">{% trans "Upload a File" %}</span>
-              <span class="oh-dropdown__import-form-text">{% trans "Drag and drop files here" %}</span>
+              <span class="oh-dropdown__import-form-title">{% trans "Upload A File" %}</span>
+              <span class="oh-dropdown__import-form-text">{% trans "Drag And Drop Files Here" %}</span>
             </label>
             <input type="file" name="regularisation_file" id="ms-reg-file"
                    accept=".xlsx,.xls,.csv" required>
@@ -598,11 +699,17 @@
             it stretched to the full width of the modal body instead of
             reading as a small link. Styled directly instead.
             {% endcomment %}
-            <a href="{% url 'attendance-regularisation-template' %}?{{ pd }}"
-               class="ms-download-template mt-2">
-              <ion-icon name="cloud-download-outline"></ion-icon>
-              {% trans "Download the summary sheet" %}
-            </a>
+            <div class="ms-template-row mt-2">
+              <a href="{% url 'attendance-daywise-template' %}?{{ pd }}" id="ms-template-link"
+                 class="ms-download-template">
+                <ion-icon name="cloud-download-outline"></ion-icon>
+                {% trans "Download The Day-Wise Template" %}
+              </a>
+              <span class="ms-range-tip" tabindex="0">
+                <ion-icon name="information-circle-outline"></ion-icon>
+                <span class="ms-range-tip-body ms-template-tip" id="ms-template-tip" role="tooltip"></span>
+              </span>
+            </div>
             <button type="submit" class="oh-btn oh-btn--secondary w-100 mt-3">
               {% trans "Upload" %}
             </button>
@@ -625,7 +732,8 @@
 
     <!-- Table container — loaded via HTMX -->
     <div id="summary-table-container"
-         hx-get="{% url 'attendance-monthly-summary-table' %}?{{ pd }}"
+         hx-get="{% url 'attendance-monthly-summary-table' %}?{{ table_pd }}"
+         hx-sync="this:replace"
          hx-trigger="load">
     </div>
 
@@ -747,6 +855,62 @@ document.addEventListener('click', function (e) {
   document.querySelectorAll('.ngb-crumb-select-wrap.force-open').forEach(function (w) { w.classList.remove('force-open'); });
 });
 
+function msRangeChanged() {
+  var select = document.getElementById('ms-range-mode');
+  var custom = select.value === 'custom';
+  document.getElementById('ms-range-custom').style.display = custom ? 'block' : 'none';
+  var source = custom ? document.getElementById('ms-range-day') : select;
+  var chosen = source.options[source.selectedIndex];
+  document.getElementById('ms-range-preview-text').textContent = chosen.dataset.text;
+  var note = document.getElementById('ms-range-note');
+  note.textContent = custom ? (chosen.dataset.note || '') : '';
+  note.style.display = note.textContent ? 'block' : 'none';
+}
+
+if (document.getElementById('ms-range-mode')) msRangeChanged();
+
+function msSaveRange(button) {
+  var mode = document.getElementById('ms-range-mode').value;
+  var body = new URLSearchParams({mode: mode});
+  var error = document.getElementById('ms-range-error');
+  error.style.display = 'none';
+  if (mode === 'custom') body.set('start_day', document.getElementById('ms-range-day').value);
+  fetch("{% url 'attendance-monthly-summary-default-range' %}", {
+    method: 'POST',
+    headers: {'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/x-www-form-urlencoded'},
+    body: body.toString(),
+  }).then(function (r) { return r.json(); }).then(function (range) {
+    if (!range.from_date) {
+      error.textContent = range.error || '';
+      error.style.display = 'block';
+      return;
+    }
+    document.getElementById('ms-from-date').value = range.from_date;
+    document.getElementById('ms-to-date').value = range.to_date;
+    var modal = button.closest('.oh-modal');
+    if (modal) modal.classList.remove('oh-modal--show');
+    $('#ms-apply-filter').click();
+  });
+}
+
+function msSetView(view) {
+  var field = document.getElementById('ms-view');
+  if (!field || field.value === view) return;
+  field.value = view;
+  // Remembered, so the page opens on this view next time (read by the server when it renders).
+  document.cookie = 'ms_view=' + view + '; path=/; max-age=31536000; SameSite=Lax';
+  document.querySelectorAll('.ms-view-btn').forEach(function (b) {
+    b.classList.toggle('oh-view-btn--active', b.dataset.view === view);
+  });
+  var form = document.getElementById('summary-filter-form');
+  var params = new URLSearchParams(new FormData(form));
+  params.delete('page');
+  htmx.ajax('GET', "{% url 'attendance-monthly-summary-table' %}?" + params.toString(), {
+    target: '#summary-table-container',
+    swap: 'innerHTML',
+  });
+}
+
 function msClearAllFilters() {
   msClearGroupLevels();
   var search = document.getElementById('ms-search-input');
@@ -769,6 +933,7 @@ function msClearAllFilters() {
     swap: 'innerHTML',
   });
   msRenderFilterTags();
+  msSyncSavedFilters();
 }
 
 // ── Active-filter chips (mirrors generic/filter_tags.html's look) ──
@@ -813,6 +978,8 @@ function msRenderFilterTags() {
       value: activeEl.value === 'True' ? "{% trans 'Yes'|escapejs %}" : "{% trans 'No'|escapejs %}",
     });
   }
+
+  window.msActiveChips = chips;
 
   // Filter button: the same red accent + count badge the standard toolbar
   // shows once its own filter panel is no longer at the unfiltered default.
@@ -921,9 +1088,26 @@ document.getElementById('ms-filter-tags').addEventListener('click', function (e)
   // own event -- the field this chip belongs to has already been cleared
   // above, so rebuilding the row now is always correct.
   msRenderFilterTags();
+  msSyncSavedFilters();
 });
 
 document.getElementById('summary-filter-form').addEventListener('submit', msRenderFilterTags);
+
+// The shared saveFilters.js restores the last applied filter on every load and clicks Apply 250 ms
+// later. If htmx has not taken over the form by then, the browser submits it itself: a full page
+// load with the filter in the address bar, which restores and clicks again, and so on. This
+// listener runs after the form's own (htmx's) and only when nothing has handled the submit: it
+// stops the browser's navigation and sends the same request htmx would have.
+window.addEventListener('submit', function (e) {
+  if (e.target.id !== 'summary-filter-form' || e.defaultPrevented) return;
+  e.preventDefault();
+  var params = new URLSearchParams(new FormData(e.target));
+  params.delete('page');
+  htmx.ajax('GET', "{% url 'attendance-monthly-summary-table' %}?" + params.toString(), {
+    target: '#summary-table-container',
+    swap: 'innerHTML',
+  });
+});
 document.getElementById('ms-search-input').addEventListener('change', msRenderFilterTags);
 document.addEventListener('DOMContentLoaded', msRenderFilterTags);
 msRenderFilterTags();
@@ -947,6 +1131,40 @@ function msSyncExportLink() {
   }
   document.getElementById('export-btn').href =
     "{% url 'attendance-monthly-summary-export' %}?" + params.toString();
+  msSyncTemplateLink(params, selectedIds);
+}
+
+// The day-wise template covers what is on screen: the same range and filters as the export.
+function msSyncTemplateLink(params, selectedIds) {
+  var link = document.getElementById('ms-template-link');
+  var tip = document.getElementById('ms-template-tip');
+  if (!link || !tip) return;
+  link.href = "{% url 'attendance-daywise-template' %}?" + params.toString();
+  msRenderFilterTags();
+  var chips = window.msActiveChips || [];
+  var fmt = function (iso) {
+    var d = new Date(iso + 'T00:00:00');
+    return isNaN(d) ? iso : d.toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'});
+  };
+  var rows = [
+    [ "{% trans 'Range'|escapejs %}", fmt(params.get('from_date')) + ' \u2013 ' + fmt(params.get('to_date')) ],
+    [ "{% trans 'Filters'|escapejs %}", chips.length
+        ? chips.map(function (c) { return c.label + ': ' + c.value; }).join('; ')
+        : "{% trans 'None (All Employees)'|escapejs %}" ],
+  ];
+  if (selectedIds && selectedIds.length) {
+    rows.push([ "{% trans 'Selected Employees'|escapejs %}", String(selectedIds.length) ]);
+  }
+  tip.textContent = '';
+  var head = document.createElement('div');
+  head.innerHTML = '<b></b>';
+  head.firstChild.textContent = "{% trans 'The Template Covers'|escapejs %}";
+  tip.appendChild(head);
+  rows.forEach(function (r) {
+    var line = document.createElement('div');
+    line.textContent = r[0] + ': ' + r[1];
+    tip.appendChild(line);
+  });
 }
 document.getElementById('summary-filter-form').addEventListener('submit', msSyncExportLink);
 // htmx:afterSwap fires on the TARGET element for every HTMX request that updates
@@ -954,6 +1172,64 @@ document.getElementById('summary-filter-form').addEventListener('submit', msSync
 // fires on the issuing element and won't reach the container when the search input
 // (a sibling of the form) triggers its own request.
 document.getElementById('summary-table-container').addEventListener('htmx:afterSwap', msSyncExportLink);
+
+// The shared saveFilters.js remembers the filter at the last Apply click and puts it back on every
+// load of this page. Clearing a filter (its chip, Clear All, emptying the search) does not click
+// Apply, so the old filter came back after a reload. Keep the remembered filter equal to the form
+// as it is when a filter is cleared or the search is edited, and forget it when nothing is filtered.
+// Not on every table load: the first one runs before saveFilters.js has put the filter back.
+// Opened by clicking through the app (no full page load, so saveFilters.js did not run and did not
+// restore anything): the page is unfiltered, so forget the old filter too. Otherwise it would come back
+// at the next refresh, long after it was left.
+if (document.readyState === 'complete') {
+  try { localStorage.removeItem('savedFilters'); } catch (e) { /* nothing remembered */ }
+}
+
+function msSyncSavedFilters() {
+  var form = document.getElementById('summary-filter-form');
+  if (!form) return;
+  var data = {};
+  new FormData(form).forEach(function (value, key) {
+    if (Object.prototype.hasOwnProperty.call(data, key)) {
+      if (!Array.isArray(data[key])) data[key] = [data[key]];
+      data[key].push(value);
+    } else {
+      data[key] = value;
+    }
+  });
+  var active = Object.keys(data).some(function (key) {
+    return ['from_date', 'to_date', 'view', 'page'].indexOf(key) < 0
+      && [].concat(data[key]).some(function (value) { return value !== ''; });
+  });
+  try {
+    if (active) {
+      localStorage.setItem('savedFilters', JSON.stringify({
+        currentPath: window.location.pathname,
+        formSelector: 'form[hx-get="' + form.getAttribute('hx-get') + '"]',
+        filterData: data,
+      }));
+    } else {
+      localStorage.removeItem('savedFilters');
+    }
+  } catch (e) { /* storage unavailable: nothing to keep in step */ }
+}
+// The list's hover popover lives in <body>, outside the area that is swapped. Swapping to another
+// view while it is open (its cell is removed, so no mouseleave comes) left it on screen, now without
+// the list's styles. Hide it whenever the table area is about to change.
+document.getElementById('summary-table-container').addEventListener('htmx:beforeSwap', function () {
+  var pop = document.getElementById('ms-pop');
+  if (pop) pop.style.display = 'none';
+});
+
+// Called where a person clears a filter: its chip, Clear All, the search box emptied.
+(function () {
+  var search = document.getElementById('ms-search-input');
+  var timer;
+  if (search) search.addEventListener('input', function () {
+    clearTimeout(timer);
+    timer = setTimeout(msSyncSavedFilters, 700);
+  });
+})();
 
 // Row/header selection (Select/Unselect, highlight, count badges) is handled
 // entirely by the shared index.js functions via each checkbox's own inline

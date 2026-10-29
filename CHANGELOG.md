@@ -32,6 +32,81 @@ date and open a fresh Unreleased above it.
 ### Security      — vulnerabilities fixed; link the advisory and credit the reporter
 -->
 
+### Added
+
+- Base: the scheduler's job history is trimmed daily at 03:15 in the configured time
+  zone, keeping `HORILLA_SCHEDULER_HISTORY_DAYS` days (7 by default). Nothing removed the
+  run history before, so the table grew without limit. Restart the scheduler to register
+  the job.
+- Payroll: pay periods are set per company in the Payslip Auto Generation tab. A period
+  is either a calendar month or a cycle that starts on a chosen day, with a pay day.
+  With *Generate Payslips Automatically* on, draft payslips are created for the
+  company's employees on the day after each period ends. A period is claimed before it
+  is generated, so two runs never produce the same period, and a manual run is
+  available beside the switch.
+- Leave: a leave type can choose how a carried-forward balance expires, from the first
+  expiry date or from the employee's assignment date, and can leave out the company's
+  week-offs when counting days. Missed leave resets can be run by hand from the leave
+  ledger and from the leave type.
+- Leave: leave types are created and edited in a dialog instead of a full page, and a
+  leave request shows the available balance and says when an attachment is required.
+- Recruitment: send an email to a candidate from the candidate profile, a rejection
+  details section on the profile, and candidate filters for rejection status and survey
+  answers.
+- Attendance: the Day-wise summary has a Default Date Range action (this month, previous
+  month, pay period or month cycle). Its import and export now use one sheet with status
+  dropdowns, replacing the summary sheet.
+
+### Changed
+
+- Attendance: the Daily Work Status page is deprecated, and the Day-wise summary
+  replaces it.
+- Attendance: a half-day leave now counts as half a leave plus the upcoming half in the
+  calendar. Half-day leave clashes are decided by the employee's shift and come with a
+  plain explanation. Week-offs follow the roster period, and the last regularisation
+  wins.
+- Leave: a restriction can now cover several departments (it held one).
+- Dashboard: the birthday widgets on the modern and ESS dashboards follow the
+  *Birthday view* accessibility setting.
+
+### Fixed
+
+- Geofencing: a company fence can be added while a global fence exists, and the global
+  fence now applies to every company that has no fence of its own. The web punch, the
+  API punch and the dashboard use the same rule, and the web punch is checked against
+  the employee's own company when "all companies" is selected
+  ([#1286](https://github.com/horilla/horilla-hr/issues/1286), reported by
+  **@sanjaybora04**).
+- Leave: a request that runs from December into January no longer charges the January
+  company week-offs as leave
+  ([#1315](https://github.com/horilla/horilla-hr/issues/1315), reported by **@Iweisc**).
+- Leave: a half-day request next to a weekend counts as a half day when both exclusions
+  (company leaves and holidays) are on, rather than a full day
+  ([#1316](https://github.com/horilla/horilla-hr/issues/1316), reported by **@Iweisc**).
+- Payroll: loan instalments that start on the 31st stay on the last day of each month
+  and return to the 31st when the month has it, instead of settling on the 28th after
+  February ([#1317](https://github.com/horilla/horilla-hr/issues/1317), reported by
+  **@Iweisc**).
+- Leave: the leave restriction keeps its department when it moves to several
+  departments. Restrictions saved by a build that ran the first version of the
+  migration lost their department and need to be entered again.
+- Payroll: the currency symbol and its position come from the selected company's payroll
+  settings in the payroll dashboard, report exports, payslips and emailed payslips,
+  instead of a leftover "$" row.
+- Payroll: deductions that reduce basic pay, gross pay or net pay are now also worked out
+  in Sequence order. For example a 10% deduction at sequence 20 and a fixed 500 at
+  sequence 10 on a gross of 27,000 now give 23,850 rather than 23,800. Payslips that are
+  already generated do not change.
+- Observability: `/metrics/` now reports `horilla_scheduler_jobs_overdue` and
+  `horilla_scheduler_executions_total` (a gauge over the retained history), and no longer
+  prints `horilla_scheduler_jobs_registered` twice.
+
+### Upgrading
+
+- Run `migrate` (new migrations in `leave` and `payroll`).
+- Restart the scheduler (`manage.py run_scheduler`) so the history trim job is
+  registered.
+
 ## [2.2.1] — 2026-10-DD
 
 Patch release. It brings in the dependency security updates that landed after 2.2.0,

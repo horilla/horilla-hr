@@ -1,11 +1,11 @@
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib.auth.decorators import permission_required
 from django.http import QueryDict
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
 from geopy.distance import geodesic
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -13,9 +13,10 @@ from rest_framework.views import APIView
 
 from base.models import Company
 from geofencing.forms import GeoFencingSetupForm
+from horilla.decorators import login_required
 
 from .models import GeoFencing
-from .serializers import *
+from .serializers import EmployeeLocationSerializer, GeoFencingSetupSerializer
 
 
 class GeoFencingSetupGetPostAPIView(APIView):
@@ -104,11 +105,10 @@ class GeoFencingEmployeeLocationCheckAPIView(APIView):
 
     def get_company_location(self, request):
         company = self.get_company(request)
-        try:
-            location = GeoFencing.objects.get(company_id=company)
-            return location
-        except Exception as e:
-            raise serializers.ValidationError(e)
+        location = GeoFencing.for_company(company)
+        if location is None:
+            raise serializers.ValidationError(_("No geofencing is configured."))
+        return location
 
     def post(self, request):
         serializer = EmployeeLocationSerializer(data=request.data)
@@ -158,33 +158,27 @@ def get_company(request):
         raise serializers.ValidationError(e)
 
 
-def get_company_location(request):
-    company = get_company(request)
-    try:
-        location = GeoFencing.objects.get(company_id=company)
-        return location
-    except Exception as e:
-        raise serializers.ValidationError(e)
-
-
 @login_required
 @permission_required("geofencing.add_localbackup")
 def geo_location_config(request):
+    """
+    Edit the geofence of the selected company, or the global one when "all companies" is
+    selected. The instance is given its company *before* the form is validated: the model's
+    clean() allows only one fence without a company, so validating a company's new fence while
+    its company was still empty was rejected ("Not valid") as soon as a global fence existed.
+    """
     try:
-        form = GeoFencingSetupForm(instance=get_company_location(request))
-    except:
-        form = GeoFencingSetupForm()
+        company = get_company(request)
+    except serializers.ValidationError:
+        messages.error(request, _("Select a company first."))
+        return render(request, "geo_config.html", {"form": GeoFencingSetupForm()})
+    own_fence = GeoFencing.objects.filter(company_id=company).first()
+    instance = own_fence or GeoFencing(company_id=company)
+    form = GeoFencingSetupForm(instance=instance)
     if request.method == "POST":
-        try:
-            form = GeoFencingSetupForm(
-                request.POST, instance=get_company_location(request)
-            )
-        except:
-            form = GeoFencingSetupForm(request.POST)
+        form = GeoFencingSetupForm(request.POST, instance=instance)
         if form.is_valid():
-            geofencing = form.save(commit=False)
-            geofencing.company_id = get_company(request)
-            geofencing.save()
+            form.save()
             messages.success(request, _("Geofencing config created successfully."))
         else:
             messages.info(request, _("Not valid"))

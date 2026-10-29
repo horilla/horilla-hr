@@ -22,7 +22,7 @@ from django.utils.translation import gettext_lazy as _
 from django.utils.translation import ngettext
 
 from base.horilla_company_manager import HorillaCompanyManager
-from base.methods import get_next_month_same_date
+from base.methods import get_nth_month_same_date
 from base.models import (
     Company,
     Department,
@@ -3772,11 +3772,9 @@ class LoanAccount(HorillaModel):
 
         installment_schedule = {}
 
-        installment_date = installment_start_date
-        installment_schedule = {}
-        for _unused in range(total_installments):
+        for index in range(total_installments):
+            installment_date = get_nth_month_same_date(installment_start_date, index)
             installment_schedule[str(installment_date)] = installment_amount
-            installment_date = get_next_month_same_date(installment_date)
 
         return installment_schedule
 
@@ -4269,7 +4267,8 @@ DAYS = [
 
 class PayslipAutoGenerate(models.Model):
     """
-    Model for generating payslip automatically
+    Deprecated: payslip automation now lives on PayPeriodSettings.auto_generate.
+    Kept so existing rows survive; nothing reads it any more.
     """
 
     generate_day = models.CharField(
@@ -4348,11 +4347,6 @@ class PayslipAutoGenerate(models.Model):
                 )
 
     def save(self, *args, **kwargs):
-        from payroll.scheduler import auto_payslip_generate
-
-        if self.auto_generate:
-            auto_payslip_generate()
-
         super().save(*args, **kwargs)
 
     def __str__(self) -> str:

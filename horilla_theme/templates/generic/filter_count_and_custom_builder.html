@@ -320,6 +320,8 @@
                 inputType = 'time';
             } else if (config.type === 'datetime_range') {
                 inputType = 'datetime-local';
+            } else if (config.type === 'number') {
+                inputType = 'number';
             } else if (config.type === 'duration_from' || config.type === 'duration_till') {
                 placeholder = disabled ? placeholder : 'HH:MM:SS';
             }

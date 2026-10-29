@@ -46,17 +46,22 @@
             <div class="pb__field">
               <label class="oh-label" for="{{ form.period_end.id_for_label }}">{{ form.period_end.label }}</label>
               {{ form.period_end }}
+              <span id="pb-cycle-day" hidden data-cycle-day="{{ settings.start_day }}"></span>
               {% for error in form.period_end.errors %}
                 <div class="pb__problem pb__problem--blocking">{{ error }}</div>
               {% endfor %}
+              <div class="pb__fieldnote" id="pb-period-days"></div>
             </div>
           </div>
           <div class="pb__hint">
             <ion-icon name="information-circle-outline"></ion-icon>
             <span>
               {{ form.batch_name.help_text }}
-              {% blocktrans with boundary=settings.get_boundary_display %}The period is filled from your pay period setting: {{ boundary }}.{% endblocktrans %}
-              <a href="{% url 'pay-period-settings' %}">{% trans "Change it" %}</a>
+              {% trans "Pick the day the period starts: it runs for as many days as that month has, so it can cross into the next month (from 15 September it ends on 14 October)." %}
+              {% blocktrans with rule=settings.summary %}The start is filled from your pay period setting: {{ rule }}.{% endblocktrans %}
+              <a href="{% url 'pay-period-settings' %}"
+                 hx-get="{% url 'pay-period-settings' %}?modal=1" hx-target="#pbSettingsModalBody"
+                 data-toggle="oh-modal-toggle" data-target="#pbSettingsModal">{% trans "Change it" %}</a>
             </span>
           </div>
         </div>
@@ -113,4 +118,60 @@
 
   </section>
 </main>
+
+<div class="oh-modal" id="pbSettingsModal" role="dialog" aria-labelledby="pbSettingsModal" aria-hidden="true">
+  <div class="oh-modal__dialog" id="pbSettingsModalBody" style="max-width:560px;"></div>
+</div>
+
+<script>
+(function () {
+  // The end of the period is not typed: it is the start plus the days of the start's month.
+  // The server works it out again from the start alone, so this only shows it.
+  var start = document.getElementById('{{ form.period_start.id_for_label }}');
+  var end = document.getElementById('{{ form.period_end.id_for_label }}');
+  var name = document.getElementById('{{ form.batch_name.id_for_label }}');
+  var note = document.getElementById('pb-period-days');
+  // The setting's start day (1-28, or 31 for the last day of the month): a start on one of its own
+  // boundaries ends where the next begins; any other start runs for its own month's days.
+  var cycleSource = document.getElementById('pb-cycle-day') || end;
+  if (!start || !end) return;
+  var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var nameTouched = false;
+  if (name) name.addEventListener('input', function () { nameTouched = true; });
+
+  function parse(value) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value || '');
+    return m ? { y: +m[1], mo: +m[2] - 1, d: +m[3] } : null;
+  }
+  function iso(date) {
+    var p = function (n) { return (n < 10 ? '0' : '') + n; };
+    return date.getUTCFullYear() + '-' + p(date.getUTCMonth() + 1) + '-' + p(date.getUTCDate());
+  }
+  function label(date) { return date.getUTCDate() + ' ' + MONTHS[date.getUTCMonth()] + ' ' + date.getUTCFullYear(); }
+
+  function refresh() {
+    var s = parse(start.value);
+    if (!s) { end.value = ''; if (note) note.textContent = ''; return; }
+    var cycleDay = parseInt(cycleSource.getAttribute('data-cycle-day'), 10) || 1;
+    var lastOf = function (y, mo) { return new Date(Date.UTC(y, mo + 1, 0)).getUTCDate(); };
+    var days = lastOf(s.y, s.mo);
+    var from = new Date(Date.UTC(s.y, s.mo, s.d));
+    var to = new Date(Date.UTC(s.y, s.mo, s.d + days - 1));
+    if (s.d === Math.min(cycleDay, days)) {
+      var nextY = s.mo === 11 ? s.y + 1 : s.y, nextMo = (s.mo + 1) % 12;
+      to = new Date(Date.UTC(nextY, nextMo, Math.min(cycleDay, lastOf(nextY, nextMo)) - 1));
+      days = Math.round((to - from) / 86400000) + 1;
+    }
+    end.value = iso(to);
+    if (note) note.textContent = days + ' {% trans "days" %}' + (to.getUTCMonth() !== from.getUTCMonth() ? ' · {% trans "crosses into" %} ' + FULL[to.getUTCMonth()] : '');
+    if (name && !nameTouched) {
+      name.value = (s.d === 1) ? FULL[s.mo] + ' ' + s.y : label(from) + ' – ' + label(to);
+    }
+  }
+  start.addEventListener('input', refresh);
+  start.addEventListener('change', refresh);
+  refresh();
+})();
+</script>
 {% endblock content %}

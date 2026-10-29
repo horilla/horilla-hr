@@ -22,6 +22,7 @@ from django.db.models import ProtectedError, Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.encoding import force_str
 from django.utils.html import format_html
 from django.utils.translation import gettext as __
@@ -76,6 +77,8 @@ from leave.methods import (
     holiday_dates_list,
     parse_excel_date,
     request_leave_cancellation,
+    reset_available_leave,
+    run_missed_resets,
 )
 from leave.models import *
 from leave.models import leave_requested_dates
@@ -118,33 +121,80 @@ def generate_error_report(error_list, error_data, file_name):
     return path_info
 
 
+def _leave_type_modal_response(
+    request, form, template="leave/leave_type/leave_type_modal_form.html"
+):
+    """
+    Render the two-step leave type form for the create / update modals.
+    """
+    context = {"form": form, "post_url": request.get_full_path()}
+    return render(request, template, context)
+
+
+def _leave_type_saved_response():
+    """
+    Close the modal, show the message and reload the leave type list.
+    """
+    from horilla_views.generic.cbv.views import HorillaFormView
+
+    response = HorillaFormView.HttpResponse()
+    response["HX-Trigger"] = json.dumps({"reloadLeaveTypeList": {"target": "body"}})
+    return response
+
+
 @login_required
 @permission_required("leave.add_leavetype")
 def leave_type_creation(request):
     """
-    function used to create leave type.
+    function used to create leave type (opens in a modal).
 
     Parameters:
     request (HttpRequest): The HTTP request object.
 
     Returns:
-    GET : return leave type creation template
-    POST : return leave view
+    GET : return the leave type modal form
+    POST : save and close the modal, or re-render the form with errors
     """
-    is_htmx = request.headers.get("HX-Request") is not None
+    if request.headers.get("HX-Request") is None:
+        return redirect("type-view")
     form = LeaveTypeForm()
     if request.method == "POST":
         form = LeaveTypeForm(request.POST, request.FILES)
         if form.is_valid():
-            leave_type = form.save()
+            form.save()
             messages.success(request, _("New leave type Created.."))
-            update_url = reverse("type-update", kwargs={"id": leave_type.id})
-            if is_htmx:
-                response = HttpResponse("", status=200)
-                response["HX-Redirect"] = update_url
-                return response
-            return redirect(update_url)
-    return render(request, "leave/leave_type/leave_type_creation.html", {"form": form})
+            return _leave_type_saved_response()
+    return _leave_type_modal_response(request, form)
+
+
+# ---- Previous (full page) workflow, replaced by the modal above ----
+# @login_required
+# @permission_required("leave.add_leavetype")
+# def leave_type_creation(request):
+#     """
+#     function used to create leave type.
+#
+#     Parameters:
+#     request (HttpRequest): The HTTP request object.
+#
+#     Returns:
+#     GET : return leave type creation template
+#     POST : return leave view
+#     """
+#     is_htmx = request.headers.get("HX-Request") is not None
+#     form = LeaveTypeForm()
+#     if request.method == "POST":
+#         form = LeaveTypeForm(request.POST, request.FILES)
+#         if form.is_valid():
+#             leave_type = form.save()
+#             messages.success(request, _("New leave type Created.."))
+#             update_url = reverse("type-update", kwargs={"id": leave_type.id})
+#             if is_htmx:
+#                 response = HttpResponse("", status=200)
+#                 response["HX-Redirect"] = update_url
+#                 return response
+#             return redirect(update_url)
+#     return render(request, "leave/leave_type/leave_type_creation.html", {"form": form})
 
 
 def paginator_qry(qryset, page_number):
@@ -259,48 +309,81 @@ def leave_type_filter(request):
 @permission_required("leave.change_leavetype")
 def leave_type_update(request, id, **kwargs):
     """
-    function used to update leave type.
+    function used to update leave type (opens in a modal).
 
     request (HttpRequest): The HTTP request object.
     id : leave type id
 
     Returns:
-    GET : return leave type update template
-    POST : return leave type view
+    GET : return the leave type modal form
+    POST : save and close the modal, or re-render the form with errors
     """
     try:
         leave_type = LeaveType.objects.get(id=id)
     except (LeaveType.DoesNotExist, OverflowError, ValueError):
         messages.error(request, _("Leave type not found"))
         return redirect("type-view")
-    is_htmx = request.headers.get("HX-Request") is not None
-    form = UpdateLeaveTypeForm(instance=leave_type)
-    compensatory = request.GET.get("compensatory")
-    redirect_url = reverse("type-view")
-    if compensatory:
-        redirect_url = compensatory_leave_settings_view
+    if request.headers.get("HX-Request") is None:
+        if request.GET.get("compensatory"):
+            return redirect(compensatory_leave_settings_view)
+        return redirect("type-view")
+    form = LeaveTypeForm(instance=leave_type)
     if request.method == "POST":
-        form_data = UpdateLeaveTypeForm(
-            request.POST, request.FILES, instance=leave_type
-        )
-        if form_data.is_valid():
-            form_data.save()
+        form = LeaveTypeForm(request.POST, request.FILES, instance=leave_type)
+        if form.is_valid():
+            form.save()
             messages.success(request, _("Leave type is updated successfully.."))
-            if is_htmx:
-                response = HttpResponse("", status=200)
-                response["HX-Trigger"] = json.dumps(
-                    {"reloadLeaveTypeList": {"target": "body"}}
-                )
-                return response
-            return redirect(redirect_url)
-        form = form_data
-    context = {
-        "form": form,
-        "title": _("Update Leave Type"),
-        "post_url": request.get_full_path(),
-        "is_htmx": is_htmx,
-    }
-    return render(request, "leave/leave_type/leave_type_update_page.html", context)
+            return _leave_type_saved_response()
+    return _leave_type_modal_response(request, form)
+
+
+# ---- Previous (full page) workflow, replaced by the modal above ----
+# @login_required
+# @permission_required("leave.change_leavetype")
+# def leave_type_update(request, id, **kwargs):
+#     """
+#     function used to update leave type.
+#
+#     request (HttpRequest): The HTTP request object.
+#     id : leave type id
+#
+#     Returns:
+#     GET : return leave type update template
+#     POST : return leave type view
+#     """
+#     try:
+#         leave_type = LeaveType.objects.get(id=id)
+#     except (LeaveType.DoesNotExist, OverflowError, ValueError):
+#         messages.error(request, _("Leave type not found"))
+#         return redirect("type-view")
+#     is_htmx = request.headers.get("HX-Request") is not None
+#     form = UpdateLeaveTypeForm(instance=leave_type)
+#     compensatory = request.GET.get("compensatory")
+#     redirect_url = reverse("type-view")
+#     if compensatory:
+#         redirect_url = compensatory_leave_settings_view
+#     if request.method == "POST":
+#         form_data = UpdateLeaveTypeForm(
+#             request.POST, request.FILES, instance=leave_type
+#         )
+#         if form_data.is_valid():
+#             form_data.save()
+#             messages.success(request, _("Leave type is updated successfully.."))
+#             if is_htmx:
+#                 response = HttpResponse("", status=200)
+#                 response["HX-Trigger"] = json.dumps(
+#                     {"reloadLeaveTypeList": {"target": "body"}}
+#                 )
+#                 return response
+#             return redirect(redirect_url)
+#         form = form_data
+#     context = {
+#         "form": form,
+#         "title": _("Update Leave Type"),
+#         "post_url": request.get_full_path(),
+#         "is_htmx": is_htmx,
+#     }
+#     return render(request, "leave/leave_type/leave_type_update_page.html", context)
 
 
 @login_required
@@ -1475,9 +1558,9 @@ def user_leave_cancel(request, id):
         else:
             messages.error(request, _("You can't cancel this leave request."))
         return HorillaRedirect(request)
-    form = RejectForm()
+    form = RejectForm(request.POST or None)
+    form.fields["reason"].widget.attrs["placeholder"] = _("Reason for Cancellation")
     if request.method == "POST":
-        form = RejectForm(request.POST)
         if form.is_valid():
             leave_request, error = request_leave_cancellation(
                 id, form.cleaned_data["reason"], request.user.employee_get
@@ -1707,11 +1790,6 @@ def leave_assign_one(request, obj_id):
             ).values_list("employee_id", flat=True)
         )
 
-        expiry_date = (
-            leave_type.carryforward_expire_date
-            if leave_type.carryforward_expire_date
-            else None
-        )
         new_employee_ids = list(set(employee_ids) - existing_leaves_set)
         new_employees_qs = Employee.objects.filter(id__in=new_employee_ids)
 
@@ -1748,10 +1826,7 @@ def leave_assign_one(request, obj_id):
                             assigned_date=leave.assigned_date, available_leave=leave
                         )
 
-                if leave_type.carryforward_type == "carryforward expire":
-                    if not expiry_date:
-                        expiry_date = leave.assigned_date
-                    leave.expired_date = expiry_date
+                leave.expired_date = leave_type.initial_expiry_date(leave.assigned_date)
 
                 leave.total_leave_days = max(
                     leave.available_days + leave.carryforward_days, 0
@@ -2335,7 +2410,9 @@ def assign_leave_type_import(request):
                 assigned_date=assigned_date,
             )
             if carryforward_days:
-                available_leave.expired_date = leave_type.carryforward_expire_date
+                available_leave.expired_date = leave_type.initial_expiry_date(
+                    assigned_date
+                )
                 try:
                     available_leave.reset_date = leave_type.leave_type_next_reset_date()
                 except Exception:
@@ -2658,10 +2735,15 @@ def assigned_leaves_export(request):
 @login_required
 @hx_request_required
 def get_job_positions(request):
-    department_id = request.GET.get("department")
+    department_ids = [d for d in request.GET.getlist("department") if d]
     form = RestrictLeaveForm()
-    form.fields["job_position"].queryset = JobPosition.objects.filter(
-        department_id=department_id
+    queryset = JobPosition.objects.exclude(department_id__in=department_ids)
+    form.fields["job_position"].queryset = queryset
+    # Keep earlier picks that are still allowed; drop those belonging to
+    # the newly chosen departments.
+    selected = [p for p in request.GET.getlist("job_position") if p]
+    form.initial["job_position"] = list(
+        queryset.filter(pk__in=selected).values_list("pk", flat=True)
     )
 
     return render(request, "leave/job_position_field.html", {"form": form})
@@ -2940,7 +3022,9 @@ def user_leave_request(request, id):
         holidays = Holidays.objects.filter(Q(is_specific=False) | Q(employees=employee))
         holiday_dates = holiday_dates_list(holidays)
         company_leaves = CompanyLeaves.objects.all()
-        company_leave_dates = company_leave_dates_list(company_leaves, start_date)
+        company_leave_dates = company_leave_dates_list(
+            company_leaves, start_date, end_date
+        )
         if (
             leave_type.exclude_company_leave == "yes"
             and leave_type.exclude_holiday == "yes"
@@ -3114,7 +3198,7 @@ def user_request_update(request, id):
                     holiday_dates = holiday_dates_list(holidays)
                     company_leaves = CompanyLeaves.objects.all()
                     company_leave_dates = company_leave_dates_list(
-                        company_leaves, start_date
+                        company_leaves, start_date, end_date
                     )
                     if (
                         leave_type.exclude_company_leave == "yes"
@@ -4963,7 +5047,7 @@ def employee_available_leave_count(request):
     except (TypeError, ValueError):
         end_date = None
 
-    if leave_type_id and start_date and end_date:
+    if leave_type_id and start_date and end_date and end_date >= start_date:
         leave_type = LeaveType.objects.filter(id=leave_type_id).first()
         if leave_type:
             requested_days = calculate_requested_days(
@@ -6674,5 +6758,88 @@ def leave_balance_ledger(request, pk):
             "instance": instance,
             "ledger": instance.build_ledger(),
             "forecast": instance.forecast_next_reset(),
+            "reset_due": instance.is_reset_due(),
         },
+    )
+
+
+@login_required
+@hx_request_required
+@permission_required("leave.change_availableleave")
+@require_http_methods(["POST"])
+def leave_balance_reset(request, pk):
+    """
+    Runs the missed reset for one available leave and re-renders its ledger sidebar.
+    """
+    instance = AvailableLeave.find(pk)
+    if not instance:
+        messages.error(request, _("Leave balance not found."))
+        return HttpResponse("")
+    applied = instance.is_reset_due() and reset_available_leave(
+        instance,
+        timezone.localdate(),
+        reset_reason=gettext_noop("Leave reset manually"),
+        expiry_reason=gettext_noop("Carryforward expired manually"),
+    )
+    if applied:
+        messages.success(request, _("Missed leave reset applied."))
+    else:
+        messages.info(request, _("No reset is due for this leave balance."))
+    return render(
+        request,
+        "cbv/assigned_leave/leave_ledger_sidebar.html",
+        {
+            "instance": instance,
+            "ledger": instance.build_ledger(),
+            "forecast": instance.forecast_next_reset(),
+            "reset_due": instance.is_reset_due(),
+            "after_reset": True,
+        },
+    )
+
+
+@login_required
+@hx_request_required
+@permission_required("leave.change_leavetype")
+@require_http_methods(["POST"])
+def leave_type_run_missed_resets(request, pk):
+    """
+    Runs every missed reset for one leave type and reports the outcome as JSON.
+    """
+    leave_type = LeaveType.find(pk)
+    if not leave_type:
+        return JsonResponse({"error": __("Leave type not found.")}, status=404)
+    if not leave_type.reset:
+        return JsonResponse(
+            {"error": __("This leave type does not reset.")}, status=400
+        )
+    total_count = leave_type.employee_available_leave.count()
+    result = run_missed_resets(
+        leave_type,
+        reset_reason=gettext_noop("Leave reset manually"),
+        expiry_reason=gettext_noop("Carryforward expired manually"),
+    )
+    reset_count = len(result["reset"])
+    failed_count = len(result["failed"])
+    return JsonResponse(
+        {
+            "reset": reset_count,
+            "failed": failed_count,
+            "not_due": max(total_count - reset_count - failed_count, 0),
+            "reset_rows": [
+                {
+                    "name": str(row["available_leave"].employee_id),
+                    "before": row["before"],
+                    "after": row["after"],
+                }
+                for row in result["reset"][:100]
+            ],
+            "failed_rows": [
+                {
+                    "name": str(row["available_leave"].employee_id),
+                    "error": row["error"],
+                }
+                for row in result["failed"][:100]
+            ],
+        }
     )

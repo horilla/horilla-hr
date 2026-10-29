@@ -102,6 +102,16 @@
                     {% trans "Employee Tags" %}
                 </button>
             {% endif %}
+            {% if perms.employee.view_actiontype %}
+                <button
+                    type="button"
+                    class="oh-tabs__tab employee-settings-tab-btn"
+                    data-tab-id="disciplinary-action-type"
+                    data-url="{% url 'policies-discipline-action-type-tab' %}"
+                >
+                    {% trans "Disciplinary Action Type" %}
+                </button>
+            {% endif %}
         </div>
 
         <div id="employeeSettingsContent" class="oh-wrapper"></div>

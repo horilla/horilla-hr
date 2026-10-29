@@ -4,19 +4,32 @@
     Context: count, url_base (view-penalties URL), query (query-string key), obj_id.
 {% endcomment %}
 {% if count %}
-    <span
-        role="button"
-        class="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-danger/30 bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger-dark cursor-pointer transition hover:bg-danger/20"
-        title="{% trans 'View penalties' %}"
-        data-target="#penaltyViewModal"
-        data-toggle="oh-modal-toggle"
-        hx-get="{{ url_base }}?{{ query }}={{ obj_id }}"
-        hx-target="#penaltyViewModalBody"
-        onclick="event.stopPropagation()"
-    >
-        <ion-icon name="alert-circle-outline"></ion-icon>
-        {% blocktrans count counter=count %}{{ counter }} Penalty{% plural %}{{ counter }} Penalties{% endblocktrans %}
-    </span>
+    {% if redirect_url %}
+        <a
+            role="button"
+            href="{{ redirect_url }}"
+            class="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-danger/30 bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger-dark cursor-pointer transition hover:bg-danger/20"
+            title="{% trans 'View penalties' %}"
+            onclick="event.stopPropagation()"
+        >
+            <ion-icon name="alert-circle-outline"></ion-icon>
+            {% blocktrans count counter=count %}{{ counter }} Penalty{% plural %}{{ counter }} Penalties{% endblocktrans %}
+        </a>
+    {% else %}
+        <span
+            role="button"
+            class="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-danger/30 bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger-dark cursor-pointer transition hover:bg-danger/20"
+            title="{% trans 'View penalties' %}"
+            data-target="#penaltyViewModal"
+            data-toggle="oh-modal-toggle"
+            hx-get="{{ url_base }}?{{ query }}={{ obj_id }}"
+            hx-target="#penaltyViewModalBody"
+            onclick="event.stopPropagation()"
+        >
+            <ion-icon name="alert-circle-outline"></ion-icon>
+            {% blocktrans count counter=count %}{{ counter }} Penalty{% plural %}{{ counter }} Penalties{% endblocktrans %}
+        </span>
+    {% endif %}
 {% else %}
     <span class="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-success/30 bg-success/10 px-2 py-0.5 text-xs font-medium text-success-dark">
         <ion-icon name="checkmark-circle-outline"></ion-icon>

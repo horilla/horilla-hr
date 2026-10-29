@@ -28,6 +28,36 @@ def convert_emp(request, instance, user_perm):
         return True
 
 
+def _is_eligible_candidate(instance):
+    """
+    Active, non-rejected candidate check
+    """
+    return (
+        instance.is_active and not instance.canceled and not instance.is_offer_rejected
+    )
+
+
+def profile_convert_emp(request, instance, user_perm):
+    """
+    Convert to employee accessibility for the candidate profile
+    (active, non-rejected candidates only)
+    """
+    return bool(
+        _is_eligible_candidate(instance) and convert_emp(request, instance, user_perm)
+    )
+
+
+def profile_add_skill_zone(request, instance, user_perm):
+    """
+    Add to talent pool accessibility for the candidate profile
+    (active, non-rejected candidates only)
+    """
+    return bool(
+        _is_eligible_candidate(instance)
+        and add_skill_zone(request, instance, user_perm)
+    )
+
+
 def add_skill_zone(request, instance, user_perm):
     """
     Add talent pool  accessibility
@@ -91,6 +121,27 @@ def unarchive_status(request, instance, user_perm):
     """
     if not instance.is_active:
         return True
+
+
+def archive_perm(request, instance, *args, **kwargs):
+    """
+    Archive option on the candidate profile
+    """
+    return instance.is_active and delete_candidate_perm(request, instance)
+
+
+def unarchive_perm(request, instance, *args, **kwargs):
+    """
+    Un-archive option on the candidate profile
+    """
+    return not instance.is_active and delete_candidate_perm(request, instance)
+
+
+def delete_candidate_perm(request, instance, *args, **kwargs):
+    """
+    To access archive/un-archive/delete on the candidate profile
+    """
+    return request.user.has_perm("recruitment.delete_candidate")
 
 
 def onboarding_accessibility(

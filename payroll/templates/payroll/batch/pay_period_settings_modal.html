@@ -1,0 +1,130 @@
+{% load i18n %}
+{% include "payroll/batch/_batch.css.html" %}
+{# The pay period setting as a form for a modal: saved in place, then the page it was opened from reloads. #}
+<div class="oh-modal__dialog-header">
+  <h2 class="oh-modal__dialog-title">{% trans "Pay period" %}</h2>
+  <button type="button" class="oh-modal__close" aria-label="{% trans 'Close' %}"
+          onclick="this.closest('.oh-modal').classList.remove('oh-modal--show')">
+    <ion-icon name="close-outline"></ion-icon>
+  </button>
+</div>
+<div class="oh-modal__dialog-body pb">
+  <form hx-post="{{ post_url|default:'/payroll/pay-period-settings/?modal=1' }}" hx-target="#{{ modal_body_id|default:'pbSettingsModalBody' }}" hx-swap="innerHTML" id="pbSettingsForm">
+    {% csrf_token %}
+    <p style="font-size:.8rem;color:#6b7280;margin-bottom:12px;">
+      {% trans "Set once for the company. New payroll runs start from these dates." %}
+    </p>
+
+    <div class="oh-input-group">
+      <label class="oh-label" for="{{ form.cycle_start_day.id_for_label }}">{{ form.cycle_start_day.label }}
+        {% if form.cycle_start_day.help_text %}
+        <span class="pb__tip" tabindex="0" aria-label="{% trans 'How the pay period works' %}">
+          <ion-icon name="information-circle-outline"></ion-icon>
+          <span class="pb__tip-body" role="tooltip">{{ form.cycle_start_day.help_text }}</span>
+        </span>
+        {% endif %}
+      </label>
+      {{ form.cycle_start_day }}
+      {% for error in form.cycle_start_day.errors %}<div class="pb__problem pb__problem--blocking">{{ error }}</div>{% endfor %}
+    </div>
+
+    <div class="oh-input-group">
+      <label class="oh-label" for="{{ form.pay_day.id_for_label }}">{{ form.pay_day.label }}
+        {% if form.pay_day.help_text %}
+        <span class="pb__tip" tabindex="0" aria-label="{% trans 'How the pay day works' %}">
+          <ion-icon name="information-circle-outline"></ion-icon>
+          <span class="pb__tip-body" role="tooltip">{{ form.pay_day.help_text }}</span>
+        </span>
+        {% endif %}
+      </label>
+      {{ form.pay_day }}
+      {% for error in form.pay_day.errors %}<div class="pb__problem pb__problem--blocking">{{ error }}</div>{% endfor %}
+    </div>
+
+    <div class="oh-input-group">
+      <label class="oh-label" for="{{ form.auto_generate.id_for_label }}">{{ form.auto_generate.label }}</label>
+      <div class="oh-switch" style="width:30px;">
+        <input type="checkbox" class="oh-switch__checkbox" name="{{ form.auto_generate.html_name }}" id="{{ form.auto_generate.id_for_label }}"{% if form.auto_generate.value %} checked{% endif %}>
+      </div>
+      <div class="pb__fieldnote">{{ form.auto_generate.help_text }}</div>
+    </div>
+
+    {% if form.company_id %}
+    <div class="oh-input-group">
+      <label class="oh-label" for="{{ form.company_id.id_for_label }}">{{ form.company_id.label }}</label>
+      {{ form.company_id }}
+      {% if not form.has_free_company %}
+      <div class="pb__fieldnote">{% trans "Every company in view already has a pay period. Edit it from the list." %}</div>
+      {% endif %}
+      {% for error in form.company_id.errors %}<div class="pb__problem pb__problem--blocking">{{ error }}</div>{% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="pb__example" id="pb-example" data-today="{{ today|date:'Y-m-d' }}">
+      <div><span class="pb__example-k">{% trans "This period" %}</span><br><b id="pb-example-period">{{ example_start|date:"j M Y" }} &ndash; {{ example_end|date:"j M Y" }}</b></div>
+      <div><span class="pb__example-k">{% trans "Pay date" %}</span><br><b id="pb-example-pay">{{ example_pay_date|date:"j M Y" }}</b></div>
+    </div>
+    {% for error in form.non_field_errors %}
+      <div class="pb__problem pb__problem--blocking mt-2">{{ error }}</div>
+    {% endfor %}
+
+    <div class="d-flex justify-content-end gap-2 mt-3">
+      <button type="button" class="pb__btn" onclick="this.closest('.oh-modal').classList.remove('oh-modal--show')">{% trans "Cancel" %}</button>
+      <button type="submit" class="oh-btn oh-btn--secondary">{% trans "Save" %}</button>
+    </div>
+  </form>
+</div>
+<script>
+(function () {
+  // The selects are select2 lists, opened inside the dialog.
+  if (window.jQuery && jQuery.fn.select2) {
+    ['{{ form.company_id.id_for_label }}', '{{ form.cycle_start_day.id_for_label }}', '{{ form.pay_day.id_for_label }}'].forEach(function (id) {
+      var el = id && document.getElementById(id);
+      if (el) jQuery(el).select2({ width: '100%', dropdownParent: jQuery(el).closest('.oh-modal__dialog-body') });
+    });
+  }
+})();
+(function () {
+  // The example follows the choice as it is made: the period that contains today and its pay date,
+  // worked out here by the same rule the server uses (a period ends the day before the next one
+  // begins; "last day" means the 28th to 31st, whichever ends the month).
+  var root = document.getElementById('pb-example');
+  var day = document.getElementById('{{ form.cycle_start_day.id_for_label }}');
+  var offset = document.getElementById('{{ form.pay_day.id_for_label }}');
+  if (!root || !day) return;
+  var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var today = (function (v) { var p = v.split('-'); return new Date(Date.UTC(+p[0], +p[1] - 1, +p[2])); })(root.getAttribute('data-today'));
+  function startIn(y, m, d) { return new Date(Date.UTC(y, m, Math.min(d, new Date(Date.UTC(y, m + 1, 0)).getUTCDate()))); }
+  function label(dt) { return dt.getUTCDate() + ' ' + MONTHS[dt.getUTCMonth()] + ' ' + dt.getUTCFullYear(); }
+  function plus(dt, n) { return new Date(dt.getTime() + n * 86400000); }
+  // Pay date: "after:N" is N days after the period ends; "day:D" is the first D-th of a month after it
+  // (29 and 30 fall back to the month's last day when it is shorter; 31 is the last day itself).
+  function payDate(end) {
+    var v = (offset && offset.value) || 'after:0';
+    var parts = v.split(':');
+    var n = parseInt(parts[1], 10) || 0;
+    if (parts[0] !== 'day') return plus(end, n);
+    var y = end.getUTCFullYear(), m = end.getUTCMonth();
+    for (var i = 0; i < 2; i++) {
+      var cand = startIn(y, m, n);
+      if (cand > end) return cand;
+      if (m === 11) { y += 1; m = 0; } else { m += 1; }
+    }
+    return cand;
+  }
+  function refresh() {
+    var d = parseInt(day.value, 10) || 1;
+    var y = today.getUTCFullYear(), m = today.getUTCMonth();
+    var start = startIn(y, m, d);
+    if (today < start) { start = m === 0 ? startIn(y - 1, 11, d) : startIn(y, m - 1, d); }
+    var nextStart = startIn(start.getUTCMonth() === 11 ? start.getUTCFullYear() + 1 : start.getUTCFullYear(), (start.getUTCMonth() + 1) % 12, d);
+    var end = plus(nextStart, -1);
+    document.getElementById('pb-example-period').textContent = label(start) + ' \u2013 ' + label(end);
+    document.getElementById('pb-example-pay').textContent = label(payDate(end));
+  }
+  day.addEventListener('change', refresh);
+  if (window.jQuery) { jQuery(day).on('change', refresh); jQuery('#{{ form.pay_day.id_for_label }}').on('change', refresh); }
+  if (offset) { offset.addEventListener('input', refresh); offset.addEventListener('change', refresh); }
+  refresh();
+})();
+</script>

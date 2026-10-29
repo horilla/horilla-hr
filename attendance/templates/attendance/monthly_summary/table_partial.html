@@ -391,47 +391,7 @@
   body.dark .ms-pop-reg-badge { background: #064e3b; color: #6ee7b7; border-color: #065f46; }
 </style>
 
-<!-- Stat cards -->
-<div class="ms-stat-row">
-  <div class="ms-stat-card" style="border-top: 3px solid #6c757d;">
-    <div class="ms-stat-card__label">{% trans "Employees" %}</div>
-    <p class="ms-stat-card__value" style="color:#6c757d;">{{ summary_totals.total_employees }}</p>
-  </div>
-  <div class="ms-stat-card" style="border-top: 3px solid #28a745;">
-    <div class="ms-stat-card__label">{% trans "Total Present" %}</div>
-    <p class="ms-stat-card__value" style="color:#28a745;">{{ summary_totals.total_present|floatformat:"-1" }}</p>
-  </div>
-  <div class="ms-stat-card" style="border-top: 3px solid #dc3545;">
-    <div class="ms-stat-card__label">{% trans "Total Absent / Missing Out / Short Hours" %}</div>
-    <p class="ms-stat-card__value" style="color:#dc3545;">{{ summary_totals.total_absent|floatformat:"-1" }}</p>
-  </div>
-  <div class="ms-stat-card" style="border-top: 3px solid #0d6efd;">
-    <div class="ms-stat-card__label">{% trans "Paid Leave" %}</div>
-    <p class="ms-stat-card__value" style="color:#0d6efd;">{{ summary_totals.total_paid_leave }}</p>
-  </div>
-  <div class="ms-stat-card" style="border-top: 3px solid #fd7e14;">
-    <div class="ms-stat-card__label">{% trans "Unpaid Leave" %}</div>
-    <p class="ms-stat-card__value" style="color:#fd7e14;">{{ summary_totals.total_unpaid_leave }}</p>
-  </div>
-  <div class="ms-stat-card" style="border-top: 3px solid #495057;">
-    <div class="ms-stat-card__label">{% trans "Working Days" %}</div>
-    <p class="ms-stat-card__value ms-working-days-val">{{ total_working }}</p>
-  </div>
-  <div class="ms-stat-card" style="border-top: 3px solid #6610f2;">
-    <div class="ms-stat-card__label">{% trans "Week Off" %}</div>
-    <p class="ms-stat-card__value" style="color:#6610f2;">{{ summary_totals.week_off }}</p>
-  </div>
-  <div class="ms-stat-card" style="border-top: 3px solid #20c997;">
-    <div class="ms-stat-card__label">{% trans "Holidays" %}</div>
-    <p class="ms-stat-card__value" style="color:#20c997;">{{ summary_totals.holiday }}</p>
-  </div>
-  {% if summary_totals.total_conflicts %}
-  <div class="ms-stat-card" style="border-top: 3px solid #e85d04;">
-    <div class="ms-stat-card__label">{% trans "Conflicts" %}</div>
-    <p class="ms-stat-card__value" style="color:#e85d04;">{{ summary_totals.total_conflicts }}</p>
-  </div>
-  {% endif %}
-</div>
+{# The period's figures (the cards that used to sit here) are on the Summary view. #}
 
 {% if rows %}
 <!-- Storage div for the selection state — same mechanism the real Employee
@@ -545,8 +505,8 @@ reloadSelectedCount($('.count_msAttendance'),'selectedInstances');">
 
     <p style="font-size:.82rem;color:#6c757d;margin:0;white-space:nowrap;">
       <ion-icon name="calendar-outline"></ion-icon>
-      {% trans "Period" %}: <strong>{{ from_date }}</strong> &mdash; <strong>{{ to_date }}</strong>
-      &nbsp;|&nbsp; {% trans "Working days" %}: <strong>{{ total_working }}</strong>
+      {% trans "Period" %}: <strong>{{ period_text }}</strong>
+      &nbsp;|&nbsp; {% trans "Working Days" %}: <strong>{{ total_working }}</strong>
     </p>
   </div>
 </div>

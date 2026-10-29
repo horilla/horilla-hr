@@ -92,8 +92,11 @@ def _punch_block(employee, activities):
 
 def _geofence_block(employee):
     """Config only. The client sends coordinates and the punch endpoint rules."""
+    from geofencing.models import GeoFencing
+
     company = employee.get_company()
-    fence = getattr(company, "geo_fencing", None) if company else None
+    # the company's own fence, else the global one
+    fence = GeoFencing.for_company(company) if company else None
     if fence is None or not fence.start:
         return {"enabled": False}
     return {

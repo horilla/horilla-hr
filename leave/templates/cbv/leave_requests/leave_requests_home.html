@@ -6,6 +6,10 @@
 {% get_company as theme_obj %}
     <meta name="csrf-token" content="{{ csrf_token }}">
     <style>
+    #clashModal .oh-modal__dialog {
+        max-width: 1400px !important;
+        width: 100%;
+    }
     .cancel_requested--dot {
         background-color: #8b5cf6;
     }
@@ -33,12 +37,7 @@
         border-radius: 5px 0 0 4px;
     }
 
-        .cancelled-cancelled {
-           border-left: 4px solid grey !important;
-           border-radius: 5px 0 0 4px;
-
-         }
-         .requested-requested{
+                 .requested-requested{
            border-left: 4px solid orange !important;
            border-radius: 5px 0 0 4px;
 
@@ -94,8 +93,6 @@
 
     <div
         class="oh-wrapper"
-        hx-get='{% url "request-filter" %}?{{request.GET.urlencode}}'
-        hx-trigger="load"
         id="listContainer"
     >
     </div>
@@ -107,7 +104,7 @@
     <div class="oh-modal" id="clashViewModal" role="dialog" aria-hidden="true" style="z-index: 99">
         <div class="oh-modal__dialog" style="max-width: 900px">
             <div class="oh-modal__dialog-header">
-                <h3 class="oh-main__titlebar-title fw-bold">{% trans "Clashed Leave Requests" %}</h3>
+                <h3 class="text-lg font-semibold">{% trans "Clashed Leave Requests" %}</h3>
                 <button class="oh-modal__close" aria-label="{% trans 'Close' %}">
                     <ion-icon name="close-outline"></ion-icon>
                 </button>
@@ -124,9 +121,9 @@
         aria-hidden="true"
         style="z-index: 99"
     >
-        <div class="oh-modal__dialog" style="max-width: 900px">
+        <div class="oh-modal__dialog oh-modal__dialog--wide">
             <div class="oh-modal__dialog-header" onclick="event.stopPropagation()">
-                <h3 class="oh-main__titlebar-title fw-bold">{% trans "Clashed Leave Requests" %}</h3>
+                <h3 class="text-lg font-semibold">{% trans "Clashed Leave Requests" %}</h3>
                 <button
                     type="button"
                     class="oh-modal__close--custom"
@@ -157,17 +154,12 @@
     <div class="oh-modal" id="rejectModal" role="dialog" aria-labelledby="rejectModal" aria-hidden="true">
         <div class="oh-modal__dialog">
             <div class="oh-modal__dialog-header">
-                <h2 class="oh-modal__dialog-title" id="editModal1ModalLabel">
-                    {% trans "Rejection" %}
-                    <button
-                        class="oh-modal_close--custom"
-                        onclick="$('#rejectModal').removeClass('oh-modal--show')"
-                        aria-label="{% trans 'Close' %}"
-                        style="margin-left: 80%; border: none; background: none"
-                    >
-                        <ion-icon name="close-outline"></ion-icon>
-                    </button>
+                <h2 class="oh-modal__dialog-title font-semibold" id="editModal1ModalLabel">
+                    {% trans "Rejection Reason" %}
                 </h2>
+                <button type="button" class="oh-modal__close--custom" onclick="$(this).closest('.oh-modal--show').removeClass('oh-modal--show')" aria-label="Close">
+                    <ion-icon name="close-outline" role="img" class="md hydrated" aria-label="close outline"></ion-icon>
+                </button>
             </div>
             <div class="oh-modal__dialog-body" id="rejectForm"></div>
         </div>

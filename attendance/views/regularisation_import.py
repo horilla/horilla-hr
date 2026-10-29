@@ -1,4 +1,7 @@
 """
+Deprecated: the Monthly Summary now imports by day (``daywise_import``). This totals sheet stays
+only for the payroll wizard's review step, which still links to it.
+
 Regularising a month by stating its totals.
 
 Resolving conflicts day by day is the right tool for a handful. It is the wrong

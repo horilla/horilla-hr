@@ -36,6 +36,16 @@ from base.models import Company
 from horilla.models import HorillaModel
 
 
+def _ordinal(day):
+    """1st, 2nd, 3rd, 4th ... 11th, 12th, 13th, 21st ..."""
+    suffix = (
+        "th"
+        if 10 <= day % 100 <= 20
+        else {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
+    )
+    return f"{day}{suffix}"
+
+
 class PayPeriodSettings(HorillaModel):
     """
     When a pay month begins and ends, for one company.
@@ -49,20 +59,51 @@ class PayPeriodSettings(HorillaModel):
     boundaries, quietly.
     """
 
+    CALENDAR_MONTH = "calendar_month"
+    CYCLE_DAY = "cycle_day"
     BOUNDARY_CHOICES = [
-        ("calendar_month", _("Calendar month (1st to last day)")),
+        (CALENDAR_MONTH, _("Calendar month (1st to last day)")),
+        (CYCLE_DAY, _("Cycle starting on a chosen day")),
     ]
 
     boundary = models.CharField(
         max_length=20,
         choices=BOUNDARY_CHOICES,
-        default="calendar_month",
+        default=CALENDAR_MONTH,
         verbose_name=_("Period Runs"),
         help_text=_(
-            "How a pay period is bounded. Cut-off cycles such as the 26th to "
-            "the 25th are not yet supported: the engine counts working days "
-            "by calendar month, so a period crossing a month boundary would "
-            "prorate against the wrong one."
+            "How a pay period is bounded. A cycle starts on a chosen day and runs "
+            "for as many days as the month it starts in has, so it can cross into "
+            "the next month (from the 15th of September to the 14th of October). "
+            "Each month's share is worked out against that month's own working days."
+        ),
+    )
+    LAST_DAY = 31
+    START_DAY_CHOICES = [
+        (1, _("1st (calendar month)")),
+        *[(day, _ordinal(day)) for day in range(2, 31)],
+        (LAST_DAY, _("Last day")),
+    ]
+    cycle_start_day = models.PositiveSmallIntegerField(
+        default=1,
+        choices=START_DAY_CHOICES,
+        verbose_name=_("Period Runs"),
+        help_text=_(
+            "The day a pay period begins. It runs until the day before the same day "
+            "next month, so it can cross into the next month (from the 15th of "
+            "September to the 14th of October). Each month's share is worked out "
+            "against that month's own working days. The 29th and 30th fall back to "
+            'the month\'s last day when it is shorter, and "Last day of the month" '
+            "begins on whichever day ends each month, 28th to 31st."
+        ),
+    )
+    pay_day_of_month = models.PositiveSmallIntegerField(
+        default=0,
+        verbose_name=_("Pay On Day"),
+        help_text=_(
+            "0 pays a number of days after the period ends (Pay Day). 1 to 30, or 31 for "
+            "the last day of the month, pays on the first such day after the period ends; "
+            "the 29th and 30th fall back to the month's last day when it is shorter."
         ),
     )
     pay_day_offset = models.PositiveIntegerField(
@@ -84,6 +125,25 @@ class PayPeriodSettings(HorillaModel):
         ),
     )
 
+    auto_generate = models.BooleanField(
+        default=False,
+        verbose_name=_("Generate Payslips Automatically"),
+        help_text=_(
+            "Draft payslips are created for the company's employees on the day after "
+            "each pay period ends."
+        ),
+    )
+
+    last_generated_end = models.DateField(
+        null=True,
+        blank=True,
+        editable=False,
+        help_text=_(
+            "End date of the latest period payslips were generated for. Claimed before "
+            "generating, so two runs never generate the same period."
+        ),
+    )
+
     company_id = models.OneToOneField(
         Company,
         null=True,
@@ -102,24 +162,222 @@ class PayPeriodSettings(HorillaModel):
             f"{self.company_id or _('All companies')} — {self.get_boundary_display()}"
         )
 
+    # --- the settings list in Payroll Settings ------------------------------------------------
+    def get_company(self):
+        return self.company_id or _("All companies")
+
+    @staticmethod
+    def _span(start, end):
+        return f"{start.day} {start:%b %Y} \u2013 {end.day} {end:%b %Y}"
+
+    def next_auto_run(self, today=None):
+        """``(start, end, run_date)``: the period automatic generation does next, and when."""
+        from datetime import date, timedelta
+
+        today = today or date.today()
+        last_start, last_end = self.last_completed_period(today)
+        if (
+            today == last_end + timedelta(days=1)
+            and (self.last_generated_end or date.min) < last_end
+        ):
+            return last_start, last_end, today
+        start, end = self.period_for(today)
+        return start, end, end + timedelta(days=1)
+
+    def manual_period(self, today=None):
+        """The period Generate Payslips does: the last one that has finished."""
+        from datetime import date
+
+        return self.last_completed_period(today or date.today())
+
+    def generate_title(self):
+        start, end = self.manual_period()
+        return _("Generate payslips now for %(period)s") % {
+            "period": self._span(start, end)
+        }
+
+    def auto_generate_display(self):
+        from django.utils.html import format_html
+
+        if not self.auto_generate:
+            return _("Off")
+        start, end, run = self.next_auto_run()
+        text = _("Generates payslips for %(period)s on %(run)s.") % {
+            "period": self._span(start, end),
+            "run": f"{run.day} {run:%b %Y}",
+        }
+        return format_html(
+            '<span class="pp-tip">{}<span class="pp-tip__body">{}</span></span>',
+            _("On"),
+            text,
+        )
+
+    def get_generate_url(self):
+        from django.urls import reverse
+
+        return reverse("pay-period-generate", kwargs={"pk": self.pk})
+
+    def get_instance_id(self):
+        return self.pk
+
+    def pay_day_display(self):
+        """The pay day as the list shows it: a day of the month, or days after the period."""
+        if self.pay_day_of_month:
+            return (
+                _("Last day")
+                if self.pay_day_of_month == self.LAST_DAY
+                else _ordinal(self.pay_day_of_month)
+            )
+        days = self.pay_day_offset or 0
+        if days == 0:
+            return _("On the last day of the period")
+        return _("%(days)s days after the period ends") % {"days": days}
+
+    def get_update_url(self):
+        from django.urls import reverse
+
+        return reverse("pay-period-update", kwargs={"pk": self.pk})
+
+    def get_delete_url(self):
+        from django.urls import reverse
+
+        return reverse("pay-period-delete", kwargs={"pk": self.pk})
+
+    def clean(self):
+        # One setting per company, and one for "all companies". The database's own uniqueness
+        # only covers real companies: it lets any number of rows through with no company.
+        from django.core.exceptions import ValidationError
+
+        if self.company_id_id is None:
+            others = PayPeriodSettings.objects.entire().filter(company_id__isnull=True)
+            if self.pk:
+                others = others.exclude(pk=self.pk)
+            if others.exists():
+                raise ValidationError(
+                    {"company_id": _("A pay period for all companies already exists.")}
+                )
+
+    @property
+    def start_day(self):
+        """The day a period begins, 1 to 30, or LAST_DAY for the last day of each month."""
+        day = self.cycle_start_day or 1
+        return day if 1 <= day <= self.LAST_DAY else 1
+
+    def start_in(self, year, month):
+        """The date the period of that month begins: the chosen day, or the month's last day."""
+        import calendar
+        from datetime import date
+
+        last = calendar.monthrange(year, month)[1]
+        return date(year, month, min(self.start_day, last))
+
+    def _next_month(self, year, month):
+        return (year, month + 1) if month < 12 else (year + 1, 1)
+
     def period_for(self, on_date):
         """
         The pay period containing ``on_date``, as ``(start, end)``.
 
         One place that answers this, so the wizard, the scheduler and any
-        report agree on what "this month" means instead of each deciding.
+        report agree on what "this month" means instead of each deciding. A
+        period ends the day before the next one begins, so consecutive periods
+        leave no gap and no overlap whatever day they start on.
         """
-        import calendar
-
-        start = on_date.replace(day=1)
-        last = calendar.monthrange(on_date.year, on_date.month)[1]
-        return start, on_date.replace(day=last)
-
-    def pay_date_for(self, period_end):
-        """When people are paid for a period ending on ``period_end``."""
         from datetime import timedelta
 
-        return period_end + timedelta(days=self.pay_day_offset)
+        this = self.start_in(on_date.year, on_date.month)
+        if on_date >= this:
+            start = this
+        else:
+            year, month = (
+                (on_date.year, on_date.month - 1)
+                if on_date.month > 1
+                else (on_date.year - 1, 12)
+            )
+            start = self.start_in(year, month)
+        following = self.start_in(*self._next_month(start.year, start.month))
+        return start, following - timedelta(days=1)
+
+    def end_for(self, start):
+        """
+        The last day of a period that begins on ``start``.
+
+        A start that falls on one of this setting's own boundaries ends where the next
+        one begins. Any other start (the wizard allows one) runs for as many days as its
+        own month has.
+        """
+        from datetime import timedelta
+
+        if start == self.start_in(start.year, start.month):
+            return self.start_in(
+                *self._next_month(start.year, start.month)
+            ) - timedelta(days=1)
+        return self.period_end_for(start)
+
+    def last_completed_period(self, today):
+        """The most recent period that has finished: the one before the period containing ``today``."""
+        from datetime import timedelta
+
+        start, _end = self.period_for(today)
+        return self.period_for(start - timedelta(days=1))
+
+    def save(self, *args, **kwargs):
+        # Kept in step for anything that still reads it: 1st is the calendar month.
+        self.boundary = self.CALENDAR_MONTH if self.start_day == 1 else self.CYCLE_DAY
+        super().save(*args, **kwargs)
+
+    def summary(self):
+        """The rule in a sentence, for the places that say where a period comes from."""
+        day = self.start_day
+        if day == 1:
+            return str(_("Calendar month (1st to last day)"))
+        if day == self.LAST_DAY:
+            return str(_("Cycle starting on the last day of each month"))
+        shorter = str(_(" (or the last day if shorter)")) if day > 28 else ""
+        return (
+            str(
+                _("Cycle starting on the %(day)s of each month")
+                % {"day": _ordinal(day)}
+            )
+            + shorter
+        )
+
+    @staticmethod
+    def period_end_for(start):
+        """
+        The last day of a pay period that begins on ``start``.
+
+        As many days as the start's own month has, so a period may begin on any
+        day and cross into the next month: from the 1st it is the calendar month,
+        from the 15th of September it runs to the 14th of October.
+        """
+        import calendar
+        from datetime import timedelta
+
+        return start + timedelta(
+            days=calendar.monthrange(start.year, start.month)[1] - 1
+        )
+
+    def pay_date_for(self, period_end):
+        """
+        When people are paid for a period ending on ``period_end``.
+
+        Either a number of days after it, or the first occurrence of a day of the month after
+        it: the 5th, the 30th (the last day when the month is shorter), or the last day.
+        """
+        import calendar
+        from datetime import date, timedelta
+
+        day = self.pay_day_of_month
+        if not day:
+            return period_end + timedelta(days=self.pay_day_offset)
+        year, month = period_end.year, period_end.month
+        for _step in range(2):
+            candidate = date(year, month, min(day, calendar.monthrange(year, month)[1]))
+            if candidate > period_end:
+                return candidate
+            year, month = (year, month + 1) if month < 12 else (year + 1, 1)
+        return candidate
 
     @classmethod
     def for_company(cls, company):

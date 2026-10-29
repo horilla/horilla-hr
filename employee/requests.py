@@ -4,10 +4,9 @@ employee/requests.py
 Requests landing page with tabbed shift, inbox, work type, and document sections.
 """
 
-from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 
-from horilla.decorators import hx_request_required
+from horilla.decorators import hx_request_required, login_required
 
 REQUEST_TABS = ("shift-request", "shift-inbox", "work-type", "document")
 

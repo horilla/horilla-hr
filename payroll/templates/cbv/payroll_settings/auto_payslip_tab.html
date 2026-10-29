@@ -1,5 +1,24 @@
 {% load i18n static %}
 
+<style>
+  .pp-tip { position: relative; display: inline-block; cursor: help; border-bottom: 1px dotted #9ca3af; }
+  .pp-tip__body { display: none; position: absolute; left: 0; top: 130%; z-index: 20; width: 240px; padding: 8px 10px; border-radius: 6px; background: #1f2937; color: #fff; font-size: .75rem; line-height: 1.35; font-weight: 400; box-shadow: 0 4px 12px rgba(0,0,0,.2); }
+  .pp-tip:hover .pp-tip__body { display: block; }
+</style>
+
+{# Pay period: one setting per company (and one for all companies), above the payslip automation. #}
+<div class="oh-inner-sidebar-content border border-[#ebebeb] rounded-md mb-5" id="payPeriodTabRoot">
+    <div hx-get="{% url 'pay-period-nav' %}" hx-trigger="load"></div>
+
+    <p class="text-xs text-gray-500 mt-1 ml-2">
+        {% trans "When each company's pay period starts, when people are paid, and whether its payslips are generated automatically. One setting per company." %}
+    </p>
+
+    <div class="oh-wrapper" id="payPeriodListContainer" hx-get="{% url 'pay-period-list' %}" hx-trigger="load"></div>
+</div>
+
+{% comment %}
+Payslip Automation is hidden for now: the pay period setting above is to become the automation.
 <div class="oh-inner-sidebar-content border border-[#ebebeb] rounded-md mb-5" id="autoPayslipTabRoot">
     <div hx-get="{% url 'pay-slip-automation-nav' %}" hx-trigger="load"></div>
 
@@ -19,6 +38,7 @@
     <div class="oh-wrapper" id="payslipAutoGenerationListContainer">
     </div>
 </div>
+{% endcomment %}
 
 <div id="ohMessages"></div>
 

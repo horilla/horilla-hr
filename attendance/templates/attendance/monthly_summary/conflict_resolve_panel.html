@@ -42,7 +42,8 @@
 .crp-dd-item.dis { opacity: .4; cursor: not-allowed; }
 .crp-ctx { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f8fafc; }
 .crp-ctx-name { font-size: .76rem; font-weight: 600; color: #374151; }
-.crp-ctx-note { margin-left: auto; font-size: .7rem; font-weight: 600; color: #e85d04; }
+/* One colour for every conflict line: the title, the note under the leave, the half-day explanation. */
+.crp-ctx-note { flex-basis: 100%; margin: 0; font-size: .74rem; font-weight: 600; line-height: 1.4; color: #92400e; }
 /* Quiet scrollbars for the popover and its pickers. */
 .crp-scroll, .crp-dd-list { scrollbar-width: thin; scrollbar-color: #d1d5db transparent; }
 .crp-scroll::-webkit-scrollbar, .crp-dd-list::-webkit-scrollbar { width: 6px; }
@@ -211,7 +212,7 @@
         <ion-icon name="warning-outline" style="color:#e85d04;font-size:1.1rem;flex-shrink:0;"></ion-icon>
         <span style="font-weight:700;font-size:.88rem;color:#92400e;">
           {% trans "Conflict" %} — {{ date|date:"d M Y" }}
-          <span style="font-size:.72rem;font-weight:400;color:#78716c;margin-left:6px;">{% trans "attendance overlaps approved leave" %}</span>
+          <span style="font-size:.72rem;font-weight:400;color:#92400e;margin-left:6px;">{% trans "attendance overlaps approved leave" %}</span>
         </span>
       {% elif conflict_type == "holiday_ot" %}
         <ion-icon name="sunny-outline" style="color:#0f766e;font-size:1.1rem;flex-shrink:0;"></ion-icon>
@@ -258,8 +259,16 @@
       <span class="crp-pill" style="background:#ede9fe;color:#4c1d95;">{% trans "Week Off" %}</span>
     {% endif %}
     {% if conflict_label %}<span class="crp-ctx-name">{{ conflict_label }}</span>{% endif %}
-    {% if att_row and conflict_type == "paid_leave" or att_row and conflict_type == "unpaid_leave" %}
-      <span class="crp-ctx-note">&#9888; {% trans "Attendance overlaps this leave" %}</span>
+    {% if clash_reason %}
+      <div class="crp-clash" style="flex-basis:100%;margin-top:6px;font-size:.78rem;line-height:1.45;color:#92400e;">
+        <div><b>{{ clash_label }}</b></div>
+        <div>{% trans "Shift" %}: <b>{{ clash_shift }}</b></div>
+        <div>{% trans "You were at work" %}: <b>{{ clash_worked }}</b></div>
+        <div>{{ clash_reason }}</div>
+        <div style="margin-top:2px;">{% trans "Choose below how this day should be counted." %}</div>
+      </div>
+    {% elif att_row and conflict_type == "paid_leave" or att_row and conflict_type == "unpaid_leave" %}
+      <span class="crp-ctx-note"><ion-icon name="warning-outline" style="vertical-align:-2px;color:#e85d04;"></ion-icon> {% trans "Attendance overlaps this leave" %}</span>
     {% elif conflict_type == "holiday_ot" or conflict_type == "week_off_ot" %}
       <span class="crp-ctx-note">{% trans "Worked on a day off" %}</span>
     {% endif %}

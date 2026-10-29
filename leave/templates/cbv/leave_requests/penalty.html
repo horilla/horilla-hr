@@ -1,5 +1,5 @@
 {% load i18n %}
 {% url "view-penalties" as penalties_url %}
 <div class="flex justify-center" onclick="event.stopPropagation();">
-    {% include "generic/penalty_badge.html" with count=instance.get_penalties_count url_base=penalties_url query="leave_request_id" obj_id=instance.id %}
+    {% include "generic/penalty_badge.html" with count=instance.get_penalties_count url_base=penalties_url query="leave_request_id" obj_id=instance.id redirect_url=instance.get_penalty_tab_url %}
 </div>

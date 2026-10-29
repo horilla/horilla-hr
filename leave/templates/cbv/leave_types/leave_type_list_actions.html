@@ -5,10 +5,9 @@
             <a
                 href="#"
                 hx-get="{% url 'type-update' instance.id %}?compensatory=True"
-                hx-target="#ohMainContent"
-                hx-select="#ohMainContent"
-                hx-push-url="true"
-                hx-swap="outerHTML"
+                data-toggle="oh-modal-toggle"
+                data-target="#objectUpdateModal"
+                hx-target="#objectUpdateModalTarget"
                 class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
                 title="{% trans 'Update' %}"
             >
@@ -18,10 +17,9 @@
             <a
                 href="#"
                 hx-get="{% url 'type-update' instance.id %}"
-                hx-target="#ohMainContent"
-                hx-select="#ohMainContent"
-                hx-push-url="true"
-                hx-swap="outerHTML"
+                data-toggle="oh-modal-toggle"
+                data-target="#objectUpdateModal"
+                hx-target="#objectUpdateModalTarget"
                 class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
                 title="{% trans 'Update' %}"
             >

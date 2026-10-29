@@ -4,7 +4,6 @@ This page handles action type of disciplinary action.
 
 from typing import Any
 
-from django import forms
 from django.contrib import messages
 from django.http import HttpResponse
 from django.urls import reverse
@@ -123,8 +122,14 @@ class ActionTypeFormView(DynamicActionTypeFormView):
         """
         context = super().get_context_data(**kwargs)
         if self.form.instance.pk:
-            if self.form.instance.action_type == "warning":
-                self.form.fields["block_option"].widget = forms.HiddenInput()
+            # block_option's visibility is handled entirely client-side now
+            # (cbv/action_type/create_form.html's syncActionTypeBlockOption),
+            # which reacts live to the Action Type dropdown changing --
+            # swapping this to a HiddenInput here was a one-time decision
+            # made at render time from the saved value, so it rendered no
+            # visible toggle at all (hidden inputs have no UI) and stayed
+            # that way even after switching the dropdown to Suspension/
+            # Dismissal client-side, since nothing re-renders the widget.
             self.form_class.verbose_name = _("Update Action Type")
         context["form"] = self.form
         return context

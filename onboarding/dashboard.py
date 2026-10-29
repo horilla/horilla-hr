@@ -6,12 +6,12 @@ Accessible at /onboarding/dashboard/modern/ alongside the existing dashboard.
 
 from datetime import date
 
-from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils.translation import gettext_lazy as _
 
+from horilla.decorators import login_required
 from horilla.methods import handle_no_permission
 
 

@@ -2407,6 +2407,40 @@ class MultipleApprovalCondition(HorillaModel):
 
         return managers
 
+    def get_description(self):
+        """
+        Plain-language summary of this approval rule, for the detail view --
+        what has to be true, and who has to approve it, in one sentence.
+        """
+        condition = _("%(field)s %(operator)s %(value)s") % {
+            "field": self.get_condition_field() or "",
+            "operator": (self.get_condition_operator() or "").lower(),
+            "value": self.get_condition_value() or "",
+        }
+        from base.templatetags.basefilters import readable
+
+        manager_names = [
+            (
+                manager.get_full_name()
+                if hasattr(manager, "get_full_name")
+                else readable(str(manager)).strip()
+            )
+            for manager in self.approval_managers()
+        ]
+        if manager_names:
+            return _(
+                "For the %(department)s department, when %(condition)s, "
+                "approval is required in order from: %(managers)s."
+            ) % {
+                "department": self.department,
+                "condition": condition,
+                "managers": ", then ".join(manager_names),
+            }
+        return _(
+            "For the %(department)s department, when %(condition)s, "
+            "approval is required, but no managers are configured yet."
+        ) % {"department": self.department, "condition": condition}
+
 
 class MultipleApprovalManagers(models.Model):
     """

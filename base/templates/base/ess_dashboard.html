@@ -1269,6 +1269,10 @@
                 .then(function (r) { return r.json(); })
                 .then(function (d) {
                     var container = document.getElementById('essBirthdaysList');
+                    if (d.restricted) {
+                        container.closest('.ess-info-panel').style.display = 'none';
+                        return;
+                    }
                     setCountBadge('essBirthdaysCount', (d.birthdays || []).length);
                     if (!d.birthdays || !d.birthdays.length) {
                     container.innerHTML = '<div class="ess-empty-sm">' + '{% trans "No more birthdays this month"|escapejs %}' + '</div>';

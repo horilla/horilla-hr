@@ -54,14 +54,40 @@ class LeaveTypeFilter(HorillaFilterSet):
 
     name = filters.CharFilter(field_name="name", lookup_expr="icontains")
     search = filters.CharFilter(field_name="name", lookup_expr="icontains")
-    carry_forward_gte = filters.CharFilter(
-        field_name="carryforward_max", lookup_expr="gte"
-    )
-    carry_forward_lte = filters.CharFilter(
-        field_name="carryforward_max", lookup_expr="lte"
-    )
-    total_days_gte = filters.CharFilter(field_name="total_days", lookup_expr="gte")
-    total_days_lte = filters.CharFilter(field_name="total_days", lookup_expr="lte")
+
+    def _build_custom_filter_fields(self):
+        """
+        Registry backing the Advanced section's "+ Add filter" builder
+        (see HorillaFilterSet._build_custom_filter_fields's docstring):
+        pick a field, a lookup (Greater or Equal / Lesser or Equal) and
+        a value. Replaces the fixed carry-forward/total-days gte/lte
+        inputs.
+        """
+        fields = [
+            {
+                "key": "carryforward_max",
+                "field": "carryforward_max",
+                "label": str(_("Carry Forward Max")),
+                "type": "number",
+            },
+            {
+                "key": "total_days",
+                "field": "total_days",
+                "label": str(_("Total Days")),
+                "type": "number",
+            },
+        ]
+        for entry in fields:
+            entry["lookups"] = [
+                [lk, str(label)]
+                for lk, label in self.CUSTOM_FILTER_LOOKUPS[entry["type"]]
+            ]
+        return fields
+
+    def filter_queryset(self, queryset):
+        """Apply the Advanced builder rows after the regular filters."""
+        queryset = super().filter_queryset(queryset)
+        return self._apply_custom_filters(queryset)
 
     class Meta:
         """ "

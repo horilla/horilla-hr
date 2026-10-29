@@ -12,11 +12,15 @@
       }
     })
 </script>
-<script src="{% static '/index/index.js' %}?v=35"></script>
+<script src="{% static '/index/index.js' %}?v=38"></script>
 <script src="{% static '/index/saveFilters.js' %}"></script>
-<script src="{% static 'horilla_theme/assets/js/htmxSelect2.js' %}?v=10"></script>
+<script src="{% static 'horilla_theme/assets/js/htmxSelect2.js' %}?v=11"></script>
 <script src="{% static 'src/js/componentForm.js' %}?v=1"></script>
 <script src="{% static 'build/js/summernote-lite.min.js' %}"></script>
+<script>
+    $.summernote.options.dialogsInBody = true;
+    $.summernote.options.colorButton = { foreColor: '#000000', backColor: '#FFFFFF' };
+</script>
 <script src="{% static '/index/country.js' %}"></script>
 
 <!-- This CDN is for date format change -->

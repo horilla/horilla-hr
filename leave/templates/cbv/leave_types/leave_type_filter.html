@@ -66,46 +66,11 @@
 			{% trans "Advanced" %}
 		</div>
 		<div class="oh-accordion-body">
-			<div class="row">
-				<div class="col-sm-12 col-md-12 col-lg-6">
-					<div class="oh-input-group">
-						<label class="oh-label" title="{% trans 'Carry Forward greater Than or Equal' %}"
-							>{% trans "Carry Forward greater Than or Equal"|truncatechars:25 %}
-							</label
-						>
-						{{form.carry_forward_gte}}
-					</div>
-				</div>
-				<div class="col-sm-12 col-md-12 col-lg-6">
-					<div class="oh-input-group">
-						<label class="oh-label" title="{% trans 'Carry Forward less Than or Equal' %}"
-							>{% trans "Carry Forward less Than or Equal"|truncatechars:25 %}
-							</label
-						>
-						{{form.carry_forward_lte}}
-					</div>
-				</div>
-			</div>
-			<div class="row">
-				<div class="col-sm-12 col-md-12 col-lg-6">
-					<div class="oh-input-group">
-						<label class="oh-label" title="{% trans 'Total Days greater Than or Equal' %}"
-							>{% trans "Total Days greater Than or Equal"|truncatechars:25 %}
-							</label
-						>
-						{{form.total_days_gte}}
-					</div>
-				</div>
-				<div class="col-sm-12 col-md-12 col-lg-6">
-					<div class="oh-input-group">
-						<label class="oh-label" title="{% trans 'Total Days less Than or Equal' %}"
-							>{% trans "Total Days less Than or Equal"|truncatechars:25 %}
-							</label
-						>
-						{{form.total_days_lte}}
-					</div>
-				</div>
-			</div>
-		</div>
-	</div>
-</div>
+<div class="row"><div class="col-sm-12"><div class="oh-input-group">
+<div id="customFilterRowsContainer-leave-type" class="oh-custom-filter-rows"></div>
+<button type="button" class="oh-custom-filter-add" onclick="addCustomFilterRow('leave-type')">+ {% trans "Add filter" %}</button>
+</div></div></div>
+</div></div></div>
+{{ custom_filter_fields|json_script:"customFilterFields-leave-type" }}
+{{ custom_filter_rows|json_script:"customFilterRows-leave-type" }}
+<script>initCustomFilterBuilder('leave-type');</script>

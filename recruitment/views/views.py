@@ -2133,6 +2133,18 @@ def candidate_conversion(request, cand_id, **kwargs):
             return JsonResponse({"message": "Already converted"}, status=200)
         return HorillaRedirect(request)
 
+    if (
+        not candidate_obj.is_active
+        or candidate_obj.canceled
+        or candidate_obj.is_offer_rejected
+    ):
+        messages.error(
+            request, _("Only active, non-rejected candidates can be converted.")
+        )
+        if container_request:
+            return JsonResponse({"message": "Candidate not eligible"}, status=400)
+        return HorillaRedirect(request)
+
     user_exists = HorillaUser.objects.filter(username=candidate_obj.email).exists()
     employee_exists = Employee.objects.filter(
         employee_user_id__username=candidate_obj.email

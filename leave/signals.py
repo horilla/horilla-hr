@@ -29,7 +29,29 @@ if apps.is_installed("attendance"):
 
         period_dates = instance.requested_dates()
         if instance.status in ["approved", "cancel_requested"]:
+            from attendance.methods.leave_days import leave_counted_dates
+            from attendance.models import AttendanceConflictResolution
+
+            # Holidays and week-offs the leave type excludes are not leave: no leave work record
+            # for them (and one an earlier save made is dropped). A day that has been regularised
+            # keeps what the regularisation says.
+            counted = leave_counted_dates(instance)
             for date in period_dates:
+                if date not in counted:
+                    WorkRecords._base_manager.filter(
+                        is_leave_record=True,
+                        date=date,
+                        employee_id=instance.employee_id,
+                        leave_request_id=instance,
+                    ).delete()
+            regularised = set(
+                AttendanceConflictResolution._base_manager.filter(
+                    employee_id=instance.employee_id, date__in=counted
+                ).values_list("date", flat=True)
+            )
+            for date in counted:
+                if date in regularised:
+                    continue
                 try:
                     work_entry = (
                         WorkRecords.objects.filter(

@@ -149,12 +149,14 @@ class CancellationViewPermissionTests(CancellationWorkflowTests):
         self._post(self.owner_user, "user-request-cancel", data={"reason": "x"})
         url = reverse("leave-cancellation-reject", kwargs={"id": self.leave.pk})
         self.client.force_login(self.manager_user)
+        # The form is recognised by its reason field, not by a label: the label text is presentation and
+        # was removed from the modal (the modal title now carries it).
         self.assertContains(
-            self.client.get(url, HTTP_HX_REQUEST="true"), "Reason for Rejection"
+            self.client.get(url, HTTP_HX_REQUEST="true"), 'name="reason"'
         )
         self.client.force_login(self.other_user)
         self.assertNotContains(
-            self.client.get(url, HTTP_HX_REQUEST="true"), "Reason for Rejection"
+            self.client.get(url, HTTP_HX_REQUEST="true"), 'name="reason"'
         )
 
     def test_non_owner_cannot_request(self):

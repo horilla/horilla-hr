@@ -77,9 +77,12 @@ def eligible_employees(employees, start_date, end_date):
             continue
         # The model refuses a second payslip for the same employee and period,
         # so catching it here is the difference between a listed exclusion and
-        # an exception halfway through a run.
+        # an exception halfway through a run. Any payslip that overlaps the
+        # period counts, not only an identical one: a period may begin on any
+        # day and cross a month, so 1-30 September and 15 September-14 October
+        # would otherwise both be paid for the same fortnight.
         if Payslip.objects.filter(
-            employee_id=employee, start_date=start_date, end_date=end_date
+            employee_id=employee, start_date__lte=end_date, end_date__gte=start_date
         ).exists():
             excluded.append((employee, _("Already has a payslip for this period")))
             continue

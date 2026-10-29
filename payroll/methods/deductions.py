@@ -23,6 +23,9 @@ def update_compensation_deduction(
         .exclude(one_time_date__lt=start_date)
         .exclude(one_time_date__gt=end_date)
         # .exclude(exclude_employees=employee)
+        # Each rate is taken from what the earlier ones left, so the order
+        # changes the amounts: (sequence, pk), as the payslip gatherers do.
+        .order_by("sequence", "pk")
     )
     deductions = []
     temp = compensation_amount

@@ -3,6 +3,32 @@
     {% include "generic/horilla_form.html" %}
 </div>
 
+{{ attachment_required_type_ids|json_script:"attachmentRequiredTypeIds" }}
+<script>
+    (function () {
+        var requiredIds = JSON.parse(
+            document.getElementById("attachmentRequiredTypeIds").textContent
+        ).map(String);
+        var hasExisting = {{ has_existing_attachment|yesno:"true,false" }};
+
+        function syncAttachmentRequired() {
+            var $form = $("#createTitle").closest("form");
+            var typeVal = String($form.find("[name=leave_type_id]").val() || "");
+            var needed = requiredIds.indexOf(typeVal) !== -1;
+            $form.find("label[for=id_attachment]").toggleClass("required-star", needed);
+            $form.find("[name=attachment]").prop("required", needed && !hasExisting);
+        }
+
+        $(document).on("change", "[name=leave_type_id]", syncAttachmentRequired);
+        $(document).on("htmx:afterSwap", function (e) {
+            if (e.target && e.target.id === "id_leave_type_id_parent_div") {
+                syncAttachmentRequired();
+            }
+        });
+        $(document).ready(syncAttachmentRequired);
+        syncAttachmentRequired();
+    })();
+</script>
 <script>
     $("#createTitle").on("htmx:beforeSwap",function(e){
         $('.available-leave-count').remove();

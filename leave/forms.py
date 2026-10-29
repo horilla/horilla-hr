@@ -17,7 +17,7 @@ from django.utils.translation import gettext_lazy as _
 
 from base.forms import ModelForm as BaseModelForm
 from base.methods import filtersubordinatesemployeemodel, reload_queryset
-from base.models import CompanyLeaves, Holidays
+from base.models import CompanyLeaves, Holidays, JobPosition
 from employee.filters import EmployeeFilter
 from employee.forms import MultipleFileField
 from employee.models import Employee
@@ -208,6 +208,40 @@ class LeaveTypeForm(ConditionForm):
         elif payment_type and payment_type != "custom":
             cleaned_data["payment_percentage"] = None
 
+        carryforward_type = cleaned_data.get("carryforward_type")
+        if cleaned_data.get("reset") and carryforward_type == "carryforward expire":
+            method = cleaned_data.get("carryforward_expiry_method")
+            if method == "first_expiry_date":
+                if not cleaned_data.get("carryforward_expire_date"):
+                    self.add_error(
+                        "carryforward_expire_date",
+                        _("First expiry date is required for this expiry method."),
+                    )
+                if not cleaned_data.get("carryforward_expire_in"):
+                    self.add_error(
+                        "carryforward_expire_in",
+                        _("Expiry duration is required to schedule the next expiry."),
+                    )
+            elif method == "assignment_date":
+                if not cleaned_data.get("carryforward_expire_in"):
+                    self.add_error(
+                        "carryforward_expire_in",
+                        _("Expiry duration is required for this expiry method."),
+                    )
+            if (
+                cleaned_data.get("carryforward_expire_in") is not None
+                and cleaned_data["carryforward_expire_in"] <= 0
+            ):
+                self.add_error(
+                    "carryforward_expire_in",
+                    _("Expiry duration must be greater than zero."),
+                )
+            if not cleaned_data.get("carryforward_expire_period"):
+                self.add_error(
+                    "carryforward_expire_period",
+                    _("Expiry period is required."),
+                )
+
         return cleaned_data
 
     def __init__(self, *args, **kwargs):
@@ -280,6 +314,40 @@ class UpdateLeaveTypeForm(ConditionForm):
                 )
         elif payment_type and payment_type != "custom":
             cleaned_data["payment_percentage"] = None
+
+        carryforward_type = cleaned_data.get("carryforward_type")
+        if cleaned_data.get("reset") and carryforward_type == "carryforward expire":
+            method = cleaned_data.get("carryforward_expiry_method")
+            if method == "first_expiry_date":
+                if not cleaned_data.get("carryforward_expire_date"):
+                    self.add_error(
+                        "carryforward_expire_date",
+                        _("First expiry date is required for this expiry method."),
+                    )
+                if not cleaned_data.get("carryforward_expire_in"):
+                    self.add_error(
+                        "carryforward_expire_in",
+                        _("Expiry duration is required to schedule the next expiry."),
+                    )
+            elif method == "assignment_date":
+                if not cleaned_data.get("carryforward_expire_in"):
+                    self.add_error(
+                        "carryforward_expire_in",
+                        _("Expiry duration is required for this expiry method."),
+                    )
+            if (
+                cleaned_data.get("carryforward_expire_in") is not None
+                and cleaned_data["carryforward_expire_in"] <= 0
+            ):
+                self.add_error(
+                    "carryforward_expire_in",
+                    _("Expiry duration must be greater than zero."),
+                )
+            if not cleaned_data.get("carryforward_expire_period"):
+                self.add_error(
+                    "carryforward_expire_period",
+                    _("Expiry period is required."),
+                )
 
         return cleaned_data
 
@@ -761,6 +829,22 @@ class UserLeaveRequestCreationForm(BaseModelForm):
         }
 
 
+def _exclude_compensatory_leave_types(form):
+    """
+    Compensatory leave types are earned through compensatory leave requests,
+    never allocated by hand, so they are not offered as a leave type. A request
+    already saved with one keeps it, so editing it still shows its type.
+    """
+    field = form.fields.get("leave_type_id")
+    if field is None:
+        return
+    keep = Q(is_compensatory_leave=False)
+    current = getattr(form.instance, "leave_type_id_id", None)
+    if current:
+        keep |= Q(pk=current)
+    field.queryset = field.queryset.filter(keep)
+
+
 class LeaveAllocationRequestForm(BaseModelForm):
     """
     Form for creating a leave allocation request.
@@ -773,6 +857,10 @@ class LeaveAllocationRequestForm(BaseModelForm):
     """
 
     cols = {"description": 12}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        _exclude_compensatory_leave_types(self)
 
     def as_p(self, *args, **kwargs):
         """
@@ -818,6 +906,10 @@ class LeaveAllocationBulkForm(BaseModelForm):
     )
     requested_days = forms.FloatField(required=True, label=_("Requested Days"))
     is_approved = forms.BooleanField(required=False, label=_("Approve"))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        _exclude_compensatory_leave_types(self)
 
     class Meta:
         """
@@ -1180,6 +1272,19 @@ class RestrictLeaveForm(BaseModelForm):
         )
         self.fields["end_date"].widget = forms.DateInput(
             attrs={"type": "date", "class": "oh-input w-100"}
+        )
+        # Job positions of the chosen departments are excluded; with no
+        # department chosen, every job position is offered.
+        if self.data:
+            department_ids = [
+                d for d in self.data.getlist(self.add_prefix("department")) if d
+            ]
+        elif self.instance.pk:
+            department_ids = list(self.instance.department.values_list("pk", flat=True))
+        else:
+            department_ids = []
+        self.fields["job_position"].queryset = JobPosition.objects.exclude(
+            department_id__in=department_ids
         )
         self.fields["department"].widget.attrs.update(
             {

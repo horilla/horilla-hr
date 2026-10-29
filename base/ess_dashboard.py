@@ -8,13 +8,13 @@ All data is scoped to request.user.employee_get; no cross-employee access.
 import calendar
 from datetime import date, timedelta
 
-from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils.translation import gettext as _
 
 from base.templatetags.horillafilters import is_check_in_enabled
+from horilla.decorators import login_required
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -714,10 +714,19 @@ def ess_announcements(request):
 def ess_birthdays(request):
     """GET /my-dashboard/api/birthdays/ — birthdays of active employees from today to the
     end of the current month (today's first), for the sidebar Birthdays card."""
+    from accessibility.methods import check_is_accessible
     from employee.models import Employee
 
-    if not _get_employee(request):
+    employee = _get_employee(request)
+    if not employee:
         return JsonResponse({"error": "no employee"}, status=403)
+
+    if not check_is_accessible(
+        "birthday_view",
+        f"{request.session.session_key}accessibility_filter",
+        employee,
+    ):
+        return JsonResponse({"birthdays": [], "restricted": True})
 
     today = date.today()
     birthdays = []

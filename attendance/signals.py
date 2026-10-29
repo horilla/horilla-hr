@@ -4,7 +4,7 @@ import logging
 from datetime import datetime, timedelta
 
 from django.apps import apps
-from django.db.models.signals import post_migrate, post_save, pre_delete
+from django.db.models.signals import post_delete, post_migrate, post_save, pre_delete
 from django.dispatch import receiver
 from django.utils.translation import gettext_lazy as _
 
@@ -34,6 +34,14 @@ def attendance_post_save(sender, instance, **kwargs):
         # but a guaranteed collision on any subsequent non-flush reload
         # once the sequence has advanced.
         return
+    update_work_record_from_attendance(instance)
+
+
+def update_work_record_from_attendance(instance):
+    """
+    The day's work record from its attendance; then the day's regularisation, if it has one, is
+    applied on top (the last regularisation is the one the work record shows).
+    """
     min_hour_second = strtime_seconds(instance.minimum_hour)
     at_work_second = strtime_seconds(instance.attendance_worked_hour)
 
@@ -94,12 +102,42 @@ def attendance_post_save(sender, instance, **kwargs):
     work_record.message = message
     work_record.save()
 
+    from attendance.methods.work_record_sync import apply_resolution_for
+
+    apply_resolution_for(instance.employee_id, instance.attendance_date)
+
 
 @receiver(pre_delete, sender=Attendance)
 def handle_attendance_deletion(sender, instance, **kwargs):
     for workrecord in instance.workrecords_set.all():
         if not workrecord.leave_request_id:
             workrecord.delete()
+
+
+@receiver(post_save, sender="attendance.AttendanceConflictResolution")
+def regularisation_saved(sender, instance, **kwargs):
+    """A day was regularised (or regularised again): its work record shows the new status."""
+    if kwargs.get("raw"):
+        return
+    from attendance.methods.work_record_sync import apply_resolution
+
+    try:
+        apply_resolution(instance)
+    except Exception:
+        logger.exception("Applying a regularisation to its work record failed")
+
+
+@receiver(post_delete, sender="attendance.AttendanceConflictResolution")
+def regularisation_removed(sender, instance, **kwargs):
+    """A regularisation was undone: the work record goes back to what the day's attendance and leaves say."""
+    from attendance.methods.work_record_sync import restore_natural
+
+    try:
+        restore_natural(instance.employee_id, instance.date)
+    except Exception:
+        logger.exception(
+            "Restoring a work record after a regularisation was removed failed"
+        )
 
 
 # @receiver(post_migrate)

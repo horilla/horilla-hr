@@ -84,6 +84,11 @@
     .oh-avatar-stack__popover-row:hover {
         background: #f4f6f8;
     }
+    .oh-avatar-stack__popover-row .oh-user-panel__remove {
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+    }
     .oh-avatar-stack__popover-row img {
         width: 22px;
         height: 22px;
@@ -92,6 +97,8 @@
         object-fit: cover;
     }
     .oh-avatar-stack__popover-row span {
+        flex: 1;
+        min-width: 0;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;

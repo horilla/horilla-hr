@@ -11,8 +11,11 @@ Each test creates its deductions in the opposite order to their sequence, so
 an unordered query matches the expected order only by chance.
 """
 
+from datetime import date
+
 from django.test import TestCase
 
+from payroll.methods.deductions import update_compensation_deduction
 from payroll.tests import test_payroll_calculation_golden as golden
 from payroll.tests.factories_payroll import make_active_contract, make_deduction
 
@@ -77,3 +80,56 @@ class DeductionOrderTests(TestCase):
             line["title"]: line["amount"] for line in self._run()["post_tax_deductions"]
         }
         self.assertEqual(lines, {"Union fee": 400.0, "Half of union fee": 200.0})
+
+
+class SameSequenceTests(TestCase):
+    """Deductions on the same sequence keep their creation order (pk)."""
+
+    setUp = golden.PayrollCalculationGoldenTests.setUp
+    _run = golden.PayrollCalculationGoldenTests._run
+
+    def test_creation_order_breaks_a_tie(self):
+        make_active_contract(self.employee)
+        titles = [f"Same {n}" for n in range(5)]
+        for title in titles:
+            make_deduction(self.employee, title, amount=100.0, sequence=100)
+        lines = [line["title"] for line in self._run()["post_tax_deductions"]]
+        self.assertEqual(lines, titles)
+
+
+class CompensationDeductionOrderTests(TestCase):
+    """
+    update_compensation_deduction takes each rate from the running total, so
+    the order changes the result. A fixed 500 at sequence 10 runs before a
+    10% at sequence 20, whatever order they were created in.
+    """
+
+    setUp = golden.PayrollCalculationGoldenTests.setUp
+
+    def test_deductions_reduce_gross_pay_in_sequence_order(self):
+        make_deduction(
+            self.employee,
+            "Ten percent",
+            is_fixed=False,
+            amount=0,
+            rate=10,
+            sequence=20,
+            update_compensation="gross_pay",
+        )
+        make_deduction(
+            self.employee,
+            "Fixed 500",
+            amount=500.0,
+            sequence=10,
+            update_compensation="gross_pay",
+        )
+        result = update_compensation_deduction(
+            self.employee, 27000.0, "gross_pay", date(2026, 8, 1), date(2026, 8, 31)
+        )
+        # 27,000 - 500 = 26,500; 10% of that is 2,650 -> 23,850
+        # (creation order gave 27,000 - 2,700 - 500 = 23,800).
+        self.assertEqual(result["compensation_amount"], 23850.0)
+        self.assertEqual(
+            [line["title"] for line in result["deductions"]],
+            ["Fixed 500", "Ten percent"],
+        )

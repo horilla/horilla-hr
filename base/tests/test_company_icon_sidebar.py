@@ -41,14 +41,19 @@ class SidebarWithoutCompanyIconTests(TestCase):
         self.assertEqual(response.status_code, 200)
         html = response.content.decode()
         self.assertIn("No Logo Ltd", html)
-        self.assertIsNone(BROKEN.search(html), "the sidebar still prints /404/ as the company logo")
+        self.assertIsNone(
+            BROKEN.search(html), "the sidebar still prints /404/ as the company logo"
+        )
         self.assertEqual(self.client.session["selected_company_instance"]["icon"], "")
 
     def test_a_session_saved_before_the_fix_still_renders(self):
         self.client.force_login(self.user)
         self.client.get(reverse("home-page"), follow=True)
         session = self.client.session
-        session["selected_company_instance"] = {**session["selected_company_instance"], "icon": "/404/"}
+        session["selected_company_instance"] = {
+            **session["selected_company_instance"],
+            "icon": "/404/",
+        }
         session.save()
         html = self.client.get(reverse("home-page"), follow=True).content.decode()
         self.assertIsNone(BROKEN.search(html))

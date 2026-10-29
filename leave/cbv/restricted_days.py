@@ -55,7 +55,7 @@ class RestrictedDaysList(HorillaListView):
         (_("Title"), "title"),
         (_("Start Date"), "start_date"),
         (_("End date"), "end_date"),
-        (_("Department"), "department"),
+        (_("Department"), "department_col"),
         (_("Job Position"), "job_position_col"),
         (_("Description"), "description"),
     ]
@@ -162,7 +162,7 @@ class RestrictedDaysDetailView(HorillaDetailedView):
         self.body = [
             (_("Start Date"), "start_date"),
             (_("End date"), "end_date"),
-            (_("Department"), "department"),
+            (_("Department"), "department_col"),
             (_("Job Position"), "job_position_col"),
             (_("Description"), "description"),
         ]

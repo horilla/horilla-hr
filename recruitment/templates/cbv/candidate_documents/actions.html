@@ -1,56 +1,6 @@
 {% load i18n %}
 <div class="flex items-center justify-center gap-1" onclick="event.stopPropagation()">
-    {% if instance.document %}
-        {% if perms.recruitment.change_candidatedocument %}
-            {% if instance.status == "approved" %}
-                <button
-                    class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
-                    title="{% trans 'Approve' %}"
-                    disabled
-                >
-                    <ion-icon name="checkmark-outline"></ion-icon>
-                </button>
-                <a
-                    hx-confirm="{% trans 'Do you want to reject this request' %}"
-                    hx-get="{% url 'candidate-document-reject' instance.id %}"
-                    hx-target="#rejectFileForm"
-                    title="{% trans 'Reject' %}"
-                    class="oh-btn oh-btn--danger oh-btn--sq-sm"
-                    hx-on-htmx-after-request="$('#rejectFileModal').toggleClass('oh-modal--show');"
-                >
-                    <ion-icon name="close-circle-outline"></ion-icon>
-                </a>
-            {% else %}
-                <a
-                    hx-get="{% url 'candidate-document-approve' instance.id %}"
-                    title="{% trans 'Approve' %}"
-                    class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
-                >
-                    <ion-icon name="checkmark-outline"></ion-icon>
-                </a>
-                {% if instance.status == "rejected" %}
-                    <button
-                        class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
-                        title="{% trans 'Reject' %}"
-                        disabled
-                    >
-                        <ion-icon name="close-circle-outline"></ion-icon>
-                    </button>
-                {% else %}
-                    <a
-                        hx-confirm="{% trans 'Do you want to reject this request' %}"
-                        hx-get="{% url 'candidate-document-reject' instance.id %}"
-                        hx-target="#rejectFileForm"
-                        title="{% trans 'Reject' %}"
-                        class="oh-btn oh-btn--danger oh-btn--sq-sm"
-                        hx-on-htmx-after-request="$('#rejectFileModal').toggleClass('oh-modal--show');"
-                    >
-                        <ion-icon name="close-circle-outline"></ion-icon>
-                    </a>
-                {% endif %}
-            {% endif %}
-        {% endif %}
-    {% else %}
+    {% if not instance.document %}
         <a
             title="{% trans 'Upload Document' %}"
             hx-get="{% url 'candidate-file-upload' instance.id %}"
@@ -62,6 +12,53 @@
         >
             <ion-icon name="cloud-upload-outline"></ion-icon>
         </a>
+    {% else %}
+        <button
+            class="oh-btn oh-btn--light-bkg oh-btn--sq-sm opacity-50 cursor-not-allowed"
+            title="{% trans 'Upload Document' %}"
+            disabled
+        >
+            <ion-icon name="cloud-upload-outline"></ion-icon>
+        </button>
+    {% endif %}
+
+    {% if instance.document and instance.status != "approved" and perms.recruitment.change_candidatedocument %}
+        <a
+            hx-get="{% url 'candidate-document-approve' instance.id %}"
+            title="{% trans 'Approve' %}"
+            class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
+        >
+            <ion-icon name="checkmark-outline"></ion-icon>
+        </a>
+    {% else %}
+        <button
+            class="oh-btn oh-btn--light-bkg oh-btn--sq-sm opacity-50 cursor-not-allowed"
+            title="{% trans 'Approve' %}"
+            disabled
+        >
+            <ion-icon name="checkmark-outline"></ion-icon>
+        </button>
+    {% endif %}
+
+    {% if instance.document and instance.status != "rejected" and perms.recruitment.change_candidatedocument %}
+        <a
+            hx-confirm="{% trans 'Do you want to reject this request' %}"
+            hx-get="{% url 'candidate-document-reject' instance.id %}"
+            hx-target="#rejectFileForm"
+            title="{% trans 'Reject' %}"
+            class="oh-btn oh-btn--danger oh-btn--sq-sm"
+            hx-on-htmx-after-request="$('#rejectFileModal').toggleClass('oh-modal--show');"
+        >
+            <ion-icon name="close-circle-outline"></ion-icon>
+        </a>
+    {% else %}
+        <button
+            class="oh-btn oh-btn--danger oh-btn--sq-sm opacity-50 cursor-not-allowed"
+            title="{% trans 'Reject' %}"
+            disabled
+        >
+            <ion-icon name="close-circle-outline"></ion-icon>
+        </button>
     {% endif %}
 
     {% if perms.recruitment.delete_candidatedocument %}

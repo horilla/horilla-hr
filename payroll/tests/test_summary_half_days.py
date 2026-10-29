@@ -12,6 +12,7 @@ from attendance.methods.utils import get_employee_attendance_summary
 from attendance.models import Attendance, AttendanceConflictResolution
 from horilla.testkit import make_company, make_employee
 from leave.models import LeaveRequest, LeaveType
+from payroll.methods import batch_run
 from payroll.methods.methods import compute_salary_on_period
 from payroll.models.models import Contract
 
@@ -55,14 +56,22 @@ class HalfDayPayrollTests(TestCase):
             ]
         )
 
-    def _attend(self, worked):
+    def _attend(
+        self, worked, clock_in=datetime.time(9, 0), clock_out=datetime.time(18, 0)
+    ):
+        """
+        A punch pair. On a day with half-day leave it has to be the half that is worked: with no
+        shift times the halves split at 13:00, so a second-half leave is worked 09:00-13:00 and a
+        first-half leave 13:00-17:00. Punching a whole day on top of a half-day leave is a conflict
+        (see the conflict tests below), not a normal day.
+        """
         Attendance.objects.create(
             employee_id=self.employee,
             attendance_date=WEDNESDAY,
             attendance_clock_in_date=WEDNESDAY,
-            attendance_clock_in=datetime.time(9, 0),
+            attendance_clock_in=clock_in,
             attendance_clock_out_date=WEDNESDAY,
-            attendance_clock_out=datetime.time(18, 0),
+            attendance_clock_out=clock_out,
             attendance_worked_hour=worked,
             minimum_hour="08:00",
             attendance_validated=True,
@@ -88,18 +97,67 @@ class HalfDayPayrollTests(TestCase):
 
     def test_half_paid_leave_with_attendance_loses_nothing(self):
         self._leave("paid")
-        self._attend("08:00")
+        self._attend("04:00", clock_out=datetime.time(13, 0))
+        self.assertEqual(self._pay(), (0, 1.0, 0))
+
+    def test_half_paid_first_half_leave_with_the_second_half_worked_loses_nothing(self):
+        self._leave("paid", breakdown="first_half")
+        self._attend(
+            "04:00", clock_in=datetime.time(13, 0), clock_out=datetime.time(17, 0)
+        )
         self.assertEqual(self._pay(), (0, 1.0, 0))
 
     def test_half_unpaid_leave_with_attendance_loses_the_leave_half(self):
         self._leave("unpaid")
-        self._attend("08:00")
+        self._attend("04:00", clock_out=datetime.time(13, 0))
         self.assertEqual(self._pay(), (0.5, 0.5, 500.0))
 
     def test_half_paid_leave_with_hours_too_short_loses_the_other_half(self):
         self._leave("paid")
-        self._attend("01:00")
+        self._attend("01:00", clock_out=datetime.time(10, 0))
         self.assertEqual(self._pay(), (0.5, 0.5, 500.0))
+
+    # -- a day worked on top of a half-day leave is a conflict until HR resolves it ----------
+
+    def _summary_row(self):
+        return get_employee_attendance_summary([self.employee], WEDNESDAY, WEDNESDAY)[
+            self.employee.pk
+        ]
+
+    def test_a_punch_slightly_into_the_leave_half_is_within_the_grace(self):
+        self._leave("paid")
+        self._attend("04:20", clock_out=datetime.time(13, 20))
+        self.assertEqual(self._summary_row()["unresolved_conflicts"], 0)
+        self.assertEqual(self._pay(), (0, 1.0, 0))
+
+    def test_a_punch_well_into_the_leave_half_is_a_conflict(self):
+        self._leave("paid")
+        self._attend("06:00", clock_out=datetime.time(15, 0))
+        self.assertEqual(self._summary_row()["unresolved_conflicts"], 1)
+
+    def test_a_full_day_worked_on_a_half_leave_is_a_conflict_that_blocks_the_payroll_run(
+        self,
+    ):
+        self._leave("paid")
+        self._attend(
+            "08:00"
+        )  # 09:00-18:00: the whole day on top of half a day of leave
+        self.assertEqual(self._summary_row()["unresolved_conflicts"], 1)
+        # The payroll rule for any unresolved conflict is unchanged (the day is unpaid), but the
+        # batch run refuses to generate it: it is flagged for HR instead of silently deducted.
+        result = batch_run.review([self.employee], WEDNESDAY, WEDNESDAY)
+        self.assertEqual(result["blocked_count"], 1)
+        self.assertIn("unresolved", str(result["rows"][0]["problems"][0][1]))
+
+    def test_resolving_that_conflict_pays_the_day_and_unblocks_the_run(self):
+        self._leave("paid")
+        self._attend("08:00")
+        self._resolve("split:PL+P")
+        self.assertEqual(self._summary_row()["unresolved_conflicts"], 0)
+        self.assertEqual(self._pay(), (0, 1.0, 0))
+        self.assertEqual(
+            batch_run.review([self.employee], WEDNESDAY, WEDNESDAY)["blocked_count"], 0
+        )
 
     def test_a_clock_half_day_loses_the_short_half(self):
         self._attend("04:30")

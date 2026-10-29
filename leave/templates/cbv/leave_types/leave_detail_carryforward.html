@@ -11,6 +11,12 @@
     <span class="oh-timeoff-modal__stat-count">{{instance.carryforward_max}}</span>
 </div>
 {% endif %}
+{% if instance.carryforward_type == "carryforward expire" %}
+<div class="oh-timeoff-modal__stat">
+    <span class="oh-timeoff-modal__stat-title">{% trans "Expiry Method" %}</span>
+    <span class="oh-timeoff-modal__stat-count">{{instance.get_carryforward_expiry_method_display}}</span>
+</div>
+{% endif %}
 {% if instance.carryforward_expire_in %}
 <div class="oh-timeoff-modal__stat">
     <span class="oh-timeoff-modal__stat-title">{% trans "Carryforward Expire in" %}</span>

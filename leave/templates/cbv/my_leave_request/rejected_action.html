@@ -1,26 +1,71 @@
 {% load i18n %}
 <style>
-    .diff-cell{
-        background: rgba(255, 166, 0, 0.158);
+    .leave-reason-box {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 1px solid hsl(1, 100%, 85%);
+        border-left: 4px solid hsl(1, 100%, 61%);
+        border-radius: 0.375rem;
+        background-color: hsl(1, 100%, 97%);
+        color: hsl(0, 0%, 20%);
     }
-
+    .leave-reason-box--muted {
+        border-color: hsl(0, 0%, 85%);
+        border-left-color: hsl(0, 0%, 55%);
+        background-color: hsl(0, 0%, 97.5%);
+    }
+    .leave-reason-box__title {
+        display: block;
+        margin-bottom: 0.25rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        color: hsl(1, 80%, 45%);
+    }
+    .leave-reason-box--muted .leave-reason-box__title {
+        color: hsl(0, 0%, 35%);
+    }
+    .leave-reason-box__text {
+        font-size: 0.875rem;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+    :root[data-theme="dark"] .leave-reason-box,
+    .dark .leave-reason-box {
+        border-color: hsla(1, 100%, 61%, 0.35);
+        border-left-color: hsl(1, 100%, 61%);
+        background-color: hsla(1, 100%, 61%, 0.1);
+        color: hsl(0, 0%, 90%);
+    }
+    :root[data-theme="dark"] .leave-reason-box--muted,
+    .dark .leave-reason-box--muted {
+        border-color: hsl(0, 0%, 30%);
+        border-left-color: hsl(0, 0%, 55%);
+        background-color: hsl(0, 0%, 15%);
+    }
+    :root[data-theme="dark"] .leave-reason-box__title,
+    .dark .leave-reason-box__title {
+        color: hsl(1, 100%, 72%);
+    }
+    :root[data-theme="dark"] .leave-reason-box--muted .leave-reason-box__title,
+    .dark .leave-reason-box--muted .leave-reason-box__title {
+        color: hsl(0, 0%, 72%);
+    }
 </style>
 
-    {% if instance.reject_reason %}
-        {% if instance.status == "rejected" %}
-            <div class="oh-timeoff-modal__stats w-100 p-2 row-status--gray diff-cell">
-                <div class="oh-timeoff-modal__stat">
-                    <span class="oh-timeoff-modal__stat-title">{% trans "Reason for Rejection" %}</span>
-                    <div class="oh-timeoff-modal__stat-description">{{instance.reject_reason}}</div>
-                </div>
-            </div>
-
-        {% elif instance.status == "cancelled" %}
-            <div class="oh-timeoff-modal__stats w-100 p-2 row-status--gray diff-cell">
-                <div class="oh-timeoff-modal__stat">
-                    <span class="oh-timeoff-modal__stat-title">{% trans "Reason for Cancellation" %}</span>
-                    <div class="oh-timeoff-modal__stat-description">{{instance.reject_reason}}</div>
-                </div>
-            </div>
-        {% endif %}
+{% if instance.reject_reason %}
+    {% if instance.status == "rejected" %}
+        <div class="leave-reason-box">
+            <span class="leave-reason-box__title">{% trans "Reason for Rejection" %}</span>
+            <div class="leave-reason-box__text">{{ instance.reject_reason }}</div>
+        </div>
+    {% elif instance.status == "cancelled" %}
+        <div class="leave-reason-box leave-reason-box--muted">
+            <span class="leave-reason-box__title">{% trans "Reason for Cancellation" %}</span>
+            <div class="leave-reason-box__text">{{ instance.reject_reason }}</div>
+        </div>
     {% endif %}
+{% endif %}

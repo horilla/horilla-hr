@@ -920,15 +920,6 @@ class ActiontypeForm(ModelForm):
         fields = "__all__"
         exclude = ["is_active"]
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.fields["action_type"].widget.attrs.update(
-            {
-                "onchange": "actionChange($(this))",
-            }
-        )
-
 
 class EmployeeTagForm(ModelForm):
     """

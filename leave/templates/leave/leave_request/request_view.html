@@ -213,12 +213,11 @@
 <div class="oh-modal" id="rejectModal" role="dialog" aria-labelledby="rejectModal" aria-hidden="true">
     <div class="oh-modal__dialog">
         <div class="oh-modal__dialog-header">
-            <h2 class="oh-modal__dialog-title" id="editModal1ModalLabel">
-                {% trans "Rejection" %}
+            <h2 class="oh-modal__dialog-title font-semibold" id="editModal1ModalLabel">
+                {% trans "Rejection Reason" %}
             </h2>
-            <button class="oh-modal_close--custom" onclick="$('#rejectModal').removeClass('oh-modal--show');"
-                aria-label="{% trans 'Close' %}">
-                <ion-icon name="close-outline"></ion-icon>
+            <button type="button" class="oh-modal__close--custom" onclick="$(this).closest('.oh-modal--show').removeClass('oh-modal--show')" aria-label="Close">
+                <ion-icon name="close-outline" role="img" class="md hydrated" aria-label="close outline"></ion-icon>
             </button>
         </div>
         <div class="oh-modal__dialog-body" id="rejectForm"></div>

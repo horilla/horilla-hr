@@ -1045,6 +1045,12 @@ class Candidate(HorillaModel):
         url = reverse_lazy("candidate-conversion", kwargs={"cand_id": self.pk})
         return url
 
+    def get_send_mail_url(self):
+        """
+        This method to get send mail url of the candidate
+        """
+        return reverse_lazy("send-mail", kwargs={"cand_id": self.pk})
+
     def get_add_to_skill(self):
         """
         This method to get add to talent pool employee url
@@ -1087,6 +1093,12 @@ class Candidate(HorillaModel):
         """
         url = reverse_lazy("rec-candidate-delete", kwargs={"cand_id": self.pk})
         return url
+
+    def get_list_url(self):
+        """
+        This method to get the candidate list page url
+        """
+        return reverse_lazy("candidate-view")
 
     def get_self_tracking_url(self):
         """

@@ -50,11 +50,6 @@ SUBMENUS = [
         "match_prefixes": ["/attendance/attendances-tab-detail-view/"],
     },
     {
-        "menu": _("Daily Work Status"),
-        "redirect": reverse_lazy("work-records"),
-        "accessibility": "attendance.sidebar.work_record_accessibility",
-    },
-    {
         "menu": _("Check-in / Check-out Log"),
         "redirect": reverse_lazy("attendance-activity-view"),
         # attendance-activity-single-view/<pk>/ is a sibling URL (not a
@@ -92,17 +87,6 @@ def attendances_accessibility(request, submenu, user_perms, *args, **kwargs):
     """
     return request.user.has_perm("attendance.view_attendance") or is_reportingmanager(
         request.user
-    )
-
-
-def work_record_accessibility(request, submenu, user_perms, *args, **kwargs):
-    """
-    Check if the user has permission to view attendance or is a reporting manager.
-    """
-    return (
-        request.user.is_superuser
-        or request.user.has_perm("attendance.view_attendance")
-        or is_reportingmanager(request.user)
     )
 
 

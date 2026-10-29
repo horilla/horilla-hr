@@ -1,0 +1,209 @@
+{% load i18n %}
+{# Summary view of the monthly summary: the period's attendance mix, a few findings, and its figures as cards. #}
+
+<style>
+  .dbx { --dbx-ink: #111827; --dbx-muted: #6b7280; --dbx-line: #e7e5e0; --dbx-card: #fff; }
+  .dbx-head { margin-bottom: 14px; }
+  .dbx-sub { font-size: .85rem; color: var(--dbx-muted); }
+  .dbx-grid { display: grid; grid-template-columns: minmax(300px, 1.1fr) 2.6fr; gap: 16px; align-items: stretch; }
+  @media (max-width: 1100px) { .dbx-grid { grid-template-columns: 1fr; } }
+  .dbx-card { background: var(--dbx-card); border: 1px solid var(--dbx-line); border-radius: 16px; padding: 22px; }
+  .dbx-mix-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+  .dbx-mix-title { font-size: 1rem; font-weight: 700; color: var(--dbx-ink); margin: 0; }
+  .dbx-chip { font-size: .72rem; font-weight: 600; color: var(--dbx-muted); background: #f1efe9; border-radius: 999px; padding: 5px 12px; }
+  .dbx-mix { display: flex; flex-direction: column; align-items: center; gap: 22px; }
+  .dbx-donut { position: relative; width: 200px; height: 200px; flex: none; margin-top: 4px; }
+  .dbx-donut svg { transform: rotate(-90deg); }
+  .dbx-donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .dbx-donut-pct { font-size: 1.9rem; font-weight: 800; color: var(--dbx-ink); line-height: 1; }
+  .dbx-donut-lbl { font-size: .72rem; color: var(--dbx-muted); margin-top: 4px; }
+  .dbx-legend { width: 100%; display: grid; gap: 12px; }
+  /* Absent: a row that opens. Closed by default so the legend stays short. */
+  .dbx-absent > summary { list-style: none; cursor: pointer; border-radius: 8px; margin: -4px -6px; padding: 4px 6px; }
+  .dbx-absent > summary::-webkit-details-marker { display: none; }
+  .dbx-absent > summary:hover { background: #faf7f2; }
+  .dbx-chev { margin-left: 6px; font-size: .85rem; color: #9ca3af; vertical-align: -2px; transition: transform .15s ease; }
+  .dbx-absent[open] .dbx-chev { transform: rotate(180deg); }
+  .dbx-legend-sub { display: grid; gap: 7px; margin: 8px 0 2px 20px; padding-left: 12px; border-left: 2px solid #f3d5d5; }
+  .dbx-legend-row--sub { grid-template-columns: 9px 1fr auto 40px; font-size: .8rem; color: #6b7280; }
+  .dbx-legend-row--sub .dbx-dot { width: 8px; height: 8px; }
+  .dbx-legend-row--sub .dbx-legend-val { font-weight: 600; color: #4b5563; }
+  .dbx-legend-row { display: grid; grid-template-columns: 12px 1fr auto 40px; align-items: center; gap: 8px; font-size: .86rem; color: #374151; }
+  .dbx-dot { width: 11px; height: 11px; border-radius: 50%; }
+  .dbx-legend-val { font-weight: 700; color: var(--dbx-ink); text-align: right; }
+  .dbx-legend-pct { color: #9ca3af; font-size: .78rem; text-align: right; }
+  .dbx-findings { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--dbx-line); display: grid; gap: 14px; }
+  .dbx-finding { display: grid; grid-template-columns: 22px 1fr; gap: 10px; align-items: start; font-size: .88rem; line-height: 1.4; color: #4b5563; }
+  .dbx-finding b { color: var(--dbx-ink); }
+  .dbx-finding ion-icon { font-size: 1.15rem; margin-top: 1px; }
+  /* Rows sized by their cards, packed at the top: they were stretched to the height of the mix card. */
+  .dbx-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-content: start; }
+  @media (max-width: 900px) { .dbx-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .dbx-kpi { background: var(--dbx-card); border: 1px solid var(--dbx-line); border-radius: 16px; padding: 16px 20px; display: flex; flex-direction: column; justify-content: flex-start; }
+  .dbx-kpi-label { display: flex; align-items: center; gap: 8px; font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #4b5563; }
+  .dbx-kpi-label i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .dbx-kpi-value { font-size: 1.9rem; font-weight: 800; line-height: 1.1; margin: 8px 0 4px; color: var(--dbx-ink); }
+  .dbx-kpi-note { font-size: .8rem; color: var(--dbx-muted); }
+  /* The breakdown of the Absent figure, shown on hover or focus rather than taking room in the card. */
+  .dbx-kpi--tip { position: relative; }
+  .dbx-kpi--tip:has(.dbx-info:hover), .dbx-kpi--tip:has(.dbx-info:focus) { z-index: 5; }
+  .dbx-info { margin-left: auto; font-size: 1rem; color: #9ca3af; cursor: help; outline: none; }
+  .dbx-info:hover, .dbx-info:focus { color: #e54f38; }
+  .dbx-tip { display: none; position: absolute; right: 12px; top: 36px; width: 210px; padding: 8px 12px; border-radius: 10px; background: #1f2937; color: #f9fafb; box-shadow: 0 10px 24px rgba(15, 23, 42, .28); font-size: .8rem; line-height: 1.3; }
+  .dbx-kpi--tip:has(.dbx-info:hover) .dbx-tip, .dbx-kpi--tip:has(.dbx-info:focus) .dbx-tip { display: block; }
+  .dbx-tip-title { font-size: .68rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #9ca3af; margin-bottom: 6px; }
+  .dbx-tip-row { display: grid; grid-template-columns: 8px 1fr auto; align-items: center; gap: 8px; padding: 2px 0; }
+  .dbx-tip-row i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .dbx-tip-row b { font-weight: 700; }
+  .dbx-kpi--alert { background: #fdf5e4; border-color: #f0dcae; }
+  body.dark .dbx { --dbx-ink: #f3f4f6; --dbx-muted: #9ca3af; --dbx-line: #3a3a3a; --dbx-card: #1f1f1f; }
+  body.dark .dbx-chip { background: #2a2a2a; }
+  body.dark .dbx-legend-row, body.dark .dbx-finding { color: #d1d5db; }
+  body.dark .dbx-kpi--alert { background: #3a3220; border-color: #6b5a2a; }
+</style>
+
+<div class="dbx">
+  <div class="dbx-head">
+    <div class="dbx-sub">{{ period }} &middot; {{ total_working }} {% trans "Working Days" %} &middot; {{ departments_label }}</div>
+  </div>
+
+  <div class="dbx-grid">
+    <!-- Attendance Mix -->
+    <div class="dbx-card">
+      <div class="dbx-mix-head">
+        <h4 class="dbx-mix-title">{% trans "Attendance Mix" %}</h4>
+        <span class="dbx-chip">{{ period }}</span>
+      </div>
+      <div class="dbx-mix">
+        <div class="dbx-donut" role="img" aria-label="{% trans 'Attendance Mix' %}">
+          <svg width="200" height="200" viewBox="-20 -20 200 200">
+            <circle cx="80" cy="80" r="{{ radius }}" fill="none" stroke="#eceae4" stroke-width="22"></circle>
+            {% if scheduled %}
+              {% for item in slices %}
+                {% if item.value %}
+                  <circle cx="80" cy="80" r="{{ radius }}" fill="none" stroke="{{ item.color }}" stroke-width="22"
+                          stroke-dasharray="{{ item.dash }}" stroke-dashoffset="{{ item.offset }}"></circle>
+                {% endif %}
+              {% endfor %}
+              {# the outer arc over the Absent block #}
+              <circle cx="80" cy="80" r="{{ outer_radius }}" fill="none" stroke="#dc2626" stroke-opacity=".45" stroke-width="3"
+                      stroke-linecap="round" stroke-dasharray="{{ group_dash }}" stroke-dashoffset="{{ group_offset }}"></circle>
+            {% endif %}
+          </svg>
+          <div class="dbx-donut-center">
+            <div class="dbx-donut-pct">{% if scheduled %}{{ worked_percent }}%{% else %}&ndash;{% endif %}</div>
+            <div class="dbx-donut-lbl">{% trans "Worked" %}</div>
+          </div>
+        </div>
+        <div class="dbx-legend">
+          {% for item in mix %}
+            {% if item.key == "absent" %}
+              {# Absent opens to show what it is made of; closed, the legend stays short. #}
+              <details class="dbx-absent">
+                <summary class="dbx-legend-row">
+                  <span class="dbx-dot" style="background:{{ item.color }};"></span>
+                  <span>{{ item.label }}<ion-icon name="chevron-down-outline" class="dbx-chev"></ion-icon></span>
+                  <span class="dbx-legend-val">{{ item.value|floatformat:"-1" }}</span>
+                  <span class="dbx-legend-pct">{{ item.percent }}%</span>
+                </summary>
+                <div class="dbx-legend-sub">
+                  {% for part in absent_parts %}
+                    <div class="dbx-legend-row dbx-legend-row--sub">
+                      <span class="dbx-dot" style="background:{{ part.color }};"></span>
+                      <span>{{ part.label }}</span>
+                      <span class="dbx-legend-val">{{ part.value|floatformat:"-1" }}</span>
+                      <span class="dbx-legend-pct">{{ part.percent }}%</span>
+                    </div>
+                  {% endfor %}
+                </div>
+              </details>
+            {% else %}
+              <div class="dbx-legend-row">
+                <span class="dbx-dot" style="background:{{ item.color }};"></span>
+                <span>{{ item.label }}</span>
+                <span class="dbx-legend-val">{{ item.value|floatformat:"-1" }}</span>
+                <span class="dbx-legend-pct">{{ item.percent }}%</span>
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="dbx-findings">
+        {% if worst_department %}
+          <div class="dbx-finding">
+            <ion-icon name="trending-down-outline" style="color:#dc2626;"></ion-icon>
+            <span>{% trans "Highest Absence Ratio In" %} <b>{{ worst_department }}</b> ({{ worst_percent }}% {% trans "Of Scheduled Days" %})</span>
+          </div>
+        {% endif %}
+        <div class="dbx-finding">
+          <ion-icon name="sparkles-outline" style="color:#059669;"></ion-icon>
+          <span><b>{{ below_count }} {% trans "Employees" %}</b> {% blocktrans %}Below {{ low_share_percent }}% Attendance{% endblocktrans %}</span>
+        </div>
+        <div class="dbx-finding">
+          <ion-icon name="warning-outline" style="color:#d9a23d;"></ion-icon>
+          <span><b>{{ totals.total_conflicts }} {% trans "Conflicts" %}</b> {% trans "Need Review" %}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- The period's figures -->
+    <div class="dbx-cards">
+      <div class="dbx-kpi">
+        <div class="dbx-kpi-label"><i style="background:#9ca3af;"></i>{% trans "Employees" %}</div>
+        <div class="dbx-kpi-value">{{ totals.total_employees }}</div>
+        <div class="dbx-kpi-note">{{ department_count }} {% trans "Departments" %}</div>
+      </div>
+      <div class="dbx-kpi">
+        <div class="dbx-kpi-label"><i style="background:#9ca3af;"></i>{% trans "Working Days" %}</div>
+        <div class="dbx-kpi-value">{{ total_working }}</div>
+        <div class="dbx-kpi-note">{% trans "Per Employee" %}</div>
+      </div>
+      <div class="dbx-kpi">
+        <div class="dbx-kpi-label"><i style="background:#059669;"></i>{% trans "Present" %}</div>
+        <div class="dbx-kpi-value" style="color:#059669;">{{ totals.total_present|floatformat:"-1" }}</div>
+        <div class="dbx-kpi-note">{{ present_percent }}% {% trans "Of Scheduled Days" %}</div>
+      </div>
+      <div class="dbx-kpi dbx-kpi--tip">
+        <div class="dbx-kpi-label"><i style="background:#dc2626;"></i>{% trans "Absent / Short Hours" %}<ion-icon name="information-circle-outline" class="dbx-info" tabindex="0"></ion-icon></div>
+        <div class="dbx-kpi-value" style="color:#dc2626;">{{ totals.total_absent|floatformat:"-1" }}</div>
+        <div class="dbx-kpi-note">{{ absent_percent }}% {% trans "Of Scheduled Days" %}</div>
+        <div class="dbx-tip" role="tooltip">
+          <div class="dbx-tip-title">{% trans "What Is In This Figure" %}</div>
+          {% for part in absent_parts %}
+            <div class="dbx-tip-row">
+              <i style="background:{{ part.color }};"></i>
+              <span>{{ part.label }}</span>
+              <b>{{ part.value|floatformat:"-1" }}</b>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="dbx-kpi">
+        <div class="dbx-kpi-label"><i style="background:#2f6fba;"></i>{% trans "Paid Leave" %}</div>
+        <div class="dbx-kpi-value" style="color:#2f6fba;">{{ totals.total_paid_leave|floatformat:"-1" }}</div>
+        <div class="dbx-kpi-note">{% trans "Approved Time Off" %}</div>
+      </div>
+      <div class="dbx-kpi">
+        <div class="dbx-kpi-label"><i style="background:#d9a23d;"></i>{% trans "Unpaid Leave" %}</div>
+        <div class="dbx-kpi-value" style="color:#d9a23d;">{{ totals.total_unpaid_leave|floatformat:"-1" }}</div>
+        <div class="dbx-kpi-note">{% trans "Affects Payroll" %}</div>
+      </div>
+      <div class="dbx-kpi">
+        <div class="dbx-kpi-label"><i style="background:#9ca3af;"></i>{% trans "Week Off" %}</div>
+        <div class="dbx-kpi-value">{{ totals.week_off|floatformat:"-1" }}</div>
+        <div class="dbx-kpi-note">{% if totals.regularised_week_off %}{% blocktrans with n=totals.regularised_week_off %}{{ n }} Set By Regularisation{% endblocktrans %}{% else %}{% trans "Rest Days This Period" %}{% endif %}</div>
+      </div>
+      <div class="dbx-kpi">
+        <div class="dbx-kpi-label"><i style="background:#8b6fc0;"></i>{% trans "Holidays" %}</div>
+        <div class="dbx-kpi-value" style="color:#8b6fc0;">{{ totals.holiday|floatformat:"-1" }}</div>
+        <div class="dbx-kpi-note">{% if totals.regularised_holiday %}{% blocktrans with n=totals.regularised_holiday %}{{ n }} Set By Regularisation{% endblocktrans %}{% else %}{% trans "Company-Wide" %}{% endif %}</div>
+      </div>
+      <div class="dbx-kpi dbx-kpi--alert">
+        <div class="dbx-kpi-label"><i style="background:#d9a23d;"></i>{% trans "Conflicts" %}</div>
+        <div class="dbx-kpi-value" style="color:#d9a23d;">{{ totals.total_conflicts }}</div>
+        <div class="dbx-kpi-note">{% trans "Missing Punches & Overlaps" %}</div>
+      </div>
+    </div>
+  </div>
+</div>

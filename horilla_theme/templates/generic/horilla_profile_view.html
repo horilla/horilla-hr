@@ -197,10 +197,10 @@
                                     class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-primary-600 transition-colors hover:bg-primary-100"
                                     title="{% trans 'Send Mail' %}"
                                     hx-get="{{ send_mail_url }}"
-                                    hx-target="#mail-content"
+                                    hx-target="{{ send_mail_target|default:'#mail-content' }}"
                                     hx-swap="innerHTML"
                                     data-toggle="oh-modal-toggle"
-                                    data-target="#sendMailModal"
+                                    data-target="{{ send_mail_modal|default:'#sendMailModal' }}"
                                 >
                                     <i class="fa-solid fa-paper-plane text-xxs"></i>
                                 </button>
@@ -228,7 +228,6 @@
                         title="{% trans 'Back' %}"
                         class="inline-flex items-center gap-1.5 rounded-xl border border-secondary-200 bg-white px-3.5 py-2 text-sm font-medium text-color-600 shadow-sm transition-all hover:border-primary-500 hover:text-primary-600"
                         onclick="candidateProfileGoBack()"
-                        style="display: none"
                     >
                         <i class="fa-solid fa-arrow-left"></i>
                         {% trans "Back" %}
@@ -260,15 +259,9 @@
                             }
                             window.candidateProfileGoBack = function () {
                                 var backUrl = resolveCandidateBackUrl();
-                                if (backUrl) {
-                                    try { sessionStorage.removeItem("candidateProfileBackUrl"); } catch (e) {}
-                                    window.location.href = backUrl;
-                                }
+                                try { sessionStorage.removeItem("candidateProfileBackUrl"); } catch (e) {}
+                                window.location.href = backUrl || "{% url 'candidate-view' %}";
                             };
-                            var backBtn = document.getElementById("candidateBackButton");
-                            if (backBtn && resolveCandidateBackUrl()) {
-                                backBtn.style.display = "";
-                            }
                         })();
                     </script>
                 {% elif request.resolver_match.url_name == "profile-new" or request.resolver_match.url_name == "employee-view-individual" %}
@@ -501,15 +494,21 @@
             success: function (response) {}
         });
     });
-    {% if active_target %}
-        $("#{{view_id|safe}}").find(`{{active_target|safe}}`).click();
-        setTimeout(() => {
-            $("#{{view_id|safe}}").find(`{{active_target|safe}}`).parent().find('span').click()
-        }, 100);
-    {% else %}
-        setTimeout(() => {
-            $("#{{view_id|safe}} .usertablist").find(`li button[data-url]:first`).click()
-            $("#{{view_id|safe}} .usertablist").find(`li button[data-url]:first`).parent().find('span').click()
-        }, 100);
-    {% endif %}
+    // The script can run before htmx has processed the swapped-in tab buttons, so a
+    // single click may be a no-op and leave the content empty. Retry until the tab
+    // content has loaded; fall back to the first tab (About) if the saved one is missing.
+    (function openInitialTab() {
+        var root = $("#{{view_id|safe}}");
+        var content = $("#{{view_id}}profileTab");
+        var attempts = 0;
+        function openTab() {
+            if (!root.length || content.children().length || attempts++ > 20) return;
+            var btn = {% if active_target %}root.find(`{{active_target|safe}}`).first(){% else %}$(){% endif %};
+            if (!btn.length) btn = root.find("ul.usertablist li button[data-url]").first();
+            btn.click();
+            btn.parent().find("span").click();
+            setTimeout(openTab, 150);
+        }
+        setTimeout(openTab, 100);
+    })();
 </script>

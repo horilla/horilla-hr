@@ -54,7 +54,7 @@
                         <span class="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/50 transition-colors shrink-0 me-2">
                             <ion-icon name="chevron-up-outline" class="oh-tabs__movable-fold-icon text-sm text-gray-600"></ion-icon>
                         </span>
-                        <div onclick="event.stopPropagation()" class="oh-dropdown" x-data="{open: false}">
+                        <div onclick="event.stopPropagation()" class="relative" x-data="{open: false}">
                             <button
                                 class="oh-btn oh-stop-prop oh-btn--transparent oh-accordion-meta__btn"
                                 @click="open = !open"
@@ -69,15 +69,15 @@
                                 ></ion-icon>
                             </button>
                             <div
-                                class="oh-dropdown__menu oh-dropdown__menu--right"
+                                class="absolute right-0 min-w-[150px] bg-white rounded-lg shadow-card py-2 z-50 transition-all duration-200"
                                 x-show="open"
-                                style="min-width: 135px !important"
+                                style="display: none"
                             >
-                                <ul class="oh-dropdown__items">
+                                <ul class="text-xs font-normal">
                                     {% if perms.recruitment.add_skillzonecandidate %}
-                                        <li class="oh-dropdown__item" style="cursor: pointer">
+                                        <li>
                                             <a
-                                                class="oh-dropdown__link"
+                                                class="block w-full text-left px-3 py-1 text-[#333] hover:text-primary-600 transition duration-300 cursor-pointer"
                                                 data-toggle="oh-modal-toggle"
                                                 data-target="#genericModal"
                                                 hx-get="{% url 'skill-zone-cand-create' skill_zone.grouper.id %}"
@@ -87,9 +87,9 @@
                                     {% endif %}
 
                                     {% if perms.recruitment.change_skillzone %}
-                                        <li class="oh-dropdown__item" style="cursor: pointer">
+                                        <li>
                                             <a
-                                                class="oh-dropdown__link"
+                                                class="block w-full text-left px-3 py-1 text-[#333] hover:text-primary-600 transition duration-300 cursor-pointer"
                                                 hx-get="{% url 'skill-zone-update' skill_zone.grouper.id %}"
                                                 hx-target="#objectUpdateModalTarget"
                                                 data-toggle="oh-modal-toggle"
@@ -97,7 +97,7 @@
                                             >{% trans "Edit" %}</a>
                                         </li>
 
-                                        <li class="oh-dropdown__item" style="cursor: pointer">
+                                        <li>
                                             {% if skill_zone.grouper.is_active %}
                                                 <form
                                                     action="{% url 'skill-zone-archive' skill_zone.grouper.id %}"
@@ -105,7 +105,7 @@
                                                     method="post"
                                                 >
                                                     {% csrf_token %}
-                                                    <button type="submit" class="oh-dropdown__link--danger">
+                                                    <button type="submit" class="block w-full text-left px-3 py-1 text-danger cursor-pointer">
                                                         {% trans "Archive" %}
                                                     </button>
                                                 </form>
@@ -116,7 +116,7 @@
                                                     method="post"
                                                 >
                                                     {% csrf_token %}
-                                                    <button type="submit" class="oh-dropdown__link--danger">
+                                                    <button type="submit" class="block w-full text-left px-3 py-1 text-danger cursor-pointer">
                                                         {% trans "Un-Archive" %}
                                                     </button>
                                                 </form>
@@ -125,13 +125,13 @@
                                     {% endif %}
 
                                     {% if perms.recruitment.delete_skillzone %}
-                                        <li class="oh-dropdown__item oh-dropdown__link--danger">
+                                        <li>
                                             <form
                                                 hx-post="{% url 'skill-zone-delete' skill_zone.grouper.id %}?view=list"
                                                 hx-confirm="{% trans 'Are you sure you want to delete this talent pool?' %}"
                                             >
                                                 {% csrf_token %}
-                                                <button type="submit" class="oh-dropdown__link--danger">
+                                                <button type="submit" class="block w-full text-left px-3 py-1 text-danger cursor-pointer">
                                                     {% trans "Delete" %}
                                                 </button>
                                             </form>

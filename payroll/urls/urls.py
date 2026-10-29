@@ -11,6 +11,7 @@ from payroll import dashboard as pay_dashboard
 from payroll.cbv import (
     contracts,
     dashboard,
+    pay_period,
     payroll_batch,
     payslip_automation,
     settings_tabs,
@@ -309,6 +310,27 @@ urlpatterns = [
         "pay-slip-automation-update/<int:pk>/",
         payslip_automation.PaySlipAutomationFormView.as_view(),
         name="pay-slip-automation-update",
+    ),
+    path(
+        "pay-period-list/",
+        pay_period.PayPeriodListView.as_view(),
+        name="pay-period-list",
+    ),
+    path("pay-period-nav/", pay_period.PayPeriodNav.as_view(), name="pay-period-nav"),
+    path(
+        "pay-period/<int:pk>/",
+        batch_views.pay_period_settings,
+        name="pay-period-update",
+    ),
+    path(
+        "pay-period/<int:pk>/delete/",
+        batch_views.pay_period_delete,
+        name="pay-period-delete",
+    ),
+    path(
+        "pay-period/<int:pk>/generate/",
+        batch_views.pay_period_generate,
+        name="pay-period-generate",
     ),
     path(
         "pay-slip-automation-delete/<int:auto_id>/",

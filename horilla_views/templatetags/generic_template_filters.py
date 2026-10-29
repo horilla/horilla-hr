@@ -306,6 +306,30 @@ def id_list_json(queryset):
         return "[]"
 
 
+@register.filter("node_ids_json")
+def node_ids_json(node):
+    """
+    JSON-encode the pks of every record under a nested group-by node (all of
+    its leaf groups, every page of each), for the group header's select-all
+    checkbox.
+    """
+    ids = []
+
+    def collect(n):
+        if n.get("children"):
+            for child in n["children"]:
+                collect(child)
+        elif n.get("list") is not None:
+            for obj in n["list"].paginator.object_list:
+                ids.append(obj.pk)
+
+    try:
+        collect(node)
+    except (AttributeError, TypeError):
+        return "[]"
+    return mark_safe(json.dumps(ids))
+
+
 @register.filter("get_id")
 def get_id(string: str):
     """

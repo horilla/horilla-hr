@@ -3,15 +3,6 @@
 </div>
 
 <script>
-    {% comment %}
-        Was `[name=field]` (the classic single-field group-by input) before
-        nested_group_by_fields was added to this page -- adding it hides
-        that classic input entirely (see horilla_nav.html's
-        "group_by_fields and not nested_group_by_fields" condition), so
-        setting it here would silently no-op and the page would load flat
-        instead of pre-grouped. `[name=nested_fields]` is the nested
-        breadcrumb's own input for level 1, which now carries this default.
-    {% endcomment %}
     $('#applyFilter').closest('form').find('[name=nested_fields]').val('leave_type_id');
     $('#applyFilter').click();
 </script>

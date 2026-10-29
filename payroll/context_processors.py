@@ -13,7 +13,7 @@ def default_currency(request):
     """
     This method will return the currency
     """
-    settings = models.PayrollSettings.objects.first()
+    settings = models.PayrollSettings.for_selected_company()
     if settings is None:
         # HorillaCompanyManager scopes .objects.first() to the request's
         # current company -- a freshly created row here isn't guaranteed to

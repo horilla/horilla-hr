@@ -1,0 +1,64 @@
+{% load i18n %}{% load basefilters %}
+<div class="oh-dropdown__filter-body">
+    <!-- Outside any accordion (always visible, not collapsible) -- same
+         placement as every other modernized filter panel (e.g.
+         DisciplinaryActionFilter's own filters.html): primary/most-used
+         search shouldn't be hidden behind a click. -->
+    <div class="row">
+        <div class="col-sm-12 col-md-12 col-lg-12">
+            <div class="oh-input-group">
+                <label class="oh-label" for="{{form.name_or_badge.id_for_label}}">{% trans "Name or Badge ID" %}</label>
+                {{form.name_or_badge}}
+            </div>
+        </div>
+    </div>
+
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header">
+            <span class="oh-filter-section-icon"><ion-icon name="alert-circle-outline"></ion-icon></span>
+            {% trans "Penalty" %}
+        </div>
+        <div class="oh-accordion-body">
+            <div class="row">
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <label class="oh-label" for="{{form.penalty_type.id_for_label}}">{% trans "Penalty Type" %}</label>
+                        {{form.penalty_type}}
+                    </div>
+                </div>
+                {% if form.leave_type_id %}
+                    <div class="col-sm-12 col-md-12 col-lg-12">
+                        <div class="oh-input-group">
+                            <label class="oh-label" for="{{form.leave_type_id.id_for_label}}">{% trans "Leave Type" %}</label>
+                            {{form.leave_type_id}}
+                        </div>
+                    </div>
+                {% endif %}
+                <div class="col-sm-12 col-md-12 col-lg-6">
+                    <div class="oh-input-group">
+                        <label class="oh-label" for="{{form.date_from.id_for_label}}">{% trans "From Date" %}</label>
+                        {{form.date_from}}
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-6">
+                    <div class="oh-input-group">
+                        <label class="oh-label" for="{{form.date_till.id_for_label}}">{% trans "To Date" %}</label>
+                        {{form.date_till}}
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-6">
+                    <div class="oh-input-group">
+                        <label class="oh-label" for="{{form.amount_min.id_for_label}}">{% trans "Minimum Amount" %}</label>
+                        {{form.amount_min}}
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-6">
+                    <div class="oh-input-group">
+                        <label class="oh-label" for="{{form.amount_max.id_for_label}}">{% trans "Maximum Amount" %}</label>
+                        {{form.amount_max}}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

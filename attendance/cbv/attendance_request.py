@@ -501,7 +501,7 @@ class NewAttendanceRequestFormView(HorillaFormView):
     form_class = NewRequestForm
     model = Attendance
     new_display_title = _("Attendance Request")
-    template_name = "requests/attendance/request_form.html"
+    template_name = "requests/attendance/attendance_form.html"
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -547,6 +547,7 @@ class BulkAttendanceRequestFormView(HorillaFormView):
     form_class = BulkAttendanceRequestForm
     model = Attendance
     new_display_title = _("Attendance Request")
+    template_name = "requests/attendance/attendance_form.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -596,6 +597,7 @@ class UpdateAttendanceRequestFormView(HorillaFormView):
 
     form_class = AttendanceRequestForm
     model = Attendance
+    template_name = "requests/attendance/attendance_form.html"
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)

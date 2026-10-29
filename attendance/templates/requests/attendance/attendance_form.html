@@ -1,0 +1,96 @@
+<div id="attendanceRequestDiv">
+    {% include "generic/horilla_form.html" %}
+</div>
+<script>
+    function attendanceShiftChange(element) {
+        const parentForm = element.closest("form");
+        const dateName = parentForm.find("[name=attendance_date]").length
+            ? "attendance_date"
+            : "from_date";
+        const data = parentForm
+            .find("[name=shift_id], [name=employee_id], [name=" + dateName + "]")
+            .serializeArray()
+            .map(function (item) {
+                return item.name === dateName
+                    ? { name: "attendance_date", value: item.value }
+                    : item;
+            });
+        const requestKey = JSON.stringify(data);
+        if (parentForm.data("shiftFillKey") === requestKey) {
+            return;
+        }
+        parentForm.data("shiftFillKey", requestKey);
+
+        $.ajax({
+            type: "get",
+            url: "{% url 'get-shift-based-fields' %}",
+            data: data,
+            success: function (response) {
+                Object.keys(response).forEach(function (fieldName) {
+                    parentForm.find("[name=" + fieldName + "]").val(response[fieldName]);
+                });
+            },
+            error: function () {
+                parentForm.removeData("shiftFillKey");
+            },
+        });
+    }
+
+    function attendanceEmployeeChange(element) {
+        const parentForm = element.closest("form");
+        const employeeId = element.val();
+        if (parentForm.data("employeeFillKey") === employeeId) {
+            return;
+        }
+        parentForm.data("employeeFillKey", employeeId);
+
+        $.ajax({
+            type: "get",
+            url: "{% url 'get-employee-shift' %}",
+            data: { employee_id: employeeId },
+            success: function (response) {
+                parentForm.find("[name=shift_id]").val(response.shift_id).trigger("change");
+            },
+            error: function () {
+                parentForm.removeData("employeeFillKey");
+            },
+        });
+    }
+
+    function attendanceDateChange(element) {
+        const parentForm = element.closest("form");
+        const data = parentForm
+            .find("[name=shift_id], [name=employee_id], [name=attendance_date]")
+            .serializeArray();
+
+        $.ajax({
+            type: "get",
+            url: "{% url 'get-shift-based-fields' %}",
+            data: data,
+            success: function (response) {
+                parentForm.find("[name=minimum_hour]").val(response.minimum_hour);
+            },
+        });
+    }
+
+    function attendanceWorkedHourChange(element) {
+        const parentForm = element.closest("form");
+        const fieldValue = function (name) {
+            return parentForm.find("[name=" + name + "]").val();
+        };
+        const clockIn = new Date(
+            (fieldValue("attendance_clock_in_date") || "1970-01-01") +
+                "T" +
+                fieldValue("attendance_clock_in")
+        );
+        const clockOut = new Date(
+            (fieldValue("attendance_clock_out_date") || "1970-01-01") +
+                "T" +
+                fieldValue("attendance_clock_out")
+        );
+        const seconds = Math.max((clockOut - clockIn) / 1000, 0) || 0;
+        const hours = String(Math.floor(seconds / 3600)).padStart(2, "0");
+        const minutes = String(Math.floor((seconds % 3600) / 60)).padStart(2, "0");
+        parentForm.find("[name=attendance_worked_hour]").val(hours + ":" + minutes);
+    }
+</script>

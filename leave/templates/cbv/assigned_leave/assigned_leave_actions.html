@@ -7,10 +7,14 @@
         <button type="button"
             hx-get="{% url 'leave-balance-ledger' instance.id %}"
             hx-target="#leaveLedgerContainer"
-            title="{% trans 'Leave Ledger' %}"
+            title="{% if instance.is_reset_due %}{% trans 'Leave Ledger - missed reset' %}{% else %}{% trans 'Leave Ledger' %}{% endif %}"
             class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
+            style="position: relative;"
             onclick="event.stopPropagation(); $('#leaveLedgerSidebar').addClass('oh-activity-sidebar--show');">
             <ion-icon name="receipt-outline"></ion-icon>
+            {% if instance.is_reset_due %}
+                <span class="text-danger-dark" style="position: absolute; top: 3px; right: 3px; width: 8px; height: 8px; border-radius: 50%; background: currentColor;"></span>
+            {% endif %}
         </button>
         {% if can_manage or can_change %}
             <button class="oh-btn oh-btn--light-bkg oh-btn--sq-sm" title="{% trans 'Edit' %}" data-toggle="oh-modal-toggle"

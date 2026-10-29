@@ -12,6 +12,7 @@ from django.template.loader import render_to_string
 
 from base.backends import ConfiguredEmailBackend
 from employee.models import EmployeeWorkInformation
+from horilla.horilla_middlewares import get_selected_company, set_selected_company
 from payroll.models.models import Payslip
 from payroll.views.views import payslip_pdf
 
@@ -30,9 +31,13 @@ class MailSendThread(Thread):
         self.request = request
         self.host = request.get_host()
         self.protocol = "https" if request.is_secure() else "http"
+        # The thread starts without the request's selected company, which the
+        # payslip PDF's currency (and every company-scoped query) depends on.
+        self.company_id = get_selected_company()
 
     def run(self) -> None:
         super().run()
+        set_selected_company(self.company_id)
         for record in list(self.result_dict.values()):
             html_message = render_to_string(
                 "payroll/mail_templates/default.html",
