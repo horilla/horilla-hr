@@ -17,6 +17,10 @@ update, deactivate and remove employees.
 A company has one SCIM connection. Employees created through it are placed in
 that company, and the token can only see employees of that company.
 
+> **Note:** the Okta and Entra steps below follow each vendor's SCIM
+> documentation, and the test suite replays the requests Okta and Entra send.
+> They have not yet been verified against a live Okta or Entra tenant.
+
 ## 2. Okta
 
 In the Okta admin console, create an app integration (or use your existing SAML
@@ -105,7 +109,8 @@ to keep the provisioning logs clean.
 - **PATCH `remove`** clears optional attributes (phone, title, department,
   manager, employee number, family name, `externalId`). Removing `userName`,
   `emails`, `name.givenName` or `active` is refused with `400 mutability`.
-- **Filters:** `eq` only, on `id`, `externalId`, `userName` and `emails.value`.
+- **Filters:** `eq` only, on `id`, `externalId`, `userName` and `emails.value`,
+  up to 512 characters.
 - **Uniqueness:** e-mail and `userName` are unique across the installation, so
   `POST` answers `409 uniqueness` when they belong to another company.
 - **Superusers** are never changed by a provider.

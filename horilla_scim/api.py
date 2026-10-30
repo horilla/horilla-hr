@@ -10,7 +10,6 @@ A token can never see or change another company's employees.
 """
 
 import logging
-import re
 import uuid
 from urllib.parse import unquote_plus
 
@@ -53,16 +52,36 @@ _PROVISIONING_STATUS = {
 }
 
 
-# Quoted filter values (e-mails, names) are personal data; keep them out of
-# the request log.
-_QUOTED = re.compile(r'"(?:[^"\\]|\\.)*"')
+# Only the start of a query string is logged (the path column holds 255).
+_MAX_LOGGED_QUERY = 2048
+
+
+def _redact_quoted(text):
+    """Replace every quoted value with ``"***"`` in a single pass.
+
+    Quoted filter values (e-mails, names) are personal data; keep them out of
+    the request log. An unclosed quote is redacted to the end of the text.
+    """
+    out = []
+    i, length = 0, len(text)
+    while i < length:
+        if text[i] != '"':
+            out.append(text[i])
+            i += 1
+            continue
+        i += 1
+        while i < length and text[i] != '"':
+            i += 2 if text[i] == "\\" else 1
+        out.append('"***"')
+        i += 1
+    return "".join(out)
 
 
 def _redacted_path(request):
-    query = request.META.get("QUERY_STRING", "")
+    query = request.META.get("QUERY_STRING", "")[:_MAX_LOGGED_QUERY]
     if not query:
         return request.path
-    return request.path + "?" + _QUOTED.sub('"***"', unquote_plus(query))
+    return request.path + "?" + _redact_quoted(unquote_plus(query))
 
 
 def _loggable(text):

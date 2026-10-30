@@ -11,8 +11,15 @@ import re
 
 from .errors import ScimError
 
+# Bounds the work the regular expressions below can do on hostile input.
+MAX_FILTER_LENGTH = 512
+
+# Attribute segments contain no whitespace and are joined by a single
+# whitespace character, so they can't compete with the separators around
+# ``eq`` for the same spaces (which made matching quadratic).
 _EQ = re.compile(
-    r'^\s*(?P<attr>[A-Za-z0-9_.:\[\]" ]+?)\s+eq\s+"(?P<value>(?:[^"\\]|\\.)*)"\s*$',
+    r'^(?P<attr>[A-Za-z0-9_.:\[\]"]+(?:\s[A-Za-z0-9_.:\[\]"]+)*?)'
+    r'\s+eq\s+"(?P<value>(?:[^"\\]|\\.)*)"$',
     re.IGNORECASE,
 )
 
@@ -28,12 +35,20 @@ _LOOKUPS = {
 
 def parse_filter(expression):
     """Return a ``{lookup: value}`` dict for ``ExternalIdentity.objects.filter``."""
-    if "\x00" in (expression or ""):
+    expression = expression or ""
+    if len(expression) > MAX_FILTER_LENGTH:
+        raise ScimError(
+            400,
+            "invalidFilter",
+            f"Filters must be at most {MAX_FILTER_LENGTH} characters.",
+        )
+    expression = expression.strip()
+    if "\x00" in expression:
         # PostgreSQL refuses NUL in a query parameter (ValueError, a 500).
         raise ScimError(
             400, "invalidFilter", "Filters must not contain NUL characters."
         )
-    match = _EQ.match(expression or "")
+    match = _EQ.match(expression)
     if not match:
         raise ScimError(
             400, "invalidFilter", "Only 'attribute eq \"value\"' filters are supported."

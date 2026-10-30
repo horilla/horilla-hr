@@ -6,6 +6,7 @@ the request shapes Okta and Microsoft Entra ID actually send.
 import json
 from datetime import timedelta
 from unittest import mock
+from urllib.parse import quote
 
 from django.contrib.auth.models import Permission
 from django.db import IntegrityError
@@ -18,6 +19,8 @@ from horilla.horilla_middlewares import set_selected_company
 from horilla.testkit import make_company, make_employee, make_user
 from horilla_auth.models import HorillaUser
 from horilla_identity.models import ExternalIdentity
+from horilla_scim.api import _MAX_LOGGED_QUERY
+from horilla_scim.filters import MAX_FILTER_LENGTH
 from horilla_scim.models import ScimEvent, ScimProvider, ScimToken, hash_token
 from horilla_scim.scheduler import purge_old_events
 from horilla_scim.schemas import CORE_USER, ENTERPRISE_USER, PATCH_OP
@@ -130,6 +133,26 @@ class AuthTests(ScimTestCase):
         self.assertNotIn("ann@acme.test", path)
         self.assertEqual(path, '/scim/v2/Users?filter=userName eq "***"&count=1')
 
+    def test_logged_query_is_capped_and_redacted(self):
+        # An unclosed run of \" pairs made the old redaction regex quadratic.
+        self.client.get(
+            BASE + "/Users?filter=" + quote('"' + '\\"' * 4000),
+            HTTP_AUTHORIZATION=f"Bearer {self.raw_token}",
+        )
+        path = ScimEvent.objects.get().path
+        self.assertLessEqual(len(path), 255)
+        self.assertEqual(path, '/scim/v2/Users?filter="***"')
+
+    def test_only_capped_query_is_redacted(self):
+        with mock.patch(
+            "horilla_scim.api._redact_quoted", side_effect=lambda text: text
+        ) as redact:
+            self.client.get(
+                BASE + "/Users?filter=" + "a" * 10000,
+                HTTP_AUTHORIZATION=f"Bearer {self.raw_token}",
+            )
+        self.assertEqual(len(redact.call_args.args[0]), _MAX_LOGGED_QUERY)
+
 
 class DiscoveryTests(ScimTestCase):
     def test_service_provider_config(self):
@@ -228,6 +251,32 @@ class ReadTests(ScimTestCase):
         self.create_user()
         body = self.call("get", "/Users?filter=externalId%20eq%20%22okta-123%22").json()
         self.assertEqual(body["totalResults"], 1)
+
+    def test_filter_by_work_email_path(self):
+        created = self.create_user()
+        expression = 'emails[type eq "work"].value eq "ann@acme.test"'
+        body = self.call("get", "/Users?filter=" + quote(expression)).json()
+        self.assertEqual(body["totalResults"], 1)
+        self.assertEqual(body["Resources"][0]["id"], created["id"])
+
+    def test_filter_at_length_limit_is_parsed(self):
+        self.create_user()
+        expression = 'userName eq "ann@acme.test"'
+        expression = " " * (MAX_FILTER_LENGTH - len(expression)) + expression
+        body = self.call("get", "/Users?filter=" + quote(expression)).json()
+        self.assertEqual(body["totalResults"], 1)
+
+    def test_overlong_filter_is_400(self):
+        # Long runs of spaces made the filter regex quadratic.
+        expression = 'userName eq "' + " " * MAX_FILTER_LENGTH + 'x"'
+        response = self.call("get", "/Users?filter=" + quote(expression))
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["scimType"], "invalidFilter")
+
+    def test_filter_with_long_space_run_is_400(self):
+        response = self.call("get", "/Users?filter=" + quote("a" + " " * 500 + "b"))
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["scimType"], "invalidFilter")
 
     def test_unsupported_filter_is_400(self):
         response = self.call("get", "/Users?filter=name.givenName%20co%20%22A%22")
