@@ -14,19 +14,6 @@ class WeeklyResetDateTests(TestCase):
 
         self.LeaveType = LeaveType
 
-    def test_weekly_reset_does_not_raise(self):
-        lt = self.LeaveType.objects.create(
-            name="Weekly Reset Type",
-            total_days=2,
-            reset=True,
-            reset_based="weekly",
-            reset_weekend="0",  # Monday
-        )
-        # Previously raised TypeError: list indices must be integers or
-        # slices, not str (WEEK_DAYS[self.reset_day] on the wrong field).
-        next_date = lt.leave_type_next_reset_date()
-        self.assertIsInstance(next_date, date)
-
     def test_weekly_reset_lands_on_target_weekday(self):
         lt = self.LeaveType.objects.create(
             name="Weekly Reset Wednesday",
@@ -35,6 +22,8 @@ class WeeklyResetDateTests(TestCase):
             reset_based="weekly",
             reset_weekend="2",  # Wednesday
         )
+        # Previously raised TypeError: list indices must be integers or
+        # slices, not str (WEEK_DAYS[self.reset_day] on the wrong field).
         next_date = lt.leave_type_next_reset_date()
         self.assertEqual(next_date.weekday(), 2)
 

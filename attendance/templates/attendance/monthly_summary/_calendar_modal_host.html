@@ -255,6 +255,9 @@ and to_date.
     if (panel.contains(e.target)) return;
     // The status lists float outside the popover; picking from one is not an outside click.
     if (e.target.closest && e.target.closest('.crp-dd-list')) return;
+    // Nor is answering a confirmation raised from the popover: closing it here emptied the form
+    // before the save it was confirming could read it.
+    if (e.target.closest && e.target.closest('.swal2-container')) return;
     if (e.target.closest && e.target.closest('.cal-cell:not(.cal-empty):not(.cal-out-of-range)')) return;
     window.msCalClosePanel();
   });
@@ -767,7 +770,8 @@ and to_date.
       input.classList.remove('is-invalid');
       error.style.display = 'none';
     }
-    if (save) { save.disabled = !(_crpStatusChanged() || _crpHoursChanged()); }
+    // An unresolved leave clash can be settled as it stands, so Save stays on for it.
+    if (save) { save.disabled = !(_crpStatusChanged() || _crpHoursChanged() || save.dataset.conflict === '1'); }
   };
 
   function _crpHoursError(message) {
@@ -794,7 +798,11 @@ and to_date.
     var foot = document.querySelector('#cal-resolve-panel .crp-foot');
     var input = document.getElementById('crp-hours-input');
     if (!ctx || !dateInput || !foot) return;
-    var statusChanged = _crpStatusChanged();
+    var saveBtn = document.getElementById('crp-save');
+    var settling = !!saveBtn && saveBtn.dataset.conflict === '1';
+    var choiceEl = document.getElementById('crp-choice');
+    // Settling a clash saves the status on show, even when it was not changed.
+    var statusChanged = (_crpStatusChanged() || settling) && !!(choiceEl && choiceEl.value);
     var hoursChanged = _crpHoursChanged();
     if (!statusChanged && !hoursChanged) return;
 
@@ -829,6 +837,7 @@ and to_date.
       });
     };
 
+    var checkHours = function () {
     // Past 15 hours in a day is possible but unusual: ask before saving it.
     if (hoursChanged && seconds > 15 * 3600) {
       var label = Math.floor(seconds / 3600) + 'h ' + ('0' + Math.floor((seconds % 3600) / 60)).slice(-2) + 'm';
@@ -849,6 +858,28 @@ and to_date.
       if (!window.confirm(foot.dataset.warnTitle + ': ' + label)) return;
     }
     send();
+    };
+
+    // Settling a clash asks first, naming what the day will be counted as.
+    if (settling) {
+      var shown = choiceEl.options[choiceEl.selectedIndex].text.trim();
+      var message = foot.dataset.conflictText + ' ' + shown + '. ' + foot.dataset.conflictTail;
+      if (window.Swal) {
+        Swal.fire({
+          title: foot.dataset.conflictTitle,
+          text: message,
+          icon: 'question',
+          showCancelButton: true,
+          confirmButtonText: foot.dataset.conflictYes,
+          cancelButtonText: foot.dataset.warnNo,
+          confirmButtonColor: '#e54f38',
+          didOpen: function () { Swal.getContainer().style.zIndex = '100030'; },
+        }).then(function (result) { if (result.isConfirmed) checkHours(); });
+        return;
+      }
+      if (!window.confirm(foot.dataset.conflictTitle + ' ' + message)) return;
+    }
+    checkHours();
   };
   // The minimum-hours tooltip floats beside the popover instead of inside its scrolling body,
   // where it would be clipped. It is built from the hidden bubble next to the info icon.

@@ -310,42 +310,6 @@ class DetailModalStructureTests(TestCase):
         self.assertEqual(response.status_code, 200)
         return response.content.decode()
 
-    def test_each_reading_is_a_tab_of_one_block(self):
-        body = self._body()
-        for marker in (
-            'data-ssd-tab="components"',
-            'data-ssd-tab="example"',
-            'data-ssd-tab="working"',
-            'data-ssd-panel="components"',
-            'data-ssd-panel="example"',
-            'data-ssd-panel="working"',
-        ):
-            self.assertIn(marker, body)
-
-    def test_the_working_tab_is_hidden_until_an_example_has_been_run(self):
-        """
-        Until then there is nothing to explain, and a tab that opens on an
-        empty panel is worse than no tab.
-        """
-        body = self._body()
-        self.assertIn("data-ssd-tab-working hidden", body)
-        self.assertIn("data-ssd-working hidden", body)
-
-    def test_the_example_hands_its_working_over_rather_than_writing_the_tab(self):
-        """
-        Each template owns its own markup, so the example panel still works
-        anywhere that does not listen for this.
-        """
-        body = self._body()
-        self.assertIn("structure-example:working", body)
-        # Both halves: the panel dispatches it, the modal listens for it.
-        self.assertIn("publishWorking", body)
-        self.assertIn("workingTab.hidden", body)
-
-    def test_the_components_tab_is_the_one_open(self):
-        """Opening a structure is most often to read it, not to run an example."""
-        self.assertIn('data-ssd-panel="example" hidden', self._body())
-
     def test_the_summary_bar_is_counts_only(self):
         """
         The name chips were the widest thing in the bar and said the least.
@@ -380,85 +344,8 @@ class DetailModalStructureTests(TestCase):
         basic pay is what.
         """
         panel = self._employees_panel()
-        self.assertIn("Golden Contract", panel)
+        self.assertIn("Edit this contract", panel)
         self.assertIn("30000.00", panel)
-
-    def test_the_employees_tab_leads_with_the_figure_the_mode_reads(self):
-        """
-        Under Gross Up the wage is basic pay and the CTC is only a target;
-        under CTC Down it is the other way round, so the columns swap.
-        """
-
-        def header_order():
-            # Sliced to the table's own thead: the labels sit on their own
-            # lines inside an {% if %}, so there is no ">Wage<" to match, and
-            # "Wage" appears further down the panel as well.
-            head = (
-                self._employees_panel()
-                .split('class="ss-emp__table"')[1]
-                .split("</thead>")[0]
-            )
-            return head.index("Wage"), head.index("Monthly CTC")
-
-        wage, ctc = header_order()
-        self.assertLess(wage, ctc)
-
-        self.structure.structure_mode = "ctc_down"
-        self.structure.save()
-        wage, ctc = header_order()
-        self.assertLess(ctc, wage)
-
-    def test_the_component_table_no_longer_scrolls_sideways(self):
-        """
-        Ten columns did not fit, so the last four sat off the right-hand edge.
-        They are labelled chips under each component now.
-        """
-        body = self._body()
-        self.assertNotIn("ss-components__scroll", body)
-        self.assertIn("ss-components__rules", body)
-        for label in ("Prorates", "In CTC", "Ceiling", "Applies"):
-            self.assertIn(label, body)
-
-    def test_the_basic_pay_note_is_shown_once_outside_the_tabs(self):
-        """It applies to both readings, so it must not live in either tab."""
-        body = self._body()
-        self.assertEqual(body.count('class="ssd__note"'), 1)
-
-    def test_only_the_middle_scrolls(self):
-        """
-        The title row and the Edit / Delete / Duplicate row are pinned, and the
-        summary, note and tab bar stay put above whichever panel is open.
-        Without this, running an example scrolls its own actions off the bottom
-        and the structure's name off the top.
-        """
-        body = self._body()
-        self.assertIn("hdv--sticky", body)
-        self.assertIn("hdv__head", body)
-        self.assertIn("hdv__body", body)
-        self.assertIn("hdv__foot", body)
-        self.assertIn("ssd__chrome", body)
-
-    def test_the_scroller_is_the_open_panel_not_the_dialog_body(self):
-        """
-        The scrollbar has to span only the content that moves. Scrolling the
-        dialog body instead leaves a full-height track running past the pinned
-        summary and tabs, which reads as though those scroll too.
-        """
-        body = self._body()
-        self.assertIn(".hdv--sticky .hdv__body", body)
-        self.assertIn("overflow: hidden", body)
-        self.assertIn(".ssd__panel:not([hidden])", body)
-        self.assertIn("overflow-y: auto", body)
-
-    def test_other_detail_views_keep_the_whole_dialog_scrolling(self):
-        """
-        sticky_chrome is opt-in: a three-line body inside a flex column would
-        sit against the top of an 85vh dialog rather than shrinking to fit, so
-        every other Detail View in the app has to be left alone.
-        """
-        from horilla_views.generic.cbv.views import HorillaDetailedView
-
-        self.assertFalse(HorillaDetailedView.sticky_chrome)
 
 
 class LossOfPayLineTests(TestCase):

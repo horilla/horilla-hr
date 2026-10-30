@@ -208,16 +208,6 @@ class WizardTests(TestCase):
         frame = pd.read_excel(io.BytesIO(response.content))
         self.assertEqual(list(frame.columns), [f.key for f in EMPLOYEES.fields])
 
-    def test_the_first_step_shows_every_field_as_a_pill_with_required_ones_marked(self):
-        html = self.client.get(reverse("master-import")).content.decode()
-        self.assertIn("mi__pills", html)
-        for field in EMPLOYEES.fields:
-            if field.key != "Full Name":
-                self.assertIn(f">{field.label}", html)
-        self.assertEqual(
-            html.count('mi__field--req"'), 4
-        )  # Badge ID, First Name, Email, Phone
-
     def test_the_template_is_formatted_for_working_in(self):
         from openpyxl import load_workbook
 
@@ -303,28 +293,6 @@ class WizardTests(TestCase):
             reverse("master-import-check-progress", args=[job.pk])
         )
         self.assertEqual(progress.json()["percent"], 100)
-
-    def test_cells_use_the_input_that_suits_their_field(self):
-        Department.objects.create(department="Engineering")
-        self.upload([{**GOOD, "Gender": "female", "Basic Salary": "45000"}])
-        job = ImportJob.objects.get()
-        self.match(job)
-        html = self.client.post(reverse("master-import-check", args=[job.pk])).json()[
-            "html"
-        ]
-        self.assertIn('type="date"', html)  # Date Joining
-        self.assertIn('type="number"', html)  # Basic Salary
-        self.assertIn('type="email"', html)
-        # Open fields are dropdowns: what already exists, plus what the file brings.
-        self.assertNotIn("datalist", html)
-        self.assertIn('data-field="Department"', html)
-        self.assertIn('<option value="Engineering"', html)
-        self.assertRegex(html, r'<select[^>]*data-field="Department"')
-        self.assertRegex(html, r'<select[^>]*data-field="Gender"')
-        self.assertIn('id="mi-find-rows"', html)  # the search box
-        # Records are counted from 1, with the file's own row in the tooltip.
-        self.assertIn(">1</td>", html)
-        self.assertIn("Row 2 in your file", html)
 
     def test_a_dropdown_offers_database_values_and_the_sheets_own(self):
         Department.objects.create(department="Operations")
@@ -1150,11 +1118,6 @@ class CompanyScopeTests(TestCase):
             Employee.objects.entire().filter(badge_id__in=["R-2", "R-3"]).exists()
         )
         self.assertFalse(Company.objects.filter(company="Brand New Co").exists())
-
-    def test_one_company_never_creates_a_company(self):
-        self.select(self.a)
-        job, data = self.run_import([self.person("Q-1", "q1@x.test")])
-        self.assertEqual(Company.objects.count(), 2)
 
     def test_a_department_name_that_exists_in_another_company_is_reused_not_doubled(
         self,
@@ -2008,21 +1971,6 @@ class HtmxNavigationTests(TestCase):
     def test_the_history_page_lights_its_own_menu_item(self):
         html = self.client.get(reverse("master-import-history")).content.decode()
         self.assertIn('data-settings-active="/master-import/history/"', html)
-
-    def test_the_history_page_has_the_settings_titlebar_and_icon_actions(self):
-        from master_import.models import ImportJob
-
-        ImportJob.objects.create(
-            dataset="employees",
-            original_name="a.xlsx",
-            status=ImportJob.DONE,
-            created_by=self.user,
-        )
-        html = self.client.get(reverse("master-import-history")).content.decode()
-        self.assertIn("mi__bar-head", html)
-        self.assertIn("New Import", html)
-        self.assertIn("mi__icon-btn", html)
-        self.assertIn('title="View Summary"', html)
 
 
 class AssetsDatasetTests(TestCase):

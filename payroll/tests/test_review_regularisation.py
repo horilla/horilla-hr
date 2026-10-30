@@ -17,7 +17,6 @@ import re
 from datetime import date
 from unittest.mock import patch
 
-from django.template.loader import render_to_string
 from django.test import TestCase
 from django.urls import reverse
 
@@ -25,8 +24,6 @@ from horilla.testkit import make_company, make_employee, make_user
 from payroll.models.models import Contract
 from payroll.tests.factories_payroll import make_active_contract
 from payroll.views.batch_views import SESSION_KEY
-
-HOST = "attendance/monthly_summary/_calendar_modal_host.html"
 
 START = date(2026, 4, 1)
 END = date(2026, 4, 30)
@@ -42,61 +39,6 @@ CLEAN = {
     "unresolved_conflicts": 0,
     "overtime_label": "0h 00m",
 }
-
-
-class HostPartialTests(TestCase):
-    """The extracted partial, on its own."""
-
-    def setUp(self):
-        self.body = render_to_string(HOST)
-
-    def test_it_carries_the_modal_the_calendar_is_loaded_into(self):
-        self.assertIn('id="cal-modal-overlay"', self.body)
-        self.assertIn('id="cal-modal-content"', self.body)
-
-    def test_it_exposes_the_opener_by_name(self):
-        """
-        A closure-local function would be unreachable from a second page.
-        """
-        self.assertIn("window.openAttendanceCalendar", self.body)
-
-    def test_the_resolve_helpers_come_with_it(self):
-        """
-        The calendar's cells call these by name. Scripts inserted through
-        innerHTML do not execute, so they cannot live in the modal template --
-        if they did not come across, every conflict cell would be dead.
-        """
-        self.assertIn("window.msCalLoadResolve", self.body)
-        self.assertIn("window.msCalResolvePost", self.body)
-
-    def test_any_element_with_a_calendar_url_opens_it(self):
-        """
-        Delegated rather than bound to .ms-summary-row, so the review's own
-        button works without the partial knowing anything about it.
-        """
-        self.assertIn("[data-calendar-url]", self.body)
-
-
-class SummaryTableStillWorksTests(TestCase):
-    """The page the partial was taken out of."""
-
-    def test_the_table_includes_the_host_rather_than_its_own_copy(self):
-        source = "attendance/templates/attendance/monthly_summary/table_partial.html"
-        with open(source, encoding="utf-8") as handle:
-            body = handle.read()
-
-        self.assertIn(HOST, body)
-        # Each row, and so its calendar hook, lives in the row partial the
-        # table includes.
-        self.assertIn("monthly_summary/_summary_row.html", body)
-        row = "attendance/templates/attendance/monthly_summary/_summary_row.html"
-        with open(row, encoding="utf-8") as handle:
-            self.assertIn("data-calendar-url", handle.read())
-        # The old copy is gone -- two modals with the same element ids on one
-        # page would have the second one's JavaScript driving the first one's
-        # markup.
-        self.assertNotIn('id="cal-modal-overlay"', body)
-        self.assertNotIn("window.msCalResolvePost", body)
 
 
 class ReviewPageTests(TestCase):

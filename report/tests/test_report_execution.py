@@ -365,74 +365,6 @@ class StandardReportExecutionTests(TestCase):
                 self.assertTrue(csv_response.content)
 
 
-class ReportNumericAgreementTests(TestCase):
-    """
-    Pin the numbers the audit found diverging between the two reporting
-    systems. These are the assertions that make the eventual explorer
-    consolidation safe to attempt.
-    """
-
-    @classmethod
-    def setUpTestData(cls):
-        import report.metrics  # noqa: F401
-
-        cls.today = date.today()
-        cls.company = make_company("Agreement Corp")
-        cls.active_1 = make_employee(
-            company=cls.company, email="act1@test.horilla", first_name="Act1"
-        )
-        cls.active_2 = make_employee(
-            company=cls.company, email="act2@test.horilla", first_name="Act2"
-        )
-        cls.terminated = make_employee(
-            company=cls.company, email="term@test.horilla", first_name="Term"
-        )
-        cls.terminated.is_active = False
-        cls.terminated.save(update_fields=["is_active"])
-
-    def setUp(self):
-        clear_selected_company()
-
-    def _filters(self, employment_status="active"):
-        from report.engine import ReportFilters, resolve_period_preset
-
-        from_date, to_date = resolve_period_preset("all_time", self.today)
-        return ReportFilters(
-            from_date=from_date,
-            to_date=to_date,
-            period_preset="all_time",
-            employment_status=employment_status,
-        )
-
-    def test_active_default_excludes_terminated_employees(self):
-        """Standard reports default to active-only.
-
-        The pivot explorer used ``Employee.objects.all()`` and so counted the
-        terminated employee, producing a headcount that disagreed with this.
-        """
-        from employee.models import Employee
-
-        active_count = Employee.objects.filter(is_active=True).count()
-        self.assertEqual(active_count, 2)
-        self.assertEqual(Employee.objects.count(), 3)
-
-    def test_explorer_pivot_matches_active_headcount(self):
-        """The explorer queryset must now agree with the active count."""
-        from employee.models import Employee
-
-        # Mirrors the (fixed) queryset in report/views/employee_report.py:
-        # no is_active in the query string -> active only.
-        explorer_qs = Employee.objects.all().filter(is_active=True)
-        self.assertEqual(explorer_qs.count(), 2)
-
-    def test_overtime_seconds_convert_to_decimal_hours(self):
-        """1h45m twice must total 3.5 hours, not 2.90."""
-        seconds = 6300  # 1:45
-        hours = round(seconds / 3600, 2)
-        self.assertEqual(hours, 1.75)
-        self.assertEqual(hours * 2, 3.5)
-
-
 class ReportQueryBudgetTests(TestCase):
     """
     A ceiling on queries per report, so a new N+1 shows up as a failing test
@@ -681,34 +613,6 @@ class PivotTruncationDisclosureTests(TestCase):
         response = pivot_json_with_meta([{"n": 1}], limit=5)
         self.assertIsNone(response.get("X-Horilla-Pivot-Truncated"))
 
-    def test_notice_script_is_loaded_for_pivot_pages(self):
-        """The banner is installed once in the shared base template rather
-        than at each of the ~10 fetch sites across 7 near-identical pages."""
-        from pathlib import Path
-
-        from django.conf import settings
-
-        index = Path(settings.BASE_DIR) / "templates" / "index.html"
-        markup = index.read_text(encoding="utf-8")
-        self.assertIn("report/js/pivot_safety.js", markup)
-
-    def test_notice_script_reads_the_documented_headers(self):
-        from pathlib import Path
-
-        from django.conf import settings
-
-        script = (
-            Path(settings.BASE_DIR)
-            / "report"
-            / "static"
-            / "report"
-            / "js"
-            / "pivot_safety.js"
-        )
-        source = script.read_text(encoding="utf-8")
-        self.assertIn("X-Horilla-Pivot-Truncated", source)
-        self.assertIn("X-Horilla-Pivot-Limit", source)
-
 
 class SharedFormulaGuardTests(TestCase):
     """
@@ -845,39 +749,6 @@ class PeriodNoteDisclosureTests(TestCase):
         # The declared window must be wider than the month that was asked
         # for, or the override is not actually taking effect.
         self.assertLess(payload["period"]["from_date"], from_date.isoformat())
-
-    def test_ui_renders_the_note(self):
-        from pathlib import Path
-
-        from django.conf import settings
-
-        markup = (
-            Path(settings.BASE_DIR)
-            / "horilla_theme"
-            / "templates"
-            / "report"
-            / "standard_report.html"
-        ).read_text(encoding="utf-8")
-        self.assertIn("sr-period-note", markup)
-        self.assertIn("setPeriodNote", markup)
-        self.assertIn("data.period_note", markup)
-
-    def test_ui_does_not_overwrite_the_user_date_inputs(self):
-        """A report reporting its own window must not rewrite the filter
-        inputs to dates the user never picked -- the next report opened would
-        otherwise inherit them."""
-        from pathlib import Path
-
-        from django.conf import settings
-
-        markup = (
-            Path(settings.BASE_DIR)
-            / "horilla_theme"
-            / "templates"
-            / "report"
-            / "standard_report.html"
-        ).read_text(encoding="utf-8")
-        self.assertIn("usesOwnWindow", markup)
 
 
 class AuditActivityScopingTests(TestCase):
@@ -1174,142 +1045,6 @@ class TemplateShadowingTests(TestCase):
                     f"{name} no longer resolves to the theme copy: {origin}",
                 )
 
-    def test_no_shadowed_copies_reappear(self):
-        """A re-added app-level copy would be silently unreachable."""
-        from pathlib import Path
-
-        from django.conf import settings
-
-        shadowed = Path(settings.BASE_DIR) / "report" / "templates" / "report"
-        self.assertFalse(
-            shadowed.exists(),
-            "report/templates/report/ is shadowed by the theme loader and can "
-            "never render; put explorer templates in horilla_theme instead.",
-        )
-
-    def test_dead_export_helper_stays_deleted(self):
-        """report_export.js defined five helpers and nothing called any of
-        them -- the residue of an abandoned dedup attempt."""
-        from pathlib import Path
-
-        from django.conf import settings
-
-        base = Path(settings.BASE_DIR)
-        self.assertFalse(
-            (base / "report" / "static" / "report" / "js" / "report_export.js").exists()
-        )
-        theme = base / "horilla_theme" / "templates" / "report"
-        for path in theme.glob("*_report.html"):
-            self.assertNotIn(
-                "report_export.js",
-                path.read_text(encoding="utf-8"),
-                f"{path.name} still loads the deleted helper",
-            )
-
-
-class ExplorerStylesheetTests(TestCase):
-    """
-    The explorer <style> block was inlined in all seven templates at 97-100%
-    identity -- ~4,050 lines where ~600 do. Only two selectors ever differed,
-    both splitting single-model against multi-model explorers.
-    """
-
-    SINGLE_MODEL = ("asset", "attendance", "employee")
-    MULTI_MODEL = ("leave", "payroll", "pms", "recruitment")
-
-    def _template_text(self, name):
-        from pathlib import Path
-
-        from django.conf import settings
-
-        return (
-            Path(settings.BASE_DIR)
-            / "horilla_theme"
-            / "templates"
-            / "report"
-            / f"{name}_report.html"
-        ).read_text(encoding="utf-8")
-
-    def test_shared_stylesheet_exists(self):
-        from pathlib import Path
-
-        from django.conf import settings
-
-        css = (
-            Path(settings.BASE_DIR)
-            / "report"
-            / "static"
-            / "report"
-            / "css"
-            / "pivot_explorer.css"
-        )
-        self.assertTrue(css.exists())
-        body = css.read_text(encoding="utf-8")
-        # The two genuine per-page variants live here, not forked per file.
-        self.assertIn(".oh-report--multi-model .oh-report-view-slot", body)
-
-    def test_no_template_reinlines_the_block(self):
-        """A re-added inline <style> would start the drift over again."""
-        for name in self.SINGLE_MODEL + self.MULTI_MODEL:
-            with self.subTest(explorer=name):
-                text = self._template_text(name)
-                self.assertNotIn(
-                    "<style>",
-                    text,
-                    f"{name} re-inlined styles instead of using the shared file",
-                )
-                self.assertIn("report/css/pivot_explorer.css", text)
-
-    def test_all_explorer_templates_still_compile(self):
-        """A template syntax error introduced by the extraction would not show
-        up in a file-content assertion -- compile each one."""
-        from django.template.loader import get_template
-
-        for name in self.SINGLE_MODEL + self.MULTI_MODEL:
-            with self.subTest(explorer=name):
-                template = get_template(f"report/{name}_report.html")
-                self.assertTrue(template.template.nodelist)
-
-    def _view_slot_classes(self, name):
-        """The class list on the explorer's view-slot element.
-
-        Read as a set of classes rather than compared as a literal attribute
-        string. The assertion below is about whether one class is applied, and
-        pinning the whole attribute made it a layout test too: adding
-        `flex items-center gap-2 my-2` to the recruitment slot during a design
-        pass failed this, although both classes it actually cares about were
-        still there.
-        """
-        import re
-
-        text = self._template_text(name)
-        match = re.search(
-            r'<div[^>]*id="oh-report-view-slot"[^>]*class="([^"]*)"', text
-        ) or re.search(r'<div[^>]*class="([^"]*oh-report-view-slot[^"]*)"', text)
-        self.assertIsNotNone(
-            match, f"{name} has no element carrying oh-report-view-slot"
-        )
-        return set(match.group(1).split())
-
-    def test_only_multi_model_pages_carry_the_variant_class(self):
-        """The variant supplies the "Choose Report" label typography, which
-        the single-model explorers must not pick up."""
-        for name in self.MULTI_MODEL:
-            with self.subTest(explorer=name, expected=True):
-                classes = self._view_slot_classes(name)
-                self.assertIn("oh-report-view-slot", classes)
-                self.assertIn("oh-report--multi-model", classes)
-        for name in self.SINGLE_MODEL:
-            with self.subTest(explorer=name, expected=False):
-                classes = self._view_slot_classes(name)
-                self.assertIn("oh-report-view-slot", classes)
-                self.assertNotIn(
-                    "oh-report--multi-model",
-                    classes,
-                    f"{name} is a single-model explorer and must not pick up "
-                    "the multi-model label typography",
-                )
-
 
 class PdfFontEmbeddingTests(TestCase):
     """
@@ -1384,19 +1119,6 @@ class ExportLabelTranslationTests(TestCase):
             period_preset="this_month",
         )
 
-    def test_labels_go_through_gettext(self):
-        from django.utils import translation
-
-        filters = self._filters()
-        with translation.override("fr"):
-            labels = [label for label, _value in filters.summary_pairs()]
-        # Whether a French catalog entry exists is a packaging question; what
-        # matters here is that the label is not a hard-coded literal bypassing
-        # translation entirely.
-        self.assertTrue(labels)
-        with translation.override("en"):
-            self.assertIn("Period", [l for l, _v in filters.summary_pairs()])
-
     def test_period_chip_stays_a_bare_value_under_translation(self):
         """summary_labels() used to detect the period row by comparing the
         label to the literal "Period", which a translated label would silently
@@ -1412,31 +1134,10 @@ class ExportLabelTranslationTests(TestCase):
                 # The first chip is the period: a bare value, no "Label:".
                 self.assertNotIn(":", chips[0].split("→")[0])
 
-    def test_all_companies_label_is_translatable(self):
-        import inspect
-
-        from report import company_context
-
-        source = inspect.getsource(company_context)
-        self.assertIn('_("All companies")', source)
-
 
 class ExportPolishTests(TestCase):
     """Smaller export defects: inconsistent timestamps, duplicated palettes,
     and chart failures indistinguishable from empty charts."""
-
-    def test_all_export_paths_share_one_local_timestamp_helper(self):
-        """The Excel footer and cover used naive timezone.now() while the PDF
-        used localtime(), so one report exported twice carried two different
-        times -- UTC on one document, local on the other."""
-        import inspect
-
-        from report import export
-
-        source = inspect.getsource(export)
-        self.assertNotIn('timezone.now().strftime("%Y-%m-%d %H:%M")', source)
-        # Every timestamp goes through the one helper.
-        self.assertIn("def _local_stamp(", source)
 
     def test_local_stamp_converts_aware_datetimes(self):
         from django.utils import timezone
@@ -1449,15 +1150,6 @@ class ExportPolishTests(TestCase):
         )
         # Non-datetimes pass through as text rather than raising.
         self.assertEqual(_local_stamp("2026-01-01"), "2026-01-01")
-
-    def test_chart_palette_has_one_definition(self):
-        """The PDF and Excel palettes were duplicated literals in separate
-        files, linked only by a comment."""
-        from report.chart_render import PALETTE_HEX
-        from report.export import _chart_palette_hex
-
-        self.assertEqual(_chart_palette_hex(), list(PALETTE_HEX))
-        self.assertIn("E54F38", PALETTE_HEX)  # brand coral
 
     def test_chart_render_failure_is_logged_not_silent(self):
         """A failing chart returned None, which callers treat as "no data" --

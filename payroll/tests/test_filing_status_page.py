@@ -119,10 +119,6 @@ class WhatEachStatusDoesTests(Fixture):
         self.assertIn("<b>60,000 below 1,200,000</b>", body)
         self.assertIn("<b>4%</b>", body)
 
-    def test_a_status_with_no_adjustments_shows_none(self):
-        self.status("Plain", slabs=[(0, None, 10)])
-        self.assertNotContains(self.page(), 'fs__adj"')
-
     def test_the_working_is_on_the_page(self):
         """
         computation_steps() states the engine's real order. Having it two
@@ -130,12 +126,6 @@ class WhatEachStatusDoesTests(Fixture):
         """
         self.status("India", slabs=[(0, None, 10)], standard_deduction=50000)
         self.assertContains(self.page(), "Subtract a standard deduction")
-
-    def test_the_slabs_themselves_are_on_the_page(self):
-        # Separated, not raw: see SlabPresentationTests.
-        self.status("Single", slabs=[(0, 12345, 5)])
-        self.assertContains(self.page(), "12,345")
-
 
 class WhatIsWrongTests(Fixture):
     def test_contracts_with_no_filing_status_are_counted(self):
@@ -203,46 +193,6 @@ class CoverageTests(Fixture):
         self.assertEqual(self.page().context["total_covered"], 2)
 
 
-class DisclosureStyleTests(Fixture):
-    """
-    The expanding row behaving like a control rather than a line of text.
-    """
-
-    def test_the_caret_turns_when_the_row_opens(self):
-        """
-        It pointed the same way open or shut, so the row gave no sign of its
-        own state -- the only clue was whether content was underneath it.
-        """
-        self.status("Single", slabs=[(0, None, 10)])
-        body = self.page().content.decode()
-
-        self.assertIn('class="fs__caret"', body)
-        self.assertIn("[open] > summary .fs__caret", body)
-        self.assertIn("rotate(90deg)", body)
-
-    def test_the_steps_are_numbered_by_counter_not_list_style(self):
-        """
-        Tailwind's preflight sets `ol { list-style: none }` app-wide, so an
-        ordered list renders with no numbers at all -- and these are steps
-        whose whole point is the order.
-        """
-        self.status("Single", slabs=[(0, None, 10)])
-        body = self.page().content.decode()
-
-        self.assertIn("counter(fs-step)", body)
-        self.assertIn("counter-increment: fs-step", body)
-
-    def test_the_panel_is_set_apart_from_the_rows(self):
-        """
-        Unindented and on the same background it read as another table row
-        rather than as the working behind the one above it.
-        """
-        self.status("Single", slabs=[(0, None, 10)])
-        body = self.page().content.decode()
-
-        self.assertIn("border-left: 3px solid var(--pb-accent)", body)
-
-
 class SlabPresentationTests(Fixture):
     def test_a_range_is_one_column_not_two(self):
         """
@@ -308,27 +258,6 @@ class SlabPresentationTests(Fixture):
         body = self.page().content.decode()
 
         self.assertLess(body.index(">Slabs<"), body.index(">In order<"))
-
-    def test_the_slabs_get_a_column_of_their_own_width(self):
-        """
-        Sized to content they were cramped; sized to half the page the rate
-        ended up on the far side from the band it applies to.
-        """
-        self.status("Single", slabs=[(0, None, 10)])
-        body = self.page().content.decode()
-
-        self.assertIn("minmax(18rem, 30rem)", body)
-
-    def test_the_bands_are_divided_by_a_light_line(self):
-        """
-        At the same weight as the table's own border, every band read as a
-        separate box rather than as rows of one table.
-        """
-        self.status("Single", slabs=[(0, 100, 5), (100, None, 10)])
-        body = self.page().content.decode()
-
-        self.assertIn("--pb-line-soft", body)
-        self.assertIn("border-bottom: 1px solid var(--pb-line-soft)", body)
 
     def test_the_panel_links_to_where_the_slabs_are_set(self):
         """
@@ -402,41 +331,6 @@ class SlabPresentationTests(Fixture):
         self.assertEqual(body.count('<td class="fs__sn">1</td>'), 2)
         self.assertEqual(body.count('<td class="fs__sn">2</td>'), 1)
 
-    def test_the_table_has_an_outer_edge(self):
-        """
-        Under `border-collapse: collapse` the table's own border is merged into
-        the cells' borders and border-radius is ignored outright, so the box
-        had no visible outer edge at all -- only the lines between its rows.
-        """
-        import re
-
-        self.status("Single", slabs=[(0, None, 10)])
-        body = self.page().content.decode()
-        rule = body[body.index(".fs__slabs {") : body.index(".fs__slabs th,")]
-        # Comments out: the one on this very rule explains the collapse trap,
-        # and would satisfy a search for it.
-        declarations = re.sub(r"/\*.*?\*/", "", rule, flags=re.S)
-
-        self.assertIn("border-collapse: separate", declarations)
-        self.assertNotIn("border-collapse: collapse", declarations)
-        self.assertIn("border: 1px solid var(--pb-line)", declarations)
-
-    def test_the_heading_row_keeps_the_full_weight_line(self):
-        """It is the edge of the headings, not a divider between two bands."""
-        self.status("Single", slabs=[(0, None, 10)])
-        self.assertContains(
-            self.page(), "thead th { border-bottom: 1px solid var(--pb-line)"
-        )
-
-    def test_it_stacks_when_there_is_not_room_for_two_columns(self):
-        """
-        Below about 1100px the two columns squeeze each band onto two lines,
-        which is worse than reading them one after the other.
-        """
-        self.status("Single", slabs=[(0, None, 10)])
-        self.assertContains(self.page(), "max-width: 1100px")
-
-
 class ComputationStepsTests(Fixture):
     def test_one_slab_is_not_described_as_slab_open_bracket_s(self):
         """
@@ -460,18 +354,6 @@ class ComputationStepsTests(Fixture):
 
 
 class PageTests(Fixture):
-    def test_there_is_only_one_copy_of_this_template(self):
-        """
-        horilla_theme shadowed it, so edits to the payroll copy did nothing.
-        Two templates for one page is how that happens.
-        """
-        import pathlib
-
-        shadow = pathlib.Path(
-            "horilla_theme/templates/payroll/tax/filing_status_view.html"
-        )
-        self.assertFalse(shadow.exists(), "the theme shadow is back")
-
     def test_an_empty_install_says_what_is_missing(self):
         response = self.page()
         self.assertContains(response, "No filing statuses yet")

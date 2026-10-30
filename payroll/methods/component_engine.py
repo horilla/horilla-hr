@@ -109,9 +109,13 @@ def add_service_years(context, employee, contract, as_of):
     return context
 
 
-def accumulate(context, amount):
+def accumulate(context, amount, inside_ctc=True):
     """
     Add an earning to the running totals.
+
+    An earning outside the structure (a bonus, a one-time allowance) is paid on top of
+    the package in CTC-Down, so it is not counted in ``EARNED`` and the balance keeps
+    its full share. It is only ever outside when ``inside_ctc`` is false.
 
     GROSS only moves where it is a running total. In CTC-Down it is the pot
     being divided and already holds its final value, so adding to it would take
@@ -119,6 +123,8 @@ def accumulate(context, amount):
     on.
     """
     value = float(amount or 0)
+    if context.get(GROSS_IS_FIXED) and not inside_ctc:
+        return context
     context[EARNED] = float(context.get(EARNED, 0.0) or 0) + value
     if not context.get(GROSS_IS_FIXED):
         context["GROSS"] = float(context.get("GROSS", 0.0) or 0) + value

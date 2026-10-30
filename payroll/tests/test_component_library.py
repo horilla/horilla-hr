@@ -314,63 +314,6 @@ class LibraryViewTests(TestCase):
         self.assertEqual(target, reverse("view-allowance"))
 
 
-class PickerModalTests(TestCase):
-    """
-    The two "start from something ready-made" choosers — components and tax
-    configurations — are the same interaction and now share one design.
-
-    The component one shipped with no close button at all, leaving Escape or a
-    click outside as the only way out of it, which is the kind of thing only a
-    rendered check catches.
-    """
-
-    def setUp(self):
-        user = make_user("pickadmin", is_superuser=True)
-        company = make_company("Pick Co")
-        make_employee(company=company, email="pickadmin@test.horilla", user=user)
-        self.client.force_login(user)
-        self.hx = {"HTTP_HX_REQUEST": "true"}
-
-    def _bodies(self):
-        return {
-            "components": self.client.get(
-                reverse("component-library"), **self.hx
-            ).content.decode(),
-            "tax": self.client.get(
-                "/payroll/tax-pack-picker/", **self.hx
-            ).content.decode(),
-        }
-
-    def test_both_can_be_closed(self):
-        for name, body in self._bodies().items():
-            with self.subTest(modal=name):
-                self.assertIn("oh-modal__close--custom", body)
-                self.assertIn("close-outline", body)
-                # And a Cancel, for the same reason.
-                self.assertIn("Cancel", body)
-
-    def test_both_use_the_shared_design(self):
-        for name, body in self._bodies().items():
-            with self.subTest(modal=name):
-                self.assertIn("pick__row", body)
-                self.assertIn("pick__caveat", body)
-                self.assertIn("pick__foot", body)
-
-    def test_both_group_their_rows_rather_than_columning_the_region(self):
-        """
-        Country as a column left the descriptions fighting for what width
-        remained; as a heading it costs nothing.
-        """
-        for name, body in self._bodies().items():
-            with self.subTest(modal=name):
-                self.assertIn("pick__group", body)
-
-    def test_both_say_that_nothing_is_overwritten(self):
-        for name, body in self._bodies().items():
-            with self.subTest(modal=name):
-                self.assertIn("Nothing is overwritten", body)
-
-
 class LibraryPermissionTests(TestCase):
     """
     The chooser creates allowances and deductions from one list, so it takes

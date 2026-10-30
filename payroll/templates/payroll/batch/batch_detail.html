@@ -59,7 +59,7 @@
         <div style="flex:1 1 auto;min-width:0;" hx-get="{% url 'payslip-run-navbar' batch.pk %}" hx-trigger="load"></div>
         {% if batch.status == "draft" and perms.payroll.add_payslip and perms.payroll.delete_payslip %}
         <form method="post" action="{% url 'payroll-batch-reopen' batch.pk %}"
-              onsubmit="return confirm('{% trans "Go back to Review & Regularize? The draft payslips of this run are discarded and made again when you generate."|escapejs %}');">
+              onsubmit="return confirm('{% trans "Go back to Review & Regularize? The draft payslips of this batch are discarded and made again when you generate."|escapejs %}');">
           {% csrf_token %}
           <button type="submit" class="pb__btn"
                   title="{% trans 'Fix attendance or contracts, then generate again' %}">
@@ -102,10 +102,10 @@
         {% endif %}
         {% if perms.payroll.delete_payslip and batch.status != "paid" %}
         <form method="post" action="{% url 'payroll-batch-delete' batch.pk %}"
-              onsubmit="return confirm('{% filter escapejs %}{% autoescape off %}{% blocktrans with name=batch.batch_name count=batch.generated_count %}Delete the run {{ name }} and its {{ count }} payslip(s)? This cannot be undone.{% endblocktrans %}{% endautoescape %}{% endfilter %}');">
+              onsubmit="return confirm('{% filter escapejs %}{% autoescape off %}{% blocktrans with name=batch.batch_name count=batch.generated_count %}Delete the batch {{ name }} and its {{ count }} payslip(s)? This cannot be undone.{% endblocktrans %}{% endautoescape %}{% endfilter %}');">
           {% csrf_token %}
           <button type="submit" class="pb__btn pb__btn--icon pb__btn--danger"
-                  title="{% trans 'Delete this run' %}">
+                  title="{% trans 'Delete this batch' %}">
             <ion-icon name="trash-outline"></ion-icon>
           </button>
         </form>

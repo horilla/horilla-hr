@@ -1,0 +1,530 @@
+<script>
+  $(function () {
+    var root = document.getElementById("{{ section_id }}");
+    var select = document.getElementById("{{ self.attrs.id }}");
+    var modal = document.getElementById("filterChoose{{ section_id }}");
+    var $select = $(select);
+    var idsUrl = root.dataset.idsUrl;
+    var rowsUrl = root.dataset.rowsUrl;
+    var token = root.dataset.token;
+    var LABEL_BATCH = 200;
+    var DISPLAY_LIMIT = 25;
+    var csrfToken = typeof getCookie === "function" ? getCookie("csrftoken") : "";
+
+    function post(url, params) {
+      return $.ajax({
+        type: "POST",
+        url: url,
+        data: $.param(params),
+        headers: { "X-CSRFToken": csrfToken },
+      });
+    }
+    var tbody = modal.querySelector("[data-rows]");
+    var listWrap = modal.querySelector(".ep-listwrap");
+    var sentinel = modal.querySelector("[data-sentinel]");
+    var loadingEl = modal.querySelector("[data-loading]");
+    var emptyEl = modal.querySelector("[data-empty]");
+    var errorEl = modal.querySelector("[data-error]");
+    var chipsEl = modal.querySelector("[data-chips]");
+    var countEl = modal.querySelector("[data-count]");
+    var shownEl = modal.querySelector("[data-shown-label]");
+    var footerStack = modal.querySelector("[data-stack-footer]");
+    var addBtn = modal.querySelector('[data-action="commit"]');
+    var allBox = modal.querySelector("[data-all]");
+    var filterEls = Array.prototype.slice.call(modal.querySelectorAll("[data-filter]"));
+    var stripWrapper = root.querySelector("[data-strip-wrapper]");
+    var strip = root.querySelector("[data-strip]");
+    var draft = new Set();
+    var info = {};
+    var rowEls = {};
+    var page = 0;
+    var loaded = 0;
+    var total = 0;
+    var hasMore = true;
+    var loading = false;
+    var generation = 0;
+    var matched = { generation: null, ids: [] };
+    var timer = null;
+    var chipOrder = {};
+    var chipSeq = 0;
+
+    if ($select.hasClass("select2-hidden-accessible")) {
+      $select.select2("destroy");
+    }
+    $select.select2({
+      multiple: true,
+      width: "100%",
+      placeholder: $select.data("placeholder"),
+      ajax: {
+        url: rowsUrl,
+        type: "POST",
+        headers: { "X-CSRFToken": csrfToken },
+        dataType: "json",
+        delay: 250,
+        data: function (params) {
+          return { token: token, name_or_badge: params.term || "", page: params.page || 1 };
+        },
+        processResults: function (data) {
+          return {
+            results: data.results.map(function (item) {
+              return { id: item.id, text: item.label, avatar: item.avatar };
+            }),
+            pagination: { more: !!data.has_more },
+          };
+        },
+      },
+    });
+    $select.on("select2:select", function (event) {
+      var item = event.params.data;
+      var opt = select.querySelector('option[value="' + item.id + '"]');
+      if (opt && item.avatar) {
+        opt.dataset.avatar = item.avatar;
+      }
+    });
+    $(modal).find("select.ep-select").select2({ width: "100%" });
+
+    function labelFor(el) {
+      var label = modal.querySelector('label[for="' + el.id + '"]');
+      return label ? label.textContent.trim() : "";
+    }
+
+    function rememberSelectedOptions() {
+      Array.prototype.forEach.call(select.options, function (opt) {
+        info[opt.value] = { label: opt.text, avatar: opt.dataset.avatar || "" };
+      });
+    }
+
+    function syncDraftFromSelect() {
+      draft = new Set(($select.val() || []).map(String));
+    }
+
+    function avatarImg(id) {
+      var img = document.createElement("img");
+      img.src = info[id] ? info[id].avatar : "";
+      img.alt = "";
+      img.title = info[id] ? info[id].label : "";
+      img.addEventListener("error", function () {
+        img.style.visibility = "hidden";
+      });
+      return img;
+    }
+
+    function renderFooterStack() {
+      var ids = Array.from(draft).filter(function (id) {
+        return info[id];
+      });
+      footerStack.textContent = "";
+      ids.slice(0, 5).forEach(function (id) {
+        footerStack.appendChild(avatarImg(id));
+      });
+      if (draft.size > 5) {
+        var more = document.createElement("span");
+        more.textContent = "+" + (draft.size - 5);
+        footerStack.appendChild(more);
+      }
+    }
+
+    function renderStrip() {
+      var options = Array.prototype.slice.call(select.selectedOptions);
+      strip.textContent = "";
+      options.slice(0, DISPLAY_LIMIT).forEach(function (opt) {
+        var item = document.createElement("span");
+        item.className = "ep-strip__item";
+        item.title = opt.text;
+        var img = document.createElement("img");
+        img.src = opt.dataset.avatar || "";
+        img.alt = "";
+        item.appendChild(img);
+        strip.appendChild(item);
+      });
+      if (options.length > DISPLAY_LIMIT) {
+        var more = document.createElement("span");
+        more.className = "ep-strip__more";
+        more.textContent = "+" + (options.length - DISPLAY_LIMIT);
+        strip.appendChild(more);
+      }
+      stripWrapper.classList.toggle("ep-hidden", options.length === 0);
+    }
+
+    function setRowState(row, on) {
+      row.classList.toggle("is-on", on);
+      row.querySelector(".ep-check").checked = on;
+    }
+
+    function updateSummary() {
+      var ids = Object.keys(rowEls);
+      var selectedLoaded = ids.filter(function (id) {
+        return draft.has(id);
+      }).length;
+      var everyLoadedSelected = ids.length > 0 && selectedLoaded === ids.length;
+      var allMatchingSelected =
+        everyLoadedSelected &&
+        (!hasMore ||
+          (matched.generation === generation &&
+            matched.ids.every(function (id) {
+              return draft.has(id);
+            })));
+      allBox.checked = allMatchingSelected;
+      allBox.indeterminate = !allMatchingSelected && selectedLoaded > 0;
+      countEl.textContent = draft.size;
+      shownEl.textContent = page ? loaded + " / " + total : "";
+      emptyEl.classList.toggle("ep-hidden", !(page && total === 0));
+      renderFooterStack();
+    }
+
+    function buildRow(item) {
+      var id = String(item.id);
+      info[id] = { label: item.label, avatar: item.avatar };
+      var row = document.createElement("tr");
+      row.className = "ep-row";
+      row.dataset.id = id;
+      var checkCell = document.createElement("td");
+      checkCell.className = "ep-col-check";
+      var check = document.createElement("input");
+      check.type = "checkbox";
+      check.className = "ep-check";
+      check.setAttribute("aria-label", item.label);
+      checkCell.appendChild(check);
+      var nameCell = document.createElement("td");
+      var person = document.createElement("div");
+      person.className = "ep-person";
+      var img = avatarImg(id);
+      img.className = "ep-av";
+      img.loading = "lazy";
+      img.removeAttribute("title");
+      var name = document.createElement("span");
+      name.textContent = item.label;
+      person.appendChild(img);
+      person.appendChild(name);
+      nameCell.appendChild(person);
+      row.appendChild(checkCell);
+      row.appendChild(nameCell);
+      row.addEventListener("click", function () {
+        if (draft.has(id)) {
+          draft.delete(id);
+        } else {
+          draft.add(id);
+        }
+        setRowState(row, draft.has(id));
+        updateSummary();
+      });
+      rowEls[id] = row;
+      setRowState(row, draft.has(id));
+      return row;
+    }
+
+    function collect() {
+      var params = [];
+      var chips = [];
+      filterEls.forEach(function (el) {
+        var name = el.dataset.filter;
+        if (el.tagName === "SELECT") {
+          Array.prototype.forEach.call(el.selectedOptions, function (opt) {
+            params.push({ name: name, value: opt.value });
+            chips.push({ el: el, value: opt.value, text: labelFor(el) + ": " + opt.text });
+          });
+        } else if (el.value) {
+          params.push({ name: name, value: el.value });
+          if (name !== "name_or_badge") {
+            chips.push({ el: el, value: null, text: (el.dataset.label || labelFor(el)) + ": " + el.value });
+          }
+        }
+      });
+      var seen = {};
+      chips.forEach(function (chip) {
+        var key = chip.el.id + "|" + chip.value;
+        if (!(key in chipOrder)) {
+          chipSeq += 1;
+          chipOrder[key] = chipSeq;
+        }
+        chip.order = chipOrder[key];
+        seen[key] = true;
+      });
+      Object.keys(chipOrder).forEach(function (key) {
+        if (!seen[key]) {
+          delete chipOrder[key];
+        }
+      });
+      chips.sort(function (a, b) {
+        return b.order - a.order;
+      });
+      return { params: params, chips: chips };
+    }
+
+    function removeChip(chip) {
+      if (chip.el.tagName === "SELECT") {
+        var rest = ($(chip.el).val() || []).filter(function (value) {
+          return value !== chip.value;
+        });
+        $(chip.el).val(rest).trigger("change");
+      } else {
+        chip.el.value = "";
+        $(chip.el).trigger("input");
+      }
+    }
+
+    function renderChips(chips) {
+      chipsEl.textContent = "";
+      chips.forEach(function (chip) {
+        var node = document.createElement("span");
+        node.className = "ep-chip";
+        node.appendChild(document.createTextNode(chip.text));
+        var button = document.createElement("button");
+        button.type = "button";
+        button.setAttribute("aria-label", "Remove " + chip.text);
+        button.innerHTML = "&times;";
+        button.addEventListener("click", function () {
+          removeChip(chip);
+        });
+        node.appendChild(button);
+        chipsEl.appendChild(node);
+      });
+      modal.querySelectorAll(".ep-group").forEach(function (group) {
+        var count = chips.filter(function (chip) {
+          return group.contains(chip.el);
+        }).length;
+        var badge = group.querySelector("[data-group-badge]");
+        badge.textContent = count;
+        badge.hidden = count === 0;
+      });
+      var totalBadge = modal.querySelector("[data-total-badge]");
+      totalBadge.textContent = chips.length;
+      totalBadge.hidden = chips.length === 0;
+    }
+
+    function queryParams(extra) {
+      return collect().params.concat([{ name: "token", value: token }], extra || []);
+    }
+
+    function loadPage(reset) {
+      if (reset) {
+        generation += 1;
+        loading = false;
+        page = 0;
+        loaded = 0;
+        total = 0;
+        hasMore = true;
+        rowEls = {};
+        tbody.textContent = "";
+        errorEl.classList.add("ep-hidden");
+      }
+      if (loading || !hasMore) {
+        return;
+      }
+      loading = true;
+      var current = generation;
+      loadingEl.classList.remove("ep-hidden");
+      post(rowsUrl, queryParams([{ name: "page", value: page + 1 }]))
+        .done(function (data) {
+          if (current !== generation) {
+            return;
+          }
+          var fragment = document.createDocumentFragment();
+          data.results.forEach(function (item) {
+            fragment.appendChild(buildRow(item));
+          });
+          tbody.appendChild(fragment);
+          page += 1;
+          loaded += data.results.length;
+          total = data.total;
+          hasMore = data.has_more;
+        })
+        .fail(function () {
+          if (current === generation) {
+            errorEl.classList.remove("ep-hidden");
+          }
+        })
+        .always(function () {
+          if (current !== generation) {
+            return;
+          }
+          loading = false;
+          loadingEl.classList.add("ep-hidden");
+          updateSummary();
+          if (hasMore && "IntersectionObserver" in window) {
+            observer.unobserve(sentinel);
+            observer.observe(sentinel);
+          }
+        });
+    }
+
+    function applyFilters() {
+      renderChips(collect().chips);
+      loadPage(true);
+    }
+
+    function scheduleApply() {
+      clearTimeout(timer);
+      timer = setTimeout(applyFilters, 250);
+    }
+
+    function closeModal() {
+      modal.classList.remove("oh-modal--show");
+    }
+
+    function fetchLabels(ids) {
+      var requests = [];
+      for (var start = 0; start < ids.length; start += LABEL_BATCH) {
+        var chunk = ids.slice(start, start + LABEL_BATCH);
+        requests.push(
+          post(rowsUrl, [{ name: "token", value: token }, { name: "ids", value: chunk.join(",") }]).done(
+            function (data) {
+              data.results.forEach(function (item) {
+                info[String(item.id)] = { label: item.label, avatar: item.avatar };
+              });
+            }
+          )
+        );
+      }
+      return $.when.apply($, requests);
+    }
+
+    function applySelection() {
+      var ids = Array.from(draft);
+      var keep = new Set(ids);
+      Array.prototype.slice.call(select.options).forEach(function (opt) {
+        if (!keep.has(opt.value)) {
+          select.removeChild(opt);
+        }
+      });
+      var present = new Set(
+        Array.prototype.map.call(select.options, function (opt) {
+          return opt.value;
+        })
+      );
+      ids.forEach(function (id) {
+        if (present.has(id)) {
+          return;
+        }
+        var opt = new Option(info[id] ? info[id].label : id, id, true, true);
+        opt.dataset.avatar = info[id] ? info[id].avatar : "";
+        select.appendChild(opt);
+      });
+      $select.val(ids).trigger("change");
+      closeModal();
+    }
+
+    var observer = {
+      observe: function () {},
+      unobserve: function () {},
+    };
+    if ("IntersectionObserver" in window) {
+      observer = new IntersectionObserver(
+        function (entries) {
+          if (entries[0].isIntersecting) {
+            loadPage(false);
+          }
+        },
+        { root: listWrap, rootMargin: "200px" }
+      );
+      observer.observe(sentinel);
+    }
+
+    filterEls.forEach(function (el) {
+      $(el).on(el.tagName === "SELECT" ? "change" : "input change", scheduleApply);
+    });
+
+    allBox.addEventListener("change", function () {
+      var selecting = allBox.checked;
+      var current = generation;
+      loadingEl.classList.remove("ep-hidden");
+      post(idsUrl, queryParams())
+        .done(function (data) {
+          data.ids.forEach(function (id) {
+            if (selecting) {
+              draft.add(String(id));
+            } else {
+              draft.delete(String(id));
+            }
+          });
+          matched = selecting
+            ? { generation: current, ids: data.ids.map(String) }
+            : { generation: null, ids: [] };
+          Object.keys(rowEls).forEach(function (id) {
+            setRowState(rowEls[id], draft.has(id));
+          });
+        })
+        .fail(function () {
+          errorEl.classList.remove("ep-hidden");
+        })
+        .always(function () {
+          if (!loading) {
+            loadingEl.classList.add("ep-hidden");
+          }
+          updateSummary();
+        });
+    });
+
+    modal.querySelector('[data-action="reset"]').addEventListener("click", function () {
+      filterEls.forEach(function (el) {
+        if (el.dataset.filter === "name_or_badge") {
+          return;
+        }
+        if (el.tagName === "SELECT") {
+          $(el).val(null).trigger("change");
+        } else {
+          el.value = "";
+          $(el).trigger("input");
+        }
+      });
+    });
+
+    modal.querySelectorAll('[data-action="close"]').forEach(function (button) {
+      button.addEventListener("click", closeModal);
+    });
+
+    addBtn.addEventListener("click", function () {
+      var missing = Array.from(draft).filter(function (id) {
+        return !info[id];
+      });
+      if (!missing.length) {
+        applySelection();
+        return;
+      }
+      fetchLabels(missing)
+        .done(applySelection)
+        .fail(function () {
+          errorEl.classList.remove("ep-hidden");
+        });
+    });
+
+    modal.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && !document.querySelector(".select2-container--open")) {
+        closeModal();
+      }
+    });
+
+    var opener = root.querySelector(".ep-open");
+    opener.addEventListener("click", function () {
+      rememberSelectedOptions();
+      syncDraftFromSelect();
+      Object.keys(rowEls).forEach(function (id) {
+        setRowState(rowEls[id], draft.has(id));
+      });
+      updateSummary();
+      if (page === 0) {
+        loadPage(false);
+      }
+      setTimeout(function () {
+        modal.querySelector('[data-filter="name_or_badge"]').focus();
+      }, 50);
+    });
+    opener.addEventListener("keydown", function (event) {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        opener.click();
+      }
+    });
+
+    $select.on("change", function () {
+      rememberSelectedOptions();
+      syncDraftFromSelect();
+      renderStrip();
+      updateSummary();
+    });
+
+    rememberSelectedOptions();
+    renderStrip();
+    updateSummary();
+  });
+</script>

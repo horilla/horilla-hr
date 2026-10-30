@@ -73,6 +73,20 @@ def employeeworkinformation_post_save(sender, instance, **_kwargs):
             contract.save()
 
 
+@receiver(post_save, sender=Allowance)
+@receiver(post_save, sender=Deduction)
+def standard_component_saved(sender, instance, **kwargs):
+    """
+    Editing a standard component (Loan, Fine, Reimbursement ...) reaches the rows it generated that
+    no payslip carries yet, so its Taxable / Pre-Tax setting applies to them and not only to new ones.
+    """
+    if kwargs.get("raw") or not (instance.is_system and instance.system_key):
+        return
+    from payroll.methods.system_sync import align
+
+    align(keys={instance.system_key})
+
+
 @receiver(post_save, sender=LoanAccount)
 def create_installments(sender, instance, created, **kwargs):
     """

@@ -14,6 +14,7 @@ from django.apps import apps
 from horilla.methods import get_horilla_model_class
 from payroll.methods.component_engine import (
     EARNED,
+    GROSS_IS_FIXED,
     accumulate,
     component_applies_to,
     eligible_allowances,
@@ -399,6 +400,9 @@ def calculate_allowance(**kwargs):
     # same phase, only the seeded period figures. Recording as we go is what
     # makes "50% of DA" work at all.
     computed = []
+    in_structure = set(
+        structure_components(Allowance, employee).values_list("pk", flat=True)
+    )
     for allowance in employee_allowances:
         if allowance.is_fixed:
             amount = flat_amount(allowance, day_dict)
@@ -436,8 +440,11 @@ def calculate_allowance(**kwargs):
             context["_basic_lop"] = cut
 
         record(context, allowance, amount)
-        accumulate(context, amount)
-        computed.append((allowance, amount))
+        # Only where the structure lists its components. A structure that lists none leaves
+        # everything to direct targeting, and then every earning is part of the package.
+        outside = bool(in_structure) and allowance.pk not in in_structure
+        accumulate(context, amount, inside_ctc=not outside)
+        computed.append((allowance, amount, outside))
 
     # Taxable first, then non-taxable — the order the two-list implementation
     # produced and payslip templates render. Existing rows keep it through the
@@ -449,9 +456,13 @@ def calculate_allowance(**kwargs):
             "title": allowance.title,
             "is_taxable": allowance.is_taxable,
             "amount": amount,
+            # Paid on top of a CTC Down package rather than out of it; absent otherwise.
+            **(
+                {"outside_ctc": True} if outside and context.get(GROSS_IS_FIXED) else {}
+            ),
         }
         for taxable in (True, False)
-        for allowance, amount in computed
+        for allowance, amount, outside in computed
         if allowance.is_taxable is taxable
     ]
     return {"allowances": serialized_allowances}

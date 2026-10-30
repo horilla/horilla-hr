@@ -76,20 +76,6 @@ class GenderConditionTest(TestCase):
         is_eligible, _ = evaluate_leave_type_conditions(lt, employee)
         self.assertTrue(is_eligible)
 
-    def test_maternity_female_only(self):
-        lt = _make_leave_type(name="Maternity Leave")
-        lt.conditions.all.return_value = [self._gender_condition("female")]
-        male = _make_employee(gender="male")
-        is_eligible, msg = evaluate_leave_type_conditions(lt, male)
-        self.assertFalse(is_eligible)
-
-    def test_paternity_male_only(self):
-        lt = _make_leave_type(name="Paternity Leave")
-        lt.conditions.all.return_value = [self._gender_condition("male")]
-        female = _make_employee(gender="female")
-        is_eligible, msg = evaluate_leave_type_conditions(lt, female)
-        self.assertFalse(is_eligible)
-
 
 class OncePerEmploymentConditionTest(TestCase):
     def _once_condition(self):

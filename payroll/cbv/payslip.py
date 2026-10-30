@@ -379,7 +379,7 @@ class PayslipRunNav(PayslipNav):
         self.actions = [
             action
             for action in self.actions
-            if action["action"] not in (_("Generate"), _("Payroll runs"))
+            if action["action"] not in (_("Generate"), _("Payroll Batches"))
         ]
 
 

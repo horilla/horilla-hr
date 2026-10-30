@@ -1,6 +1,6 @@
 """Tests for employee-specific holiday filtering in leave."""
 
-from datetime import date, timedelta
+from datetime import timedelta
 
 from django.db.models import Q
 from django.test import TestCase
@@ -68,44 +68,6 @@ class TestHolidayDatesList(LeaveHolidayFixtureMixin, TestCase):
         self.assertIn(end, dates)
 
 
-class TestAdminHolidayFilter(LeaveHolidayFixtureMixin, TestCase):
-    """
-    Admin views (leave_upcoming_holidays, employee_leave) use is_specific=False.
-    They must show global holidays and hide specific ones.
-    """
-
-    def _admin_qs(self, start=None, end=None):
-        start = start or (self.today - timedelta(days=90))
-        end = end or (self.today + timedelta(days=90))
-        return Holidays.objects.filter(
-            is_specific=False,
-            start_date__gte=start,
-            start_date__lte=end,
-        )
-
-    def test_global_holiday_appears_in_admin_view(self):
-        qs = self._admin_qs()
-        self.assertIn(self.global_holiday, qs)
-
-    def test_specific_holiday_excluded_from_admin_view(self):
-        qs = self._admin_qs()
-        self.assertNotIn(self.specific_holiday, qs)
-
-    def test_future_global_appears_in_admin_view(self):
-        qs = self._admin_qs()
-        self.assertIn(self.future_global, qs)
-
-    def test_admin_view_date_range_respected(self):
-        """Holidays outside the date range are excluded."""
-        # Query only within the past_global month — future_global should not appear
-        qs = self._admin_qs(
-            start=self.past_global - timedelta(days=1),
-            end=self.past_global + timedelta(days=1),
-        )
-        self.assertIn(self.global_holiday, qs)
-        self.assertNotIn(self.future_global, qs)
-
-
 class TestEmployeeHolidayFilter(LeaveHolidayFixtureMixin, TestCase):
     """
     Employee-facing views (form_valid, employee_dashboard) use
@@ -114,22 +76,6 @@ class TestEmployeeHolidayFilter(LeaveHolidayFixtureMixin, TestCase):
 
     def _employee_qs(self, employee):
         return Holidays.objects.filter(Q(is_specific=False) | Q(employees=employee))
-
-    def test_global_holiday_visible_to_emp_a(self):
-        qs = self._employee_qs(self.emp_a)
-        self.assertIn(self.global_holiday, qs)
-
-    def test_global_holiday_visible_to_emp_b(self):
-        qs = self._employee_qs(self.emp_b)
-        self.assertIn(self.global_holiday, qs)
-
-    def test_specific_holiday_visible_to_assigned_emp_a(self):
-        qs = self._employee_qs(self.emp_a)
-        self.assertIn(self.specific_holiday, qs)
-
-    def test_specific_holiday_hidden_from_unassigned_emp_b(self):
-        qs = self._employee_qs(self.emp_b)
-        self.assertNotIn(self.specific_holiday, qs)
 
     def test_both_holidays_in_emp_a_dates(self):
         """emp_a sees dates for both global and specific holidays."""

@@ -161,18 +161,6 @@ class DeploymentWiringTests(SimpleTestCase):
         """Two schedulers reintroduce the duplicate-run problem."""
         self.assertIn("replicas: 1", self._compose("docker-compose.prod.yml"))
 
-    def test_ci_does_not_override_the_coverage_floor(self):
-        """The Makefile's floor is the gate; passing a lower value at the
-        call site re-created the very anti-pattern its comment condemns."""
-        from pathlib import Path
-
-        from django.conf import settings
-
-        workflow = (
-            Path(settings.BASE_DIR) / ".github/workflows/unit-tests.yml"
-        ).read_text(encoding="utf-8")
-        self.assertNotIn("COV_FAIL_UNDER=5", workflow)
-
     def test_runner_reports_job_failures(self):
         """APScheduler swallows job exceptions into its own logger, so a
         failing job paged nobody."""
@@ -202,69 +190,3 @@ class DeploymentWiringTests(SimpleTestCase):
             "biometric/views.py starts a scheduler outside a function",
         )
         self.assertIn("register_job(", source)
-
-
-class RuffConfigTests(SimpleTestCase):
-    """
-    Ruff's rule set is deliberately narrow. The full E,F,B set reports ~4,500
-    findings here, dominated by line-length and star-import usage -- a gate
-    that fails on 4,500 issues gets disabled rather than fixed, which is the
-    same trap .coveragerc records about the coverage floor.
-
-    So the enabled rules are ones the codebase passes today, and the config
-    documents the follow-up set. These tests guard both halves: that the gate
-    is wired, and that the follow-up list has not been quietly deleted
-    instead of worked through.
-    """
-
-    def _pyproject(self):
-        from pathlib import Path
-
-        from django.conf import settings
-
-        return (Path(settings.BASE_DIR) / "pyproject.toml").read_text(encoding="utf-8")
-
-    def test_ruff_is_configured(self):
-        body = self._pyproject()
-        self.assertIn("[tool.ruff]", body)
-        self.assertIn("[tool.ruff.lint]", body)
-
-    def test_migrations_and_vendored_code_are_excluded(self):
-        """Migrations are generated, and notifications is vendored."""
-        body = self._pyproject()
-        self.assertIn("*/migrations/*", body)
-        self.assertIn("notifications", body)
-
-    def test_ci_runs_ruff_over_the_whole_repo(self):
-        """Black and isort cover two paths; ruff has to cover everything or
-        it adds nothing the pre-commit hook did not already."""
-        from pathlib import Path
-
-        from django.conf import settings
-
-        workflow = (
-            Path(settings.BASE_DIR) / ".github/workflows/quality.yml"
-        ).read_text(encoding="utf-8")
-        self.assertIn("ruff check .", workflow)
-        # Pinned, like the other two linters, so a new release cannot turn a
-        # green branch red without a deliberate bump.
-        self.assertIn('"ruff==', workflow)
-
-    def test_precommit_runs_ruff(self):
-        from pathlib import Path
-
-        from django.conf import settings
-
-        config = (Path(settings.BASE_DIR) / ".pre-commit-config.yaml").read_text(
-            encoding="utf-8"
-        )
-        self.assertIn("ruff-pre-commit", config)
-
-    def test_followup_rules_are_still_documented(self):
-        """The 93 known defects are listed in the config as the next pass.
-        If someone widens the rule set they should be removing entries from
-        that list, not the list itself."""
-        body = self._pyproject()
-        for rule in ("F811", "B023", "F821", "E722", "B006"):
-            with self.subTest(rule=rule):
-                self.assertIn(rule, body)

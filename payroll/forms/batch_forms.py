@@ -203,9 +203,11 @@ class PayrollBatchScopeForm(HorillaForm):
     SCOPE_SELECTED = "selected"
 
     batch_name = forms.CharField(
-        label=_("Run Name"),
+        label=_("Batch Name"),
         max_length=150,
-        help_text=_("What this run is called in the list. Suggested from the period."),
+        help_text=_(
+            "What this batch is called in the list. Suggested from the period."
+        ),
     )
     period_start = forms.DateField(
         label=_("Period Start"), widget=forms.DateInput(attrs={"type": "date"})

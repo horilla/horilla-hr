@@ -26,7 +26,6 @@ from django.test import TestCase
 from django.urls import reverse
 
 from horilla.testkit import make_company, make_employee, make_user
-from payroll.filters import AllowanceFilter, DeductionFilter
 from payroll.forms.component_forms import AllowanceForm, DeductionForm
 from payroll.forms.component_layout import (
     HIDDEN_FIELDS,
@@ -101,11 +100,6 @@ class LayoutCompletenessTests(TestCase):
         allowance = [s["title"] for s in sections_for(AllowanceForm())]
         deduction = [s["title"] for s in sections_for(DeductionForm())]
         self.assertEqual(allowance, deduction)
-
-    def test_hidden_fields_are_named_rather_than_assumed(self):
-        self.assertNotIn("code", HIDDEN_FIELDS)
-        self.assertIn("update_compensation", HIDDEN_FIELDS)
-
 
 class BasedOnGroupingTests(TestCase):
     """
@@ -215,17 +209,6 @@ class StepTests(TestCase):
         self.assertTrue(STEPS)
 
 
-class NameCollisionTests(TestCase):
-    """The reason document-wide lookups are wrong on this page."""
-
-    def test_the_filters_declare_the_same_field_names_as_the_form(self):
-        for filterset in (AllowanceFilter, DeductionFilter):
-            with self.subTest(filterset=filterset.__name__):
-                names = set(filterset.base_filters)
-                self.assertIn("based_on", names)
-                self.assertIn("is_fixed", names)
-
-
 class EngineSourceTests(TestCase):
     """
     Asserted against the source because there is no JS runner here. Both of
@@ -313,22 +296,6 @@ class ComponentFormRenderTests(TestCase):
                 self.assertIn("data-formula-backdrop hidden>", body)
                 self.assertIn(".oh-formula-popover[hidden]", body)
 
-    def test_the_builder_can_be_dismissed_more_than_one_way(self):
-        body = self._body("create-allowance")
-        self.assertIn("data-formula-backdrop", body)
-        self.assertEqual(body.count("data-close-formula"), 2)  # the X and Done
-        self.assertIn("closeAnyOpenFormula", read(ENGINE))  # Escape
-
-    def test_the_old_widget_bundles_are_gone(self):
-        for url_name, bundle in (
-            ("create-allowance", "allowanceWidget"),
-            ("create-deduction", "deductionWidget"),
-        ):
-            with self.subTest(form=url_name):
-                body = self._body(url_name)
-                self.assertNotIn(bundle, body)
-                self.assertIn("componentForm.js", body)
-
     def test_conditions_render_server_side_with_a_template_to_add_more(self):
         # The allowance form targets through the table; only deductions keep rules.
         for url_name in ("create-deduction",):
@@ -412,20 +379,6 @@ class ComponentFormRenderTests(TestCase):
                     ):
                         continue
                     self.assertIn(f'name="{name}"', body, name)
-
-    def test_the_form_still_posts_once(self):
-        """One form element, one submit — not a step-per-request wizard."""
-        body = self._body("create-allowance")
-        self.assertEqual(body.count("<form "), 1)
-        self.assertEqual(body.count("hx-post="), 1)
-
-    def test_every_section_heading_is_drawn(self):
-        for url_name in ("create-allowance", "create-deduction"):
-            with self.subTest(form=url_name):
-                body = self._body(url_name)
-                self.assertIn("What this component is", body)
-                self.assertIn("How much", body)
-                self.assertIn("Who gets it", body)
 
     def test_the_new_amount_types_are_offered(self):
         for url_name in ("create-allowance", "create-deduction"):

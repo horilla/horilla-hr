@@ -22,58 +22,9 @@ report rather than to write.
 
 from django.core.management.base import BaseCommand
 
-from payroll.methods.deductions import LOAN_PAYOUT_KEYS, LOAN_REPAYMENT_KEYS
-from payroll.models.models import (
-    Allowance,
-    Deduction,
-    LoanAccount,
-    Payslip,
-    Reimbursement,
-)
-from payroll.system_components import editable_fields, policy_fields
-
-
-def _paid_deduction_ids():
-    """Deductions already carried on a payslip, by id."""
-    return set(
-        Payslip.objects.values_list("installment_ids__id", flat=True).exclude(
-            installment_ids__id=None
-        )
-    )
-
-
-def _rows_to_check():
-    """
-    Every generated row, paired with the key that should govern it.
-
-    Walked from the owning records rather than from the components, because a
-    component carries no mark saying which kind produced it — `is_loan` is set
-    for both loans and advances and read by nothing, and a penalty's Deduction
-    carries no marker at all. The owner is the only place the kind is known.
-    """
-    pairs = []
-
-    for loan in LoanAccount.objects.entire().select_related("allowance_id"):
-        payout_key = LOAN_PAYOUT_KEYS.get(loan.type)
-        if payout_key and loan.allowance_id_id:
-            pairs.append((loan.allowance_id, payout_key))
-
-        repayment_key = LOAN_REPAYMENT_KEYS.get(loan.type)
-        if repayment_key:
-            for deduction in loan.deduction_ids.all():
-                pairs.append((deduction, repayment_key))
-
-    for claim in Reimbursement.objects.entire().select_related("allowance_id"):
-        if claim.allowance_id_id:
-            key = (
-                claim.type
-                if claim.type
-                in {"reimbursement", "leave_encashment", "bonus_encashment"}
-                else "reimbursement"
-            )
-            pairs.append((claim.allowance_id, key))
-
-    return pairs
+from payroll.methods.deductions import LOAN_REPAYMENT_KEYS
+from payroll.methods.system_sync import align
+from payroll.system_components import editable_fields
 
 
 class Command(BaseCommand):
@@ -88,29 +39,9 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         apply = options["apply"]
-        paid = _paid_deduction_ids()
-
-        changed = 0
-        frozen = 0
-        for row, key in _rows_to_check():
-            if row is None or getattr(row, "is_system", False):
-                continue
-
-            wanted = policy_fields(key)
-            differs = {
-                field: value
-                for field, value in wanted.items()
-                if getattr(row, field) != value
-            }
-            if not differs:
-                continue
-
-            if isinstance(row, Deduction) and row.pk in paid:
-                frozen += 1
-                self.stdout.write(f"  frozen  {row.title}: on a payslip, left as it is")
-                continue
-
-            changed += 1
+        # Reported before the write, so the old values can still be read off each row.
+        changes, frozen_rows = align(apply=False)
+        for row, differs in changes:
             detail = ", ".join(
                 f"{field} {getattr(row, field)!r} -> {value!r}"
                 for field, value in differs.items()
@@ -118,11 +49,11 @@ class Command(BaseCommand):
             self.stdout.write(
                 f"  {'set    ' if apply else 'would  '}{row.title}: {detail}"
             )
-
-            if apply:
-                for field, value in differs.items():
-                    setattr(row, field, value)
-                row.save(update_fields=list(differs))
+        for row in frozen_rows:
+            self.stdout.write(f"  frozen  {row.title}: on a payslip, left as it is")
+        if apply:
+            align(apply=True)
+        changed, frozen = len(changes), len(frozen_rows)
 
         self.stdout.write("")
         if frozen:

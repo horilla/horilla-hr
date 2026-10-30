@@ -373,6 +373,14 @@ have), and components that measure attendance report that instead of a guess.
   function notes(data) {
     var rows = [];
 
+    rows.push(noteRow(
+      "{% trans 'CTC'|escapejs %}",
+      "<b>{% trans 'CTC = Gross Pay + Employer Contributions'|escapejs %}</b><br>" +
+      money(data.gross_pay) + " + " + money(data.employer_total || 0) + " = <b>" +
+      money(Number(data.gross_pay) + Number(data.employer_total || 0)) + "</b>. " +
+      "{% trans 'Deductions Come Out Of Gross Pay, So They Are Not Added.'|escapejs %}"
+    ));
+
     var period = "<b>" + data.calendar_days + "</b> {% trans 'calendar days'|escapejs %}, " +
       "<b>" + data.worked_days + "</b> {% trans 'of'|escapejs %} " + data.working_days +
       " {% trans 'working days'|escapejs %}";

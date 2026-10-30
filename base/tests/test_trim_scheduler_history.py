@@ -52,6 +52,17 @@ class TrimSchedulerHistoryTests(TestCase):
         trim_scheduler_history()
         self.assertEqual(DjangoJobExecution.objects.count(), 1)
 
+    @override_settings(HORILLA_SCHEDULER_HISTORY_DAYS=0)
+    def test_at_least_a_day_is_kept(self):
+        from base.scheduler import trim_scheduler_history
+
+        self.run_at(timedelta(days=2))
+        recent = self.run_at(timedelta(hours=1))
+        trim_scheduler_history()
+        self.assertEqual(
+            list(DjangoJobExecution.objects.values_list("id", flat=True)), [recent.id]
+        )
+
     def test_metrics_report_the_retained_runs(self):
         from base.scheduler import trim_scheduler_history
         from horilla.observability import scheduler_metrics

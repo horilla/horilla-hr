@@ -180,6 +180,13 @@ def earning_workings(payslip):
             allowances.get(row.get("allowance_id")), row, amount, context
         )
         entry["taxable"] = bool(row.get("is_taxable", True))
+        if row.get("outside_ctc"):
+            entry["notes"][:0] = [
+                _("Extra Pay, Outside The Salary Structure."),
+                _(
+                    "It Is Added On Top Of The CTC, So The Other Earnings Stay The Same."
+                ),
+            ]
         entry["notes"].append(
             _("Counts toward taxable gross.") if entry["taxable"] else _("Not taxable.")
         )
@@ -266,21 +273,30 @@ def deduction_workings(payslip):
     components = _deduction_components(data)
     context = formula_context(payslip)
     workings = {}
+    under_ctc_down = float((data.get("component_context") or {}).get("CTC") or 0) > 0
     for bucket, note in BUCKET_NOTES.items():
         for row in data.get(bucket) or []:
             amount = float(row.get("amount") or 0)
             component = components.get(row.get("deduction_id"))
             entry = _working_for(component, row, amount, context)
             entry["notes"].append(note)
+            if under_ctc_down:
+                entry["notes"].append(
+                    _("Comes Out Of The Earnings, So It Is Not Part Of The CTC.")
+                )
             employer = (
                 getattr(component, "employer_rate", 0) if component is not None else 0
             )
-            if employer:
+            share = float(row.get("employer_contribution_amount") or 0)
+            if employer or share:
                 entry["notes"].append(
                     _(
-                        "The employer adds %(rate)s%%; that share is not taken from this payslip."
+                        "Employer Contribution: %(rate)s%(amount)s. It Is Not Taken From This Payslip."
                     )
-                    % {"rate": f"{float(employer):g}"}
+                    % {
+                        "rate": f"{float(employer):g}% = " if employer else "",
+                        "amount": f"{share:,.2f}",
+                    }
                 )
             workings[working_key(row)] = entry
     tax = _income_tax_working(payslip, float(data.get("federal_tax") or 0))

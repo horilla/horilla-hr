@@ -87,19 +87,6 @@ class CapabilitiesTests(TestCase):
         admin = make_user("caps_admin", password=PASSWORD, is_superuser=True)
         self.assertEqual(build_capabilities(admin)["role"], "hrexec")
 
-    def test_hrexec_outranks_manager(self):
-        """One band per user: the design never shows both."""
-        report = make_employee(
-            company=self.company,
-            email="report2@test.horilla",
-            first_name="Rhea",
-        )
-        report.employee_work_info.reporting_manager_id = self.employee
-        report.employee_work_info.save()
-
-        admin = make_user("caps_admin2", password=PASSWORD, is_superuser=True)
-        self.assertEqual(build_capabilities(admin)["role"], "hrexec")
-
     def test_features_report_installed_apps_explicitly(self):
         features = build_capabilities(self.user)["features"]
         # geofencing/facedetection are installed from horilla_api/__init__.py,

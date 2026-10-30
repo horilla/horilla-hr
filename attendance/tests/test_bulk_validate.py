@@ -11,9 +11,12 @@ from attendance.models import Attendance
 from horilla.testkit import make_company, make_employee, make_user
 
 
-class BulkValidateAttendanceTests(TestCase):
+class BulkAttendanceMixin:
+    """Shared fixtures and helpers; mixed into each test class so every test runs once."""
+
     @classmethod
     def setUpTestData(cls):
+        super().setUpTestData()
         company = make_company("Validate Co")
         cls.user = make_user("validate-admin", is_superuser=True)
         make_employee(
@@ -46,6 +49,8 @@ class BulkValidateAttendanceTests(TestCase):
         self.assertEqual(response.status_code, 200)
         return json.loads(response["X-Hlv-Bulk-Result"])
 
+
+class BulkValidateAttendanceTests(BulkAttendanceMixin, TestCase):
     def test_counts_validated_and_failed(self):
         ok, pending = self._attendance(1), self._attendance(2, is_validate_request=True)
 
@@ -58,7 +63,7 @@ class BulkValidateAttendanceTests(TestCase):
         self.assertEqual(result, {"done": 1, "failed": 2})
 
 
-class BulkApproveOvertimeTests(BulkValidateAttendanceTests):
+class BulkApproveOvertimeTests(BulkAttendanceMixin, TestCase):
     def test_counts_approved_and_failed(self):
         pending = self._attendance(1, at_work_second=10 * 3600, overtime_second=7200)
         already = self._attendance(2, attendance_overtime_approve=True)
@@ -78,7 +83,7 @@ class BulkApproveOvertimeTests(BulkValidateAttendanceTests):
         self.assertTrue(pending.attendance_overtime_approve)
 
 
-class BulkAttendanceRequestTests(BulkValidateAttendanceTests):
+class BulkAttendanceRequestTests(BulkAttendanceMixin, TestCase):
     """Bulk approve / reject of attendance requests report their counts."""
 
     def _post_request_action(self, url_name, ids):

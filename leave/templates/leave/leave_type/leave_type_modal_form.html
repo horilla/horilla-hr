@@ -344,7 +344,7 @@ between steps.
             return true;
         }
         var $bad = $(bad), isSel2 = $bad.hasClass("select2-hidden-accessible");
-        (isSel2 ? $bad.next(".select2") : $bad).after('<div class="step-field-error">{% trans "This field is required." %}</div>');
+        (isSel2 ? $bad.next(".select2") : $bad).after('<div class="step-field-error">{% trans "This field is required."|escapejs %}</div>');
         $form.find('[data-step-tab="' + panel.dataset.stepPanel + '"] [data-step-flag]').prop("hidden", false);
         if (!isSel2) bad.focus();
         return false;

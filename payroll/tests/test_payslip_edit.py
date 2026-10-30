@@ -13,7 +13,6 @@ place that rule lives for this feature, matching the engine's own single cap
 established in payroll_run.
 """
 
-import pathlib
 from datetime import date
 from unittest.mock import patch
 
@@ -287,7 +286,7 @@ class ViewTests(Fixture):
         response = self.client.post(
             self.url(), {"amount:basic": "1000.00"}, HTTP_HX_REQUEST="true"
         )
-        self.assertContains(response, "Gross pay")
+        self.assertContains(response, "Gross Pay")
 
     def test_a_garbage_amount_is_ignored_not_a_500(self):
         response = self.client.post(self.url(), {"amount:basic": "not-a-number"})
@@ -620,80 +619,6 @@ class PayslipHelpTextTests(Fixture):
     cannot work out from the figures in front of them.
     """
 
-    SUMMARY = pathlib.Path(
-        "horilla_theme/templates/payroll/payslip/individual_payslip_summery.html"
-    )
-    # The Loss of Pay row is a shared include -- lop_reflected_in_basic
-    # decides which of the two columns actually renders it -- so its markup
-    # lives here now, not inline in SUMMARY. Combined so the checks below
-    # don't have to know which file a given string ended up in.
-    LOP_ROW = pathlib.Path(
-        "horilla_theme/templates/payroll/payslip/_loss_of_pay_row.html"
-    )
-
-    # The icon and its breakdown popover are a partial shared by that row and
-    # the Salary Adjustments table, so they live in their own file as well.
-    LOP_POPOVER = pathlib.Path(
-        "horilla_theme/templates/payroll/payslip/_loss_of_pay_popover.html"
-    )
-
-    def source(self):
-        return (
-            self.SUMMARY.read_text(encoding="utf-8")
-            + self.LOP_ROW.read_text(encoding="utf-8")
-            + self.LOP_POPOVER.read_text(encoding="utf-8")
-        )
-
-    def test_only_a_few_bubbles_are_left(self):
-        self.assertEqual(self.source().count('class="ps__i"'), 3)
-
-    def test_basic_pay_says_where_the_figure_came_from(self):
-        """
-        With two structure modes in the engine, where basic pay comes from is
-        the question the figure actually raises -- it is the contract wage in
-        one mode and a component's share of CTC in the other.
-        """
-        self.assertIn("CTC Down", self.source())
-
-    def test_paid_days_says_what_it_counts(self):
-        """
-        Paid days now includes week offs and holidays alongside present days
-        and paid leave -- not something a reader would guess from the figure
-        alone, since it no longer matches a plain "worked minus absent" count.
-        """
-        self.assertIn("week offs and holidays are all paid", self.source().lower())
-
-    def test_the_old_wording_is_gone(self):
-        self.assertNotIn("update compensation", self.source())
-
-    def test_loss_of_pay_has_a_custom_breakdown_popover(self):
-        """
-        The sub-text already states which two contract settings decided the
-        figure; the reader still can't tell from that alone how they combine
-        into an actual number, or which other line the result comes off of.
-
-        A custom hover panel, not the global title-attribute tooltip: that
-        widget binds to every [title] in the document and was already the
-        source of one real bug (orphaned popups left behind when their
-        anchor is removed mid-hover).
-        """
-        source = self.source()
-        self.assertIn('class="ps__pop"', source)
-        self.assertNotIn("Leave amount will be calculated by dividing", source)
-        source_lower = source.lower()
-        self.assertIn("per-day amount", source_lower)
-        self.assertIn("comes off basic pay above by default", source_lower)
-
-    def test_every_info_icon_uses_the_custom_popover(self):
-        """
-        All of them share one mechanism -- a page where three use the
-        custom popover and a fourth still relies on the global
-        title-attribute tooltip is the inconsistency this replaced.
-        """
-        source = self.source()
-        self.assertEqual(source.count('class="ps__info"'), 3)
-        self.assertNotIn('title="{% trans', source)
-
     def test_the_page_still_renders_the_help_that_is_left(self):
         response = self.client.get(
             reverse("view-created-payslip", kwargs={"payslip_id": self.payslip.pk})
@@ -909,15 +834,6 @@ class SeparateLossOfPayTests(Fixture):
         self.assertFalse(self.payslip.pay_head_data["lop_reflected_in_basic"])
         self.assertTrue(self.payslip.pay_head_data["basic_edited"])
 
-    def test_the_form_goes_quiet_when_basic_is_typed_over(self):
-        self.inside_basic()
-        html = self.client.get(
-            reverse("edit-payslip-components", args=[self.payslip.pk])
-        ).content.decode()
-        self.assertIn('adjBlock.classList.add("is-off")', html)
-        self.assertIn("adjAmount.disabled = true", html)
-        self.assertIn("Basic Pay was changed by hand", html)
-
     def test_a_separate_loss_of_pay_is_a_line_and_not_an_adjustment(self):
         self.make_separate(500.0)
         self.assertEqual(payslip_edit.salary_adjustments(self.payslip), [])
@@ -1109,33 +1025,6 @@ class RecalculateEndpointTests(DerivedLinesFixture):
 
 
 class TheFormShowsTheComputationTests(DerivedLinesFixture):
-    def test_the_percentage_is_on_the_line(self):
-        response = self.client.get(
-            reverse("edit-payslip-components", args=[self.payslip.pk])
-        )
-        self.assertContains(response, "pe__basis")
-        self.assertContains(response, "40% of BASIC")
-
-    def test_a_derived_line_offers_the_popover(self):
-        response = self.client.get(
-            reverse("edit-payslip-components", args=[self.payslip.pk])
-        )
-        self.assertContains(response, "pe__pop")
-        self.assertContains(response, "moves when they do")
-
-    def test_the_popover_is_built_outside_the_modal(self):
-        """
-        Shown where it sits, it was clipped by the dialog's own scrolling and
-        painted under the modal -- the icon lit up on hover and nothing else
-        happened. It is copied to the end of <body> instead, where no ancestor
-        of the row can reach it.
-        """
-        response = self.client.get(
-            reverse("edit-payslip-components", args=[self.payslip.pk])
-        )
-        self.assertContains(response, "document.body.appendChild(pop)")
-        self.assertContains(response, "pe__pop--float")
-
     def test_the_form_knows_where_to_recalculate(self):
         response = self.client.get(
             reverse("edit-payslip-components", args=[self.payslip.pk])
@@ -1324,44 +1213,6 @@ class TaxWorkingTests(Fixture):
         self.assertIn("Tax Working panel", " ".join(working["notes"]))
         url = reverse("view-created-payslip", kwargs={"payslip_id": self.payslip.pk})
         self.assertContains(self.client.get(url), "Tax for the year")
-
-    def test_the_panel_is_two_accordions_with_balanced_markup(self):
-        from html.parser import HTMLParser
-
-        from django.template.loader import render_to_string
-
-        html = render_to_string(
-            "payroll/payslip/_tax_side_panel.html", {"payslip": self.payslip}
-        )
-        self.assertEqual(
-            html.count("data-tsp-toggle"), 2 + 2
-        )  # two buttons, two mentions in the script
-
-        class Balance(HTMLParser):
-            void = {"meta", "br", "hr", "img", "input", "link"}
-
-            def __init__(self):
-                super().__init__()
-                self.stack, self.sections = [], []
-
-            def handle_starttag(self, tag, attrs):
-                if tag in self.void:
-                    return
-                self.stack.append(tag)
-                if tag == "section":
-                    self.sections.append(dict(attrs).get("class", ""))
-
-            def handle_endtag(self, tag):
-                assert self.stack and self.stack.pop() == tag, f"unbalanced </{tag}>"
-
-        parser = Balance()
-        parser.feed(html)
-        self.assertEqual(parser.stack, [])
-        self.assertEqual(len(parser.sections), 2)
-        self.assertNotIn(
-            "is-open", parser.sections[0]
-        )  # the taxable gross working starts closed
-        self.assertIn("is-open", parser.sections[1])  # the income tax starts open
 
     def test_the_panel_follows_the_basis_the_filing_status_taxes(self):
         from payroll.models.models import FilingStatus

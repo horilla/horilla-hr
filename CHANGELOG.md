@@ -69,6 +69,15 @@ date and open a fresh Unreleased above it.
 - Dashboard: the birthday widgets on the modern and ESS dashboards follow the
   *Birthday view* accessibility setting.
 
+### Removed
+
+- Payroll: the one-off repair commands `normalise_payslip_basic_pay` and
+  `normalise_payslip_deductions` are removed, with their tests. They repaired payslips
+  that early builds of the new payroll engine stored with basic pay twice or with more
+  deducted than earned. Release 2.2.0 already shipped the engine fix, so no released
+  version wrote such payslips. If you ran a pre-release build with payroll data you
+  want to keep, run the commands from the 2.2.0 tag first.
+
 ### Fixed
 
 - Geofencing: a company fence can be added while a global fence exists, and the global

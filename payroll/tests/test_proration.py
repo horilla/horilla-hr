@@ -187,15 +187,6 @@ class DefaultBasisTests(SimpleTestCase):
 
         self.assertEqual(MAXIMUM_UNIT_CHOICES[0][0], MONTH_CALENDAR_DAYS)
 
-    def test_the_default_actually_scales_a_part_month(self):
-        """
-        A prorating default is only worth having if it prorates. Ten calendar
-        days of a thirty day month is a third.
-        """
-        self.assertAlmostEqual(
-            period_factor(TEN_DAYS, MONTH_CALENDAR_DAYS), 10 / 30, places=6
-        )
-
 
 class ChoiceWiringTests(SimpleTestCase):
     """

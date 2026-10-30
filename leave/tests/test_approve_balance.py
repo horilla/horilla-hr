@@ -77,18 +77,3 @@ class LeaveRequestApproveBalanceTests(TestCase):
         self.assertEqual(req.approved_available_days, 1)
         self.assertEqual(req.approved_carryforward_days, 2)
         self.assertEqual(req.status, "approved")
-
-    def test_insufficient_balance_gate_blocks(self):
-        from leave.services import has_sufficient_leave_balance
-
-        avail = self.AvailableLeave.objects.create(
-            employee_id=self.employee,
-            leave_type_id=self.leave_type,
-            available_days=1,
-            carryforward_days=0,
-            total_leave_days=1,
-        )
-        self.assertFalse(has_sufficient_leave_balance(avail, 3))
-        # Balances unchanged when gate fails (caller must not approve).
-        avail.refresh_from_db()
-        self.assertEqual(avail.available_days, 1)

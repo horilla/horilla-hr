@@ -78,6 +78,22 @@ def _slice_days(month):
     return (end - start).days + 1
 
 
+def _is_whole_month(day_dict):
+    """
+    Whether the period is one full pay month, such as the 29th to the 28th.
+
+    A pay month that crosses a calendar boundary is still one month's pay. Adding up its
+    two slices (2 of 30 days, then 28 of 31) pays 0.97 of the figure for a full month.
+    """
+    from dateutil.relativedelta import relativedelta
+
+    start = _as_date(day_dict[0].get("start_date"))
+    end = _as_date(day_dict[-1].get("end_date"))
+    if start is None or end is None:
+        return False
+    return end + relativedelta(days=1) == start + relativedelta(months=1)
+
+
 def period_factor(day_dict, basis):
     """
     What to multiply a figure quoted on ``basis`` by, for this period.
@@ -89,6 +105,9 @@ def period_factor(day_dict, basis):
     absent would be far worse than one that did not move.
     """
     if basis == FULL_PERIOD or not basis or not day_dict:
+        return 1.0
+
+    if basis == MONTH_CALENDAR_DAYS and len(day_dict) > 1 and _is_whole_month(day_dict):
         return 1.0
 
     factor = 0.0

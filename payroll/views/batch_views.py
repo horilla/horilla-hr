@@ -190,7 +190,7 @@ def batch_set_status(request, batch_id):
 
     messages.success(
         request,
-        _("Run marked %(status)s.") % {"status": batch.get_status_display()},
+        _("Batch marked %(status)s.") % {"status": batch.get_status_display()},
     )
     return HorillaRedirect(request, reverse("payroll-batch-detail", args=[batch.pk]))
 
@@ -215,7 +215,7 @@ def batch_delete(request, batch_id):
     if batch.status == PayrollBatch.PAID:
         messages.error(
             request,
-            _("A paid run cannot be deleted. Correct it with another run."),
+            _("A paid batch cannot be deleted. Correct it with another batch."),
         )
         return HorillaRedirect(
             request, reverse("payroll-batch-detail", args=[batch.pk])
@@ -234,7 +234,7 @@ def batch_delete(request, batch_id):
 
     messages.success(
         request,
-        _("Deleted the run %(name)s and its %(count)s payslip(s).")
+        _("Deleted the batch %(name)s and its %(count)s payslip(s).")
         % {"name": name, "count": removed},
     )
     return HorillaRedirect(request, reverse("payroll-batch-home"))
@@ -271,7 +271,7 @@ def batch_reopen(request, batch_id):
     ):
         messages.error(
             request,
-            _("Only a draft run can be sent back to check its inputs."),
+            _("Only a draft batch can be sent back to check its inputs."),
         )
         return HorillaRedirect(request, detail)
 
@@ -435,7 +435,7 @@ def wizard_start(request):
 
     if not ready:
         messages.error(
-            request, _("Nobody in this run can be paid yet. Fix the problems listed.")
+            request, _("Nobody in this batch can be paid yet. Fix the problems listed.")
         )
         if request.headers.get("HX-Request"):
             return HorillaRedirect(request, reverse("payroll-batch-review"))

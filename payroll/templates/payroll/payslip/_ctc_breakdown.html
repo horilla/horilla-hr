@@ -1,0 +1,145 @@
+{% load i18n payrollfilters horillafilters %}
+{% comment %}
+How a CTC Down payslip adds up to its CTC, below the tax working: the package, what was paid inside it,
+the employer's contributions, then what sits outside it. Only drawn for a CTC Down payslip.
+Each group is an accordion strip, like the tax working above it; the total and its equation stay in view.
+{% endcomment %}
+{% with c=payslip|ctc_breakdown %}
+{% if c %}
+<div class="cbk">
+  <style>
+    .cbk { margin-top: 16px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.06); font-size: 12px; color: #374151; line-height: 1.4; overflow: hidden; }
+    .cbk__top { padding: 14px 16px 12px; border-bottom: 1px solid #e5e7eb; }
+    .cbk__title { font-size: 14px; font-weight: 700; color: #111827; margin: 0; }
+    .cbk__lead { color: #6b7280; font-size: 11px; margin: 2px 0 0; }
+    .cbk__sec { border-bottom: 1px solid #e5e7eb; }
+    .cbk__strip { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 16px; background: #f9fafb; border: 0; border-bottom: 1px solid #f0f1f3; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #6b7280; text-align: left; cursor: pointer; }
+    .cbk__strip:hover { background: #f3f4f6; }
+    .cbk__strip:focus-visible { outline: 2px solid #c7d2fe; outline-offset: -2px; }
+    .cbk__sumval { margin-left: auto; font-size: 12px; font-weight: 700; letter-spacing: 0; text-transform: none; color: #111827; font-variant-numeric: tabular-nums; transition: opacity .2s ease; }
+    .cbk__sec.is-open .cbk__sumval { opacity: 0; }
+    .cbk__chev { flex: 0 0 auto; width: 6px; height: 6px; margin: 0 2px 3px 6px; border-right: 2px solid #9ca3af; border-bottom: 2px solid #9ca3af; transform: rotate(45deg); transition: transform .28s ease, margin .28s ease; }
+    .cbk__sec.is-open .cbk__chev { transform: rotate(-135deg); margin-bottom: -3px; }
+    .cbk__panel { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .3s ease; }
+    .cbk__sec.is-open .cbk__panel { grid-template-rows: 1fr; }
+    .cbk__inner { min-height: 0; overflow: hidden; }
+    @media (prefers-reduced-motion: reduce) { .cbk__panel, .cbk__chev, .cbk__sumval { transition: none; } }
+    .cbk__body { padding: 4px 16px 12px; }
+    .cbk__row { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; border-bottom: 1px solid #f3f4f6; }
+    .cbk__row span:last-child { font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .cbk__row--muted { color: #9ca3af; }
+    .cbk__row--muted span:last-child { font-weight: 500; }
+    .cbk__subtotal { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0 2px; font-weight: 700; color: #111827; font-variant-numeric: tabular-nums; }
+    .cbk__sum { padding: 4px 16px 14px; border-bottom: 1px solid #e5e7eb; }
+    .cbk__result { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-top: 10px; padding: 9px 12px; border-radius: 6px; background: #fdf1ef; color: #b53a27; font-weight: 700; }
+    .cbk__result span:last-child { font-size: 14px; font-variant-numeric: tabular-nums; }
+    .cbk__note { margin: 8px 0 0; color: #6b7280; font-size: 11px; }
+    .cbk__warn { margin-top: 8px; padding: 6px 10px; border-radius: 6px; background: #fff7e6; color: #92400e; font-size: 11px; }
+  </style>
+
+  <div class="cbk__top">
+    <h3 class="cbk__title">{% trans "CTC Break Down" %}</h3>
+    <p class="cbk__lead">{% trans "How This Payslip Adds Up To The CTC." %}</p>
+  </div>
+
+  <section class="cbk__sec" data-cbk-key="package">
+    <button type="button" class="cbk__strip" data-cbk-toggle aria-expanded="false"><span>{% trans "Package For This Period" %}</span><span class="cbk__sumval">{{ c.package|floatformat:2 }}</span><span class="cbk__chev"></span></button>
+    <div class="cbk__panel"><div class="cbk__inner"><div class="cbk__body">
+      <div class="cbk__row"><span>{% trans "Monthly CTC" %}</span><span>{{ c.ctc|floatformat:2|currency_symbol_position }}</span></div>
+      {% if c.lop %}
+        <div class="cbk__row"><span>{% trans "Less Loss Of Pay" %}</span><span>&minus;{{ c.lop|floatformat:2|currency_symbol_position }}</span></div>
+        <div class="cbk__subtotal"><span>{% trans "Package" %}</span><span>{{ c.package|floatformat:2|currency_symbol_position }}</span></div>
+      {% endif %}
+    </div></div></div>
+  </section>
+
+  <section class="cbk__sec is-open" data-cbk-key="employee">
+    <button type="button" class="cbk__strip" data-cbk-toggle aria-expanded="true"><span>{% trans "Paid To The Employee" %}</span><span class="cbk__sumval">{{ c.inside_total|floatformat:2 }}</span><span class="cbk__chev"></span></button>
+    <div class="cbk__panel"><div class="cbk__inner"><div class="cbk__body">
+      {% for row in c.inside %}
+        <div class="cbk__row"><span>{{ row.title }}</span><span>{{ row.amount|floatformat:2|currency_symbol_position }}</span></div>
+      {% endfor %}
+      <div class="cbk__subtotal"><span>{% trans "Total" %}</span><span>{{ c.inside_total|floatformat:2|currency_symbol_position }}</span></div>
+    </div></div></div>
+  </section>
+
+  <section class="cbk__sec is-open" data-cbk-key="employer">
+    <button type="button" class="cbk__strip" data-cbk-toggle aria-expanded="true"><span>{% trans "Paid By The Employer" %}</span><span class="cbk__sumval">{{ c.employer_total|floatformat:2 }}</span><span class="cbk__chev"></span></button>
+    <div class="cbk__panel"><div class="cbk__inner"><div class="cbk__body">
+      {% for row in c.employer %}
+        <div class="cbk__row"><span>{{ row.title }}</span><span>{{ row.amount|floatformat:2|currency_symbol_position }}</span></div>
+      {% empty %}
+        <div class="cbk__row cbk__row--muted"><span>{% trans "No Employer Contributions." %}</span><span></span></div>
+      {% endfor %}
+      {% if c.employer %}
+        <div class="cbk__subtotal"><span>{% trans "Total" %}</span><span>{{ c.employer_total|floatformat:2|currency_symbol_position }}</span></div>
+      {% endif %}
+    </div></div></div>
+  </section>
+
+  <div class="cbk__sum">
+    <div class="cbk__result">
+      <span>{% trans "Total Cost To Company" %}</span>
+      <span>{{ c.total|floatformat:2|currency_symbol_position }}</span>
+    </div>
+    <p class="cbk__note"><b>{% trans "CTC = Gross Pay + Employer Contributions" %}</b><br>{{ c.inside_total|floatformat:2 }} + {{ c.employer_total|floatformat:2 }} = {{ c.total|floatformat:2 }}{% if c.outside %}<br>{% trans "Gross Pay Here Leaves Out The Earnings Paid Outside The CTC." %}{% endif %}</p>
+    {% if c.difference > 0.05 or c.difference < -0.05 %}
+      <div class="cbk__warn">{% blocktrans with gap=c.difference|floatformat:2 %}This Is {{ gap }} Away From The Package: The Payslip Was Changed By Hand, Or A Component Could Not Fill The Balance.{% endblocktrans %}</div>
+    {% endif %}
+  </div>
+
+  {% if c.outside %}
+    <section class="cbk__sec" data-cbk-key="outside">
+      <button type="button" class="cbk__strip" data-cbk-toggle aria-expanded="false"><span>{% trans "Outside The CTC" %}</span><span class="cbk__sumval">{{ c.outside_total|floatformat:2 }}</span><span class="cbk__chev"></span></button>
+      <div class="cbk__panel"><div class="cbk__inner"><div class="cbk__body">
+        {% for row in c.outside %}
+          <div class="cbk__row"><span>{{ row.title }}</span><span>{{ row.amount|floatformat:2|currency_symbol_position }}</span></div>
+        {% endfor %}
+        <div class="cbk__subtotal"><span>{% trans "Total" %}</span><span>{{ c.outside_total|floatformat:2|currency_symbol_position }}</span></div>
+        <p class="cbk__note">{% trans "Paid On Top Of The Package, Not Taken Out Of It." %}</p>
+      </div></div></div>
+    </section>
+  {% endif %}
+
+  {% if c.taken %}
+    <section class="cbk__sec" data-cbk-key="taken">
+      <button type="button" class="cbk__strip" data-cbk-toggle aria-expanded="false"><span>{% trans "Taken From The Employee's Pay" %}</span><span class="cbk__sumval">{{ c.taken_total|floatformat:2 }}</span><span class="cbk__chev"></span></button>
+      <div class="cbk__panel"><div class="cbk__inner"><div class="cbk__body">
+        {% for row in c.taken %}
+          <div class="cbk__row cbk__row--muted"><span>{{ row.title }}</span><span>{{ row.amount|floatformat:2|currency_symbol_position }}</span></div>
+        {% endfor %}
+        <p class="cbk__note">{% trans "These Are Not Part Of The CTC. They Come Out Of The Earnings Above, So They Only Reduce The Net Pay." %}</p>
+        <p class="cbk__note">{% trans "The Employer's Own Share, Like A Matching Pension, Is Counted In The CTC Above." %}</p>
+      </div></div></div>
+    </section>
+  {% endif %}
+
+  <script>
+  (function () {
+    var KEY = "ctcPanelOpen:";
+    function paint(section, open) {
+      section.classList.toggle("is-open", open);
+      var button = section.querySelector("[data-cbk-toggle]");
+      if (button) button.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+    // The block is drawn again after an edit; open what was open before.
+    document.querySelectorAll(".cbk .cbk__sec").forEach(function (section) {
+      var saved = null;
+      try { saved = sessionStorage.getItem(KEY + section.dataset.cbkKey); } catch (e) {}
+      paint(section, saved === null ? section.classList.contains("is-open") : saved === "1");
+    });
+    if (window.cbkBound) return;
+    window.cbkBound = true;
+    document.addEventListener("click", function (event) {
+      var button = event.target.closest("[data-cbk-toggle]");
+      if (!button) return;
+      var section = button.closest(".cbk__sec");
+      var open = !section.classList.contains("is-open");
+      paint(section, open);
+      try { sessionStorage.setItem(KEY + section.dataset.cbkKey, open ? "1" : "0"); } catch (e) {}
+    });
+  })();
+  </script>
+</div>
+{% endif %}
+{% endwith %}

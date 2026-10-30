@@ -473,3 +473,62 @@ class LeaveLedgerViewTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Initial assignment")
+
+
+class LeaveLedgerResetExpiryKindTests(TestCase):
+    def test_reset_and_expiry_rows_are_classified_with_breakdown(self):
+        from horilla.testkit import make_company, make_employee
+        from leave.methods import reset_available_leave
+        from leave.models import AvailableLeave, LeaveType
+
+        company = make_company("Ledger Kind Co")
+        employee = make_employee(company=company, email="kind@test.horilla")
+        lt = LeaveType.objects.create(
+            name="Kind Type",
+            total_days=10,
+            reset=True,
+            reset_based="monthly",
+            reset_day="1",
+            carryforward_type="carryforward expire",
+            carryforward_max=5,
+            carryforward_expiry_method="assignment_date",
+            carryforward_expire_in=1,
+            carryforward_expire_period="month",
+        )
+        avail = AvailableLeave.objects.create(
+            employee_id=employee,
+            leave_type_id=lt,
+            available_days=4,
+            carryforward_days=0,
+            total_leave_days=4,
+        )
+        today = date.today()
+        avail.reset_date = today
+        avail.expired_date = today
+        avail.save()
+        reset_available_leave(avail, today, "Leave reset", "Carryforward expired")
+
+        kinds = [row["kind"] for row in avail.build_ledger()]
+        self.assertIn("reset", kinds)
+        self.assertIn("carryforward_expired", kinds)
+        reset_row = next(r for r in avail.build_ledger() if r["kind"] == "reset")
+        self.assertEqual(reset_row["available_after"], 10)
+        self.assertEqual(reset_row["carried_forward"], 4)
+        expired_row = next(
+            r for r in avail.build_ledger() if r["kind"] == "carryforward_expired"
+        )
+        self.assertEqual(expired_row["expired_amount"], 4)
+
+    def test_forecast_carryforward_expiry_hidden_without_balance(self):
+        from horilla.testkit import make_company, make_employee
+        from leave.models import AvailableLeave, LeaveType
+
+        company = make_company("Ledger Fc Co")
+        employee = make_employee(company=company, email="fc@test.horilla")
+        lt = LeaveType.objects.create(
+            name="Fc Type", total_days=5, carryforward_type="no carryforward"
+        )
+        avail = AvailableLeave.objects.create(
+            employee_id=employee, leave_type_id=lt, available_days=5, total_leave_days=5
+        )
+        self.assertIsNone(avail.forecast_carryforward_expiry())

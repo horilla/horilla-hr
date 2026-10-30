@@ -9,9 +9,12 @@ from leave.methods import decide_leave_cancellation, request_leave_cancellation
 from leave.models import AvailableLeave, LeaveRequest, LeaverequestComment, LeaveType
 
 
-class CancellationWorkflowTests(TestCase):
+class CancellationFixtureMixin:
+    """Shared fixtures; mixed into each test class so every test runs once."""
+
     @classmethod
     def setUpTestData(cls):
+        super().setUpTestData()
         company = make_company("Cancel Co")
         cls.owner_user = make_user("cancel_owner", password="secret123")
         cls.owner = make_employee(
@@ -60,6 +63,8 @@ class CancellationWorkflowTests(TestCase):
         self.available.refresh_from_db()
         return self.available.available_days
 
+
+class CancellationWorkflowTests(CancellationFixtureMixin, TestCase):
     def test_request_keeps_leave_in_force(self):
         leave, error = request_leave_cancellation(
             self.leave.pk, "plans changed", self.owner
@@ -131,7 +136,7 @@ class CancellationWorkflowTests(TestCase):
         self.assertEqual(records(), 0)
 
 
-class CancellationViewPermissionTests(CancellationWorkflowTests):
+class CancellationViewPermissionTests(CancellationFixtureMixin, TestCase):
     def _post(self, user, name, **kw):
         self.client.force_login(user)
         from django.urls import reverse

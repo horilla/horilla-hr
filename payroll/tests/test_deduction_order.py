@@ -133,3 +133,27 @@ class CompensationDeductionOrderTests(TestCase):
             [line["title"] for line in result["deductions"]],
             ["Fixed 500", "Ten percent"],
         )
+
+    def test_creation_order_breaks_a_tie(self):
+        """Same sequence: the one created first runs first (the pk tie-break)."""
+        make_deduction(
+            self.employee,
+            "Fixed 500",
+            amount=500.0,
+            sequence=10,
+            update_compensation="gross_pay",
+        )
+        make_deduction(
+            self.employee,
+            "Ten percent",
+            is_fixed=False,
+            amount=0,
+            rate=10,
+            sequence=10,
+            update_compensation="gross_pay",
+        )
+        result = update_compensation_deduction(
+            self.employee, 27000.0, "gross_pay", date(2026, 8, 1), date(2026, 8, 31)
+        )
+        # 500 first, then 10% of 26,500 -> 23,850 (reversed it would be 23,800).
+        self.assertEqual(result["compensation_amount"], 23850.0)

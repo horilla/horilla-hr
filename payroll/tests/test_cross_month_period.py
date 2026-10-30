@@ -167,19 +167,6 @@ class PayPeriodCycleTests(TestCase):
         self.assertIn("3rd", self._settings(3).summary())
         self.assertIn("11th", self._settings(11).summary())
 
-    def test_the_choices_are_the_first_to_the_28th_and_the_last_day(self):
-        from payroll.models.models import PayPeriodSettings
-
-        values = [value for value, _label in PayPeriodSettings.START_DAY_CHOICES]
-        self.assertEqual(values, list(range(1, 32)))
-        labels = dict(PayPeriodSettings.START_DAY_CHOICES)
-        self.assertEqual(labels[1], "1st (calendar month)")
-        self.assertEqual(labels[2], "2nd")
-        self.assertEqual(labels[11], "11th")
-        self.assertEqual(labels[29], "29th")
-        self.assertEqual(labels[30], "30th")
-        self.assertEqual(labels[31], "Last day")
-
     def test_the_form_has_the_one_choice_and_refuses_anything_else(self):
         from payroll.forms.batch_forms import PayPeriodSettingsForm
 

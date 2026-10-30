@@ -47,39 +47,52 @@
         </div>
     </div>
 
-    {% if forecast and reset_due %}
-        <div class="rounded-xl border border-secondary-200 bg-secondary-50 p-3 mb-3">
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 shrink-0 rounded-full flex items-center justify-center bg-white border border-secondary-200">
-                    <ion-icon name="alert-circle-outline" class="text-primary-600 text-base"></ion-icon>
+    {% if forecast or expiry_forecast %}
+        <div class="rounded-xl border border-dashed border-secondary-300 bg-white mb-4 overflow-hidden" title="{% trans 'Forecasted -- not yet applied' %}">
+            <div class="flex items-center justify-between px-3 py-2 bg-secondary-50 border-b border-secondary-200">
+                <p class="text-xs font-semibold uppercase tracking-wide text-dark-100">{% trans "Upcoming" %}</p>
+                {% if reset_due %}
+                    <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-warning-light text-warning-dark">{% trans "Overdue" %}</span>
+                {% else %}
+                    <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-secondary-100 text-dark-100">{% trans "Forecast" %}</span>
+                {% endif %}
+            </div>
+            {% if forecast %}
+                <div class="flex items-center gap-3 px-3 py-2.5 {% if expiry_forecast %}border-b border-secondary-100{% endif %}">
+                    <div class="w-9 h-9 shrink-0 rounded-full flex items-center justify-center bg-primary-100">
+                        <ion-icon name="refresh-outline" class="text-primary-600 text-lg"></ion-icon>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-sm font-medium text-dark-200 truncate">{% trans "Leave Reset" %}</p>
+                        <p class="text-xs text-dark-100">{{ forecast.date }}</p>
+                    </div>
+                    <div class="text-right shrink-0">
+                        <p class="text-sm font-semibold {% if forecast.credit >= 0 %}text-success-dark{% else %}text-danger-dark{% endif %}">
+                            {% if forecast.credit >= 0 %}+{% endif %}{{ forecast.credit|floatformat:"-2" }}
+                        </p>
+                        <p class="text-xs text-dark-100">{% trans "Bal." %} {{ forecast.balance|floatformat:"-2" }}</p>
+                    </div>
                 </div>
-                <div class="min-w-0 flex-1">
-                    <p class="text-sm font-medium text-dark-200 truncate">{% trans "Scheduled reset overdue" %}</p>
-                    <p class="text-xs text-dark-100">{{ forecast.date }}</p>
+            {% endif %}
+            {% if expiry_forecast %}
+                <div class="flex items-center gap-3 px-3 py-2.5">
+                    <div class="w-9 h-9 shrink-0 rounded-full flex items-center justify-center bg-warning-light">
+                        <ion-icon name="hourglass-outline" class="text-warning-dark text-lg"></ion-icon>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-sm font-medium text-dark-200 truncate">{% trans "Carry Forward Expiry" %}</p>
+                        <p class="text-xs text-dark-100">{{ expiry_forecast.date }}</p>
+                    </div>
+                    <div class="text-right shrink-0">
+                        {% if expiry_forecast.amount %}
+                            <p class="text-sm font-semibold text-danger-dark">-{{ expiry_forecast.amount|floatformat:"-2" }}</p>
+                            <p class="text-xs text-dark-100">{% trans "expires" %}</p>
+                        {% else %}
+                            <p class="text-xs text-dark-100">{% trans "Nothing to expire" %}</p>
+                        {% endif %}
+                    </div>
                 </div>
-                <div class="text-right shrink-0">
-                    <p class="text-sm font-semibold text-dark-200">
-                        {% if forecast.credit >= 0 %}+{% endif %}{{ forecast.credit|floatformat:"-2" }}
-                    </p>
-                    <p class="text-xs text-dark-100">{% trans "Bal." %} {{ forecast.balance|floatformat:"-2" }}</p>
-                </div>
-            </div>
-        </div>
-    {% elif forecast %}
-        <div class="flex items-center gap-3 py-2.5 mb-1 opacity-60 cursor-not-allowed" title="{% trans 'Forecasted -- not yet applied' %}">
-            <div class="w-8 h-8 shrink-0 rounded-full flex items-center justify-center bg-secondary-100 border border-dashed border-secondary-300">
-                <ion-icon name="time-outline" class="text-dark-100 text-base"></ion-icon>
-            </div>
-            <div class="min-w-0 flex-1">
-                <p class="text-sm font-medium text-dark-100 truncate">{% trans "Next reset (forecasted)" %}</p>
-                <p class="text-xs text-dark-100">{{ forecast.date }}</p>
-            </div>
-            <div class="text-right shrink-0">
-                <p class="text-sm font-semibold text-dark-100">
-                    {% if forecast.credit >= 0 %}+{% endif %}{{ forecast.credit|floatformat:"-2" }}
-                </p>
-                <p class="text-xs text-dark-100">{% trans "Bal." %} {{ forecast.balance|floatformat:"-2" }}</p>
-            </div>
+            {% endif %}
         </div>
     {% endif %}
 
@@ -98,6 +111,23 @@
                     <div class="min-w-0 flex-1">
                         <p class="text-sm font-medium text-dark-200 truncate">{{ row.label }}</p>
                         <p class="text-xs text-dark-100">{{ row.date }}</p>
+                        {% if row.kind == "reset" %}
+                            <span class="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary-100 text-primary-600">{% trans "Leave Reset" %}</span>
+                            <p class="text-xs text-dark-100 mt-1">
+                                {% blocktrans with before=row.available_before|floatformat:"-2" after=row.available_after|floatformat:"-2" %}Allocation: {{ before }} &rarr; {{ after }}{% endblocktrans %}
+                                &middot;
+                                {% blocktrans with amount=row.carried_forward|floatformat:"-2" %}Carry forward: {{ amount }}{% endblocktrans %}
+                            </p>
+                        {% elif row.kind == "carryforward_expired" %}
+                            <span class="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-danger-light text-danger-dark">{% trans "Carry Forward Expired" %}</span>
+                            <p class="text-xs text-dark-100 mt-1">
+                                {% blocktrans with amount=row.expired_amount|floatformat:"-2" %}{{ amount }} carried-forward day(s) expired{% endblocktrans %}
+                            </p>
+                        {% elif row.kind == "carryforward" %}
+                            <span class="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-warning-light text-warning-dark">{% trans "Carry Forward" %}</span>
+                        {% elif row.kind == "allocation" %}
+                            <span class="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-success-light text-success-dark">{% trans "Allocation" %}</span>
+                        {% endif %}
                         {% if row.source == "manual" %}
                             <span class="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-warning-light text-warning-dark">
                                 {% trans "Manual" %}{% if row.by %} &middot; {{ row.by }}{% endif %}
@@ -115,7 +145,7 @@
                     </div>
                     <div class="text-right shrink-0">
                         <p class="text-sm font-semibold {% if row.credit %}text-success-dark{% else %}text-danger-dark{% endif %}">
-                            {% if row.credit %}+{{ row.credit|floatformat:"-2" }}{% else %}-{{ row.debit|floatformat:"-2" }}{% endif %}
+                            {% if row.credit %}+{{ row.credit|floatformat:"-2" }}{% elif row.debit %}-{{ row.debit|floatformat:"-2" }}{% else %}0{% endif %}
                         </p>
                         <p class="text-xs text-dark-100">{% trans "Bal." %} {{ row.balance|floatformat:"-2" }}</p>
                     </div>

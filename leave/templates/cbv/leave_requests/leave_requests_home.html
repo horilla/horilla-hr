@@ -6,9 +6,8 @@
 {% get_company as theme_obj %}
     <meta name="csrf-token" content="{{ csrf_token }}">
     <style>
-    #clashModal .oh-modal__dialog {
-        max-width: 1400px !important;
-        width: 100%;
+    #clashModalBody .fixed-table {
+        width: auto !important;
     }
     .cancel_requested--dot {
         background-color: #8b5cf6;
@@ -121,7 +120,7 @@
         aria-hidden="true"
         style="z-index: 99"
     >
-        <div class="oh-modal__dialog oh-modal__dialog--wide">
+        <div class="oh-modal__dialog">
             <div class="oh-modal__dialog-header" onclick="event.stopPropagation()">
                 <h3 class="text-lg font-semibold">{% trans "Clashed Leave Requests" %}</h3>
                 <button
@@ -133,7 +132,11 @@
                     <ion-icon name="close-outline" role="img" class="md hydrated" aria-label="{% trans 'close outline' %}"></ion-icon>
                 </button>
             </div>
-            <div class="oh-modal__dialog-body" id="clashModalBody" style="overflow-x: auto"></div>
+            <!-- oh-tabs__movable-body: reuses the existing "size columns by
+            content, not a fixed heading width" override (v1_styles.css) so
+            this trimmed-down table doesn't stretch to the dialog's full
+            width the way the generic list table normally does. -->
+            <div class="oh-modal__dialog-body oh-tabs__movable-body" id="clashModalBody" style="overflow-x: auto"></div>
         </div>
     </div>
 

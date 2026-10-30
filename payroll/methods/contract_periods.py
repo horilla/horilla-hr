@@ -37,7 +37,11 @@ def forced_contract(employee):
     contract = _forced.get()
     if contract is None:
         return None
-    return contract if contract.employee_id_id == getattr(employee, "pk", employee) else None
+    return (
+        contract
+        if contract.employee_id_id == getattr(employee, "pk", employee)
+        else None
+    )
 
 
 def contracts_in_period(employee, start, end):
@@ -46,19 +50,27 @@ def contracts_in_period(employee, start, end):
 
     candidates = list(
         Contract.objects.filter(
-            employee_id=employee, contract_status__in=PAYABLE_STATUSES, contract_start_date__lte=end
+            employee_id=employee,
+            contract_status__in=PAYABLE_STATUSES,
+            contract_start_date__lte=end,
         )
         .filter(Q(contract_end_date__isnull=True) | Q(contract_end_date__gte=start))
         .order_by("contract_start_date", "pk")
     )
     # An expired contract with no end date has no days to pay: it is not known when it stopped.
-    candidates = [c for c in candidates if c.contract_status == "active" or c.contract_end_date]
+    candidates = [
+        c for c in candidates if c.contract_status == "active" or c.contract_end_date
+    ]
 
     slices = []
     for index, contract in enumerate(candidates):
         first = max(contract.contract_start_date, start)
         last = min(contract.contract_end_date or end, end)
-        later = [c.contract_start_date for c in candidates[index + 1:] if c.contract_start_date <= last]
+        later = [
+            c.contract_start_date
+            for c in candidates[index + 1 :]
+            if c.contract_start_date <= last
+        ]
         if later:
             last = min(later) - timedelta(days=1)
         if first <= last:

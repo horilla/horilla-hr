@@ -27,7 +27,7 @@ class PayrollBatchList(HorillaListView):
     bulk_select_option = False
 
     columns = [
-        (_("Run"), "batch_name"),
+        (_("Batch"), "batch_name"),
         (_("Period"), "period_display"),
         (_("Pay date"), "pay_date_display"),
         (_("People"), "people_display"),
@@ -37,7 +37,7 @@ class PayrollBatchList(HorillaListView):
         (_("Status"), "status_pill"),
     ]
     sortby_mapping = [
-        (_("Run"), "batch_name"),
+        (_("Batch"), "batch_name"),
         (_("Period"), "period_start"),
         (_("Pay date"), "pay_date"),
         (_("People"), "generated_count"),

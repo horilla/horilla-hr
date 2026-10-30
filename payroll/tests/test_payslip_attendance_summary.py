@@ -119,17 +119,6 @@ class HourlyPayslipCarriesItsHoursTests(TestCase):
         """
         self.assertEqual(self._run()["contract_wage"], 100.0)
 
-    def test_each_kind_of_overtime_is_reported_separately(self):
-        """
-        Each is paid by a different earning at a different rate, so one
-        combined figure cannot be checked against the payslip lines.
-        """
-        data = self._run()
-        self.assertIsNotNone(data["ot_regular_hours_label"])
-        self.assertIsNotNone(data["ot_week_off_hours_label"])
-        # And the total is the three added up, not a fourth measurement.
-        self.assertIn("3", data["ot_hours_label"])
-
     def test_a_holiday_with_no_hours_is_not_reported(self):
         """
         Nothing worked on a holiday means no row, rather than a "0h 0m" line

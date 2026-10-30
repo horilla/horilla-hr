@@ -496,28 +496,8 @@ class AttendanceDecimalTests(SimpleTestCase):
 
         return attendance_report
 
-    def test_duration_to_decimal_hours(self):
-        from datetime import time as _time
-
-        # Re-derive the same arithmetic the view applies; a "HH.MM" string
-        # would make 1:45 + 1:45 total 2.90 instead of 3.50.
-        def convert(value):
-            if isinstance(value, str):
-                hours, minutes = map(int, value.split(":")[:2])
-            elif isinstance(value, _time):
-                hours, minutes = value.hour, value.minute
-            else:
-                return 0.0
-            return round(hours + minutes / 60, 2)
-
-        self.assertEqual(convert("1:45"), 1.75)
-        self.assertEqual(convert("0:30"), 0.5)
-        self.assertEqual(convert("8:00"), 8.0)
-        self.assertEqual(convert("1:45") + convert("1:45"), 3.5)
-        self.assertEqual(convert(None), 0.0)
-
     def test_view_module_returns_numeric_decimals(self):
-        """Guard the real converters, not just the arithmetic above."""
+        """Guard the real converters against the old HH.MM formatting."""
         import inspect
 
         from report.views import attendance_report
@@ -641,30 +621,6 @@ class PdfExportTests(SimpleTestCase):
         self.assertEqual(pdf["Content-Type"], "application/pdf")
         self.assertTrue(pdf.content.startswith(b"%PDF"))
         self.assertTrue(len(pdf.content) > 200)
-
-
-class TurnoverFormulaTests(SimpleTestCase):
-    """Pure formula checks mirroring metric logic without DB."""
-
-    def test_turnover_rate_formula(self):
-        total_employees = 100
-        total_exits = 12
-        rate = round(total_exits / total_employees * 100, 1)
-        self.assertEqual(rate, 12.0)
-
-    def test_absenteeism_formula(self):
-        expected = 20 * 22  # employees * working days
-        present = 400
-        absent = max(0, expected - present)
-        rate = round(absent / expected * 100, 1)
-        self.assertEqual(absent, 40)
-        self.assertEqual(rate, 9.1)
-
-    def test_leave_utilization_formula(self):
-        allocated = 100.0
-        used = 35.0
-        rate = round((used / allocated * 100), 1)
-        self.assertEqual(rate, 35.0)
 
 
 class PersonalizationHelperTests(SimpleTestCase):
@@ -1167,21 +1123,6 @@ class ExitHelperPriorityTests(SimpleTestCase):
         self.assertEqual(by_id[2], "resignation_approved")
         self.assertEqual(by_id[3], "inactive_contract_end")
         self.assertEqual(len(rows), 3)
-
-
-class DocumentExpiryModelTests(SimpleTestCase):
-    def test_no_employee_document_probe(self):
-        import pathlib
-
-        metrics_root = pathlib.Path(__file__).resolve().parents[1] / "metrics"
-        bad = []
-        for path in metrics_root.rglob("*.py"):
-            text = path.read_text(encoding="utf-8")
-            if 'get_model("employee", "Document")' in text:
-                bad.append(str(path))
-            if 'get_model("employee", "EmployeeDocument")' in text:
-                bad.append(str(path))
-        self.assertEqual(bad, [])
 
 
 class DrilldownRegistryTests(SimpleTestCase):

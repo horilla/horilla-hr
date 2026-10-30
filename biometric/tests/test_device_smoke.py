@@ -1,10 +1,9 @@
-"""Biometric device model / validator smoke tests."""
+"""Biometric schedule-time validator tests."""
 
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
-from biometric.models import BiometricDevices, validate_schedule_time_format
-from horilla.testkit import make_company
+from biometric.models import validate_schedule_time_format
 
 
 class ScheduleTimeFormatTests(TestCase):
@@ -22,18 +21,3 @@ class ScheduleTimeFormatTests(TestCase):
     def test_rejects_invalid_minute(self):
         with self.assertRaises(ValidationError):
             validate_schedule_time_format("01:60")
-
-
-class BiometricDeviceCreateTests(TestCase):
-    def test_create_zk_device(self):
-        company = make_company("Bio Co")
-        device = BiometricDevices.objects.create(
-            name="Front Desk ZK",
-            machine_type="zk",
-            machine_ip="192.168.1.10",
-            port=4370,
-            company_id=company,
-        )
-        self.assertIsNotNone(device.pk)
-        self.assertEqual(device.machine_type, "zk")
-        self.assertFalse(device.is_live)

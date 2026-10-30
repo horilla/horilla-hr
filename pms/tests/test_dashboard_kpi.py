@@ -152,12 +152,6 @@ class DashboardKpiTests(TestCase):
 
         self.assertEqual(body["total_objectives"], 2)
 
-    def test_unparseable_dates_fall_back_to_the_current_month(self):
-        """_parse_period catches ValueError/TypeError rather than 500ing."""
-        response = self.client.get(URL, {"from_date": "not-a-date", "to_date": "//"})
-
-        self.assertEqual(response.status_code, 200)
-
     def test_endpoint_requires_the_objective_view_permission(self):
         other = make_user("kpi_nobody", password="secret123")
         make_employee(

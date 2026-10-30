@@ -527,7 +527,7 @@ class PayrollBatch(HorillaModel):
             new_status in (self.APPROVED, self.PAID)
             and self.progress_state != self.DONE
         ):
-            return False, _("The run has not finished generating.")
+            return False, _("The batch has not finished generating.")
         return True, ""
 
     @property

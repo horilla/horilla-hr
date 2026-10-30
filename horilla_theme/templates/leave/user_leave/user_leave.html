@@ -44,6 +44,40 @@
                         <p>{% trans "Total Leave Taken" %}</p>
                         <p class="text-sm font-bold">{{ user_leave.leave_taken }}</p>
                     </div>
+                    {% with expiry=user_leave.forecast_carryforward_expiry reset=user_leave.forecast_next_reset %}
+                        {% if expiry or reset %}
+                            <div class="mt-2 pt-2 border-t border-secondary-100 space-y-1.5">
+                                {% if expiry %}
+                                    <div class="rounded-md bg-warning-light px-2 py-1.5 text-xs" title="{% trans 'Carried-forward leave lapses on this date' %}">
+                                        <div class="flex items-center gap-1 font-semibold text-warning-dark">
+                                            <ion-icon name="hourglass-outline"></ion-icon>
+                                            <span>{% trans "Carry Forward Expiry" %}</span>
+                                        </div>
+                                        <div class="flex justify-between mt-0.5 text-dark-200">
+                                            <span>{{ expiry.date|date:"d M Y" }}</span>
+                                            {% if expiry.amount %}
+                                                <span class="font-bold text-danger-dark">-{{ expiry.amount|floatformat:"-2" }} {% trans "days" %}</span>
+                                            {% else %}
+                                                <span class="text-dark-100">{% trans "Nothing to expire" %}</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                {% endif %}
+                                {% if reset %}
+                                    <div class="rounded-md bg-primary-100 px-2 py-1.5 text-xs" title="{% trans 'Next scheduled leave reset' %}">
+                                        <div class="flex items-center gap-1 font-semibold text-primary-600">
+                                            <ion-icon name="refresh-outline"></ion-icon>
+                                            <span>{% trans "Next Leave Reset" %}</span>
+                                        </div>
+                                        <div class="flex justify-between mt-0.5 text-dark-200">
+                                            <span>{{ reset.date|date:"d M Y" }}</span>
+                                            <span>{% trans "Balance after" %}: <b>{{ reset.balance|floatformat:"-2" }}</b></span>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    {% endwith %}
                 </div>
             </div>
         </div>

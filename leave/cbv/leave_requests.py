@@ -734,6 +734,15 @@ class LeaveClashListView(LeaveRequestsListView):
     list view of leave clash col
     """
 
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        # Distinct from the page's own "leaveRequest" list sitting behind
+        # this modal -- the inherited __init__ would otherwise give both the
+        # same id, and now that the column-picker is enabled here too its
+        # per-column toggle lookups need a container id that is actually
+        # unique in the DOM.
+        self.view_id = "leaveClash"
+
     def dispatch(self, request, *args, **kwargs):
         if not LeaveRequest.objects.filter(id=kwargs.get("pk")).exists():
             return HttpResponse()
@@ -751,13 +760,24 @@ class LeaveClashListView(LeaveRequestsListView):
 
         return queryset.distinct()
 
+    # Trimmed to the columns that actually matter for comparing a clash at a
+    # glance -- the full leave-list column set (Available Balance, Comment,
+    # ...) made this modal too wide/cluttered for what is meant to be a
+    # quick side-by-side check.
     columns = [
         col
         for col in LeaveRequestsListView.columns
-        if col[1] not in ["leave_clash_col", "penalty_col", "actions_col"]
+        if col[1]
+        not in [
+            "leave_clash_col",
+            "penalty_col",
+            "actions_col",
+            "available_balance_col",
+            "comment_sidebar",
+        ]
     ] + [(_("Clashed Due To"), "clashed_due_to")]
     default_columns = columns
-    show_toggle_form = False
+    show_toggle_form = True
 
     row_status_class = ""
     row_status_indications = None

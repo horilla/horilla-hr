@@ -1696,14 +1696,17 @@ def edit_installment_amount(request):
     else:
         messages.error(request, _("Cannot change paid installments "))
 
-    return render(
+    response = render(
         request,
         "cbv/loan/loan_installment_table.html",
         {
-            "installments": loan.deduction_ids.all(),
+            "installments": loan.deduction_ids.all().order_by("one_time_date"),
             "loan": loan,
         },
     )
+    # The message goes to the page's own toast; only the rows are swapped.
+    response["HX-Trigger"] = "showMessages"
+    return response
 
 
 @login_required

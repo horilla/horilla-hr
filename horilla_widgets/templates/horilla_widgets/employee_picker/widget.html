@@ -1,0 +1,402 @@
+{% load i18n horillafilters %}
+{% get_company as theme_obj %}
+<div
+    id="{{ section_id }}"
+    class="ep"
+    data-ids-url="{{ picker_ids_url }}"
+    data-rows-url="{{ picker_rows_url }}"
+    data-token="{{ picker_token }}"
+>
+    <style>
+        #{{ section_id }} {
+            --ep-accent: {{ theme_obj.primary_600|default:"#E54F38" }};
+            --ep-accent-soft: color-mix(in srgb, var(--ep-accent) 10%, #fff);
+            --ep-bg: #fff;
+            --ep-soft: #f6f7f9;
+            --ep-line: #e4e7ec;
+            --ep-ink: #1d2939;
+            --ep-muted: #667085;
+        }
+        body.dark #{{ section_id }} {
+            --ep-accent-soft: color-mix(in srgb, var(--ep-accent) 22%, #1b2029);
+            --ep-bg: #1b2029;
+            --ep-soft: #232935;
+            --ep-line: #2c3340;
+            --ep-ink: #eceef2;
+            --ep-muted: #9aa3b2;
+        }
+        #{{ section_id }} .ep-hidden { display: none !important; }
+        #{{ section_id }} .select2 { width: 100% !important; }
+        #{{ section_id }} .ep-trigger .select2-container .select2-selection {
+            padding: 5px 78px 5px 5px !important;
+            max-height: 70px !important;
+            overflow-y: auto;
+        }
+        #{{ section_id }} .ep-open {
+            position: absolute;
+            top: 50%;
+            right: 10px;
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transform: translateY(-50%);
+            color: var(--ep-accent);
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+        #{{ section_id }} .ep-strip { display: flex; overflow-x: auto; }
+        #{{ section_id }} .ep-strip__list { display: flex; padding: 8px 10px; }
+        #{{ section_id }} .ep-strip__item {
+            display: block;
+            width: 26px;
+            height: 26px;
+            margin-left: -10px;
+            overflow: hidden;
+            border: 2px solid #fff;
+            border-radius: 100%;
+            background: #596376;
+        }
+        #{{ section_id }} .ep-strip__item:first-child { margin-left: 0; }
+        #{{ section_id }} .ep-strip__more { align-self: center; margin-left: 6px; color: #667085; font-size: 12px; }
+        #{{ section_id }} .ep-strip__item img { width: 100%; height: 100%; object-fit: cover; }
+
+        #{{ section_id }} .ep-dialog {
+            background: var(--ep-bg);
+            color: var(--ep-ink);
+        }
+        #{{ section_id }} .ep-body {
+            display: grid;
+            grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+            height: min(640px, calc(100vh - 3.5rem));
+        }
+        #{{ section_id }} .ep-rail {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            border-right: 1px solid var(--ep-line);
+            background: var(--ep-soft);
+        }
+        #{{ section_id }} .ep-rail__head { display: flex; align-items: center; gap: 8px; padding: 18px 14px 8px 16px; }
+        #{{ section_id }} .ep-rail__head h4 { margin: 0; font-size: 14px; font-weight: 700; }
+        #{{ section_id }} .ep-rail__head .ep-link { margin-left: auto; }
+        #{{ section_id }} .ep-rail__scroll { flex: 1; min-height: 0; padding: 0 12px 14px 14px; overflow-y: auto; }
+        #{{ section_id }} .ep-group { border-bottom: 1px solid var(--ep-line); }
+        #{{ section_id }} .ep-group summary {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 6px;
+            font-size: 13px;
+            font-weight: 600;
+            list-style: none;
+            cursor: pointer;
+        }
+        #{{ section_id }} .ep-group summary::-webkit-details-marker { display: none; }
+        #{{ section_id }} .ep-group summary::after {
+            content: "";
+            width: 7px;
+            height: 7px;
+            margin-left: auto;
+            border-right: 1.6px solid var(--ep-muted);
+            border-bottom: 1.6px solid var(--ep-muted);
+            transform: rotate(45deg) translateY(-2px);
+            transition: transform 0.15s;
+        }
+        #{{ section_id }} .ep-group[open] summary::after { transform: rotate(-135deg) translateY(-2px); }
+        #{{ section_id }} .ep-fields { display: grid; gap: 4px; padding: 0px 6px 8px; }
+        #{{ section_id }} .ep-field { min-width: 0; }
+        #{{ section_id }} .ep-field label { display: block; font-size: 12px; font-weight: 600; color: var(--ep-muted); margin-left: 4px; }
+        #{{ section_id }} .ep-input {
+            width: 100%;
+            height: 36px;
+            padding: 0 10px;
+            border: 1px solid var(--ep-line);
+            border-radius: 8px;
+            background: var(--ep-bg);
+            color: var(--ep-ink);
+            font-size: 13px;
+        }
+        #{{ section_id }} .ep-input:focus { outline: 2px solid var(--ep-accent); outline-offset: -1px; border-color: transparent; }
+        #{{ section_id }} .ep-rail .select2-container { width: 100% !important; }
+        #{{ section_id }} .ep-rail .select2-selection--multiple {
+            position: relative;
+            min-height: 36px;
+            padding-right: 28px;
+            border: 1px solid var(--ep-line);
+            border-radius: 8px;
+        }
+        #{{ section_id }} .ep-rail .select2-selection--multiple::after {
+            content: "";
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 6px;
+            height: 6px;
+            border-right: 1.6px solid var(--ep-muted);
+            border-bottom: 1.6px solid var(--ep-muted);
+            transform: rotate(45deg);
+            pointer-events: none;
+        }
+        #{{ section_id }} .ep-rail .select2-container--open .select2-selection--multiple::after {
+            top: 15px;
+            transform: rotate(-135deg);
+        }
+        #{{ section_id }} .ep-rail__search { padding: 0 14px 10px 16px; }
+        #{{ section_id }} .ep-badge {
+            display: inline-grid;
+            place-items: center;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            border-radius: 9px;
+            background: var(--ep-accent);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        #{{ section_id }} .ep-badge[hidden] { display: none; }
+        #{{ section_id }} .ep-link {
+            padding: 2px 4px;
+            border: 0;
+            border-radius: 4px;
+            background: none;
+            color: var(--ep-accent);
+            font-size: 12.5px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        #{{ section_id }} .ep-link:hover { text-decoration: underline; }
+
+        #{{ section_id }} .ep-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+        #{{ section_id }} .ep-main__head { display: flex; align-items: center; gap: 12px; padding: 18px 14px 12px 20px; }
+        #{{ section_id }} .ep-title { display: grid; margin-right: auto; }
+        #{{ section_id }} .ep-title h3 { margin: 0; font-size: 17px; font-weight: 700; }
+        #{{ section_id }} .ep-sub { font-size: 12.5px; color: var(--ep-muted); }
+        #{{ section_id }} .ep-search { position: relative; min-width: 0; }
+        #{{ section_id }} .ep-search svg { position: absolute; top: 50%; left: 10px; width: 15px; height: 15px; transform: translateY(-50%); color: var(--ep-muted); }
+        #{{ section_id }} .ep-search .ep-input { padding-left: 32px; }
+        #{{ section_id }} .ep-close {
+            padding: 4px 8px;
+            border: 0;
+            border-radius: 6px;
+            background: none;
+            color: var(--ep-muted);
+            font-size: 22px;
+            line-height: 1;
+            cursor: pointer;
+        }
+        #{{ section_id }} .ep-close:hover { background: var(--ep-soft); }
+        #{{ section_id }} .ep-chips {
+            display: flex;
+            flex: none;
+            flex-wrap: wrap;
+            align-content: flex-start;
+            gap: 6px;
+            max-height: 84px;
+            margin-bottom: 10px;
+            padding: 0 20px;
+            overflow-y: auto;
+        }
+        #{{ section_id }} .ep-chips:empty { display: none; }
+        #{{ section_id }} .ep-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 4px 3px 10px;
+            border-radius: 999px;
+            background: var(--ep-accent-soft);
+            color: var(--ep-accent);
+            font-size: 12px;
+            font-weight: 500;
+            line-height: 18px;
+        }
+        #{{ section_id }} .ep-chip button {
+            display: grid;
+            place-items: center;
+            width: 18px;
+            height: 18px;
+            padding: 0;
+            border: 0;
+            border-radius: 50%;
+            background: none;
+            color: inherit;
+            font-size: 15px;
+            line-height: 1;
+            cursor: pointer;
+        }
+        #{{ section_id }} .ep-error { margin: 0 20px 8px; color: #b42318; font-size: 12.5px; }
+        #{{ section_id }} .ep-listwrap {
+            flex: 1;
+            min-height: 0;
+            margin: 0 20px;
+            overflow: auto;
+            border: 1px solid var(--ep-line);
+            border-radius: 10px;
+        }
+        #{{ section_id }} .ep-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        #{{ section_id }} .ep-table th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            padding: 9px 12px;
+            border-bottom: 1px solid var(--ep-line);
+            background: var(--ep-soft);
+            color: var(--ep-muted);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-align: left;
+            text-transform: uppercase;
+        }
+        #{{ section_id }} .ep-table td { padding: 7px 12px; border-bottom: 1px solid var(--ep-line); white-space: nowrap; }
+        #{{ section_id }} .ep-col-check { width: 40px; padding-right: 0 !important; }
+        #{{ section_id }} .ep-row { cursor: pointer; }
+        #{{ section_id }} .ep-row[hidden] { display: none; }
+        #{{ section_id }} .ep-row:hover td { background: var(--ep-soft); }
+        #{{ section_id }} .ep-row.is-on td { background: var(--ep-accent-soft); }
+        #{{ section_id }} .ep-check { width: 17px; height: 17px; margin: 0; accent-color: var(--ep-accent); cursor: pointer; }
+        #{{ section_id }} .ep-person { display: flex; align-items: center; gap: 10px; }
+        #{{ section_id }} .ep-av { flex: none; width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
+        #{{ section_id }} .ep-empty { padding: 36px 16px; text-align: center; color: var(--ep-muted); }
+        #{{ section_id }} .ep-loading { display: flex; align-items: center; justify-content: center; padding: 16px; }
+        #{{ section_id }} .ep-sentinel { height: 1px; }
+        #{{ section_id }} .ep-spinner {
+            width: 32px;
+            height: 32px;
+            border: 0 solid var(--ep-accent);
+            border-top-width: 2px;
+            border-bottom-width: 2px;
+            border-radius: 50%;
+            animation: ep-spin 1s linear infinite;
+        }
+        @keyframes ep-spin { to { transform: rotate(360deg); } }
+        @media (prefers-reduced-motion: reduce) { #{{ section_id }} .ep-spinner { animation-duration: 3s; } }
+        #{{ section_id }} .ep-foot { display: flex; flex-direction: column; gap: 10px; padding: 12px 20px 18px; }
+        #{{ section_id }} .ep-foot__summary { display: flex; align-items: center; gap: 8px; min-width: 0; }
+        #{{ section_id }} .ep-foot__actions { display: flex; justify-content: flex-end; gap: 8px; }
+        #{{ section_id }} .ep-stack { display: flex; flex: 1 1 0; align-items: center; min-width: 0; overflow: hidden; }
+        #{{ section_id }} .ep-stack img {
+            flex: none;
+            width: 26px;
+            height: 26px;
+            margin-left: -8px;
+            border: 2px solid var(--ep-bg);
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        #{{ section_id }} .ep-stack img:first-child { margin-left: 0; }
+        #{{ section_id }} .ep-stack span { flex: none; margin-left: 6px; color: var(--ep-muted); font-size: 12px; white-space: nowrap; }
+        #{{ section_id }} .ep-count { flex: none; color: var(--ep-muted); font-size: 12.5px; white-space: nowrap; }
+        #{{ section_id }} .ep-count b { color: var(--ep-ink); }
+        #{{ section_id }} .ep-btn {
+            flex: none;
+            height: 36px;
+            padding: 0 16px;
+            white-space: nowrap;
+            border: 1px solid var(--ep-line);
+            border-radius: 8px;
+            background: var(--ep-bg);
+            color: var(--ep-ink);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        #{{ section_id }} .ep-btn:hover { background: var(--ep-soft); }
+        #{{ section_id }} .ep-btn--primary { border-color: var(--ep-accent); background: var(--ep-accent); color: #fff; font-weight: 600; }
+        #{{ section_id }} .ep-btn--primary:hover { background: var(--ep-accent); filter: brightness(0.94); }
+        #{{ section_id }} .ep-btn:focus-visible,
+        #{{ section_id }} .ep-close:focus-visible,
+        #{{ section_id }} .ep-link:focus-visible,
+        #{{ section_id }} .ep-chip button:focus-visible,
+        #{{ section_id }} .ep-group summary:focus-visible { outline: 2px solid var(--ep-accent); outline-offset: 2px; }
+
+        @media (max-width: 760px) {
+            #{{ section_id }} .ep-body { grid-template-columns: 1fr; height: calc(100vh - 3.5rem); overflow-y: auto; }
+            #{{ section_id }} .ep-rail { max-height: 300px; border-right: 0; border-bottom: 1px solid var(--ep-line); }            #{{ section_id }} .ep-main { min-height: 480px; }
+            #{{ section_id }} .ep-main__head { flex-wrap: wrap; }
+        }
+    </style>
+
+    <div class="ep-trigger" id="selectContainer{{ self.attrs.id }}" style="position: relative;">
+        <select
+            name="{{ field_name }}"
+            id="{{ self.attrs.id }}"
+            {% if required %}required{% endif %}
+            class="w-100"
+            data-placeholder="{% trans 'Search employees' %}"
+            multiple
+        >
+            {% for option in selected_options %}
+                <option value="{{ option.id }}" data-avatar="{{ option.avatar }}" selected>{{ option.label }}</option>
+            {% endfor %}
+        </select>
+        <span
+            class="ep-open"
+            role="button"
+            tabindex="0"
+            data-toggle="oh-modal-toggle"
+            data-target="#filterChoose{{ section_id }}"
+            title="{% trans 'Filter and Choose' %} {{ label }}"
+        >
+            <ion-icon name="filter-circle"></ion-icon> {% trans "Filter" %}
+        </span>
+    </div>
+    <div class="ep-strip ep-hidden" data-strip-wrapper>
+        <div class="ep-strip__list" data-strip></div>
+    </div>
+
+    <div
+        class="oh-modal"
+        id="filterChoose{{ section_id }}"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="epTitle{{ section_id }}"
+        aria-hidden="true"
+    >
+        <div class="oh-modal__dialog ep-dialog">
+            <div class="ep-body">
+                {% include "horilla_widgets/employee_picker/rail.html" %}
+                <div class="ep-main">
+                    <div class="ep-main__head">
+                        <div class="ep-title">
+                            <h3 id="epTitle{{ section_id }}">{{ label }}</h3>
+                            <span class="ep-sub" data-shown-label></span>
+                        </div>
+                        <button type="button" class="ep-close" data-action="close" aria-label="{% trans 'Close' %}">&times;</button>
+                    </div>
+                    <div class="ep-chips" data-chips aria-live="polite"></div>
+                    <p class="ep-error ep-hidden" data-error role="alert">{% trans "The filters could not be applied. Try again." %}</p>
+                    <div class="ep-listwrap">
+                        <table class="ep-table">
+                            <thead>
+                                <tr>
+                                    <th class="ep-col-check"><input type="checkbox" class="ep-check" data-all aria-label="{% trans 'Select all matching employees' %}"></th>
+                                    <th>{% trans "Employee" %}</th>
+                                </tr>
+                            </thead>
+                            <tbody data-rows></tbody>
+                        </table>
+                        <div class="ep-empty ep-hidden" data-empty>{% trans "No employees match these filters." %}</div>
+                        <div class="ep-loading ep-hidden" data-loading role="status" aria-label="{% trans 'Loading' %}">
+                            <div class="ep-spinner"></div>
+                        </div>
+                        <div data-sentinel class="ep-sentinel"></div>
+                    </div>
+                    <div class="ep-foot">
+                        <div class="ep-foot__summary">
+                            <div class="ep-stack" data-stack-footer></div>
+                            <span class="ep-count"><b data-count>0</b> {% trans "selected" %}</span>
+                        </div>
+                        <div class="ep-foot__actions">
+                            <button type="button" class="ep-btn" data-action="close">{% trans "Cancel" %}</button>
+                            <button type="button" class="ep-btn ep-btn--primary" data-action="commit" data-add-label="{% trans 'Add' %}">{% trans "Add" %}</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% include "horilla_widgets/employee_picker/script.html" %}
+</div>

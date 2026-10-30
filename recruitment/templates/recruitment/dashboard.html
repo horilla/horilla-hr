@@ -1369,6 +1369,7 @@
             }
             loadConversionFunnel();
 
+            {% comment %}
             /* ===== legacy =====
             // ─── SOURCE OF HIRE ───
             function loadSourceOfHire() {
@@ -1429,6 +1430,7 @@
             }
             loadOpenPositionsByDept();
             */
+            {% endcomment %}
 
             // ─── SOURCE CONVERSION ───
             // One column per candidate source ("How did you hear about us?" on the
@@ -1534,6 +1536,7 @@
             }
             loadInterviews();
 
+            {% comment %}
             /* ===== legacy =====
             // ─── CANDIDATES BY STAGE ───
             function loadStageSummary() {
@@ -1563,6 +1566,7 @@
             }
             loadStageSummary();
             */
+            {% endcomment %}
 
             // ─── OFFER LETTER STATUS ───
             function loadOfferStatus() {
@@ -1592,6 +1596,7 @@
             }
             loadOfferStatus();
 
+            {% comment %}
             /* ===== legacy =====
             // ─── HIRING PIPELINE TABLE ───
             function loadPipelineTable() {
@@ -1618,6 +1623,7 @@
             }
             loadPipelineTable();
             */
+            {% endcomment %}
 
             // ─── VACANCY VS HIRED ───
             // The recruitments are the chips under the chart (same chip legend as the donuts):
@@ -1731,6 +1737,7 @@
             }
             loadHireRate();
 
+            {% comment %}
             /* ===== legacy =====
             // ─── TIME TO HIRE ───
             function loadTimeToHire() {
@@ -1758,6 +1765,7 @@
             }
             loadTimeToHire();
             */
+            {% endcomment %}
 
             // ─── JOININGS PER MONTH (period-driven) ───
             const joinFrom = document.getElementById('rd-join-from');
@@ -1864,6 +1872,7 @@
             }
             loadRejectionReasons();
 
+            {% comment %}
             /* ===== legacy =====
             // ─── ONGOING RECRUITMENTS & MANAGERS ───
             function loadManagersTable() {
@@ -1888,6 +1897,7 @@
             }
             loadManagersTable();
             */
+            {% endcomment %}
 
             // ── Refresh all data ──
             function refreshAllData() {

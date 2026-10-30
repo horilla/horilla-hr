@@ -490,7 +490,9 @@ def trim_scheduler_history():
     from django.utils import timezone
     from django_apscheduler.models import DjangoJobExecution
 
-    days = getattr(settings, "HORILLA_SCHEDULER_HISTORY_DAYS", 7)
+    # At least a day: 0 or a negative value would delete the whole history
+    # at every run (the cutoff would be now or later).
+    days = max(getattr(settings, "HORILLA_SCHEDULER_HISTORY_DAYS", 7), 1)
     cutoff = timezone.now() - timedelta(days=days)
     deleted, _ = DjangoJobExecution.objects.filter(run_time__lte=cutoff).delete()
     logger.info("Deleted %s scheduler job runs older than %s days", deleted, days)

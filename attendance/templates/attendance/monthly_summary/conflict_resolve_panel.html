@@ -463,7 +463,14 @@
        data-warn-text="{% trans 'You entered' %}"
        data-warn-tail="{% trans 'for one day. Save it anyway?' %}"
        data-warn-yes="{% trans 'Yes, save' %}"
-       data-warn-no="{% trans 'Cancel' %}">
-    <button type="button" class="crp-apply" id="crp-save" disabled onclick="msCalSaveDay('{{ conflict_type }}')">{% trans "Save" %}</button>
+       data-warn-no="{% trans 'Cancel' %}"
+       data-conflict-title="{% trans 'Resolve This Conflict?' %}"
+       data-conflict-text="{% trans 'Attendance Overlaps Approved Leave On This Day. It Will Be Counted As' %}"
+       data-conflict-tail="{% trans 'The Conflict Is Marked As Resolved.' %}"
+       data-conflict-yes="{% trans 'Yes, Resolve' %}">
+    {# An unresolved leave clash can be settled as it stands, so Save is on without a change and asks first. #}
+    <button type="button" class="crp-apply" id="crp-save"
+            {% if att_row and not existing_resolution and conflict_type == "paid_leave" or att_row and not existing_resolution and conflict_type == "unpaid_leave" %}data-conflict="1"{% else %}disabled{% endif %}
+            onclick="msCalSaveDay('{{ conflict_type }}')">{% trans "Save" %}</button>
   </div>
 </div>

@@ -1,8 +1,10 @@
 {% load i18n %}
 <div id="formContainer">
     {% include "generic/horilla_form.html" %}
-    {# Bonus Point Encashment: the selected employee's available points, loaded on open and on employee change.
-       Moved by the script below to the top of the form's bordered box, under the heading. #}
+    {% comment %}
+        Bonus Point Encashment: the selected employee's available points, loaded on open and on employee change.
+        Moved by the script below to the top of the form's bordered box, under the heading.
+    {% endcomment %}
     <div
         id="bonusPointsNote"
         style="display: none; margin-bottom: 12px"

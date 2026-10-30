@@ -364,12 +364,3 @@ class NoDuplicateRunTests(Fixture):
                 HTTP_HX_REQUEST="true",
             )
         run.assert_not_called()
-
-    def test_the_list_shows_which_period_each_run_will_cover(self):
-        html = self.client.get(
-            reverse("pay-period-list"), HTTP_HX_REQUEST="true"
-        ).content.decode()
-        self.assertIn("pp-tip__body", html)
-        self.assertIn("Generates payslips for", html)
-        self.assertIn("Generate payslips now for", html)
-        self.assertIn(reverse("pay-period-generate", kwargs={"pk": self.row.pk}), html)

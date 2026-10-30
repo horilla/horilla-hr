@@ -1,0 +1,14 @@
+{% load i18n %}{% autoescape off %}{% if first_name %}{% blocktranslate with name=first_name %}Hi {{ name }},{% endblocktranslate %}{% else %}{% translate "Hi," %}{% endif %}
+
+{% blocktranslate with company=white_label_company_name %}You've been invited to {{ company }}. Open the link below to set your password and get started.{% endblocktranslate %}
+
+{{ reset_url }}
+
+
+{% translate "Username" %}: {{ user.get_username }}
+{% blocktranslate with hours=valid_hours %}This link works for {{ hours }} hours and can be used once.{% endblocktranslate %}
+
+{% translate "If you weren't expecting this invitation, you can safely ignore this email." %}
+
+{{ white_label_company_name }}
+{% endautoescape %}

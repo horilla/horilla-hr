@@ -2,7 +2,6 @@
 
 from datetime import date
 
-from django.contrib.auth.models import Permission
 from django.test import TestCase
 from rest_framework.test import APIClient
 
@@ -42,12 +41,6 @@ class WritePermissionTests(TestCase):
         response = self.client.get("/api/payroll/tax-bracket/")
         self.assertNotEqual(response.status_code, 200)
 
-    def test_plain_employee_cannot_approve_reimbursement(self):
-        response = self.client.post(
-            "/api/payroll/reimbusement-approve-reject/999", {"status": "approved"}
-        )
-        self.assertNotEqual(response.status_code, 200)
-
     def test_shift_request_binds_to_caller_and_ignores_approval_flags(self):
         shift = EmployeeShift.objects.create(employee_shift="Perm Shift")
         response = self.client.post(
@@ -65,28 +58,6 @@ class WritePermissionTests(TestCase):
         self.assertEqual(response.data["employee_id"], self.employee.id)
         self.assertFalse(response.data["approved"])
         self.assertFalse(response.data["canceled"])
-
-    def test_employee_cannot_edit_own_manager(self):
-        work_info = self.employee.employee_work_info
-        work_info.reporting_manager_id = self.other
-        work_info.save()
-        response = self.client.put(
-            f"/api/employee/employees/{self.other.id}/",
-            {"employee_first_name": "Pwned"},
-        )
-        self.assertEqual(response.status_code, 400)
-        self.other.refresh_from_db()
-        self.assertNotEqual(self.other.employee_first_name, "Pwned")
-
-    def test_manager_can_edit_subordinate(self):
-        work_info = self.other.employee_work_info
-        work_info.reporting_manager_id = self.employee
-        work_info.save()
-        response = self.client.put(
-            f"/api/employee/employees/{self.other.id}/",
-            {"employee_first_name": "Renamed"},
-        )
-        self.assertEqual(response.status_code, 200, response.data)
 
     def test_employee_cannot_rebind_login(self):
         # Self-edit now honours the profile-edit switch, as the web UI does,

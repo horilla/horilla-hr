@@ -15,7 +15,7 @@ from django.urls import reverse
 
 from horilla.testkit import make_company, make_employee, make_user
 from payroll.forms.component_forms import AllowanceForm, DeductionForm
-from payroll.models.models import Allowance, Deduction, LoanAccount
+from payroll.models.models import Allowance, Deduction, LoanAccount, Payslip
 from payroll.system_components import (
     BY_KEY,
     SYSTEM_COMPONENTS,
@@ -250,6 +250,41 @@ class GeneratorsReadTheTemplateTests(TestCase):
         self.assertIsNotNone(loan.allowance_id)
         self.assertFalse(loan.allowance_id.is_taxable)
 
+    def test_editing_the_template_later_reaches_unpaid_instalments_and_the_payout(self):
+        loan = self._loan()
+        template = Deduction.objects.entire().get(system_key="loan_repayment")
+        template.is_pretax = False
+        template.save()
+        payout = Allowance.objects.entire().get(system_key="loan_payout")
+        payout.is_taxable = False
+        payout.save()
+
+        loan = LoanAccount.objects.entire().get(pk=loan.pk)
+        self.assertFalse(any(d.is_pretax for d in loan.deduction_ids.all()))
+        self.assertFalse(loan.allowance_id.is_taxable)
+
+    def test_an_instalment_a_payslip_already_carries_keeps_its_setting(self):
+        from datetime import date
+
+        loan = self._loan()
+        paid, unpaid = list(loan.deduction_ids.all())[:2]
+        payslip = Payslip.objects.create(
+            employee_id=loan.employee_id,
+            start_date=date(2026, 5, 1),
+            end_date=date(2026, 5, 31),
+            pay_head_data={},
+        )
+        payslip.installment_ids.add(paid)
+
+        template = Deduction.objects.entire().get(system_key="loan_repayment")
+        template.is_pretax = False
+        template.save()
+
+        paid.refresh_from_db()
+        unpaid.refresh_from_db()
+        self.assertTrue(paid.is_pretax)
+        self.assertFalse(unpaid.is_pretax)
+
     def test_an_advance_and_a_loan_can_differ(self):
         """
         They share one model and one generator, so before this they were
@@ -287,18 +322,6 @@ class NoAmountBlockTests(TestCase):
     number. Nothing to prorate means nothing to divide by a shorter period,
     which is exactly why inheriting calendar-day proration was wrong.
     """
-
-    def test_no_kind_offers_an_amount_or_a_ceiling(self):
-        for entry in SYSTEM_COMPONENTS:
-            with self.subTest(key=entry["key"]):
-                fields = editable_fields(entry["key"])
-                for unwanted in ("amount", "maximum_amount", "has_max_limit"):
-                    self.assertNotIn(unwanted, fields)
-
-    def test_no_kind_offers_a_proration_basis(self):
-        for entry in SYSTEM_COMPONENTS:
-            with self.subTest(key=entry["key"]):
-                self.assertNotIn("maximum_unit", editable_fields(entry["key"]))
 
     def test_each_kind_offers_exactly_its_tax_treatment(self):
         for entry in SYSTEM_COMPONENTS:

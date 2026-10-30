@@ -174,6 +174,19 @@ def basic_pay_working(payslip):
     }
 
 
+@register.filter(name="ctc_breakdown")
+def ctc_breakdown_filter(payslip):
+    """How a CTC Down payslip adds up to its CTC; None for Gross Up, a preview or no data."""
+    if not hasattr(payslip, "pay_head_data"):
+        return None
+    from payroll.methods.ctc_breakdown import ctc_breakdown
+
+    try:
+        return ctc_breakdown(payslip)
+    except Exception:  # a courtesy panel; the payslip must still draw
+        return None
+
+
 @register.filter(name="earning_workings")
 def earning_workings_filter(payslip):
     """{earning key: how it was worked out} for a saved payslip; empty for a preview."""

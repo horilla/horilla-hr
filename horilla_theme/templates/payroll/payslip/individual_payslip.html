@@ -118,9 +118,10 @@ working is its own card so the payslip stays the statement it is.
         </div>
     </div>
 </div>
-{% if payslip|income_tax_explanation %}
+{% if payslip|income_tax_explanation or payslip|ctc_breakdown %}
 <aside id="payslipTaxPanel" style="flex:0 0 360px;width:360px;max-width:100%;">
   {% include "payroll/payslip/_tax_side_panel.html" %}
+  {% include "payroll/payslip/_ctc_breakdown.html" %}
 </aside>
 {% endif %}
 </div>

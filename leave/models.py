@@ -1012,6 +1012,7 @@ class AvailableLeave(HorillaModel):
                 {
                     "date": as_date(self.assigned_date),
                     "label": _("Initial assignment"),
+                    "kind": "allocation",
                     "credit": opening_available,
                     "debit": 0,
                     "carryforward_amount": 0,
@@ -1022,6 +1023,7 @@ class AvailableLeave(HorillaModel):
                 {
                     "date": as_date(self.assigned_date),
                     "label": _("Initial carryforward"),
+                    "kind": "carryforward",
                     "credit": opening_carryforward,
                     "debit": 0,
                     "carryforward_amount": 0,
@@ -1039,13 +1041,39 @@ class AvailableLeave(HorillaModel):
                 - ((previous.available_days or 0) + (previous.carryforward_days or 0)),
                 2,
             )
-            if delta == 0:
+            kind = self._ledger_kind(current.history_change_reason)
+            available_before = round(previous.available_days or 0, 2)
+            available_after = round(current.available_days or 0, 2)
+            carryforward_before = round(previous.carryforward_days or 0, 2)
+            carryforward_after = round(current.carryforward_days or 0, 2)
+            # A reset/expiry always belongs in the ledger, even when the two
+            # buckets moved in opposite directions and netted to zero.
+            if delta == 0 and not (
+                kind in ("reset", "carryforward_expired")
+                and (
+                    available_before != available_after
+                    or carryforward_before != carryforward_after
+                )
+            ):
                 continue
             entry_date = as_date(current.history_date)
             source, by = reason_source(current)
-            if delta > 0:
+            breakdown = {
+                "available_before": available_before,
+                "available_after": available_after,
+                "carryforward_before": carryforward_before,
+                "carryforward_after": carryforward_after,
+            }
+            if kind == "reset":
+                # What the reset carried over into the new period.
+                breakdown["carried_forward"] = carryforward_after
+            elif kind == "carryforward_expired":
+                breakdown["expired_amount"] = carryforward_before
+            if delta >= 0:
                 entries.append(
                     {
+                        **breakdown,
+                        "kind": kind if kind != "other" else "allocation",
                         "date": entry_date,
                         "label": (
                             _(current.history_change_reason)
@@ -1083,6 +1111,8 @@ class AvailableLeave(HorillaModel):
                     carryforward_amount = 0
                 entries.append(
                     {
+                        **breakdown,
+                        "kind": kind if kind != "other" else "taken",
                         "date": entry_date,
                         "label": label,
                         "credit": 0,
@@ -1102,6 +1132,7 @@ class AvailableLeave(HorillaModel):
             for request in unclaimed_requests:
                 entries.append(
                     {
+                        "kind": "taken",
                         "date": request.start_date,
                         "label": _("Leave taken (%(start)s - %(end)s)")
                         % {
@@ -1132,6 +1163,35 @@ class AvailableLeave(HorillaModel):
         # already-computed list so callers see newest first.
         ledger.reverse()
         return ledger
+
+    @staticmethod
+    def _ledger_kind(change_reason):
+        """
+        Category of a history row, from the reason the reset/expiry code
+        stamps on it ("Leave reset[ manually]", "Carryforward expired[ manually]").
+        """
+        reason = (change_reason or "").lower()
+        if reason.startswith("leave reset"):
+            return "reset"
+        if reason.startswith("carryforward expired"):
+            return "carryforward_expired"
+        return "other"
+
+    def forecast_carryforward_expiry(self):
+        """
+        Upcoming expiry of this balance's carryforward -- {date, amount} --
+        or None if the leave type's carryforward never expires. The amount
+        is 0 when nothing is currently carried forward.
+        """
+        if (
+            self.leave_type_id.carryforward_type != "carryforward expire"
+            or not self.expired_date
+        ):
+            return None
+        expired_date = self.expired_date
+        if hasattr(expired_date, "date") and callable(expired_date.date):
+            expired_date = expired_date.date()
+        return {"date": expired_date, "amount": round(self.carryforward_days or 0, 2)}
 
     def forecast_next_reset(self):
         """

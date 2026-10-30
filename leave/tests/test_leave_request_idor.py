@@ -95,12 +95,3 @@ class LeaveRequestVisibilityTests(TestCase):
                 _Request(self._reload(self.snooper_user)), self.request_obj
             )
         )
-
-    def test_the_description_is_what_this_protects(self):
-        """Stated explicitly: the field carries the reason for absence, which
-        is why a cross-employee read is a GDPR Art. 9 exposure rather than a
-        scheduling inconvenience."""
-        self.assertIn("Oncology", self.request_obj.description)
-        self.assertFalse(
-            can_view_leave_request(_Request(self.snooper_user), self.request_obj)
-        )

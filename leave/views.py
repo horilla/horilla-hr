@@ -6760,6 +6760,7 @@ def leave_balance_ledger(request, pk):
             "instance": instance,
             "ledger": instance.build_ledger(),
             "forecast": instance.forecast_next_reset(),
+            "expiry_forecast": instance.forecast_carryforward_expiry(),
             "reset_due": instance.is_reset_due(),
         },
     )
@@ -6794,6 +6795,7 @@ def leave_balance_reset(request, pk):
             "instance": instance,
             "ledger": instance.build_ledger(),
             "forecast": instance.forecast_next_reset(),
+            "expiry_forecast": instance.forecast_carryforward_expiry(),
             "reset_due": instance.is_reset_due(),
             "after_reset": True,
         },

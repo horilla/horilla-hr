@@ -7,10 +7,18 @@ This module is used to write horilla form select widgets
 import uuid
 
 from django import forms
+from django.forms.utils import pretty_name
+from django.templatetags.static import static
+from django.urls import reverse
 
 from horilla import horilla_middlewares
+from horilla_widgets.generic_ajax import dump_queryset
 
-ALL_INSTANCES = {}
+
+def employee_avatar_url(instance):
+    """Return the employee's profile image url, or the default avatar."""
+    profile = getattr(instance, "employee_profile", None)
+    return profile.url if profile else static("images/ui/default_avatar.jpg")
 
 
 def get_short_uuid(length: int, prefix: str = "widget"):
@@ -29,7 +37,7 @@ class HorillaMultiSelectWidget(forms.Widget):
     def __init__(
         self,
         *args,
-        filter_route_name,
+        filter_route_name=None,
         filter_class=None,
         filter_instance_context_name=None,
         filter_template_path=None,
@@ -49,7 +57,7 @@ class HorillaMultiSelectWidget(forms.Widget):
         self.help_text = help_text
         super().__init__()
 
-    template_name = "horilla_widgets/horilla_multiselect_widget.html"
+    template_name = "horilla_widgets/employee_picker/widget.html"
 
     def value_from_datadict(self, data, files, name):
         # forms.Widget's default returns data.get(name) -- a single scalar,
@@ -69,9 +77,14 @@ class HorillaMultiSelectWidget(forms.Widget):
         # from the thread-local set by ThreadLocalMiddleware instead.
         context["request"] = horilla_middlewares._thread_locals.request
         # Add your custom data to the context
+        from horilla_widgets.filters import get_picker_groups
+
         queryset = self.choices.queryset
         field = self.choices.field
-        context["queryset"] = queryset
+        context["picker_groups"] = get_picker_groups()
+        context["picker_token"] = dump_queryset(queryset)
+        context["picker_ids_url"] = reverse("employee-picker-ids")
+        context["picker_rows_url"] = reverse("employee-picker-rows")
         context["field_name"] = name
         if self.form and name in self.form.data:
             initial = self.form.data.getlist(name)
@@ -84,7 +97,23 @@ class HorillaMultiSelectWidget(forms.Widget):
             context["initial"] = initial
         else:
             context["initial"] = []
+        selected_ids = [
+            int(getattr(item, "pk", item))
+            for item in context["initial"]
+            if str(getattr(item, "pk", item)).isdigit()
+        ]
+        context["selected_options"] = [
+            {
+                "id": employee.pk,
+                "label": str(employee),
+                "avatar": employee_avatar_url(employee),
+            }
+            for employee in (
+                queryset.filter(pk__in=selected_ids) if selected_ids else []
+            )
+        ]
         context["field"] = field
+        context["label"] = field.label or pretty_name(name)
         context["self"] = self
         context["filter_template_path"] = self.filter_template_path
         context["filter_route_name"] = self.filter_route_name
@@ -95,9 +124,6 @@ class HorillaMultiSelectWidget(forms.Widget):
         )
         uid = get_short_uuid(5)
         context["section_id"] = uid
-        context[self.filter_instance_context_name] = self.filter_class
-        request = getattr(horilla_middlewares._thread_locals, "request", None)
-        ALL_INSTANCES[str(request.user.id)] = self
 
         return context
 

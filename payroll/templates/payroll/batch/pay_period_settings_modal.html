@@ -12,8 +12,13 @@
   <form hx-post="{{ post_url|default:'/payroll/pay-period-settings/?modal=1' }}" hx-target="#{{ modal_body_id|default:'pbSettingsModalBody' }}" hx-swap="innerHTML" id="pbSettingsForm">
     {% csrf_token %}
     <p style="font-size:.8rem;color:#6b7280;margin-bottom:12px;">
-      {% trans "Set once for the company. New payroll runs start from these dates." %}
+      {% trans "Set once for the company. New payroll batches start from these dates." %}
     </p>
+
+    <div class="pb__example" id="pb-example" data-today="{{ today|date:'Y-m-d' }}">
+      <div><span class="pb__example-k">{% trans "This period" %}</span><br><b id="pb-example-period">{{ example_start|date:"j M Y" }} &ndash; {{ example_end|date:"j M Y" }}</b></div>
+      <div><span class="pb__example-k">{% trans "Pay date" %}</span><br><b id="pb-example-pay">{{ example_pay_date|date:"j M Y" }}</b></div>
+    </div>
 
     <div class="oh-input-group">
       <label class="oh-label" for="{{ form.cycle_start_day.id_for_label }}">{{ form.cycle_start_day.label }}
@@ -60,10 +65,6 @@
     </div>
     {% endif %}
 
-    <div class="pb__example" id="pb-example" data-today="{{ today|date:'Y-m-d' }}">
-      <div><span class="pb__example-k">{% trans "This period" %}</span><br><b id="pb-example-period">{{ example_start|date:"j M Y" }} &ndash; {{ example_end|date:"j M Y" }}</b></div>
-      <div><span class="pb__example-k">{% trans "Pay date" %}</span><br><b id="pb-example-pay">{{ example_pay_date|date:"j M Y" }}</b></div>
-    </div>
     {% for error in form.non_field_errors %}
       <div class="pb__problem pb__problem--blocking mt-2">{{ error }}</div>
     {% endfor %}

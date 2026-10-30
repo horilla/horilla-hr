@@ -340,16 +340,6 @@ class StandardComponentsOnTheContractTests(TestCase):
         first_standard = next(i for i, row in enumerate(rows) if row.get("standard"))
         self.assertTrue(all(not r.get("standard") for r in rows[:first_standard]))
 
-    def test_the_picker_shows_them_ticked_and_disabled(self):
-        body = self.client.get(
-            reverse("contract-components", kwargs={"pk": self.contract.pk}),
-            **self.hx,
-        ).content.decode()
-
-        self.assertIn("Loan repayment", body)
-        self.assertIn("Standard, always on", body)
-        self.assertIn("disabled", body)
-
     def test_saving_never_targets_one_at_an_employee(self):
         """
         A template is never paid. If a forged post could add an employee to

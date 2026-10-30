@@ -121,7 +121,7 @@ BREADCRUMB_URL_NAMES = {
     "performance-settings-view": "Configuration",
     "user-group-view": "Roles and Permissions",
     "employee-permission-assign": "Roles and Permissions",
-    "payroll-runs": _("Payroll Runs"),
+    "payroll-runs": _("Payroll Batches"),
     "employee-view-update": _("Employees"),
     "components": _("Pay Components"),
     "compensation-templates": _("Pay Structures"),
@@ -322,6 +322,7 @@ remove_urls = [
     "task-view",
     "dashboard",
     "login",
+    "employee-bulk-reset-password-admin",
 ]
 
 user_breadcrumbs = {}

@@ -448,7 +448,7 @@ the pay was worked out from. Everything below is the caveats.
         {% endfor %}
       </div>
       <div class="ps__total">
-        <span class="ps__label">{% trans "Gross pay" %}</span>
+        <span class="ps__label">{% trans "Gross Pay" %}</span>
         <span class="ps__amount">{{ gross_pay|floatformat:2|currency_symbol_position }}</span>
       </div>
     </div>
@@ -592,7 +592,7 @@ the pay was worked out from. Everything below is the caveats.
       {% endif %}
       <div class="ps__total">
         <span class="ps__label">
-          {% if uncovered_deduction %}{% trans "Deductions taken" %}{% else %}{% trans "Total deductions" %}{% endif %}
+          {% if uncovered_deduction %}{% trans "Deductions Taken" %}{% else %}{% trans "Total Deductions" %}{% endif %}
         </span>
         <span class="ps__amount">{{ total_deductions|floatformat:2|currency_symbol_position }}</span>
       </div>
@@ -646,8 +646,9 @@ the pay was worked out from. Everything below is the caveats.
   </div>
 </div>
 
-{% if request.META.HTTP_HX_REQUEST and payslip|income_tax_explanation %}
+{% if request.META.HTTP_HX_REQUEST and payslip|income_tax_explanation or request.META.HTTP_HX_REQUEST and payslip|ctc_breakdown %}
   <aside id="payslipTaxPanel" hx-swap-oob="true" style="flex:0 0 360px;width:360px;max-width:100%;">
     {% include "payroll/payslip/_tax_side_panel.html" %}
+    {% include "payroll/payslip/_ctc_breakdown.html" %}
   </aside>
 {% endif %}

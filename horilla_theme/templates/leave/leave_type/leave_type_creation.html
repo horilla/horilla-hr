@@ -834,8 +834,8 @@
                 clearErrors(panel);
                 var bad = firstInvalid(panel);
                 if (!bad) return true;
-                var msg = bad.validationMessage || "{% trans 'This field is required.' %}";
-                if (!(bad.value || "").trim()) msg = "{% trans 'This field is required.' %}";
+                var msg = bad.validationMessage || "{% trans 'This field is required.'|escapejs %}";
+                if (!(bad.value || "").trim()) msg = "{% trans 'This field is required.'|escapejs %}";
                 var $anchor = $(bad).hasClass("select2-hidden-accessible") ? $(bad).next(".select2") : $(bad);
                 $anchor.after('<div class="step-field-error">' + msg + "</div>");
                 var tab = form.querySelector('[data-step-tab="' + panel.dataset.stepPanel + '"]');

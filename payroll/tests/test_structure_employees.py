@@ -536,22 +536,30 @@ class EmployeeSortingTests(TestCase):
 
         self.assertLess(panel.index("Zoe"), panel.index("Aaron"))
 
-    def test_the_columns_offer_sorting(self):
+    def _headers(self, mode):
         from django.urls import reverse
 
-        self._employee("Aaron", 30000)
+        SalaryStructure.objects.filter(pk=self.structure.pk).update(structure_mode=mode)
+        self._employee(f"{mode}@test.horilla", 30000)
         panel = self.client.get(
             reverse("salary-structure-employees", kwargs={"pk": self.structure.pk}),
             HTTP_HX_REQUEST="true",
         ).content.decode()
+        return [
+            key
+            for key in ("pay", "other", "basic")
+            if f'data-emp-sort="{key}"' in panel
+        ], panel
 
-        for key in ("name", "pay", "other", "basic"):
-            self.assertIn(f'data-emp-sort="{key}"', panel)
-        # And the Basic pay column starts marked as the one in force, since
-        # that is the order the rows arrive in.
-        self.assertIn(
-            'data-emp-sort="basic"\n                    aria-sort="ascending"', panel
-        )
+    def test_gross_up_shows_neither_the_wage_nor_the_ctc_column(self):
+        keys, panel = self._headers("gross_up")
+        self.assertEqual(keys, ["basic"])
+        self.assertNotIn("Monthly CTC</", panel)
+
+    def test_ctc_down_shows_the_ctc_but_not_the_wage_column(self):
+        keys, panel = self._headers("ctc_down")
+        self.assertEqual(keys, ["pay", "basic"])
+        self.assertNotIn(">Wage<", panel.replace(" ", "").replace("\n", ""))
 
     def test_every_row_carries_what_it_is_sorted_by(self):
         """A row missing a sort key would silently fall to one end."""

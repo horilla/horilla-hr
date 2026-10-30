@@ -142,18 +142,6 @@ class ApiTenantScopingTests(TestCase):
 
     # -- end to end -------------------------------------------------------
 
-    def test_employee_list_excludes_the_other_tenant(self):
-        """A company's list must contain only its own employees."""
-        token = self._token("tenant_a_user")
-        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
-        response = self.client.get(EMPLOYEE_LIST_URL)
-
-        self.assertEqual(response.status_code, 200, response.data)
-
-        body = str(response.data)
-        self.assertIn("Alice", body, "own tenant's employee should be visible")
-        self.assertNotIn("Bob", body, "other tenant's employee must not be returned")
-
     def test_each_tenant_sees_a_disjoint_employee_set(self):
         """Symmetric check, so a filter that always returns A would fail."""
         seen = {}

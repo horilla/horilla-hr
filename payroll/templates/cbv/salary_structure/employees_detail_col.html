@@ -45,10 +45,12 @@ ended is not here, however they were assigned.
   .ss-emp__sort[aria-sort] .ss-emp__arrow { opacity: 1; }
   th.ss-emp__th--right .ss-emp__sort { flex-direction: row-reverse; }
   .ss-emp__table td {
-    padding: 10px; border-bottom: 1px solid #f1f2f4; vertical-align: top;
+    padding: 6px 10px; border-bottom: 1px solid #f1f2f4; vertical-align: middle;
   }
   .ss-emp__table tr:last-child td { border-bottom: 0; }
   .ss-emp__name { font-weight: 600; color: #1f2430; }
+  a.ss-emp__link { cursor: pointer; text-decoration: none; }
+  a.ss-emp__link:hover { color: var(--primary-600, #e54f38); text-decoration: underline; }
   .ss-emp__badge {
     font-family: ui-monospace, Menlo, Consolas, monospace;
     font-size: 11.5px; color: #9ca3af;
@@ -165,18 +167,18 @@ ended is not here, however they were assigned.
               {% trans "Employee" %}<span class="ss-emp__arrow">&#9650;&#9660;</span>
             </button>
           </th>
-          <th style="text-align:right;" class="ss-emp__th--right">
-            <button type="button" class="ss-emp__sort" data-emp-sort="pay">
-              {% if instance.structure_mode == "ctc_down" %}{% trans "Monthly CTC" %}
-              {% else %}{% trans "Wage" %}{% endif %}<span class="ss-emp__arrow">&#9650;&#9660;</span>
-            </button>
-          </th>
-          <th style="text-align:right;" class="ss-emp__th--right">
-            <button type="button" class="ss-emp__sort" data-emp-sort="other">
-              {% if instance.structure_mode == "ctc_down" %}{% trans "Wage" %}
-              {% else %}{% trans "Monthly CTC" %}{% endif %}<span class="ss-emp__arrow">&#9650;&#9660;</span>
-            </button>
-          </th>
+          {% comment %}
+          Only CTC Down has a figure of its own to show. Under Gross Up the wage
+          is the basic pay, which has its own column, and a CTC is only a target
+          to reconcile against, so neither is repeated here.
+          {% endcomment %}
+          {% if instance.structure_mode == "ctc_down" %}
+            <th style="text-align:right;" class="ss-emp__th--right">
+              <button type="button" class="ss-emp__sort" data-emp-sort="pay">
+                {% trans "Monthly CTC" %}<span class="ss-emp__arrow">&#9650;&#9660;</span>
+              </button>
+            </th>
+          {% endif %}
           {% comment %}
           Sorted on whether basic pay resolves at all, not on its amount: most
           of the column has no figure in it (an hourly contract's basic is its
@@ -199,56 +201,36 @@ ended is not here, however they were assigned.
           <tr class="{% if row.no_basic %}is-warned{% endif %}"
               data-emp-row
               data-name="{{ row.employee|lower }}"
-              data-pay="{% if instance.structure_mode == 'ctc_down' %}{{ row.monthly_ctc|default:0|stringformat:'f' }}{% else %}{{ row.pay_rate|default:0|stringformat:'f' }}{% endif %}"
+              data-pay="{% if instance.structure_mode == 'ctc_down' %}{{ row.monthly_ctc|default:row.pay_rate|default:0|stringformat:'f' }}{% else %}{{ row.pay_rate|default:0|stringformat:'f' }}{% endif %}"
               data-other="{% if instance.structure_mode == 'ctc_down' %}{{ row.pay_rate|default:0|stringformat:'f' }}{% else %}{{ row.monthly_ctc|default:0|stringformat:'f' }}{% endif %}"
               data-basic="{% if row.no_basic %}0{% else %}1{% endif %}">
             <td>
-              <span class="ss-emp__name">{{ row.employee }}</span>
-              {% if row.badge %}
-                <span class="ss-emp__badge">{{ row.badge }}</span>
-              {% endif %}
               {% comment %}
-              Into #relatedObjectModal, not the modal this table is in: that
-              one is the salary structure, and replacing it would lose the
-              context the contract is being read against. The name says what it
-              opens, so it is not a surprise that a caption is clickable.
+              The name opens the contract, into #relatedObjectModal and not the
+              modal this table is in: that one is the salary structure, and
+              replacing it would lose the context the contract is read against.
+              The name already carries the badge id, and the contract's own
+              name is on the form it opens, so neither is repeated here.
               {% endcomment %}
               {% if perms.payroll.change_contract %}
-                <a class="ss-emp__contract"
+                <a class="ss-emp__name ss-emp__link"
                    hx-get="{% url 'update-contract' row.contract.id %}?modal=1"
                    hx-target="#relatedObjectModalBody"
                    data-toggle="oh-modal-toggle"
                    data-target="#relatedObjectModal"
                    onclick="event.stopPropagation()"
-                   title="{% trans 'Edit this contract' %}">
-                  {{ row.contract_name }}<span class="ss-emp__external">&#9998;</span>
-                </a>
+                   title="{% trans 'Edit this contract' %}">{{ row.employee }}</a>
               {% else %}
-                <div class="ss-emp__contract">{{ row.contract_name }}</div>
+                <span class="ss-emp__name">{{ row.employee }}</span>
               {% endif %}
             </td>
-            {% comment %}
-            The figure the mode actually reads comes first. Under CTC Down that
-            is the Monthly CTC and the wage is the fallback; under Gross Up it
-            is the wage and the CTC is only a target to reconcile against.
-            {% endcomment %}
             {% if instance.structure_mode == "ctc_down" %}
               <td class="ss-emp__amount">
                 {% if row.monthly_ctc %}{{ row.monthly_ctc|floatformat:2 }}
-                {% else %}<span class="ss-emp__muted">—</span>{% endif %}
-              </td>
-              <td class="ss-emp__amount">
-                {{ row.pay_rate|floatformat:2 }}
-                <div class="ss-emp__unit">{{ row.wage_type }}</div>
-              </td>
-            {% else %}
-              <td class="ss-emp__amount">
-                {{ row.pay_rate|floatformat:2 }}
-                <div class="ss-emp__unit">{{ row.wage_type }}</div>
-              </td>
-              <td class="ss-emp__amount">
-                {% if row.monthly_ctc %}{{ row.monthly_ctc|floatformat:2 }}
-                {% else %}<span class="ss-emp__muted">—</span>{% endif %}
+                {% else %}
+                  {{ row.pay_rate|floatformat:2 }}
+                  <div class="ss-emp__unit">{% trans "no CTC set, the wage is divided" %}</div>
+                {% endif %}
               </td>
             {% endif %}
             {% comment %}

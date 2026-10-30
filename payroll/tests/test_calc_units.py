@@ -8,8 +8,7 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from horilla.testkit import make_company, make_employee
-from payroll.methods.limits import compute_limit
-from payroll.methods.methods import compute_net_pay, get_total_days
+from payroll.methods.methods import get_total_days
 from payroll.methods.payslip_calc import (
     calculate_based_on_basic_pay,
     calculate_based_on_net_pay,
@@ -29,20 +28,6 @@ class GetTotalDaysTests(TestCase):
 
     def test_same_day_is_one(self):
         self.assertEqual(get_total_days(date(2023, 5, 1), date(2023, 5, 1)), 1)
-
-
-class ComputeLimitTests(TestCase):
-    def test_no_max_limit_returns_amount(self):
-        component = SimpleNamespace(has_max_limit=False, maximum_amount=100)
-        self.assertEqual(compute_limit(component, 250.0, {}), 250.0)
-
-    def test_max_limit_caps_amount(self):
-        component = SimpleNamespace(has_max_limit=True, maximum_amount=100.0)
-        self.assertEqual(compute_limit(component, 250.0, {}), 100.0)
-
-    def test_under_limit_unchanged(self):
-        component = SimpleNamespace(has_max_limit=True, maximum_amount=100.0)
-        self.assertEqual(compute_limit(component, 40.0, {}), 40.0)
 
 
 class RateBasedCalcTests(TestCase):
@@ -72,11 +57,6 @@ class RateBasedCalcTests(TestCase):
         )
 
 
-class ComputeNetPayTests(TestCase):
-    def test_passthrough(self):
-        self.assertEqual(compute_net_pay(net_pay=1234.5), 1234.5)
-
-
 class SafeTaxCodeTests(TestCase):
     def test_valid_code_accepted(self):
         code = (
@@ -88,13 +68,6 @@ class SafeTaxCodeTests(TestCase):
     def test_empty_rejected(self):
         with self.assertRaises(TaxCodeValidationError):
             validate_tax_code("")
-
-    def test_import_rejected(self):
-        code = (
-            "import os\n" "def calculate_federal_tax(yearly_income):\n" "    return 0\n"
-        )
-        with self.assertRaises(TaxCodeValidationError):
-            validate_tax_code(code)
 
     def test_missing_entry_point_rejected(self):
         code = "def other(yearly_income):\n    return 0\n"

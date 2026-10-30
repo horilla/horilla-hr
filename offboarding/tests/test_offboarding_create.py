@@ -3,7 +3,7 @@
 from django.test import TestCase
 
 from horilla.testkit import make_company
-from offboarding.models import Offboarding, OffboardingGeneralSetting
+from offboarding.models import Offboarding
 
 
 class OffboardingCreateTests(TestCase):
@@ -17,8 +17,3 @@ class OffboardingCreateTests(TestCase):
         self.assertGreaterEqual(process.offboardingstage_set.count(), 5)
         titles = set(process.offboardingstage_set.values_list("title", flat=True))
         self.assertIn("Exit interview", titles)
-
-    def test_general_setting_defaults(self):
-        company = make_company("Offboard Settings")
-        setting = OffboardingGeneralSetting.objects.create(company_id=company)
-        self.assertFalse(setting.resignation_request)

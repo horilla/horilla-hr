@@ -16,7 +16,7 @@
 
     <div class="oh-main__titlebar oh-main__titlebar--left mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
       <div>
-        <h1 class="oh-main__titlebar-title fw-bold mb-0">{% trans "Payroll Runs" %}</h1>
+        <h1 class="oh-main__titlebar-title fw-bold mb-0">{% trans "Payroll Batches" %}</h1>
         <div style="font-size:.8rem;color:#6b7280;margin-top:.15rem;">
           {% blocktrans with start=period.0|date:"j M Y" end=period.1|date:"j M Y" %}Current pay period: {{ start }} to {{ end }}{% endblocktrans %}
           &middot;
@@ -34,7 +34,7 @@
     {% endcomment %}
     <div class="pb__kpis">
       <div class="pb__kpi">
-        <div class="pb__kpi-label">{% trans "Runs" %}</div>
+        <div class="pb__kpi-label">{% trans "Batches" %}</div>
         <div class="pb__kpi-value">{{ kpi.runs }}</div>
         <div class="pb__kpi-note">{% blocktrans count n=kpi.unpaid %}{{ n }} not yet paid{% plural %}{{ n }} not yet paid{% endblocktrans %}</div>
       </div>

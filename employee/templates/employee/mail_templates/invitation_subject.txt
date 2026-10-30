@@ -1,1 +1,1 @@
-{% load i18n %}{% autoescape off %}{% blocktranslate %}Welcome to {{ site_name }} — set up your account{% endblocktranslate %}{% endautoescape %}
+{% load i18n %}{% autoescape off %}{% blocktranslate with company=white_label_company_name %}Welcome to {{ company }} — set up your account{% endblocktranslate %}{% endautoescape %}

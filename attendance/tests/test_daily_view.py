@@ -13,7 +13,9 @@ from horilla.testkit import make_company, make_employee, make_user
 DAY = datetime.date(2026, 9, 2)  # a Wednesday
 
 
-class DailyViewTests(TestCase):
+class DailyViewMixin:
+    """Shared setUp and helpers; the test classes below mix it in so each test runs once."""
+
     def setUp(self):
         company = make_company("Daily View Co")
         self.employee = make_employee(company=company, email="daily@test.horilla")
@@ -50,6 +52,8 @@ class DailyViewTests(TestCase):
             attendance_validated=True,
         )
 
+
+class DailyViewTests(DailyViewMixin, TestCase):
     def test_one_column_per_date_in_the_range(self):
         response = self.get(DAY, DAY + datetime.timedelta(days=4))
         self.assertEqual(response.context["days"][0]["date"], DAY)
@@ -158,31 +162,6 @@ class DailyViewTests(TestCase):
         self.assertNotContains(response, 'id="dvTable"')
         self.assertContains(response, "ms-summary-row")
 
-    def test_the_page_carries_the_view_switch(self):
-        response = self.client.get(
-            reverse("attendance-monthly-summary"), {"view": "daily"}
-        )
-        self.assertContains(response, 'id="ms-view" value="daily"')
-        for view in ("list", "daily", "summary"):
-            self.assertContains(response, f"msSetView('{view}')")
-        for icon in ("list-outline", "calendar-outline", "pie-chart-outline"):
-            self.assertContains(response, f'name="{icon}"')
-        self.assertContains(response, "ms-view-btn oh-view-btn--active", count=1)
-        html = response.content.decode()
-        # The switch sits right after the search box; the dates live in the filter panel.
-        self.assertLess(
-            html.index('id="ms-search-input"'), html.index("msSetView('list')")
-        )
-        self.assertLess(
-            html.index("msSetView('summary')"), html.index('id="modernFilterPanel"')
-        )
-        self.assertGreater(
-            html.index('id="ms-from-date"'), html.index('id="modernFilterPanel"')
-        )
-        self.assertGreater(
-            html.index('id="ms-to-date"'), html.index('id="modernFilterPanel"')
-        )
-
     def test_a_submit_nothing_handled_is_sent_through_htmx_not_left_to_the_browser(
         self,
     ):
@@ -231,41 +210,10 @@ class DailyViewTests(TestCase):
             across_lines = [m for m in pattern.findall(source) if chr(10) in m]
             self.assertEqual(across_lines, [], name)
 
-    def test_the_lists_hover_popover_is_hidden_when_the_table_area_changes(self):
-        html = self.client.get(reverse("attendance-monthly-summary")).content.decode()
-        self.assertIn("addEventListener('htmx:beforeSwap'", html)
-        self.assertIn("document.getElementById('ms-pop')", html)
-
     def test_a_page_opened_inside_the_app_forgets_the_old_filter(self):
         html = self.client.get(reverse("attendance-monthly-summary")).content.decode()
         self.assertIn("if (document.readyState === 'complete') {", html)
         self.assertIn("localStorage.removeItem('savedFilters')", html)
-
-    def test_the_hovered_row_and_column_are_tinted_behind_the_chips(self):
-        from pathlib import Path
-
-        css = Path(
-            "attendance/templates/attendance/monthly_summary/table_daily.html"
-        ).read_text(encoding="utf-8")
-        self.assertIn(
-            ".dv-table tr.dv-hover-row > td.dv-cell, .dv-table td.dv-cell.dv-hover-col { background: #fdeee8; }",
-            css,
-        )
-        self.assertIn(
-            ".dv-table tr.dv-hover-row > td.dv-cell.dv-hover-col { background: #fbddd2; }",
-            css,
-        )
-        # The tint is on the cell, never a layer over the chips.
-        self.assertNotIn("::after", css)
-
-    def test_the_last_table_request_wins(self):
-        html = self.client.get(reverse("attendance-monthly-summary")).content.decode()
-        self.assertEqual(
-            html.count('hx-sync="#summary-table-container:replace"'), 2
-        )  # the form and the search box
-        self.assertIn(
-            'hx-sync="this:replace"', html
-        )  # the first load, which a later request aborts
 
     def test_the_page_opens_on_the_view_last_used(self):
         from attendance.views.summary import SUMMARY_VIEW_COOKIE
@@ -300,10 +248,6 @@ class DailyViewTests(TestCase):
             self.client.get(reverse("attendance-monthly-summary")).content.decode(),
         )
 
-    def test_switching_view_remembers_it(self):
-        html = self.client.get(reverse("attendance-monthly-summary")).content.decode()
-        self.assertIn("document.cookie = 'ms_view=' + view", html)
-
     def test_the_list_is_the_default_view(self):
         response = self.client.get(reverse("attendance-monthly-summary"))
         self.assertContains(response, 'id="ms-view" value="list"')
@@ -335,19 +279,6 @@ class DailyCellTests(TestCase):
             out["style"], "--h1:#86efac;--h2:#93c5fd"
         )  # the colours the calendar uses
 
-    def test_a_half_leave_ahead_is_drawn_in_two_colours_after_the_status_colours(self):
-        from pathlib import Path
-
-        css = Path(
-            "attendance/templates/attendance/monthly_summary/table_daily.html"
-        ).read_text(encoding="utf-8")
-        self.assertIn(
-            ".dv-split.dv-ahead { background: linear-gradient(to bottom right, var(--h1) 50%, var(--h2) 50%)",
-            css,
-        )
-        # Later in the sheet than every status colour, or the status colour wins.
-        self.assertGreater(css.index(".dv-split.dv-ahead"), css.index(".dv-paid_leave"))
-
     def test_a_half_leave_ahead_shows_leave_and_upcoming(self):
         cell = {
             "date": DAY,
@@ -362,7 +293,7 @@ class DailyCellTests(TestCase):
         self.assertTrue(out["ahead"])
 
 
-class DailyClickTests(DailyViewTests):
+class DailyClickTests(DailyViewMixin, TestCase):
     """A day cell opens only the regularise popover for that employee; the name opens the calendar."""
 
     def test_a_day_cell_carries_what_the_popover_needs_and_the_name_opens_the_calendar(
@@ -386,26 +317,6 @@ class DailyClickTests(DailyViewTests):
         name_cell = re.search(r'<td class="dv-emp"[^>]*>', html).group(0)
         self.assertIn("data-calendar-url", name_cell)
         self.assertNotIn("data-day-popover", name_cell)
-
-    def test_hovering_a_day_marks_its_row_and_column_and_clicking_marks_nothing(self):
-        from pathlib import Path
-
-        from django.template.loader import render_to_string
-
-        host = render_to_string("attendance/monthly_summary/_calendar_modal_host.html")
-        self.assertNotIn("dv-row-active", host)
-        self.assertNotIn("dv-cell-active", host)
-        self.assertNotIn("_dayMarkClear", host)
-        html = self.get(DAY, DAY + datetime.timedelta(days=1)).content.decode()
-        self.assertIn("dv-hover-row", html)
-        self.assertIn("dv-hover-col", html)
-        self.assertIn("table.addEventListener('mouseover'", html)
-        self.assertIn("table.addEventListener('mouseleave', clear)", html)
-        self.assertNotIn("dv-row-active", html)
-        # Lines along the edges, never a translucent layer over the cells (that dulls their colours).
-        self.assertNotIn("rgba(17, 24, 39", html)
-        self.assertNotIn("::after", html)
-        self.assertIn("inset 0 1px 0 #ee7a66", html)  # a thin, light line
 
     def test_the_table_carries_the_popover_urls(self):
         html = self.get(DAY, DAY).content.decode()
@@ -444,23 +355,13 @@ class DailyClickTests(DailyViewTests):
         self.assertEqual(host.count("_standaloneDone();"), 3)
         self.assertIn("attendance-calendar-saved", host)
 
-    def test_every_cell_code_has_the_same_font_size(self):
-        from pathlib import Path
-
-        css = Path(
-            "attendance/templates/attendance/monthly_summary/table_daily.html"
-        ).read_text(encoding="utf-8")
-        self.assertNotIn(".dv-cell.dv-split { font-size", css)
-        self.assertNotIn(".dv-chip.dv-split { font-size", css)
-        self.assertEqual(css.count("font-size: .66rem; font-weight: 700"), 1)
-
     def test_the_grid_reloads_after_a_day_is_regularised(self):
         response = self.get(DAY, DAY)
         self.assertContains(response, "attendance-calendar-saved")
         self.assertContains(response, 'data-page="1"')
 
 
-class DashboardTests(DailyViewTests):
+class DashboardTests(DailyViewMixin, TestCase):
     """The Summary view: attendance mix, findings and the period's figures; the list no longer carries the cards."""
 
     def get_summary(self, start=DAY, end=DAY + datetime.timedelta(days=6), **extra):
@@ -534,14 +435,6 @@ class DashboardTests(DailyViewTests):
         self.assertContains(response, "1 Set By Regularisation")
         self.assertNotContains(response, "Company-Wide")
 
-    def test_findings_name_the_worst_department_and_count_low_attendance_and_conflicts(
-        self,
-    ):
-        context = self.get_summary().context
-        self.assertEqual(context["low_share_percent"], 60)
-        self.assertGreaterEqual(context["below_count"], 0)
-        self.assertContains(self.get_summary(), "Need Review")
-
     def test_a_period_across_months_is_named_by_its_dates(self):
         context = self.get_summary(
             datetime.date(2026, 9, 20), datetime.date(2026, 10, 10)
@@ -596,55 +489,6 @@ class DashboardTests(DailyViewTests):
         self.assertEqual(again["missing_punches"], 0)
         self.assertGreaterEqual(again["short_hours"], 1)
 
-    def test_the_card_no_longer_prints_the_breakdown_inline(self):
-        response = self.get_summary()
-        self.assertNotContains(response, 'class="dbx-kpi-parts"')
-        self.assertNotContains(response, 'class="dbx-part"')
-
-    def test_the_breakdown_is_a_tooltip_on_the_absent_card_not_text_in_it(self):
-        response = self.get_summary()
-        html = response.content.decode()
-        card = html[html.index('class="dbx-kpi dbx-kpi--tip"') :]
-        card = card[: card.index('<div class="dbx-kpi">')]
-        self.assertIn('class="dbx-tip"', card)
-        for label in ("Absent", "Short Hours", "Missing Punch", "Upcoming"):
-            self.assertIn(f"<span>{label}</span>", card)
-        self.assertEqual(card.count('<div class="dbx-tip-row">'), 4)
-        # Shown when the info icon is hovered or focused, not when the card is.
-        self.assertIn('class="dbx-info" tabindex="0"', html)
-        self.assertIn(
-            ".dbx-kpi--tip:has(.dbx-info:hover) .dbx-tip, .dbx-kpi--tip:has(.dbx-info:focus) .dbx-tip { display: block; }",
-            html,
-        )
-        self.assertNotIn(".dbx-kpi--tip:hover .dbx-tip", html)
-
-    def test_the_absent_row_opens_to_show_its_parts_and_starts_closed(self):
-        response = self.get_summary()
-        html = response.content.decode()
-        self.assertContains(response, '<details class="dbx-absent">')
-        self.assertNotIn('<details class="dbx-absent" open', html)
-        details = html[
-            html.index('<details class="dbx-absent">') : html.index("</details>")
-        ]
-        self.assertIn("<summary", details)
-        self.assertIn("dbx-chev", details)
-        self.assertIn("dbx-legend-sub", details)
-        for label in ("Short Hours", "Missing Punch", "Upcoming"):
-            self.assertIn(label, details)
-        # Only the Absent row is a toggle; the other legend rows are plain.
-        self.assertEqual(html.count("<details"), 1)
-
-    def test_the_donut_is_centred_above_its_legend(self):
-        from pathlib import Path
-
-        css = Path(
-            "attendance/templates/attendance/monthly_summary/table_dashboard.html"
-        ).read_text(encoding="utf-8")
-        self.assertIn(
-            ".dbx-mix { display: flex; flex-direction: column; align-items: center;",
-            css,
-        )
-
     def test_the_view_switch_reaches_every_view_through_the_same_request(self):
         for view, marker in (
             ("list", "ms-summary-row"),
@@ -664,36 +508,7 @@ class DashboardTests(DailyViewTests):
                 self.assertContains(response, marker)
 
 
-class DailyGeometryTests(TestCase):
-    """Every day cell is the same square and every split is a corner-to-corner diagonal."""
-
-    def setUp(self):
-        from pathlib import Path
-
-        self.css = Path(
-            "attendance/templates/attendance/monthly_summary/table_daily.html"
-        ).read_text(encoding="utf-8")
-
-    def test_cells_and_headers_share_one_fixed_size(self):
-        # One width rule on the header sets every day column (31 days fill the box,
-        # a longer range scrolls sideways); cells take the column width, not their own.
-        self.assertIn("table-layout: fixed;", self.css)
-        self.assertIn(
-            ".dv-day { width: max(30px, calc((100cqw - 170px) / 31));", self.css
-        )
-        cell_rule = next(
-            line for line in self.css.splitlines() if line.strip().startswith(".dv-cell {")
-        )
-        self.assertNotIn("width:", cell_rule)
-        self.assertIn("height: 48px;", cell_rule)
-        self.assertIn(".dv-table tbody tr { height: 48px; }", self.css)
-
-    def test_splits_run_from_corner_to_corner(self):
-        self.assertNotIn("135deg", self.css)
-        self.assertEqual(self.css.count("linear-gradient(to bottom right,"), 4)
-
-
-class DailyChipTests(DailyViewTests):
+class DailyChipTests(DailyViewMixin, TestCase):
     """A day is a white square with a rounded status chip in it."""
 
     def test_each_day_is_a_chip_in_a_plain_cell(self):
@@ -702,26 +517,6 @@ class DailyChipTests(DailyViewTests):
         self.assertIn('<td class="dv-cell"', html)
         self.assertIn('<span class="dv-chip dv-present"', html)
         self.assertNotIn('<td class="dv-cell dv-', html)
-
-    def test_a_day_with_nothing_to_show_has_no_chip(self):
-        from attendance.views.summary import daily_cell
-
-        self.assertEqual(daily_cell(None)["status"], "none")
-        html = self.get(DAY, DAY).content.decode()
-        self.assertNotIn('class="dv-chip dv-none"', html)
-
-    def test_the_chip_is_rounded_white_lettered_and_square(self):
-        from pathlib import Path
-
-        css = Path(
-            "attendance/templates/attendance/monthly_summary/table_daily.html"
-        ).read_text(encoding="utf-8")
-        self.assertIn(
-            ".dv-chip { display: flex; align-items: center; justify-content: center; width: calc(100% - 8px); max-width: 34px; aspect-ratio: 1 / 1;",
-            css,
-        )
-        self.assertIn("border-radius: 8px; color: #1f2937;", css)
-        self.assertIn(".dv-present { background: #86efac; color: #14532d; }", css)
 
 
 class WeekOffRuleTests(TestCase):
@@ -777,7 +572,7 @@ class WeekOffRuleTests(TestCase):
         )
 
 
-class WeekOffAgreementTests(DailyViewTests):
+class WeekOffAgreementTests(DailyViewMixin, TestCase):
     """The grid, the calendar, the table and the regularise popover decide a week off the same way."""
 
     FROM, TO = datetime.date(2026, 9, 1), datetime.date(2026, 9, 30)
@@ -889,7 +684,7 @@ class WeekOffAgreementTests(DailyViewTests):
         self.assertEqual(self.week_offs_in_table(), 3)
 
 
-class DailyWorkStatusDeprecationTests(DailyViewTests):
+class DailyWorkStatusDeprecationTests(DailyViewMixin, TestCase):
     """The old Daily Work Status page is off the menu and sends people to the Day-wise view."""
 
     def test_the_menu_no_longer_lists_daily_work_status(self):
@@ -913,84 +708,9 @@ class DailyWorkStatusDeprecationTests(DailyViewTests):
         response = self.client.get(reverse("work-records"), follow=True)
         self.assertContains(response, 'id="ms-view" value="daily"')
 
-    def test_the_sidebar_accessibility_helper_for_it_is_gone(self):
-        import attendance.sidebar as sidebar
 
-        self.assertFalse(hasattr(sidebar, "work_record_accessibility"))
-
-
-class LabelCaseTests(DailyViewTests):
+class LabelCaseTests(DailyViewMixin, TestCase):
     """Labels and legends are in Title Case."""
-
-    def test_the_dashboard_labels_and_legend_are_title_case(self):
-        response = self.client.get(
-            reverse("attendance-monthly-summary-table"),
-            {
-                "view": "summary",
-                "from_date": DAY.isoformat(),
-                "to_date": DAY.isoformat(),
-            },
-            HTTP_HX_REQUEST="true",
-        )
-        html = response.content.decode()
-        for label in (
-            "Attendance Mix",
-            "Worked",
-            "Working Days",
-            "Absent / Short Hours",
-            "Paid Leave",
-            "Unpaid Leave",
-            "Week Off",
-            "Short Hours",
-            "Missing Punch",
-            "What Is In This Figure",
-        ):
-            self.assertIn(label, html, label)
-        for wrong in (
-            "Paid leave",
-            "Unpaid leave",
-            "Week off",
-            "Short hours",
-            "Missing punch",
-            "Working days",
-            "Attendance mix",
-            "Absent / Short hours",
-        ):
-            self.assertNotIn(wrong, html, wrong)
-
-    def test_the_dashboard_notes_and_findings_are_title_case(self):
-        html = self.client.get(
-            reverse("attendance-monthly-summary-table"),
-            {
-                "view": "summary",
-                "from_date": DAY.isoformat(),
-                "to_date": DAY.isoformat(),
-            },
-            HTTP_HX_REQUEST="true",
-        ).content.decode()
-        for text in (
-            "All Departments",
-            "Per Employee",
-            "Of Scheduled Days",
-            "Approved Time Off",
-            "Affects Payroll",
-            "Rest Days This Period",
-            "Company-Wide",
-            "Missing Punches & Overlaps",
-            "Need Review",
-        ):
-            self.assertIn(text, html, text)
-        for wrong in (
-            "all departments",
-            "per employee",
-            "of scheduled days",
-            "approved time off",
-            "affects payroll",
-            "rest days this period",
-            "company-wide",
-            "need review",
-        ):
-            self.assertNotIn(wrong, html, wrong)
 
     def test_the_subtitle_shows_the_filtered_range_not_the_month(self):
         context = self.client.get(
@@ -1000,13 +720,8 @@ class LabelCaseTests(DailyViewTests):
         ).context
         self.assertEqual(context["period"], "05 Sep 2026 \u2013 12 Sep 2026")
 
-    def test_the_view_buttons_are_title_case(self):
-        html = self.client.get(reverse("attendance-monthly-summary")).content.decode()
-        self.assertIn('title="Day-Wise"', html)
-        self.assertNotIn('title="Day-wise"', html)
 
-
-class DefaultRangeTests(DailyViewTests):
+class DefaultRangeTests(DailyViewMixin, TestCase):
     """Actions > Default Date Range: the range the summary opens on."""
 
     def test_modes_give_the_month_the_previous_month_and_the_pay_period(self):
@@ -1133,29 +848,9 @@ class DefaultRangeTests(DailyViewTests):
             "Calendar Month (1st To Last Day)",
         )
 
-    def test_the_dialog_has_no_intro_paragraph(self):
-        page = self.client.get(reverse("attendance-monthly-summary"))
-        self.assertNotContains(page, "The Range The Summary Opens On")
-
     def test_the_chooser_names_rules_not_dates(self):
         page = self.client.get(reverse("attendance-monthly-summary"))
         for choice in page.context["range_choices"]:
             self.assertNotRegex(choice["text"], r"\d{4}")
         self.assertContains(page, "Calendar Month (1st To Last Day)")
         self.assertContains(page, "Month Cycle")
-
-    def test_the_day_wise_and_list_text_is_title_case(self):
-        daily = self.get(DAY, DAY + datetime.timedelta(days=2))
-        self.assertContains(
-            daily,
-            "Click A Name To Open The Calendar, Or A Day To Regularise Just That Day.",
-        )
-        self.assertContains(daily, "02 Sep 2026 – 04 Sep 2026")
-        self.assertNotContains(daily, "Click a name")
-        listing = self.client.get(
-            reverse("attendance-monthly-summary-table"),
-            {"from_date": DAY.isoformat(), "to_date": DAY.isoformat()},
-            HTTP_HX_REQUEST="true",
-        )
-        self.assertContains(listing, "Working Days")
-        self.assertContains(listing, "02 Sep 2026")

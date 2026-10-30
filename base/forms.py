@@ -920,15 +920,9 @@ class JobPositionMultiForm(ModelForm):
     JobPosition model's form
     """
 
-    department_id = HorillaMultiSelectField(
+    department_id = forms.ModelMultipleChoiceField(
         queryset=Department.objects.all(),
-        label=JobPosition._meta.get_field("department_id").verbose_name,
-        widget=forms.SelectMultiple(
-            attrs={
-                "class": "oh-select oh-select2 w-100",
-                "style": "height:45px;",
-            }
-        ),
+        label=_("Department"),
     )
 
     class Meta:
@@ -2571,7 +2565,12 @@ class ResetPasswordForm(SetPasswordForm):
             attrs={
                 "autocomplete": "new-password",
                 "placeholder": _("Enter Strong Password"),
-                "class": "oh-input oh-input--password w-100 mb-2",
+                "class": (
+                    "oh-input--password text-color-600 p-3 pr-[40px] w-full border "
+                    "border-dark-50 rounded-md mt-1 focus-visible:outline-0 "
+                    "placeholder:text-[#00000041] placeholder:font-medium text-xs "
+                    "[transition:.3s] focus:border-primary-600"
+                ),
             }
         ),
         help_text=_("Enter your new password."),
@@ -2583,7 +2582,12 @@ class ResetPasswordForm(SetPasswordForm):
             attrs={
                 "autocomplete": "new-password",
                 "placeholder": _("Re-Enter Password"),
-                "class": "oh-input oh-input--password w-100 mb-2",
+                "class": (
+                    "oh-input--password text-color-600 p-3 pr-[40px] w-full border "
+                    "border-dark-50 rounded-md mt-1 focus-visible:outline-0 "
+                    "placeholder:text-[#00000041] placeholder:font-medium text-xs "
+                    "[transition:.3s] focus:border-primary-600"
+                ),
             }
         ),
         help_text=_("Enter the same password as before, for verification."),
@@ -3273,19 +3277,19 @@ class PassWordResetForm(forms.Form):
     @staticmethod
     def get_branding(employee):
         """
-        The name and logo the mail is sent under: the employee's company when
-        WHITE_LABELLING is on (else the headquarters company), Horilla when it
-        is off or no company has one.
+        The name and logo the mail is sent under: the headquarters company
+        when WHITE_LABELLING is on, Horilla when it is off or there is no HQ
+        company.
+
+        Always the HQ company -- never the employee's own company or
+        whichever company a user has switched to in the company picker, so
+        a white-labelled client's mail always reads as coming from their
+        own organisation regardless of who triggers it.
         """
         name = "Horilla"
         logo_path = finders.find("images/ui/horilla-sticker-round.png")
         if getattr(settings, "WHITE_LABELLING", False):
-            company = None
-            try:
-                company = employee.get_company()
-            except Exception:
-                company = None
-            company = company or Company.objects.filter(hq=True).last()
+            company = Company.objects.filter(hq=True).last()
             if company:
                 name = company.company
                 icon = company.icon

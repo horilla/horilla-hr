@@ -135,8 +135,8 @@ administrator.
 
 > **Run the scheduler.** Scheduled jobs (for example automatic payslips, leave resets, work
 > records, shift rotation, contract expiry, document and asset reminders, clearing
-> expired sessions, trimming old job-run history) only run while `run_scheduler` is running. The Docker Compose
-> file starts it for you as the `scheduler` service.
+> expired sessions, trimming old job-run history) only run while `run_scheduler` is
+> running. The Docker Compose file starts it for you as the `scheduler` service.
 
 
 ## 🛠 Installation

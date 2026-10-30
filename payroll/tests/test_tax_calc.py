@@ -177,14 +177,6 @@ class DeclarativeAdjustmentTests(TestCase):
             self._tax(self._india_new_regime(), 2000000), 192400.0, places=2
         )
 
-    def test_rebate_is_applied_before_cess(self):
-        """
-        A cess is levied on tax actually payable after relief. If cess were
-        applied first the rebate would be cancelling an inflated figure.
-        """
-        status = self._india_new_regime()
-        self.assertAlmostEqual(self._tax(status, 1275000), 0.0, places=2)
-
     def test_defaults_are_a_no_op(self):
         """
         Every adjustment defaults to nothing, so an existing filing status

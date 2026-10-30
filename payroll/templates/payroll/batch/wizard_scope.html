@@ -54,15 +54,6 @@
             </div>
           </div>
           <div class="pb__hint">
-            <ion-icon name="information-circle-outline"></ion-icon>
-            <span>
-              {{ form.batch_name.help_text }}
-              {% trans "Pick the day the period starts: it runs for as many days as that month has, so it can cross into the next month (from 15 September it ends on 14 October)." %}
-              {% blocktrans with rule=settings.summary %}The start is filled from your pay period setting: {{ rule }}.{% endblocktrans %}
-              <a href="{% url 'pay-period-settings' %}"
-                 hx-get="{% url 'pay-period-settings' %}?modal=1" hx-target="#pbSettingsModalBody"
-                 data-toggle="oh-modal-toggle" data-target="#pbSettingsModal">{% trans "Change it" %}</a>
-            </span>
           </div>
         </div>
       </div>
@@ -82,7 +73,7 @@
                   {% if radio.data.value == 'all' %}
                     {% trans "Every employee with an active contract. Anyone not eligible, or who already has a payslip for this period, is listed as excluded on the next step rather than silently dropped." %}
                   {% else %}
-                    {% trans "Choose exactly which employees to include in this run." %}
+                    {% trans "Choose exactly which employees to include in this batch." %}
                   {% endif %}
                 </span>
               </span>
@@ -164,7 +155,7 @@
       days = Math.round((to - from) / 86400000) + 1;
     }
     end.value = iso(to);
-    if (note) note.textContent = days + ' {% trans "days" %}' + (to.getUTCMonth() !== from.getUTCMonth() ? ' · {% trans "crosses into" %} ' + FULL[to.getUTCMonth()] : '');
+    if (note) note.textContent = days + ' {% trans "days"|escapejs %}' + (to.getUTCMonth() !== from.getUTCMonth() ? ' · {% trans "crosses into"|escapejs %} ' + FULL[to.getUTCMonth()] : '');
     if (name && !nameTouched) {
       name.value = (s.d === 1) ? FULL[s.mo] + ' ' + s.y : label(from) + ' – ' + label(to);
     }

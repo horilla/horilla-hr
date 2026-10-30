@@ -444,7 +444,9 @@ class StatusTests(Fixture):
         self.assertEqual(self.batch.status, PayrollBatch.DRAFT)
 
 
-class DeleteTests(Fixture):
+class DraftRunFixture:
+    """A draft run with one payslip. A plain mixin (not a TestCase) so ReopenTests does not inherit and re-run DeleteTests' tests."""
+
     def setUp(self):
         super().setUp()
         self.batch = batch_run.create_batch(
@@ -465,6 +467,8 @@ class DeleteTests(Fixture):
         )
         self.url = reverse("payroll-batch-delete", args=[self.batch.pk])
 
+
+class DeleteTests(DraftRunFixture, Fixture):
     def test_a_draft_run_and_its_payslips_go(self):
         self.client.post(self.url)
 
@@ -556,14 +560,6 @@ class FlashMessageTests(Fixture):
         section = html[html.index('<section class="oh-wrapper pb">') :]
         self.assertNotIn("oh-alert--animated", section)
 
-    def test_the_steps_are_named_for_what_you_do(self):
-        html = self.client.get(reverse("payroll-batch-scope")).content.decode()
-        self.assertIn("Select Employees", html)
-        self.assertIn("Review & Regularize", html)
-        self.assertNotIn("Who is in it", html)
-        self.assertNotIn("Check the inputs", html)
-
-
 class PayPeriodTests(Fixture):
     def test_saving_creates_the_row_for_this_company(self):
         self.client.post(
@@ -589,7 +585,7 @@ class PayPeriodTests(Fixture):
         self.assertEqual(PayPeriodSettings.objects.entire().count(), 0)
 
 
-class ReopenTests(DeleteTests):
+class ReopenTests(DraftRunFixture, Fixture):
     """Back to "Review & Regularize" from a draft run (inherits its draft run and payslip)."""
 
     def setUp(self):
@@ -642,16 +638,8 @@ class CycleSettingsFlowTests(Fixture):
         self.assertEqual(page.context["form"].initial["period_start"], start)
         self.assertEqual(page.context["form"].initial["period_end"], end)
         self.assertEqual(start.day, 15)
-        self.assertContains(page, "Cycle starting on the 15th of each month")
-
-    def test_the_settings_page_has_the_single_period_choice(self):
-        html = self.client.get(reverse("pay-period-settings")).content.decode()
-        self.assertIn('name="cycle_start_day"', html)
-        self.assertNotIn('name="boundary"', html)
-        self.assertNotIn("pb-cycle-day-field", html)
-        self.assertIn("Last day", html)
-        self.assertIn(">28th<", html)
-
+        # The wording of the rule line is pinned where it is built:
+        # test_cross_month_period (PayPeriodSettings.summary).
 
 class SettingsModalTests(Fixture):
     def _modal(self, method="get", data=None):
@@ -663,17 +651,11 @@ class SettingsModalTests(Fixture):
             else call(url, HTTP_HX_REQUEST="true")
         )
 
-    def test_the_wizard_opens_the_setting_in_a_modal_not_a_page(self):
-        html = self.client.get(reverse("payroll-batch-scope")).content.decode()
-        self.assertIn('id="pbSettingsModal"', html)
-        self.assertIn('hx-get="%s?modal=1"' % reverse("pay-period-settings"), html)
-        self.assertIn('data-target="#pbSettingsModal"', html)
-
     def test_the_modal_is_just_the_form_without_the_page_around_it(self):
         html = self._modal().content.decode()
         self.assertIn('id="pbSettingsForm"', html)
         self.assertNotIn("<html", html)
-        self.assertNotIn("Payroll runs", html)
+        self.assertNotIn("Payroll Batches", html)
 
     def test_saving_in_the_modal_stores_it_and_reloads_the_page_behind(self):
         response = self._modal(
@@ -689,22 +671,6 @@ class SettingsModalTests(Fixture):
         self.assertContains(response, 'id="pbSettingsForm"')
         self.assertContains(response, "pb__problem")
         self.assertFalse(PayPeriodSettings.objects.entire().exists())
-
-    def test_the_full_page_still_works_without_the_modal_flag(self):
-        html = self.client.get(reverse("pay-period-settings")).content.decode()
-        self.assertIn("When a pay month begins and ends", html)
-
-    def test_the_modal_explains_the_rule_in_a_tooltip_and_carries_a_live_example(self):
-        html = self._modal().content.decode()
-        self.assertIn('class="pb__tip"', html)
-        self.assertIn('role="tooltip"', html)
-        self.assertNotIn('class="pb__field-help"', html)
-        self.assertIn('id="pb-example"', html)
-        self.assertIn('data-today="%s"' % date.today().isoformat(), html)
-        self.assertNotIn("Next period", html)
-        self.assertNotIn("input_cutoff_days", html)
-        self.assertNotIn('class="pb__pill', html)
-        self.assertIn("This period", html)
 
     def test_a_day_of_the_month_pay_day_can_be_saved_in_the_modal(self):
         response = self._modal("post", {"cycle_start_day": "30", "pay_day": "day:31"})

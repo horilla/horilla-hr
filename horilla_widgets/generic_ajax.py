@@ -10,11 +10,17 @@ so every field's search endpoint stays a few lines of app-specific code
 re-implementing search/pagination/response-shape each time.
 """
 
+import base64
+import pickle
+
+from django.core import signing
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Q, QuerySet
 from django.http import JsonResponse
 
 DEFAULT_PAGE_SIZE = 20
+QUERYSET_TOKEN_SALT = "horilla_widgets.picker.queryset"
+QUERYSET_TOKEN_MAX_AGE = 60 * 60 * 24
 
 # Populated only from FilterSet class bodies at import time (see
 # horilla.filters.HorillaFilterSet.ajax_fields / __init_subclass__), never
@@ -87,3 +93,21 @@ def build_ajax_choices_response(
             "pagination": {"more": page.has_next()},
         }
     )
+
+
+def dump_queryset(queryset):
+    """Return a signed token that carries the query of ``queryset``."""
+    payload = base64.b64encode(pickle.dumps(queryset.query)).decode("ascii")
+    return signing.dumps(payload, salt=QUERYSET_TOKEN_SALT, compress=True)
+
+
+def load_queryset(token):
+    """Rebuild the queryset from ``token``; raise ValueError when it is unusable."""
+    try:
+        payload = signing.loads(
+            token, salt=QUERYSET_TOKEN_SALT, max_age=QUERYSET_TOKEN_MAX_AGE
+        )
+        query = pickle.loads(base64.b64decode(payload))
+        return QuerySet(model=query.model, query=query)
+    except Exception as error:
+        raise ValueError("Invalid or expired queryset token.") from error

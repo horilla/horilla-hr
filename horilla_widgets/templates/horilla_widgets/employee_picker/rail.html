@@ -1,0 +1,79 @@
+{% load i18n %}
+<aside class="ep-rail ps-2 pb-4" aria-label="{% trans 'Filters' %}">
+    <div class="ep-rail__head">
+        <h4>{% trans "Filters" %}</h4>
+        <span class="ep-badge" data-total-badge hidden></span>
+        <button type="button" class="ep-link" data-action="reset">{% trans "Reset filters" %}</button>
+    </div>
+    <div class="ep-rail__search">
+        <div class="ep-search">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="9" r="6"/><path d="M14 14l4 4"/></svg>
+            <input
+                type="text"
+                class="ep-input"
+                form="ep-detached"
+                data-filter="name_or_badge"
+                placeholder="{% trans 'Name or badge ID' %}"
+                aria-label="{% trans 'Search by name or badge ID' %}"
+                autocomplete="off"
+            >
+        </div>
+    </div>
+    <div class="ep-rail__scroll">
+        {% for group in picker_groups %}
+            <details class="ep-group" data-group="{{ forloop.counter0 }}" {% if group.open %}open{% endif %}>
+                <summary>
+                    {{ group.label }}
+                    <span class="ep-badge" data-group-badge hidden></span>
+                </summary>
+                <div class="ep-fields">
+                    {% for field in group.fields %}
+                        <div class="ep-field">
+                            <label for="ep-{{ section_id }}-{{ field.name }}">{{ field.label }}</label>
+                            {% if field.kind == "ajax" %}
+                                <select
+                                    id="ep-{{ section_id }}-{{ field.name }}"
+                                    form="ep-detached"
+                                    data-filter="{{ field.name }}"
+                                    data-ajax-url="{{ field.url }}"
+                                    data-placeholder="{% trans 'Any' %}"
+                                    class="oh-select-ajax"
+                                    multiple
+                                ></select>
+                            {% else %}
+                                <select
+                                    id="ep-{{ section_id }}-{{ field.name }}"
+                                    form="ep-detached"
+                                    data-filter="{{ field.name }}"
+                                    data-placeholder="{% trans 'Any' %}"
+                                    class="ep-select"
+                                    multiple
+                                >
+                                    {% for value, label in field.choices %}
+                                        <option value="{{ value }}">{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </details>
+        {% endfor %}
+        <details class="ep-group" data-group="{{ picker_groups|length }}">
+            <summary>
+                {% trans "Joining date" %}
+                <span class="ep-badge" data-group-badge hidden></span>
+            </summary>
+            <div class="ep-fields ep-fields--dates">
+                <div class="ep-field">
+                    <label for="ep-{{ section_id }}-joined_from">{% trans "From" %}</label>
+                    <input type="date" id="ep-{{ section_id }}-joined_from" form="ep-detached" data-filter="joined_from" data-label="{% trans 'Joined from' %}" class="ep-input">
+                </div>
+                <div class="ep-field">
+                    <label for="ep-{{ section_id }}-joined_till">{% trans "Till" %}</label>
+                    <input type="date" id="ep-{{ section_id }}-joined_till" form="ep-detached" data-filter="joined_till" data-label="{% trans 'Joined till' %}" class="ep-input">
+                </div>
+            </div>
+        </details>
+    </div>
+</aside>

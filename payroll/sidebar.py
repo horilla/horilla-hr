@@ -23,7 +23,7 @@ SUBMENUS = [
         "redirect": reverse("view-payslip"),
     },
     {
-        "menu": _("Payroll Runs"),
+        "menu": _("Payroll Batches"),
         "redirect": reverse("payroll-batch-home"),
         "accessibility": "payroll.sidebar.payslip_accessibility",
     },

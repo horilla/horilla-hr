@@ -284,6 +284,9 @@ class DayScenarioTests(DayFixture):
                 self.assertEqual(bool(cell["is_conflict"]), expected)
                 self.assertEqual(self.conflicts_in_table(), 1 if expected else 0)
                 self.assertEqual(bool(cell["conflict_reason"]), expected)
+                if expected:
+                    # A paid half-day leave clashes as paid leave (the unpaid case is below).
+                    self.assertEqual(cell["conflict_with"], "paid_leave")
 
     def test_an_unpaid_half_leave_clashes_as_unpaid_leave(self):
         self.leave("second_half", payment="unpaid")

@@ -20,6 +20,10 @@ against the top of an 85vh dialog instead of shrinking to fit.
     display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto;
   }
   .hdv--sticky .hdv__head, .hdv--sticky .hdv__foot { flex: 0 0 auto; }
+  /* The title row, the name row and the body each carried their own 20px, which
+     stacked into a band of empty dialog between the name and the first figure. */
+  .hdv--sticky .hdv__head { margin-bottom: 8px; }
+  .hdv--sticky .hdv__body { margin-top: 0; margin-bottom: 12px; }
   /* The body does NOT scroll: its block does, so the scrollbar sits beside
      the content that actually moves. Scrolling here instead ran a full-height
      track past the pinned chrome, which reads as though the chrome scrolls
@@ -103,9 +107,11 @@ against the top of an 85vh dialog instead of shrinking to fit.
                             {% endif %}
                         {% endwith %}
                     </p>
+                    {% if header.subtitle %}
                     <p class="text-xs text-[#666]">
                         {{ object|getattribute:header.subtitle|selected_format:request.user.employee_get.employee_work_info.company_id }}
                     </p>
+                    {% endif %}
                 </div>
             </div>
         {% endif %}
