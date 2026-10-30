@@ -142,7 +142,11 @@ LABEL org.opencontainers.image.title="Horilla HR" \
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=30s --start-period=60s --retries=3 \
+# The start period must outlast the first boot: the entrypoint applies every
+# migration and runs collectstatic before gunicorn binds (about 5 minutes on an
+# empty database). Checks that fail inside the window do not count, and the
+# first pass marks the container healthy at once, so normal starts are not slower.
+HEALTHCHECK --interval=30s --timeout=30s --start-period=10m --retries=3 \
     CMD curl -f http://localhost:8000/health/ || exit 1
 
 ENTRYPOINT ["/entrypoint.sh"]

@@ -1656,11 +1656,11 @@ def asset_export_excel(request):
         # Rename the columns as needed
         dataframe = dataframe.rename(columns=dict(ASSET_EXPORT_COLUMNS))
 
-        # Only the columns ticked in the modal (all of them when none are).
         chosen = request.POST.getlist("selected_fields")
-        headings = [
-            heading for field, heading in ASSET_EXPORT_COLUMNS if field in chosen
-        ] or [heading for _field, heading in ASSET_EXPORT_COLUMNS]
+        columns_map = dict(ASSET_EXPORT_COLUMNS)
+        headings = [columns_map[field] for field in chosen if field in columns_map] or [
+            heading for _field, heading in ASSET_EXPORT_COLUMNS
+        ]
         dataframe = dataframe[headings]
 
         # Write the DataFrame to an Excel file

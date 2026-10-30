@@ -675,12 +675,17 @@ class DailyGeometryTests(TestCase):
         ).read_text(encoding="utf-8")
 
     def test_cells_and_headers_share_one_fixed_size(self):
+        # One width rule on the header sets every day column (31 days fill the box,
+        # a longer range scrolls sideways); cells take the column width, not their own.
+        self.assertIn("table-layout: fixed;", self.css)
         self.assertIn(
-            ".dv-day { width: 48px; min-width: 48px; max-width: 48px;", self.css
+            ".dv-day { width: max(30px, calc((100cqw - 170px) / 31));", self.css
         )
-        self.assertIn(
-            "width: 48px; min-width: 48px; max-width: 48px; height: 48px;", self.css
+        cell_rule = next(
+            line for line in self.css.splitlines() if line.strip().startswith(".dv-cell {")
         )
+        self.assertNotIn("width:", cell_rule)
+        self.assertIn("height: 48px;", cell_rule)
         self.assertIn(".dv-table tbody tr { height: 48px; }", self.css)
 
     def test_splits_run_from_corner_to_corner(self):
@@ -712,7 +717,7 @@ class DailyChipTests(DailyViewTests):
             "attendance/templates/attendance/monthly_summary/table_daily.html"
         ).read_text(encoding="utf-8")
         self.assertIn(
-            ".dv-chip { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px;",
+            ".dv-chip { display: flex; align-items: center; justify-content: center; width: calc(100% - 8px); max-width: 34px; aspect-ratio: 1 / 1;",
             css,
         )
         self.assertIn("border-radius: 8px; color: #1f2937;", css)

@@ -3274,9 +3274,10 @@ def work_info_export(request):
     if prefetch_fields:
         employees = employees.select_related(*prefetch_fields)
 
-    for value, key in excel_columns:
-        if value in selected_fields:
-            selected_columns.append((value, key))
+    excel_columns_map = dict(excel_columns)
+    for value in selected_fields:
+        if value in excel_columns_map:
+            selected_columns.append((value, excel_columns_map[value]))
 
     date_format = "YYYY-MM-DD"
     user = request.user

@@ -16,7 +16,7 @@ from django.apps import apps
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.staticfiles import finders
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import FieldDoesNotExist, ObjectDoesNotExist
 from django.core.paginator import Paginator
 from django.db import models
 from django.db.models import ForeignKey, ManyToManyField, OneToOneField, Q
@@ -1001,19 +1001,22 @@ def closest_numbers(numbers: list, input_number: int) -> tuple:
     return (previous_number, next_number)
 
 
-def format_export_value(value, employee):
-    work_info = EmployeeWorkInformation.objects.filter(employee_id=employee).first()
-    time_format = (
-        work_info.company_id.time_format
-        if work_info and work_info.company_id
-        else "HH:mm"
-    )
-    date_format = (
-        work_info.company_id.date_format
-        if work_info and work_info.company_id
-        else "MMM. D, YYYY"
-    )
+def export_field_label(verbose_name):
+    """
+    Django derives a boolean field's default verbose name by just replacing
+    the underscores in its field name (e.g. "is_holiday" -> "is holiday"),
+    so export column pickers built from model fields show flags like that
+    in lowercase with a stray leading "is", unlike the other, explicitly
+    labelled columns in the same list. Drop that "is " and title-case the
+    rest so it reads like the rest of the list.
+    """
+    label = str(verbose_name)
+    if label[:3].lower() == "is ":
+        label = label[3:].strip().title()
+    return label
 
+
+def format_export_value(value, time_format, date_format):
     if isinstance(value, time):
         # Convert the string to a datetime.time object
         check_in_time = datetime.strptime(str(value).split(".")[0], "%H:%M:%S").time()
@@ -1135,6 +1138,17 @@ def export_data(request, model, form_class, filter_class, file_name, perm=None):
         "early_out": _("Early Departure"),
     }
     employee = request.user.employee_get
+    work_info = EmployeeWorkInformation.objects.filter(employee_id=employee).first()
+    time_format = (
+        work_info.company_id.time_format
+        if work_info and work_info.company_id
+        else "HH:mm"
+    )
+    date_format = (
+        work_info.company_id.date_format
+        if work_info and work_info.company_id
+        else "MMM. D, YYYY"
+    )
 
     from horilla.http.response import HorillaRedirect
 
@@ -1186,11 +1200,32 @@ def export_data(request, model, form_class, filter_class, file_name, perm=None):
             id_list = json.loads(ids)
             export_objects = selectable_objects.filter(id__in=id_list)
 
-    for field in form.fields["selected_fields"].choices:
-        value = field[0]
-        key = field[1]
-        if value in selected_fields:
-            selected_columns.append((value, key))
+    choices_map = dict(form.fields["selected_fields"].choices)
+    for value in selected_fields:
+        if value in choices_map:
+            selected_columns.append((value, choices_map[value]))
+
+    select_related_paths = set()
+    for field_name in selected_fields:
+        parts = field_name.split("__")
+        relation_parts = parts[:-1] if len(parts) > 1 else parts
+        valid_parts = []
+        current_model = model
+        for part in relation_parts:
+            try:
+                field = current_model._meta.get_field(part)
+            except FieldDoesNotExist:
+                valid_parts = []
+                break
+            if not field.is_relation:
+                valid_parts = []
+                break
+            valid_parts.append(part)
+            current_model = field.related_model
+        if valid_parts:
+            select_related_paths.add("__".join(valid_parts))
+    if select_related_paths:
+        export_objects = export_objects.select_related(*select_related_paths)
 
     for field_name, verbose_name in selected_columns:
         if field_name in selected_fields:
@@ -1214,7 +1249,7 @@ def export_data(request, model, form_class, filter_class, file_name, perm=None):
                     value = _(value.title())
 
                 # Check if the type of 'value' is time
-                value = format_export_value(value, employee)
+                value = format_export_value(value, time_format, date_format)
                 # Employee-entered text reaching a spreadsheet cell can
                 # execute when the file is opened (=HYPERLINK(...) will
                 # exfiltrate neighbouring cells), so guard every value at the

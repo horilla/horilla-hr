@@ -18,9 +18,11 @@ from payroll.methods.component_engine import (
     component_applies_to,
     eligible_allowances,
     new_context,
+    own_structure_only,
     record,
     structure_components,
 )
+from payroll.methods.contract_periods import forced_contract
 from payroll.methods.deductions import update_compensation_deduction
 from payroll.methods.limits import compute_limit
 from payroll.methods.proration import flat_amount
@@ -304,7 +306,8 @@ def calculate_taxable_gross_pay(*_args, **kwargs):
         # is shared between, whether it comes off basic) is already decided
         # per contract. One place, not two.
         contract = (
-            Contract.objects.filter(
+            forced_contract(kwargs.get("employee"))
+            or Contract.objects.filter(
                 employee_id=kwargs.get("employee"), contract_status="active"
             ).first()
             if kwargs.get("employee")
@@ -473,8 +476,12 @@ def calculate_tax_deduction(*_args, **kwargs):
     employee = kwargs["employee"]
     start_date = kwargs["start_date"]
     end_date = kwargs["end_date"]
-    specific_deductions = models.Deduction.objects.filter(
-        specific_employees=employee, is_pretax=False, is_tax=True
+    specific_deductions = own_structure_only(
+        models.Deduction.objects.filter(
+            specific_employees=employee, is_pretax=False, is_tax=True
+        ),
+        models.Deduction,
+        employee,
     )
     active_employee_deduction = models.Deduction.objects.filter(
         include_active_employees=True, is_pretax=False, is_tax=True
@@ -559,8 +566,12 @@ def calculate_pre_tax_deduction(*_args, **kwargs):
     start_date = kwargs["start_date"]
     end_date = kwargs["end_date"]
 
-    specific_deductions = models.Deduction.objects.filter(
-        specific_employees=employee, is_pretax=True, is_tax=False
+    specific_deductions = own_structure_only(
+        models.Deduction.objects.filter(
+            specific_employees=employee, is_pretax=True, is_tax=False
+        ),
+        models.Deduction,
+        employee,
     )
     conditional_deduction = models.Deduction.objects.filter(
         is_condition_based=True, is_pretax=True, is_tax=False
@@ -659,8 +670,12 @@ def calculate_post_tax_deduction(*_args, **kwargs):
     total_allowance = kwargs["total_allowance"]
     basic_pay = kwargs["basic_pay"]
     day_dict = kwargs["day_dict"]
-    specific_deductions = models.Deduction.objects.filter(
-        specific_employees=employee, is_pretax=False, is_tax=False
+    specific_deductions = own_structure_only(
+        models.Deduction.objects.filter(
+            specific_employees=employee, is_pretax=False, is_tax=False
+        ),
+        models.Deduction,
+        employee,
     )
     conditional_deduction = models.Deduction.objects.filter(
         is_condition_based=True, is_pretax=False, is_tax=False

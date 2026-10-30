@@ -57,10 +57,15 @@ def eligible_deductions(employee, start_date, end_date):
     the pre-tax, post-tax and tax passes it belongs to. The membership rules are
     the ones those passes use.
     """
-    from payroll.methods.component_engine import structure_components
+    from payroll.methods.component_engine import (
+        own_structure_only,
+        structure_components,
+    )
     from payroll.models.models import Deduction
 
-    specific = Deduction.objects.filter(specific_employees=employee)
+    specific = own_structure_only(
+        Deduction.objects.filter(specific_employees=employee), Deduction, employee
+    )
     conditional = Deduction.objects.filter(is_condition_based=True).exclude(
         exclude_employees=employee
     )

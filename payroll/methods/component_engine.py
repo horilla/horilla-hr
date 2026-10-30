@@ -134,21 +134,46 @@ def structure_components(model, employee):
     component's own specific / excluded employees say: the structure is the
     statement. Empty when the employee has no active contract or structure.
     """
+    from payroll.methods.contract_periods import forced_contract
     from payroll.models.models import Contract
 
-    contract = (
-        Contract.objects.entire()
-        .filter(
-            employee_id=employee,
-            contract_status="active",
-            salary_structure_id__isnull=False,
+    contract = forced_contract(employee)
+    if contract is not None and contract.salary_structure_id is None:
+        contract = None
+    elif contract is None:
+        contract = (
+            Contract.objects.entire()
+            .filter(
+                employee_id=employee,
+                contract_status="active",
+                salary_structure_id__isnull=False,
+            )
+            .order_by("-contract_start_date", "-pk")
+            .first()
         )
-        .order_by("-contract_start_date", "-pk")
-        .first()
-    )
     if contract is None:
         return model.objects.none()
     return model.objects.filter(salary_structures=contract.salary_structure_id)
+
+
+def own_structure_only(queryset, model, employee):
+    """
+    Drop the components of a salary structure the contract being paid is not on.
+
+    Structure components are mirrored onto ``specific_employees``, and that mirror is not cleared when
+    an employee moves to a new contract on another structure. Left alone, the old structure's
+    components would be paid on the new contract too. Only applies while a contract is being paid
+    (see ``use_contract``) and when it has a structure; any other contract keeps the direct targeting.
+    """
+    from payroll.methods.contract_periods import forced_contract
+
+    contract = forced_contract(employee)
+    if contract is None or contract.salary_structure_id_id is None:
+        return queryset
+    foreign = model.objects.filter(salary_structures__isnull=False).exclude(
+        salary_structures=contract.salary_structure_id_id
+    )
+    return queryset.exclude(pk__in=foreign.values("pk"))
 
 
 def eligible_allowances(employee, start_date, end_date):
@@ -160,7 +185,9 @@ def eligible_allowances(employee, start_date, end_date):
     minus one-time components dated outside the period. The only addition is
     the ordering.
     """
-    specific = Allowance.objects.filter(specific_employees=employee)
+    specific = own_structure_only(
+        Allowance.objects.filter(specific_employees=employee), Allowance, employee
+    )
     conditional = Allowance.objects.filter(is_condition_based=True).exclude(
         exclude_employees=employee
     )

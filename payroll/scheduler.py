@@ -14,6 +14,11 @@ from payroll.methods.methods import payslip_fields, save_payslip
 from payroll.methods.payroll_run import payroll_calculation
 from payroll.methods.tax_calc import TaxComputationError
 
+from .methods.contract_periods import (
+    PAYABLE_STATUSES,
+    contracts_in_period,
+    use_contract,
+)
 from .models.models import Contract, Payslip
 
 logger = logging.getLogger(__name__)
@@ -59,42 +64,36 @@ def generate_payslips(employees, period_start, period_end):
     Returns how many were created.
     """
     created = 0
-    # Filter out employees who don't have a contract_set or whose contract status is not active
-    active_employees = employees.filter(
-        contract_set__isnull=False, contract_set__contract_status="active"
-    )
-
-    # Remove duplicates if an employee has multiple active contracts
-    active_employees = active_employees.distinct()
-    # Payslip creation
-    for employee in active_employees:
-        # A contract that began mid-period shortens its payslip's start, so match on the end.
-        payslip = Payslip.objects.filter(
-            employee_id=employee, start_date__gte=period_start, end_date=period_end
-        ).first()
-        if payslip:
-            continue
-        contract = Contract.objects.filter(
-            employee_id=employee, contract_status="active"
-        ).first()
-        if period_end < contract.contract_start_date:
-            continue
-        # A contract starting mid-period shortens only that employee's payslip,
-        # so the adjusted start must stay local to this iteration.
-        start_date = max(period_start, contract.contract_start_date)
-        try:
-            payslip_data = payroll_calculation(employee, start_date, period_end)
-        except TaxComputationError as exc:
-            # Unattended job: skip the employee whose filing status is broken
-            # rather than saving them a 0-tax payslip or aborting the run for
-            # everyone else. The next scheduled run picks them up once fixed.
-            logger.error("Scheduled payslip skipped: %s", exc)
-            continue
-        payslip_data["payslip"] = payslip
-        payslip_data["instance"] = save_payslip(
-            **payslip_fields(payslip_data, employee, status="draft")
-        )
-        created += 1
+    # Anyone with a contract that could have days in the period, ended ones included: an ended
+    # contract still has its last days to be paid.
+    candidates = employees.filter(
+        contract_set__contract_status__in=PAYABLE_STATUSES,
+        contract_set__contract_start_date__lte=period_end,
+    ).distinct()
+    for employee in candidates:
+        # One payslip per contract in force, each for its own days. A contract that began or ended
+        # mid-period shortens only its own slice.
+        for contract, start_date, end_date in contracts_in_period(
+            employee, period_start, period_end
+        ):
+            if Payslip.objects.filter(
+                employee_id=employee, start_date__lte=end_date, end_date__gte=start_date
+            ).exists():
+                continue
+            try:
+                with use_contract(contract):
+                    payslip_data = payroll_calculation(employee, start_date, end_date)
+            except TaxComputationError as exc:
+                # Unattended job: skip the employee whose filing status is broken
+                # rather than saving them a 0-tax payslip or aborting the run for
+                # everyone else. The next scheduled run picks them up once fixed.
+                logger.error("Scheduled payslip skipped: %s", exc)
+                continue
+            payslip_data["payslip"] = None
+            payslip_data["instance"] = save_payslip(
+                **payslip_fields(payslip_data, employee, status="draft")
+            )
+            created += 1
     return created
 
 

@@ -4,6 +4,7 @@ deductions.py
 This module is used to compute the deductions of employees
 """
 
+from payroll.methods.component_engine import own_structure_only
 from payroll.models.models import Deduction
 
 
@@ -17,8 +18,12 @@ def update_compensation_deduction(
         compensation_amount (_type_): Gross pay or Basic pay or employee
     """
     deduction_heads = (
-        Deduction.objects.filter(
-            update_compensation=compensation_type, specific_employees=employee
+        own_structure_only(
+            Deduction.objects.filter(
+                update_compensation=compensation_type, specific_employees=employee
+            ),
+            Deduction,
+            employee,
         )
         .exclude(one_time_date__lt=start_date)
         .exclude(one_time_date__gt=end_date)

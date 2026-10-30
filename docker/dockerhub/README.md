@@ -157,7 +157,7 @@ Step 4 uses `--clear` deliberately: `STATIC_ROOT` is a named volume that outlive
 | `/health/` | `{"status": "ok"}` once the web server is serving |
 | `/ready/` | `{"status": "ok", "database": "ok"}` — also proves DB connectivity |
 
-The image ships a `HEALTHCHECK` that polls `/health/` every 30s with a 60s start period. On a first boot the container may report `starting` for several minutes while migrations run — that is expected, not a failure.
+The image ships a `HEALTHCHECK` that polls `/health/` every 30s with a 10 minute start period. On a first boot the container reports `starting` for about five minutes while migrations and static files are prepared — that is expected, not a failure. Failed checks inside the start period are not counted, so a started container turns `healthy` at the first passing check.
 
 ---
 

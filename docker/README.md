@@ -303,6 +303,12 @@ make prod
 
 This builds without bind-mounting source, forces `DEBUG=0`, and enables Nginx.
 
+> **The first start takes about five minutes and prints no progress.** The web container applies
+> every database migration and collects static files before it starts serving, and Nginx waits
+> for it to report healthy, so the command stays quiet until then. To watch progress, run
+> `docker compose logs -f web` in a second terminal and wait for `Listening at: http://0.0.0.0:8000`.
+> Later starts take seconds.
+
 ### Step 4: Set Up SSL/TLS
 
 For HTTPS, add a `443` listener to `docker/nginx.conf`:
@@ -545,7 +551,7 @@ All services have health checks configured:
 
 | Service | Health Check | Interval |
 |---------|-------------|----------|
-| **web** | `curl /health/` | 30s (60s startup grace) |
+| **web** | `curl /health/` | 30s (10 minute startup grace) |
 | **db** | `pg_isready` | 5s |
 | **redis** | `redis-cli -a <pass> ping` | 5s |
 
@@ -580,6 +586,13 @@ docker compose logs db
 docker compose restart db
 docker compose restart web
 ```
+
+#### `make prod` says the web container is unhealthy on a fresh install
+
+On a version before this change, the health check gave up after about 2.5 minutes, while a first
+boot needs about five. The install itself is fine. Wait for `Listening at: http://0.0.0.0:8000` in
+`docker compose logs web`, then run `make prod` again so Nginx starts. If the web container is
+still unhealthy after ten minutes, check `docker compose logs web` for the error.
 
 #### "Permission denied" errors
 

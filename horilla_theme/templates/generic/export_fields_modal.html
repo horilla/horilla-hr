@@ -46,7 +46,7 @@
                         id="{{view_id}}ExportColumns"
                     >
 
-                    <div class="hlv-export-options" style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin:0 0 12px">
+                    <div class="hlv-export-options" style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin:0 0 16px">
                         <div>
                             <label for="{{view_id|safe}}ExportName" style="display:block;margin-bottom:4px;font-size:13px;color:#6b7280;">{% trans "File name" %}</label>
                             <input
@@ -57,7 +57,7 @@
                                 maxlength="100"
                                 autocomplete="off"
                                 placeholder="{% trans 'Leave blank for the default name' %}"
-                                style="width:100%;border:1px solid #e5e7eb;border-radius:6px;padding:8px 10px;font-size:14px;background:#fff;color:#374151;outline:none;"
+                                style="width:100%;box-sizing:border-box;height:38px;border:1px solid #e5e7eb;border-radius:6px;padding:8px 10px;font-size:14px;background:#fff;color:#374151;outline:none;"
                             >
                         </div>
                         <div>
@@ -65,7 +65,7 @@
                             <select
                                 id="{{view_id|safe}}ExportFormat"
                                 name="format"
-                                style="width:100%;border:1px solid #e5e7eb;border-radius:6px;padding:8px 10px;font-size:14px;background:#fff;color:#374151;outline:none;"
+                                style="width:100%;box-sizing:border-box;height:38px;border:1px solid #e5e7eb;border-radius:6px;padding:8px 10px;font-size:14px;background:#fff;color:#374151;outline:none;"
                             >
                                 {% for format in export_formats %}
                                     <option value="{{format.0}}">{{ format.1 }} (.{{ format.0 }})</option>
@@ -87,7 +87,7 @@
                                         id="select-all-export-fields"
                                         onchange="$(this)
                         .closest('form')
-                        .find('[type=checkbox]')
+                        .find('input[name=selected_fields]')
                         .prop(
                           'checked',
                           $(this).is(':checked'),
@@ -100,7 +100,7 @@
                         </div>
                     </div>
                     <div class="row">
-                        {% for col in columns %}
+                        {% for col in export_columns %}
                             <div class="col-sm-12 col-md-6 col-lg-4">
                                 <div class="oh-input-group">
                                     <label class="oh-label">

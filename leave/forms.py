@@ -16,7 +16,11 @@ from django.template.loader import render_to_string
 from django.utils.translation import gettext_lazy as _
 
 from base.forms import ModelForm as BaseModelForm
-from base.methods import filtersubordinatesemployeemodel, reload_queryset
+from base.methods import (
+    export_field_label,
+    filtersubordinatesemployeemodel,
+    reload_queryset,
+)
 from base.models import CompanyLeaves, Holidays, JobPosition
 from employee.filters import EmployeeFilter
 from employee.forms import MultipleFileField
@@ -701,6 +705,7 @@ excluded_fields = [
     "approved_carryforward_days",
     "created_at",
     "attachment",
+    "horilla_history",
 ]
 
 
@@ -722,7 +727,7 @@ class AvailableLeaveColumnExportForm(forms.Form):
 
     model_fields = AvailableLeave._meta.get_fields()
     field_choices = [
-        (field.name, field.verbose_name)
+        (field.name, export_field_label(field.verbose_name))
         for field in model_fields
         if hasattr(field, "verbose_name") and field.name not in excluded_fields
     ]
@@ -1048,7 +1053,7 @@ class LeaveRequestExportForm(forms.Form):
 
     model_fields = LeaveRequest._meta.get_fields()
     field_choices = [
-        (field.name, field.verbose_name)
+        (field.name, export_field_label(field.verbose_name))
         for field in model_fields
         if hasattr(field, "verbose_name") and field.name not in excluded_fields
     ]

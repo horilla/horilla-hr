@@ -34,6 +34,12 @@ import logging
 from django.db import transaction
 from django.utils.translation import gettext_lazy as _
 
+from payroll.methods.contract_periods import (
+    PAYABLE_STATUSES,
+    contracts_in_period,
+    use_contract,
+)
+
 logger = logging.getLogger(__name__)
 
 # How many employees one request generates. Small, so the bar moves every
@@ -68,12 +74,20 @@ def eligible_employees(employees, start_date, end_date):
         if not employee.is_active:
             excluded.append((employee, _("Employee is inactive")))
             continue
-        contract = employee.contract_set.filter(contract_status="active").first()
-        if contract is None:
-            excluded.append((employee, _("No active contract")))
-            continue
-        if contract.contract_start_date and contract.contract_start_date > end_date:
-            excluded.append((employee, _("Contract starts after this period")))
+        if not contracts_in_period(employee, start_date, end_date):
+            later = employee.contract_set.filter(
+                contract_status__in=PAYABLE_STATUSES, contract_start_date__gt=end_date
+            ).exists()
+            excluded.append(
+                (
+                    employee,
+                    (
+                        _("Contract starts after this period")
+                        if later
+                        else _("No contract in force in this period")
+                    ),
+                )
+            )
             continue
         # The model refuses a second payslip for the same employee and period,
         # so catching it here is the difference between a listed exclusion and
@@ -181,7 +195,7 @@ def review(employees, start_date, end_date):
     rows = []
     for employee in ok:
         row = summaries.get(employee.pk, {}) or {}
-        contract = employee.contract_set.filter(contract_status="active").first()
+        contract = contracts_in_period(employee, start_date, end_date)[-1][0]
         problems = _exceptions_for(row, employee, contract)
         rows.append(
             {
@@ -362,37 +376,68 @@ def _generate_one(
         line.save(update_fields=["status", "message"])
         return
 
-    contract = employee.contract_set.filter(contract_status="active").first()
-    if contract is None:
+    slices = contracts_in_period(employee, batch.period_start, batch.period_end)
+    if not slices:
         line.status = PayrollBatchLine.SKIPPED
-        line.message = str(_("No active contract"))
+        line.message = str(_("No contract in force in this period"))
         line.save(update_fields=["status", "message"])
         return
 
-    # Per employee, never reassigning the caller's dates. The old bulk loop
-    # mutated its own start_date for a mid-period contract and never restored
-    # it, so one late joiner shifted the period for everybody after them.
-    start_date = batch.period_start
-    if contract.contract_start_date and contract.contract_start_date > start_date:
-        start_date = contract.contract_start_date
-
-    result = payroll_calculation(
-        employee, start_date, batch.period_end, month_summary=summary or {}
-    )
-    payslip = save_payslip(
-        **payslip_fields(
-            result,
-            employee,
-            status="draft",
-            group_name=batch.batch_name,
-            payroll_batch=batch,
+    # One payslip per contract in force, each for its own days and at its own wage. Dates are
+    # worked out per employee and never written back to the batch: the old bulk loop mutated its
+    # own start_date for a mid-period contract and never restored it, so one late joiner shifted
+    # the period for everybody after them.
+    payslip = None
+    for contract, start_date, end_date in slices:
+        if len(slices) == 1:
+            # One contract: the batch's own attendance summary, as it always was. A joiner's or
+            # leaver's days outside the contract are unpaid days in it.
+            slice_summary, prorate = summary or {}, False
+        else:
+            # Several: each contract's days are summarised on their own, and its wage is cut to
+            # them, because the whole period's summary would charge one contract for the other's days.
+            slice_summary, prorate = (
+                _slice_summary(employee, start_date, end_date),
+                True,
+            )
+        with use_contract(contract):
+            result = payroll_calculation(
+                employee,
+                start_date,
+                end_date,
+                month_summary=slice_summary,
+                prorate_slice=prorate,
+            )
+        payslip = save_payslip(
+            **payslip_fields(
+                result,
+                employee,
+                status="draft",
+                group_name=batch.batch_name,
+                payroll_batch=batch,
+            )
         )
-    )
 
     line.status = PayrollBatchLine.DONE
     line.message = ""
     line.payslip = payslip
     line.save(update_fields=["status", "message", "payslip"])
+
+
+def _slice_summary(employee, start_date, end_date):
+    """The attendance summary for one contract's days, or {} when it cannot be read."""
+    from attendance.methods.utils import get_employee_attendance_summary
+
+    try:
+        return (
+            get_employee_attendance_summary([employee], start_date, end_date).get(
+                employee.pk, {}
+            )
+            or {}
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("Attendance summary unavailable for %s", employee)
+        return {}
 
 
 def _finish(batch):

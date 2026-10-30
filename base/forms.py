@@ -37,7 +37,7 @@ from django.utils.html import strip_tags
 from django.utils.http import urlsafe_base64_encode
 from django.utils.translation import gettext_lazy as _
 
-from base.methods import get_session_company, reload_queryset
+from base.methods import export_field_label, get_session_company, reload_queryset
 from base.models import (
     Announcement,
     AnnouncementComment,
@@ -2635,7 +2635,7 @@ excluded_fields = [
 class ShiftRequestColumnForm(forms.Form):
     model_fields = ShiftRequest._meta.get_fields()
     field_choices = [
-        (field.name, field.verbose_name)
+        (field.name, export_field_label(field.verbose_name))
         for field in model_fields
         if hasattr(field, "verbose_name") and field.name not in excluded_fields
     ]
@@ -2656,7 +2656,7 @@ class ShiftRequestColumnForm(forms.Form):
 class WorkTypeRequestColumnForm(forms.Form):
     model_fields = WorkTypeRequest._meta.get_fields()
     field_choices = [
-        (field.name, field.verbose_name)
+        (field.name, export_field_label(field.verbose_name))
         for field in model_fields
         if hasattr(field, "verbose_name") and field.name not in excluded_fields
     ]
@@ -2677,7 +2677,7 @@ class WorkTypeRequestColumnForm(forms.Form):
 class RotatingShiftAssignExportForm(forms.Form):
     model_fields = RotatingShiftAssign._meta.get_fields()
     field_choices = [
-        (field.name, field.verbose_name)
+        (field.name, export_field_label(field.verbose_name))
         for field in model_fields
         if hasattr(field, "verbose_name") and field.name not in excluded_fields
     ]
@@ -2699,7 +2699,7 @@ class RotatingShiftAssignExportForm(forms.Form):
 class RotatingWorkTypeAssignExportForm(forms.Form):
     model_fields = RotatingWorkTypeAssign._meta.get_fields()
     field_choices = [
-        (field.name, field.verbose_name)
+        (field.name, export_field_label(field.verbose_name))
         for field in model_fields
         if hasattr(field, "verbose_name") and field.name not in excluded_fields
     ]

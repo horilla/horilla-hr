@@ -26,6 +26,7 @@ from base.methods import (
 from base.models import CompanyLeaves, Holidays
 from horilla.methods import get_horilla_model_class
 from payroll.methods.component_formula import ComponentFormulaError
+from payroll.methods.contract_periods import forced_contract
 from payroll.methods.employer_cost import employer_amount
 from payroll.models.models import Contract, Deduction, Payslip
 
@@ -337,7 +338,10 @@ def daily_computation(employee, wage, start_date, end_date):
 
     leave_data = get_leaves(employee, start_date, end_date)
 
-    contract = employee.contract_set.filter(contract_status="active").first()
+    contract = (
+        forced_contract(employee)
+        or employee.contract_set.filter(contract_status="active").first()
+    )
     basic_pay = wage * total_working_days
     loss_of_pay = 0
 
@@ -373,9 +377,12 @@ def daily_computation(employee, wage, start_date, end_date):
         + half_day_leaves_between_period_on_end_date
     ) * 0.5
 
-    contract = employee.contract_set.filter(
-        is_active=True, contract_status="active"
-    ).first()
+    contract = (
+        forced_contract(employee)
+        or employee.contract_set.filter(
+            is_active=True, contract_status="active"
+        ).first()
+    )
 
     unpaid_leaves = leave_data["unpaid_leaves"] - unpaid_half_leaves
     if contract.calculate_daily_leave_amount:
@@ -631,7 +638,10 @@ def monthly_computation(employee, wage, start_date, end_date, *args, **kwargs):
             data["working_days_on_period"] * data["per_day_amount"]
         )
 
-    contract = employee.contract_set.filter(contract_status="active").first()
+    contract = (
+        forced_contract(employee)
+        or employee.contract_set.filter(contract_status="active").first()
+    )
     loss_of_pay = 0
     date_range = get_date_range(start_date, end_date)
     # Half-day filter: only truly unpaid leaves (exclude custom payment_type)
@@ -673,9 +683,12 @@ def monthly_computation(employee, wage, start_date, end_date, *args, **kwargs):
         + half_day_leaves_between_period_on_end_date
     ) * 0.5
 
-    contract = employee.contract_set.filter(
-        is_active=True, contract_status="active"
-    ).first()
+    contract = (
+        forced_contract(employee)
+        or employee.contract_set.filter(
+            is_active=True, contract_status="active"
+        ).first()
+    )
     unpaid_leaves = abs(leave_data["unpaid_leaves"] - unpaid_half_leaves)
     total_working_days = sum(d["working_days_on_period"] for d in month_data)
     paid_days = total_working_days - unpaid_leaves
@@ -726,7 +739,7 @@ def monthly_computation(employee, wage, start_date, end_date, *args, **kwargs):
 
 
 def compute_salary_on_period(
-    employee, start_date, end_date, wage=None, month_summary=None
+    employee, start_date, end_date, wage=None, month_summary=None, prorate_slice=False
 ):
     """
     This method is used to compute salary on the start to end date period
@@ -735,14 +748,21 @@ def compute_salary_on_period(
         employee (obj): Employee instance
         start_date (obj): start date of the period
         end_date (obj): end date of the period
+        prorate_slice (bool): the dates are one contract's share of a longer period, and
+            month_summary covers just those dates, so a monthly wage is cut to the working
+            days in them. Without it a summary-based monthly basic is the whole wage less
+            loss of pay.
         month_summary (dict): per-employee attendance summary row from
             build_monthly_summary(). When not supplied, day counts fall
             back to the classic months_between_range/get_working_days/
             get_leaves-based computation.
     """
-    contract = Contract.objects.filter(
-        employee_id=employee, contract_status="active"
-    ).first()
+    contract = (
+        forced_contract(employee)
+        or Contract.objects.filter(
+            employee_id=employee, contract_status="active"
+        ).first()
+    )
     if contract is None:
         return contract
 
@@ -905,8 +925,13 @@ def compute_salary_on_period(
                 loss_of_pay = custom_leave_deduction
 
             basic_pay = wage
+            if prorate_slice:
+                basic_pay = sum(
+                    m["working_days_on_period"] * m["per_day_amount"]
+                    for m in months_between_range(wage, start_date, end_date)
+                )
             if contract.deduct_leave_from_basic_pay and not lop_from_gross:
-                basic_pay = wage - loss_of_pay
+                basic_pay = basic_pay - loss_of_pay
 
             data = {
                 "lop_from_gross": lop_from_gross,

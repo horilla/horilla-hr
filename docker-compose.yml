@@ -34,7 +34,10 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
       interval: 30s
       timeout: 30s
-      start_period: 60s
+      # First boot applies every migration and collectstatic before gunicorn
+      # binds (about 5 minutes on an empty database). nginx waits for this
+      # check, so a shorter window makes a fresh `make prod` abort as unhealthy.
+      start_period: 10m
       retries: 3
 
   # Background jobs run here, NOT in the web workers. Keep this at exactly one

@@ -56,6 +56,7 @@ from attendance.models import (
 from base.forms import ModelForm as BaseModelForm
 from base.forms import MultipleFileField
 from base.methods import (
+    export_field_label,
     filtersubordinatesemployeemodel,
     get_working_days,
     is_reportingmanager,
@@ -931,7 +932,7 @@ class AttendanceExportForm(forms.Form):
 
     model_fields = Attendance._meta.get_fields()
     field_choices = [
-        (field.name, field.verbose_name)
+        (field.name, export_field_label(field.verbose_name))
         for field in model_fields
         if hasattr(field, "verbose_name") and field.name not in excluded_fields
     ]
@@ -963,13 +964,13 @@ class LateComeEarlyOutExportForm(forms.Form):
 
     model_fields = AttendanceLateComeEarlyOut._meta.get_fields()
     field_choices_1 = [
-        (field.name, field.verbose_name)
+        (field.name, export_field_label(field.verbose_name))
         for field in model_fields
         if hasattr(field, "verbose_name") and field.name not in excluded_fields
     ]
     model_fields_2 = Attendance._meta.get_fields()
     field_choices_2 = [
-        ("attendance_id__" + field.name, field.verbose_name)
+        ("attendance_id__" + field.name, export_field_label(field.verbose_name))
         for field in model_fields_2
         if hasattr(field, "verbose_name") and field.name not in excluded_fields
     ]
@@ -999,7 +1000,7 @@ class AttendanceActivityExportForm(forms.Form):
 
     model_fields = AttendanceActivity._meta.get_fields()
     field_choices = [
-        (field.name, field.verbose_name)
+        (field.name, export_field_label(field.verbose_name))
         for field in model_fields
         if hasattr(field, "verbose_name") and field.name not in excluded_fields
     ]
@@ -1026,7 +1027,7 @@ class AttendanceOverTimeExportForm(forms.Form):
 
     model_fields = AttendanceOverTime._meta.get_fields()
     field_choices = [
-        (field.name, field.verbose_name)
+        (field.name, export_field_label(field.verbose_name))
         for field in model_fields
         if hasattr(field, "verbose_name") and field.name not in excluded_fields
     ]

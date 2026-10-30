@@ -149,11 +149,12 @@ class CancellationViewPermissionTests(CancellationWorkflowTests):
         self._post(self.owner_user, "user-request-cancel", data={"reason": "x"})
         url = reverse("leave-cancellation-reject", kwargs={"id": self.leave.pk})
         self.client.force_login(self.manager_user)
-        # The form is recognised by its reason field, not by a label: the label text is presentation and
-        # was removed from the modal (the modal title now carries it).
-        self.assertContains(
-            self.client.get(url, HTTP_HX_REQUEST="true"), 'name="reason"'
-        )
+        # The form is recognised by its reason field. The visible label was removed from the modal (the modal
+        # title carries it), so the textarea gets its accessible name from aria-label.
+        response = self.client.get(url, HTTP_HX_REQUEST="true")
+        self.assertContains(response, 'name="reason"')
+        self.assertContains(response, 'aria-label="Rejection Reason"')
+        self.assertNotContains(response, "<label")
         self.client.force_login(self.other_user)
         self.assertNotContains(
             self.client.get(url, HTTP_HX_REQUEST="true"), 'name="reason"'

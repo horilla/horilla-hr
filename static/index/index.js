@@ -2395,10 +2395,14 @@ document.addEventListener(
 var HLV_EXPORT_OWN_OPTIONS = "[name=format],[name=export_format],[name=export_file_name],[name=file_name],[name=hlv_export_name]";
 
 function hlvExportOptionsHtml(id) {
-    var field = "width:100%;border:1px solid #e5e7eb;border-radius:6px;padding:8px 10px;font-size:14px;background:#fff;color:#374151;outline:none;";
+    // box-sizing + an explicit height: a <select> doesn't reliably honor the
+    // same vertical padding as a plain <input> across browsers (its native
+    // widget chrome can ignore it), so identical padding alone leaves it
+    // visibly shorter than the file name field next to it.
+    var field = "width:100%;box-sizing:border-box;height:38px;border:1px solid #e5e7eb;border-radius:6px;padding:8px 10px;font-size:14px;background:#fff;color:#374151;outline:none;";
     var label = "display:block;margin-bottom:4px;font-size:13px;color:#6b7280;";
     return (
-        '<div class="hlv-export-options" style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin:0 0 12px">' +
+        '<div class="hlv-export-options" style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin:0 0 16px">' +
         "<div>" +
         '<label for="' + id + 'Name" style="' + label + '">' + hlvExportText("File name", "File name") + "</label>" +
         '<input type="text" id="' + id + 'Name" name="hlv_export_name" maxlength="100" autocomplete="off" ' +
@@ -2428,8 +2432,15 @@ function hlvEnhanceExportForms(forms) {
             var $submit = $form.find("button:not([type=button]), input[type=submit]").last();
             if (!$submit.length) return;
             // Forms that already ask for a format / file name (the generic list
-            // export, the report print dialog, ...) keep their own.
-            if ($form.find(HLV_EXPORT_OWN_OPTIONS).not("[name=hlv_export_name]").length) return;
+            // export, the report print dialog, ...) keep their own; they still
+            // get the drag-to-reorder handles and hint, just not the injected
+            // options row or the accordion/footer restyling below.
+            if ($form.find(HLV_EXPORT_OWN_OPTIONS).not("[name=hlv_export_name]").length) {
+                hlvAddExportDragHandles(form);
+                hlvInitExportSortable(form);
+                hlvAddExportHint(form);
+                return;
+            }
 
             // Columns only: drop the filter sections that sit next to the column
             // picker and open the picker. (Some forms fill the column list in
@@ -2469,7 +2480,12 @@ function hlvEnhanceExportForms(forms) {
 
             // File name + format, above the column list when there is one,
             // otherwise just above the submit button (once per form content).
-            if ($form.find("[name=hlv_export_name]").length) return;
+            if ($form.find("[name=hlv_export_name]").length) {
+                hlvAddExportDragHandles(form);
+                hlvInitExportSortable(form);
+                hlvAddExportHint(form);
+                return;
+            }
             var id = "hlvExport" + ++hlvExportFormSeq;
             var html = hlvExportOptionsHtml(id);
             var $body = $form.find(".oh-dropdown__filter-body").first();
@@ -2483,8 +2499,136 @@ function hlvEnhanceExportForms(forms) {
                 var $footer = $submit.closest(".oh-dropdown__filter-footer, .oh-modal__dialog-footer");
                 ($footer.length ? $footer : $submit).first().before(html);
             }
+            hlvAddExportDragHandles(form);
+            hlvInitExportSortable(form);
+            hlvAddExportHint(form);
         });
 }
+
+function hlvColumnPickerRow(form) {
+    var row = $(form).find(".row").filter(function () {
+        return $(this).find("input[name=selected_fields]").length > 0;
+    }).first();
+    return row.length ? row : null;
+}
+
+// Fields that are selected by default (department, email, ...) belong at the
+// top of the list, ahead of the ones the user would have to opt into, so the
+// export order (and the picker itself) reads as "what's included" first. Only
+// worth doing before any drag handle exists: once the row has been through
+// the enhancer, its order is either that default or something the user
+// dragged, and either way a later pass must leave it alone.
+function hlvSortExportFieldsBySelected(form) {
+    var $row = hlvColumnPickerRow(form);
+    if (!$row || $row.find(".hlv-export-drag-handle").length) return;
+    var checked = [];
+    var unchecked = [];
+    $row.children().each(function () {
+        var $checkbox = $(this).find("input[name=selected_fields]");
+        if (!$checkbox.length) return;
+        if ($checkbox.is(":checked")) checked.push(this);
+        else unchecked.push(this);
+    });
+    if (checked.length && unchecked.length) {
+        $row.append(checked);
+        $row.append(unchecked);
+    }
+}
+
+function hlvAddExportDragHandles(form) {
+    var $row = hlvColumnPickerRow(form);
+    if (!$row) return;
+    hlvSortExportFieldsBySelected(form);
+    $row.children().each(function () {
+        var $item = $(this);
+        if (!$item.find("input[name=selected_fields]").length) return;
+        if ($item.find(".hlv-export-drag-handle").length) return;
+        var $target = $item.find(".oh-input-group").first();
+        if (!$target.length) $target = $item;
+        $target.prepend(
+            '<span class="hlv-export-drag-handle" title="' +
+            hlvExportText("Drag to reorder", "Drag to reorder") +
+            '"><ion-icon name="reorder-two-outline"></ion-icon></span>'
+        );
+    });
+    hlvUpdateExportOrder(form);
+}
+
+// Numbers each checked field with its position in the export (1, 2, 3, ...),
+// in the current drag order, so dragging doesn't leave the user guessing
+// where a field landed relative to the others. Unchecked fields -- not part
+// of the export -- get no number.
+function hlvUpdateExportOrder(form) {
+    var $row = hlvColumnPickerRow(form);
+    if (!$row) return;
+    var n = 0;
+    $row.children().each(function () {
+        var $item = $(this);
+        var $checkbox = $item.find("input[name=selected_fields]");
+        if (!$checkbox.length) return;
+        var $group = $item.find(".oh-input-group").first();
+        if (!$group.length) $group = $item;
+        var $badge = $group.find(".hlv-export-order-badge");
+        if (!$badge.length) {
+            $badge = $('<span class="hlv-export-order-badge"></span>');
+            var $handle = $group.find(".hlv-export-drag-handle").first();
+            if ($handle.length) $badge.insertAfter($handle);
+            else $group.prepend($badge);
+        }
+        if ($checkbox.is(":checked")) {
+            n += 1;
+            $badge.text(n).css("display", "");
+        } else {
+            $badge.css("display", "none");
+        }
+    });
+}
+
+function hlvInitExportSortable(form) {
+    var $row = hlvColumnPickerRow(form);
+    if (!$row || !$row.is(":visible") || !$.fn.sortable) return;
+    if ($row.data("ui-sortable")) {
+        $row.sortable("refresh");
+        return;
+    }
+    $row.sortable({
+        handle: ".hlv-export-drag-handle",
+        items: "> div:has(input[name=selected_fields])",
+        placeholder: "hlv-export-drag-placeholder",
+        tolerance: "pointer",
+        update: function () {
+            hlvUpdateExportOrder(form);
+        },
+    }).disableSelection();
+}
+
+$(document).on("change", "input[name=selected_fields]", function () {
+    hlvUpdateExportOrder(this.form);
+});
+
+function hlvAddExportHint(form) {
+    var $form = $(form);
+    if ($form.find(".hlv-export-hint").length) return;
+    if (!hlvColumnPickerRow(form)) return;
+    var $anchor = $form.find("input[id^=select-all]").first().closest(".row");
+    if (!$anchor.length) $anchor = hlvColumnPickerRow(form);
+    $anchor.before(
+        '<p class="hlv-export-hint"><ion-icon name="reorder-two-outline"></ion-icon><span>' +
+        hlvExportText("Drag the fields to rearrange the column order before exporting", "Drag the fields to rearrange the column order before exporting") +
+        "</span></p>"
+    );
+}
+
+
+$(document).on("click", "[data-toggle='oh-modal-toggle']", function () {
+    setTimeout(function () {
+        $("form[action*='export' i]").each(function () {
+            hlvAddExportDragHandles(this);
+            hlvInitExportSortable(this);
+            hlvAddExportHint(this);
+        });
+    }, 0);
+});
 
 // Hide the filter sections and the "Excel columns" header from the first paint
 // (the enhancer below also does it, but this needs no script round trip).
@@ -2513,7 +2657,15 @@ function hlvEnhanceExportForms(forms) {
         form + " .oh-dropdown__filter-footer button:not([type=button])," + form + " .oh-modal__dialog-footer button:not([type=button]){width:auto!important;min-width:110px;margin:0!important}" +
         form + " button.hlv-export-submit{display:block!important;width:auto!important;min-width:110px;margin:16px 0 0 auto!important}" +
         "@media (max-width:640px){" + form + " " + picker + "{grid-template-columns:minmax(0,1fr)}" +
-        ".hlv-export-options{grid-template-columns:minmax(0,1fr)!important}}";
+        ".hlv-export-options{grid-template-columns:minmax(0,1fr)!important}}" +
+
+        form + " " + picker + ">div .oh-input-group{display:flex!important;align-items:center;gap:6px}" +
+        ".hlv-export-drag-handle{cursor:grab;color:#9ca3af;display:inline-flex;flex-shrink:0}" +
+        ".hlv-export-order-badge{flex-shrink:0;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#e5e7eb;color:#4b5563;font-size:11px;line-height:18px;text-align:center;font-weight:600}" +
+        ".hlv-export-hint{display:flex;align-items:center;gap:6px;margin:0 0 8px;font-size:12px;color:#9ca3af}" +
+        ".hlv-export-hint ion-icon{font-size:14px;flex-shrink:0}" +
+        ".hlv-export-drag-placeholder{border:1px dashed #d1d5db;border-radius:6px;visibility:visible!important}" +
+        picker + ">div.ui-sortable-helper{background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.12);border-radius:6px}";
     document.head.appendChild(style);
 })();
 

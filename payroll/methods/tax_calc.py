@@ -8,6 +8,7 @@ based on their contract details and income information.
 import datetime
 import logging
 
+from payroll.methods.contract_periods import forced_contract
 from payroll.methods.methods import (
     compute_yearly_taxable_amount,
     convert_year_tax_to_period,
@@ -204,9 +205,12 @@ def calculate_taxable_amount(**kwargs):
     start_date = kwargs["start_date"]
     end_date = kwargs["end_date"]
     basic_pay = kwargs["basic_pay"]
-    contract = Contract.objects.filter(
-        employee_id=employee, contract_status="active"
-    ).first()
+    contract = (
+        forced_contract(employee)
+        or Contract.objects.filter(
+            employee_id=employee, contract_status="active"
+        ).first()
+    )
     filing = contract.filing_status
     if not filing:
         return 0

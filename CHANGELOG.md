@@ -100,6 +100,11 @@ date and open a fresh Unreleased above it.
 - Observability: `/metrics/` now reports `horilla_scheduler_jobs_overdue` and
   `horilla_scheduler_executions_total` (a gauge over the retained history), and no longer
   prints `horilla_scheduler_jobs_registered` twice.
+- Docker: a first `make prod` on an empty database no longer stops with "web is unhealthy"
+  before nginx starts. The first boot takes about five minutes, and the health check now
+  waits ten minutes before it counts failures
+  ([#1326](https://github.com/horilla/horilla-hr/issues/1326)). An existing installation
+  that only ever saw the error can run `make prod` again.
 
 ### Upgrading
 

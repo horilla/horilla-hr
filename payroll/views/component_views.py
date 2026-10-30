@@ -1288,11 +1288,10 @@ def payslip_export(request):
             id_list = json.loads(ids)
             payslips = Payslip.objects.filter(id__in=id_list)
 
-    for field in forms.excel_columns:
-        value = field[0]
-        key = field[1]
-        if value in selected_fields:
-            selected_columns.append((value, key))
+    excel_columns_map = dict(forms.excel_columns)
+    for value in selected_fields:
+        if value in excel_columns_map:
+            selected_columns.append((value, excel_columns_map[value]))
 
     for column_value, column_name in selected_columns:
         nested_attributes = column_value.split("__")
@@ -2229,11 +2228,10 @@ def payslip_detailed_export_data(request):
     if not selected_fields:
         selected_fields = form.fields["selected_fields"].initial
 
-    for field in forms.excel_columns:
-        value, key = field
-
-        if value in selected_fields:
-            selected_columns.append((value, key))
+    excel_columns_map = dict(forms.excel_columns)
+    for value in selected_fields:
+        if value in excel_columns_map:
+            selected_columns.append((value, excel_columns_map[value]))
 
     selected_columns += [
         (value.title, value.title)

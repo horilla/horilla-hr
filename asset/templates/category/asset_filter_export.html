@@ -94,7 +94,7 @@
                                 type="checkbox"
                                 id="select-all-export-fields"
                                 checked
-                                onchange="$(this).closest('form').find('input[name=selected_fields]').prop('checked', $(this).is(':checked'))"
+                                onchange="$(this).closest('form').find('input[name=selected_fields]').prop('checked', $(this).is(':checked')).change()"
                             > {% trans "Select All" %}
                         </label>
                     </div>

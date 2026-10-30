@@ -1695,6 +1695,8 @@ def leave_cancellation_reject(request, id):
     POST : record the reason and reject the cancellation.
     """
     form = RejectForm(request.POST or None)
+    # The modal title carries the visible label; this keeps an accessible name on the textarea.
+    form.fields["reason"].widget.attrs["aria-label"] = form.fields["reason"].label
     if request.method == "POST" and form.is_valid():
         return _decide_cancellation(
             request, id, approve=False, reason=form.cleaned_data["reason"]

@@ -16,7 +16,7 @@ from django.utils.translation import gettext_lazy as _
 
 from base.forms import Form
 from base.forms import ModelForm as BaseModelForm
-from base.methods import reload_queryset
+from base.methods import export_field_label, reload_queryset
 from base.widgets import CustomTextInputWidget
 from employee.filters import EmployeeFilter
 from employee.models import Employee
@@ -1047,7 +1047,7 @@ exclude_fields = [
 class CandidateExportForm(forms.Form):
     model_fields = Candidate._meta.get_fields()
     field_choices = [
-        (field.name, field.verbose_name.capitalize())
+        (field.name, export_field_label(field.verbose_name.capitalize()))
         for field in model_fields
         if hasattr(field, "verbose_name") and field.name not in exclude_fields
     ]

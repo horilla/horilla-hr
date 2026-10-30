@@ -95,7 +95,9 @@ class StructureConfigurationError(Exception):
     """
 
 
-def payroll_calculation(employee, start_date, end_date, month_summary=None):
+def payroll_calculation(
+    employee, start_date, end_date, month_summary=None, prorate_slice=False
+):
     """
     Calculate payroll components for the specified employee within the given date range.
 
@@ -110,7 +112,11 @@ def payroll_calculation(employee, start_date, end_date, month_summary=None):
         dict: A dictionary containing the calculated payroll components:
     """
     basic_pay_details = compute_salary_on_period(
-        employee, start_date, end_date, month_summary=month_summary
+        employee,
+        start_date,
+        end_date,
+        month_summary=month_summary,
+        prorate_slice=prorate_slice,
     )
 
     if not basic_pay_details:

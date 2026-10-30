@@ -2,26 +2,27 @@
 {# Day-wise view of the monthly summary: employees down, one column per date, the day's status in each cell. #}
 
 <style>
-  .dv-wrap { overflow: auto; max-height: calc(100vh - 260px); border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; }
-  .dv-table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; font-size: .78rem; }
+  .dv-wrap { overflow: auto; max-height: calc(100vh - 260px); container-type: inline-size; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; }
+  .dv-table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; table-layout: fixed; font-size: .78rem; }
   .dv-table th, .dv-table td { border-bottom: 1px solid #f1f2f4; border-right: 1px solid #f1f2f4; padding: 0; text-align: center; }
   .dv-table thead th { position: sticky; top: 0; z-index: 3; background: #f9fafb; padding: 6px 0; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb; }
-  .dv-emp { position: sticky; left: 0; z-index: 2; background: #fff; box-sizing: border-box; height: 48px; min-width: 190px; max-width: 190px; padding: 4px 12px !important; text-align: left !important; cursor: pointer; }
+  .dv-emp { position: sticky; left: 0; z-index: 2; background: #fff; box-sizing: border-box; height: 48px; width: 170px; min-width: 170px; max-width: 170px; padding: 4px 12px !important; text-align: left !important; cursor: pointer; }
   .dv-table thead th.dv-emp { z-index: 4; background: #f9fafb; cursor: default; }
   .dv-emp-name { display: block; font-weight: 600; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .dv-emp-badge { display: block; font-size: .68rem; color: #9ca3af; }
   .dv-emp:hover .dv-emp-name { color: hsl(8, 77%, 56%); }
   /* Every day is the same square, header and cells alike, so the split days' diagonal is a true corner-to-corner one. */
-  .dv-day { width: 48px; min-width: 48px; max-width: 48px; box-sizing: border-box; }
+  /* Sized so 31 days fill the box; a longer range scrolls sideways. */
+  .dv-day { width: max(30px, calc((100cqw - 170px) / 31)); box-sizing: border-box; }
   .dv-day small { display: block; font-size: .62rem; font-weight: 500; color: #9ca3af; text-transform: uppercase; }
   .dv-day.weekend { background: #f3f4f6 !important; }
   .dv-day.today { box-shadow: inset 0 -3px 0 hsl(8, 77%, 56%); }
   /* One size for every code, split days included. */
   /* A cell is a white square with a rounded chip in it: the chip carries the status colour and
      a white letter code; a split day's chip is cut corner to corner. */
-  .dv-cell { position: relative; box-sizing: border-box; width: 48px; min-width: 48px; max-width: 48px; height: 48px; font-size: .66rem; font-weight: 700; line-height: 1; cursor: pointer; background: #fff; }
+  .dv-cell { position: relative; box-sizing: border-box; height: 48px; font-size: .66rem; font-weight: 700; line-height: 1; cursor: pointer; background: #fff; }
   .dv-table tbody tr { height: 48px; }
-  .dv-chip { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; margin: 0 auto; border-radius: 8px; color: #1f2937; letter-spacing: .01em; }
+  .dv-chip { display: flex; align-items: center; justify-content: center; width: calc(100% - 8px); max-width: 34px; aspect-ratio: 1 / 1; margin: 0 auto; border-radius: 8px; color: #1f2937; letter-spacing: .01em; }
   .dv-cell:hover .dv-chip { filter: brightness(1.05); }
   .dv-dot { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid #fff; box-sizing: border-box; }
   .dv-dot--conflict { background: #e85d04; }

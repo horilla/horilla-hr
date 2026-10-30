@@ -26,7 +26,7 @@ from asset.models import (
     AssetServiceRequest,
 )
 from base.forms import ModelForm
-from base.methods import reload_queryset
+from base.methods import export_field_label, reload_queryset
 from employee.forms import MultipleFileField
 from employee.models import Employee
 from horilla.horilla_middlewares import _thread_locals
@@ -665,7 +665,7 @@ _ASSET_HISTORY_EXPORT_EXCLUDED = {
 }
 
 _asset_history_field_choices = [
-    (field.name, field.verbose_name)
+    (field.name, export_field_label(field.verbose_name))
     for field in AssetAssignment._meta.get_fields()
     if hasattr(field, "verbose_name")
     and field.name not in _ASSET_HISTORY_EXPORT_EXCLUDED
