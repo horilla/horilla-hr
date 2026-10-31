@@ -97,9 +97,12 @@ class HorillaMultiSelectWidget(forms.Widget):
             context["initial"] = initial
         else:
             context["initial"] = []
+        initial_values = context["initial"]
+        if isinstance(initial_values, (str, int)) or hasattr(initial_values, "pk"):
+            initial_values = [initial_values]
         selected_ids = [
             int(getattr(item, "pk", item))
-            for item in context["initial"]
+            for item in initial_values
             if str(getattr(item, "pk", item)).isdigit()
         ]
         context["selected_options"] = [
