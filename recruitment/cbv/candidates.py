@@ -983,6 +983,7 @@ class CandidateDetail(HorillaDetailedView):
 
 
 @method_decorator(login_required, name="dispatch")
+@method_decorator(manager_can_enter(perm="recruitment.add_skillzone"), name="dispatch")
 class TalentPoolDynamicCreateFormView(HorillaFormView):
     """
     Sub-form used by ToSkillZoneFormView's "Talent Pools" field to create a
