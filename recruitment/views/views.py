@@ -2837,12 +2837,8 @@ def skill_zone_delete(request, sz_id):
             messages.error(request, _("Talent pool not found."))
     except ProtectedError:
         messages.error(request, _("Related entries exists"))
-    if request.META.get("HTTP_HX_REQUEST") == "true":
-        response = HttpResponse(status=204)
-        response["HX-Trigger"] = "skillZoneContainerReload"
-        return response
     return HttpResponse(
-        "<script>$('.filterButton')[0].click();reloadMessage();</script>"
+        "<script>$('.filterButton').first().click();reloadMessage();</script>"
     )
 
 

@@ -2159,24 +2159,37 @@ class HorillaFormView(FormView):
                     if len(dynamic_tuple) == 3:
                         additional_data_fields = dynamic_tuple[2]
                     key = self.request.session.session_key + "cbv" + field
-                    field_instance = form.instance._meta.get_field(field)
-                    field_label = (
-                        form.fields[field].label or field_instance.verbose_name
-                    )
-                    view.display_title = _("Create %(label)s") % {"label": field_label}
                     value = form.initial.get(field, [])
-
-                    form_field = forms.ChoiceField
-                    if isinstance(field_instance, models.models.ManyToManyField):
-                        form_field = forms.MultipleChoiceField
-                        if form.instance.pk is not None:
+                    try:
+                        # Normal case: `field` is a real field on the
+                        # form's model (FK or M2M).
+                        field_instance = form.instance._meta.get_field(field)
+                        field_label = (
+                            form.fields[field].label or field_instance.verbose_name
+                        )
+                        is_multi = isinstance(
+                            field_instance, models.models.ManyToManyField
+                        )
+                        if is_multi and form.instance.pk is not None:
                             value = list(
                                 getattr(form.instance, field).values_list(
                                     "id", flat=True
                                 )
                             )
-                    else:
-                        value = getattr(getattribute(form.instance, field), "pk", value)
+                        elif not is_multi:
+                            value = getattr(
+                                getattribute(form.instance, field), "pk", value
+                            )
+                    except FieldDoesNotExist:
+                        field_label = form.fields[field].label
+                        is_multi = isinstance(
+                            form.fields[field], forms.ModelMultipleChoiceField
+                        )
+
+                    view.display_title = _("Create %(label)s") % {"label": field_label}
+                    form_field = (
+                        forms.MultipleChoiceField if is_multi else forms.ChoiceField
+                    )
                     CACHE.set(
                         key,
                         {

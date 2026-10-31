@@ -51,6 +51,7 @@ from recruitment.filters import CandidateFilter
 from recruitment.forms import (
     CandidateExportForm,
     RejectedCandidateForm,
+    SkillZoneCreateForm,
     ToSkillZoneForm,
 )
 from recruitment.models import (
@@ -58,6 +59,7 @@ from recruitment.models import (
     RecruitmentSurvey,
     RecruitmentSurveyAnswer,
     RejectedCandidate,
+    SkillZone,
     SkillZoneCandidate,
 )
 
@@ -981,6 +983,28 @@ class CandidateDetail(HorillaDetailedView):
 
 
 @method_decorator(login_required, name="dispatch")
+class TalentPoolDynamicCreateFormView(HorillaFormView):
+    """
+    Sub-form used by ToSkillZoneFormView's "Talent Pools" field to create a
+    new SkillZone (Talent Pool) inline, without leaving the "Add to Talent
+    Pool" modal.
+    """
+
+    model = SkillZone
+    form_class = SkillZoneCreateForm
+    new_display_title = _("Create Talent Pool")
+    is_dynamic_create_view = True
+
+    def form_valid(self, form: SkillZoneCreateForm) -> HttpResponse:
+        if form.is_valid():
+            message = _("Talent Pool created successfully")
+            form.save()
+            messages.success(self.request, _(message))
+            return self.HttpResponse()
+        return super().form_valid(form)
+
+
+@method_decorator(login_required, name="dispatch")
 @method_decorator(hx_request_required, name="dispatch")
 @method_decorator(
     all_manager_can_enter(perm="recruitment.change_candidate"), name="dispatch"
@@ -993,29 +1017,25 @@ class ToSkillZoneFormView(HorillaFormView):
     model = SkillZoneCandidate
     form_class = ToSkillZoneForm
     new_display_title = _("Add to Talent Pool")
+    dynamic_create_fields = [("skill_zone_ids", TalentPoolDynamicCreateFormView)]
 
     def dispatch(self, request, *args, **kwargs):
         if not Candidate.objects.filter(id=kwargs.get("cand_id")).exists():
             return HttpResponse()
         return super().dispatch(request, *args, **kwargs)
 
-    def get_context_data(self, **kwargs):
+    def get_initial(self) -> dict:
         """
-        Returns context with form and candidate data.
+        Pre-selects the talent pools this candidate is already part of.
         """
-        context = super().get_context_data(**kwargs)
+        initial = super().get_initial()
         candidate_id = self.kwargs.get("cand_id")
-        candidate = Candidate.objects.get(id=candidate_id)
-        form = self.form_class(
-            initial={
-                "candidate_id": candidate,
-                "skill_zone_ids": SkillZoneCandidate.objects.filter(
-                    candidate_id=candidate
-                ).values_list("skill_zone_id", flat=True),
-            }
-        )
-        context["form"] = form
-        return context
+        candidate = Candidate.objects.filter(id=candidate_id).first()
+        initial["candidate_id"] = candidate
+        initial["skill_zone_ids"] = SkillZoneCandidate.objects.filter(
+            candidate_id=candidate
+        ).values_list("skill_zone_id", flat=True)
+        return initial
 
     def form_invalid(self, form: Any) -> HttpResponse:
         """
