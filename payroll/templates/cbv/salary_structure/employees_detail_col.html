@@ -53,7 +53,7 @@ ended is not here, however they were assigned.
   a.ss-emp__link:hover { color: var(--primary-600, #e54f38); text-decoration: underline; }
   .ss-emp__badge {
     font-family: ui-monospace, Menlo, Consolas, monospace;
-    font-size: 11.5px; color: #9ca3af;
+    font-size: 11.5px; color: #9ca3af; line-height: 1.3;
   }
   /* The contract opens as a form over this modal rather than as a page.
      contract_update already renders a modal-ready fragment for an HTMX
@@ -219,10 +219,11 @@ ended is not here, however they were assigned.
                    data-toggle="oh-modal-toggle"
                    data-target="#relatedObjectModal"
                    onclick="event.stopPropagation()"
-                   title="{% trans 'Edit this contract' %}">{{ row.employee }}</a>
+                   title="{% trans 'Edit this contract' %}">{{ row.employee.get_full_name }}</a>
               {% else %}
-                <span class="ss-emp__name">{{ row.employee }}</span>
+                <span class="ss-emp__name">{{ row.employee.get_full_name }}</span>
               {% endif %}
+              {% if row.employee.badge_id %}<div class="ss-emp__badge">{{ row.employee.badge_id }}</div>{% endif %}
             </td>
             {% if instance.structure_mode == "ctc_down" %}
               <td class="ss-emp__amount">

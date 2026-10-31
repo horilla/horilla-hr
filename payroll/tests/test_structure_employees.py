@@ -313,7 +313,7 @@ class EmployeesTabLoadsOnDemandTests(TestCase):
         self.assertEqual(response.status_code, 200)
         body = response.content.decode()
         self.assertIn("ss-emp__table", body)
-        self.assertIn(str(self.employee), body)
+        self.assertIn(self.employee.get_full_name(), body)
 
     def test_the_endpoint_is_htmx_only(self):
         from django.urls import reverse
