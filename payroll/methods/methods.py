@@ -246,6 +246,7 @@ def hourly_computation(employee, wage, start_date, end_date):
             "ot_week_off_seconds": 0,
             "ot_holiday_seconds": 0,
         }
+    from attendance.methods.utils import real_overtime_seconds
     from attendance.models import AttendanceConflictResolution
 
     attendance_data = get_attendance(employee, start_date, end_date)
@@ -273,8 +274,13 @@ def hourly_computation(employee, wage, start_date, end_date):
     for attendance in attendances_on_period:
         att_date = attendance.attendance_date
         if att_date in working_day_dates or att_date in regularized_dates:
-            regular_seconds += attendance.at_work_second - attendance.overtime_second
-            ot_regular_seconds += attendance.overtime_second
+            day_ot = real_overtime_seconds(
+                attendance.at_work_second,
+                attendance.minimum_hour,
+                attendance.overtime_second,
+            )
+            regular_seconds += attendance.at_work_second - day_ot
+            ot_regular_seconds += day_ot
         elif att_date in holiday_dates:
             ot_holiday_seconds += attendance.at_work_second
         else:

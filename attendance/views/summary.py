@@ -43,6 +43,7 @@ from attendance.methods.leave_days import (  # noqa: F401  (re-exported: the wee
     excluded_dates,
     exclusion_sets,
 )
+from attendance.methods.utils import real_overtime_seconds
 from attendance.models import (
     Attendance,
     AttendanceDailyHours,
@@ -761,7 +762,9 @@ def build_monthly_summary(from_date, to_date, employee_qs):
             att_shift_ids.add(_r["shift_id_id"])
         att_date_value_map[_pk][_date] = _val
         att_date_secs_map[_pk][_date] = _worked
-        att_date_ot_secs_map[_pk][_date] = _r["overtime_second"] or 0
+        att_date_ot_secs_map[_pk][_date] = real_overtime_seconds(
+            _worked, _r["minimum_hour"], _r["overtime_second"]
+        )
         if _r["attendance_overtime_approve"]:
             att_ot_approved_map[_pk].add(_date)
 
@@ -2745,7 +2748,7 @@ def _build_calendar_context(emp, from_date, to_date, show_future_leave=False):
         _day_ot = (
             _wsec
             if ((_d in holiday_map or _d in week_off_dates) and not _regularized)
-            else (_r["overtime_second"] or 0)
+            else real_overtime_seconds(_wsec, _r["minimum_hour"], _r["overtime_second"])
         )
         # Only overtime that is approved, or on a day HR regularized, is counted.
         if not ot_counts(_r["attendance_overtime_approve"], resolutions_map.get(_d)):
@@ -2945,14 +2948,22 @@ def _build_calendar_context(emp, from_date, to_date, show_future_leave=False):
                 return (
                     "split",
                     detail,
-                    ("regular_ot" if r.get("overtime_second") else None),
+                    (
+                        "regular_ot"
+                        if real_overtime_seconds(
+                            worked, r.get("minimum_hour"), r.get("overtime_second")
+                        )
+                        else None
+                    ),
                     None,
                     False,
                 )
 
             # Overtime worked on a normal scheduled working day (not a
             # holiday/week-off — those get the HO/WO badge above instead).
-            if r.get("overtime_second"):
+            if real_overtime_seconds(
+                worked, r.get("minimum_hour"), r.get("overtime_second")
+            ):
                 return att_status, detail, "regular_ot", None, False
 
             return att_status, detail, None, None, False

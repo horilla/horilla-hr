@@ -1159,6 +1159,7 @@ def _classify_approved_overtime_seconds(employee, start_date, end_date):
     if not apps.is_installed("attendance"):
         return 0, 0, 0
 
+    from attendance.methods.utils import real_overtime_seconds
     from attendance.models import AttendanceConflictResolution
     from base.methods import get_holiday_dates, get_working_days
 
@@ -1191,7 +1192,11 @@ def _classify_approved_overtime_seconds(employee, start_date, end_date):
     for attendance in attendances:
         att_date = attendance.attendance_date
         if att_date in working_day_dates or att_date in regularized_dates:
-            regular_ot += attendance.overtime_second or 0
+            regular_ot += real_overtime_seconds(
+                attendance.at_work_second,
+                attendance.minimum_hour,
+                attendance.overtime_second,
+            )
         elif att_date in holiday_dates:
             holiday_ot += attendance.at_work_second or 0
         else:
