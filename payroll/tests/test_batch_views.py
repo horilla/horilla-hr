@@ -89,38 +89,216 @@ class ListTests(Fixture):
         )
         self.assertContains(response, reverse("payroll-batch-scope"))
 
-    def test_the_figures_come_from_the_runs(self):
-        batch = PayrollBatch.objects.create(
+
+class BatchWithPayslips:
+    """Builds a batch and payslips inside it."""
+
+    def _batch(self, **kwargs):
+        defaults = dict(
             batch_name="March",
             period_start=date(2026, 3, 1),
             period_end=date(2026, 3, 31),
-            generated_count=7,
-            total_net=1234.0,
-            flagged_count=2,
         )
-        # "People" counts the run's payslips for active employees, as the
-        # run's own page shows them -- not the stored generated_count.
+        defaults.update(kwargs)
+        return PayrollBatch.objects.create(**defaults)
+
+    def _slip(self, batch, person, gross=100.0, net=80.0):
+        return Payslip.objects.create(
+            employee_id=person,
+            start_date=date(2026, 3, 1),
+            end_date=date(2026, 3, 31),
+            status="draft",
+            basic_pay=1,
+            contract_wage=1,
+            gross_pay=gross,
+            deduction=gross - net,
+            net_pay=net,
+            pay_head_data={},
+            payroll_batch=batch,
+        )
+
+
+class SummaryFollowsPayslipsTests(BatchWithPayslips, Fixture):
+    """A batch's figures are read off the payslips inside it, whatever was stored before."""
+
+    def test_refreshing_counts_only_the_active_employees_payslips(self):
+        batch = self._batch()
+        self._slip(batch, self.people[0])
+        self._slip(batch, self.people[1], gross=300.0, net=250.0)
         left = self.people[1]
         left.is_active = False
         left.save()
-        for person in self.people:
-            Payslip.objects.create(
-                employee_id=person,
-                start_date=date(2026, 3, 1),
-                end_date=date(2026, 3, 31),
-                status="draft",
-                basic_pay=1,
-                contract_wage=1,
-                gross_pay=1,
-                deduction=0,
-                net_pay=1,
-                pay_head_data={},
-                payroll_batch=batch,
+        batch.refresh_totals()
+        batch.refresh_from_db()
+        self.assertEqual(
+            (batch.generated_count, batch.total_gross, batch.total_net),
+            (1, 100.0, 80.0),
+        )
+
+    def test_deleting_a_payslip_takes_it_out_of_the_summary(self):
+        batch = self._batch()
+        slip = self._slip(batch, self.people[0])
+        self._slip(batch, self.people[1], gross=300.0, net=250.0)
+        batch.refresh_totals()
+        slip.delete()
+        batch.refresh_from_db()
+        self.assertEqual((batch.generated_count, batch.total_gross), (1, 300.0))
+
+    def test_editing_a_payslip_changes_the_summary(self):
+        batch = self._batch()
+        slip = self._slip(batch, self.people[0])
+        batch.refresh_totals()
+        slip.gross_pay, slip.net_pay = 500.0, 400.0
+        slip.save()
+        batch.refresh_from_db()
+        self.assertEqual((batch.total_gross, batch.total_net), (500.0, 400.0))
+
+    def test_a_stale_open_batch_is_put_right_when_it_is_opened(self):
+        batch = self._batch(
+            generated_count=7,
+            total_gross=31976.0,
+            total_deductions=1344.0,
+            total_net=30632.0,
+        )
+        response = self.client.get(reverse("payroll-batch-detail", args=[batch.pk]))
+        batch.refresh_from_db()
+        self.assertEqual(
+            (batch.generated_count, batch.total_gross, batch.total_net), (0, 0, 0)
+        )
+        self.assertEqual(response.context["batch"].total_gross, 0)
+
+    def test_a_stale_open_batch_is_put_right_when_the_list_is_drawn(self):
+        batch = self._batch(generated_count=7, total_gross=31976.0, total_net=30632.0)
+        self.client.get(reverse("payroll-batch-list"), HTTP_HX_REQUEST="true")
+        batch.refresh_from_db()
+        self.assertEqual((batch.generated_count, batch.total_gross), (0, 0))
+
+    def test_a_paid_batch_follows_its_payslips_too(self):
+        batch = self._batch(
+            status=PayrollBatch.PAID,
+            generated_count=5,
+            total_gross=500.0,
+            total_net=400.0,
+        )
+        self._slip(batch, self.people[0])
+        self.client.get(reverse("payroll-batch-list"), HTTP_HX_REQUEST="true")
+        batch.refresh_from_db()
+        self.assertEqual(
+            (batch.generated_count, batch.total_gross, batch.total_net),
+            (1, 100.0, 80.0),
+        )
+
+
+class PayslipStatusLockTests(BatchWithPayslips, Fixture):
+    """Payslips in an approved or paid batch change status only with the batch."""
+
+    def _locked_slip(self, status):
+        batch = self._batch(status=status)
+        return batch, self._slip(batch, self.people[0])
+
+    def test_a_payslip_in_an_approved_or_paid_batch_cannot_be_changed_alone(self):
+        for status in (PayrollBatch.APPROVED, PayrollBatch.PAID):
+            batch, slip = self._locked_slip(status)
+            self.client.post(
+                reverse("payslip-status-update", args=[slip.pk]),
+                {"status": "review_ongoing"},
             )
+            slip.refresh_from_db()
+            self.assertEqual(slip.status, "draft", status)
+
+    def test_a_payslip_in_an_open_batch_still_changes(self):
+        for status in (PayrollBatch.DRAFT, PayrollBatch.REVIEW):
+            batch, slip = self._locked_slip(status)
+            self.client.post(
+                reverse("payslip-status-update", args=[slip.pk]),
+                {"status": "review_ongoing"},
+            )
+            slip.refresh_from_db()
+            self.assertEqual(slip.status, "review_ongoing", status)
+
+    def test_a_payslip_outside_any_batch_still_changes(self):
+        slip = self._slip(None, self.people[0])
+        self.client.post(
+            reverse("payslip-status-update", args=[slip.pk]), {"status": "confirmed"}
+        )
+        slip.refresh_from_db()
+        self.assertEqual(slip.status, "confirmed")
+
+    def test_the_bulk_change_skips_the_locked_ones_and_says_so(self):
+        import json
+
+        _, locked = self._locked_slip(PayrollBatch.PAID)
+        free = self._slip(self._batch(batch_name="Open"), self.people[1])
+        response = self.client.post(
+            reverse("payslip-status-update-no-id"),
+            {"ids": json.dumps([locked.pk, free.pk]), "status": "confirmed"},
+            HTTP_HX_REQUEST="true",
+        )
+        locked.refresh_from_db()
+        free.refresh_from_db()
+        self.assertEqual((locked.status, free.status), ("draft", "confirmed"))
+        self.assertIn("left as they are", response.json()["message"])
+
+    def test_the_batch_still_moves_its_payslips(self):
+        batch, slip = self._locked_slip(PayrollBatch.REVIEW)
+        batch.refresh_totals()
+        self.client.post(
+            reverse("payroll-batch-set-status", args=[batch.pk]), {"status": "approved"}
+        )
+        slip.refresh_from_db()
+        self.assertEqual(slip.status, "confirmed")
+
+    def test_the_status_cell_is_plain_text_when_locked(self):
+        _, slip = self._locked_slip(PayrollBatch.APPROVED)
+        html = self.client.get(
+            reverse("payslip-list"), HTTP_HX_REQUEST="true"
+        ).content.decode()
+        self.assertNotIn(f'data-instance-id="{slip.pk}"', html)
+
+
+class CombinedPageTests(Fixture):
+    """Payslips and batches are two tabs of one page."""
+
+    def test_the_old_batches_page_opens_the_batches_tab(self):
         response = self.client.get(reverse("payroll-batch-home"))
-        self.assertEqual(response.context["kpi"]["employees"], 1)
-        self.assertEqual(response.context["kpi"]["flagged"], 2)
-        self.assertEqual(response.context["kpi"]["unpaid"], 1)
+        self.assertRedirects(
+            response,
+            f"{reverse('view-payslip')}?open_tab=2",
+            fetch_redirect_response=False,
+        )
+
+    def test_the_tabs_are_payslips_then_batches_with_counts(self):
+        response = self.client.get(
+            reverse("payslip-batch-tabs"), HTTP_HX_REQUEST="true"
+        )
+        tabs = response.context["tabs"]
+        self.assertEqual([str(tab["title"]) for tab in tabs], ["Payslips", "Batches"])
+        self.assertTrue(all("badge" in tab for tab in tabs))
+
+    def test_each_tab_loads_its_own_nav_and_list_container(self):
+        payslips = self.client.get(
+            reverse("payslip-tab-shell"), HTTP_HX_REQUEST="true"
+        ).content.decode()
+        batches = self.client.get(
+            reverse("payroll-batch-tab-shell"), HTTP_HX_REQUEST="true"
+        ).content.decode()
+        self.assertIn('id="listContainer"', payslips)
+        self.assertIn(reverse("payslip-navbar"), payslips)
+        self.assertIn('id="batchListContainer"', batches)
+        self.assertIn(reverse("payroll-batch-navbar"), batches)
+
+    def test_the_menu_has_one_entry_for_both(self):
+        from payroll.sidebar import SUBMENUS
+
+        names = [str(item["menu"]) for item in SUBMENUS]
+        self.assertIn("Payslips", names)
+        self.assertNotIn("Payroll Batches", names)
+
+    def test_the_batch_search_swaps_the_batch_list(self):
+        html = self.client.get(
+            reverse("payroll-batch-navbar"), HTTP_HX_REQUEST="true"
+        ).content.decode()
+        self.assertIn("#batchListContainer", html)
 
 
 class ScopeTests(Fixture):

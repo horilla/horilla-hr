@@ -199,3 +199,16 @@ def create_installments(sender, instance, created, **kwargs):
 def forget_remembered_payroll_settings(sender, **kwargs):
     """A currency change shows at once, even later in the same request."""
     PayrollSettings.forget_remembered()
+
+
+@receiver(post_delete, sender=Payslip)
+@receiver(post_save, sender=Payslip)
+def keep_batch_summary_current(sender, instance, created=False, **kwargs):
+    """A batch's summary follows the payslips inside it: edited or deleted ones change it."""
+    if kwargs.get("raw") or created or not instance.payroll_batch_id:
+        return
+    from payroll.models.payroll_batch import PayrollBatch
+
+    batch = PayrollBatch._base_manager.filter(pk=instance.payroll_batch_id).first()
+    if batch is not None:
+        batch.refresh_totals()
