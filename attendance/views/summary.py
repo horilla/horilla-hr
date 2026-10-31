@@ -138,6 +138,11 @@ def regularizes(resolution):
     )
 
 
+def ot_counts(approved, resolution):
+    """Is the overtime of a day counted: approved, or HR approved or regularized the day?"""
+    return bool(approved) or resolution == "approve_ot" or regularizes(resolution)
+
+
 def leave_day_fractions(leave, from_date, to_date, skip=()):
     """{date: (fraction, lead)} for one leave request, from its start/end breakdown.
 
@@ -706,6 +711,7 @@ def build_monthly_summary(from_date, to_date, employee_qs):
         "employee_id_id",
         "at_work_second",
         "overtime_second",
+        "attendance_overtime_approve",
         "minimum_hour",
         "attendance_date",
         "attendance_clock_in",
@@ -727,6 +733,7 @@ def build_monthly_summary(from_date, to_date, employee_qs):
     # "00:00" on days with no shift schedule (holiday/company leave) — so
     # unscheduled days are entirely overtime.
     att_date_ot_secs_map = defaultdict(dict)
+    att_ot_approved_map = defaultdict(set)  # {emp_pk: dates whose overtime is approved}
     for _r in att_records:
         _pk = _r["employee_id_id"]
         _date = _r["attendance_date"]
@@ -755,6 +762,8 @@ def build_monthly_summary(from_date, to_date, employee_qs):
         att_date_value_map[_pk][_date] = _val
         att_date_secs_map[_pk][_date] = _worked
         att_date_ot_secs_map[_pk][_date] = _r["overtime_second"] or 0
+        if _r["attendance_overtime_approve"]:
+            att_ot_approved_map[_pk].add(_date)
 
     # -- 2b. Batch-load shift schedules for hours computation -----------------
     from base.models import EmployeeShiftSchedule
@@ -1169,22 +1178,32 @@ def build_monthly_summary(from_date, to_date, employee_qs):
         #   - ot_holiday:  any attendance on a holiday (entirely OT)
         _emp_ot_secs = att_date_ot_secs_map.get(emp.pk, {})
         ot_regular_seconds = ot_week_off_seconds = ot_holiday_seconds = 0
+        ot_pending_seconds = 0
+        _emp_ot_ok = att_ot_approved_map.get(emp.pk, set())
         for _d, _wsec in _att_secs.items():
             # HR has explicitly regularized this day away from its holiday/
             # week-off classification (Full Present / Half Day) — treat the
             # hours like a normal working day (regular + capped OT) instead
             # of counting them entirely as holiday/week-off overtime.
             _regularized = regularizes(_resolutions.get(_d))
-            if _d in holiday_dates_set and not _regularized:
-                ot_holiday_seconds += _wsec
+            _day_ot = (
+                _wsec
+                if ((_d in holiday_dates_set or _d in _emp_off) and not _regularized)
+                else _emp_ot_secs.get(_d, 0)
+            )
+            # Only overtime that is approved, or on a day HR regularized, is counted.
+            if not ot_counts(_d in _emp_ot_ok, _resolutions.get(_d)):
+                ot_pending_seconds += _day_ot
+            elif _d in holiday_dates_set and not _regularized:
+                ot_holiday_seconds += _day_ot
             elif _d in _emp_off and not _regularized:
-                ot_week_off_seconds += _wsec
+                ot_week_off_seconds += _day_ot
             else:
-                ot_regular_seconds += _emp_ot_secs.get(_d, 0)
+                ot_regular_seconds += _day_ot
 
         worked_seconds = sum(_att_secs.values())
         overtime_seconds = ot_regular_seconds + ot_week_off_seconds + ot_holiday_seconds
-        regular_seconds = worked_seconds - overtime_seconds
+        regular_seconds = worked_seconds - overtime_seconds - ot_pending_seconds
 
         rows.append(
             {
@@ -1225,6 +1244,8 @@ def build_monthly_summary(from_date, to_date, employee_qs):
                 "worked_seconds": worked_seconds,
                 "regular_seconds": regular_seconds,
                 "overtime_seconds": overtime_seconds,
+                "ot_pending_seconds": ot_pending_seconds,
+                "ot_pending_label": _secs_to_label(ot_pending_seconds),
                 "worked_label": _secs_to_label(worked_seconds),
                 "regular_label": _secs_to_label(regular_seconds),
                 "overtime_label": _secs_to_label(overtime_seconds),
@@ -2716,20 +2737,31 @@ def _build_calendar_context(emp, from_date, to_date, show_future_leave=False):
     # is treated as a normal working day instead.
     cal_worked_seconds = 0
     cal_ot_regular_seconds = cal_ot_week_off_seconds = cal_ot_holiday_seconds = 0
+    cal_ot_pending_seconds = 0
     for _d, _r in att_map.items():
         _wsec = _r["at_work_second"] or 0
         cal_worked_seconds += _wsec
         _regularized = regularizes(resolutions_map.get(_d))
-        if _d in holiday_map and not _regularized:
-            cal_ot_holiday_seconds += _wsec
+        _day_ot = (
+            _wsec
+            if ((_d in holiday_map or _d in week_off_dates) and not _regularized)
+            else (_r["overtime_second"] or 0)
+        )
+        # Only overtime that is approved, or on a day HR regularized, is counted.
+        if not ot_counts(_r["attendance_overtime_approve"], resolutions_map.get(_d)):
+            cal_ot_pending_seconds += _day_ot
+        elif _d in holiday_map and not _regularized:
+            cal_ot_holiday_seconds += _day_ot
         elif _d in week_off_dates and not _regularized:
-            cal_ot_week_off_seconds += _wsec
+            cal_ot_week_off_seconds += _day_ot
         else:
-            cal_ot_regular_seconds += _r["overtime_second"] or 0
+            cal_ot_regular_seconds += _day_ot
     cal_overtime_seconds = (
         cal_ot_regular_seconds + cal_ot_week_off_seconds + cal_ot_holiday_seconds
     )
-    cal_regular_seconds = cal_worked_seconds - cal_overtime_seconds
+    cal_regular_seconds = (
+        cal_worked_seconds - cal_overtime_seconds - cal_ot_pending_seconds
+    )
 
     # -- Shift schedule for this employee (for regularized-day hours) ---------
     from base.models import EmployeeShiftSchedule as _ESS
@@ -3058,6 +3090,15 @@ def _build_calendar_context(emp, from_date, to_date, show_future_leave=False):
                                 "is_conflict": is_conflict,
                                 "future_part": future_part.get(d),
                                 "conflict_reason": clash_reason.get(d, ""),
+                                "ot_pending": bool(
+                                    conflict_with
+                                    in ("holiday_ot", "week_off_ot", "regular_ot")
+                                    and d in att_map
+                                    and not ot_counts(
+                                        att_map[d]["attendance_overtime_approve"],
+                                        resolutions_map.get(d),
+                                    )
+                                ),
                                 "hours_second": _cell_sec,
                                 "hours_label": _hlabel,
                                 "show_hours": _show_hours,
@@ -3102,6 +3143,8 @@ def _build_calendar_context(emp, from_date, to_date, show_future_leave=False):
         "worked_label": _secs_to_label(cal_worked_seconds),
         "regular_label": _secs_to_label(cal_regular_seconds),
         "overtime_label": _secs_to_label(cal_overtime_seconds),
+        "ot_pending_seconds": cal_ot_pending_seconds,
+        "ot_pending_label": _secs_to_label(cal_ot_pending_seconds),
         "ot_regular_seconds": cal_ot_regular_seconds,
         "ot_week_off_seconds": cal_ot_week_off_seconds,
         "ot_holiday_seconds": cal_ot_holiday_seconds,

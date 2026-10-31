@@ -199,6 +199,7 @@
 }
 .cal-ot-badge.wo  { background: #be185d; }
 .cal-ot-badge.reg { background: #b45309; }
+.cal-ot-badge.pending { opacity: .45; }
 
 .cal-cell .cal-day-num {
   font-size: .75rem;
@@ -419,6 +420,7 @@
       {% if cal_summary.ot_regular_seconds %}<span>R {{ cal_summary.ot_regular_label }}</span>{% endif %}
       {% if cal_summary.ot_week_off_seconds %}<span>{% if cal_summary.ot_regular_seconds %} &#183; {% endif %}WO {{ cal_summary.ot_week_off_label }}</span>{% endif %}
       {% if cal_summary.ot_holiday_seconds %}<span>{% if cal_summary.ot_regular_seconds or cal_summary.ot_week_off_seconds %} &#183; {% endif %}HO {{ cal_summary.ot_holiday_label }}</span>{% endif %}
+      {% if cal_summary.ot_pending_seconds %}<span>{% if cal_summary.ot_regular_seconds or cal_summary.ot_week_off_seconds or cal_summary.ot_holiday_seconds %} &#183; {% endif %}{% trans "Pending Approval" %} {{ cal_summary.ot_pending_label }}</span>{% endif %}
     </div>
   </div>
 </div>
@@ -457,11 +459,11 @@
             {% if cell.conflict_with == "paid_leave" or cell.conflict_with == "unpaid_leave" %}
               <div class="cal-conflict-dot" title="{% trans 'Leave conflict — click to regularize' %}"></div>
             {% elif cell.conflict_with == "holiday_ot" %}
-              <div class="cal-ot-badge" title="{% trans 'Holiday Overtime' %}">HO</div>
+              <div class="cal-ot-badge{% if cell.ot_pending %} pending{% endif %}" title="{% if cell.ot_pending %}{% trans 'Holiday Overtime, Pending Approval' %}{% else %}{% trans 'Holiday Overtime' %}{% endif %}">HO</div>
             {% elif cell.conflict_with == "week_off_ot" %}
-              <div class="cal-ot-badge wo" title="{% trans 'Week Off Overtime' %}">WO</div>
+              <div class="cal-ot-badge wo{% if cell.ot_pending %} pending{% endif %}" title="{% if cell.ot_pending %}{% trans 'Week Off Overtime, Pending Approval' %}{% else %}{% trans 'Week Off Overtime' %}{% endif %}">WO</div>
             {% elif cell.conflict_with == "regular_ot" %}
-              <div class="cal-ot-badge reg" title="{% trans 'Overtime' %}">OT</div>
+              <div class="cal-ot-badge reg{% if cell.ot_pending %} pending{% endif %}" title="{% if cell.ot_pending %}{% trans 'Overtime, Pending Approval' %}{% else %}{% trans 'Overtime' %}{% endif %}">OT</div>
             {% elif cell.resolution %}
               <div class="cal-resolved-dot" title="{% trans 'Resolved — click to undo or change' %}"></div>
             {% endif %}
