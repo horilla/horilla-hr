@@ -13,7 +13,7 @@ from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import gettext_noop
 
-from base.methods import has_export_access
+from base.methods import eval_validate, has_export_access
 from employee import views as employee_view
 from employee.cbv.employee_profile import EmployeeProfileView
 from horilla.http.response import HorillaRedirect
@@ -74,6 +74,29 @@ class PayslipList(HorillaListView):
     ]
     bulk_update_required_fields = ["status"]
 
+    def handle_bulk_submission(self, request):
+        """Bulk status changes skip payslips whose batch is approved or paid; the batch moves those."""
+        from payroll.models.payroll_batch import PayrollBatch
+
+        ids = eval_validate(request.POST.get("instance_ids", "[]"))
+        locked = set(
+            Payslip.objects.filter(
+                id__in=ids, payroll_batch__status__in=PayrollBatch.PAYSLIP_STATUS_LOCKED
+            ).values_list("id", flat=True)
+        )
+        if locked:
+            post = request.POST.copy()
+            post["instance_ids"] = json.dumps([i for i in ids if i not in locked])
+            request.POST = post
+            messages.warning(
+                request,
+                _(
+                    "%(count)s payslips were left as they are: their batch is approved or paid."
+                )
+                % {"count": len(locked)},
+            )
+        return super().handle_bulk_submission(request)
+
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.search_url = reverse("payslip-list")
@@ -83,7 +106,7 @@ class PayslipList(HorillaListView):
         """
         Return the queryset of Payslip objects based on user permissions.
         """
-        queryset = super().get_queryset()
+        queryset = super().get_queryset().select_related("payroll_batch")
         if not self.request.user.has_perm("payroll.view_payslip"):
             queryset = queryset.filter(employee_id__employee_user_id=self.request.user)
         return queryset
@@ -352,7 +375,7 @@ class PayslipRunList(PayslipList):
     def get_queryset(self, queryset=None, *args, **kwargs):
         if self.queryset:
             return self.queryset
-        base = self.model.objects.all().filter(
+        base = self.model.objects.select_related("payroll_batch").filter(
             payroll_batch_id=self.request.resolver_match.kwargs["batch_id"]
         )
         if not self.request.user.has_perm("payroll.view_payslip"):
