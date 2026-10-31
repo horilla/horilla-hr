@@ -17,6 +17,15 @@
         #ticketComment + .note-editor .note-editable {
             border-radius: 12px;
         }
+
+        /* Dark Mode Overrides for Rich Text Editor */
+        body.dark #ticketComment + .note-editor .note-editable {
+            background-color: #242424;
+            color: #e5e7eb;
+        }
+        body.dark #ticketComment + .note-editor.note-frame {
+            background-color: #1b1b1b;
+        }
     </style>
     <button
         class="reload-record"
@@ -83,7 +92,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="bg-[#f7f7f7] p-3 rounded-md mb-3">
+                    <div class="bg-primary-50 p-3 rounded-md mb-3">
                         <div class="flex justify-between items-center text-sm mb-3">
                             <span class="font-medium text-xs">{% trans "Ticket ID" %}</span>
                             <span
@@ -200,7 +209,7 @@
                             {{ remaining }}
                         </p>
                     </div>
-                    <div class="bg-[#f7f7f7] p-3 rounded-md mb-3">
+                    <div class="bg-primary-50 p-3 rounded-md mb-3">
                         <div class="flex justify-between items-center text-sm mb-3">
                             {% if perms.helpdesk.change_ticket or request.user.employee_get == ticket.employee_id %}
                                 <p>{% trans "Forwarded to" %}</p>
@@ -262,7 +271,7 @@
                                                 <img
                                                     src="{{employee.get_avatar}}"
                                                     alt=""
-                                                    class="w-6 h-6 rounded-full"
+                                                    class="w-6 h-6 rounded-full object-cover"
                                                 >
                                             </a>
                                         </span>
@@ -389,13 +398,14 @@
                     {% endif %}
                 </div>
                 <div class="h-[80%] lg:h-[calc(100%_-_55px)]">
-                    <div class="bg-[#fff6e8] p-3 rounded-md border border-[#ffe2b6] mb-5">
+                    <div class="bg-primary-50 p-3 rounded-md border border-primary-200 mb-5">
                         <div class="flex items-center justify-between mb-3">
                             <div class="flex gap-3 items-center font-semibold text-sm">
                                 <img
                                     src="{{ticket.employee_id.get_avatar}}"
                                     alt=""
                                     width="30"
+                                    class="w-8 h-8 rounded-full object-cover"
                                 ><span>{{ ticket.employee_id }}</span>
                             </div>
                             <p class="text-sm text-[#ff8c00] font-semibold">
@@ -410,14 +420,14 @@
                         {% for item in sorted_activity_list %}
                             {% if item.type == 'comment' %}
                                 <div class="w-full flex mb-3 {% if item.comment.employee_id == ticket.employee_id %}justify-end {% else %}justify-start {% endif %}">
-                                    <div class="bg-[#d944bb1a] p-5 rounded-2xl max-w-[90%] md:w-[60%] mb-3 md:mb-1">
+                                    <div class="bg-primary-50 p-5 rounded-2xl max-w-[90%] md:w-[60%] mb-3 md:mb-1">
                                         <div class="flex flex-wrap items-center justify-between mb-3">
                                             <div class="flex gap-3 items-center font-semibold text-sm">
                                                 <img
                                                     src="{{item.comment.employee_id.get_avatar}}"
                                                     alt="{{item.comment.employee_id}}"
                                                     width="30"
-                                                    class="rounded-full"
+                                                    class="w-8 h-8 rounded-full object-cover"
                                                 ><span>{{ item.comment.employee_id.get_full_name }}</span>
                                             </div>
                                             <p class="text-sm font-semibold">
@@ -471,7 +481,7 @@
                                                             hx-target="#viewFile"
                                                             hx-get="{% url 'view-ticket-document' attachment.id %}"
                                                         >
-                                                            <div class="oh-helpdesk__icon bg-[#d944bb1a]">
+                                                            <div class="oh-helpdesk__icon bg-primary-50">
                                                                 <span
                                                                     class="
                                                                         oh-file-icon
@@ -577,7 +587,7 @@
 
                                     <!-- Textarea -->
                                     <textarea
-                                        class="w-full p-3 rounded-full text-sm bg-[#f1f1f1] placeholder:text-xs focus:outline-none resize-none"
+                                        class="w-full p-3 rounded-full text-sm bg-primary-50 placeholder:text-xs focus:outline-none resize-none"
                                         placeholder="{% trans 'Write your message here...' %}"
                                         name="comment"
                                         id="ticketComment"
