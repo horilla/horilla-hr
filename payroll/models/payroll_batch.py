@@ -426,6 +426,9 @@ class PayrollBatch(HorillaModel):
         CANCELLED: set(),
     }
 
+    # While a batch is approved or paid its payslips take their status from the batch alone.
+    PAYSLIP_STATUS_LOCKED = (APPROVED, PAID)
+
     PENDING = "pending"
     RUNNING = "running"
     DONE = "done"
@@ -596,37 +599,57 @@ class PayrollBatch(HorillaModel):
             self.get_status_display(),
         )
 
+    @classmethod
+    def refresh_stale(cls):
+        """Put right every batch whose stored summary no longer matches the payslips inside it."""
+        from django.db.models import Count, Q, Sum
+
+        live = Q(payslips__employee_id__is_active=True)
+        rows = cls._base_manager.annotate(
+            live_count=Count("payslips", filter=live),
+            live_gross=Sum("payslips__gross_pay", filter=live),
+            live_deduction=Sum("payslips__deduction", filter=live),
+            live_net=Sum("payslips__net_pay", filter=live),
+        )
+        for batch in rows:
+            same = (
+                batch.generated_count == batch.live_count
+                and abs(batch.total_gross - (batch.live_gross or 0)) < 0.005
+                and abs(batch.total_deductions - (batch.live_deduction or 0)) < 0.005
+                and abs(batch.total_net - (batch.live_net or 0)) < 0.005
+            )
+            if not same:
+                batch.refresh_totals()
+
     def refresh_totals(self):
         """
-        Recompute the counters from the payslips actually attached.
+        Recompute the counters from the payslips actually inside the batch.
 
-        Called at the end of a run rather than incremented as it goes: a
-        resumed or retried run would otherwise double-count.
+        Counted for active employees only, as the batch shows them. Called at the end of a run
+        rather than incremented as it goes (a resumed run would double-count), and again
+        whenever a payslip of the batch is edited or deleted, so the summary never outlives them.
         """
         from django.db.models import Count, Sum
 
-        figures = self.payslips.aggregate(
+        active = self.payslips.filter(employee_id__is_active=True)
+        figures = active.aggregate(
             count=Count("id"),
             gross=Sum("gross_pay"),
             deduction=Sum("deduction"),
             net=Sum("net_pay"),
         )
-        self.generated_count = figures["count"] or 0
-        self.total_gross = figures["gross"] or 0
-        self.total_deductions = figures["deduction"] or 0
-        self.total_net = figures["net"] or 0
-        self.flagged_count = self.payslips.filter(net_pay__lte=0).count()
-        self.failed_count = self.lines.filter(status=PayrollBatchLine.FAILED).count()
-        self.save(
-            update_fields=[
-                "generated_count",
-                "total_gross",
-                "total_deductions",
-                "total_net",
-                "flagged_count",
-                "failed_count",
-            ]
-        )
+        values = {
+            "generated_count": figures["count"] or 0,
+            "total_gross": figures["gross"] or 0,
+            "total_deductions": figures["deduction"] or 0,
+            "total_net": figures["net"] or 0,
+            "flagged_count": active.filter(net_pay__lte=0).count(),
+            "failed_count": self.lines.filter(status=PayrollBatchLine.FAILED).count(),
+        }
+        for name, value in values.items():
+            setattr(self, name, value)
+        # An update, not a save: the batch may be on its way out when its last payslip goes.
+        type(self)._base_manager.filter(pk=self.pk).update(**values)
 
 
 class PayrollBatchLine(HorillaModel):

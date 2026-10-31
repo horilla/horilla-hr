@@ -263,6 +263,15 @@ def shift_schedule_today(day, shift):
     return (minimum_hour, start_time_sec, end_time_sec)
 
 
+def real_overtime_seconds(worked, minimum_hour, overtime_second):
+    """The stored overtime, held to what was really worked beyond the minimum hours."""
+    stored = overtime_second or 0
+    if not stored:
+        return 0
+    minimum = strtime_seconds(minimum_hour) if minimum_hour else 0
+    return min(stored, max(0, (worked or 0) - minimum))
+
+
 def overtime_calculation(attendance):
     """
     This method is used to calculate overtime of the attendance, it will

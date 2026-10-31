@@ -32,12 +32,26 @@
     </div>
 
     {% for skill_zone in skill_zones %}
-        <div class="oh-tabs__movable-area mb-1.5">
+        <div class="oh-tabs__movable-area mb-1.5" data-sz-id="{{ skill_zone.grouper.id }}">
             <div class="oh-tabs__movable bg-white border border-[#EAE8E3] !rounded-lg overflow-hidden">
                 <div
                     class="oh-tabs__movable-header !rounded-none bg-primary-100 text-primary-600 hover:bg-primary-200 transition-colors"
                     style="cursor: pointer"
-                    onclick="$(this).parent().find('.oh-tabs__movable-body').toggleClass('d-none'); var foldIcon = this.querySelector('.oh-tabs__movable-fold-icon'); if(foldIcon){foldIcon.setAttribute('name', foldIcon.getAttribute('name') === 'chevron-up-outline' ? 'chevron-down-outline' : 'chevron-up-outline');}"
+                    onclick="
+                        var $body = $(this).parent().find('.oh-tabs__movable-body');
+                        $body.toggleClass('d-none');
+                        var foldIcon = this.querySelector('.oh-tabs__movable-fold-icon');
+                        if(foldIcon){foldIcon.setAttribute('name', foldIcon.getAttribute('name') === 'chevron-up-outline' ? 'chevron-down-outline' : 'chevron-up-outline');}
+                        var szId = $(this).closest('.oh-tabs__movable-area').attr('data-sz-id');
+                        if (szId) {
+                            try {
+                                var collapsed = JSON.parse(sessionStorage.getItem('horillaSkillZoneCollapsed') || '[]');
+                                collapsed = collapsed.filter(function (id) { return id !== szId; });
+                                if ($body.hasClass('d-none')) { collapsed.push(szId); }
+                                sessionStorage.setItem('horillaSkillZoneCollapsed', JSON.stringify(collapsed));
+                            } catch (e) {}
+                        }
+                    "
                 >
                     <div class="flex items-center gap-2.5">
                         <span
@@ -314,6 +328,22 @@
             </div>
         </div>
     {% endfor %}
+
+    <script>
+        (function () {
+            var collapsed = [];
+            try {
+                collapsed = JSON.parse(sessionStorage.getItem('horillaSkillZoneCollapsed') || '[]');
+            } catch (e) {}
+            $('#skill_zone_container [data-sz-id]').each(function () {
+                var szId = $(this).attr('data-sz-id');
+                if (collapsed.indexOf(szId) === -1) return;
+                $(this).find('.oh-tabs__movable-body').addClass('d-none');
+                var foldIcon = this.querySelector('.oh-tabs__movable-fold-icon');
+                if (foldIcon) { foldIcon.setAttribute('name', 'chevron-down-outline'); }
+            });
+        })();
+    </script>
 
     {% if skill_zone.has_next or skill_zone.has_previous %}
         <div class="flex justify-end items-center mt-4 w-full">

@@ -14,6 +14,7 @@ from payroll.cbv import (
     pay_period,
     payroll_batch,
     payslip_automation,
+    payslip_batch_tabs,
     settings_tabs,
 )
 from payroll.models.models import Contract, Payslip
@@ -403,6 +404,21 @@ urlpatterns = [
     # pay period that fills the wizard's dates.
     # ------------------------------------------------------------------
     path("payroll-runs/", batch_views.batch_home, name="payroll-batch-home"),
+    path(
+        "payslips-and-batches/",
+        payslip_batch_tabs.PayslipsAndBatchesTabView.as_view(),
+        name="payslip-batch-tabs",
+    ),
+    path(
+        "payslip-tab-shell/",
+        payslip_batch_tabs.PayslipTabShell.as_view(),
+        name="payslip-tab-shell",
+    ),
+    path(
+        "payroll-batch-tab-shell/",
+        payslip_batch_tabs.PayrollBatchTabShell.as_view(),
+        name="payroll-batch-tab-shell",
+    ),
     path(
         "payroll-runs-list/",
         payroll_batch.PayrollBatchList.as_view(),

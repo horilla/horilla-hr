@@ -51,6 +51,7 @@ from recruitment.filters import CandidateFilter
 from recruitment.forms import (
     CandidateExportForm,
     RejectedCandidateForm,
+    SkillZoneCreateForm,
     ToSkillZoneForm,
 )
 from recruitment.models import (
@@ -58,6 +59,7 @@ from recruitment.models import (
     RecruitmentSurvey,
     RecruitmentSurveyAnswer,
     RejectedCandidate,
+    SkillZone,
     SkillZoneCandidate,
 )
 
@@ -169,6 +171,11 @@ class ListCandidates(HorillaListView):
             if not survey_question in self.export_fields:
                 self.export_fields.append(survey_question)
 
+    def get_queryset(self, *args, **kwargs):
+        # row_status_class reads stage_id.stage_type per row (for the
+        # left-border color) -- select_related avoids an N+1 query for it.
+        return super().get_queryset(*args, **kwargs).select_related("stage_id")
+
     columns = [
         (_("Candidates"), "name", "get_avatar"),
         (_("Email"), "email"),
@@ -209,21 +216,51 @@ class ListCandidates(HorillaListView):
     ]
     row_status_indications = [
         (
-            "canceled--dot",
-            _("Canceled"),
+            "initial--dot",
+            _("Initial"),
             """
             onclick="
-                $('#applyFilter').closest('form').find('[name=canceled]').val('true');
+                $('#applyFilter').closest('form').find('[name=stage_id__stage_type]').val('initial');
                 $('#applyFilter').click();
             "
             """,
         ),
         (
-            "nothired--dot",
-            _("Not Hired"),
+            "applied--dot",
+            _("Applied"),
             """
             onclick="
-                $('#applyFilter').closest('form').find('[name=hired]').val('false');
+                $('#applyFilter').closest('form').find('[name=stage_id__stage_type]').val('applied');
+                $('#applyFilter').click();
+            "
+            """,
+        ),
+        (
+            "test--dot",
+            _("Test"),
+            """
+            onclick="
+                $('#applyFilter').closest('form').find('[name=stage_id__stage_type]').val('test');
+                $('#applyFilter').click();
+            "
+            """,
+        ),
+        (
+            "interview--dot",
+            _("Interview"),
+            """
+            onclick="
+                $('#applyFilter').closest('form').find('[name=stage_id__stage_type]').val('interview');
+                $('#applyFilter').click();
+            "
+            """,
+        ),
+        (
+            "cancelled--dot",
+            _("Rejected"),
+            """
+            onclick="
+                $('#applyFilter').closest('form').find('[name=stage_id__stage_type]').val('cancelled');
                 $('#applyFilter').click();
             "
             """,
@@ -232,14 +269,17 @@ class ListCandidates(HorillaListView):
             "hired--dot",
             _("Hired"),
             """
-            onclick="$('#applyFilter').closest('form').find('[name=hired]').val('true');
+            onclick="
+                $('#applyFilter').closest('form').find('[name=stage_id__stage_type]').val('hired');
                 $('#applyFilter').click();
             "
             """,
         ),
     ]
 
-    row_status_class = "hired-{hired} canceled-{canceled}"
+    # Left-border color on each row mirrors its current stage type, matching
+    # the quick-filter dot colors above the table.
+    row_status_class = "stage-type-{stage_id__stage_type}"
 
     row_attrs = """
                 {is_employee_converted}
@@ -523,6 +563,9 @@ class CardCandidates(HorillaCardView):
         super().__init__(**kwargs)
         self.search_url = reverse("card-candidate")
 
+    def get_queryset(self, *args, **kwargs):
+        return super().get_queryset(*args, **kwargs).select_related("stage_id")
+
     details = {
         "image_src": "get_avatar",
         "title": "{get_full_name}",
@@ -631,21 +674,51 @@ class CardCandidates(HorillaCardView):
     ]
     card_status_indications = [
         (
-            "canceled--dot",
-            _("Canceled"),
+            "initial--dot",
+            _("Initial"),
             """
             onclick="
-                $('#applyFilter').closest('form').find('[name=canceled]').val('true');
+                $('#applyFilter').closest('form').find('[name=stage_id__stage_type]').val('initial');
                 $('#applyFilter').click();
             "
             """,
         ),
         (
-            "nothired--dot",
-            _("Not Hired"),
+            "applied--dot",
+            _("Applied"),
             """
             onclick="
-                $('#applyFilter').closest('form').find('[name=hired]').val('false');
+                $('#applyFilter').closest('form').find('[name=stage_id__stage_type]').val('applied');
+                $('#applyFilter').click();
+            "
+            """,
+        ),
+        (
+            "test--dot",
+            _("Test"),
+            """
+            onclick="
+                $('#applyFilter').closest('form').find('[name=stage_id__stage_type]').val('test');
+                $('#applyFilter').click();
+            "
+            """,
+        ),
+        (
+            "interview--dot",
+            _("Interview"),
+            """
+            onclick="
+                $('#applyFilter').closest('form').find('[name=stage_id__stage_type]').val('interview');
+                $('#applyFilter').click();
+            "
+            """,
+        ),
+        (
+            "cancelled--dot",
+            _("Rejected"),
+            """
+            onclick="
+                $('#applyFilter').closest('form').find('[name=stage_id__stage_type]').val('cancelled');
                 $('#applyFilter').click();
             "
             """,
@@ -654,13 +727,14 @@ class CardCandidates(HorillaCardView):
             "hired--dot",
             _("Hired"),
             """
-            onclick="$('#applyFilter').closest('form').find('[name=hired]').val('true');
+            onclick="
+                $('#applyFilter').closest('form').find('[name=stage_id__stage_type]').val('hired');
                 $('#applyFilter').click();
             "
             """,
         ),
     ]
-    card_status_class = "hired-{hired} canceled-{canceled}"
+    card_status_class = "stage-type-{stage_id__stage_type}"
     card_attrs = """
                 hx-get="{get_profile_url}?instance_ids={ordered_ids}"
                 hx-target="#listContainer"
@@ -909,6 +983,29 @@ class CandidateDetail(HorillaDetailedView):
 
 
 @method_decorator(login_required, name="dispatch")
+@method_decorator(manager_can_enter(perm="recruitment.add_skillzone"), name="dispatch")
+class TalentPoolDynamicCreateFormView(HorillaFormView):
+    """
+    Sub-form used by ToSkillZoneFormView's "Talent Pools" field to create a
+    new SkillZone (Talent Pool) inline, without leaving the "Add to Talent
+    Pool" modal.
+    """
+
+    model = SkillZone
+    form_class = SkillZoneCreateForm
+    new_display_title = _("Create Talent Pool")
+    is_dynamic_create_view = True
+
+    def form_valid(self, form: SkillZoneCreateForm) -> HttpResponse:
+        if form.is_valid():
+            message = _("Talent Pool created successfully")
+            form.save()
+            messages.success(self.request, _(message))
+            return self.HttpResponse()
+        return super().form_valid(form)
+
+
+@method_decorator(login_required, name="dispatch")
 @method_decorator(hx_request_required, name="dispatch")
 @method_decorator(
     all_manager_can_enter(perm="recruitment.change_candidate"), name="dispatch"
@@ -921,29 +1018,25 @@ class ToSkillZoneFormView(HorillaFormView):
     model = SkillZoneCandidate
     form_class = ToSkillZoneForm
     new_display_title = _("Add to Talent Pool")
+    dynamic_create_fields = [("skill_zone_ids", TalentPoolDynamicCreateFormView)]
 
     def dispatch(self, request, *args, **kwargs):
         if not Candidate.objects.filter(id=kwargs.get("cand_id")).exists():
             return HttpResponse()
         return super().dispatch(request, *args, **kwargs)
 
-    def get_context_data(self, **kwargs):
+    def get_initial(self) -> dict:
         """
-        Returns context with form and candidate data.
+        Pre-selects the talent pools this candidate is already part of.
         """
-        context = super().get_context_data(**kwargs)
+        initial = super().get_initial()
         candidate_id = self.kwargs.get("cand_id")
-        candidate = Candidate.objects.get(id=candidate_id)
-        form = self.form_class(
-            initial={
-                "candidate_id": candidate,
-                "skill_zone_ids": SkillZoneCandidate.objects.filter(
-                    candidate_id=candidate
-                ).values_list("skill_zone_id", flat=True),
-            }
-        )
-        context["form"] = form
-        return context
+        candidate = Candidate.objects.filter(id=candidate_id).first()
+        initial["candidate_id"] = candidate
+        initial["skill_zone_ids"] = SkillZoneCandidate.objects.filter(
+            candidate_id=candidate
+        ).values_list("skill_zone_id", flat=True)
+        return initial
 
     def form_invalid(self, form: Any) -> HttpResponse:
         """

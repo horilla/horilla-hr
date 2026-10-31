@@ -1,6 +1,6 @@
 {% load i18n %}
 {% load basefilters %}
-{% if perms.payroll.add_payslip %}
+{% if perms.payroll.add_payslip and not instance.status_locked %}
 <div data-cell-index="3" onclick="event.stopPropagation();">
   <select name="status" data-instance-id="{{instance.id}}" hx-trigger="change" hx-post="{% url 'payslip-status-update' instance.id %}"
           hx-target="#listContainer" hx-vals='{"view":"table"}'
@@ -11,7 +11,7 @@
   </select>
 </div>
 {% else %}
-<div data-cell-index="3" class="oh-sticky-table__td">
+<div data-cell-index="3" class="oh-sticky-table__td"{% if instance.status_locked %} title="{{ instance.status_lock_message }}"{% endif %}>
   {{instance.get_status_display}}
 </div>
 {% endif %}

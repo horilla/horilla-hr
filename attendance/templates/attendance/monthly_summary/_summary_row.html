@@ -88,6 +88,7 @@
       {% if row.ot_regular_seconds %}<span title="{% trans 'Regular OT' %}">R {{ row.ot_regular_label }}</span>{% endif %}
       {% if row.ot_week_off_seconds %}<span title="{% trans 'Week Off OT' %}">{% if row.ot_regular_seconds %} &#183; {% endif %}WO {{ row.ot_week_off_label }}</span>{% endif %}
       {% if row.ot_holiday_seconds %}<span title="{% trans 'Holiday OT' %}">{% if row.ot_regular_seconds or row.ot_week_off_seconds %} &#183; {% endif %}HO {{ row.ot_holiday_label }}</span>{% endif %}
+      {% if row.ot_pending_seconds %}<span title="{% trans 'Overtime Not Yet Approved, Not Counted' %}">{% if row.ot_regular_seconds or row.ot_week_off_seconds or row.ot_holiday_seconds %} &#183; {% endif %}{% trans "Pending" %} {{ row.ot_pending_label }}</span>{% endif %}
     </span>
   </td>
 </tr>

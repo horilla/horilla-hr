@@ -26,6 +26,7 @@ class HourlyComputationTests(TestCase):
             attendance_date=day,
             at_work_second=at_work,
             overtime_second=overtime,
+            minimum_hour="00:00",
         )
 
     @patch("payroll.methods.methods.get_attendance")
