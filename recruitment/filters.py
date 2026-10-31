@@ -104,6 +104,10 @@ class CandidateFilter(HorillaFilterSet):
     candidate_name = django_filters.CharFilter(
         method="pipeline_search", lookup_expr="icontains"
     )
+    stage_id__stage_type = django_filters.MultipleChoiceFilter(
+        choices=Stage.stage_types,
+        label=_("Stage Type"),
+    )
     start_date = django_filters.DateFilter(
         field_name="recruitment_id__start_date",
         widget=forms.DateInput(attrs={"type": "date"}),

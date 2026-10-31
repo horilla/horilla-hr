@@ -169,6 +169,11 @@ class ListCandidates(HorillaListView):
             if not survey_question in self.export_fields:
                 self.export_fields.append(survey_question)
 
+    def get_queryset(self, *args, **kwargs):
+        # row_status_class reads stage_id.stage_type per row (for the
+        # left-border color) -- select_related avoids an N+1 query for it.
+        return super().get_queryset(*args, **kwargs).select_related("stage_id")
+
     columns = [
         (_("Candidates"), "name", "get_avatar"),
         (_("Email"), "email"),
@@ -209,21 +214,51 @@ class ListCandidates(HorillaListView):
     ]
     row_status_indications = [
         (
-            "canceled--dot",
-            _("Canceled"),
+            "initial--dot",
+            _("Initial"),
             """
             onclick="
-                $('#applyFilter').closest('form').find('[name=canceled]').val('true');
+                $('#applyFilter').closest('form').find('[name=stage_id__stage_type]').val('initial');
                 $('#applyFilter').click();
             "
             """,
         ),
         (
-            "nothired--dot",
-            _("Not Hired"),
+            "applied--dot",
+            _("Applied"),
             """
             onclick="
-                $('#applyFilter').closest('form').find('[name=hired]').val('false');
+                $('#applyFilter').closest('form').find('[name=stage_id__stage_type]').val('applied');
+                $('#applyFilter').click();
+            "
+            """,
+        ),
+        (
+            "test--dot",
+            _("Test"),
+            """
+            onclick="
+                $('#applyFilter').closest('form').find('[name=stage_id__stage_type]').val('test');
+                $('#applyFilter').click();
+            "
+            """,
+        ),
+        (
+            "interview--dot",
+            _("Interview"),
+            """
+            onclick="
+                $('#applyFilter').closest('form').find('[name=stage_id__stage_type]').val('interview');
+                $('#applyFilter').click();
+            "
+            """,
+        ),
+        (
+            "cancelled--dot",
+            _("Rejected"),
+            """
+            onclick="
+                $('#applyFilter').closest('form').find('[name=stage_id__stage_type]').val('cancelled');
                 $('#applyFilter').click();
             "
             """,
@@ -232,14 +267,17 @@ class ListCandidates(HorillaListView):
             "hired--dot",
             _("Hired"),
             """
-            onclick="$('#applyFilter').closest('form').find('[name=hired]').val('true');
+            onclick="
+                $('#applyFilter').closest('form').find('[name=stage_id__stage_type]').val('hired');
                 $('#applyFilter').click();
             "
             """,
         ),
     ]
 
-    row_status_class = "hired-{hired} canceled-{canceled}"
+    # Left-border color on each row mirrors its current stage type, matching
+    # the quick-filter dot colors above the table.
+    row_status_class = "stage-type-{stage_id__stage_type}"
 
     row_attrs = """
                 {is_employee_converted}
@@ -523,6 +561,9 @@ class CardCandidates(HorillaCardView):
         super().__init__(**kwargs)
         self.search_url = reverse("card-candidate")
 
+    def get_queryset(self, *args, **kwargs):
+        return super().get_queryset(*args, **kwargs).select_related("stage_id")
+
     details = {
         "image_src": "get_avatar",
         "title": "{get_full_name}",
@@ -631,21 +672,51 @@ class CardCandidates(HorillaCardView):
     ]
     card_status_indications = [
         (
-            "canceled--dot",
-            _("Canceled"),
+            "initial--dot",
+            _("Initial"),
             """
             onclick="
-                $('#applyFilter').closest('form').find('[name=canceled]').val('true');
+                $('#applyFilter').closest('form').find('[name=stage_id__stage_type]').val('initial');
                 $('#applyFilter').click();
             "
             """,
         ),
         (
-            "nothired--dot",
-            _("Not Hired"),
+            "applied--dot",
+            _("Applied"),
             """
             onclick="
-                $('#applyFilter').closest('form').find('[name=hired]').val('false');
+                $('#applyFilter').closest('form').find('[name=stage_id__stage_type]').val('applied');
+                $('#applyFilter').click();
+            "
+            """,
+        ),
+        (
+            "test--dot",
+            _("Test"),
+            """
+            onclick="
+                $('#applyFilter').closest('form').find('[name=stage_id__stage_type]').val('test');
+                $('#applyFilter').click();
+            "
+            """,
+        ),
+        (
+            "interview--dot",
+            _("Interview"),
+            """
+            onclick="
+                $('#applyFilter').closest('form').find('[name=stage_id__stage_type]').val('interview');
+                $('#applyFilter').click();
+            "
+            """,
+        ),
+        (
+            "cancelled--dot",
+            _("Rejected"),
+            """
+            onclick="
+                $('#applyFilter').closest('form').find('[name=stage_id__stage_type]').val('cancelled');
                 $('#applyFilter').click();
             "
             """,
@@ -654,13 +725,14 @@ class CardCandidates(HorillaCardView):
             "hired--dot",
             _("Hired"),
             """
-            onclick="$('#applyFilter').closest('form').find('[name=hired]').val('true');
+            onclick="
+                $('#applyFilter').closest('form').find('[name=stage_id__stage_type]').val('hired');
                 $('#applyFilter').click();
             "
             """,
         ),
     ]
-    card_status_class = "hired-{hired} canceled-{canceled}"
+    card_status_class = "stage-type-{stage_id__stage_type}"
     card_attrs = """
                 hx-get="{get_profile_url}?instance_ids={ordered_ids}"
                 hx-target="#listContainer"
