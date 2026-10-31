@@ -93,13 +93,14 @@
 .crp-hours-unit { font-size: .68rem; color: #9ca3af; }
 .crp-hours-error { margin-top: 6px; font-size: .72rem; font-weight: 600; color: #dc2626; }
 .crp-hours-note { margin-top: 6px; font-size: .7rem; color: #6b7280; }
-.crp-foot { flex: 0 0 auto; display: flex; justify-content: flex-end; padding: 10px 16px; background: #fff; border-top: 1px solid #f1f5f9; }
+.crp-foot { flex: 0 0 auto; display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding: 10px 16px; background: #fff; border-top: 1px solid #f1f5f9; }
 .crp-apply {
   flex: 0 0 auto; height: 38px; padding: 0 20px; border: 0; border-radius: 10px; cursor: pointer;
   background: #e54f38; color: #fff; font-size: .82rem; font-weight: 700; white-space: nowrap;
 }
 .crp-apply:hover:not([disabled]) { background: #ce4732; }
 .crp-apply[disabled] { opacity: .4; cursor: not-allowed; }
+.crp-foot-note { margin-right: auto; font-size: .72rem; color: #9ca3af; }
 .crp-mark-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .crp-mark-btn {
   display: flex; flex-direction: row; align-items: center; justify-content: flex-start;
@@ -469,6 +470,15 @@
        data-conflict-tail="{% trans 'The Conflict Is Marked As Resolved.' %}"
        data-conflict-yes="{% trans 'Yes, Resolve' %}">
     {# An unresolved leave clash can be settled as it stands, so Save is on without a change and asks first. #}
+    {% if ot_can_approve %}
+      <button type="button" class="oh-btn oh-btn--success oh-btn--sq-sm" id="crp-approve-ot"
+              title="{% trans 'Approve Overtime' %}"
+              onclick="msCalResolvePost('approve_ot', '{{ conflict_type }}')">
+        <ion-icon name="checkmark-outline"></ion-icon>
+      </button>
+    {% elif ot_approve_below_min %}
+      <span class="crp-foot-note">{% blocktrans with minimum=ot_approve_min_label %}Overtime Below The {{ minimum }} Needed For Approval{% endblocktrans %}</span>
+    {% endif %}
     <button type="button" class="crp-apply" id="crp-save"
             {% if att_row and not existing_resolution and conflict_type == "paid_leave" or att_row and not existing_resolution and conflict_type == "unpaid_leave" %}data-conflict="1"{% else %}disabled{% endif %}
             onclick="msCalSaveDay('{{ conflict_type }}')">{% trans "Save" %}</button>
