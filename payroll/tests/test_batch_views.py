@@ -192,13 +192,13 @@ class SummaryFollowsPayslipsTests(BatchWithPayslips, Fixture):
 class PayslipStatusLockTests(BatchWithPayslips, Fixture):
     """Payslips in an approved or paid batch change status only with the batch."""
 
-    def _locked_slip(self, status):
-        batch = self._batch(status=status)
-        return batch, self._slip(batch, self.people[0])
+    def _locked_slip(self, status, person=0):
+        batch = self._batch(status=status, progress_state=PayrollBatch.DONE)
+        return batch, self._slip(batch, self.people[person])
 
     def test_a_payslip_in_an_approved_or_paid_batch_cannot_be_changed_alone(self):
-        for status in (PayrollBatch.APPROVED, PayrollBatch.PAID):
-            batch, slip = self._locked_slip(status)
+        for person, status in enumerate((PayrollBatch.APPROVED, PayrollBatch.PAID)):
+            batch, slip = self._locked_slip(status, person)
             self.client.post(
                 reverse("payslip-status-update", args=[slip.pk]),
                 {"status": "review_ongoing"},
@@ -207,8 +207,8 @@ class PayslipStatusLockTests(BatchWithPayslips, Fixture):
             self.assertEqual(slip.status, "draft", status)
 
     def test_a_payslip_in_an_open_batch_still_changes(self):
-        for status in (PayrollBatch.DRAFT, PayrollBatch.REVIEW):
-            batch, slip = self._locked_slip(status)
+        for person, status in enumerate((PayrollBatch.DRAFT, PayrollBatch.REVIEW)):
+            batch, slip = self._locked_slip(status, person)
             self.client.post(
                 reverse("payslip-status-update", args=[slip.pk]),
                 {"status": "review_ongoing"},
@@ -249,11 +249,13 @@ class PayslipStatusLockTests(BatchWithPayslips, Fixture):
         self.assertEqual(slip.status, "confirmed")
 
     def test_the_status_cell_is_plain_text_when_locked(self):
-        _, slip = self._locked_slip(PayrollBatch.APPROVED)
+        _, locked = self._locked_slip(PayrollBatch.APPROVED)
+        _, open_slip = self._locked_slip(PayrollBatch.DRAFT, 1)
         html = self.client.get(
             reverse("payslip-list"), HTTP_HX_REQUEST="true"
         ).content.decode()
-        self.assertNotIn(f'data-instance-id="{slip.pk}"', html)
+        self.assertIn(reverse("payslip-status-update", args=[open_slip.pk]), html)
+        self.assertNotIn(reverse("payslip-status-update", args=[locked.pk]), html)
 
 
 class CombinedPageTests(Fixture):
