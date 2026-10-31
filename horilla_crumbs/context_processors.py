@@ -281,6 +281,7 @@ sidebar_urls = [
     "pms-pivot",
     "linkedin-integration-setting",
     "ldap-settings",
+    "scim-settings",
     "gmeet-setting",
     "whatsapp-credential-view",
     "cbv-pipeline",
