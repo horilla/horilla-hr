@@ -471,10 +471,11 @@
        data-conflict-yes="{% trans 'Yes, Resolve' %}">
     {# An unresolved leave clash can be settled as it stands, so Save is on without a change and asks first. #}
     {% if ot_can_approve %}
-      <button type="button" class="oh-btn oh-btn--success oh-btn--sq-sm" id="crp-approve-ot"
+      <button type="button" class="oh-btn oh-btn--success" id="crp-approve-ot"
+              style="height:38px;padding:0 14px;font-size:.78rem;font-weight:700;white-space:nowrap;"
               title="{% trans 'Approve Overtime' %}"
               onclick="msCalResolvePost('approve_ot', '{{ conflict_type }}')">
-        <ion-icon name="checkmark-outline"></ion-icon>
+        <ion-icon class="me-1" name="checkmark-outline"></ion-icon>{% trans "Approve Overtime" %}
       </button>
     {% elif ot_approve_below_min %}
       <span class="crp-foot-note">{% blocktrans with minimum=ot_approve_min_label %}Overtime Below The {{ minimum }} Needed For Approval{% endblocktrans %}</span>
