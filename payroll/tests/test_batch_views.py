@@ -740,6 +740,7 @@ class FlashMessageTests(Fixture):
         section = html[html.index('<section class="oh-wrapper pb">') :]
         self.assertNotIn("oh-alert--animated", section)
 
+
 class PayPeriodTests(Fixture):
     def test_saving_creates_the_row_for_this_company(self):
         self.client.post(
@@ -820,6 +821,7 @@ class CycleSettingsFlowTests(Fixture):
         self.assertEqual(start.day, 15)
         # The wording of the rule line is pinned where it is built:
         # test_cross_month_period (PayPeriodSettings.summary).
+
 
 class SettingsModalTests(Fixture):
     def _modal(self, method="get", data=None):
