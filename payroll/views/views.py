@@ -64,6 +64,7 @@ from payroll.models.models import (
     ReimbursementFile,
     ReimbursementrequestComment,
 )
+from payroll.models.payroll_batch import PayrollBatch
 from payroll.models.tax_models import PayrollSettings
 
 # Create your views here.
@@ -509,7 +510,9 @@ def update_payslip_status(request, payslip_id):
     payslip = Payslip.objects.filter(id=payslip_id).first()
     if not payslip:
         return HorillaRedirect(request, message=_("Payslip not found."))
-    if payslip:
+    if payslip and payslip.status_locked and status != payslip.status:
+        messages.error(request, payslip.status_lock_message)
+    elif payslip:
         payslip.status = status
         payslip.save()
         messages.success(request, _("Payslip status updated"))
@@ -542,11 +545,24 @@ def update_payslip_status_no_id(request):
         ids = json.loads(ids_json)
         status = request.POST["status"]
         slips = Payslip.objects.filter(id__in=ids)
+        # Payslips in an approved or paid batch are moved by the batch, not one by one.
+        locked = slips.filter(
+            payroll_batch__status__in=PayrollBatch.PAYSLIP_STATUS_LOCKED
+        )
+        skipped = locked.count()
+        slips = slips.exclude(pk__in=locked.values("pk"))
+        updated = slips.count()
         slips.update(status=status)
         message = {
             "type": "success",
-            "message": f"{slips.count()} Payslips status updated.",
+            "message": f"{updated} Payslips status updated.",
         }
+        if skipped:
+            message = {
+                "type": "warning" if updated else "error",
+                "message": f"{updated} Payslips status updated. {skipped} left as they are: "
+                "their batch is approved or paid.",
+            }
     return JsonResponse(message)
 
 

@@ -3473,6 +3473,18 @@ class Payslip(HorillaModel):
         """
         return dict(self.status_choices).get(self.status)
 
+    @property
+    def status_locked(self):
+        """True while the batch this payslip is in is approved or paid: only the batch moves it."""
+        batch = self.payroll_batch
+        return bool(batch and batch.status in batch.PAYSLIP_STATUS_LOCKED)
+
+    @property
+    def status_lock_message(self):
+        return _(
+            "This payslip is in a batch that is %(status)s. Change the status of the batch instead."
+        ) % {"status": self.payroll_batch.get_status_display().lower()}
+
     def get_download_url(self):
         """
         This method to get download url
