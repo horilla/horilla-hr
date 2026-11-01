@@ -13,10 +13,13 @@ from unittest.mock import patch
 
 from django.test import TestCase
 from django.urls import reverse
+
 from horilla.testkit import make_company, make_employee, make_user
 from payroll.models.models import Contract
 from payroll.tests.factories_payroll import make_active_contract
 from payroll.views.batch_views import SESSION_KEY
+
+HOST = "attendance/monthly_summary/_calendar_modal_host.html"
 
 START = date(2026, 4, 1)
 END = date(2026, 4, 30)

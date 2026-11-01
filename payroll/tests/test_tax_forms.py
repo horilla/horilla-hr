@@ -7,6 +7,7 @@ Python mode enabled with no code — was accepted at save time.
 """
 
 from django.test import TestCase
+
 from horilla.testkit import make_company, make_employee, make_user
 from payroll.forms.tax_forms import FilingStatusForm
 from payroll.methods import federal_tax
@@ -289,6 +290,7 @@ class SavingAnUnchangedSlabTableTests(TestCase):
 
     def test_a_slab_inside_the_open_ended_one_is_an_overlap(self):
         from django.core.exceptions import ValidationError
+
         from payroll.models.tax_models import TaxBracket
 
         inside = TaxBracket(
@@ -399,6 +401,7 @@ class PythonCodeXssExemptionTests(TestCase):
     def test_other_text_fields_are_still_xss_checked(self):
         """The exemption is scoped to python_code and nothing else."""
         from django.core.exceptions import ValidationError
+
         from payroll.models.models import FilingStatus
 
         with self.assertRaises(ValidationError):

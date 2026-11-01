@@ -22,8 +22,6 @@ class WeeklyResetDateTests(TestCase):
             reset_based="weekly",
             reset_weekend="2",  # Wednesday
         )
-        # Previously raised TypeError: list indices must be integers or
-        # slices, not str (WEEK_DAYS[self.reset_day] on the wrong field).
         next_date = lt.leave_type_next_reset_date()
         self.assertEqual(next_date.weekday(), 2)
 

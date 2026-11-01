@@ -14,6 +14,7 @@ Only partial and multi-month periods change, which is the point of the field.
 
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
+
 from horilla.testkit import make_company, make_employee, make_user
 from payroll.methods.limits import compute_limit
 from payroll.methods.proration import (

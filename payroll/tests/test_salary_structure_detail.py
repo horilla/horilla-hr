@@ -15,6 +15,7 @@ second way.
 
 from django.test import TestCase
 from django.urls import reverse
+
 from horilla.testkit import make_company, make_employee, make_user
 from payroll.forms.component_layout import component_picker_rows
 from payroll.methods.component_summary import (

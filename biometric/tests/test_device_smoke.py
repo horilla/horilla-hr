@@ -1,4 +1,4 @@
-"""Biometric schedule-time validator tests."""
+"""Biometric device model / validator smoke tests."""
 
 from django.core.exceptions import ValidationError
 from django.test import TestCase
