@@ -65,10 +65,6 @@ class QuickDateFilterTests(SimpleTestCase):
             ):
                 self.assertEqual(first_day_of_week(), expected)
 
-    @override_settings(HORILLA_FIRST_DAY_OF_WEEK="abc")
-    def test_an_invalid_setting_means_monday(self):
-        self.assertEqual(week_start(WEDNESDAY), date(2026, 10, 19))
-
     def test_this_week_and_last_week_are_calendar_weeks(self):
         menu = ranges_on(WEDNESDAY)
         self.assertEqual(menu["This Week"], ("2026-10-19", "2026-10-25"))

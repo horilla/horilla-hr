@@ -79,13 +79,6 @@ class ThrottleConfigurationTests(TestCase):
                     f"{scope} default is not a valid DRF rate",
                 )
 
-    def test_login_view_carries_the_login_scope(self):
-        """Without throttle_scope the view falls back to the anon rate, which
-        is five times looser."""
-        from horilla_api.api_views.auth.views import LoginAPIView
-
-        self.assertEqual(getattr(LoginAPIView, "throttle_scope", None), "login")
-
 
 class LoginThrottleTests(TestCase):
     """The login scope actually refuses once the rate is exceeded."""

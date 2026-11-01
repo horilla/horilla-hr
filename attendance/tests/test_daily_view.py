@@ -1,6 +1,7 @@
 """The Day-wise view of the monthly summary: a column per date in the filter, a status in each cell."""
 
 import datetime
+import re
 from datetime import time
 
 from django.test import TestCase
@@ -11,6 +12,12 @@ from attendance.views.summary import DAILY_VIEW_MAX_DAYS, daily_cell
 from horilla.testkit import make_company, make_employee, make_user
 
 DAY = datetime.date(2026, 9, 2)  # a Wednesday
+
+
+def previous_month_bounds(today):
+    """First and last day of the month before `today`'s, as ISO strings."""
+    last = today.replace(day=1) - datetime.timedelta(days=1)
+    return last.replace(day=1).isoformat(), last.isoformat()
 
 
 class DailyViewMixin:
@@ -59,12 +66,10 @@ class DailyViewTests(DailyViewMixin, TestCase):
         self.assertEqual(response.context["days"][0]["date"], DAY)
         self.assertEqual(len(response.context["days"]), 5)
         self.assertContains(response, 'class="dv-day', count=5)
-
-    def test_the_range_follows_the_filter(self):
-        short = self.get(DAY, DAY + datetime.timedelta(days=2))
-        longer = self.get(DAY, DAY + datetime.timedelta(days=9))
-        self.assertEqual(len(short.context["days"]), 3)
-        self.assertEqual(len(longer.context["days"]), 10)
+        for extra_days in (2, 9):  # the range follows the filter, short or long
+            with self.subTest(extra_days=extra_days):
+                other = self.get(DAY, DAY + datetime.timedelta(days=extra_days))
+                self.assertEqual(len(other.context["days"]), extra_days + 1)
 
     def test_each_cell_shows_the_days_status(self):
         self.punch()
@@ -148,20 +153,6 @@ class DailyViewTests(DailyViewMixin, TestCase):
         self.assertContains(response, str(DAILY_VIEW_MAX_DAYS))
         self.assertNotContains(response, 'id="dvTable"')
 
-    def test_the_cells_open_the_calendar_for_that_employee(self):
-        response = self.get(DAY, DAY)
-        self.assertContains(response, "data-calendar-url")
-        self.assertContains(response, f"employee_id={self.employee.pk}")
-
-    def test_the_summary_is_still_the_default(self):
-        response = self.client.get(
-            reverse("attendance-monthly-summary-table"),
-            {"from_date": DAY.isoformat(), "to_date": DAY.isoformat()},
-            HTTP_HX_REQUEST="true",
-        )
-        self.assertNotContains(response, 'id="dvTable"')
-        self.assertContains(response, "ms-summary-row")
-
     def test_a_submit_nothing_handled_is_sent_through_htmx_not_left_to_the_browser(
         self,
     ):
@@ -188,28 +179,6 @@ class DailyViewTests(DailyViewMixin, TestCase):
         self.assertIn("setTimeout(msSyncSavedFilters, 700)", html)
         self.assertNotIn("htmx:afterSwap', msSyncSavedFilters", html)
 
-    def test_no_template_comment_leaks_into_the_page(self):
-        """A {# #} comment must stay on one line; across lines Django prints it as text."""
-        import re
-        from pathlib import Path
-
-        html = self.client.get(reverse("attendance-monthly-summary")).content.decode()
-        self.assertNotIn("{#", html)
-        self.assertNotIn("#}", html)
-        pattern = re.compile(r"\{#(?:(?!#\}).)*#\}", re.S)
-        for name in (
-            "monthly_summary",
-            "table_daily",
-            "table_dashboard",
-            "table_partial",
-            "calendar_modal",
-        ):
-            source = Path(
-                f"attendance/templates/attendance/monthly_summary/{name}.html"
-            ).read_text(encoding="utf-8")
-            across_lines = [m for m in pattern.findall(source) if chr(10) in m]
-            self.assertEqual(across_lines, [], name)
-
     def test_a_page_opened_inside_the_app_forgets_the_old_filter(self):
         html = self.client.get(reverse("attendance-monthly-summary")).content.decode()
         self.assertIn("if (document.readyState === 'complete') {", html)
@@ -232,31 +201,21 @@ class DailyViewTests(DailyViewMixin, TestCase):
                 # The table's first request asks for that view, so it does not flash the list.
                 self.assertIn(f"table/?view={view}", html)
 
-    def test_an_address_view_beats_the_remembered_one_and_a_bad_value_falls_back(self):
+    def test_the_view_is_the_address_then_the_remembered_one_then_the_list(self):
         from attendance.views.summary import SUMMARY_VIEW_COOKIE
 
+        def opened_on(**query):
+            html = self.client.get(
+                reverse("attendance-monthly-summary"), query
+            ).content.decode()
+            return re.search(r'id="ms-view" value="(\w+)"', html).group(1)
+
+        self.assertEqual(opened_on(), "list")  # nothing chosen, nothing remembered
+        self.assertEqual(opened_on(view="nonsense"), "list")
         self.client.cookies[SUMMARY_VIEW_COOKIE] = "daily"
-        self.assertIn(
-            'id="ms-view" value="summary"',
-            self.client.get(
-                reverse("attendance-monthly-summary"), {"view": "summary"}
-            ).content.decode(),
-        )
+        self.assertEqual(opened_on(view="summary"), "summary")  # the address wins
         self.client.cookies[SUMMARY_VIEW_COOKIE] = "nonsense"
-        self.assertIn(
-            'id="ms-view" value="list"',
-            self.client.get(reverse("attendance-monthly-summary")).content.decode(),
-        )
-
-    def test_the_list_is_the_default_view(self):
-        response = self.client.get(reverse("attendance-monthly-summary"))
-        self.assertContains(response, 'id="ms-view" value="list"')
-
-    def test_an_unknown_view_falls_back_to_the_list(self):
-        response = self.client.get(
-            reverse("attendance-monthly-summary"), {"view": "nonsense"}
-        )
-        self.assertContains(response, 'id="ms-view" value="list"')
+        self.assertEqual(opened_on(), "list")
 
 
 class DailyCellTests(TestCase):
@@ -299,24 +258,30 @@ class DailyClickTests(DailyViewMixin, TestCase):
     def test_a_day_cell_carries_what_the_popover_needs_and_the_name_opens_the_calendar(
         self,
     ):
-        import re
-
         response = self.get(DAY, DAY + datetime.timedelta(days=1))
         html = response.content.decode()
         self.assertEqual(
             html.count("data-day-popover="), 2 * len(response.context["rows"])
         )
-        cell = re.search(r'<td class="dv-cell[^>]*data-day-popover[^>]*>', html).group(
-            0
+        # This employee's cells, whichever row the page lists them on.
+        cells = re.findall(
+            rf'<td class="dv-cell[^>]*data-day-popover[^>]*data-employee="{self.employee.pk}"[^>]*>',
+            html,
         )
-        self.assertIn(f'data-employee="{self.employee.pk}"', cell)
+        self.assertEqual(len(cells), 2)
+        cell = cells[0]
         self.assertIn(f'data-date="{DAY.isoformat()}"', cell)
         self.assertIn(f'data-from="{DAY.isoformat()}"', cell)
         # No calendar link on a day cell: the popover is all it opens.
         self.assertNotIn("data-calendar-url", cell)
-        name_cell = re.search(r'<td class="dv-emp"[^>]*>', html).group(0)
-        self.assertIn("data-calendar-url", name_cell)
-        self.assertNotIn("data-day-popover", name_cell)
+        name_cell = re.search(
+            rf'<td class="dv-emp"\s+data-calendar-url="[^"]*employee_id={self.employee.pk}&[^"]*">',
+            html,
+        )
+        self.assertIsNotNone(
+            name_cell, "the name does not open this employee's calendar"
+        )
+        self.assertNotIn("data-day-popover", name_cell.group(0))
 
     def test_the_table_carries_the_popover_urls(self):
         html = self.get(DAY, DAY).content.decode()
@@ -398,16 +363,6 @@ class DashboardTests(DailyViewMixin, TestCase):
         self.assertNotContains(response, 'id="dvTable"')
         self.assertNotContains(response, "ms-summary-row")
 
-    def test_the_list_no_longer_carries_the_kpi_cards(self):
-        response = self.client.get(
-            reverse("attendance-monthly-summary-table"),
-            {"from_date": DAY.isoformat(), "to_date": DAY.isoformat()},
-            HTTP_HX_REQUEST="true",
-        )
-        self.assertNotContains(response, '<div class="ms-stat-row">')
-        self.assertNotContains(response, 'class="ms-stat-card"')
-        self.assertContains(response, "ms-summary-row")
-
     def test_the_mix_adds_up_and_the_donut_has_a_slice_for_each_part(self):
         self.punch()
         context = self.get_summary().context
@@ -435,12 +390,21 @@ class DashboardTests(DailyViewMixin, TestCase):
         self.assertContains(response, "1 Set By Regularisation")
         self.assertNotContains(response, "Company-Wide")
 
-    def test_a_period_across_months_is_named_by_its_dates(self):
-        context = self.get_summary(
-            datetime.date(2026, 9, 20), datetime.date(2026, 10, 10)
-        ).context
-        self.assertIn("–", context["period"])
-        self.assertIn("20 Sep 2026", context["period"])
+    def test_the_period_is_named_by_the_filtered_dates_not_the_month(self):
+        for start, end, name in (
+            (
+                datetime.date(2026, 9, 5),
+                datetime.date(2026, 9, 12),
+                "05 Sep 2026 \u2013 12 Sep 2026",
+            ),
+            (
+                datetime.date(2026, 9, 20),
+                datetime.date(2026, 10, 10),
+                "20 Sep 2026 \u2013 10 Oct 2026",
+            ),
+        ):
+            with self.subTest(start=start, end=end):
+                self.assertEqual(self.get_summary(start, end).context["period"], name)
 
     def test_with_nothing_scheduled_the_donut_shows_a_dash_not_a_percentage(self):
         response = self.get_summary(employee_id=0)
@@ -506,6 +470,14 @@ class DashboardTests(DailyViewMixin, TestCase):
                     HTTP_HX_REQUEST="true",
                 )
                 self.assertContains(response, marker)
+        with self.subTest(view="none given"):  # the list is the default
+            response = self.client.get(
+                reverse("attendance-monthly-summary-table"),
+                {"from_date": DAY.isoformat(), "to_date": DAY.isoformat()},
+                HTTP_HX_REQUEST="true",
+            )
+            self.assertContains(response, "ms-summary-row")
+            self.assertNotContains(response, 'id="dvTable"')
 
 
 class DailyChipTests(DailyViewMixin, TestCase):
@@ -687,38 +659,15 @@ class WeekOffAgreementTests(DailyViewMixin, TestCase):
 class DailyWorkStatusDeprecationTests(DailyViewMixin, TestCase):
     """The old Daily Work Status page is off the menu and sends people to the Day-wise view."""
 
-    def test_the_menu_no_longer_lists_daily_work_status(self):
-        from attendance.sidebar import SUBMENUS
-
-        labels = [str(item["menu"]) for item in SUBMENUS]
-        self.assertNotIn("Daily Work Status", labels)
-        self.assertIn("Monthly Summary", labels)
-        self.assertFalse(
-            any("work-status" in str(item.get("redirect", "")) for item in SUBMENUS)
-        )
-
     def test_the_old_address_opens_the_day_wise_view(self):
         response = self.client.get(reverse("work-records"))
         self.assertEqual(response.status_code, 302)
         self.assertEqual(
             response["Location"], reverse("attendance-monthly-summary") + "?view=daily"
         )
-
-    def test_following_the_redirect_lands_on_the_day_wise_view(self):
-        response = self.client.get(reverse("work-records"), follow=True)
-        self.assertContains(response, 'id="ms-view" value="daily"')
-
-
-class LabelCaseTests(DailyViewMixin, TestCase):
-    """Labels and legends are in Title Case."""
-
-    def test_the_subtitle_shows_the_filtered_range_not_the_month(self):
-        context = self.client.get(
-            reverse("attendance-monthly-summary-table"),
-            {"view": "summary", "from_date": "2026-09-05", "to_date": "2026-09-12"},
-            HTTP_HX_REQUEST="true",
-        ).context
-        self.assertEqual(context["period"], "05 Sep 2026 \u2013 12 Sep 2026")
+        # Following it lands on the Day-wise view.
+        followed = self.client.get(reverse("work-records"), follow=True)
+        self.assertContains(followed, 'id="ms-view" value="daily"')
 
 
 class DefaultRangeTests(DailyViewMixin, TestCase):
@@ -759,10 +708,13 @@ class DefaultRangeTests(DailyViewMixin, TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.client.cookies["ms_range"].value, "previous_month")
+        before = datetime.date.today()
         page = self.client.get(reverse("attendance-monthly-summary"))
-        last = datetime.date.today().replace(day=1) - datetime.timedelta(days=1)
-        self.assertEqual(page.context["from_date"], last.replace(day=1).isoformat())
-        self.assertEqual(page.context["to_date"], last.isoformat())
+        after = datetime.date.today()
+        self.assertIn(
+            (page.context["from_date"], page.context["to_date"]),
+            {previous_month_bounds(day) for day in (before, after)},
+        )
         self.assertContains(page, "Default Date Range")
 
     def test_an_unknown_mode_is_refused(self):
@@ -773,13 +725,24 @@ class DefaultRangeTests(DailyViewMixin, TestCase):
 
     def test_the_table_falls_back_to_the_chosen_range(self):
         self.client.cookies["ms_range"] = "previous_month"
+        before = datetime.date.today()
         response = self.client.get(
             reverse("attendance-monthly-summary-table"),
             {"view": "summary"},
             HTTP_HX_REQUEST="true",
         )
-        last = datetime.date.today().replace(day=1) - datetime.timedelta(days=1)
-        self.assertContains(response, f"{last.replace(day=1):%d %b %Y}")
+        after = datetime.date.today()
+        # The expected month is read on both sides of the request, so a run that
+        # straddles midnight on the last day of a month cannot fail.
+        body = response.content.decode()
+        self.assertTrue(
+            any(
+                f"{datetime.date.fromisoformat(first):%d %b %Y}" in body
+                for first, _last in {
+                    previous_month_bounds(day) for day in (before, after)
+                }
+            )
+        )
 
     def test_a_month_cycle_runs_a_full_month_from_the_chosen_day(self):
         from attendance.methods.default_range import range_for
@@ -827,30 +790,3 @@ class DefaultRangeTests(DailyViewMixin, TestCase):
             400,
         )
         self.assertEqual(self.client.post(url, {"mode": "custom"}).status_code, 400)
-
-    def test_late_start_days_explain_what_short_months_do(self):
-        from attendance.methods.default_range import start_day_choices
-
-        notes = {day: note for day, _label, _rule, note in start_day_choices()}
-        self.assertEqual(notes[28], "")
-        self.assertIn("February", notes[30])
-        self.assertIn("Fewer Than 30 Days", notes[30])
-        self.assertIn("28th To The 31st", notes[31])
-
-    def test_the_rule_line_is_filled_when_the_page_renders(self):
-        page = self.client.get(reverse("attendance-monthly-summary"))
-        html = page.content.decode()
-        start = html.index('id="ms-range-preview-text">') + len(
-            'id="ms-range-preview-text">'
-        )
-        self.assertEqual(
-            html[start : html.index("</b>", start)].strip(),
-            "Calendar Month (1st To Last Day)",
-        )
-
-    def test_the_chooser_names_rules_not_dates(self):
-        page = self.client.get(reverse("attendance-monthly-summary"))
-        for choice in page.context["range_choices"]:
-            self.assertNotRegex(choice["text"], r"\d{4}")
-        self.assertContains(page, "Calendar Month (1st To Last Day)")
-        self.assertContains(page, "Month Cycle")

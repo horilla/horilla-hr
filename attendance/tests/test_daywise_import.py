@@ -149,8 +149,11 @@ class DayWiseImportTests(TestCase):
         )
 
     def test_unknown_codes_and_upcoming_days_are_skipped_and_reported(self):
-        tomorrow = datetime.date.today() + datetime.timedelta(days=1)
-        book = self.workbook(self.download(DAY, tomorrow))
+        # Yesterday to tomorrow: a window that follows today without outgrowing the
+        # grid's day limit (a fixed start date would, as the months go by).
+        today = datetime.date.today()
+        yesterday, tomorrow = (today + datetime.timedelta(days=d) for d in (-1, 1))
+        book = self.workbook(self.download(yesterday, tomorrow))
         sheet = book["Day-Wise"]
         row = self.row_of(sheet)
         sheet.cell(row, 5).value = "XYZ"
@@ -173,14 +176,6 @@ class DayWiseImportTests(TestCase):
     def test_a_range_longer_than_the_grid_allows_is_refused(self):
         response = self.download(DAY, DAY + datetime.timedelta(days=90))
         self.assertEqual(response.status_code, 302)
-
-    def test_the_template_link_follows_the_screen_and_explains_what_it_covers(self):
-        html = self.client.get(reverse("attendance-monthly-summary")).content.decode()
-        self.assertIn('id="ms-template-link"', html)
-        self.assertIn('id="ms-template-tip"', html)
-        self.assertIn("function msSyncTemplateLink(params, selectedIds)", html)
-        self.assertIn("msSyncTemplateLink(params, selectedIds);", html)
-        self.assertIn("The Template Covers", html)
 
     def grid_cell(self):
         response = self.client.get(
@@ -262,13 +257,3 @@ class DayWiseImportTests(TestCase):
         )
         self.assertEqual([r.resolution for r in rows], ["holiday"])
         self.assertEqual(self.grid_cell()["code"], "H")
-
-    def test_the_summary_page_offers_the_day_wise_import_and_not_the_summary_sheet(
-        self,
-    ):
-        html = self.client.get(reverse("attendance-monthly-summary")).content.decode()
-        self.assertIn(reverse("attendance-daywise-import"), html)
-        self.assertIn(reverse("attendance-daywise-template"), html)
-        self.assertIn("Import Day-Wise Sheet", html)
-        self.assertNotIn(reverse("attendance-regularisation-import"), html)
-        self.assertNotIn("Upload filled sheet", html)

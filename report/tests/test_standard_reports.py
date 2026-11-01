@@ -20,6 +20,25 @@ from report.registry import (
 )
 
 
+def register_for_test(testcase, definition):
+    """Register a throwaway report and put the registry back when the test ends.
+
+    The registry is process-global, so a fake slug left behind would be run by
+    anything that later iterates ``list_reports()`` (the catalog execution and
+    query-budget tests do).
+    """
+    from report import registry
+
+    snapshot = dict(registry._REGISTRY)
+
+    def restore():
+        registry._REGISTRY.clear()
+        registry._REGISTRY.update(snapshot)
+
+    testcase.addCleanup(restore)
+    register(definition)
+
+
 class EngineHelpersTests(SimpleTestCase):
     def test_parse_period_defaults(self):
         from_date, to_date, preset = parse_period()
@@ -65,12 +84,6 @@ class EngineHelpersTests(SimpleTestCase):
         self.assertIn("All time", filters.summary_labels())
         self.assertNotIn("Status: all", " · ".join(filters.summary_labels()))
 
-    def test_print_filters_url_resolves(self):
-        from django.urls import reverse
-
-        url = reverse("standard-report-print-filters", args=["workforce-composition"])
-        self.assertEqual(url, "/report/standard/workforce-composition/print-filters/")
-
     def test_month_offset(self):
         d = date(2026, 3, 15)
         self.assertEqual(month_offset(d, 0), date(2026, 3, 1))
@@ -111,17 +124,6 @@ class RegistryTests(SimpleTestCase):
             # Each carries its own subject-matter permission so it can be
             # granted without handing over unrelated access.
             self.assertTrue(definition.alt_permissions)
-
-    def test_reimbursement_register_keeps_undated_claims(self):
-        "Undated rows must not vanish from every window."
-        import inspect
-
-        from report.metrics.payroll import reimbursement_register
-
-        # Guards the bulk_create/auto_now_add NULL created_at trap: a plain
-        # range filter excludes those rows from any period at all.
-        source = inspect.getsource(reimbursement_register)
-        self.assertIn("created_at__isnull=True", source)
 
     def test_retired_slugs_still_resolve(self):
         "Consolidated reports keep resolving so bookmarks do not 404."
@@ -262,7 +264,8 @@ class RegistryTests(SimpleTestCase):
                 "table": {"columns": [], "rows": []},
             }
 
-        register(
+        register_for_test(
+            self,
             ReportDefinition(
                 slug="unit-test-report",
                 name="Unit Test",
@@ -271,7 +274,7 @@ class RegistryTests(SimpleTestCase):
                 permission="employee.view_employee",
                 query_fn=fake_query,
                 required_apps=(),
-            )
+            ),
         )
         filters = ReportFilters(from_date=date(2026, 1, 1), to_date=date(2026, 1, 31))
         payload = run_report("unit-test-report", filters)
@@ -486,26 +489,86 @@ class ExportTests(SimpleTestCase):
             self.assertEqual(cell.number_format, "0.0%")
 
 
-class AttendanceDecimalTests(SimpleTestCase):
+class AttendanceDecimalTests(TestCase):
     """The pivot sums the *_Decimal columns, so they must be real hours."""
 
-    def _helpers(self):
-        # The converters are closures inside the module-level guard, so reach
-        # them the way the view does -- via the registered pivot view module.
-        from report.views import attendance_report  # noqa: F401
+    def test_pivot_returns_decimal_hours_that_add_up(self):
+        """1:45 of overtime is 1.75 hours, not "1.45". Two such rows used to
+        total 2.90 instead of 3.50 because the minutes were written into the
+        fractional slot of a base-10 number."""
+        from datetime import timedelta
 
-        return attendance_report
+        from django.test import Client
+        from django.urls import reverse
 
-    def test_view_module_returns_numeric_decimals(self):
-        """Guard the real converters against the old HH.MM formatting."""
-        import inspect
+        from horilla.testkit.factories import make_attendance, make_user
 
-        from report.views import attendance_report
+        user = make_user("pivot_admin", password="secret123", is_superuser=True)
+        company = make_company("Pivot Co")
+        make_employee(company=company, email="pivot_admin@test.horilla", user=user)
+        employee = make_employee(company=company, email="pivot@test.horilla")
+        for offset in (1, 2):
+            make_attendance(
+                employee=employee,
+                attendance_date=date.today() - timedelta(days=offset),
+                overtime_second=6300,
+            )
 
-        source = inspect.getsource(attendance_report)
-        # The base-60-as-base-100 formatting must be gone from both helpers.
-        self.assertNotIn('f"{hours:02}.{minutes:02}"', source)
-        self.assertNotIn('f"{t.hour:02}.{t.minute:02}"', source)
+        client = Client()
+        client.force_login(user)
+        session = client.session
+        session["selected_company"] = "all"
+        session.save()
+        response = client.get(reverse("attendance-pivot"))
+
+        self.assertEqual(response.status_code, 200)
+        rows = response.json()
+        self.assertEqual(len(rows), 2)
+        self.assertEqual([r["Overtime Decimal"] for r in rows], [1.75, 1.75])
+        self.assertEqual(sum(r["Overtime Decimal"] for r in rows), 3.5)
+
+
+class ReimbursementRegisterTests(TestCase):
+    def test_undated_claims_are_kept_in_every_window(self):
+        """Undated rows must not vanish from every window.
+
+        Guards the NULL created_at trap: a plain range filter excludes those
+        rows from any period at all, so the claim disappears from the register.
+        """
+        import report.metrics  # noqa: F401
+        from payroll.models.models import Reimbursement
+        from report.registry import run_report
+
+        employee = make_employee(
+            company=make_company("Claims Co"), email="claims@test.horilla"
+        )
+        # bulk_create: Reimbursement.save() needs a live request.
+        undated, _dated = Reimbursement.objects.bulk_create(
+            [
+                Reimbursement(
+                    title="Undated taxi",
+                    employee_id=employee,
+                    allowance_on=date(2020, 1, 5),
+                ),
+                Reimbursement(
+                    title="Dated lunch",
+                    employee_id=employee,
+                    allowance_on=date.today(),
+                ),
+            ]
+        )
+        Reimbursement.objects.filter(pk=undated.pk).update(created_at=None)
+
+        # A window that ended years ago: only the undated claim can appear.
+        filters = ReportFilters(
+            from_date=date(2020, 1, 1),
+            to_date=date(2020, 1, 31),
+            employment_status="all",
+        )
+        payload = run_report("reimbursement-register", filters)
+
+        titles = [row["title"] for row in payload["table"]["rows"]]
+        self.assertEqual(titles, ["Undated taxi"])
 
 
 class SubscriptionFormTests(TestCase):
@@ -576,51 +639,6 @@ class PdfExportTests(SimpleTestCase):
         narrative = build_narrative(payload)
         self.assertIn("Prior period", narrative)
         self.assertIn("Headcount", narrative)
-
-    def test_export_pdf_via_pisa(self):
-        from unittest.mock import patch
-
-        from report.export import export_pdf
-
-        payload = {
-            "title": "Workforce Composition",
-            "slug": "workforce-composition",
-            "domain": "workforce",
-            "period": {"from_date": "2026-08-01", "to_date": "2026-08-31"},
-            "filters": ["2026-08-01 → 2026-08-31"],
-            "kpis": [{"label": "Headcount", "value": 12, "hint": "Active"}],
-            "table": {
-                "columns": [
-                    {"key": "dept", "label": "Department"},
-                    {"key": "count", "label": "Count"},
-                ],
-                "rows": [{"dept": "HR", "count": 3}],
-            },
-            "charts": [],
-        }
-        html = (
-            "<html><body><h1>Workforce Composition</h1>"
-            "<p>Headcount 12</p></body></html>"
-        )
-        with patch("django.template.loader.render_to_string", return_value=html):
-            pdf = export_pdf(
-                payload,
-                "sample.pdf",
-                meta={
-                    "company": {
-                        "name": "Acme Corp",
-                        "is_all": False,
-                        "address_lines": ["Acme Corp"],
-                        "logo_path": None,
-                    },
-                    "user": "Admin",
-                    "product_name": "Horilla HR · Standard Reports",
-                    "domain": "workforce",
-                },
-            )
-        self.assertEqual(pdf["Content-Type"], "application/pdf")
-        self.assertTrue(pdf.content.startswith(b"%PDF"))
-        self.assertTrue(len(pdf.content) > 200)
 
 
 class PersonalizationHelperTests(SimpleTestCase):
@@ -853,7 +871,8 @@ class PeriodCompareTests(SimpleTestCase):
                 "table": {"columns": [], "rows": []},
             }
 
-        register(
+        register_for_test(
+            self,
             ReportDefinition(
                 slug="unit-compare-report",
                 name="Compare Unit",
@@ -862,7 +881,7 @@ class PeriodCompareTests(SimpleTestCase):
                 permission="employee.view_employee",
                 query_fn=fake_query,
                 required_apps=(),
-            )
+            ),
         )
         filters = ReportFilters(
             from_date=d(2026, 8, 1),
@@ -994,14 +1013,17 @@ class CalendarExpectedDaysTests(SimpleTestCase):
 
         from report.metrics._calendar import count_expected_working_days
 
-        with patch(
-            "report.metrics._calendar._holiday_dates",
-            return_value={date(2026, 1, 7)},
-        ), patch(
-            # Company-leave rules are now fetched once per call rather than
-            # queried per day; patch that seam, not the old per-day helper.
-            "report.metrics._calendar._company_leave_rules",
-            return_value=set(),
+        with (
+            patch(
+                "report.metrics._calendar._holiday_dates",
+                return_value={date(2026, 1, 7)},
+            ),
+            patch(
+                # Company-leave rules are now fetched once per call rather than
+                # queried per day; patch that seam, not the old per-day helper.
+                "report.metrics._calendar._company_leave_rules",
+                return_value=set(),
+            ),
         ):
             # Mon–Fri minus Wed holiday → 4
             self.assertEqual(
@@ -1107,15 +1129,19 @@ class ExitHelperPriorityTests(SimpleTestCase):
                 "employee": None,
             },
         ]
-        with patch(
-            "report.metrics._exits._offboarding_archived_exits",
-            return_value=offboarding,
-        ), patch(
-            "report.metrics._exits._resignation_exits",
-            return_value=resignation,
-        ), patch(
-            "report.metrics._exits._inactive_contract_exits",
-            return_value=inactive,
+        with (
+            patch(
+                "report.metrics._exits._offboarding_archived_exits",
+                return_value=offboarding,
+            ),
+            patch(
+                "report.metrics._exits._resignation_exits",
+                return_value=resignation,
+            ),
+            patch(
+                "report.metrics._exits._inactive_contract_exits",
+                return_value=inactive,
+            ),
         ):
             rows = iter_exits(filters)
         by_id = {r["employee_id"]: r["source"] for r in rows}
@@ -1143,7 +1169,8 @@ class DrilldownRegistryTests(SimpleTestCase):
         from report.engine import ReportFilters
         from report.registry import ReportDefinition, register, run_drilldown
 
-        register(
+        register_for_test(
+            self,
             ReportDefinition(
                 slug="unit-no-drill",
                 name="No Drill",
@@ -1152,7 +1179,7 @@ class DrilldownRegistryTests(SimpleTestCase):
                 permission="employee.view_employee",
                 query_fn=lambda f: {},
                 required_apps=(),
-            )
+            ),
         )
         with self.assertRaises(ValueError):
             run_drilldown(

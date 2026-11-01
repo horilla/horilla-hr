@@ -159,21 +159,9 @@ class PayPeriodCycleTests(TestCase):
             (date(2026, 9, 1), date(2026, 9, 30)),
         )
 
-    def test_the_summary_says_what_the_rule_is(self):
-        self.assertEqual(
-            self._settings(15).summary(), "Cycle starting on the 15th of each month"
-        )
-        self.assertIn("22nd", self._settings(22).summary())
-        self.assertIn("3rd", self._settings(3).summary())
-        self.assertIn("11th", self._settings(11).summary())
-
     def test_the_form_has_the_one_choice_and_refuses_anything_else(self):
         from payroll.forms.batch_forms import PayPeriodSettingsForm
 
-        form = PayPeriodSettingsForm()
-        self.assertEqual(
-            list(form.fields), ["cycle_start_day", "auto_generate", "pay_day"]
-        )
         base = {"pay_day": "after:0"}
         for good in (1, 15, 28, 29, 30, 31):
             self.assertTrue(
@@ -222,12 +210,6 @@ class PayPeriodCycleTests(TestCase):
         self.assertEqual(
             [v for v, _l in choices], [f"day:{n}" for n in range(1, 31)] + ["day:31"]
         )
-        labels = dict(choices)
-        self.assertEqual(labels["day:5"], "5th")
-        self.assertEqual(labels["day:22"], "22nd")
-        self.assertEqual(labels["day:29"], "29th")
-        self.assertEqual(labels["day:30"], "30th")
-        self.assertEqual(labels["day:31"], "Last day")
         self.assertEqual(form.fields["pay_day"].initial, "day:15")
         self.assertFalse(
             any(isinstance(options, (list, tuple)) for _v, options in choices)

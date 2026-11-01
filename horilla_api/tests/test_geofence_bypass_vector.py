@@ -71,19 +71,18 @@ class GeofenceBypassVectorTests(TestCase):
         response = self.client.post(
             CLOCK_IN_URL, {"latitude": 999, "longitude": 999}, format="json"
         )
-        self.assertNotEqual(
-            response.status_code, 200, "out-of-range coordinates must not clock in"
-        )
+        # 503 is the deliberate fail-closed answer, not a crash (that is a 500).
+        self.assertEqual(response.status_code, 503)
         self.assertFalse(self._punched(), "no attendance may be recorded")
 
     def test_genuinely_outside_the_fence_is_refused(self):
         response = self.client.post(
             CLOCK_IN_URL, {"latitude": 48.8566, "longitude": 2.3522}, format="json"
         )
-        self.assertNotEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 400)
         self.assertFalse(self._punched())
 
     def test_missing_coordinates_are_refused(self):
         response = self.client.post(CLOCK_IN_URL, {}, format="json")
-        self.assertNotEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 400)
         self.assertFalse(self._punched())

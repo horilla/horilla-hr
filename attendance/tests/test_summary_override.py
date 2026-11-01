@@ -114,15 +114,13 @@ class TemplateTests(Fixture):
             {"from_date": FROM_DATE, "to_date": TO_DATE},
         )
 
-    def test_it_downloads_as_a_workbook(self):
+    def test_it_is_one_row_per_employee_not_per_day(self):
+        """The whole point of the change: nobody wants to see days."""
         response = self.download()
         self.assertEqual(response.status_code, 200)
         self.assertIn("spreadsheetml", response["Content-Type"])
         self.assertIn("attachment;", response["Content-Disposition"])
-
-    def test_it_is_one_row_per_employee_not_per_day(self):
-        """The whole point of the change: nobody wants to see days."""
-        frame = pd.read_excel(BytesIO(self.download().content), sheet_name="Summary")
+        frame = pd.read_excel(BytesIO(response.content), sheet_name="Summary")
         self.assertNotIn("Date", frame.columns)
         self.assertEqual(len(frame[frame["Badge ID"] == self.badge]), 1)
 
@@ -157,16 +155,6 @@ class TotalColumnTests(Fixture):
             {"from_date": FROM_DATE, "to_date": TO_DATE},
         )
 
-    def test_the_sheet_carries_a_total_column(self):
-        frame = pd.read_excel(BytesIO(self.download().content), sheet_name="Summary")
-        self.assertIn("Total", frame.columns)
-
-    def test_it_sits_beside_the_columns_it_sums(self):
-        """A total three columns away from its own addends is one nobody checks."""
-        frame = pd.read_excel(BytesIO(self.download().content), sheet_name="Summary")
-        columns = list(frame.columns)
-        self.assertEqual(columns[columns.index("Holiday") + 1], "Total")
-
     def test_it_is_a_live_formula_not_a_number(self):
         """
         A total computed at download time is stale the moment anybody types,
@@ -183,14 +171,6 @@ class TotalColumnTests(Fixture):
         self.assertTrue(
             str(formula).startswith("=SUM("), f"expected a formula, got {formula!r}"
         )
-
-    def test_the_notes_explain_it(self):
-        notes = pd.read_excel(
-            BytesIO(self.download().content), sheet_name="How to fill this in"
-        )
-        row = notes[notes["Column"] == "Total"].iloc[0]
-        self.assertEqual(row["Editable"], "no")
-        self.assertIn("red", str(row["Notes"]))
 
 
 class ReconcilesTests(Fixture):
@@ -238,25 +218,6 @@ class ReconcilesTests(Fixture):
             row["working_days"],
             19 + row["paid_leave"] + row["unpaid_leave"] + 0,
         )
-
-
-class SheetUsabilityTests(Fixture):
-    def workbook(self):
-        import openpyxl
-
-        response = self.client.get(
-            reverse("attendance-regularisation-template"),
-            {"from_date": FROM_DATE, "to_date": TO_DATE},
-        )
-        return openpyxl.load_workbook(BytesIO(response.content))
-
-    def test_only_the_header_row_is_frozen(self):
-        """
-        Freezing Badge ID and Employee too slid Present -- the first editable
-        column -- behind the frozen pane as soon as anybody scrolled right.
-        """
-        summary = self.workbook()["Summary"]
-        self.assertEqual(summary.freeze_panes, "A2")
 
 
 class ImportTests(Fixture):

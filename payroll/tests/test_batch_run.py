@@ -226,14 +226,9 @@ class BatchCreationTests(Fixture):
         )
         self.assertEqual(batch.employee_count, 3)
         self.assertEqual(batch.lines.count(), 3)
+        self.assertEqual(batch.lines.filter(status=PayrollBatchLine.QUEUED).count(), 3)
         self.assertEqual(batch.progress_state, PayrollBatch.PENDING)
         self.assertEqual(Payslip.objects.count(), 0)
-
-    def test_every_employee_is_queued(self):
-        batch = batch_run.create_batch(
-            name="April", start_date=START, end_date=END, employees=self.people
-        )
-        self.assertEqual(batch.lines.filter(status=PayrollBatchLine.QUEUED).count(), 3)
 
 
 class GenerationTests(Fixture):

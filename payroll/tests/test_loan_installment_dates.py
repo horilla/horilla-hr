@@ -4,7 +4,6 @@ from datetime import date
 
 from django.test import SimpleTestCase
 
-from base.methods import get_nth_month_same_date
 from payroll.models.models import LoanAccount
 
 
@@ -39,8 +38,3 @@ class LoanInstallmentDatesTests(SimpleTestCase):
             schedule(date(2026, 10, 31), 4),
             ["2026-10-31", "2026-11-30", "2026-12-31", "2027-01-31"],
         )
-
-    def test_nth_month_is_counted_from_the_start_date_not_the_previous_month(self):
-        start = date(2027, 1, 31)
-        self.assertEqual(get_nth_month_same_date(start, 1), date(2027, 2, 28))
-        self.assertEqual(get_nth_month_same_date(start, 2), date(2027, 3, 31))

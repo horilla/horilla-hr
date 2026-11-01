@@ -3,6 +3,9 @@ Quick-export column paths are client-supplied attribute walks. They must not
 be able to reach credentials through relations (employee_user_id__password).
 """
 
+import csv
+import io
+
 from django.test import TestCase
 from django.urls import reverse
 
@@ -20,7 +23,11 @@ class ExportColumnPathTests(TestCase):
             company=company, email="target@test.horilla", first_name="Targeted"
         )
         self.client.force_login(self.admin)
-        self.client.session["selected_company"] = str(company.pk)
+        # client.session returns a fresh store each time: it has to be bound
+        # and saved, or the assignment is silently lost.
+        session = self.client.session
+        session["selected_company"] = str(company.pk)
+        session.save()
 
     def _export(self, columns):
         url = (
@@ -45,11 +52,7 @@ class ExportColumnPathTests(TestCase):
     def test_private_attributes_are_blanked(self):
         response = self._export([["State", "_state__db"]])
         self.assertEqual(response.status_code, 200)
-        self.assertNotIn(
-            "default",
-            (
-                response.content.decode(errors="ignore").split("\n")[1:][0]
-                if response.content.count(b"\n")
-                else ""
-            ),
-        )
+        rows = list(csv.reader(io.StringIO(response.content.decode())))
+        # The last two rows are the header and the one data row, and the private attribute's cell is
+        # empty: reading target._state.db would put "default" here.
+        self.assertEqual(rows[-2:], [["State"], [""]])

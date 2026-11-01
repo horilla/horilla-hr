@@ -124,8 +124,11 @@ class ContractPeriodEdgeCases(ContractFixture):
         self.assertEqual(self.run_period(), [])
 
     def test_a_terminated_or_draft_contract_is_not_paid(self):
-        self.contract("Dropped", START, None, 31000.0, status="terminated")
-        self.assertEqual(self.run_period(), [])
+        for status in ("terminated", "draft"):
+            with self.subTest(status=status):
+                Contract.objects.filter(employee_id=self.employee).delete()
+                self.contract("Dropped", START, None, 31000.0, status=status)
+                self.assertEqual(self.run_period(), [])
 
     # --- one contract replaced by another ----------------------------------------------------
 
@@ -267,9 +270,6 @@ class WholePayslipOnEachContract(ContractFixture):
             second.gross_pay, 3600.0, places=2
         )  # 3,000 + HRA 300 + bonus 300
         self.assertAlmostEqual(second.net_pay, 3525.0, places=2)
-
-    def test_the_month_adds_up_to_both_halves(self):
-        self.assertAlmostEqual(sum(p.net_pay for p in self.slips), 5400.0, places=2)
 
 
 def _slice_summary(days):

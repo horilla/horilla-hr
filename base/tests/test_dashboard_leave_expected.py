@@ -5,6 +5,7 @@ agree.
 """
 
 from datetime import date, time
+from unittest.mock import patch
 
 from django.test import TestCase
 from django.urls import reverse
@@ -120,9 +121,15 @@ class TestDashboardsOnLeave(TestCase):
     def test_expected_is_present_plus_not_checked_in(self):
         self.take_leave(half_day=True)
         self.client.force_login(self.boss)
-        data = self.client.get(reverse("dashboard-kpi-data")).json()
-        if data["week_off_today"]:
-            self.skipTest("Nobody is expected in on a weekly off")
+        # Pin "today is a working day": on a weekly off or holiday nobody is
+        # expected in, so without this the checks below would depend on the
+        # weekday the suite happens to run on.
+        with (
+            patch("base.methods.is_company_leave", return_value=False),
+            patch("base.methods.get_holiday_dates", return_value=[]),
+        ):
+            data = self.client.get(reverse("dashboard-kpi-data")).json()
+        self.assertFalse(data["week_off_today"])
         self.assertEqual(
             data["expected_today"], data["present_today"] + data["not_checked_in"]
         )

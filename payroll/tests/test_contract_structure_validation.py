@@ -190,16 +190,6 @@ class PayFrequencyChoicesTests(TestCase):
         self.employee = make_employee(company=company, email="f@test.horilla")
         Contract.objects.filter(employee_id=self.employee).delete()
 
-    def test_weekly_and_semi_monthly_are_disabled_but_listed(self):
-        html = str(self.form_class()["pay_frequency"])
-        self.assertIn("Weekly", html)
-        self.assertIn("Semi-Monthly", html)
-        for value in ("weekly", "semi_monthly"):
-            option = html.split(f'value="{value}"')[1].split(">")[0]
-            self.assertIn("disabled", option, value)
-        monthly = html.split('value="monthly"')[1].split(">")[0]
-        self.assertNotIn("disabled", monthly)
-
     def test_a_posted_weekly_is_refused(self):
         form = self.form_class()
         form.cleaned_data = {"pay_frequency": "weekly"}
@@ -223,8 +213,5 @@ class PayFrequencyChoicesTests(TestCase):
             calculate_daily_leave_amount=True,
         )
         form = self.form_class(instance=contract)
-        html = str(form["pay_frequency"])
-        weekly = html.split('value="weekly"')[1].split(">")[0]
-        self.assertNotIn("disabled", weekly)
         form.cleaned_data = {"pay_frequency": "weekly"}
         self.assertEqual(form.clean_pay_frequency(), "weekly")

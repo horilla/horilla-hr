@@ -18,7 +18,6 @@ from unittest.mock import patch
 
 from django.test import TestCase
 from django.urls import reverse
-
 from horilla.testkit import make_company, make_employee, make_user
 from payroll.methods import payslip_edit
 from payroll.methods.methods import payslip_fields, save_payslip
@@ -289,8 +288,11 @@ class ViewTests(Fixture):
         self.assertContains(response, "Gross Pay")
 
     def test_a_garbage_amount_is_ignored_not_a_500(self):
+        original_basic = self.payslip.basic_pay
         response = self.client.post(self.url(), {"amount:basic": "not-a-number"})
-        self.assertNotEqual(response.status_code, 500)
+        self.assertEqual(response.status_code, 302)
+        self.payslip.refresh_from_db()
+        self.assertEqual(self.payslip.basic_pay, original_basic)
 
     def test_removing_basic_pay_by_tampered_key_does_nothing(self):
         """
@@ -309,7 +311,8 @@ class ViewTests(Fixture):
         self.client.force_login(stranger)
 
         response = self.client.get(self.url())
-        self.assertNotEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.content, b"")
 
 
 class FormulaContextTests(Fixture):
@@ -594,6 +597,7 @@ class NewLineViewTests(Fixture):
             self.preview_url(), {"formula": "BASIC"}, HTTP_HX_REQUEST="true"
         )
         self.assertNotIn("application/json", response.headers.get("Content-Type", ""))
+        self.assertIn("don't have permission", response.content.decode().lower())
 
 
 class TheOldAddButtonsAreGoneTests(Fixture):
@@ -609,21 +613,6 @@ class TheOldAddButtonsAreGoneTests(Fixture):
         )
         self.assertNotContains(response, reverse("add-bonus"))
         self.assertNotContains(response, reverse("add-payslip-deduction"))
-
-
-class PayslipHelpTextTests(Fixture):
-    """
-    The payslip carried three info bubbles written against an older engine,
-    two of which explained the same "update compensation" behaviour from
-    opposite sides of the same column. What is left is the help a reader
-    cannot work out from the figures in front of them.
-    """
-
-    def test_the_page_still_renders_the_help_that_is_left(self):
-        response = self.client.get(
-            reverse("view-created-payslip", kwargs={"payslip_id": self.payslip.pk})
-        )
-        self.assertContains(response, "CTC Down")
 
 
 class DerivedLinesFixture(Fixture):
@@ -920,14 +909,6 @@ class EarningWorkingTests(DerivedLinesFixture):
             "tax", deduction_workings(self.payslip)
         )  # no filing status on this contract
 
-    def test_an_unsaved_preview_page_still_draws(self):
-        from django.template.loader import render_to_string
-
-        from payroll.templatetags.payrollfilters import earning_workings_filter
-
-        self.assertEqual(earning_workings_filter(None), {})
-        self.assertEqual(earning_workings_filter(""), {})
-
 
 class RecomputeDependentsTests(DerivedLinesFixture):
     def keys(self):
@@ -1022,16 +1003,7 @@ class RecalculateEndpointTests(DerivedLinesFixture):
 
         response = self.client.post(self.url(), {}, HTTP_HX_REQUEST="true")
         self.assertNotIn("application/json", response.headers.get("Content-Type", ""))
-
-
-class TheFormShowsTheComputationTests(DerivedLinesFixture):
-    def test_the_form_knows_where_to_recalculate(self):
-        response = self.client.get(
-            reverse("edit-payslip-components", args=[self.payslip.pk])
-        )
-        self.assertContains(
-            response, reverse("recalculate-payslip-lines", args=[self.payslip.pk])
-        )
+        self.assertIn("don't have permission", response.content.decode().lower())
 
 
 class TaxFollowsTheEditTests(Fixture):

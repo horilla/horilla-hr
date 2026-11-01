@@ -22,7 +22,6 @@ Two classes of protection are covered:
 """
 
 from django.test import SimpleTestCase
-
 from payroll.methods import federal_tax
 from payroll.methods.safe_tax_code import (
     MAX_ITERATIONS,
@@ -70,9 +69,6 @@ class SandboxContainmentTests(SimpleTestCase):
                 run_tax_formula(code, 100000)
                 survived.append(label)
             except (TaxCodeValidationError, TaxFormulaTimeout):
-                pass
-            except Exception:
-                # The formula's own error is fine; it never got out.
                 pass
         self.assertEqual(survived, [], f"sandbox escape executed: {survived}")
 

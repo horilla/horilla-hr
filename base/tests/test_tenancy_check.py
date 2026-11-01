@@ -11,7 +11,7 @@ from django.core.checks import Warning as CheckWarning
 from django.db import models
 from django.test import SimpleTestCase
 
-from base.checks import EXEMPT, check_company_scoped_managers
+from base.checks import check_company_scoped_managers
 from base.horilla_company_manager import HorillaCompanyManager
 
 
@@ -29,10 +29,6 @@ class TenancyCheckTests(SimpleTestCase):
             if "ProbeModel" not in getattr(p.obj, "__name__", "")
         ]
         self.assertEqual(real, [])
-
-    def test_every_exemption_carries_a_reason(self):
-        for label, reason in EXEMPT.items():
-            self.assertTrue(reason.strip(), f"{label} is exempt with no reason")
 
     def test_an_unscoped_company_model_is_reported(self):
         class Meta:

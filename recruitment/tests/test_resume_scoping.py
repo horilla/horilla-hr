@@ -53,7 +53,7 @@ class ResumeScopingTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         # The victim's file must not be handed to the applicant in any form.
-        self.assertNotIn(PDF, response.content)
+        self.assertIsNone(response.context["resume"])
         self.assertNotIn(
             self.resume_b.file.name.encode(),
             response.content,
@@ -71,6 +71,7 @@ class ResumeScopingTests(TestCase):
             {"recruitmentId": self.rec_a.id, "resumeId": own.id},
         )
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["resume"], own)
 
     def test_missing_resume_id_is_harmless(self):
         response = self.client.get(

@@ -5,6 +5,7 @@ Accessible at /attendance/dashboard/modern/ alongside the existing dashboard.
 """
 
 import calendar
+import logging
 from datetime import date, datetime, timedelta
 
 from django.db.models import Count, Q, Sum
@@ -15,6 +16,8 @@ from django.utils.translation import gettext as _
 from base.decorators import manager_can_enter
 from base.models import Department, EmployeeShift, WorkType
 from horilla.decorators import login_required
+
+logger = logging.getLogger(__name__)
 
 
 def _parse_period(request):
@@ -486,7 +489,9 @@ def attendance_overtime_summary(request):
                     }
                 )
     except Exception:
-        pass
+        # Keep the chart empty rather than failing the dashboard, but record
+        # why: an empty chart from a failed query looks like "no overtime".
+        logger.exception("Overtime summary query failed")
 
     return JsonResponse(
         {

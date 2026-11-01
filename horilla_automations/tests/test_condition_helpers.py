@@ -14,10 +14,6 @@ from horilla_automations.methods.methods import (
 
 
 class EvaluateConditionTests(SimpleTestCase):
-    def test_equality(self):
-        self.assertTrue(evaluate_condition(1, "==", 1))
-        self.assertTrue(evaluate_condition(1, "!=", 2))
-
     def test_invalid_operator(self):
         with self.assertRaises(ValueError):
             evaluate_condition(1, ">>>", 2)

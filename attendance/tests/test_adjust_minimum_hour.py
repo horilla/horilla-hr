@@ -24,17 +24,13 @@ class TestAttendanceAdjustMinimumHour(HolidayFixtureMixin, TestCase):
         )
         return att
 
-    def test_global_holiday_zeroes_emp_a(self):
-        att = self._make_attendance(self.emp_a, self.global_date)
-        att.adjust_minimum_hour()
-        self.assertEqual(att.minimum_hour, "00:00")
-        self.assertTrue(att.is_holiday)
-
-    def test_global_holiday_zeroes_emp_b(self):
-        att = self._make_attendance(self.emp_b, self.global_date)
-        att.adjust_minimum_hour()
-        self.assertEqual(att.minimum_hour, "00:00")
-        self.assertTrue(att.is_holiday)
+    def test_global_holiday_zeroes_every_employee(self):
+        for emp in (self.emp_a, self.emp_b):
+            with self.subTest(employee=emp):
+                att = self._make_attendance(emp, self.global_date)
+                att.adjust_minimum_hour()
+                self.assertEqual(att.minimum_hour, "00:00")
+                self.assertTrue(att.is_holiday)
 
     def test_specific_holiday_zeroes_assigned_emp_a(self):
         """emp_a is in the specific holiday — must be treated as holiday."""

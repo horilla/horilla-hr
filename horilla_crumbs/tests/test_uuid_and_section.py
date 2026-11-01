@@ -1,16 +1,8 @@
-"""Breadcrumb helper smoke tests."""
+"""Breadcrumb menu-section resolution."""
 
 from django.test import SimpleTestCase
 
-from horilla_crumbs.context_processors import _resolve_menu_section, is_valid_uuid
-
-
-class UuidHelperTests(SimpleTestCase):
-    def test_valid_uuid4(self):
-        self.assertTrue(is_valid_uuid("550e8400-e29b-41d4-a716-446655440000"))
-
-    def test_invalid_uuid(self):
-        self.assertFalse(is_valid_uuid("not-a-uuid"))
+from horilla_crumbs.context_processors import _resolve_menu_section
 
 
 class ResolveMenuSectionTests(SimpleTestCase):

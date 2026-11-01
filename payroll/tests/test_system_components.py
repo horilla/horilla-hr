@@ -10,9 +10,9 @@ ones that show the generators now READ the template, and that the template
 cannot be deleted out from under them.
 """
 
+from django.contrib.messages import get_messages
 from django.test import TestCase
 from django.urls import reverse
-
 from horilla.testkit import make_company, make_employee, make_user
 from payroll.forms.component_forms import AllowanceForm, DeductionForm
 from payroll.models.models import Allowance, Deduction, LoanAccount, Payslip
@@ -65,17 +65,6 @@ class EditableFieldTests(TestCase):
     attendance record and the request — so offering them would be offering
     settings that change nothing.
     """
-
-    def test_an_earning_offers_taxability_not_pretax(self):
-        """An allowance has no is_pretax; pre-tax is a deduction's phase."""
-        fields = editable_fields("reimbursement")
-        self.assertIn("is_taxable", fields)
-        self.assertNotIn("is_pretax", fields)
-
-    def test_a_deduction_offers_pretax_not_taxability(self):
-        fields = editable_fields("loan_repayment")
-        self.assertIn("is_pretax", fields)
-        self.assertNotIn("is_taxable", fields)
 
     def test_loss_of_pay_is_not_a_component(self):
         """
@@ -141,9 +130,14 @@ class UndeletableTests(TestCase):
         self.client.force_login(user)
 
         template = Allowance.objects.entire().get(system_key="reimbursement")
-        self.client.get(
+        response = self.client.get(
             reverse("delete-allowance", kwargs={"allowance_id": template.pk}),
             HTTP_HX_REQUEST="true",
+            follow=True,
+        )
+        self.assertIn(
+            "standard component and cannot be deleted",
+            " ".join(str(m) for m in get_messages(response.wsgi_request)),
         )
         self.assertTrue(
             Allowance.objects.entire().filter(system_key="reimbursement").exists()

@@ -4,6 +4,7 @@ clock in, and still in the charts that count what actually happened.
 """
 
 from datetime import date, time
+from unittest.mock import patch
 
 from django.test import TestCase
 from django.urls import reverse
@@ -119,7 +120,20 @@ class TestEmployeesWithoutAShift(TestCase):
             from_date=MONDAY.isoformat(),
             to_date=FRIDAY.isoformat(),
         )
-        self.assertIn("Office", str(data))
+        # The Office department, with the one employee's hour of overtime, all pending.
+        (office,) = data["departments"]
+        self.assertEqual(office["department"], "Office")
+        self.assertEqual(office["employees"], 1)
+        self.assertEqual(office["total_hours"], 1.0)
+
+    def test_a_failing_overtime_query_is_logged_and_the_chart_stays_empty(self):
+        """An empty chart from a broken query reads as "no overtime"; the log is the only trace."""
+        with patch("attendance.models.Attendance.objects") as manager:
+            manager.filter.side_effect = RuntimeError("query failed")
+            with self.assertLogs("attendance.dashboard", level="ERROR") as logs:
+                data = self.get("attendance-dashboard-overtime")
+        self.assertEqual(data["departments"], [])
+        self.assertIn("Overtime summary query failed", logs.output[0])
 
 
 class TestManagerScope(TestCase):

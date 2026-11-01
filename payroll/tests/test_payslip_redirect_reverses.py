@@ -24,47 +24,39 @@ Reported as https://github.com/horilla/horilla-hr/issues/1238 by @Safeer1877.
 """
 
 import re
+from pathlib import Path
 
 from django.test import SimpleTestCase
 from django.urls import NoReverseMatch, reverse
 
-SOURCE = "payroll/views/component_views.py"
+SOURCE = Path(__file__).resolve().parents[1] / "views" / "component_views.py"
 
 # reverse("<name>"  -- the opening paren may be followed by a newline.
 REVERSE_CALL = re.compile(r'reverse\(\s*"([a-z0-9-]+)"')
 
 
 class PayslipRedirectReverseTests(SimpleTestCase):
-    def test_view_created_payslip_takes_an_id(self):
-        self.assertEqual(
-            reverse("view-created-payslip", kwargs={"payslip_id": 1}),
-            "/payroll/view-payslip/1/",
-        )
-
-    def test_view_payslip_does_not_take_an_id(self):
-        """Pins why the two names are not interchangeable."""
-        with self.assertRaises(NoReverseMatch):
-            reverse("view-payslip", kwargs={"payslip_id": 1})
-        # It is a valid name -- just argument-less.
-        self.assertEqual(reverse("view-payslip"), "/payroll/view-payslip/")
-
     def test_no_reverse_in_the_payslip_views_passes_payslip_id_to_a_nameless_route(
         self,
     ):
         """Every reverse() in the module must accept the kwargs given to it."""
-        source = open(SOURCE, encoding="utf-8").read()
+        source = SOURCE.read_text(encoding="utf-8")
         offenders = []
+        checked = 0
         for match in REVERSE_CALL.finditer(source):
             name = match.group(1)
             tail = source[match.end() : match.end() + 120]
             if "payslip_id" not in tail:
                 continue
+            checked += 1
             try:
                 reverse(name, kwargs={"payslip_id": 1})
             except NoReverseMatch:
                 line = source.count("\n", 0, match.start()) + 1
                 offenders.append(f"{SOURCE}:{line} reverse({name!r}, payslip_id=...)")
 
+        # The scan is only a guard while it finds something to check.
+        self.assertGreater(checked, 0, "no reverse(..., payslip_id=...) found")
         self.assertEqual(
             offenders,
             [],

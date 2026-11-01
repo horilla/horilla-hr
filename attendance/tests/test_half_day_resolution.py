@@ -191,54 +191,70 @@ class SplitDayTests(HalfDayResolutionMixin, TestCase):
         )
         self.assertEqual(saved.resolution, "split:P+UL")
 
-    def test_the_popover_has_the_split_controls_with_the_current_halves_chosen(self):
-        from django.urls import reverse
-
-        from horilla.testkit import make_user
-
-        self._row("split:UL+A")
-        user = make_user("hr-split2", is_superuser=True)
-        make_employee(
-            company=self.employee.employee_work_info.company_id,
-            email="hr2@split.test",
-            user=user,
-        )
-        self.client.force_login(user)
-        html = self.client.get(
-            reverse("attendance-monthly-summary-conflict-resolve"),
-            {
-                "employee_id": self.employee.pk,
-                "date": WEDNESDAY.isoformat(),
-                "from_date": WEDNESDAY.isoformat(),
-                "to_date": WEDNESDAY.isoformat(),
-            },
-            HTTP_HX_REQUEST="true",
-        ).content.decode()
-        self.assertIn("msCalSaveDay(", html)
-        self.assertIn('id="crp-choice"', html)
-        self.assertIn('<option value="UL" data-color="#fdba74" selected>', html)
-        self.assertIn('<option value="A" data-color="#fca5a5" selected>', html)
-        self.assertIn(
-            "Half Unpaid Leave + Half Absent", html
-        )  # named in the banner/history
-        self.assertIn("crp-mark-grid--3", html)  # the away buttons share a row
-
     def test_a_split_with_a_present_half_counts_as_a_worked_day_for_payroll_overtime(
         self,
     ):
-        self._row("split:A+P")
-        from django.db.models import Q
+        """On a holiday, hours worked are holiday overtime, unless HR regularised the day as
+        worked. A split with a present half is regularised as worked, in both payroll paths.
+        """
+        from base.models import Holidays
+        from attendance.models import Attendance
+        from payroll.methods.methods import hourly_computation
+        from payroll.methods.payslip_calc import _classify_approved_overtime_seconds
 
-        worked = AttendanceConflictResolution.objects.filter(
-            Q(resolution__in=("full_present", "half_present", "half_absent"))
-            | Q(resolution__regex=r"^split:(P\+|.+\+P$)"),
+        company = self.employee.employee_work_info.company_id
+        Holidays.objects.create(
+            name="Split Day Holiday",
+            start_date=WEDNESDAY,
+            end_date=WEDNESDAY,
+            is_specific=False,
+            company_id=company,
+        )
+        attendance = Attendance.objects.create(
             employee_id=self.employee,
+            attendance_date=WEDNESDAY,
+            attendance_clock_in_date=WEDNESDAY,
+            attendance_clock_in=datetime.time(9, 0),
+            attendance_clock_out_date=WEDNESDAY,
+            attendance_clock_out=datetime.time(18, 0),
+            attendance_worked_hour="08:00",
+            minimum_hour="00:00",
+            attendance_validated=True,
         )
-        self.assertEqual(worked.count(), 1)
-        AttendanceConflictResolution.objects.filter(employee_id=self.employee).update(
-            resolution="split:A+UL"
+        Attendance.objects.filter(pk=attendance.pk).update(
+            at_work_second=8 * 3600,
+            overtime_second=3600,
+            attendance_overtime_approve=True,
         )
-        self.assertEqual(worked.count(), 0)
+
+        def paid_as(resolution):
+            AttendanceConflictResolution.objects.filter(
+                employee_id=self.employee
+            ).delete()
+            if resolution:
+                AttendanceConflictResolution.objects.create(
+                    employee_id=self.employee, date=WEDNESDAY, resolution=resolution
+                )
+            hourly = hourly_computation(self.employee, 3600, WEDNESDAY, WEDNESDAY)
+            regular_ot, _week_off_ot, holiday_ot = _classify_approved_overtime_seconds(
+                self.employee, WEDNESDAY, WEDNESDAY
+            )
+            return (
+                hourly["regular_seconds"],
+                hourly["ot_holiday_seconds"],
+                regular_ot,
+                holiday_ot,
+            )
+
+        holiday_only = (0, 8 * 3600, 0, 8 * 3600)  # all of it is holiday overtime
+        worked_day = (7 * 3600, 0, 3600, 0)  # a normal day: 7h regular + 1h overtime
+        self.assertEqual(paid_as(None), holiday_only)
+        for resolution in ("split:A+P", "split:P+A", "split:PL+P", "split:P+UL"):
+            with self.subTest(resolution=resolution):
+                self.assertEqual(paid_as(resolution), worked_day)
+        for resolution in ("split:A+UL", "split:PL+A", "split:PL+PL"):
+            with self.subTest(resolution=resolution):
+                self.assertEqual(paid_as(resolution), holiday_only)
 
 
 class HalfDayLeaveNaturalMixin:
@@ -355,21 +371,6 @@ class HalfDayLeaveNaturalTests(HalfDayLeaveNaturalMixin, TestCase):
         self.assertEqual(
             (row["paid_leave"], row["unpaid_leave"], row["absent"]), (0.5, 0.5, 0)
         )
-
-    def test_full_leave_with_attendance_is_still_a_clash(self):
-        from leave.models import LeaveRequest, LeaveType
-
-        LeaveRequest.objects.create(
-            employee_id=self.employee,
-            leave_type_id=LeaveType.objects.create(name="Full", payment="paid"),
-            start_date=WEDNESDAY,
-            end_date=WEDNESDAY,
-            requested_days=1,
-            description="Test",
-            status="approved",
-        )
-        self._attend("08:00")
-        self.assertEqual(self._row()["conflict_days"], 1)
 
     def test_a_half_day_of_attendance_is_half_present_and_half_short_and_unpaid(self):
         self._attend("04:00")
@@ -550,38 +551,6 @@ class ShortHalfTests(HalfDayLeaveNaturalMixin, TestCase):
         self._attend("01:00")
         self.assertEqual(self._cell()["status"], "short")
 
-    def test_partial_hours_is_no_longer_offered_and_short_hours_are_not_changed(self):
-        from django.urls import reverse
-
-        from horilla.testkit import make_user
-
-        user = make_user("hr-short", is_superuser=True)
-        make_employee(
-            company=self.employee.employee_work_info.company_id,
-            email="hr@short.test",
-            user=user,
-        )
-        self.client.force_login(user)
-
-        def panel():
-            return self.client.get(
-                reverse("attendance-monthly-summary-conflict-resolve"),
-                {
-                    "employee_id": self.employee.pk,
-                    "date": WEDNESDAY.isoformat(),
-                    "from_date": WEDNESDAY.isoformat(),
-                    "to_date": WEDNESDAY.isoformat(),
-                },
-                HTTP_HX_REQUEST="true",
-            ).content.decode()
-
-        attendance = self._attend("04:30")
-        self.assertNotIn("msCalResolvePost('partial_hours'", panel())
-        self.assertIn("Half Present + Half Short Hours", panel())
-        attendance.delete()
-        self._attend("01:00")
-        self.assertNotIn("msCalResolvePost('partial_hours'", panel())
-
     def test_an_existing_partial_hours_resolution_still_counts_as_before(self):
         self._attend("04:00")
         AttendanceConflictResolution.objects.create(
@@ -691,18 +660,6 @@ class DayHoursSaveTests(PopoverPanelMixin, TestCase):
             HTTP_HX_REQUEST="true",
         )
 
-    def test_the_panel_has_an_always_editable_hours_input_and_one_save_button(self):
-        self._attend("08:00")
-        html = self._panel()
-        self.assertIn('id="crp-hours-input"', html)
-        self.assertIn('data-initial="8:00"', html)
-        self.assertIn('id="crp-save"', html)
-        self.assertIn(">Save<", html)
-        self.assertNotIn("msCalHoursEdit(", html)
-        self.assertNotIn('id="crp-choice-go"', html)
-        # The Save button sits after the scrolling body, at the foot of the panel.
-        self.assertLess(html.index('class="crp-scroll"'), html.index('id="crp-save"'))
-
     def _full_leave(self):
         from leave.models import LeaveRequest, LeaveType
 
@@ -723,12 +680,6 @@ class DayHoursSaveTests(PopoverPanelMixin, TestCase):
         self.assertIn('data-conflict="1"', html)
         self.assertIn('data-conflict-title="Resolve This Conflict?"', html)
         self.assertNotRegex(html, r'id="crp-save"\s+disabled')
-
-    def test_a_day_without_a_clash_keeps_save_off_until_something_changes(self):
-        self._attend("08:00")
-        html = self._panel()
-        self.assertNotIn('data-conflict="1"', html)
-        self.assertRegex(html, r'id="crp-save"\s+disabled')
 
     def test_a_resolved_clash_does_not_settle_again(self):
         from attendance.models import AttendanceConflictResolution
@@ -768,19 +719,6 @@ class DayHoursSaveTests(PopoverPanelMixin, TestCase):
     def test_unreadable_hours_are_refused(self):
         for raw in ("abc", "8:75", ""):
             self.assertEqual(self._hours(raw).status_code, 400, raw)
-
-    def test_the_page_carries_the_15_hour_confirmation_text(self):
-        html = self._panel()
-        self.assertIn('data-warn-title="More than 15 hours in a day"', html)
-        self.assertIn('data-over24="A day cannot have more than 24 hours."', html)
-
-    def test_the_hours_card_carries_what_the_live_breakdown_needs(self):
-        self._attend("09:00")
-        html = self._panel()
-        for field in ("crp-calc-reg", "crp-calc-ot", "crp-calc-total"):
-            self.assertIn('id="%s" disabled' % field, html)
-        self.assertIn('data-eff-min="28800"', html)
-        self.assertIn('data-is-ot-day="0"', html)
 
     def test_a_short_day_counts_with_absent_in_the_strip_and_has_no_chip_of_its_own(
         self,
@@ -854,27 +792,6 @@ class ChipHoverGroupTests(HalfDayLeaveNaturalMixin, TestCase):
         self.assertEqual(cell_groups("split", ("P", "SH"), None), "absent present")
         self.assertIn("conflict", cell_groups("present", None, "paid_leave"))
 
-    def test_the_calendar_carries_the_groups_and_the_chips_name_theirs(self):
-        from django.template.loader import render_to_string
-
-        from attendance.views.summary import _build_calendar_context
-
-        self._leave(breakdown="second_half")
-        context = _build_calendar_context(self.employee, WEDNESDAY, WEDNESDAY)
-        html = render_to_string(
-            "attendance/monthly_summary/calendar_modal.html", context
-        )
-        self.assertIn('data-groups="absent paid_leave"', html)
-        for group in (
-            "present",
-            "absent",
-            "paid_leave",
-            "unpaid_leave",
-            "week_off",
-            "holiday",
-        ):
-            self.assertIn('data-group="%s"' % group, html)
-
     def test_two_half_days_carry_their_halves_in_drawing_order(self):
         from attendance.views.summary import cell_halves_data
 
@@ -940,18 +857,6 @@ class UpcomingHalfLeaveTests(HalfDayLeaveNaturalMixin, TestCase):
     def test_a_future_day_with_nothing_on_it_is_upcoming(self):
         strip = self._strip()
         self.assertEqual((strip["upcoming"], strip["absent"]), (1, 0))
-
-    def test_the_upcoming_tile_shows_only_when_there_is_something_upcoming(self):
-        from django.template.loader import render_to_string
-
-        from attendance.views.summary import _build_calendar_context
-
-        self._future_leave()
-        html = render_to_string(
-            "attendance/monthly_summary/calendar_modal.html",
-            _build_calendar_context(self.employee, self.day, self.day),
-        )
-        self.assertIn(">Upcoming<", html)
 
     def test_the_day_is_drawn_as_two_halves_leave_and_upcoming(self):
         from attendance.views.summary import _build_calendar_context

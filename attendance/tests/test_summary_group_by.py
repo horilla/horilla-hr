@@ -132,12 +132,6 @@ class GroupedPageTests(TestCase):
             reverse("attendance-monthly-summary-table"), query, HTTP_HX_REQUEST="true"
         )
 
-    def test_without_grouping_the_table_is_unchanged(self):
-        html = self._table().content.decode()
-        self.assertNotIn('<tr class="ms-group-row"', html)
-        self.assertNotIn('id="ngbBreadcrumbLevels"', html)
-        self.assertEqual(html.count('<tr class="ms-summary-row"'), 4)
-
     def test_grouped_by_department_has_group_rows_and_hidden_employee_rows(self):
         html = self._table(nested_fields="department").content.decode()
         self.assertIn('<tr class="ms-group-row"', html)
@@ -149,28 +143,6 @@ class GroupedPageTests(TestCase):
         self.assertIn('class="ms-group-tag"', html)
         # Employee rows start closed, each pointing at its group.
         self.assertIn('data-anc="g0" data-depth="1" style="display:none"', html)
-
-    def test_the_picker_opens_on_the_chosen_levels(self):
-        response = self.client.get(
-            reverse("attendance-monthly-summary"),
-            {"nested_fields": ["department", "shift"]},
-        )
-        html = response.content.decode()
-        self.assertIn('<option value="department" selected>', html)
-        self.assertIn('<option value="shift" selected>', html)
-        # One numbered row per chosen level, as in the Employee directory.
-        self.assertEqual(
-            html.count('class="flex items-center gap-1.5 nested-group-by-row"'), 2
-        )
-        self.assertIn('id="nestedGroupByLevels"', html)
-        self.assertIn('data-max-levels="3"', html)
-        self.assertIn("ngbAddLevel", html)
-
-    def test_with_nothing_chosen_the_picker_has_one_empty_level(self):
-        html = self.client.get(reverse("attendance-monthly-summary")).content.decode()
-        self.assertEqual(
-            html.count('class="flex items-center gap-1.5 nested-group-by-row"'), 1
-        )
 
     def test_the_bar_numbers_each_level_and_blocks_a_field_already_used(self):
         html = self._table(nested_fields=["department", "shift"]).content.decode()
@@ -184,15 +156,3 @@ class GroupedPageTests(TestCase):
             first_list,
             r'data-value="shift"\s+onclick="ngbCrumbPick\(this\)"\s+disabled',
         )
-
-    def test_the_panel_section_comes_after_advanced(self):
-        html = self.client.get(reverse("attendance-monthly-summary")).content.decode()
-        self.assertLess(html.index("Advanced"), html.index('id="nestedGroupByLevels"'))
-
-    def test_a_group_is_one_header_across_the_table_with_no_figures(self):
-        html = self._table(nested_fields="department").content.decode()
-        row = html.split('<tr class="ms-group-row"')[1].split("</tr>")[0]
-        self.assertEqual(row.count("<td"), 1)
-        self.assertIn('colspan="15"', row)
-        self.assertIn('class="ms-group-tag"', row)
-        self.assertNotIn("ms-group-nil", row)

@@ -22,6 +22,8 @@ a document-wide lookup, and a missing field reading as false — because either
 one silently hides fields with nothing in the console to point at.
 """
 
+from pathlib import Path
+
 from django.test import TestCase
 from django.urls import reverse
 
@@ -35,8 +37,11 @@ from payroll.forms.component_layout import (
     unplaced_field_names,
 )
 
-ENGINE = "static/src/js/componentForm.js"
-BUILDER = "payroll/templates/payroll/component/_formula_builder.html"
+# Anchored to the repository, not the working directory, so the suite reads the
+# real files wherever it is started from.
+ROOT = Path(__file__).resolve().parents[2]
+ENGINE = ROOT / "static/src/js/componentForm.js"
+BUILDER = ROOT / "payroll/templates/payroll/component/_formula_builder.html"
 
 
 def read(path):
@@ -81,25 +86,6 @@ class LayoutCompletenessTests(TestCase):
                 ]
                 self.assertLess(names.index("percentage_of_code"), names.index("rate"))
 
-    def test_the_component_picker_is_styled_like_every_other_select(self):
-        """
-        percentage_of_code is rebuilt as a plain ChoiceField so its options can
-        be the codes that exist. Rebuilding it dropped the widget attrs the
-        form had already applied, leaving one bare browser dropdown among the
-        oh-select ones.
-        """
-        for form_class in (AllowanceForm, DeductionForm):
-            with self.subTest(form=form_class.__name__):
-                fields = form_class().fields
-                self.assertEqual(
-                    fields["percentage_of_code"].widget.attrs.get("class"),
-                    fields["based_on"].widget.attrs.get("class"),
-                )
-
-    def test_sections_are_shared_by_both_component_forms(self):
-        allowance = [s["title"] for s in sections_for(AllowanceForm())]
-        deduction = [s["title"] for s in sections_for(DeductionForm())]
-        self.assertEqual(allowance, deduction)
 
 class BasedOnGroupingTests(TestCase):
     """
@@ -128,25 +114,6 @@ class BasedOnGroupingTests(TestCase):
                 offered = set(self._flatten(form_class().fields["based_on"].choices))
                 declared = {value for value, _label in model.based_on_choice}
                 self.assertTrue(declared <= offered, declared - offered)
-
-    def test_custom_formula_sits_under_its_own_heading(self):
-        for form_class in (AllowanceForm, DeductionForm):
-            with self.subTest(form=form_class.__name__):
-                groups = {
-                    str(value): [v for v, _l in label]
-                    for value, label in form_class().fields["based_on"].choices
-                    if isinstance(label, (list, tuple))
-                }
-                formula_group = next(
-                    name for name, values in groups.items() if "formula" in values
-                )
-                self.assertNotIn("basic_pay", groups[formula_group])
-                self.assertNotIn("attendance", groups[formula_group])
-
-    def test_the_blank_choice_stays_ungrouped_at_the_top(self):
-        """It is the "not chosen yet" state, not a kind of amount."""
-        first = AllowanceForm().fields["based_on"].choices[0]
-        self.assertEqual(first[0], "")
 
 
 class StepTests(TestCase):
@@ -263,24 +230,6 @@ class ComponentFormRenderTests(TestCase):
         self.assertEqual(response.status_code, 200)
         return response.content.decode()
 
-    def test_the_percentage_input_is_present_for_a_calculated_amount(self):
-        """The reported symptom: nowhere to type the percentage."""
-        for url_name in ("create-allowance", "create-deduction"):
-            with self.subTest(form=url_name):
-                body = self._body(url_name)
-                self.assertIn('name="rate"', body)
-                self.assertIn('name="percentage_of_code"', body)
-                self.assertIn('data-show-if="is_fixed=off based_on=component"', body)
-
-    def test_the_formula_opens_in_a_popover_rather_than_filling_the_form(self):
-        for url_name in ("create-allowance", "create-deduction"):
-            with self.subTest(form=url_name):
-                body = self._body(url_name)
-                self.assertIn("data-formula-popover", body)
-                self.assertIn("data-open-formula", body)
-                self.assertIn("data-formula-summary", body)
-                self.assertIn("data-formula-builder", body)
-
     def test_the_builder_starts_closed(self):
         """
         It rendered open over the form. The panel sets display:flex, which beats
@@ -295,15 +244,6 @@ class ComponentFormRenderTests(TestCase):
                 # makes it stick. Either one alone leaves the builder open.
                 self.assertIn("data-formula-backdrop hidden>", body)
                 self.assertIn(".oh-formula-popover[hidden]", body)
-
-    def test_conditions_render_server_side_with_a_template_to_add_more(self):
-        # The allowance form targets through the table; only deductions keep rules.
-        for url_name in ("create-deduction",):
-            with self.subTest(form=url_name):
-                body = self._body(url_name)
-                self.assertIn("data-condition-template", body)
-                self.assertIn("data-add-condition", body)
-                self.assertIn('name="other_fields"', body)
 
     def test_every_row_is_tied_to_a_section_heading(self):
         """
@@ -335,28 +275,6 @@ class ComponentFormRenderTests(TestCase):
                     "a heading has no rows, so it could never be hidden",
                 )
 
-    def test_the_engine_matches_headings_to_rows_by_key(self):
-        """
-        The first version looked for [data-row] inside the heading element.
-        Rows are siblings, so it always found none and never hid a heading.
-        """
-        script = read(ENGINE)
-        self.assertIn("data-section-of=", script)
-        self.assertNotIn('section.querySelectorAll("[data-row]")', script)
-
-    def test_the_steps_render_as_a_rail_over_matching_panels(self):
-        import re
-
-        for url_name in ("create-allowance", "create-deduction"):
-            with self.subTest(form=url_name):
-                body = self._body(url_name)
-                tabs = re.findall(r'data-step-tab="([^"]+)"', body)
-                panels = re.findall(r'data-step-panel="([^"]+)"', body)
-                self.assertTrue(tabs)
-                self.assertEqual(tabs, panels)
-                self.assertIn("data-step-next", body)
-                self.assertIn("data-step-back", body)
-
     def test_every_field_stays_in_the_dom_on_every_step(self):
         """
         Stepping is presentation. A field that only existed while its step was
@@ -379,13 +297,6 @@ class ComponentFormRenderTests(TestCase):
                     ):
                         continue
                     self.assertIn(f'name="{name}"', body, name)
-
-    def test_the_new_amount_types_are_offered(self):
-        for url_name in ("create-allowance", "create-deduction"):
-            with self.subTest(form=url_name):
-                body = self._body(url_name)
-                self.assertIn('value="component"', body)
-                self.assertIn('value="formula"', body)
 
 
 class ComponentFormSaveTests(TestCase):

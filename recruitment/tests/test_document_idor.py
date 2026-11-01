@@ -86,25 +86,12 @@ class CandidateDocumentScopingTests(TestCase):
 
         return AnonymousUser()
 
-    def test_candidate_cannot_reach_another_candidates_document(self):
-        """The reported attack: session belongs to attacker, id to victim."""
-        request = _Request(self._anonymous(), {"candidate_id": self.attacker.id})
-        visible = candidate_documents_visible_to(request)
-        self.assertNotIn(self.victim_doc, visible)
-        self.assertIsNone(visible.filter(id=self.victim_doc.id).first())
-
-    def test_candidate_can_still_reach_their_own_document(self):
-        """A fix that denies everything would also pass the test above."""
-        request = _Request(self._anonymous(), {"candidate_id": self.attacker.id})
-        self.assertEqual(
-            candidate_documents_visible_to(request)
-            .filter(id=self.attacker_doc.id)
-            .first(),
-            self.attacker_doc,
-        )
-
     def test_enumeration_yields_only_own_documents(self):
-        """Sequential id scanning is the reported harvesting method."""
+        """The reported attack: session belongs to attacker, ids are sequential.
+
+        Exactly the attacker's own document is visible: the victim's is not
+        reachable, and a fix that denies everything would not pass either.
+        """
         request = _Request(self._anonymous(), {"candidate_id": self.attacker.id})
         visible = candidate_documents_visible_to(request)
         self.assertEqual(list(visible), [self.attacker_doc])

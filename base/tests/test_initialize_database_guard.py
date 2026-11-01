@@ -23,7 +23,7 @@ blocked legitimate first-run setup on a production deployment. A test asserting
 404 in production would re-assert that bug.
 """
 
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from django.urls import reverse
 
 from base.models import Company
@@ -76,6 +76,9 @@ class InitializedDatabaseRejectsSetupFlow(TestCase):
                     self.assertIn(response.status_code, (302, 403, 404))
 
     def test_forged_hx_header_cannot_create_a_superuser(self):
+        # No DEBUG gate is involved (see the module docstring), and Django's
+        # test runner already runs every test with DEBUG=False, so this is the
+        # production-mode case too.
         before = HorillaUser.objects.filter(is_superuser=True).count()
 
         self.client.post(
@@ -99,28 +102,6 @@ class InitializedDatabaseRejectsSetupFlow(TestCase):
         # A block that still logged the caller in would defeat the point.
         self.assertNotIn("_auth_user_id", self.client.session)
 
-    @override_settings(DEBUG=False)
-    def test_still_refused_with_debug_off(self):
-        before = HorillaUser.objects.filter(is_superuser=True).count()
-
-        self.client.post(
-            reverse("initialize-database-user"),
-            {
-                "username": "backdoor2",
-                "password": "x",
-                "confirm_password": "x",
-                "firstname": "B",
-                "lastname": "D",
-                "badge_id": "BD2",
-                "email": "bd2@test.horilla",
-                "phone": "9999999999",
-            },
-            headers={"hx-request": "true"},
-        )
-
-        self.assertFalse(HorillaUser.objects.filter(username="backdoor2").exists())
-        self.assertEqual(HorillaUser.objects.filter(is_superuser=True).count(), before)
-
 
 class UninitializedDatabaseAllowsSetupFlow(TestCase):
     """A genuinely fresh install must still be able to complete setup."""
@@ -136,6 +117,9 @@ class UninitializedDatabaseAllowsSetupFlow(TestCase):
         self.assertEqual(response.status_code, 302)
 
     def test_user_step_is_reachable_after_verifying_the_init_password(self):
+        # Regression guard for c99eaea4b4: a DEBUG gate here blocked first-run
+        # setup on real deployments, which is where setup actually happens.
+        # The test runner runs with DEBUG=False, so this is that case.
         from django.conf import settings
 
         self.assertFalse(HorillaUser.objects.exists())
@@ -146,22 +130,6 @@ class UninitializedDatabaseAllowsSetupFlow(TestCase):
         )
         self.assertTrue(self.client.session.get("db_init_verified"))
 
-        response = self.client.get(
-            reverse("initialize-database-user"), headers={"hx-request": "true"}
-        )
-
-        self.assertEqual(response.status_code, 200)
-
-    @override_settings(DEBUG=False)
-    def test_fresh_setup_works_with_debug_off(self):
-        from django.conf import settings
-
-        # Regression guard for c99eaea4b4: a DEBUG gate here blocked first-run
-        # setup on real deployments, which is where setup actually happens.
-        self.client.post(
-            reverse("initialize-database"),
-            {"password": settings.DB_INIT_PASSWORD},
-        )
         response = self.client.get(
             reverse("initialize-database-user"), headers={"hx-request": "true"}
         )

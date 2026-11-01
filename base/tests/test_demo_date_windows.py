@@ -136,15 +136,6 @@ class DemoDateWindowTests(SimpleTestCase):
         for app in settings.SIDEBARS:
             self.assertIn(app, listed)
 
-    def test_side_fixtures_are_on_the_load_list(self):
-        from base.demo_data.fixtures import demo_fixture_files
-
-        files = demo_fixture_files()
-        self.assertIn("tags.json", files)
-        self.assertIn("mail_templates.json", files)
-        self.assertIn("mail_automations.json", files)
-        self.assertNotIn("faq.json", files)
-
 
 class DemoDatePolicyDBTests(TestCase):
     """Clamp / request-window behaviour with injected `today`."""

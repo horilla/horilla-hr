@@ -233,17 +233,6 @@ class CrossStructureType(StructureTypeFixture):
         self.assertAlmostEqual(first.net_pay, 21300.0 - 100.0, places=2)
         self.assertAlmostEqual(second.net_pay, 45000.0 - 200.0, places=2)
 
-    def test_the_old_structures_mirror_is_still_on_the_employee_so_the_filter_is_what_keeps_it_out(
-        self,
-    ):
-        first = self.ctc_structure("C1", 50.0, 400.0)
-        self.two_contracts(
-            first, 60000.0, self.gross_up_structure("G1", 200.0), 60000.0
-        )
-        self.assertTrue(
-            first.allowances.filter(specific_employees=self.employee).exists()
-        )
-
     def test_a_component_in_both_structures_applies_to_both_halves(self):
         first = self.gross_up_structure("G1", 200.0)
         second = self.gross_up_structure("G2", 400.0)

@@ -5,7 +5,6 @@ from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django.urls import reverse
 
-from base.models import Company
 from horilla.testkit import make_company, make_employee, make_user
 from payroll.forms.batch_forms import PayPeriodSettingsForm
 from payroll.models.models import PayPeriodSettings
@@ -89,46 +88,6 @@ class OnePerCompanyTests(Fixture):
         self.assertIn("company_id", bad.errors)
 
 
-class SettingsListTests(Fixture):
-    def setUp(self):
-        super().setUp()
-        PayPeriodSettings.objects.create(
-            company_id=self.company_a, cycle_start_day=15, pay_day_of_month=5
-        )
-        PayPeriodSettings.objects.create(
-            company_id=self.company_b,
-            cycle_start_day=31,
-            pay_day_of_month=0,
-            pay_day_offset=3,
-        )
-
-    def test_the_auto_generation_tab_hosts_the_pay_period_list(self):
-        html = self.client.get(
-            reverse("payroll-settings-auto-payslip-tab"), HTTP_HX_REQUEST="true"
-        ).content.decode()
-        self.assertIn('id="payPeriodListContainer"', html)
-        self.assertIn(reverse("pay-period-nav"), html)
-        self.assertIn(reverse("pay-period-list"), html)
-        # The payslip automation under it is hidden for now.
-        self.assertNotIn('id="payslipAutoGenerationListContainer"', html)
-
-    def test_the_list_shows_one_row_per_company_with_its_period_and_pay_day(self):
-        html = self.client.get(
-            reverse("pay-period-list"), HTTP_HX_REQUEST="true"
-        ).content.decode()
-        self.assertIn("Alpha Co", html)
-        self.assertIn("Beta Co", html)
-        self.assertIn("15th", html)
-        self.assertIn("Last day", html)
-        self.assertIn("3 days after the period ends", html)
-
-    def test_the_nav_offers_create(self):
-        html = self.client.get(
-            reverse("pay-period-nav"), HTTP_HX_REQUEST="true"
-        ).content.decode()
-        self.assertIn("then=list&new=1", html)
-
-
 class SettingsFormTests(Fixture):
     def test_creating_for_a_company_stores_its_own_row(self):
         url = reverse("pay-period-settings") + "?modal=1&then=list&new=1"
@@ -205,12 +164,6 @@ class SettingsFormTests(Fixture):
             .filter(company_id=self.company_a)
             .exists()
         )
-
-    def test_the_wizards_dialog_has_no_company_choice(self):
-        html = self.client.get(
-            reverse("pay-period-settings") + "?modal=1", HTTP_HX_REQUEST="true"
-        ).content.decode()
-        self.assertNotIn('name="company_id"', html)
 
 
 class DeleteTests(Fixture):

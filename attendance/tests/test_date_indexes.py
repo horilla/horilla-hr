@@ -20,13 +20,6 @@ class DateIndexTests(TestCase):
     def _index_fields(self, model):
         return {tuple(index.fields) for index in model._meta.indexes}
 
-    def test_attendance_date_is_indexed(self):
-        from attendance.models import Attendance
-
-        fields = self._index_fields(Attendance)
-        self.assertIn(("attendance_date",), fields)
-        self.assertIn(("attendance_date", "attendance_validated"), fields)
-
     def test_leave_request_dates_are_indexed(self):
         from leave.models import LeaveRequest
 

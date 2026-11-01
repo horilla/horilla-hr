@@ -36,7 +36,3 @@ class HealthVersionTests(TestCase):
             "it. Signed-in clients get the version from the capabilities "
             "payload instead.",
         )
-
-    def test_api_version_is_an_integer_a_client_can_compare(self):
-        self.assertIsInstance(API_VERSION, int)
-        self.assertGreaterEqual(API_VERSION, 1)

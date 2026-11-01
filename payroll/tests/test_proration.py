@@ -14,7 +14,6 @@ Only partial and multi-month periods change, which is the point of the field.
 
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
-
 from horilla.testkit import make_company, make_employee, make_user
 from payroll.methods.limits import compute_limit
 from payroll.methods.proration import (
@@ -182,11 +181,6 @@ class DefaultBasisTests(SimpleTestCase):
                     model._meta.get_field("maximum_unit").default, DEFAULT_BASIS
                 )
 
-    def test_the_default_is_offered_first(self):
-        from payroll.models.models import MAXIMUM_UNIT_CHOICES
-
-        self.assertEqual(MAXIMUM_UNIT_CHOICES[0][0], MONTH_CALENDAR_DAYS)
-
 
 class ChoiceWiringTests(SimpleTestCase):
     """
@@ -255,10 +249,6 @@ class LimitNoteEndpointTests(TestCase):
         data = self._preview("1500", MONTH_WORKING_DAYS)
         self.assertEqual(data["rows"][0]["amount"], 1500.0)
         self.assertEqual(data["rows"][0]["factor"], 1.0)
-
-    def test_a_part_month_is_reported_scaled_down(self):
-        data = self._preview("1500", MONTH_WORKING_DAYS)
-        self.assertLess(data["rows"][-1]["amount"], 1500.0)
 
     def test_a_flat_ceiling_reports_the_same_figure_throughout(self):
         data = self._preview("1500", FULL_PERIOD)

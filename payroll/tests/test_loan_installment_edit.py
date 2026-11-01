@@ -1,4 +1,4 @@
-"""Editing an installment swaps only the rows and reports through the page's own toast."""
+"""Editing an installment reports through the page's own toast and re-spreads the balance."""
 
 from datetime import date
 
@@ -34,12 +34,15 @@ class EditInstallmentAmountTests(TestCase):
     def test_the_response_asks_the_page_to_show_its_message(self):
         self.assertEqual(self._edit("1000").headers.get("HX-Trigger"), "showMessages")
 
-    def test_the_message_is_not_written_into_the_table(self):
-        html = self._edit("1000").content.decode()
-        self.assertNotIn("updated successfully", html)
-        self.assertNotIn("oh-alert", html)
-
-    def test_only_the_rows_are_the_swap_target(self):
-        html = self._edit("1000").content.decode()
-        self.assertIn('id="installmentRows"', html)
-        self.assertIn('hx-target="#installmentRows"', html)
+    def test_the_edited_amount_is_saved_and_the_balance_is_spread_over_the_rest(self):
+        """The money the borrower still owes must keep adding up to the loan."""
+        self._edit("1000")
+        amounts = list(
+            self.loan.deduction_ids.order_by("one_time_date").values_list(
+                "amount", flat=True
+            )
+        )
+        self.assertEqual(amounts[0], 1000)
+        self.assertEqual(amounts[1:], [3666.67] * 3)
+        self.loan.refresh_from_db()
+        self.assertEqual(self.loan.installments, 4)

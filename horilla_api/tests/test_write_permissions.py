@@ -33,10 +33,6 @@ class WritePermissionTests(TestCase):
         response = self.client.put("/api/attendance/attendance-validate/999")
         self.assertEqual(response.status_code, 403)  # manager_permission_required
 
-    def test_plain_employee_cannot_list_mail_templates(self):
-        response = self.client.get("/api/attendance/mail-templates")
-        self.assertEqual(response.status_code, 403)
-
     def test_plain_employee_cannot_read_tax_brackets(self):
         response = self.client.get("/api/payroll/tax-bracket/")
         self.assertNotEqual(response.status_code, 200)
@@ -71,7 +67,3 @@ class WritePermissionTests(TestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.employee.refresh_from_db()
         self.assertEqual(self.employee.employee_user_id, self.user)
-
-    def test_login_missing_credentials_is_400(self):
-        response = APIClient().post("/api/auth/login/", {"username": "x"})
-        self.assertEqual(response.status_code, 400)

@@ -13,7 +13,6 @@ import re
 from django.test import TestCase
 from django.urls import reverse
 
-from asset.cbv.asset_category import AssetCategoryListView, AssetCategoryNav
 from asset.models import Asset, AssetCategory
 from horilla.testkit import make_company, make_employee, make_user
 
@@ -31,15 +30,6 @@ class AssetPageTests(TestCase):
             user=self.user,
         )
         self.client.force_login(self.user)
-
-    def test_category_is_a_nested_grouping_level_on_the_nav_and_the_list(self):
-        for view in (AssetCategoryNav, AssetCategoryListView):
-            fields = [name for name, _label in view.nested_group_by_fields]
-            self.assertIn("asset_category_id", fields, view)
-
-    def test_the_old_accordion_grouping_is_gone(self):
-        self.assertFalse(AssetCategoryNav.group_by_fields)
-        self.assertFalse(getattr(AssetCategoryListView, "group_by_template_name", ""))
 
     def test_the_page_opens_even_with_no_categories(self):
         """The category can be created from the asset form, so the page must be reachable first."""

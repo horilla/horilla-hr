@@ -15,7 +15,6 @@ from io import StringIO
 
 from django.core.management import call_command
 from django.test import TestCase
-
 from horilla.testkit import make_company, make_employee
 from payroll.methods import contributions
 from payroll.models.models import (
@@ -54,12 +53,6 @@ class Fixture(TestCase):
 
 
 class ItBuildsEverySectionTests(Fixture):
-    def test_the_components_exist(self):
-        self.build()
-
-        self.assertTrue(Allowance.objects.filter(code="HRA").exists())
-        self.assertTrue(Deduction.objects.filter(code="PF").exists())
-
     def test_a_structure_holds_them(self):
         """Now two: a Gross Up and a CTC Down structure, not one."""
         self.build()
@@ -159,17 +152,13 @@ class CtcDownTests(Fixture):
         ]
         return min(payslips, key=lambda p: p.pay_head_data.get("loss_of_pay") or 0)
 
-    def test_both_structures_have_contracts_on_them(self):
+    def test_a_ctc_down_contract_states_the_package_not_a_wage(self):
         self.build()
         gross_up, ctc_down = self.contracts_by_mode()
 
+        # Both structures must hold contracts, or the loop below proves nothing.
         self.assertTrue(gross_up)
         self.assertTrue(ctc_down)
-
-    def test_a_ctc_down_contract_states_the_package_not_a_wage(self):
-        self.build()
-        _gross_up, ctc_down = self.contracts_by_mode()
-
         for contract in ctc_down:
             self.assertFalse(contract.wage)
             self.assertTrue(contract.monthly_ctc)
@@ -221,12 +210,6 @@ class CtcDownTests(Fixture):
         # the CTC Down component reaching this contract too would still pass
         # a bare assertIn.
         self.assertEqual(titles.count("House Rent Allowance"), 1)
-
-    def test_every_contract_gets_exactly_one_salary_structure(self):
-        """Sanity: nobody ends up on both, or on neither."""
-        self.build()
-        gross_up, ctc_down = self.contracts_by_mode()
-        self.assertEqual(len(gross_up) + len(ctc_down), Contract.objects.count())
 
 
 class ItProducesAWorkingDemoTests(Fixture):

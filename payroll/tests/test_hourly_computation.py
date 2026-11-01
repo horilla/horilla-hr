@@ -169,13 +169,57 @@ class HourlyWithNoAttendanceTests(TestCase):
         source, _component = resolve_basic_pay_source(contract.pay_rate, [])
         self.assertEqual(source, NEITHER)
 
-    def test_a_monthly_contract_on_full_loss_of_pay_still_states_basic_pay(self):
+    def test_a_monthly_contract_on_full_loss_of_pay_still_gets_a_payslip(self):
         """
         Same shape as the hourly case: the period computes to zero and the
-        contract is fine.
+        contract is fine. Run through the engine, because the mistake was in
+        what the engine handed to the resolver, not in the resolver itself.
         """
-        from payroll.methods.basic_pay_source import CONTRACT, resolve_basic_pay_source
+        from unittest.mock import patch
 
-        contract = self._contract(wage=30000.0)
-        source, _component = resolve_basic_pay_source(contract.pay_rate, [])
-        self.assertEqual(source, CONTRACT)
+        from payroll.methods.payroll_run import payroll_calculation
+        from payroll.tests.factories_payroll import PERIOD_END, PERIOD_START
+
+        self._contract(wage=22000.0, deduct_leave_from_basic_pay=True)
+        working_days = 22
+        summary = {
+            "present": 0,
+            "paid_leave": 0,
+            "unpaid_leave": working_days,
+            "absent": 0,
+            "week_off": 0,
+            "holiday": 0,
+            "total_working": working_days,
+            "working_days": working_days,
+            "unresolved_conflicts": 0,
+        }
+        no_leaves = {
+            "paid_leave": 0,
+            "unpaid_leaves": 0,
+            "partial_pay_days": 0,
+            "total_leaves": 0,
+            "paid_leave_dates": [],
+            "unpaid_leave_dates": [],
+            "custom_leave_dates": [],
+            "custom_leave_breakdown": [],
+            "leave_dates": [],
+        }
+        with (
+            patch(
+                "payroll.methods.methods.months_between_range",
+                return_value=[
+                    {"working_days_on_period": working_days, "per_day_amount": 1000.0}
+                ],
+            ),
+            patch(
+                "payroll.methods.methods.get_daily_salary",
+                return_value={"day_wage": 1000.0},
+            ),
+            patch("payroll.methods.methods.get_leaves", return_value=no_leaves),
+        ):
+            data = payroll_calculation(
+                self.employee, PERIOD_START, PERIOD_END, month_summary=summary
+            )
+
+        self.assertGreater(data["loss_of_pay"], 0)
+        self.assertEqual(data["basic_pay"], 0)

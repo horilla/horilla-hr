@@ -18,6 +18,13 @@ class WorkRecordMessageLengthTests(TestCase):
 
     def test_a_translated_message_longer_than_30_characters_saves(self):
         self.assertGreater(len(LONG_TRANSLATED_MESSAGE), 30)
+        # SQLite does not enforce max_length, so the save below proves nothing there (CI runs
+        # on PostgreSQL, which does). The declared length is checked directly so it also fails
+        # on SQLite if the column is ever shortened again.
+        self.assertGreaterEqual(
+            WorkRecords._meta.get_field("message").max_length,
+            len(LONG_TRANSLATED_MESSAGE),
+        )
         Company.objects.create(
             company="Probe", address="a", country="c", state="s", city="x", zip="1"
         )

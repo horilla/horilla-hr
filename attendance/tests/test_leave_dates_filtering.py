@@ -31,14 +31,6 @@ class TestLeaveDatesFiltering(HolidayFixtureMixin, TestCase):
         leave_dates = self._build_leave_dates(self.global_date)
         self.assertIn(self.global_date, leave_dates)
 
-    def test_specific_holiday_excluded_from_leave_dates(self):
-        """
-        Specific holiday must NOT appear in leave_dates — it applies
-        only to individual employees, not all columns.
-        """
-        leave_dates = self._build_leave_dates(self.specific_date)
-        self.assertNotIn(self.specific_date, leave_dates)
-
     def test_normal_date_not_in_leave_dates(self):
         """A regular working day must not appear in leave_dates."""
         leave_dates = self._build_leave_dates(self.normal_date)

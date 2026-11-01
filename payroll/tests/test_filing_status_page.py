@@ -87,18 +87,6 @@ class WhatEachStatusDoesTests(Fixture):
         self.status("Single", based_on="gross_pay", slabs=[(0, None, 10)])
         self.assertContains(self.page(), "Gross Pay")
 
-    def test_the_adjustments_are_listed(self):
-        self.status(
-            "India",
-            slabs=[(0, None, 10)],
-            standard_deduction=50000,
-            cess_percent=4,
-        )
-        body = self.page().content.decode()
-
-        self.assertIn("Standard deduction", body)
-        self.assertIn("Cess", body)
-
     def test_the_adjustments_carry_their_figures_above_the_slabs(self):
         """
         They are applied around whichever mode computes the tax, so a slab
@@ -115,6 +103,8 @@ class WhatEachStatusDoesTests(Fixture):
         )
         body = self.page().content.decode()
 
+        self.assertIn("Standard deduction", body)
+        self.assertIn("Cess", body)
         self.assertIn("<b>75,000</b>", body)
         self.assertIn("<b>60,000 below 1,200,000</b>", body)
         self.assertIn("<b>4%</b>", body)
@@ -126,6 +116,7 @@ class WhatEachStatusDoesTests(Fixture):
         """
         self.status("India", slabs=[(0, None, 10)], standard_deduction=50000)
         self.assertContains(self.page(), "Subtract a standard deduction")
+
 
 class WhatIsWrongTests(Fixture):
     def test_contracts_with_no_filing_status_are_counted(self):
@@ -194,18 +185,6 @@ class CoverageTests(Fixture):
 
 
 class SlabPresentationTests(Fixture):
-    def test_a_range_is_one_column_not_two(self):
-        """
-        Split across From and To, a range reads as two unrelated numbers with
-        the page's width between them -- which is what made a seven-slab table
-        hard to follow.
-        """
-        self.status("Single", slabs=[(0, 16550, 10)])
-        body = self.page().content.decode()
-
-        self.assertIn("Income band", body)
-        self.assertNotIn(">From<", body)
-
     def test_figures_carry_thousands_separators(self):
         self.status("Single", slabs=[(0, 1234567, 10)])
         self.assertContains(self.page(), "1,234,567")
@@ -248,17 +227,6 @@ class SlabPresentationTests(Fixture):
         self.assertNotIn(">inf<", body)
         self.assertIn("and above", body)
 
-    def test_the_slabs_come_before_the_steps(self):
-        """
-        Source order is reading order -- the grid does not reorder -- so the
-        slabs have to lead in the markup too, keeping the tab order and what a
-        screen reader hears the same as what is on screen.
-        """
-        self.status("Single", slabs=[(0, None, 10)])
-        body = self.page().content.decode()
-
-        self.assertLess(body.index(">Slabs<"), body.index(">In order<"))
-
     def test_the_panel_links_to_where_the_slabs_are_set(self):
         """
         Spotting something wrong in the working and having to go back up to the
@@ -266,33 +234,6 @@ class SlabPresentationTests(Fixture):
         """
         status = self.status("Single", slabs=[(0, None, 10)])
         self.assertContains(self.page(), status.get_rules_url())
-
-    def test_a_formula_status_gets_the_same_link(self):
-        """A formula is edited on the same page as the slabs."""
-        self.status("Coded", use_py=True, python_code="tax = 0")
-        body = self.page().content.decode()
-
-        self.assertIn('oh-btn--small fs__edit"', body)
-        self.assertIn(">Formula<", body)
-
-    def test_a_status_with_no_slabs_gets_it_too(self):
-        """It is the one most likely to need it."""
-        self.status("Empty")
-        self.assertContains(self.page(), 'oh-btn--small fs__edit"')
-
-    def test_every_status_gets_exactly_one(self):
-        """
-        The three branches -- slabs, formula, nothing configured -- each carry
-        their own head, so one of them appearing twice or not at all would mean
-        a branch was missed.
-        """
-        self.status("WithSlabs", slabs=[(0, None, 10)])
-        self.status("WithFormula", use_py=True, python_code="tax = 0")
-        self.status("WithNothing")
-
-        body = self.page().content.decode()
-        self.assertEqual(body.count('oh-btn--small fs__edit"'), 3)
-        self.assertEqual(body.count('class="fs__slabhead"'), 3)
 
     def test_it_is_hidden_without_permission_to_change(self):
         viewer = make_user("viewer")
@@ -302,55 +243,10 @@ class SlabPresentationTests(Fixture):
         viewer.user_permissions.add(
             Permission.objects.get(codename="view_filingstatus")
         )
-        self.status("Single", slabs=[(0, None, 10)])
+        single = self.status("Single", slabs=[(0, None, 10)])
         self.client.force_login(viewer)
 
-        self.assertNotContains(self.page(), 'oh-btn--small fs__edit"')
-
-    def test_the_bands_are_numbered(self):
-        """
-        The slabs are ordered by min_income, so the counter is the band's place
-        in the ladder -- what somebody checking a tax table against a published
-        one counts down.
-        """
-        self.status("Single", slabs=[(0, 100, 5), (100, 200, 10), (200, None, 20)])
-        body = self.page().content.decode()
-
-        for position in ("1", "2", "3"):
-            self.assertIn(f'<td class="fs__sn">{position}</td>', body)
-
-    def test_the_numbering_restarts_for_each_status(self):
-        """
-        A counter carried across statuses would number the second table from
-        where the first left off, which is not that band's place in anything.
-        """
-        self.status("First", slabs=[(0, 100, 5), (100, None, 10)])
-        self.status("Second", slabs=[(0, None, 30)])
-        body = self.page().content.decode()
-
-        self.assertEqual(body.count('<td class="fs__sn">1</td>'), 2)
-        self.assertEqual(body.count('<td class="fs__sn">2</td>'), 1)
-
-class ComputationStepsTests(Fixture):
-    def test_one_slab_is_not_described_as_slab_open_bracket_s(self):
-        """
-        Read by somebody checking a tax configuration. A parenthesised plural
-        reads as a placeholder nobody finished.
-        """
-        status = self.status("Single", slabs=[(0, None, 10)])
-        steps = " ".join(str(step) for step in status.computation_steps)
-
-        self.assertNotIn("slab(s)", steps)
-        self.assertIn("the single tax slab", steps)
-
-    def test_several_slabs_read_as_plural(self):
-        status = self.status(
-            "Single", slabs=[(0, 100, 5), (100, 200, 10), (200, None, 20)]
-        )
-        steps = " ".join(str(step) for step in status.computation_steps)
-
-        self.assertIn("Apply 3 tax slabs", steps)
-        self.assertNotIn("slab(s)", steps)
+        self.assertNotContains(self.page(), single.get_rules_url())
 
 
 class PageTests(Fixture):

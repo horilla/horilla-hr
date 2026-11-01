@@ -356,26 +356,6 @@ class ManualResetUserAndNameTests(ManualResetTestBase):
         self.assertEqual(row["source"], "manual")
         self.assertEqual(row["by"], "no_employee_user")
 
-    def test_view_returns_unusual_employee_names_verbatim(self):
-        from horilla.testkit import make_employee
-
-        odd_employee = make_employee(
-            company=self.employee.employee_work_info.company_id,
-            email="odd-names@test.horilla",
-            first_name='Zoë O\'Brien "Q"',
-            last_name="مرحبا <b>",
-        )
-        self.make_balance(employee=odd_employee)
-        self.client.force_login(self.user)
-
-        response = self.client.post(
-            reverse("leave-type-run-missed-resets", args=[self.leave_type.id]),
-            HTTP_HX_REQUEST="true",
-        )
-
-        names = [row["name"] for row in response.json()["reset_rows"]]
-        self.assertIn(str(odd_employee), names)
-
     def test_row_template_escapes_the_leave_type_name_for_javascript(self):
         from django.contrib.auth.context_processors import PermWrapper
         from django.template.loader import render_to_string

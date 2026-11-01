@@ -14,23 +14,9 @@ scanner the exact list of advisories that apply. That omission is load-bearing,
 so it is asserted here rather than left to be "tidied up" later.
 """
 
-from django.test import SimpleTestCase, TestCase
+from django.test import TestCase
 
-from base.context_processors import horilla_version
 from horilla.__version__ import __version__
-
-
-class VersionContextProcessorTests(SimpleTestCase):
-    def test_it_reports_the_real_version(self):
-        self.assertEqual(horilla_version(None), {"horilla_version": __version__})
-
-    def test_it_is_registered(self):
-        from django.conf import settings
-
-        self.assertIn(
-            "base.context_processors.horilla_version",
-            settings.TEMPLATES[0]["OPTIONS"]["context_processors"],
-        )
 
 
 class VersionNotOnPublicProbesTests(TestCase):

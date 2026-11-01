@@ -1,12 +1,12 @@
 """The PMS dashboard KPI endpoint.
 
 /pms/dashboard/api/kpi/ is the JSON feed behind the dashboard cards. It
-aggregates across three models, divides to produce a completion rate, and
-filters everything through a period window taken from query parameters --
-none of which was covered.
+aggregates across three models and divides to produce a completion rate.
+The period picker does not scope these tiles (see pms_kpi_data), because they
+link to unfiltered lists.
 
-These pin the arithmetic and the window, including the edge cases where a
-division or an empty aggregate could raise.
+These pin the arithmetic, including the edge cases where a division or an
+empty aggregate could raise.
 """
 
 from datetime import date
@@ -20,8 +20,8 @@ from pms.models import EmployeeKeyResult, EmployeeObjective, KeyResult, Objectiv
 
 URL = "/pms/dashboard/api/kpi/"
 
-# A window wide enough to contain every fixture row below, so tests that are
-# not about the period filter are not accidentally filtered.
+# Query parameters the dashboard sends. The endpoint ignores them; they are
+# passed so the tests exercise the request the page really makes.
 WIDE = {"from_date": "2026-01-01", "to_date": "2026-12-31"}
 
 

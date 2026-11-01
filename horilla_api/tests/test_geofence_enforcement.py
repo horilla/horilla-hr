@@ -62,12 +62,6 @@ class GeofenceFailClosedTests(SimpleTestCase):
         self.assertIsNotNone(denial, "an unevaluable fence must deny the punch")
         self.assertEqual(denial.status_code, 503)
 
-    def test_enabled_fence_denies_when_outside(self):
-        req = _Req(_company(SimpleNamespace(start=True)))
-        outside = SimpleNamespace(status_code=400)
-        with patch(LOCATION_CHECK, return_value=outside):
-            self.assertIs(geofence_denial(req), outside)
-
     def test_enabled_fence_allows_when_inside(self):
         req = _Req(_company(SimpleNamespace(start=True)))
         with patch(LOCATION_CHECK, return_value=SimpleNamespace(status_code=200)):

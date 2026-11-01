@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import re
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from django.test import RequestFactory, SimpleTestCase
+from django.test import RequestFactory, SimpleTestCase, TestCase
+from django.urls import Resolver404, resolve, reverse
 
 from base.dashboard import _normalize_dashboard_chart_prefs
 from base.dashboard_roles import (
@@ -16,6 +18,7 @@ from base.dashboard_roles import (
     role_default_prefs,
 )
 from base.views import _charts_use_modern_prefs
+from horilla.testkit.factories import make_company, make_employee, make_user
 
 
 class ResolveHomeRoleTests(SimpleTestCase):
@@ -135,30 +138,50 @@ class PrefsMigrationTests(SimpleTestCase):
         self.assertFalse(_charts_use_modern_prefs([]))
 
 
-class ModernDashboardFetchInventoryTests(SimpleTestCase):
-    def test_dashboard_template_avoids_legacy_module_chart_urls(self):
-        from pathlib import Path
+class ModernDashboardFetchInventoryTests(TestCase):
+    """The dashboard page must only call data endpoints that exist."""
 
-        text = Path("templates/dashboard.html").read_text(encoding="utf-8")
-        banned = (
-            "department-overtime-chart",
-            "leave-over-period",
-            "overall-leave",
-            "department-leave-chart",
-            "url 'recruitment-pipeline'",
-            "/employee/dashboard-employee",
-            "url 'dashboard-attendance'",
-            "url 'dashboard-hiring'",
+    @classmethod
+    def setUpTestData(cls):
+        company = make_company("Dash Co")
+        cls.user = make_user("dash-boss", is_superuser=True)
+        make_employee(company=company, email="dash-boss@dash.test", user=cls.user)
+
+    def test_dashboard_fetches_only_current_chart_endpoints(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("home-page"), follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        # Every URL the page's scripts fetch must resolve to a live view. A
+        # chart endpoint removed from urls.py but still fetched leaves a
+        # spinner that never ends.
+        fetched = set(
+            re.findall(r"""fetch[P]?\(\s*["'`]([^"'`?]+)""", response.content.decode())
         )
-        for token in banned:
-            self.assertNotIn(token, text, msg=f"legacy fetch still present: {token}")
-        # The charts the simplified dashboard still draws (employee status,
-        # department overtime and the two leave-by-department charts went in
-        # "Simplify main dashboard KPI tiles").
+        # The shared layout fetches its own endpoints too (notifications and so
+        # on); only the dashboard's data endpoints are this test's business.
+        names = set()
+        for path in sorted(p for p in fetched if "dashboard" in p):
+            try:
+                match = resolve(path)
+            except Resolver404:
+                self.fail(f"dashboard fetches a dead endpoint: {path}")
+            names.add(match.url_name)
+
+        # The charts the simplified dashboard still draws.
         for required in (
             "dashboard-attendance-overview",
             "dashboard-leave-trends",
             "dashboard-hiring-timeline",
             "dashboard-recruitment-by-stage",
         ):
-            self.assertIn(required, text)
+            self.assertIn(required, names)
+        # Endpoints removed with the KPI redesign must not come back.
+        for legacy in (
+            "department-overtime-chart",
+            "overall-leave",
+            "department-leave-chart",
+            "recruitment-pipeline",
+            "dashboard-hiring",
+        ):
+            self.assertNotIn(legacy, names)

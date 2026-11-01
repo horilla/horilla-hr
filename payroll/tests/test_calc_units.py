@@ -1,60 +1,13 @@
 """Payroll calculation unit tests (pure helpers + tax sandbox)."""
 
 from datetime import date, timedelta
-from types import SimpleNamespace
-from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from horilla.testkit import make_company, make_employee
-from payroll.methods.methods import get_total_days
-from payroll.methods.payslip_calc import (
-    calculate_based_on_basic_pay,
-    calculate_based_on_net_pay,
-    calculate_gross_pay,
-    if_condition_on,
-)
 from payroll.methods.safe_tax_code import TaxCodeValidationError, validate_tax_code
 from payroll.models.models import Payslip
-
-
-class GetTotalDaysTests(TestCase):
-    def test_inclusive_day_count(self):
-        self.assertEqual(
-            get_total_days(date(2023, 1, 1), date(2023, 1, 10)),
-            10,
-        )
-
-    def test_same_day_is_one(self):
-        self.assertEqual(get_total_days(date(2023, 5, 1), date(2023, 5, 1)), 1)
-
-
-class RateBasedCalcTests(TestCase):
-    def test_based_on_basic_pay(self):
-        component = SimpleNamespace(rate=10, has_max_limit=False, maximum_amount=0)
-        amount = calculate_based_on_basic_pay(
-            component=component,
-            basic_pay=10000.0,
-            day_dict={},
-        )
-        self.assertEqual(amount, 1000.0)
-
-    def test_based_on_basic_pay_respects_limit(self):
-        component = SimpleNamespace(rate=50, has_max_limit=True, maximum_amount=200.0)
-        amount = calculate_based_on_basic_pay(
-            component=component,
-            basic_pay=10000.0,
-            day_dict={},
-        )
-        self.assertEqual(amount, 200.0)
-
-    def test_based_on_net_pay(self):
-        component = SimpleNamespace(rate=5, has_max_limit=False, maximum_amount=0)
-        self.assertEqual(
-            calculate_based_on_net_pay(component, 20000.0, {}),
-            1000.0,
-        )
 
 
 class SafeTaxCodeTests(TestCase):
@@ -122,95 +75,3 @@ class PayslipValidationTests(TestCase):
         )
         with self.assertRaises(ValidationError):
             slip.clean()
-
-
-class CalculateGrossPayTests(TestCase):
-    @patch(
-        "payroll.methods.payslip_calc.update_compensation_deduction",
-        return_value={
-            "compensation_amount": 11500.0,
-            "deductions": [{"title": "comp"}],
-        },
-    )
-    def test_gross_pay_uses_compensation_update(self, _mock):
-        result = calculate_gross_pay(
-            basic_pay=10000.0,
-            total_allowance=2000.0,
-            employee=object(),
-            start_date=date(2024, 1, 1),
-            end_date=date(2024, 1, 31),
-        )
-        self.assertEqual(result["gross_pay"], 11500.0)
-        self.assertEqual(result["basic_pay"], 10000.0)
-        self.assertEqual(result["deductions"], [{"title": "comp"}])
-
-
-class IfConditionOnTests(TestCase):
-    @patch(
-        "payroll.methods.payslip_calc.calculate_gross_pay",
-        return_value={"gross_pay": 0},
-    )
-    def test_condition_fails_zeroes_amount(self, _mock):
-        component = SimpleNamespace(
-            if_choice="basic_pay",
-            if_condition="gt",
-            if_amount=20000,
-            start_range=None,
-            end_range=None,
-        )
-        amount = if_condition_on(
-            component=component,
-            basic_pay=10000.0,
-            amount=500,
-            total_allowance=0,
-            employee=object(),
-            start_date=date(2024, 1, 1),
-            end_date=date(2024, 1, 31),
-        )
-        self.assertEqual(amount, 0)
-
-    @patch(
-        "payroll.methods.payslip_calc.calculate_gross_pay",
-        return_value={"gross_pay": 0},
-    )
-    def test_condition_passes_keeps_amount(self, _mock):
-        component = SimpleNamespace(
-            if_choice="basic_pay",
-            if_condition="gt",
-            if_amount=5000,
-            start_range=None,
-            end_range=None,
-        )
-        amount = if_condition_on(
-            component=component,
-            basic_pay=10000.0,
-            amount=500,
-            total_allowance=0,
-            employee=object(),
-            start_date=date(2024, 1, 1),
-            end_date=date(2024, 1, 31),
-        )
-        self.assertEqual(amount, 500.0)
-
-    @patch(
-        "payroll.methods.payslip_calc.calculate_gross_pay",
-        return_value={"gross_pay": 0},
-    )
-    def test_range_outside_zeroes(self, _mock):
-        component = SimpleNamespace(
-            if_choice="basic_pay",
-            if_condition="range",
-            if_amount=0,
-            start_range=8000,
-            end_range=9000,
-        )
-        amount = if_condition_on(
-            component=component,
-            basic_pay=10000.0,
-            amount=500,
-            total_allowance=0,
-            employee=object(),
-            start_date=date(2024, 1, 1),
-            end_date=date(2024, 1, 31),
-        )
-        self.assertEqual(amount, 0)

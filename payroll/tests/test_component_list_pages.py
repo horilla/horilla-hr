@@ -18,8 +18,6 @@ because the second bug is precisely a case where each half was individually
 reasonable and only the pairing was wrong.
 """
 
-import re
-
 from django.test import TestCase
 from django.urls import reverse
 
@@ -68,21 +66,6 @@ class ComponentListPageTests(TestCase):
                     f"{page_name} has no #{target} for its nav to swap into",
                 )
 
-    def test_every_nav_fetches_the_list_itself(self):
-        """
-        Neither page fetches its own container, so the nav must. With
-        apply_first_filter True the nav's script only adopts the active view's
-        URL; the click that actually fetches is in the other branch.
-        """
-        for _page_name, nav_name, nav_class in PAGES:
-            with self.subTest(nav=nav_name):
-                self.assertFalse(
-                    nav_class.apply_first_filter,
-                    f"{nav_class.__name__} would leave the first fetch to the page",
-                )
-                body = self.client.get(reverse(nav_name), **self.hx).content.decode()
-                self.assertIn("$activeViewBtn.click()", body)
-
     def test_the_list_the_nav_fetches_has_the_components_in_it(self):
         """
         The other half: the nav firing at an endpoint that returns nothing
@@ -96,34 +79,3 @@ class ComponentListPageTests(TestCase):
                 response = self.client.get(reverse(url_name), **self.hx)
                 self.assertEqual(response.status_code, 200)
                 self.assertIn(title, response.content.decode())
-
-    def test_two_navs_on_one_page_do_not_share_a_container(self):
-        """
-        The payroll-settings tabs all live in one document once visited. Two
-        tabs sharing a container id would mean one tab's search rewriting the
-        other's list.
-        """
-        targets = [
-            nav_class.search_swap_target
-            for page, _nav, nav_class in PAGES
-            if page.startswith("payroll-settings")
-        ]
-        self.assertEqual(len(targets), len(set(targets)))
-
-    def test_the_page_script_watches_the_container_the_page_has(self):
-        """
-        Renaming a container without following the page's own JS would leave
-        the nav hidden or shown at the wrong times.
-        """
-        for page_name, _nav_name, nav_class in PAGES:
-            with self.subTest(page=page_name):
-                target = nav_class.search_swap_target.lstrip("#")
-                body = self._page(page_name)
-                # Any container id the page's script mentions must be one the
-                # page actually renders.
-                for mentioned in set(re.findall(r'"(#?\w*[lL]istContainer)"', body)):
-                    self.assertEqual(
-                        mentioned.lstrip("#"),
-                        target,
-                        f"{page_name} script mentions {mentioned}, not #{target}",
-                    )

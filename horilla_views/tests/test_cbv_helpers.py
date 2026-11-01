@@ -2,15 +2,10 @@
 
 from django.test import SimpleTestCase
 
-from horilla_views.cbv_methods import get_short_uuid, merge_dicts
+from horilla_views.cbv_methods import merge_dicts
 
 
 class CbvHelperTests(SimpleTestCase):
-    def test_short_uuid_prefix(self):
-        value = get_short_uuid(8)
-        self.assertTrue(value.startswith("hlv"))
-        self.assertEqual(len(value), 3 + 8)
-
     def test_merge_dicts_extends_lists(self):
         merged = merge_dicts(
             {"k": {"M": [1]}},

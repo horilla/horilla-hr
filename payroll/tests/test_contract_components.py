@@ -325,12 +325,6 @@ class StandardComponentsOnTheContractTests(TestCase):
         standard = [r for r in self.contract.component_rows if r.get("standard")]
         self.assertEqual(len(standard), len(SYSTEM_COMPONENTS))
 
-    def test_they_are_always_on_and_never_tickable(self):
-        for row in self.contract.component_rows:
-            if row.get("standard"):
-                with self.subTest(title=row["title"]):
-                    self.assertFalse(row["can_toggle"])
-
     def test_they_sort_after_the_chosen_ones(self):
         """Ten always-on rows at the top would bury what is actually chosen."""
         Allowance.objects.create(

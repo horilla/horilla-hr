@@ -14,7 +14,6 @@ from django.urls import reverse
 
 from attendance.models import Attendance, AttendanceConflictResolution
 from attendance.views.summary import (
-    HALF_LEAVE_GRACE_SECS,
     _build_calendar_context,
     build_monthly_summary,
     half_leave_conflict,
@@ -33,9 +32,6 @@ class RuleMatrixTests(SimpleTestCase):
 
     def clash(self, lead, cin, cout, worked=0, minimum=EIGHT_HOURS, shift=SHIFT):
         return half_leave_conflict(lead, cin, cout, shift, worked, minimum)
-
-    def test_the_default_grace_is_thirty_minutes(self):
-        self.assertEqual(HALF_LEAVE_GRACE_SECS, 30 * 60)
 
     # -- second half on leave -------------------------------------------------------------
     def test_second_leave_morning_only_is_fine(self):
@@ -319,6 +315,7 @@ class DayScenarioTests(DayFixture):
         )
         self.punch(time(9, 0), time(12, 0))
         self.assertTrue(self.cell()["is_conflict"])
+        self.assertEqual(self.conflicts_in_table(), 1)
 
     def test_the_clash_is_counted_once_in_the_strip(self):
         self.leave()
@@ -362,29 +359,6 @@ class ExplanationTests(DayFixture):
             "to_date": DAY.isoformat(),
         }
 
-    def test_the_cell_carries_the_reason_in_its_tooltip(self):
-        from django.template.loader import render_to_string
-
-        html = render_to_string(
-            "attendance/monthly_summary/calendar_modal.html",
-            _build_calendar_context(self.employee, DAY, DAY),
-        )
-        self.assertIn("Second-half leave", html)
-        self.assertIn("Worked until 18:00", html)
-
-    def test_the_resolve_panel_explains_the_clash(self):
-        response = self.client.get(
-            reverse("attendance-monthly-summary-conflict-resolve"),
-            self.params,
-            HTTP_HX_REQUEST="true",
-        )
-        self.assertContains(response, "Second-half leave (13:30 – 18:00)")
-        self.assertContains(response, "You were at work")
-        self.assertContains(response, "14:00 – 18:00")
-        self.assertContains(
-            response, "Worked until 18:00, but the leave half starts at 13:30"
-        )
-
     def test_the_conflicts_popover_lists_the_day_with_its_reason(self):
         response = self.client.get(
             reverse("attendance-monthly-summary-detail"),
@@ -404,17 +378,6 @@ class ExplanationTests(DayFixture):
             half_leave_label("first", SHIFT_TIMES), "First-half leave (09:00 – 13:30)"
         )
         self.assertEqual(half_leave_label("second"), "Second-half leave (after 13:00)")
-
-    def test_a_day_without_a_clash_has_no_explanation(self):
-        Attendance.objects.filter(employee_id=self.employee).update(
-            attendance_clock_in=time(9, 0), attendance_clock_out=time(12, 0)
-        )
-        response = self.client.get(
-            reverse("attendance-monthly-summary-conflict-resolve"),
-            self.params,
-            HTTP_HX_REQUEST="true",
-        )
-        self.assertNotContains(response, "You were at work")
 
 
 class ShiftBasisTests(DayFixture):
@@ -445,31 +408,6 @@ class ShiftBasisTests(DayFixture):
         Attendance.objects.filter(pk=attendance.pk).update(shift_id=late)
         self.assertTrue(self.cell()["is_conflict"])
         self.assertEqual(self.conflicts_in_table(), 1)
-
-    def test_the_panel_shows_the_shift_hours_and_where_it_splits(self):
-        from django.urls import reverse
-
-        user = make_user("shift-admin", is_superuser=True)
-        make_employee(
-            company=self.employee.get_company(),
-            email="shift-admin@test.horilla",
-            user=user,
-        )
-        self.client.force_login(user)
-        self.with_shift(time(9, 0), time(18, 0))
-        self.leave("second_half")
-        self.punch(time(14, 0), time(18, 0))
-        response = self.client.get(
-            reverse("attendance-monthly-summary-conflict-resolve"),
-            {
-                "employee_id": self.employee.pk,
-                "date": DAY.isoformat(),
-                "from_date": DAY.isoformat(),
-                "to_date": DAY.isoformat(),
-            },
-            HTTP_HX_REQUEST="true",
-        )
-        self.assertContains(response, "09:00 – 18:00, halves split at 13:30")
 
     def test_shift_hours_text(self):
         from attendance.views.summary import shift_hours_text

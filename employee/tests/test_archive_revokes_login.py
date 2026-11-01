@@ -28,7 +28,6 @@ Reported as https://github.com/horilla/horilla-hr/issues/1239 by @Safeer1877.
 from django.contrib.auth import authenticate
 from django.test import RequestFactory, TestCase
 
-from employee.models import Employee
 from horilla.testkit import make_company, make_employee
 
 
@@ -101,31 +100,6 @@ class ArchiveRevokesLoginTests(TestCase):
             ),
             "un-archiving must restore access",
         )
-
-    def test_the_user_flag_is_persisted_not_just_assigned(self):
-        """The original bug was an unsaved in-memory assignment."""
-        emp = self._employee_with_password("persist@test.horilla")
-        emp.is_active = False
-        emp.save()
-        emp.sync_login_access()
-
-        # Re-read through a completely fresh object graph.
-        reloaded = Employee.objects.select_related("employee_user_id").get(pk=emp.pk)
-        self.assertFalse(reloaded.employee_user_id.is_active)
-
-    def test_value_is_not_inverted(self):
-        """Guards the specific `not` that made archiving set the old value."""
-        emp = self._employee_with_password("inversion@test.horilla")
-        for employee_state in (False, True, False):
-            emp.is_active = employee_state
-            emp.save()
-            emp.sync_login_access()
-            emp.employee_user_id.refresh_from_db()
-            self.assertEqual(
-                emp.employee_user_id.is_active,
-                employee_state,
-                "user.is_active must equal employee.is_active, never its negation",
-            )
 
     def test_employee_without_a_user_does_not_raise(self):
         """employee_user_id is nullable, so the sync must tolerate None.

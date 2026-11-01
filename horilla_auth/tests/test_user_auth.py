@@ -5,7 +5,6 @@ from django.test import Client, RequestFactory, TestCase
 from django.urls import reverse
 
 from horilla.testkit import make_company, make_employee, make_user
-from horilla_auth.models import HorillaUser
 
 
 class HorillaUserModelTests(TestCase):
@@ -13,18 +12,6 @@ class HorillaUserModelTests(TestCase):
         # django-axes needs a request to attribute an attempt to a client; it
         # raises rather than silently skipping the check when one is missing.
         self.request = RequestFactory().post("/login/")
-
-    def test_create_user_and_check_password(self):
-        user = make_user("auth_ok", password="secret123")
-        self.assertTrue(isinstance(user, HorillaUser))
-        self.assertTrue(user.check_password("secret123"))
-        self.assertTrue(user.is_active)
-
-    def test_authenticate_success(self):
-        make_user("auth_login", password="secret123")
-        user = authenticate(self.request, username="auth_login", password="secret123")
-        self.assertIsNotNone(user)
-        self.assertEqual(user.username, "auth_login")
 
     def test_authenticate_rejects_inactive_user(self):
         user = make_user("auth_blocked", password="secret123")

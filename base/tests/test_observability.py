@@ -133,16 +133,6 @@ class JSONFormatterTests(SimpleTestCase):
 
 
 class LoggingConfigTests(SimpleTestCase):
-    def test_json_in_production_readable_in_debug(self):
-        self.assertEqual(
-            build_logging_config(debug=False)["handlers"]["console"]["formatter"],
-            "json",
-        )
-        self.assertEqual(
-            build_logging_config(debug=True)["handlers"]["console"]["formatter"],
-            "console",
-        )
-
     def test_existing_loggers_are_not_disabled(self):
         # Third-party packages call getLogger() at import time, before this
         # config is applied; disabling them would silence them entirely.

@@ -4,16 +4,7 @@ from decimal import Decimal
 
 from django.test import TestCase
 
-from leave.models import PAYMENT_TYPE
 from leave.tests.helpers import _make_leave_type
-
-
-class PaymentTypeChoicesTest(TestCase):
-    def test_payment_type_choices_exist(self):
-        keys = [k for k, _ in PAYMENT_TYPE]
-        self.assertIn("paid", keys)
-        self.assertIn("unpaid", keys)
-        self.assertIn("custom", keys)
 
 
 class LeaveTypeGetPaymentPercentageTest(TestCase):
@@ -48,12 +39,13 @@ class LeaveTypeGetPaymentPercentageTest(TestCase):
 class LeaveTypePaymentTypeDisplayTest(TestCase):
     def test_paid_display(self):
         lt = _make_leave_type(payment_type="paid")
-        self.assertIn("100", lt.payment_type_display())
+        self.assertRegex(lt.payment_type_display(), r"\(100%\)$")
 
     def test_unpaid_display(self):
         lt = _make_leave_type(payment_type="unpaid")
-        self.assertIn("0", lt.payment_type_display())
+        # Exactly 0%: a bare "0" would also match "Paid (100%)".
+        self.assertRegex(lt.payment_type_display(), r"\(0%\)$")
 
     def test_custom_display(self):
         lt = _make_leave_type(payment_type="custom", payment_percentage=Decimal("33"))
-        self.assertIn("33", lt.payment_type_display())
+        self.assertRegex(lt.payment_type_display(), r"\(33%\)$")

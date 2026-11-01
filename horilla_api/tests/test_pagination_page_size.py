@@ -48,15 +48,27 @@ class PageSizeTests(TestCase):
         self.assertEqual(len(response.data["results"]), 20)
 
     def test_page_size_is_honoured(self):
-        response = self.client.get(EMPLOYEE_LIST_URL, {"page_size": 5})
-        self.assertEqual(response.status_code, 200, response.content)
-        self.assertEqual(len(response.data["results"]), 5)
-
-    def test_page_size_can_exceed_the_old_fixed_twenty(self):
-        response = self.client.get(EMPLOYEE_LIST_URL, {"page_size": 30})
-        self.assertEqual(len(response.data["results"]), 30)
+        # 30 is deliberately past the old fixed 20.
+        for size in (5, 30):
+            with self.subTest(page_size=size):
+                response = self.client.get(EMPLOYEE_LIST_URL, {"page_size": size})
+                self.assertEqual(response.status_code, 200, response.content)
+                self.assertEqual(len(response.data["results"]), size)
 
     def test_page_size_is_capped(self):
-        """Not a way to ask the server to serialize a whole table."""
+        """Not a way to ask the server to serialize a whole table.
+
+        The cap is 100 and the fixture holds 30 rows, so asking for a huge page
+        would pass with the cap removed. Add enough rows to go past it, then
+        check the server returns exactly the cap.
+        """
+        for i in range(80):
+            make_employee(
+                company=self.company,
+                email=f"paging_extra{i}@test.horilla",
+                first_name=f"Extra{i}",
+            )
         response = self.client.get(EMPLOYEE_LIST_URL, {"page_size": 100000})
-        self.assertLessEqual(len(response.data["results"]), 100)
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.data["count"], 110)
+        self.assertEqual(len(response.data["results"]), 100)

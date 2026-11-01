@@ -14,6 +14,7 @@ Nominatim is mocked - the model asks it to reverse-geocode on save.
 
 from unittest.mock import MagicMock, patch
 
+from django.core.exceptions import ValidationError
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
@@ -267,7 +268,7 @@ class SetupPageTests(TestCase):
         other = GeoFencing(
             latitude=1, longitude=1, radius_in_meters=10, company_id=None
         )
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValidationError):
             other.save()
 
     def test_editing_a_company_fence_updates_it_in_place(self, nominatim):
@@ -334,21 +335,13 @@ class WebPunchWithAllCompaniesTests(TestCase):
         self.assertTrue(any("Could not verify your location" in m for m in messages))
 
     def test_a_punch_inside_the_fence_is_not_stopped_by_it(self, nominatim):
+        from attendance.models import AttendanceActivity
+
         nominatim.return_value.reverse.return_value = MagicMock()
         make_fence(None, radius_in_meters=100)
         messages = self.punch("12.97", "77.59")
+        self.assertEqual(AttendanceActivity.objects.count(), 1, messages)
         self.assertFalse(
             any("permitted work location" in m for m in messages), messages
         )
         self.assertFalse(any("verify your location" in m for m in messages), messages)
-
-    def test_the_helper_uses_the_employees_company_when_the_view_has_none(
-        self, nominatim
-    ):
-        from attendance.methods.utils import geofence_denial_web
-
-        nominatim.return_value.reverse.return_value = MagicMock()
-        make_fence(None, radius_in_meters=100)
-        request = RequestFactory().get("/", {"latitude": "40.0", "longitude": "-74.0"})
-        request.user = self.user
-        self.assertIsNotNone(geofence_denial_web(request, None))

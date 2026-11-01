@@ -71,7 +71,7 @@ class GetPanelTests(Fixture):
         response = self._get()
         body = response.content.decode()
         self.assertEqual(response.status_code, 200)
-        self.assertIn("3", body)
+        self.assertEqual(response.context["dates"], DATES)  # all three, in order
         for d in DATES:
             self.assertIn(d.strftime("%d %b"), body)
 

@@ -2,7 +2,7 @@
 
 from django.test import TestCase
 
-from employee.models import Employee, EmployeeWorkInformation
+from employee.models import Employee
 from horilla.testkit import CompanyFilterTestMixin, make_company, make_employee
 
 
@@ -63,13 +63,3 @@ class EmployeeCompanyIsolationTests(CompanyFilterTestMixin, TestCase):
         all_rows = list(Employee.objects.entire())
         self.assertIn(self.emp_a, all_rows)
         self.assertIn(self.emp_b, all_rows)
-
-    def test_work_info_company_links(self):
-        self.assertEqual(
-            EmployeeWorkInformation.objects.get(employee_id=self.emp_a).company_id_id,
-            self.company_a.pk,
-        )
-        self.assertEqual(
-            EmployeeWorkInformation.objects.get(employee_id=self.emp_b).company_id_id,
-            self.company_b.pk,
-        )

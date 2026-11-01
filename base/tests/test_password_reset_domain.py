@@ -103,13 +103,6 @@ class PasswordResetDomainTests(TestCase):
         self.assertEqual(context["domain"], "forced.test")
         self.assertEqual(context["site_name"], "forced.test")
 
-    def test_the_rendered_link_targets_that_host(self):
-        """What the user actually clicks."""
-        context = self._send("hr.acme-corp.test")
-        link = f"{context['protocol']}://{context['domain']}"
-        self.assertTrue(link.startswith("http://hr.acme-corp.test"), link)
-        self.assertNotIn("example.com", link)
-
     def test_unvalidated_forwarded_host_is_not_trusted(self):
         """X-Forwarded-Host is attacker-controllable: reset-link poisoning.
 

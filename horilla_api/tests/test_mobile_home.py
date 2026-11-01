@@ -8,6 +8,7 @@ stored field behind it.
 """
 
 from datetime import date, datetime, timedelta
+from unittest.mock import patch
 
 from django.test import TestCase
 from django.utils import timezone
@@ -18,6 +19,17 @@ from horilla.horilla_middlewares import set_selected_company
 from horilla.testkit import make_company, make_employee, make_user
 
 HOME_URL = "/api/v1/mobile/home/"
+
+# A fixed "today". The view reads date.today() and the fixtures build rows for
+# the same day, so a run that straddled midnight would look for the rows on the
+# wrong date. Pinning it makes the day a constant, not a race.
+FIXED_TODAY = date(2026, 3, 10)
+
+
+class _FrozenDate(date):
+    @classmethod
+    def today(cls):
+        return FIXED_TODAY
 
 
 class MobileHomeTests(TestCase):
@@ -33,6 +45,9 @@ class MobileHomeTests(TestCase):
             user=self.user,
         )
         self.client.force_authenticate(user=self.user)
+        clock = patch("horilla_api.api_views.mobile.views.date", _FrozenDate)
+        clock.start()
+        self.addCleanup(clock.stop)
 
     def test_requires_authentication(self):
         self.assertEqual(APIClient().get(HOME_URL).status_code, 401)
@@ -51,6 +66,9 @@ class MobileHomeTests(TestCase):
             "unread_notifications",
         ):
             self.assertIn(key, response.data)
+        # Embedded so the tab bar needs no extra call.
+        self.assertIn("role", response.data["capabilities"])
+        self.assertIn("features", response.data["capabilities"])
 
     def test_clean_slate_is_not_clocked_in(self):
         punch = self.client.get(HOME_URL).data["punch"]
@@ -66,7 +84,7 @@ class MobileHomeTests(TestCase):
         total, so this is computed. A 30-minute gap between clocking out and
         back in must surface as 00:30:00.
         """
-        today = date.today()
+        today = FIXED_TODAY
         base = timezone.make_aware(datetime.combine(today, datetime.min.time()))
 
         AttendanceActivity.objects.create(
@@ -101,7 +119,7 @@ class MobileHomeTests(TestCase):
         without the other. Every other test here sets both, which is why this
         went unnoticed until a real server returned 500 on the home screen.
         """
-        today = date.today()
+        today = FIXED_TODAY
         base = timezone.make_aware(datetime.combine(today, datetime.min.time()))
         AttendanceActivity.objects.create(
             employee_id=self.employee,
@@ -131,7 +149,7 @@ class MobileHomeTests(TestCase):
 
     def test_an_open_activity_without_an_in_datetime_does_not_500(self):
         """in_datetime is nullable too, and last_activity_at dereferenced it."""
-        today = date.today()
+        today = FIXED_TODAY
         base = timezone.make_aware(datetime.combine(today, datetime.min.time()))
         AttendanceActivity.objects.create(
             employee_id=self.employee,
@@ -150,7 +168,7 @@ class MobileHomeTests(TestCase):
         )
 
     def test_single_open_activity_means_no_break(self):
-        today = date.today()
+        today = FIXED_TODAY
         base = timezone.make_aware(datetime.combine(today, datetime.min.time()))
         AttendanceActivity.objects.create(
             employee_id=self.employee,
@@ -160,11 +178,6 @@ class MobileHomeTests(TestCase):
             in_datetime=base + timedelta(hours=9),
         )
         self.assertEqual(self.client.get(HOME_URL).data["today"]["break"], "00:00:00")
-
-    def test_capabilities_are_embedded_so_the_tab_bar_needs_no_extra_call(self):
-        caps = self.client.get(HOME_URL).data["capabilities"]
-        self.assertIn("role", caps)
-        self.assertIn("features", caps)
 
 
 class HomeAnnouncementAudienceTests(TestCase):

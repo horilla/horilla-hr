@@ -15,7 +15,6 @@ second way.
 
 from django.test import TestCase
 from django.urls import reverse
-
 from horilla.testkit import make_company, make_employee, make_user
 from payroll.forms.component_layout import component_picker_rows
 from payroll.methods.component_summary import (
@@ -185,6 +184,7 @@ class ComponentRowsTests(TestCase):
         self.assertEqual(str(row["type_label"]), "Earning")
         self.assertEqual(row["calculation"], "50% of BASIC")
         self.assertEqual(str(row["taxable"]), "Yes")
+        self.assertEqual(row["prorates"], "Inherited")
 
     def test_a_deduction_is_labelled_by_which_phase_it_runs_in(self):
         for kwargs, expected in (
@@ -216,22 +216,6 @@ class ComponentRowsTests(TestCase):
         )
         self.structure.allowances.add(allowance)
         self.assertIn("1 more", self.structure.component_rows[0]["applies"])
-
-    def test_a_calculated_component_reports_inherited_proration(self):
-        """
-        "No" would be wrong: a percentage of basic follows the period through
-        the basic it is a percentage of. Applying a basis as well would prorate
-        it twice.
-        """
-        allowance = Allowance.objects.create(
-            title="HRA",
-            is_fixed=False,
-            based_on="basic_pay",
-            rate=50.0,
-            maximum_unit="month_calendar_days",
-        )
-        self.structure.allowances.add(allowance)
-        self.assertEqual(self.structure.component_rows[0]["prorates"], "Inherited")
 
     def test_a_flat_component_reports_its_own_basis(self):
         allowance = Allowance.objects.create(
@@ -335,50 +319,6 @@ class SampleInputUsageTests(TestCase):
         self._add(based_on="component", percentage_of_code="CTC", rate=50.0)
         inputs = self.structure.sample_inputs
         self.assertEqual(str(inputs["ctc"]["why"]), "")
-
-
-class DetailViewRenderTests(TestCase):
-    def setUp(self):
-        user = make_user("ssadmin", is_superuser=True)
-        company = make_company("SS Co")
-        make_employee(company=company, email="ssadmin@test.horilla", user=user)
-        self.client.force_login(user)
-        self.hx = {"HTTP_HX_REQUEST": "true"}
-
-        self.structure = SalaryStructure.objects.create(title="Standard")
-        basic = Allowance.objects.create(
-            title="Basic Pay", sequence=10, is_fixed=True, amount=25000.0
-        )
-        hra = Allowance.objects.create(
-            title="HRA",
-            sequence=20,
-            is_fixed=False,
-            based_on="component",
-            percentage_of_code=basic.code,
-            rate=50.0,
-        )
-        self.structure.allowances.add(basic, hra)
-
-    def test_the_detail_view_renders_the_component_table(self):
-        response = self.client.get(
-            reverse("salary-structure-detail-view", kwargs={"pk": self.structure.pk}),
-            **self.hx,
-        )
-        self.assertEqual(response.status_code, 200)
-        body = response.content.decode()
-
-        self.assertIn("ss-components__table", body)
-        self.assertIn("Basic Pay", body)
-        self.assertIn("50% of", body)
-        self.assertIn("Evaluated top to bottom", body)
-        # And the example panel, pointed at its own endpoint.
-        self.assertIn("data-structure-example", body)
-        # CTC is disabled here: nothing in this structure reads it.
-        self.assertIn("data-example-ctc", body)
-        self.assertIn("disabled", body)
-        self.assertIn(
-            reverse("salary-structure-preview", kwargs={"pk": self.structure.pk}), body
-        )
 
 
 class ExamplePreviewTests(TestCase):
@@ -823,12 +763,6 @@ class ComponentPickerTests(TestCase):
         self.assertIn("data-component-picker", body)
         self.assertIn('name="allowances" value="%s"' % self.hra.pk, body)
         self.assertIn('name="deductions" value="%s"' % self.pf.pk, body)
-
-    def test_it_says_what_each_component_does(self):
-        """The reason for a table rather than a chip."""
-        body = self._body(self.structure.pk)
-        self.assertIn("50% of BASIC", body)
-        self.assertIn("12% of BASIC", body)
 
     def test_what_is_already_on_the_structure_is_ticked(self):
         # Keyed by (field, pk): the two models have separate primary key

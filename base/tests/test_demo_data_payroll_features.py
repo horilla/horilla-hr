@@ -62,22 +62,17 @@ class BackfillPayrollFeatureCoverageCtcDownTests(TestCase):
             )
             self.employees.append(employee)
 
-    def test_every_company_gets_a_ctc_down_structure(self):
+    def test_every_company_gets_a_ctc_down_structure_with_one_basic_pay(self):
+        """
+        validate_component_set's own invariant: exactly one basic-pay earning,
+        not zero (no basic pay to tax) and not two (which one wins is
+        undefined).
+        """
         backfill_payroll_feature_coverage(today=date(2026, 9, 1))
         structure = SalaryStructure.objects.get(
             title="CTC Down Compensation Package", company_id=self.company
         )
         self.assertEqual(structure.structure_mode, "ctc_down")
-
-    def test_ctc_down_structure_has_exactly_one_basic_pay_earning(self):
-        """
-        validate_component_set's own invariant: exactly one, not zero (no
-        basic pay to tax) and not two (which one wins is undefined).
-        """
-        backfill_payroll_feature_coverage(today=date(2026, 9, 1))
-        structure = SalaryStructure.objects.get(
-            title="CTC Down Compensation Package", company_id=self.company
-        )
         basic_pay_earnings = structure.allowances.filter(is_basic_pay=True)
         self.assertEqual(basic_pay_earnings.count(), 1)
         self.assertEqual(basic_pay_earnings.first().code, "BASIC")

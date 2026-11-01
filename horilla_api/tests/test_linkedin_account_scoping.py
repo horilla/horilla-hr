@@ -110,12 +110,14 @@ class LinkedInAccountScopingTests(TestCase):
 
         response = self.client.get(DETAIL_URL.format(pk=own.pk))
 
-        if response.status_code == 200:
-            self.assertNotIn(
-                "api_token",
-                response.json(),
-                "the endpoint serialised api_token",
-            )
+        # Assert the row is reachable first: a 403/404/500 would otherwise pass
+        # this test without ever looking at the body.
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertNotIn(
+            "api_token",
+            response.json(),
+            "the endpoint serialised api_token",
+        )
 
     def test_list_route_does_not_expose_another_companys_token(self):
         """The list path must not carry the token either."""

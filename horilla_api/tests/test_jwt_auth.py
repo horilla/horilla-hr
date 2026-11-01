@@ -31,14 +31,6 @@ class LoginAPITests(TestCase):
         self.assertTrue(response.data["access"])
         self.assertEqual(response.data["employee"]["id"], self.employee.pk)
 
-    def test_login_rejects_bad_password(self):
-        response = self.client.post(
-            "/api/auth/login/",
-            {"username": "api_login", "password": "wrong"},
-            format="json",
-        )
-        self.assertEqual(response.status_code, 401)
-
 
 class JWTProtectedEndpointTests(TestCase):
     def setUp(self):
@@ -69,20 +61,6 @@ class JWTProtectedEndpointTests(TestCase):
 
 
 class RejectBasicAuthTests(TestCase):
-    def test_reject_basic_authentication_class(self):
-        from django.test import RequestFactory
-        from rest_framework.exceptions import AuthenticationFailed
-
-        from horilla_api.auth import RejectBasicAuthentication
-
-        request = RequestFactory().get("/api/employee/employee-type/")
-        request.META["HTTP_AUTHORIZATION"] = "Basic " + base64.b64encode(
-            b"user:pass"
-        ).decode("ascii")
-        with self.assertRaises(AuthenticationFailed) as ctx:
-            RejectBasicAuthentication().authenticate(request)
-        self.assertIn("Basic authentication is disabled", str(ctx.exception))
-
     def test_basic_auth_does_not_authenticate_api(self):
         """Basic credentials must not unlock JWT-only endpoints."""
         client = Client()

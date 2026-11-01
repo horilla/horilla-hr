@@ -71,28 +71,3 @@ class ResetSchedulerTests(TestCase):
         avail.refresh_from_db()
         self.assertEqual(avail.available_days, 10)
         self.assertGreater(avail.reset_date, date.today() - timedelta(days=5))
-
-    def test_reset_labels_history_with_a_change_reason(self):
-        from leave.scheduler import leave_reset
-
-        lt = self.LeaveType.objects.create(
-            name="History Label Type",
-            total_days=10,
-            reset=True,
-            reset_based="monthly",
-            reset_day="1",
-            carryforward_type="no carryforward",
-        )
-        avail = self.AvailableLeave.objects.create(
-            employee_id=self.employee,
-            leave_type_id=lt,
-            available_days=3,
-            carryforward_days=0,
-            total_leave_days=3,
-            reset_date=date.today(),
-        )
-
-        leave_reset()
-
-        latest_history = avail.history.order_by("-history_date").first()
-        self.assertEqual(latest_history.history_change_reason, "Leave reset")

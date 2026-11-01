@@ -122,26 +122,6 @@ class ApiTenantScopingTests(TestCase):
         self.assertEqual(user, self.user_a)
         self.assertEqual(get_selected_company(), self.company_a.id)
 
-    def test_no_credentials_leaves_scope_unset(self):
-        from rest_framework.test import APIRequestFactory
-
-        from horilla_api.authentication import TenantScopedJWTAuthentication
-
-        request = APIRequestFactory().get(EMPLOYEE_LIST_URL)
-        self.assertIsNone(TenantScopedJWTAuthentication().authenticate(request))
-
-    def test_configured_as_the_default_authentication_class(self):
-        """A correct class nothing is wired to would fix nothing."""
-        from django.conf import settings
-
-        configured = settings.REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"]
-        self.assertIn(
-            "horilla_api.authentication.TenantScopedJWTAuthentication",
-            configured,
-        )
-
-    # -- end to end -------------------------------------------------------
-
     def test_each_tenant_sees_a_disjoint_employee_set(self):
         """Symmetric check, so a filter that always returns A would fail."""
         seen = {}

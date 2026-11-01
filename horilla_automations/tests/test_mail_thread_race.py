@@ -58,12 +58,16 @@ class SendMailMissingInstanceTests(TestCase):
     def test_unsaved_instance_skips_the_re_read(self):
         """An instance with no pk must not be re-read at all.
 
-        Asserted by patching the manager: the guarded branch is keyed on
-        instance.pk, so an unsaved instance should never reach the query.
-        Only the re-read is pinned here -- send_mail goes on to resolve
-        automation.model, which a stub cannot satisfy, so the call is not
-        run to completion.
+        The guarded branch is keyed on instance.pk, so an unsaved instance
+        should never reach the query. The manager is patched to fail if it is
+        queried, and the first call after the branch is patched to raise a
+        sentinel, so the test proves send_mail got past the guard (the
+        sentinel is raised) without re-reading (no AssertionError).
         """
+
+        class PastTheReRead(Exception):
+            pass
+
         unsaved = LeaveRequest(
             employee_id=self.employee,
             leave_type_id=self.leave_type,
@@ -73,12 +77,16 @@ class SendMailMissingInstanceTests(TestCase):
         )
         self.assertIsNone(unsaved.pk)
 
-        with patch.object(
-            LeaveRequest.objects, "filter", side_effect=AssertionError("re-read ran")
+        with (
+            patch.object(
+                LeaveRequest.objects,
+                "filter",
+                side_effect=AssertionError("re-read ran"),
+            ),
+            patch(
+                "horilla_views.templatetags.generic_template_filters.getattribute",
+                side_effect=PastTheReRead,
+            ),
         ):
-            with self.assertRaises(Exception) as ctx:
+            with self.assertRaises(PastTheReRead):
                 send_mail(None, self._automation(), unsaved)
-
-        self.assertNotIsInstance(
-            ctx.exception, AssertionError, "send_mail re-read an instance with no pk"
-        )

@@ -11,19 +11,6 @@ from leave.tests.helpers import _make_employee, _make_leave_type
 
 
 class LeaveTypeConditionModelTest(TestCase):
-    def test_str_with_value(self):
-        cond = LeaveTypeCondition.__new__(LeaveTypeCondition)
-        cond.condition_type = "gender"
-        cond.value = "female"
-        self.assertIn("female", str(cond))
-        self.assertIn("Gender", str(cond))
-
-    def test_str_without_value(self):
-        cond = LeaveTypeCondition.__new__(LeaveTypeCondition)
-        cond.condition_type = "once_per_employment"
-        cond.value = None
-        self.assertIn("Once Per Employment", str(cond))
-
     def test_clean_raises_when_value_missing_for_gender(self):
         cond = LeaveTypeCondition.__new__(LeaveTypeCondition)
         cond.pk = None

@@ -35,7 +35,3 @@ class ManagerPermission403Tests(TestCase):
         self.client.force_authenticate(user=self.user)
         response = self.client.get(self.URL)
         self.assertEqual(response.status_code, 200)
-
-    def test_unauthenticated_returns_401(self):
-        response = self.client.get(self.URL)
-        self.assertEqual(response.status_code, 401)

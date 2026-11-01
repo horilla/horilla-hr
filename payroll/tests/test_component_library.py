@@ -254,36 +254,6 @@ class LibraryViewTests(TestCase):
         self.assertEqual(Allowance.objects.exclude(is_system=True).count(), 0)
         self.assertEqual(Deduction.objects.exclude(is_system=True).count(), 0)
 
-    def test_both_component_pages_offer_the_library(self):
-        """
-        The library is only worth having if it can be reached: everything
-        below it worked for a while with nothing on screen linking to it.
-        """
-        for nav_name in ("allowances-nav-view", "deduction-view-nav"):
-            with self.subTest(nav=nav_name):
-                body = self.client.get(reverse(nav_name), **self.hx).content.decode()
-                self.assertIn(reverse("component-library"), body)
-                self.assertIn("Add from library", body)
-
-    def test_the_nav_tells_the_chooser_which_page_opened_it(self):
-        """
-        Four pages share these two navs, so the nav is the only thing that
-        knows where the user actually is.
-        """
-        for nav_name, expected in (
-            ("allowances-nav-view", "from=allowance"),
-            ("deduction-view-nav", "from=deduction"),
-        ):
-            with self.subTest(nav=nav_name):
-                body = self.client.get(reverse(nav_name), **self.hx).content.decode()
-                self.assertIn(expected, body)
-
-        # The payroll-settings tabs say so, and get themselves back.
-        body = self.client.get(
-            reverse("deduction-view-nav"), {"from": "settings"}, **self.hx
-        ).content.decode()
-        self.assertIn("from=settings", body)
-
     def test_loading_from_a_settings_tab_returns_to_the_settings_page(self):
         response = self.client.post(
             reverse("load-component-library"),

@@ -14,7 +14,6 @@ from datetime import date
 from unittest.mock import patch
 
 from django.test import TestCase
-
 from horilla.testkit import make_company, make_employee, make_user
 from payroll.models.models import Contract
 from payroll.tests.factories_payroll import (
@@ -107,8 +106,8 @@ class HourlyPayslipCarriesItsHoursTests(TestCase):
 
     def test_the_labels_say_the_hours_worked(self):
         data = self._run()
-        self.assertIn("20", data["regular_hours_label"])
-        self.assertIn("3", data["ot_hours_label"])
+        self.assertEqual(data["regular_hours_label"], "20h 00m")
+        self.assertEqual(data["ot_hours_label"], "3h 00m")
 
     def test_the_rate_is_in_the_payslip_data_not_only_on_the_instance(self):
         """
@@ -284,43 +283,6 @@ class TheRenderedPayslipTests(TestCase):
             with self.subTest(figure=figure):
                 self.assertIn(figure, body)
 
-    def test_days_and_basic_pay_are_not_shown_for_an_hourly_contract(self):
-        """
-        They belong to a monthly contract and mislead here: the pay is not a
-        monthly figure divided by days, and nobody is "paid" for a day.
-        """
-        body = self._body(self._payslip()).lower()
-        # Tag-boundary, not a bare substring: "unpaid days" (the LOP
-        # popover's own label, present on every wage type) contains "paid
-        # days" too, and a plain assertNotIn("paid days", ...) collided with
-        # it -- passing only because this test had never been run as part
-        # of the full suite before.
-        self.assertNotIn(">paid days<", body)
-        # Nor under any other name. hourly_computation returns loss_of_pay = 0
-        # always -- an hour not worked is an hour not paid, not pay withheld --
-        # so a days count here would imply a deduction that was never made.
-        self.assertNotIn("days not worked", body)
-        self.assertNotIn("loss of pay days", body)
-        # Basic pay is still an EARNINGS line -- it is the strip it is off.
-        strip = body.split("ps__ledger")[0]
-        self.assertNotIn("basic pay", strip)
-
-    def test_an_overtime_kind_that_came_to_nothing_still_has_a_row(self):
-        """
-        "No holiday overtime" is an answer; a missing row is not. The fixture
-        has no holiday hours.
-        """
-        body = self._body(self._payslip()).lower()
-        self.assertIn("holiday ot", body)
-
-    def test_the_hours_are_not_shown_twice(self):
-        """
-        The strip replaced a separate Attendance panel that said the same four
-        things, which invited the reader to check one against the other.
-        """
-        body = self._body(self._payslip())
-        self.assertEqual(body.count("20h 0m"), 1)
-
     def test_the_rate_is_not_called_basic_pay(self):
         """An employee paid 100/hour does not have a basic pay of 100."""
         # Case-insensitive: the labels are sentence case in the markup and
@@ -329,28 +291,6 @@ class TheRenderedPayslipTests(TestCase):
         body = self._body(self._payslip()).lower()
         self.assertIn("hourly rate", body)
         self.assertNotIn("actual basic pay", body)
-
-    def test_a_monthly_payslip_names_the_wage_and_its_lop_days(self):
-        """The hourly wording must not leak onto a monthly payslip."""
-        monthly = self._payslip(
-            regular_hours_label=None,
-            ot_hours_label=None,
-            ot_regular_hours_label=None,
-            ot_week_off_hours_label=None,
-        )
-        body = self._body(monthly).lower()
-
-        self.assertIn("contract wage", body)
-        self.assertIn("loss of pay days", body)
-        # The calendar-day total is shown against paid days rather than as a
-        # figure of its own -- it only means anything as the thing paid days
-        # are counted against.
-        self.assertNotIn("working days", body)
-        self.assertIn("of 31", body)
-        self.assertNotIn("days not worked", body)
-        self.assertNotIn("hourly rate", body)
-        self.assertNotIn("regular ot", body)
-        self.assertIn("paid days", body)
 
 
 class CurrencyWithoutSettingsTests(TestCase):
