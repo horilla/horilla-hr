@@ -28,10 +28,14 @@ class PayslipsAndBatchesTabView(HorillaTabView):
             {"title": _("Payslips"), "url": reverse("payslip-tab-shell")},
         ]
         if self.request and self.request.user.has_perm("payroll.view_payslip"):
-            self.tabs.append({"title": _("Batches"), "url": reverse("payroll-batch-tab-shell")})
+            self.tabs.append(
+                {"title": _("Batches"), "url": reverse("payroll-batch-tab-shell")}
+            )
 
     def get_context_data(self, **kwargs):
-        payslips = filter_own_records(self.request, Payslip.objects.all(), "payroll.view_payslip").count()
+        payslips = filter_own_records(
+            self.request, Payslip.objects.all(), "payroll.view_payslip"
+        ).count()
         self.tabs[0]["badge"] = payslips
         if len(self.tabs) > 1:
             self.tabs[1]["badge"] = PayrollBatch.objects.count()

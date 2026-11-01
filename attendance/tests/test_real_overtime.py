@@ -3,7 +3,11 @@ import datetime
 from django.test import SimpleTestCase, TestCase
 
 from attendance.methods.utils import real_overtime_seconds
-from attendance.models import Attendance, AttendanceConflictResolution, AttendanceValidationCondition
+from attendance.models import (
+    Attendance,
+    AttendanceConflictResolution,
+    AttendanceValidationCondition,
+)
 from attendance.views.summary import approve_overtime_if_eligible, ot_counts
 from horilla.testkit import make_company, make_employee
 
@@ -49,8 +53,10 @@ class ApproveOvertimeTests(TestCase):
         self.employee = make_employee(company=company, email="approve-ot@test.horilla")
         AttendanceValidationCondition.objects.all().delete()
         AttendanceValidationCondition.objects.create(
-            validation_at_work="09:00", minimum_overtime_to_approve="00:30",
-            overtime_cutoff="02:00", auto_approve_ot=False,
+            validation_at_work="09:00",
+            minimum_overtime_to_approve="00:30",
+            overtime_cutoff="02:00",
+            auto_approve_ot=False,
         )
 
     def _attendance(self, worked):
@@ -67,7 +73,9 @@ class ApproveOvertimeTests(TestCase):
         )
 
     def _approved(self):
-        return Attendance.objects.get(employee_id=self.employee, attendance_date=self.DAY).attendance_overtime_approve
+        return Attendance.objects.get(
+            employee_id=self.employee, attendance_date=self.DAY
+        ).attendance_overtime_approve
 
     def test_overtime_at_the_minimum_is_approved(self):
         self._attendance("08:30")
