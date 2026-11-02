@@ -46,6 +46,9 @@ from payroll.models.models import (
 logger = logging.getLogger(__name__)
 
 SESSION_KEY = "payroll_batch_wizard"
+# The batch this session last started. The wizard's own state is cleared once a run starts, so
+# this is what lets the Review crumb find its way back to that batch's inputs.
+SESSION_LAST_BATCH = "payroll_last_batch"
 
 
 def _settings_for(request):
@@ -58,6 +61,20 @@ def _settings_for(request):
 
 def _wizard_state(request):
     return request.session.get(SESSION_KEY) or {}
+
+
+def _reopenable_last_batch(request):
+    """The batch this session last started, if it is still a draft nobody has acted on."""
+    batch = PayrollBatch.objects.filter(
+        pk=request.session.get(SESSION_LAST_BATCH)
+    ).first()
+    if (
+        batch
+        and batch.status == PayrollBatch.DRAFT
+        and not batch.payslips.exclude(status="draft").exists()
+    ):
+        return batch
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -210,6 +227,33 @@ def batch_delete(request, batch_id):
 @login_required
 @permission_required("payroll.delete_payslip")
 @permission_required("payroll.add_payslip")
+def batch_inputs(request, batch_id):
+    """
+    Ask before sending a draft run back to its inputs.
+
+    Going back discards the run's draft payslips (see batch_reopen), so a link cannot do it
+    quietly. This is the page a link to "the inputs" lands on: it says what will happen, and the
+    button posts to batch_reopen.
+    """
+    batch = get_object_or_404(PayrollBatch, pk=batch_id)
+    detail = reverse("payroll-batch-detail", args=[batch.pk])
+    if (
+        batch.status != PayrollBatch.DRAFT
+        or batch.payslips.exclude(status="draft").exists()
+    ):
+        messages.info(
+            request,
+            _("This batch has moved on, so its inputs can no longer be reopened."),
+        )
+        return redirect(detail)
+    return render(
+        request, "payroll/batch/batch_inputs.html", {"batch": batch, "step": 2}
+    )
+
+
+@login_required
+@permission_required("payroll.delete_payslip")
+@permission_required("payroll.add_payslip")
 def batch_reopen(request, batch_id):
     """
     Send a draft run back to "Review & Regularize", to fix what it was built on.
@@ -316,6 +360,12 @@ def wizard_review(request):
     """
     state = _wizard_state(request)
     if not state:
+        # Coming back here once the run has started (the Review crumb, say) has no inputs to show
+        # -- they were cleared when it started. If that run is still a draft, take the person to
+        # the page that reopens its inputs, rather than to an empty new batch.
+        batch = _reopenable_last_batch(request)
+        if batch:
+            return redirect("payroll-batch-inputs", batch_id=batch.pk)
         return redirect("payroll-batch-scope")
 
     start = date.fromisoformat(state["period_start"])
@@ -417,6 +467,7 @@ def wizard_start(request):
         settings=_settings_for(request),
     )
     request.session.pop(SESSION_KEY, None)
+    request.session[SESSION_LAST_BATCH] = batch.pk
     if request.headers.get("HX-Request"):
         # The review page shows the run in a modal instead of leaving the page.
         return render(
