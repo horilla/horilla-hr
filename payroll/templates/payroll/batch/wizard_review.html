@@ -149,7 +149,7 @@
         </div>
       </div>
       {% if rows %}
-      <div class="max-h-[calc(100vh_-_260px)] overflow-hidden overflow-y-auto overflow-x-auto heightContainer p-2">
+      <div class="max-h-[calc(100vh_-_260px)] overflow-hidden overflow-y-auto overflow-x-auto heightContainer p-2 pt-0">
         <table class="fixed-table w-full border-separate" id="pb-review-table" style="min-width:1100px;">
           <thead class="sticky top-0 bg-[white] z-[1]">
             <tr class="border-b border-[#ececec]">
@@ -428,6 +428,7 @@ batch_run.review() because a blocked row is the reason the screen is being
 read. Sorting a column overrides that, so there is a way back to it.
 {% endcomment %}
 <style>
+  #pb-review-table thead { z-index: 4; }
   #pb-review-table .stickyleft, #pb-review-table .stickyright { z-index: 2; }
   #pb-review-table thead .stickyleft, #pb-review-table thead .stickyright { z-index: 3; }
   #pb-review-table tbody tr:hover .stickyleft,
