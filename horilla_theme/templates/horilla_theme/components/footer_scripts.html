@@ -12,10 +12,10 @@
       }
     })
 </script>
-<script src="{% static '/index/index.js' %}?v=38"></script>
+<script src="{% static '/index/index.js' %}"></script>
 <script src="{% static '/index/saveFilters.js' %}"></script>
-<script src="{% static 'horilla_theme/assets/js/htmxSelect2.js' %}?v=11"></script>
-<script src="{% static 'src/js/componentForm.js' %}?v=1"></script>
+<script src="{% static 'horilla_theme/assets/js/htmxSelect2.js' %}"></script>
+<script src="{% static 'src/js/componentForm.js' %}"></script>
 <script src="{% static 'build/js/summernote-lite.min.js' %}"></script>
 <script>
     $.summernote.options.dialogsInBody = true;
@@ -50,7 +50,7 @@
       window.history.replaceState({}, document.title, urlWithoutQuery)
     }
 </script>
-<script src="{% static 'horilla_theme/assets/js/footerScripts.js' %}?v=2"></script>
+<script src="{% static 'horilla_theme/assets/js/footerScripts.js' %}"></script>
 
 <!-- Product tour engine (horilla_tour) -->
 {% if request.user.is_authenticated %}
@@ -62,7 +62,7 @@
     progressUrl: "{% url 'tour-progress' %}"
   };
 </script>
-<script src="{% static 'build/js/tourController.js' %}?v=1"></script>
+<script src="{% static 'build/js/tourController.js' %}"></script>
 {% endif %}
 
 {% block footer_scripts %}
