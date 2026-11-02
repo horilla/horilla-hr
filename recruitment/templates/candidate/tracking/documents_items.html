@@ -1,46 +1,46 @@
 {% load i18n %}
 {% for document in page_obj %}
-                                <div
-                                    class="flex items-center gap-3 p-3 border border-dark-50 rounded-xl cursor-pointer hover:shadow-card [transition:.3s]"
-                                    hx-get="{% url 'candidate-view-file' document.id %}"
-                                    hx-target="#viewFile"
-                                    data-toggle="oh-modal-toggle"
-                                    data-target="#viewFileModal"
-                                >
-                                    <span class="shrink-0 w-10 h-10 rounded-lg flex items-center justify-center bg-primary-300 text-primary-700">
-                                        <i class="fa-regular fa-file-lines"></i>
-                                    </span>
-                                    <div class="flex-1 min-w-0">
-                                        <h3 class="text-sm font-medium break-words">{% firstof document.document_request_id.title document.title %}</h3>
-                                        {% if document.document_request_id.description %}
-                                            <p
-                                                class="text-xs text-color-600 truncate"
-                                                title="{{document.document_request_id.description}}"
-                                            >{{ document.document_request_id.description|truncatechars:50 }}</p>
-                                        {% endif %}
-                                    </div>
-                                    {% if document.document %}
-                                        {% if document.status == "approved" %}
-                                            <span class="text-xs font-medium px-2 py-1 rounded-full bg-success/10 text-success-dark">{% trans "Approved" %}</span>
-                                        {% elif document.status == "rejected" %}
-                                            <span class="text-xs font-medium px-2 py-1 rounded-full bg-danger/10 text-danger-dark">{% trans "Rejected" %}</span>
-                                        {% else %}
-                                            <span class="text-xs font-medium px-2 py-1 rounded-full bg-primary-300 text-primary-700">{% trans "Uploaded" %}</span>
-                                        {% endif %}
-                                    {% else %}
-                                        <button
-                                            type="button"
-                                            class="inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-md bg-brand-600 hover:bg-brand-800 text-white [transition:.3s]"
-                                            hx-get="{% url 'candidate-file-upload' document.id %}"
-                                            hx-target="#objectCreateModalTarget"
-                                            data-document-id="{{ document.id }}"
-                                            data-toggle="oh-modal-toggle"
-                                            data-target="#objectCreateModal"
-                                            onclick="event.stopPropagation()"
-                                        >
-                                            <i class="fa-solid fa-arrow-up-from-bracket"></i>{% trans "Add" %}
-                                        </button>
-                                    {% endif %}
-                                </div>
-                            {% endfor %}
+    <div class="flex items-center gap-[14px] h-[81px] px-[25px] border-b border-dark-50/60 {% if document.document %}cursor-pointer hover:bg-primary-50/60{% endif %} [transition:.2s]"
+        {% if document.document %}
+            hx-get="{% url 'candidate-view-file' document.id %}"
+            hx-target="#viewFile"
+            data-toggle="oh-modal-toggle"
+            data-target="#viewFileModal"
+        {% endif %}
+    >
+        <span class="shrink-0 w-[45px] h-[45px] rounded-[14px] flex items-center justify-center bg-primary-300 text-primary-700">
+            {% include "candidate/tracking/icon.html" with name="file" size=20 %}
+        </span>
+        <div class="flex-1 min-w-0">
+            <h3 class="text-[18px] leading-[24px] font-medium truncate" title="{% firstof document.document_request_id.title document.title %}">{% firstof document.document_request_id.title document.title %}</h3>
+            {% if document.document_request_id.description %}
+                <p class="text-[15px] leading-[22px] text-[#7b6f6a] truncate" title="{{ document.document_request_id.description }}">{{ document.document_request_id.description }}</p>
+            {% endif %}
+        </div>
+        {% if not document.document %}
+            <button
+                type="button"
+                class="shrink-0 h-[36px] inline-flex items-center gap-[6px] px-[16px] rounded-full text-[15px] font-semibold bg-brand-600 hover:bg-brand-800 text-white [transition:.3s]"
+                hx-get="{% url 'candidate-file-upload' document.id %}"
+                hx-target="#objectCreateModalTarget"
+                data-document-id="{{ document.id }}"
+                data-toggle="oh-modal-toggle"
+                data-target="#objectCreateModal"
+                onclick="event.stopPropagation()"
+            >
+                {% include "candidate/tracking/icon.html" with name="upload" size=16 %}{% trans "Upload" %}
+            </button>
+        {% elif document.status == "approved" %}
+            <span class="shrink-0 h-[30px] inline-flex items-center gap-[6px] px-[13px] rounded-full text-[15px] font-medium bg-[#dcf5e4] text-[#1b9a52]">
+                {% include "candidate/tracking/icon.html" with name="check" size=15 %}{% trans "Approved" %}
+            </span>
+        {% elif document.status == "rejected" %}
+            <span class="shrink-0 h-[30px] inline-flex items-center gap-[6px] px-[13px] rounded-full text-[15px] font-medium bg-danger/10 text-danger-dark" {% if document.reject_reason %}title="{{ document.reject_reason }}"{% endif %}>
+                {% include "candidate/tracking/icon.html" with name="x" size=15 %}{% trans "Rejected" %}
+            </span>
+        {% else %}
+            <span class="shrink-0 h-[27px] inline-flex items-center px-[13px] rounded-full text-[15px] font-medium bg-[#f1ede9] text-[#7b6f6a]">{% trans "In review" %}</span>
+        {% endif %}
+    </div>
+{% endfor %}
 {% include "candidate/tracking/load_more.html" with section="documents" %}

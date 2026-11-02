@@ -1,26 +1,22 @@
 {% load static i18n %}
-<div class="oh-modal__dialog-header pb-0">
-    <span class="oh-modal__dialog-title" id="uploadFileModalLabel">{% trans "Upload File" %}</span>
-    <button
-        class="oh-modal__close--custom"
-        aria-label="{% trans 'Close' %}"
-        onclick="event.stopPropagation();event.preventDefault();$(this).closest('.oh-modal--show').removeClass('oh-modal--show')"
-    >
-        <ion-icon
-            name="close-outline"
-            role="img"
-            class="md hydrated"
-            aria-label="{% trans 'close outline' %}"
-        ></ion-icon>
-    </button>
-</div>
-<div class="oh-modal__dialog-body">
+<div class="bg-white text-dark-600" id="candidateFileUpload">
+    <div class="flex items-center justify-between px-6 py-5 border-b border-dark-50/60">
+        <h2 class="text-xl font-semibold" id="uploadFileModalLabel">{% trans "Upload File" %}</h2>
+        <button
+            type="button"
+            class="w-9 h-9 -mr-2 rounded-full flex items-center justify-center text-[#7b6f6a] hover:bg-primary-50 [transition:.2s]"
+            aria-label="{% trans 'Close' %}"
+            onclick="event.stopPropagation();event.preventDefault();$(this).closest('.oh-modal--show').removeClass('oh-modal--show')"
+        >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+        </button>
+    </div>
     <form
         id="file-form"
         hx-post="{% url 'candidate-file-upload' document.id %}"
         hx-target="#objectCreateModalTarget"
         hx-encoding="multipart/form-data"
-        class="oh-profile-section pt-3"
+        class="px-6 pt-5 pb-6"
     >
         {% csrf_token %}
         <input
@@ -41,28 +37,81 @@
             value="{{form.document_request_id.value}}"
         >
         {{ form.non_field_errors }}
-        {{ form.document }}
-        {{ form.document.errors }}
 
-        <div class="file-validation mt-3">
-            <ul class="m-0">
-                <li style="list-style: disc">
-                    {% trans "Upload " %}<b>{{ form.instance.document_request_id.format }}</b>
-                    {% trans "file" %}
-                </li>
-                <li style="list-style: disc">
-                    {% trans "Max size of the file" %}
-                    {{ form.instance.document_request_id.max_size }} MB
-                </li>
-            </ul>
-        </div>
-        <div class="oh-modal__dialog-footer p-0 mt-3">
+        <label class="candidate-file-drop relative flex flex-col items-center justify-center gap-2 text-center px-6 py-8 rounded-2xl border-2 border-dashed border-dark-50 bg-primary-50/60 hover:border-primary-600 hover:bg-primary-50 cursor-pointer [transition:.2s]">
+            <span class="w-12 h-12 rounded-full bg-primary-300 text-primary-700 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" x2="12" y1="3" y2="15" /></svg>
+            </span>
+            <span class="candidate-file-name text-[15px] font-medium break-all" data-empty="{% trans 'Click to choose a file' %}">{% trans "Click to choose a file" %}</span>
+            <span class="text-[13px] text-[#7b6f6a]">{% trans "or drag and drop it here" %}</span>
+            {{ form.document }}
+        </label>
+        {% if form.document.errors %}
+            <div class="mt-2 text-[13px] text-danger-dark">{{ form.document.errors }}</div>
+        {% endif %}
+
+        {% with doc_format=form.instance.document_request_id.format max_size=form.instance.document_request_id.max_size %}
+            {% if doc_format and doc_format != "any" or max_size %}
+                <div class="mt-4 flex flex-wrap items-center gap-2">
+                    {% if doc_format and doc_format != "any" %}
+                        <span class="inline-flex items-center h-7 px-3 rounded-full bg-secondary-100 text-[13px] text-[#7b6f6a] select-none">
+                            {% trans "Format" %}:
+                            <b class="ml-1 font-semibold uppercase">{{ doc_format }}</b>
+                        </span>
+                    {% endif %}
+                    {% if max_size %}
+                        <span class="inline-flex items-center h-7 px-3 rounded-full bg-secondary-100 text-[13px] text-[#7b6f6a] select-none">
+                            {% trans "Max size" %}:
+                            <b class="ml-1 font-semibold">{{ max_size }} MB</b>
+                        </span>
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="mt-6 flex items-center justify-end gap-3">
+            <button
+                type="button"
+                class="h-10 px-5 rounded-full border border-dark-50 text-[14px] font-medium hover:bg-primary-50 [transition:.2s]"
+                onclick="event.stopPropagation();event.preventDefault();$(this).closest('.oh-modal--show').removeClass('oh-modal--show')"
+            >
+                {% trans "Cancel" %}
+            </button>
             <button
                 type="submit"
-                class="oh-btn oh-btn--secondary oh-btn--shadow"
+                class="h-10 px-6 rounded-full bg-primary-600 hover:bg-primary-800 text-white text-[14px] font-semibold [transition:.3s]"
             >
-                {% trans "Save" %}
+                {% trans "Upload" %}
             </button>
         </div>
     </form>
+    <style>
+        #file-form .candidate-file-drop input[type="file"] {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+    </style>
+    <script>
+        (function () {
+            var root = document.getElementById("candidateFileUpload");
+            // Size the surrounding modal dialog to the form.
+            var dialog = root.closest(".oh-modal__dialog");
+            if (dialog) {
+                dialog.style.maxWidth = "480px";
+                dialog.style.padding = "0";
+                dialog.style.overflow = "hidden";
+            }
+            var input = root.querySelector("input[type=file]");
+            var name = root.querySelector(".candidate-file-name");
+            if (input && name) {
+                input.addEventListener("change", function () {
+                    name.textContent = input.files.length ? input.files[0].name : name.dataset.empty;
+                });
+            }
+        })();
+    </script>
 </div>

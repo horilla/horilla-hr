@@ -1,0 +1,43 @@
+{% comment %}
+    Stroke icons for the application tracking page.
+    Usage: {% include "candidate/tracking/icon.html" with name="clock" size=16 %}
+{% endcomment %}
+<svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="{{ size|default:16 }}"
+    height="{{ size|default:16 }}"
+    viewBox="0 0 24 24"
+    fill="{% if name == 'star' %}currentColor{% else %}none{% endif %}"
+    stroke="currentColor"
+    stroke-width="{{ stroke|default:2 }}"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true"
+    class="shrink-0 {{ class }}"
+>
+    {% if name == "user" %}
+        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+    {% elif name == "clock" %}
+        <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+    {% elif name == "file" %}
+        <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M10 9H8" /><path d="M16 13H8" /><path d="M16 17H8" />
+    {% elif name == "upload" %}
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" x2="12" y1="3" y2="15" />
+    {% elif name == "check" %}
+        <path d="M20 6 9 17l-5-5" />
+    {% elif name == "x" %}
+        <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+    {% elif name == "chevron" %}
+        <path d="m9 18 6-6-6-6" />
+    {% elif name == "send" %}
+        <path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" />
+    {% elif name == "star" %}
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    {% elif name == "party" %}
+        <path d="M5.8 11.3 2 22l10.7-3.79" /><path d="M4 3h.01" /><path d="M22 8h.01" /><path d="M15 2h.01" /><path d="M22 20h.01" /><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10" /><path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11c-.11.7-.72 1.22-1.43 1.22H17" /><path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98C9.52 4.9 9 5.52 9 6.23V7" /><path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z" />
+    {% elif name == "info" %}
+        <circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" />
+    {% elif name == "hourglass" %}
+        <path d="M5 22h14" /><path d="M5 2h14" /><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22" /><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" />
+    {% endif %}
+</svg>
