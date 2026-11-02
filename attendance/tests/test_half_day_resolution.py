@@ -694,6 +694,33 @@ class DayHoursSaveTests(PopoverPanelMixin, TestCase):
         )
         self.assertNotIn('data-conflict="1"', self._panel())
 
+    def test_an_unresolved_leave_clash_is_titled_as_a_conflict(self):
+        self._full_leave()
+        self._attend("08:00")
+        html = self._panel()
+        self.assertIn("attendance overlaps approved leave", html)
+        self.assertNotIn("Settled By Regularization", html)
+        self.assertIn("background:#dbeafe;color:#1e40af", html)  # the Paid Leave pill
+
+    def test_a_regularized_leave_clash_is_overridden_and_no_longer_a_conflict(self):
+        from attendance.models import AttendanceConflictResolution
+
+        self._full_leave()
+        self._attend("08:00")
+        AttendanceConflictResolution._base_manager.create(
+            employee_id=self.employee,
+            date=WEDNESDAY,
+            resolution="full_present",
+            conflict_type="paid_leave",
+        )
+        html = self._panel()
+        self.assertIn("Overridden", html)
+        self.assertIn("Settled By Regularization", html)
+        self.assertNotIn("attendance overlaps approved leave", html)
+        self.assertNotIn("Attendance overlaps this leave", html)
+        # Only that it was settled: the leave block itself is gone.
+        self.assertNotIn("background:#dbeafe;color:#1e40af", html)
+
     def test_hours_up_to_24_are_saved(self):
         from attendance.models import AttendanceDailyHours
 
