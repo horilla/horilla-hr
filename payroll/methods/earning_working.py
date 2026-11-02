@@ -82,6 +82,63 @@ def _formula(component, context):
     }
 
 
+def overtime_kind(component):
+    """One sentence on which hours an overtime line pays for, or "" for any other earning."""
+    kinds = {
+        "overtime": _(
+            "Regular Overtime: Approved Hours Worked Beyond The Minimum Hours On A "
+            "Normal Working Day, Never More Than Was Really Worked."
+        ),
+        "week_off_overtime": _(
+            "Week Off Overtime: Approved Hours Worked On A Week Off. Every Hour "
+            "Counts, Since No Hours Are Scheduled."
+        ),
+        "holiday_overtime": _(
+            "Holiday Overtime: Approved Hours Worked On A Holiday. Every Hour "
+            "Counts, Since No Hours Are Scheduled."
+        ),
+    }
+    return str(kinds.get(getattr(component, "based_on", None), ""))
+
+
+def _hours_minutes(seconds):
+    minutes = round(float(seconds or 0) / 60)
+    return f"{minutes // 60}h {minutes % 60:02d}m"
+
+
+def _day_workings(rows):
+    """The overtime of each day, as the popover lists it: the day, the hours, and what they paid."""
+    import datetime
+
+    out = []
+    for row in rows or []:
+        try:
+            day = datetime.date.fromisoformat(str(row.get("date")))
+        except ValueError:
+            day = None
+        rate = float(row.get("rate") or 0)
+        if row.get("bands"):
+            detail = (
+                " + ".join(
+                    f"{span:g}h × {multiplier:g}" for span, multiplier in row["bands"]
+                )
+                + f" × {rate:,.2f}"
+            )
+        else:
+            detail = f"{_hours_minutes(row.get('seconds'))} × {rate:,.2f} " + _(
+                "per hour"
+            )
+        out.append(
+            {
+                "date": day,
+                "hours": _hours_minutes(row.get("seconds")),
+                "amount": float(row.get("amount") or 0),
+                "detail": detail,
+            }
+        )
+    return out
+
+
 def _working_for(component, row, amount, context):
     """One earning's working, from its component and its stored amount."""
     working = {
@@ -180,6 +237,13 @@ def earning_workings(payslip):
             allowances.get(row.get("allowance_id")), row, amount, context
         )
         entry["taxable"] = bool(row.get("is_taxable", True))
+        kind = overtime_kind(allowances.get(row.get("allowance_id")))
+        if kind:
+            entry["kind"] = kind
+        if row.get("days"):
+            entry["days"] = _day_workings(row["days"])
+        if row.get("note"):
+            entry["notes"].append(str(row["note"]))
         if row.get("outside_ctc"):
             entry["notes"][:0] = [
                 _("Extra Pay, Outside The Salary Structure."),
