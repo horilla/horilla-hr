@@ -130,3 +130,58 @@
     class="oh-titlebar-container__filters mb-2 mt-0 oh-wrapper"
 >
 </div>
+
+<script>
+    // Task board pagination. Each stage pages on its own; its current page is
+    // kept as a hidden `stage_page_<id>` input in the filter form, so a page
+    // change is just the form submitted again and search and filters carry over.
+    function taskStagePage(stageId, page) {
+        var form = document.getElementById("taskFilterForm");
+        if (!form) return;
+        page = parseInt(page, 10);
+        if (!page || page < 1) page = 1;
+        var name = "stage_page_" + stageId;
+        var input = form.querySelector('[name="' + name + '"]');
+        if (!input) {
+            input = document.createElement("input");
+            input.type = "hidden";
+            input.name = name;
+            form.appendChild(input);
+        }
+        input.value = page;
+        $("#applyFilter").click();
+    }
+
+    (function () {
+        var form = document.getElementById("taskFilterForm");
+        if (!form) return;
+
+        // A new search or filter starts every stage over from its first page.
+        function resetPages(event) {
+            var field = event.target;
+            if (!field || !field.name) return;
+            if (field.name.indexOf("stage_page_") === 0 || field.name === "view") return;
+            form.querySelectorAll('input[name^="stage_page_"]').forEach(function (input) {
+                input.remove();
+            });
+        }
+        form.addEventListener("input", resetPages);
+        form.addEventListener("change", resetPages);
+
+        // The list swaps whole and comes back with every stage collapsed;
+        // remember the open ones so the list can open them again.
+        form.addEventListener("htmx:beforeRequest", function (event) {
+            if (event.target !== form) return;
+            window.__taskOpenStages = Array.from(
+                document.querySelectorAll("#viewContainer .accordion-btn-pr")
+            )
+                .filter(function (btn) {
+                    var panel = btn.nextElementSibling;
+                    return panel && panel.style.maxHeight && panel.style.maxHeight !== "0px";
+                })
+                .map(function (btn) {
+                    return btn.id.replace("stageAccordionBtn", "");
+                });
+        });
+    })();
+</script>

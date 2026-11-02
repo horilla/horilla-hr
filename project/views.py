@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 from django.contrib import messages
 from django.core import serializers
+from django.core.paginator import Paginator
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -23,6 +24,7 @@ from base.import_template_data import import_template_frame, write_import_xlsx
 from base.methods import (
     filtersubordinates,
     get_key_instances,
+    get_pagination,
     get_session_company,
     has_export_access,
 )
@@ -674,6 +676,45 @@ def project_archive(request, project_id):
 # Task views
 
 
+def paginate_stage_tasks(request, stages, tasks, order_by, scroll=False):
+    """
+    Give each stage one page of its tasks as `stage.page_obj`.
+
+    Every stage pages on its own: the page number is read from the
+    `stage_page_<stage id>` query parameter, so moving one stage to its next
+    page leaves the others where they are. Returns the stages as a list.
+
+    With `scroll` (the card view) pages are loaded as the column is scrolled
+    instead: every stage starts at its first page, only the stage named by
+    `cards_stage` is asked for a later one, and `stage.next_page_url` is the
+    request that fetches the page after it (unset on the last page).
+    """
+    per_page = get_pagination()
+    tasks = tasks.distinct()
+    stages = list(stages)
+    scrolled_stage = request.GET.get("cards_stage")
+    for stage in stages:
+        stage_tasks = tasks.filter(stage=stage).order_by(*order_by)
+        number = request.GET.get(f"stage_page_{stage.id}")
+        if scroll and scrolled_stage != str(stage.id):
+            number = 1
+        stage.page_obj = Paginator(stage_tasks, per_page).get_page(number)
+        stage.next_page_url = None
+        if scroll and stage.page_obj.has_next():
+            query = request.GET.copy()
+            for key in [key for key in query if key.startswith("stage_page_")]:
+                del query[key]
+            query["view"] = "card"
+            query["cards_stage"] = stage.id
+            query[f"stage_page_{stage.id}"] = stage.page_obj.next_page_number()
+            stage.next_page_url = (
+                reverse("task-filter", kwargs={"project_id": stage.project_id})
+                + "?"
+                + query.urlencode()
+            )
+    return stages
+
+
 @login_required
 @project_update_permission()
 def task_view(request, project_id, **kwargs):
@@ -691,6 +732,13 @@ def task_view(request, project_id, **kwargs):
     form.fields["stage"].queryset = ProjectStage.objects.filter(project=project.id)
     if request.GET.get("view") == "list":
         view_type = "list"
+    stages = paginate_stage_tasks(
+        request,
+        stages,
+        tasks,
+        ("-id",) if view_type == "list" else ("sequence", "-id"),
+        scroll=view_type != "list",
+    )
     context = {
         "view_type": view_type,
         "tasks": tasks,
@@ -896,8 +944,10 @@ def task_filter(request, project_id):
     For filtering task
     """
     templete = "task/new/task_kanban_view.html"
+    order_by = ("sequence", "-id")
     if request.GET.get("view") == "list":
         templete = "task/new/task_list_view.html"
+        order_by = ("-id",)
     tasks = TaskFilter(request.GET).qs.filter(project_id=project_id)
     stages = (
         ProjectStage.objects.filter(project_id=project_id).order_by("sequence")
@@ -906,11 +956,29 @@ def task_filter(request, project_id):
         # .distinct()
         # .order_by("sequence")
     )
+    is_card_view = templete == "task/new/task_kanban_view.html"
+    cards_stage = request.GET.get("cards_stage", "")
+    scroll_request = is_card_view and cards_stage.isdigit()
+    if scroll_request:
+        # Infinite scroll: only the next page of one stage's cards.
+        stages = stages.filter(id=cards_stage)
+    stages = paginate_stage_tasks(request, stages, tasks, order_by, scroll=is_card_view)
+    if scroll_request:
+        if not stages:
+            return HttpResponse("")
+        return render(
+            request,
+            "task/new/_kanban_stage_cards.html",
+            {"stage": stages[0], "project_id": project_id},
+        )
     previous_data = request.environ["QUERY_STRING"]
     data_dict = parse_qs(previous_data)
     get_key_instances(Task, data_dict)
     if data_dict.get("project"):
         del data_dict["project"]
+    # Page numbers are not filters, so they get no filter tag.
+    for key in [key for key in data_dict if key.startswith("stage_page_")]:
+        del data_dict[key]
     context = {
         "tasks": tasks.distinct(),
         "stages": stages,
@@ -957,6 +1025,7 @@ def task_stage_change(request, task_id):
 
     stages = ProjectStage.objects.filter(project=project).order_by("sequence")
     tasks = Task.objects.filter(project=project)
+    stages = paginate_stage_tasks(request, stages, tasks, ("-id",))
     context = {
         "tasks": tasks.distinct(),
         "stages": stages,
