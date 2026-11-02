@@ -120,7 +120,7 @@ whitenoise==6.9.0
 APScheduler==3.11.3
 
 # Date & time
-python-dateutil==2.9.0.post0
+python-dateutil==3.0.0
 pytz==2026.3.post1
 
 # Internationalization & NLP
