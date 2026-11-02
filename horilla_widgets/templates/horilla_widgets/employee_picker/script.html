@@ -1,7 +1,11 @@
 <script>
   $(function () {
     var root = document.getElementById("{{ section_id }}");
-    var select = document.getElementById("{{ self.attrs.id }}");
+    // Looked up inside this widget, not by the bare field id: when a form is
+    // re-rendered (e.g. after a validation error) this script can run while the
+    // previous copy of the form, with the same field id, is still in the page,
+    // and select2 would be set up on that stale select instead of the new one.
+    var select = root.querySelector("#{{ self.attrs.id }}");
     var modal = document.getElementById("filterChoose{{ section_id }}");
     var $select = $(select);
     var idsUrl = root.dataset.idsUrl;
@@ -48,32 +52,42 @@
     var chipOrder = {};
     var chipSeq = 0;
 
-    if ($select.hasClass("select2-hidden-accessible")) {
-      $select.select2("destroy");
+    function setupSelects() {
+      if ($select.data("select2")) {
+        $select.select2("destroy");
+      }
+      $select.select2({
+        multiple: true,
+        width: "100%",
+        placeholder: $select.data("placeholder"),
+        ajax: {
+          url: rowsUrl,
+          type: "POST",
+          headers: { "X-CSRFToken": csrfToken },
+          dataType: "json",
+          delay: 250,
+          data: function (params) {
+            return { token: token, name_or_badge: params.term || "", page: params.page || 1 };
+          },
+          processResults: function (data) {
+            return {
+              results: data.results.map(function (item) {
+                return { id: item.id, text: item.label, avatar: item.avatar };
+              }),
+              pagination: { more: !!data.has_more },
+            };
+          },
+        },
+      });
+      $(modal).find("select.ep-select").each(function () {
+        var $filter = $(this);
+        if ($filter.data("select2")) {
+          $filter.select2("destroy");
+        }
+        $filter.select2({ width: "100%" });
+      });
     }
-    $select.select2({
-      multiple: true,
-      width: "100%",
-      placeholder: $select.data("placeholder"),
-      ajax: {
-        url: rowsUrl,
-        type: "POST",
-        headers: { "X-CSRFToken": csrfToken },
-        dataType: "json",
-        delay: 250,
-        data: function (params) {
-          return { token: token, name_or_badge: params.term || "", page: params.page || 1 };
-        },
-        processResults: function (data) {
-          return {
-            results: data.results.map(function (item) {
-              return { id: item.id, text: item.label, avatar: item.avatar };
-            }),
-            pagination: { more: !!data.has_more },
-          };
-        },
-      },
-    });
+    setupSelects();
     $select.on("select2:select", function (event) {
       var item = event.params.data;
       var opt = select.querySelector('option[value="' + item.id + '"]');
@@ -81,7 +95,23 @@
         opt.dataset.avatar = item.avatar;
       }
     });
-    $(modal).find("select.ep-select").select2({ width: "100%" });
+
+    // When this widget is part of a form that htmx re-renders (e.g. after a
+    // validation error), htmx first copies the previous element's attributes
+    // onto the new one and only restores the new ones once it has settled. The
+    // select2 setup above runs in between, so settling strips the class and
+    // attributes select2 added and the plain <select> shows next to its
+    // replacement. Set the selects up again once settling is over.
+    function repairAfterSettle() {
+      if (!root.isConnected) {
+        document.removeEventListener("htmx:afterSettle", repairAfterSettle);
+        return;
+      }
+      if (!select.classList.contains("select2-hidden-accessible")) {
+        setupSelects();
+      }
+    }
+    document.addEventListener("htmx:afterSettle", repairAfterSettle);
 
     function labelFor(el) {
       var label = modal.querySelector('label[for="' + el.id + '"]');
