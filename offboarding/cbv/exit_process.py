@@ -40,6 +40,7 @@ from horilla_views.generic.cbv.views import (
     HorillaTabView,
     TemplateView,
 )
+from horilla_views.models import ActiveView
 from notifications.signals import notify
 from offboarding.cbv_decorators import (
     any_manager_can_enter,
@@ -133,7 +134,7 @@ def offboarding_pipeline_modal_success_response(
   if (applyBtn) {{
     applyBtn.click();
   }} else if (typeof htmx !== "undefined") {{
-    htmx.ajax("GET", {tab_url_lit}, {{ target: "#pipelineContainer", swap: "innerHTML" }});
+    htmx.ajax("GET", {tab_url_lit}, {{ target: "#pipelineTabStrip", swap: "innerHTML" }});
   }}
   var msgBtn = document.getElementById("reloadMessagesButton");
   if (msgBtn) {{
@@ -382,6 +383,36 @@ class ExitProcessDetailView(HorillaDetailedView):
     }
 
 
+def offboarding_view_type(request):
+    """
+    Return the requested list/card view type, else the saved one, else "list".
+    """
+    view_type = request.GET.get("view")
+    if not view_type and request.user.is_authenticated:
+        active_view = ActiveView.objects.filter(
+            created_by=request.user, path=reverse("offboarding-pipeline-nav")
+        ).first()
+        view_type = active_view.type if active_view else None
+    return view_type or "list"
+
+
+def offboarding_content_url(offboarding_id, view_type, params):
+    """
+    Return the URL of an offboarding's board (stage lists or kanban) carrying
+    the filter query from params.
+    """
+    query = params.copy()
+    for key in ("referrer", "open_tab", "view"):
+        query.pop(key, None)
+    if view_type == "list":
+        path = reverse(
+            "get-offboarding-stage", kwargs={"offboarding_id": offboarding_id}
+        )
+    else:
+        path = reverse("get-offboarding-kanban-stage", kwargs={"pk": offboarding_id})
+    return f"{path}?{query.urlencode()}"
+
+
 @method_decorator(login_required, name="dispatch")
 @method_decorator(
     any_manager_can_enter(
@@ -408,44 +439,31 @@ class OffboardingPipelineView(HorillaSectionView):
 )
 class OffboardingPipelineNav(HorillaNavView):
     """
-    Offboarding Pipeline Navigation View
-
-    No longer rendered by the Pipeline page itself, which now follows the
-    Recruitment pipeline and shows its tab view alone - each offboarding
-    tab's own OffboardingPipelineTabNav carries the title, Create button,
-    view-type toggles, Search+Filter and Actions. Kept only because
-    `offboarding-pipeline-nav` is still routed.
+    Search, view type, filter and Create for the offboarding pipeline page.
     """
 
     nav_title = _("Exit Process")
-    search_swap_target = "#pipelineContainer"
+    search_swap_target = "#pipelineTabStrip"
     search_url = reverse_lazy("get-offboarding-tab")
     filter_body_template = "cbv/exit_process/pipeline_filter.html"
-    apply_first_filter = False
-    # Modern slide-over filter panel (generic/horilla_nav.html's own
-    # {% if modern_filter %} branch) -- same treatment as every other
-    # panel this session. PipelineEmployeeFilter/PipelineFilter/
-    # PipelineStageFilter each carry their own ajax_fields for the FK
-    # pickers this combined panel renders.
     modern_filter = True
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         if self.request.user.has_perm("offboarding.add_offboarding"):
             self.create_attrs = f"""
-                class="oh-btn oh-btn--secondary"
                 hx-get="{reverse_lazy("create-offboarding")}"
-                hx-target="#objectDetailsModalTarget"
+                hx-target="#genericModalBody"
                 data-toggle="oh-modal-toggle"
-                data-target="#objectDetailsModal"
+                data-target="#genericModal"
             """
 
         self.view_types = [
             {
                 "type": "list",
                 "icon": "list-outline",
-                "url": f'{reverse_lazy("get-offboarding-tab")}',
-                "attrs": f"""
+                "url": f'{reverse_lazy("get-offboarding-tab")}?view=list',
+                "attrs": """
                     title ='List'
                 """,
             },
@@ -453,24 +471,24 @@ class OffboardingPipelineNav(HorillaNavView):
                 "type": "card",
                 "icon": "grid-outline",
                 "url": f'{reverse_lazy("get-offboarding-tab")}?view=card',
-                "attrs": f"""
+                "attrs": """
                     title ='Card'
                 """,
             },
         ]
 
+    deep_link_keys = ("stage_type", "stage_type_exclude", "employee_id", "exit_reason")
+
     def get_context_data(self, **kwargs):
 
         context = super().get_context_data(**kwargs)
-        # Bound to self.request.GET: this form's own hx-trigger="load"
-        # auto-submits it on every load (see horilla_nav.html), serializing
-        # its current field values as the query string. Left unbound, every
-        # field (including "Stage > Status") always renders blank, so that
-        # auto-submit silently wipes out any filter (e.g. ?type=archived)
-        # that arrived via a deep link before the page ever settles.
-        employee_filter = PipelineEmployeeFilter(self.request.GET)
-        pipeline_filter = PipelineFilter(self.request.GET)
-        stage_filter = PipelineStageFilter(self.request.GET)
+        params = self._effective_get_params()
+        employee_filter = PipelineEmployeeFilter(params)
+        pipeline_filter = PipelineFilter(params)
+        stage_filter = PipelineStageFilter(params)
+        context["deep_link_params"] = {
+            key: params.get(key, "") for key in self.deep_link_keys
+        }
         context["employee_filter"] = employee_filter
         context["pipeline_filter"] = pipeline_filter
         context["stage_filter"] = stage_filter
@@ -587,10 +605,12 @@ class PipeLineTabView(HorillaTabView):
     """
 
     filter_class = PipelineFilter
+    template_name = "cbv/exit_process/offboarding_tabs.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         offboardings = self.filter_class(self.request.GET).qs.filter(is_active=True)
+        view_type = offboarding_view_type(self.request)
         self.tabs = []
         # Employees on each offboarding's board, not how many stages it has.
         # Run through PipelineEmployeeFilter too (same fields the per-stage
@@ -616,26 +636,19 @@ class PipeLineTabView(HorillaTabView):
             tab["title"] = offboarding.title
             url = reverse("offboarding-pipeline-shell", kwargs={"pk": offboarding.pk})
 
-            if self.request.GET:
-                url = f"{url}?{self.request.GET.urlencode()}"
-
-            tab["url"] = url
+            tab_params = self.request.GET.copy()
+            tab_params["view"] = view_type
+            tab["url"] = f"{url}?{tab_params.urlencode()}"
+            tab["offboarding_id"] = offboarding.pk
+            tab["content_url"] = offboarding_content_url(
+                offboarding.pk, view_type, self.request.GET
+            )
 
             tab["badge_label"] = _("Employees")
             tab["badge"] = employee_counts.get(offboarding.pk, 0)
             self.tabs.append(tab)
 
         context["tabs"] = self.tabs
-        if self.request.user.has_perm("offboarding.add_offboarding"):
-            context["tab_create_label"] = _("Create")
-            context[
-                "tab_create_attrs"
-            ] = f"""
-                hx-get="{reverse("create-offboarding")}"
-                hx-target="#genericModalBody"
-                data-toggle="oh-modal-toggle"
-                data-target="#genericModal"
-            """
         return context
 
 
@@ -664,33 +677,14 @@ class OffboardingPipelineContentShell(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         offboarding = Offboarding.objects.filter(pk=self.kwargs.get("pk")).first()
-        view_type = self.request.GET.get("view", "list")
-        content_url = reverse(
-            "get-offboarding-stage", kwargs={"offboarding_id": offboarding.pk}
+        view_type = offboarding_view_type(self.request)
+        context["content_url"] = offboarding_content_url(
+            offboarding.pk, view_type, self.request.GET
         )
-        if view_type != "list":
-            content_url = reverse(
-                "get-offboarding-kanban-stage", kwargs={"pk": offboarding.pk}
-            )
-        extra_params = self.request.GET.copy()
-        extra_params.pop("view", None)
-        if extra_params:
-            content_url = f"{content_url}?{extra_params.urlencode()}"
-        context["content_url"] = content_url
         context["offboarding"] = offboarding
-        # Always pass the resolved view_type through, not just when ?view=
-        # was explicitly on this shell's own request - HorillaNavView only
-        # marks a view-type button active (oh-view-btn--active) when its
-        # own request carries ?view=, and inline_nav.html's onload script
-        # fires an extra full-board resubmit whenever no button is active.
-        # Checking self.request.GET.get("view") here (truthy only on an
-        # explicit toggle click) left every first visit without an active
-        # button, so the whole board re-fetched itself a second time right
-        # after its first load - doubling load time for large stages.
-        nav_url = reverse("offboarding-pipeline-tab-nav", kwargs={"pk": offboarding.pk})
-        nav_params = self.request.GET.copy()
-        nav_params["view"] = view_type
-        context["nav_url"] = f"{nav_url}?{nav_params.urlencode()}"
+        context["nav_url"] = reverse(
+            "offboarding-pipeline-tab-nav", kwargs={"pk": offboarding.pk}
+        )
         return context
 
 
@@ -703,47 +697,19 @@ class OffboardingPipelineContentShell(TemplateView):
 )
 class OffboardingPipelineTabNav(HorillaNavView):
     """
-    Per-offboarding-tab Search+Filter for the Exit Process pipeline.
-
-    The page-level OffboardingPipelineNav's Search+Filter searched/filtered
-    which OFFBOARDINGS show up as tabs - it said nothing about any one
-    offboarding's own employees, and was shared/common across every tab.
-    This Nav is the opposite: one instance per offboarding tab, searching/
-    filtering that offboarding's own employees (PipelineEmployeeFilter),
-    so switching stage/list vs kanban and searching one offboarding's
-    pipeline doesn't touch any other tab. Mirrors
-    recruitment.cbv.pipeline.RecruitmentCandidateNav.
+    Navbar of an offboarding's pipeline tab with the Add employee button and the
+    offboarding actions.
     """
 
-    filter_form_context_name = "form"
-    filter_body_template = "cbv/exit_process/pipeline_tab_filter.html"
-    filter_instance = PipelineEmployeeFilter()
-    # Modern slide-over filter panel (generic/horilla_nav.html's own
-    # {% if modern_filter %} branch) -- same treatment as the page-level
-    # OffboardingPipelineNav/pipeline_filter.html. PipelineEmployeeFilter
-    # already carries ajax_fields for the FK pickers this panel renders.
-    modern_filter = True
-    # The shell already fetches this tab's board into
-    # #pipelineTabContent<pk> on its own load, so this Nav must not fire a
-    # second `load` fetch at the same target (see
-    # RecruitmentCandidateNav for the failure mode this avoids).
-    apply_first_filter = True
     template_name = "generic/inline_nav.html"
-    nav_title = _("Pipeline")
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         offboarding_id = self.request.resolver_match.kwargs.get("pk")
-        view_type = self.request.GET.get("view")
-        if view_type == "list":
-            self.search_url = reverse(
-                "get-offboarding-stage", kwargs={"offboarding_id": offboarding_id}
-            )
-        else:
-            self.search_url = reverse(
-                "get-offboarding-kanban-stage", kwargs={"pk": offboarding_id}
-            )
         self.search_swap_target = f"#pipelineTabContent{offboarding_id}"
+        offboarding = Offboarding.objects.filter(pk=offboarding_id).first()
+        if offboarding:
+            self.nav_title = offboarding.title
 
         if self.request.user.has_perm(
             "offboarding.add_offboardingemployee"
@@ -764,31 +730,6 @@ class OffboardingPipelineTabNav(HorillaNavView):
                     hx-target="#genericModalBody"
                 """
 
-        self.view_types = [
-            {
-                "type": "list",
-                "icon": "list-outline",
-                "url": reverse(
-                    "get-offboarding-stage",
-                    kwargs={"offboarding_id": offboarding_id},
-                ),
-                "attrs": """
-                    title ='List'
-                """,
-            },
-            {
-                "type": "card",
-                "icon": "grid-outline",
-                "url": reverse(
-                    "get-offboarding-kanban-stage", kwargs={"pk": offboarding_id}
-                ),
-                "attrs": """
-                    title ='Card'
-                """,
-            },
-        ]
-
-        offboarding = Offboarding.objects.filter(pk=offboarding_id).first()
         if offboarding:
             self.actions = offboarding_pipeline_actions(self.request, offboarding)
 
