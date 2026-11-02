@@ -1,0 +1,11 @@
+{% load i18n %}
+{# One step of the trail. Long names are cut to a line, with the whole text in a tooltip on hover. #}
+<li class="{% if request.path in breadcrumb.url %}oh-breadcrumb-current{% endif %}{% if breadcrumb.name|length > 30 %} crumb-has-tip{% endif %}"{% if breadcrumb.name|length > 30 %} data-full="{{ breadcrumb.name }}"{% endif %}>
+    {% if breadcrumb.clickable and breadcrumb.found %}
+        <a href="{{ breadcrumb.url }}">{% trans breadcrumb.name %}</a>
+    {% elif not breadcrumb.clickable %}
+        <span>{% trans breadcrumb.name %}</span>
+    {% else %}
+        <a href="#">{% trans breadcrumb.name %}</a>
+    {% endif %}
+</li>

@@ -364,6 +364,31 @@ def unique_breadcrumbs(breadcrumbs):
     return unique
 
 
+@register.filter(name="collapse_breadcrumbs")
+def collapse_breadcrumbs(crumbs, threshold=4):
+    """
+    Group a long trail for display: the first crumb, the steps in between folded into a "+N"
+    list, and the last two (the parent and the page itself). A trail of ``threshold`` or fewer
+    is left whole.
+    """
+    crumbs = list(crumbs)
+    if len(crumbs) <= int(threshold):
+        return {
+            "collapsed": False,
+            "all": crumbs,
+            "first": None,
+            "hidden": [],
+            "tail": [],
+        }
+    return {
+        "collapsed": True,
+        "all": crumbs,
+        "first": crumbs[0],
+        "hidden": crumbs[1:-2],
+        "tail": crumbs[-2:],
+    }
+
+
 @register.filter(name="readable")
 def readable(value):
     try:

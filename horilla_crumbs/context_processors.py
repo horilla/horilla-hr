@@ -140,6 +140,15 @@ BREADCRUMB_URL_NAMES = {
     "work-status": _("Work Status"),
 }
 
+# Pages whose crumb is named by the page, not by the URL word it ends in: the steps of a new
+# payroll batch would otherwise read "new", "review" and "progress".
+CRUMB_NAMES_BY_URL_NAME = {
+    "payroll-batch-scope": _("New Batch"),
+    "payroll-batch-review": _("Review"),
+    "payroll-batch-progress": _("Progress"),
+    "payroll-batch-inputs": _("Inputs"),
+}
+
 sidebar_urls = [
     "dashboard",
     "ess",
@@ -654,6 +663,11 @@ def build_breadcrumbs(request):
             "found": found,
             "clickable": clickable,
         }
+        step_name = CRUMB_NAMES_BY_URL_NAME.get(
+            getattr(resolver_match, "url_name", None)
+        )
+        if step_name:
+            crumb["name"] = str(step_name)
 
         if i == 0:
             if section_override:
