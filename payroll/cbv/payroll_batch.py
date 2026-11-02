@@ -36,6 +36,11 @@ class PayrollBatchList(HorillaListView):
         (_("Net"), "net_display"),
         (_("Status"), "status_pill"),
     ]
+    header_attrs = {
+        "gross_display": 'style="text-align: right;"',
+        "deductions_display": 'style="text-align: right;"',
+        "net_display": 'style="text-align: right;"',
+    }
     sortby_mapping = [
         (_("Batch"), "batch_name"),
         (_("Period"), "period_start"),
@@ -61,7 +66,11 @@ class PayrollBatchList(HorillaListView):
             self.action_method = None
 
     def get_queryset(self):
-        return super().get_queryset().order_by("-period_start", "-id")
+        # The summary is read off the payslips inside each batch, so one that predates the live
+        # updates is put right the first time the list is drawn.
+        PayrollBatch.refresh_stale()
+        queryset = super().get_queryset().order_by("-period_start", "-id")
+        return queryset
 
 
 @method_decorator(login_required, name="dispatch")
@@ -69,13 +78,13 @@ class PayrollBatchList(HorillaListView):
 class PayrollBatchNav(HorillaNavView):
     """Search and the slide-over filter for the runs list."""
 
-    nav_title = " "
+    nav_title = _("Batches")
     create_label = _("Generate")
     create_icon = "play-outline"
     filter_body_template = "payroll/batch/_batch_filter.html"
     filter_instance = PayrollBatchFilter()
     filter_form_context_name = "form"
-    search_swap_target = "#listContainer"
+    search_swap_target = "#batchListContainer"
     modern_filter = True
     group_by_fields = [("status", _("Status"))]
 

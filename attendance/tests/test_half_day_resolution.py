@@ -37,6 +37,105 @@ class HalfDayResolutionMixin:
         return rows[0]
 
 
+class HalfDayLeaveNaturalMixin:
+    """setUp and the leave / attendance / summary helpers for the half-day leave test classes."""
+
+    def setUp(self):
+        company = make_company("Natural Half Co")
+        self.employee = make_employee(company=company, email="natural@test.horilla")
+
+    def _leave(self, payment="paid", breakdown="second_half", name="Half Leave"):
+        from leave.models import LeaveRequest, LeaveType
+
+        leave_type = LeaveType.objects.create(name=name, payment=payment)
+        # bulk_create: saving a half-day request fires a signal that overflows a column.
+        return LeaveRequest.objects.bulk_create(
+            [
+                LeaveRequest(
+                    employee_id=self.employee,
+                    leave_type_id=leave_type,
+                    start_date=WEDNESDAY,
+                    end_date=WEDNESDAY,
+                    start_date_breakdown=breakdown,
+                    end_date_breakdown=breakdown,
+                    requested_days=0.5,
+                    description="Test",
+                    status="approved",
+                )
+            ]
+        )[0]
+
+    def _attend(self, worked="04:00"):
+        from attendance.models import Attendance
+        from leave.models import LeaveRequest
+
+        # Punch in the half that is not on leave, so it is not a clash.
+        leave = LeaveRequest.objects.filter(employee_id=self.employee).first()
+        if leave and leave.start_date_breakdown == "first_half":
+            clock_in, clock_out = datetime.time(13, 0), datetime.time(18, 0)
+        else:
+            clock_in, clock_out = datetime.time(9, 0), datetime.time(13, 0)
+        return Attendance.objects.create(
+            employee_id=self.employee,
+            attendance_date=WEDNESDAY,
+            attendance_clock_in_date=WEDNESDAY,
+            attendance_clock_in=clock_in,
+            attendance_clock_out_date=WEDNESDAY,
+            attendance_clock_out=clock_out,
+            attendance_worked_hour=worked,
+            minimum_hour="08:00",
+            attendance_validated=True,
+        )
+
+    def _row(self):
+        rows, _total, _totals = build_monthly_summary(
+            WEDNESDAY, WEDNESDAY, Employee.objects.filter(pk=self.employee.pk)
+        )
+        return rows[0]
+
+    def _cell(self):
+        from attendance.views.summary import _build_calendar_context
+
+        context = _build_calendar_context(self.employee, WEDNESDAY, WEDNESDAY)
+        cells = [
+            c
+            for m in context["months"]
+            for w in m["weeks"]
+            for c in w
+            if c and c["status"] != "out_of_range"
+        ]
+        return cells[0]
+
+
+class PopoverPanelMixin(HalfDayLeaveNaturalMixin):
+    """Opens the day popover as an HR user."""
+
+    def _panel(self):
+        from django.urls import reverse
+
+        from horilla.testkit import make_user
+
+        if not getattr(self, "_hr_logged_in", False):
+            user = make_user("hr-status", is_superuser=True)
+            make_employee(
+                company=self.employee.employee_work_info.company_id,
+                email="hr@status.test",
+                user=user,
+            )
+            self.client.force_login(user)
+            self._hr_logged_in = True
+        return self.client.get(
+            reverse("attendance-monthly-summary-conflict-resolve"),
+            {
+                "employee_id": self.employee.pk,
+                "date": WEDNESDAY.isoformat(),
+                "from_date": WEDNESDAY.isoformat(),
+                "to_date": WEDNESDAY.isoformat(),
+            },
+            HTTP_HX_REQUEST="true",
+        ).content.decode()
+
+
 class HalfDayResolutionTests(HalfDayResolutionMixin, TestCase):
     def test_a_half_day_is_half_present_and_half_paid_leave(self):
         row = self._row("half_present")
@@ -197,8 +296,8 @@ class SplitDayTests(HalfDayResolutionMixin, TestCase):
         """On a holiday, hours worked are holiday overtime, unless HR regularised the day as
         worked. A split with a present half is regularised as worked, in both payroll paths.
         """
-        from base.models import Holidays
         from attendance.models import Attendance
+        from base.models import Holidays
         from payroll.methods.methods import hourly_computation
         from payroll.methods.payslip_calc import _classify_approved_overtime_seconds
 
@@ -255,76 +354,6 @@ class SplitDayTests(HalfDayResolutionMixin, TestCase):
         for resolution in ("split:A+UL", "split:PL+A", "split:PL+PL"):
             with self.subTest(resolution=resolution):
                 self.assertEqual(paid_as(resolution), holiday_only)
-
-
-class HalfDayLeaveNaturalMixin:
-    """setUp and the leave / attendance / summary helpers for the half-day leave test classes."""
-
-    def setUp(self):
-        company = make_company("Natural Half Co")
-        self.employee = make_employee(company=company, email="natural@test.horilla")
-
-    def _leave(self, payment="paid", breakdown="second_half", name="Half Leave"):
-        from leave.models import LeaveRequest, LeaveType
-
-        leave_type = LeaveType.objects.create(name=name, payment=payment)
-        # bulk_create: saving a half-day request fires a signal that overflows a column.
-        return LeaveRequest.objects.bulk_create(
-            [
-                LeaveRequest(
-                    employee_id=self.employee,
-                    leave_type_id=leave_type,
-                    start_date=WEDNESDAY,
-                    end_date=WEDNESDAY,
-                    start_date_breakdown=breakdown,
-                    end_date_breakdown=breakdown,
-                    requested_days=0.5,
-                    description="Test",
-                    status="approved",
-                )
-            ]
-        )[0]
-
-    def _attend(self, worked="04:00"):
-        from attendance.models import Attendance
-        from leave.models import LeaveRequest
-
-        # Punch in the half that is not on leave, so it is not a clash.
-        leave = LeaveRequest.objects.filter(employee_id=self.employee).first()
-        if leave and leave.start_date_breakdown == "first_half":
-            clock_in, clock_out = datetime.time(13, 0), datetime.time(18, 0)
-        else:
-            clock_in, clock_out = datetime.time(9, 0), datetime.time(13, 0)
-        return Attendance.objects.create(
-            employee_id=self.employee,
-            attendance_date=WEDNESDAY,
-            attendance_clock_in_date=WEDNESDAY,
-            attendance_clock_in=clock_in,
-            attendance_clock_out_date=WEDNESDAY,
-            attendance_clock_out=clock_out,
-            attendance_worked_hour=worked,
-            minimum_hour="08:00",
-            attendance_validated=True,
-        )
-
-    def _row(self):
-        rows, _total, _totals = build_monthly_summary(
-            WEDNESDAY, WEDNESDAY, Employee.objects.filter(pk=self.employee.pk)
-        )
-        return rows[0]
-
-    def _cell(self):
-        from attendance.views.summary import _build_calendar_context
-
-        context = _build_calendar_context(self.employee, WEDNESDAY, WEDNESDAY)
-        cells = [
-            c
-            for m in context["months"]
-            for w in m["weeks"]
-            for c in w
-            if c and c["status"] != "out_of_range"
-        ]
-        return cells[0]
 
 
 class HalfDayLeaveNaturalTests(HalfDayLeaveNaturalMixin, TestCase):
@@ -473,35 +502,6 @@ class CalendarStripTests(HalfDayLeaveNaturalMixin, TestCase):
         self._leave()
         strip = self._strip()
         self.assertEqual((strip["paid_leave"], strip["absent"]), (0.5, 0.5))
-
-
-class PopoverPanelMixin(HalfDayLeaveNaturalMixin):
-    """Opens the day popover as an HR user."""
-
-    def _panel(self):
-        from django.urls import reverse
-
-        from horilla.testkit import make_user
-
-        if not getattr(self, "_hr_logged_in", False):
-            user = make_user("hr-status", is_superuser=True)
-            make_employee(
-                company=self.employee.employee_work_info.company_id,
-                email="hr@status.test",
-                user=user,
-            )
-            self.client.force_login(user)
-            self._hr_logged_in = True
-        return self.client.get(
-            reverse("attendance-monthly-summary-conflict-resolve"),
-            {
-                "employee_id": self.employee.pk,
-                "date": WEDNESDAY.isoformat(),
-                "from_date": WEDNESDAY.isoformat(),
-                "to_date": WEDNESDAY.isoformat(),
-            },
-            HTTP_HX_REQUEST="true",
-        ).content.decode()
 
 
 class PopoverStatusTests(PopoverPanelMixin, TestCase):

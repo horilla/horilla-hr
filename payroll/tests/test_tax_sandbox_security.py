@@ -22,6 +22,7 @@ Two classes of protection are covered:
 """
 
 from django.test import SimpleTestCase
+
 from payroll.methods import federal_tax
 from payroll.methods.safe_tax_code import (
     MAX_ITERATIONS,

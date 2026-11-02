@@ -617,6 +617,14 @@ def dashboard_kpi_data(request):
     expected_to_check_in = not_checked_in
     # Keep absent_today as an alias for not_checked_in for API compatibility.
     absent_today = not_checked_in
+
+    no_shift_count = 0
+    try:
+        no_shift_count = emp_qs.filter(
+            employee_work_info__shift_id__isnull=True
+        ).count()
+    except Exception:
+        pass
     attendance_rate = (
         round((present_today / expected_today * 100), 1) if expected_today > 0 else 0
     )
@@ -637,6 +645,7 @@ def dashboard_kpi_data(request):
             "expected_today": expected_today,
             "not_checked_in": not_checked_in,
             "expected_to_check_in": expected_to_check_in,
+            "no_shift_count": no_shift_count,
             "attendance_rate": attendance_rate,
             "on_leave": on_leave,
             "half_day_today": half_day_today,

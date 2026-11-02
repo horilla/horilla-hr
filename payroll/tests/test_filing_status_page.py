@@ -250,6 +250,7 @@ class SlabPresentationTests(Fixture):
 
 
 class PageTests(Fixture):
+
     def test_an_empty_install_says_what_is_missing(self):
         response = self.page()
         self.assertContains(response, "No filing statuses yet")

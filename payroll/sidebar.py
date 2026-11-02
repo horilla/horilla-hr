@@ -22,11 +22,6 @@ SUBMENUS = [
         "menu": _("Payslips"),
         "redirect": reverse("view-payslip"),
     },
-    {
-        "menu": _("Payroll Batches"),
-        "redirect": reverse("payroll-batch-home"),
-        "accessibility": "payroll.sidebar.payslip_accessibility",
-    },
     # {
     #     "menu": _("Allowances"),
     #     "redirect": reverse("view-allowance"),
