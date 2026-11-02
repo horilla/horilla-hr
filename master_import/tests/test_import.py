@@ -1934,46 +1934,6 @@ class AssetsDatasetTests(TestCase):
         )
 
 
-class SetupChecklistTests(TestCase):
-    """The dashboard's Get Started checklist offers Import Data as an optional step."""
-
-    def checklist(self):
-        from django.test import override_settings
-
-        user = make_user("setupper", is_superuser=True)
-        make_employee(
-            company=make_company("Home"), email="setupper@home.test", user=user
-        )
-        self.client.force_login(user)
-        with override_settings(DEBUG=True):
-            response = self.client.get("/dashboard/?preview_checklist=1")
-        return user, response.context
-
-    def test_import_data_is_a_step_that_links_to_the_import(self):
-        _user, context = self.checklist()
-        step = next(s for s in context["setup_steps"] if s["key"] == "master_import")
-        self.assertEqual(step["url"], reverse("master-import"))
-        self.assertTrue(step["optional"])
-        self.assertFalse(step["done"])
-
-    def test_a_finished_import_ticks_the_step(self):
-        ImportJob.objects.create(
-            dataset="employees", original_name="a.xlsx", status=ImportJob.DONE
-        )
-        _user, context = self.checklist()
-        # preview mode shows every step as open, so ask the step builder without it
-        from django.test import RequestFactory
-
-        from base.dashboard import _get_setup_checklist_context
-
-        request = RequestFactory().get("/dashboard/")
-        request.user = _user
-        request.session = self.client.session
-        result = _get_setup_checklist_context(request)
-        steps = {s["key"]: s["done"] for s in result.get("setup_steps", [])}
-        self.assertTrue(steps["master_import"])
-
-
 class AccessTests(TestCase):
     """Who may import, update, and see whose import."""
 

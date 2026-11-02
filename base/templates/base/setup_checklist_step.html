@@ -27,10 +27,8 @@
                 <polyline points="20 6 9 17 4 12"/>
             </svg>
         {% else %}
-            <span class="hcl-circle-num {% if is_active %}hcl-circle-num-active{% else %}hcl-circle-num-pending{% endif %}"
-                  aria-hidden="true">
-                {{ forloop.counter }}
-            </span>
+            <span class="hcl-circle-dot {% if is_active %}hcl-circle-dot-active{% else %}hcl-circle-dot-pending{% endif %}"
+                  aria-hidden="true"></span>
         {% endif %}
     </a>
 
