@@ -765,6 +765,17 @@ class CandidateNav(HorillaNavView):
                             hx-swap="innerHTML"
                             """
         self.actions = []
+        if self.request.user.has_perm("recruitment.add_candidate"):
+            self.actions.append(
+                {
+                    "action": _("Import"),
+                    "attrs": f"""
+                 href="{reverse('master-import')}?dataset=candidates"
+                 hx-boost="false"
+                 style="cursor: pointer;"
+                 """,
+                }
+            )
         if has_export_access(self.request, Candidate):
             self.actions.append(
                 {
