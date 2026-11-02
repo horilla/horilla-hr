@@ -119,18 +119,96 @@ _SAFE_BUILTINS = {
     "divmod": divmod,
 }
 
-# AST node types that are flat-out forbidden anywhere in the source.
-_FORBIDDEN_NODES = (
-    ast.Import,
-    ast.ImportFrom,
-    ast.Global,
-    ast.Nonlocal,
-    # Async constructs have no place in a synchronous tax formula and only add
-    # surface area.
-    ast.AsyncFunctionDef,
-    ast.Await,
-    ast.AsyncFor,
-    ast.AsyncWith,
+# AST node types a tax formula may contain. Anything not listed here is
+# rejected, so a construct nobody thought about is refused rather than allowed.
+#
+# This is an allow-list on purpose. The previous policy listed what was
+# forbidden, which meant every newly discovered way around it needed another
+# entry and the next one was always one report away. Classes, imports,
+# global/nonlocal, async, generators/yield, ``with`` and ``match`` are simply
+# absent: a federal-tax formula is arithmetic, branching and a loop over
+# brackets.
+_ALLOWED_NODES = (
+    ast.Module,
+    # Statements
+    ast.FunctionDef,
+    ast.Return,
+    ast.Assign,
+    ast.AugAssign,
+    ast.AnnAssign,
+    ast.If,
+    ast.For,
+    ast.While,
+    ast.Break,
+    ast.Continue,
+    ast.Pass,
+    ast.Expr,
+    ast.Try,
+    ast.ExceptHandler,
+    ast.Raise,
+    ast.Assert,
+    ast.Delete,
+    # Expressions
+    ast.BinOp,
+    ast.UnaryOp,
+    ast.BoolOp,
+    ast.Compare,
+    ast.IfExp,
+    ast.Call,
+    ast.keyword,
+    ast.Name,
+    ast.Constant,
+    ast.List,
+    ast.Tuple,
+    ast.Set,
+    ast.Dict,
+    ast.Subscript,
+    ast.Slice,
+    ast.Starred,
+    ast.Lambda,
+    ast.NamedExpr,
+    ast.JoinedStr,
+    ast.FormattedValue,
+    ast.ListComp,
+    ast.SetComp,
+    ast.DictComp,
+    ast.GeneratorExp,
+    ast.comprehension,
+    ast.Attribute,  # further restricted to _ALLOWED_ATTRIBUTES below
+    ast.arguments,
+    ast.arg,
+    # Contexts and operators carry no behaviour of their own.
+    ast.expr_context,
+    ast.operator,
+    ast.unaryop,
+    ast.boolop,
+    ast.cmpop,
+)
+
+# The only attribute names a formula may use. Plain container methods: they
+# cannot lead from a value to the interpreter, a frame, a module or a class.
+# Attribute access is the one construct that reaches *from* a value *to*
+# something else, so it is checked by name against this list rather than by
+# looking for known-bad names (dunders, ``format``, frame and generator
+# internals, and whatever turns up next).
+_ALLOWED_ATTRIBUTES = frozenset(
+    {
+        "append",
+        "extend",
+        "insert",
+        "pop",
+        "get",
+        "items",
+        "keys",
+        "values",
+        "update",
+        "setdefault",
+        "copy",
+        "count",
+        "index",
+        "sort",
+        "reverse",
+    }
 )
 
 # Names that must never appear as identifiers, calls, or string-built
@@ -177,27 +255,39 @@ class _PolicyVisitor(ast.NodeVisitor):
         self.errors.append(f"line {lineno}: {message}")
 
     def generic_visit(self, node):
-        if isinstance(node, _FORBIDDEN_NODES):
+        if not isinstance(node, _ALLOWED_NODES):
             self._fail(
                 node,
                 f"{type(node).__name__} is not allowed in tax code "
-                "(imports, async, and global/nonlocal are forbidden).",
+                "(only arithmetic, branching, loops and simple functions).",
             )
             return
         super().generic_visit(node)
 
+    def visit_FunctionDef(self, node):
+        if node.name.startswith("__"):
+            self._fail(node, f"function name '{node.name}' is not allowed.")
+        # Decorators and return annotations run arbitrary expressions at
+        # definition time; a tax formula needs neither.
+        if node.decorator_list:
+            self._fail(node, "decorators are not allowed in tax code.")
+        self.generic_visit(node)
+
+    def visit_arg(self, node):
+        if node.arg.startswith("__"):
+            self._fail(node, f"argument name '{node.arg}' is not allowed.")
+        self.generic_visit(node)
+
     def visit_Attribute(self, node):
-        # Block any dunder attribute access -- this is the route to
-        # __class__ / __subclasses__ / __globals__ sandbox escapes.
-        if isinstance(node.attr, str) and node.attr.startswith("__"):
-            self._fail(
-                node, f"access to dunder attribute '{node.attr}' is not allowed."
-            )
-        # str.format()/format_map() resolve "{0.attr.attr}" at runtime, which
-        # is a getattr primitive the AST walk cannot see through when the
-        # string is assembled dynamically. Tax formulas have no use for them.
-        if node.attr in ("format", "format_map"):
-            self._fail(node, f"'.{node.attr}()' is not allowed in tax code.")
+        # Attribute access is checked against a short allow-list of plain
+        # container methods. Everything else -- dunders, str.format, frame and
+        # generator internals, module members -- is refused by name, not by
+        # being on a list of known-bad names.
+        if node.attr not in _ALLOWED_ATTRIBUTES:
+            self._fail(node, f"attribute '.{node.attr}' is not allowed in tax code.")
+        # Assigning to or deleting an attribute is never needed.
+        if not isinstance(node.ctx, ast.Load):
+            self._fail(node, "assigning to an attribute is not allowed in tax code.")
         self.generic_visit(node)
 
     def visit_Constant(self, node):
