@@ -1,0 +1,15 @@
+{% load i18n horillafilters %}
+{% comment %}
+The Batches tab of the payslips page: the pay period, then the standard tab shell
+(the batches' own nav and list).
+{% endcomment %}
+{% include "payroll/batch/_batch.css.html" %}
+<section class="pb">
+  <div style="font-size:.8rem;color:#6b7280;margin:.25rem 0 .75rem;">
+    {% blocktrans with start=period.0|date:"j M Y" end=period.1|date:"j M Y" %}Current pay period: {{ start }} to {{ end }}{% endblocktrans %}
+    &middot;
+    <a href="{% url 'pay-period-settings' %}">{% trans "Change" %}</a>
+  </div>
+</section>
+
+{% include "generic/horilla_tab_content_shell.html" %}

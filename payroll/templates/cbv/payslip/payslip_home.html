@@ -39,30 +39,21 @@
         }
     </style>
 
-    <div
-        hx-get="{% url 'payslip-navbar' %}?{{request.GET.urlencode}}"
-        hx-trigger="load"
-    >
-    </div>
-
     {% include "generic/components.html" %}
 
+    {# Payslips and batches are the two tabs; each loads its own nav and list. #}
     <div
-        class="oh-checkpoint-badge mb-2"
-        id="selectedInstances"
-        data-ids="[]"
-        data-clicked=""
-        style="display: none"
+        class="oh-wrapper"
+        hx-get="{% url 'payslip-batch-tabs' %}?{{request.GET.urlencode}}"
+        hx-trigger="load"
     >
-    </div>
-
-    <div class="oh-wrapper" id="listContainer">
+        <div class="animated-background"></div>
     </div>
 
     <script>
         (function () {
         	function refreshPayslipListContainer() {
-        		if (typeof htmx === "undefined") return;
+        		if (typeof htmx === "undefined" || !document.getElementById("listContainer")) return;
         		var query = window.location.search || "";
         		var url = "{% url 'payslip-list' %}" + query;
         		htmx.ajax("GET", url, { target: "#listContainer", swap: "innerHTML" });

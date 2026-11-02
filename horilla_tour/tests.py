@@ -16,7 +16,6 @@ from base.models import Company
 from employee.models import Employee
 from horilla.horilla_middlewares import set_selected_company
 from horilla.testkit import make_employee
-from horilla.testkit import make_employee
 from horilla_auth.models import HorillaUser
 from horilla_tour.models import Tour, TourProgress, TourStep
 

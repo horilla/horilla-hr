@@ -15,12 +15,12 @@ from io import StringIO
 
 from django.core.management import call_command
 from django.test import TestCase
+
 from horilla.testkit import make_company, make_employee
 from payroll.methods import contributions
 from payroll.models.models import (
     Allowance,
     Contract,
-    Deduction,
     FilingStatus,
     PayrollBatch,
     Payslip,

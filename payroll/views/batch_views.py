@@ -75,42 +75,8 @@ def batch_home(request):
     than an aggregate over payslips — twenty runs would otherwise mean twenty
     aggregate queries to draw one row of numbers.
     """
-    batches = PayrollBatch.objects.all()
-
-    period = _settings_for(request).period_for(date.today())
-    return render(
-        request,
-        "payroll/batch/batch_home.html",
-        {
-            "batches": paginator_qry(batches, request.GET.get("page")),
-            "kpi": _kpis(batches),
-            "period": period,
-            "pd": request.GET.urlencode(),
-        },
-    )
-
-
-def _kpis(batches):
-    """Headline figures for the runs listed."""
-    from django.db.models import Count, Q, Sum
-
-    figures = batches.aggregate(
-        runs=Count("id"),
-        employees=Sum("generated_count"),
-        net=Sum("total_net"),
-        gross=Sum("total_gross"),
-        flagged=Sum("flagged_count"),
-        failed=Sum("failed_count"),
-        unpaid=Count("id", filter=~Q(status=PayrollBatch.PAID)),
-    )
-    figures = {key: value or 0 for key, value in figures.items()}
-    # Payslips counted for active employees only, as each run shows them.
-    from payroll.models.models import Payslip
-
-    figures["employees"] = Payslip.objects.filter(
-        payroll_batch__in=batches, employee_id__is_active=True
-    ).count()
-    return figures
+    # The batches are the second tab of the payslips page.
+    return redirect(f"{reverse('view-payslip')}?open_tab=2")
 
 
 @login_required
@@ -118,6 +84,7 @@ def _kpis(batches):
 def batch_detail(request, batch_id, model=None):
     """One run: its payslips, the ones that failed, and where it can go next."""
     batch = get_object_or_404(PayrollBatch, pk=batch_id)
+    batch.refresh_totals()  # the summary reads off the payslips inside it
     problems = batch.lines.filter(
         status__in=[PayrollBatchLine.FAILED, PayrollBatchLine.SKIPPED]
     ).select_related("employee_id")

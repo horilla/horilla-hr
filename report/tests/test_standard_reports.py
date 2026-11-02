@@ -853,7 +853,7 @@ class PeriodCompareTests(SimpleTestCase):
         from datetime import date as d
 
         from report.engine import ReportFilters
-        from report.registry import ReportDefinition, register, run_report
+        from report.registry import ReportDefinition, run_report
 
         def fake_query(filters):
             # Vary KPI by month so compare shows a delta
@@ -1167,7 +1167,7 @@ class DrilldownRegistryTests(SimpleTestCase):
 
     def test_run_drilldown_requires_fn(self):
         from report.engine import ReportFilters
-        from report.registry import ReportDefinition, register, run_drilldown
+        from report.registry import ReportDefinition, run_drilldown
 
         register_for_test(
             self,

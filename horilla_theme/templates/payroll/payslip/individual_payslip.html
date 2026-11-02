@@ -72,7 +72,7 @@ working is its own card so the payslip stays the statement it is.
                 {% endif %}
                 {% if perms.payroll.change_payslip %}
                     <div class="relative dropdown-wrapper" style="width:120px;">
-                        <select name="status" class="oh-select" id="id_status" hx-trigger="payslipStatusChanged" hx-post="{% url 'payslip-status-update' instance.id %}" hx-target="#payslipBody" >
+                        <select name="status" class="oh-select" id="id_status"{% if instance.status_locked %} disabled title="{{ instance.status_lock_message }}"{% endif %} hx-trigger="payslipStatusChanged" hx-post="{% url 'payslip-status-update' instance.id %}" hx-target="#payslipBody" >
                             {% for choice in instance.status_choices %}
                                 <option value="{{choice.0}}" {% if instance.status == choice.0  %} selected{% endif %}>{{choice.1}}</option>
                             {% endfor %}

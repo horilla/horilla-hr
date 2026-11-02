@@ -1,6 +1,6 @@
 """Tests for employee-specific holiday filtering in leave."""
 
-from datetime import timedelta
+from datetime import date, timedelta
 
 from django.test import TestCase
 

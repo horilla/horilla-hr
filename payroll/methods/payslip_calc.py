@@ -1143,7 +1143,7 @@ def calculate_based_on_shift(*_args, **kwargs):
 
 def _classify_approved_overtime_seconds(employee, start_date, end_date):
     """
-    Splits APPROVED overtime attendance in the period into three mutually
+    Splits APPROVED (or regularized) overtime attendance in the period into three mutually
     exclusive buckets, so "Regular Overtime", "Week Off Overtime", and
     "Holiday Overtime" allowances never double-pay the same hours:
       - regular:  overtime_second on a normal scheduled working day
@@ -1159,6 +1159,7 @@ def _classify_approved_overtime_seconds(employee, start_date, end_date):
     if not apps.is_installed("attendance"):
         return 0, 0, 0
 
+    from attendance.methods.utils import real_overtime_seconds
     from attendance.models import AttendanceConflictResolution
     from base.methods import get_holiday_dates, get_working_days
 
@@ -1182,13 +1183,20 @@ def _classify_approved_overtime_seconds(employee, start_date, end_date):
     attendances = Attendance.objects.filter(
         employee_id=employee,
         attendance_date__range=(start_date, end_date),
-        attendance_overtime_approve=True,
+    ).filter(
+        # Approved overtime, or a day HR regularized: the same rule as the attendance summary.
+        Q(attendance_overtime_approve=True)
+        | Q(attendance_date__in=regularized_dates)
     )
     regular_ot = week_off_ot = holiday_ot = 0
     for attendance in attendances:
         att_date = attendance.attendance_date
         if att_date in working_day_dates or att_date in regularized_dates:
-            regular_ot += attendance.overtime_second or 0
+            regular_ot += real_overtime_seconds(
+                attendance.at_work_second,
+                attendance.minimum_hour,
+                attendance.overtime_second,
+            )
         elif att_date in holiday_dates:
             holiday_ot += attendance.at_work_second or 0
         else:

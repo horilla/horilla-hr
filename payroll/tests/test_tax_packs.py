@@ -11,6 +11,7 @@ the engine, so this checks the engine instead of echoing it.
 """
 
 from django.test import TestCase
+
 from horilla.testkit import make_company, make_employee, make_user
 from payroll.methods.tax_calc import preview_yearly_tax
 from payroll.models.models import FilingStatus

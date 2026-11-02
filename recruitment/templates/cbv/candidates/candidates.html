@@ -7,35 +7,62 @@
 <meta name="csrf-token" content="{{ csrf_token }}">
 
 <style>
+    /* Stage-type quick filter dots -- same palette as the Stage list's own
+       quick filters (recruitment/templates/cbv/stages/stages.html). */
     .hired--dot {
         background-color: yellowgreen;
     }
 
-    .nothired--dot {
-        background-color: grey;
-    }
-
-    .canceled--dot {
+    .cancelled--dot {
         background-color: red;
     }
 
-    .hired-True {
-        border-left: 3.4px solid yellowgreen !important;
-        border-radius: 4px 0 0 4px;
-
+    .interview--dot {
+        background-color: orange;
     }
 
-    .hired-False {
-        border-left: 3.4px solid grey !important;
-        border-radius: 4px 0 0 4px;
-
+    .test--dot {
+        background-color: blue;
     }
 
-    .canceled-True {
+    .initial--dot {
+        background-color: cyan;
+    }
 
+    .applied--dot {
+        background-color: #8b5cf6;
+    }
+
+    /* Row side border -- same colors as the quick-filter dots above,
+       keyed by the candidate's current stage_id.stage_type. */
+    .stage-type-initial {
+        border-left: 3.4px solid cyan !important;
+        border-radius: 4px 0 0 4px;
+    }
+
+    .stage-type-applied {
+        border-left: 3.4px solid #8b5cf6 !important;
+        border-radius: 4px 0 0 4px;
+    }
+
+    .stage-type-test {
+        border-left: 3.4px solid blue !important;
+        border-radius: 4px 0 0 4px;
+    }
+
+    .stage-type-interview {
+        border-left: 3.4px solid orange !important;
+        border-radius: 4px 0 0 4px;
+    }
+
+    .stage-type-cancelled {
         border-left: 3.4px solid red !important;
         border-radius: 4px 0 0 4px;
+    }
 
+    .stage-type-hired {
+        border-left: 3.4px solid yellowgreen !important;
+        border-radius: 4px 0 0 4px;
     }
 
     .employee {

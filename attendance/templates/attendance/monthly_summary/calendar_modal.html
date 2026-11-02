@@ -183,6 +183,7 @@
   background: #10b981;
   border: 1.5px solid rgba(255,255,255,.85);
 }
+.cal-resolved-dot.with-ot { right: 30px; top: 4px; }
 /* Regular / HO / WO overtime badge */
 .cal-ot-badge {
   position: absolute;
@@ -199,6 +200,7 @@
 }
 .cal-ot-badge.wo  { background: #be185d; }
 .cal-ot-badge.reg { background: #b45309; }
+.cal-ot-badge.pending { opacity: .45; }
 
 .cal-cell .cal-day-num {
   font-size: .75rem;
@@ -419,6 +421,7 @@
       {% if cal_summary.ot_regular_seconds %}<span>R {{ cal_summary.ot_regular_label }}</span>{% endif %}
       {% if cal_summary.ot_week_off_seconds %}<span>{% if cal_summary.ot_regular_seconds %} &#183; {% endif %}WO {{ cal_summary.ot_week_off_label }}</span>{% endif %}
       {% if cal_summary.ot_holiday_seconds %}<span>{% if cal_summary.ot_regular_seconds or cal_summary.ot_week_off_seconds %} &#183; {% endif %}HO {{ cal_summary.ot_holiday_label }}</span>{% endif %}
+      {% if cal_summary.ot_pending_seconds %}<span>{% if cal_summary.ot_regular_seconds or cal_summary.ot_week_off_seconds or cal_summary.ot_holiday_seconds %} &#183; {% endif %}{% trans "Pending Approval" %} {{ cal_summary.ot_pending_label }}</span>{% endif %}
     </div>
   </div>
 </div>
@@ -456,14 +459,17 @@
             {% if cell.split_label %}{% elif cell.detail %}<div class="cal-day-detail">{{ cell.detail }}</div>{% endif %}
             {% if cell.conflict_with == "paid_leave" or cell.conflict_with == "unpaid_leave" %}
               <div class="cal-conflict-dot" title="{% trans 'Leave conflict — click to regularize' %}"></div>
-            {% elif cell.conflict_with == "holiday_ot" %}
-              <div class="cal-ot-badge" title="{% trans 'Holiday Overtime' %}">HO</div>
-            {% elif cell.conflict_with == "week_off_ot" %}
-              <div class="cal-ot-badge wo" title="{% trans 'Week Off Overtime' %}">WO</div>
-            {% elif cell.conflict_with == "regular_ot" %}
-              <div class="cal-ot-badge reg" title="{% trans 'Overtime' %}">OT</div>
-            {% elif cell.resolution %}
-              <div class="cal-resolved-dot" title="{% trans 'Resolved — click to undo or change' %}"></div>
+            {% else %}
+              {% if cell.ot_kind == "holiday" %}
+                <div class="cal-ot-badge{% if cell.ot_pending %} pending{% endif %}" title="{% if cell.ot_pending %}{% trans 'Holiday Overtime, Pending Approval' %}{% else %}{% trans 'Holiday Overtime' %}{% endif %}">HO</div>
+              {% elif cell.ot_kind == "week_off" %}
+                <div class="cal-ot-badge wo{% if cell.ot_pending %} pending{% endif %}" title="{% if cell.ot_pending %}{% trans 'Week Off Overtime, Pending Approval' %}{% else %}{% trans 'Week Off Overtime' %}{% endif %}">WO</div>
+              {% elif cell.ot_kind == "regular" %}
+                <div class="cal-ot-badge reg{% if cell.ot_pending %} pending{% endif %}" title="{% if cell.ot_pending %}{% trans 'Overtime, Pending Approval' %}{% else %}{% trans 'Overtime' %}{% endif %}">OT</div>
+              {% endif %}
+              {% if cell.resolution %}
+                <div class="cal-resolved-dot{% if cell.ot_kind %} with-ot{% endif %}" title="{% trans 'Resolved — click to undo or change' %}"></div>
+              {% endif %}
             {% endif %}
             {% if cell.show_hours %}
             <div id="cal-day-hours-{{ employee.pk }}-{{ cell.date|date:'Y-m-d' }}" class="cal-day-hours">
