@@ -117,8 +117,15 @@
                                 <a {{ type.attrs|safe }}><ion-icon name="{{ type.icon }}"></ion-icon></a>
                                 {% if active_view.type == type.type %}
                                     <script>
-                                        $(".navFilterForm").attr('hx-get', '{{ type.url }}');
-                                        $(".nav-view-btn[data-type={{ type.type }}]").addClass("oh-view-btn--active")
+                                        // Scoped to this script's own form: a page can hold several
+                                        // .navFilterForm (page-level Nav + one per tab), and pointing
+                                        // them all at this tab's URL made the page-level form swap
+                                        // its whole container with this tab's list.
+                                        (function () {
+                                            var $form = $(document.currentScript).closest("form");
+                                            $form.attr('hx-get', '{{ type.url|escapejs }}');
+                                            $form.find(".nav-view-btn[data-type={{ type.type }}]").addClass("oh-view-btn--active");
+                                        })();
                                     </script>
                                 {% endif %}
                             </li>
