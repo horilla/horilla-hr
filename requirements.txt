@@ -73,7 +73,7 @@ XlsxWriter==3.2.9
 # exfiltration) has no upstream fix. Mitigated in base.methods.generate_pdf,
 # which XSS-checks the rendered body before wkhtmltopdf sees it.
 pdfkit==1.0.0
-PyMuPDF>=1.28.2,<2
+PyMuPDF>=2.0,<3
 reportlab==4.0.9
 xhtml2pdf==0.2.17
 
