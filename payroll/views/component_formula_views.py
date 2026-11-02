@@ -61,7 +61,10 @@ def available_codes(exclude_pk=None, exclude_model=None):
             # A standard pay item holds no amount of its own -- the loan
             # schedule or the attendance record decides it -- so a percentage
             # of one would be a percentage of zero.
-            .exclude(is_system=True).order_by("sequence", "pk")
+            .exclude(is_system=True)
+            # Claims, advances and loans are generated for one employee each,
+            # so they are not components anyone configures or can reference.
+            .exclude(only_show_under_employee=True).order_by("sequence", "pk")
         )
         # Loan and fine instalments are one auto-generated Deduction per due
         # date, so a single loan puts a dozen near-identical rows in here and
@@ -118,6 +121,9 @@ def sample_context(sample_basic):
         for component in (
             model.objects.exclude(code="")
             .exclude(is_system=True)
+            # Claims, advances and loans are generated for one employee each,
+            # so they are not components anyone configures or can reference.
+            .exclude(only_show_under_employee=True)
             .order_by("sequence", "pk")
         ):
             if component.code in context:
@@ -411,10 +417,17 @@ def component_applies_rows(request):
     targeted = set()
     everyone = False
     excluded = set()
-    if pk and model is Allowance:
-        instance = Allowance.objects.get(pk=pk)
+    group = None
+    by = request.GET.get("by") or ""
+    if by in ("department", "job_position", "job_role"):
+        ids = {
+            int(v) for v in (request.GET.get("group") or "").split(",") if v.isdigit()
+        }
+        group = (by, ids)
+    if pk:
+        instance = model.objects.get(pk=pk)
         targeted = set(instance.specific_employees.values_list("pk", flat=True))
-        everyone = bool(instance.include_active_employees)
+        everyone = bool(instance.include_active_employees) and group is None
         excluded = set(instance.exclude_employees.values_list("pk", flat=True))
     if request.GET.get("ids"):
         # Everyone the search matches who is not already on a structure, for the
@@ -433,10 +446,11 @@ def component_applies_rows(request):
         request.GET.get("q", ""),
         everyone=everyone,
         excluded=excluded,
+        group=group,
     )
     html = render_to_string(
         "payroll/component/_applies_rows.html",
-        {"rows": rows, "editable": model is Allowance},
+        {"rows": rows, "editable": True},
         request=request,
     )
     response = HttpResponse(html)

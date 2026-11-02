@@ -188,6 +188,16 @@ class NotPayableTests(TestCase):
         offered = {row["label"] for row in available_codes()}
         self.assertFalse(titles & offered)
 
+    def test_generated_claims_are_not_offered_as_formula_targets(self):
+        """A claim generated for one employee is not a component to reference."""
+        from payroll.models.models import Allowance
+        from payroll.views.component_formula_views import available_codes
+
+        Allowance.objects.create(
+            title="Medical Claim", code="MEDICAL_CLAIM_9", only_show_under_employee=True
+        )
+        self.assertNotIn("MEDICAL_CLAIM_9", {r["code"] for r in available_codes()})
+
     def test_no_template_is_in_the_structure_picker(self):
         from payroll.forms.component_layout import component_picker_rows
 
