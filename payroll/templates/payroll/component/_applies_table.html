@@ -11,7 +11,7 @@ Selection lives in hidden inputs, not the rows, because rows come and go.
 <div class="col-12 oh-component-field oh-applies" data-row data-section-of="{{ section.key }}"
      id="id_applies_table_parent_div" data-applies-url="{% url 'component-applies-rows' %}"
      data-kind="{% if form.instance.pk %}{{ form.instance.pk }}{% endif %}"
-     data-model="{% if applies_editable %}allowance{% else %}deduction{% endif %}"
+     data-model="{{ applies_model }}"
      data-next="{% if applies_has_next %}2{% endif %}"
      data-structure-count="{{ applies_structure_count }}">
   <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:2px">
@@ -19,24 +19,48 @@ Selection lives in hidden inputs, not the rows, because rows come and go.
     <span style="font-size:12px;color:#6b7280;border:0;padding:0;background:none" data-applies-count></span>
   </div>
   <p class="oh-applies__note">
-    {% trans "Employees on a salary structure that includes this component get it automatically and cannot be unticked here." %}
-    {% if applies_editable %}{% trans "Tick anyone else to apply it outside a structure, or use the header box to apply it to every active employee and untick anyone to leave them out." %}{% endif %}
+    {% trans "Employees On A Structure With This Component Get It Automatically." %}
+    {% if applies_editable %}{% trans "Tick Anyone Else To Apply It Outside A Structure." %}{% endif %}
   </p>
   <div hidden>{{ form.include_active_employees }}</div>
+  {% if applies_editable %}<div hidden>{{ form.apply_by }}</div>{% endif %}
   <div hidden data-applies-selected>
     {% for pk in applies_selected %}<input type="hidden" name="specific_employees" value="{{ pk }}">{% endfor %}
   </div>
   <div hidden data-applies-excluded>
     {% for pk in applies_excluded %}<input type="hidden" name="exclude_employees" value="{{ pk }}">{% endfor %}
   </div>
-  <input type="search" class="oh-applies__search" placeholder="{% trans 'Search by name, code, department or structure' %}"
-         aria-label="{% trans 'Search employees' %}" data-applies-search autocomplete="off">
+  <div class="oh-applies__bar">
+    <input type="search" class="oh-applies__search" placeholder="{% trans 'Search by name, code, department or structure' %}"
+           aria-label="{% trans 'Search employees' %}" data-applies-search autocomplete="off">
+    {% if applies_editable %}
+    <select class="oh-applies__modesel" data-applies-mode aria-label="{% trans 'Who it applies to' %}">
+      <option value="selected">{% trans "Only Selected" %}</option>
+      <option value="all">{% trans "All Employees" %}</option>
+      <option value="department">{% trans "Department" %}</option>
+      <option value="job_position">{% trans "Job Position" %}</option>
+      <option value="job_role">{% trans "Job Role" %}</option>
+    </select>
+    {% endif %}
+  </div>
+  {% for g in applies_groups %}
+  <div class="oh-applies__group" data-applies-group="{{ g.key }}" hidden>
+    <select name="{{ g.field }}" multiple data-applies-group-pick
+            data-placeholder="{% blocktrans with t=g.title %}Choose {{ t }}{% endblocktrans %}">
+      {% for it in g.items %}<option value="{{ it.pk }}"{% if it.checked %} selected{% endif %}>{{ it.name }}</option>{% endfor %}
+    </select>
+  </div>
+  {% endfor %}
+  <p class="oh-applies__auto" data-applies-auto hidden>
+    <ion-icon name="information-circle-outline"></ion-icon>
+    <span data-applies-auto-text></span>
+  </p>
   <div class="oh-applies__scroll" data-applies-scroll>
     <table class="oh-applies__table">
       <thead>
         <tr>
           <th style="width:34px">
-            {% if applies_editable %}<input type="checkbox" data-applies-all title="{% trans 'Apply to every active employee' %}">{% endif %}
+            {% if applies_editable %}<input type="checkbox" data-applies-all title="{% trans 'Select Every Employee' %}">{% endif %}
           </th>
           <th>{% trans "Code" %}</th>
           <th>{% trans "Employee" %}</th>
@@ -55,22 +79,36 @@ Selection lives in hidden inputs, not the rows, because rows come and go.
 <style>
   .oh-applies__note { font-size: 12px; color: #6b7280; margin: 4px 0 8px; }
   .oh-applies__count { font-size: 12px; color: #6b7280; margin-left: 8px; }
-  .oh-applies__search { width: 100%; max-width: 360px; height: 34px; padding: 0 10px; margin-bottom: 8px;
+  .oh-applies__bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+  .oh-applies__modesel { margin-left: auto; height: 34px; min-width: 150px; padding: 0 8px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; background: #fff; }
+  .oh-applies__search { width: 100%; max-width: 260px; height: 34px; padding: 0 10px; margin-bottom: 0;
     border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; }
   .oh-applies__scroll { max-height: 280px; overflow-y: auto; overflow-x: hidden; border: 1px solid #e5e7eb; border-radius: 8px; }
+  .oh-applies__auto { display: flex; gap: 6px; align-items: center; margin: 0 0 8px; padding: 6px 10px; border-radius: 8px; background: #fdeeeb; color: #b4412f; font-size: 12px; }
+  .oh-applies__auto[hidden] { display: none; }
+  .oh-applies__group { margin: 0 0 8px; }
+  .oh-applies__group[hidden] { display: none; }
+  .oh-applies__group select { width: 100%; }
+  .oh-applies__group .select2-container { width: 100% !important; font-size: 12px; }
   .oh-applies__more { padding: 8px; text-align: center; font-size: 12px; color: #6b7280; }
-  .oh-applies__table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  /* Separate borders: with collapse, the row lines stay behind when the sticky header scrolls over them. */
+  .oh-applies__table { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; font-size: 13px; }
   .oh-applies__table th { position: sticky; top: 0; background: #f9fafb; text-align: left; font-size: 11px;
-    text-transform: uppercase; letter-spacing: .04em; color: #6b7280; padding: 7px 10px; border-bottom: 1px solid #e5e7eb; }
+    text-transform: uppercase; letter-spacing: .04em; color: #6b7280; padding: 7px 8px; border-bottom: 1px solid #e5e7eb; z-index: 1; }
+  .oh-applies__table th:nth-child(2) { width: 84px; }
+  .oh-applies__table th:nth-child(3), .oh-applies__table th:nth-child(4) { width: 21%; }
+  .oh-applies__table th:nth-child(5) { width: 17%; }
+  .oh-applies__table th:last-child { width: 132px; }
   .oh-applies__table td:last-child, .oh-applies__table th:last-child { white-space: nowrap; }
-  .oh-applies__table th:first-child, .oh-applies__table td:first-child { width: 40px; padding-left: 14px; padding-right: 4px; }
-  .oh-applies__table td { padding: 6px 10px; border-bottom: 1px solid #f3f4f6; }
+  .oh-applies__table th:first-child, .oh-applies__table td:first-child { width: 28px; padding-left: 10px; padding-right: 0; }
+  .oh-applies__table td { padding: 6px 8px; border-bottom: 1px solid #f3f4f6; }
+  /* Name, department and structure stay on one line; the full text is the cell's tooltip. */
+  .oh-applies__table td:nth-child(n+2):nth-child(-n+5) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .oh-applies__table tr.is-locked td { background: #f8fafc; color: #475569; }
   .oh-applies__pill { display: inline-block; white-space: nowrap; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
   .oh-applies__pill--structure { background: rgba(99,102,241,.14); color: #4338ca; }
-  .oh-applies__pill--outside { background: rgba(245,158,11,.16); color: #b45309; }
-  .oh-applies__pill[hidden], .oh-applies__warn[hidden], .oh-applies__none[hidden] { display: none; }
-  .oh-applies__warn { display: block; margin-top: 3px; font-size: 11px; color: #b45309; cursor: help; }
+  .oh-applies__pill--outside { background: rgba(245,158,11,.16); color: #b45309; cursor: help; }
+  .oh-applies__pill[hidden], .oh-applies__none[hidden] { display: none; }
   .oh-applies__none { color: #9ca3af; }
 </style>
 <script>
@@ -86,7 +124,23 @@ Selection lives in hidden inputs, not the rows, because rows come and go.
   var all = root.querySelector("[data-applies-all]");
   var flag = root.closest("form").querySelector("input[name=include_active_employees][type=checkbox]");
   var count = root.querySelector("[data-applies-count]");
+  var modeSel = root.querySelector("[data-applies-mode]");
   var structureCount = parseInt(root.dataset.structureCount, 10) || 0;
+  var applyBy = root.closest("form").querySelector("input[name=apply_by]");
+  var autoText = {
+    all: "{% trans 'Applies To Every Active Employee Automatically, Including Anyone Who Joins Later.'|escapejs %}",
+    group: "{% trans 'Applies To Everyone In The Chosen Groups, Including Anyone Who Joins Or Moves Into Them Later.'|escapejs %}"
+  };
+  function groupMode() { return applyBy && applyBy.value !== "employees" ? applyBy.value : ""; }
+  function groupQuery() {
+    var mode = groupMode();
+    if (!mode) return "";
+    var ids = Array.prototype.map.call(
+      root.querySelectorAll('[data-applies-group="' + mode + '"] option:checked'),
+      function (i) { return i.value; }
+    );
+    return "&by=" + mode + "&group=" + ids.join(",");
+  }
   var next = root.dataset.next, query = "", busy = false;
   var picked = new Set(
     Array.prototype.map.call(holder.querySelectorAll("input"), function (i) { return i.value; })
@@ -103,7 +157,9 @@ Selection lives in hidden inputs, not the rows, because rows come and go.
     var everyone = flag && flag.checked;
     var on = everyone ? !excluded.has(box.value) : picked.has(box.value);
     box.checked = on;
-    box.disabled = false;
+    // Everyone is a standing rule, so no one is unticked one by one.
+    box.disabled = !!everyone;
+    box.title = everyone ? "{% trans 'Included Automatically While All Employees Is Selected'|escapejs %}" : "";
     tr.querySelectorAll("[data-applies-outside]").forEach(function (e) { e.hidden = !on; });
     tr.querySelectorAll("[data-applies-inside]").forEach(function (e) { e.hidden = on; });
   }
@@ -123,25 +179,46 @@ Selection lives in hidden inputs, not the rows, because rows come and go.
       });
     }
     var everyone = flag && flag.checked;
-    if (all && !query) all.checked = !!everyone;
+    var gm = groupMode();
+    if (all) { all.disabled = !!everyone || !!gm; }
+    var auto = root.querySelector("[data-applies-auto]");
+    if (auto) {
+      auto.hidden = !everyone && !gm;
+      auto.querySelector("[data-applies-auto-text]").textContent = gm ? autoText.group : autoText.all;
+    }
+    root.querySelectorAll("[data-applies-group]").forEach(function (panel) {
+      panel.hidden = panel.dataset.appliesGroup !== gm;
+    });
+    var current = gm || (everyone ? "all" : "selected");
+    if (modeSel) modeSel.value = current;
     count.textContent = everyone
       ? "{% trans 'All active employees'|escapejs %}" + (excluded.size ? " ({% trans 'except'|escapejs %} " + excluded.size + " {% trans 'outside a structure'|escapejs %})" : "")
       : (structureCount + picked.size) + " {% trans 'employees'|escapejs %} ("
         + structureCount + " {% trans 'via structures'|escapejs %}, " + picked.size + " {% trans 'outside'|escapejs %})";
     body.querySelectorAll("[data-applies-row]").forEach(paint);
+    if (groupMode()) {
+      var chosen = root.querySelectorAll('[data-applies-group="' + groupMode() + '"] option:checked').length;
+      count.textContent = chosen + " {% trans 'chosen'|escapejs %}";
+    }
+    // The header box ticks every listed employee; it is ticked when they all are.
+    if (all) {
+      var boxes = body.querySelectorAll("[data-applies-pick]");
+      var ticked = Array.prototype.filter.call(boxes, function (b) { return b.checked; }).length;
+      all.checked = boxes.length > 0 && ticked === boxes.length;
+      all.indeterminate = ticked > 0 && ticked < boxes.length;
+    }
     titleHeader();
   }
-  // The header box means different things with and without a search, and
-  // different things ticked and unticked; say which.
+  // With a search the header box means these results, otherwise every employee listed.
   function titleHeader() {
     if (!all) return;
     all.title = query
       ? (all.checked
-          ? "{% trans 'Clear the employees this search found'|escapejs %}"
-          : "{% trans 'Select every employee this search found'|escapejs %}")
+          ? "{% trans 'Clear The Employees This Search Found'|escapejs %}"
+          : "{% trans 'Select Every Employee This Search Found'|escapejs %}")
       : (all.checked
-          ? "{% trans 'Stop applying to every active employee'|escapejs %}"
-          : "{% trans 'Apply to every active employee'|escapejs %}");
+          ? "{% trans 'Clear Every Employee'|escapejs %}"
+          : "{% trans 'Select Every Employee'|escapejs %}");
   }
 
   function load(reset) {
@@ -150,7 +227,7 @@ Selection lives in hidden inputs, not the rows, because rows come and go.
     var page = reset ? 1 : next;
     var url = root.dataset.appliesUrl + "?model=" + root.dataset.model
       + "&pk=" + encodeURIComponent(root.dataset.kind)
-      + "&page=" + page + "&q=" + encodeURIComponent(query);
+      + "&page=" + page + "&q=" + encodeURIComponent(query) + groupQuery();
     fetch(url, { headers: { "X-Requested-With": "XMLHttpRequest" } })
       .then(function (r) {
         var n = r.headers.get("X-Next-Page") || "";
@@ -176,15 +253,24 @@ Selection lives in hidden inputs, not the rows, because rows come and go.
     var v = this.value;
     clearTimeout(timer);
     timer = setTimeout(function () {
-      query = v; next = ""; if (all) all.checked = query ? false : !!(flag && flag.checked);
-      titleHeader();
+      query = v; next = "";
       load(true);
     }, 250);
   });
   root.addEventListener("change", function (e) {
     var t = e.target;
-    if (t === all && query) {
-      // A search is active: the header box means "these results", not everyone.
+    if (t.matches("[data-applies-mode]")) {
+      // Everyone, and everyone in a group, are standing rules rather than
+      // lists: whoever joins later is covered, so nobody is added here.
+      excluded.clear();
+      var group = t.value !== "selected" && t.value !== "all";
+      if (applyBy) applyBy.value = group ? t.value : "employees";
+      if (flag) { flag.checked = t.value === "all"; flag.dispatchEvent(new Event("change", { bubbles: true })); }
+      sync();
+      next = ""; load(true);
+    } else if (t === all) {
+      // Ticks (or clears) every employee listed, or this search's results. It
+      // never turns the component into an everyone rule; that is the select.
       var on = t.checked;
       fetch(root.dataset.appliesUrl + "?ids=1&model=" + root.dataset.model
         + "&pk=" + encodeURIComponent(root.dataset.kind) + "&q=" + encodeURIComponent(query))
@@ -193,10 +279,6 @@ Selection lives in hidden inputs, not the rows, because rows come and go.
           res.ids.forEach(function (id) { if (on) picked.add(id); else picked.delete(id); });
           sync();
         });
-    } else if (t === all) {
-      excluded.clear();
-      if (flag) { flag.checked = t.checked; flag.dispatchEvent(new Event("change", { bubbles: true })); }
-      sync();
     } else if (t.matches("[data-applies-pick]")) {
       var set = flag && flag.checked ? excluded : picked;
       // Excluded is the unticked list, picked the ticked one.
@@ -205,6 +287,19 @@ Selection lives in hidden inputs, not the rows, because rows come and go.
     }
   });
   if (flag) flag.addEventListener("change", sync);
+  function groupChanged() { sync(); next = ""; load(true); }
+  root.querySelectorAll("[data-applies-group-pick]").forEach(function (sel) {
+    var jq = window.jQuery;
+    if (jq && jq.fn && jq.fn.select2) {
+      var parent = jq(sel).closest(".oh-modal__dialog-body");
+      jq(sel).select2({
+        width: "100%", placeholder: sel.dataset.placeholder, closeOnSelect: false,
+        dropdownParent: parent.length ? parent : jq(document.body)
+      }).on("change", groupChanged);
+    } else {
+      sel.addEventListener("change", groupChanged);
+    }
+  });
   sync();
   fill();
 })();
