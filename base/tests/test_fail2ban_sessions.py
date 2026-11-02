@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from django.contrib.sessions.models import Session
 from django.test import TestCase, override_settings
+from django.urls import reverse
 
 from base import signals
 
@@ -29,6 +30,19 @@ class Fail2BanSessionTests(TestCase):
         for _ in range(3):
             self.client.cookies.clear()
             self.assertEqual(self.client.get("/health/").status_code, 200)
+        self.assertEqual(Session.objects.count(), 0)
+
+    def test_logged_out_pages_create_no_session(self):
+        """
+        login_required (function and class-based views) saved the page title
+        before checking the login, and the breadcrumbs context processor
+        saved a trail for every rendered page, the login page included.
+        """
+        for path in ("/", reverse("action-type-list"), "/login/"):
+            self.client.cookies.clear()
+            response = self.client.get(path, follow=True)
+            self.assertEqual(response.status_code, 200, path)
+            self.assertTemplateUsed(response, "login.html")
         self.assertEqual(Session.objects.count(), 0)
 
     @override_settings(FAIL2BAN_MAX_RETRY=2, FAIL2BAN_BAN_TIME=300)
