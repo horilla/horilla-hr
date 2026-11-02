@@ -72,6 +72,12 @@ class _KeepInstanceIdMixin:
     ``saved_filters``.
     """
 
+    def _grouped(self):
+        """Primary keys of the components aimed at this employee's department, job position or job role."""
+        from payroll.methods.component_engine import group_targeted
+
+        return group_targeted(self.instance, self.model).values_list("pk", flat=True)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         instance_id = self.request.GET.get("instance_id") or self.request.POST.get(
@@ -1190,6 +1196,7 @@ if app_installed("payroll"):
                 .filter(
                     Q(include_active_employees=True)
                     | Q(specific_employees=self.instance)
+                    | Q(pk__in=self._grouped())
                 )
                 .filter(title__icontains=self.request.GET.get("search", ""))
                 .distinct()
@@ -1308,6 +1315,7 @@ if app_installed("payroll"):
                 .filter(
                     Q(include_active_employees=True)
                     | Q(specific_employees=self.instance)
+                    | Q(pk__in=self._grouped())
                 )
                 .filter(title__icontains=self.request.GET.get("search", ""))
                 .distinct()

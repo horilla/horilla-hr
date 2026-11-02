@@ -65,17 +65,21 @@ class AllowanceDeductionTabView(HorillaTabView):
             else None
         )
         if active_contract:
+            from payroll.methods.component_engine import group_targeted
+
             all_qs = (
                 Allowance.objects.filter(specific_employees=employee)
                 | Allowance.objects.filter(include_active_employees=True).exclude(
                     exclude_employees=employee
                 )
+                | group_targeted(employee, Allowance)
             ).distinct()
             ded_qs = (
                 Deduction.objects.filter(specific_employees=employee)
                 | Deduction.objects.filter(include_active_employees=True).exclude(
                     exclude_employees=employee
                 )
+                | group_targeted(employee, Deduction)
             ).distinct()
         else:
             all_qs = Allowance.objects.none()
@@ -193,8 +197,13 @@ class AllowanceTabList(AllowanceListView):
                 exclude_employees=employee
             )
 
+            from payroll.methods.component_engine import group_targeted
+
             combined_allowances = (
-                specific_allowances | conditional_allowances | active_employees
+                specific_allowances
+                | conditional_allowances
+                | active_employees
+                | queryset.filter(pk__in=group_targeted(employee, queryset.model))
             )
             combined_allowances = combined_allowances.distinct()
 
