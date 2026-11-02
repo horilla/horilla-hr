@@ -32,6 +32,14 @@ date and open a fresh Unreleased above it.
 ### Security      — vulnerabilities fixed; link the advisory and credit the reporter
 -->
 
+### Breaking
+
+- Payroll: new Python tax formulas are off by default. Creating a Python-mode filing
+  status, saving or editing a formula, and test-running one now need
+  `HORILLA_ALLOW_PYTHON_TAX_FORMULAS=True` in `.env`. Formulas that are already stored
+  keep running, so payslips are not affected, and slab-based filing statuses need
+  nothing.
+
 ### Added
 
 - Base: the scheduler's job history is trimmed daily at 03:15 in the configured time
@@ -68,6 +76,13 @@ date and open a fresh Unreleased above it.
 - Leave: a restriction can now cover several departments (it held one).
 - Dashboard: the birthday widgets on the modern and ESS dashboards follow the
   *Birthday view* accessibility setting.
+- Payroll: a tax formula is checked against an allow-list of syntax and attribute names
+  instead of a list of forbidden ones. Arithmetic, branching, loops, comprehensions,
+  helper functions and the list and dict methods `append`, `extend`, `insert`, `pop`,
+  `get`, `items`, `keys`, `values`, `update`, `setdefault`, `copy`, `count`, `index`,
+  `sort` and `reverse` all work as before. A stored formula that uses anything else
+  (string methods, `yield`, classes or decorators) is refused when a payslip is
+  generated, and needs rewriting.
 
 ### Removed
 

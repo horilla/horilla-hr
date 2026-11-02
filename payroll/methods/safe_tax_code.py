@@ -35,6 +35,8 @@ import re
 import threading
 
 __all__ = [
+    "PYTHON_FORMULAS_OFF_MESSAGE",
+    "python_formulas_enabled",
     "TaxCodeValidationError",
     "TaxFormulaTimeout",
     "validate_tax_code",
@@ -46,6 +48,23 @@ __all__ = [
 # handful of brackets; short enough that a runaway formula cannot hold a
 # payroll run open.
 DEFAULT_TIMEOUT_SECONDS = 2.0
+
+
+PYTHON_FORMULAS_OFF_MESSAGE = _(
+    "Python formulas are turned off on this server. Use tax slabs, or ask whoever "
+    "runs Horilla to set HORILLA_ALLOW_PYTHON_TAX_FORMULAS=True."
+)
+
+
+def python_formulas_enabled() -> bool:
+    """Whether new Python tax formulas may be created, saved or test-run.
+
+    Gates *new* code only. Evaluating a formula that is already stored does not
+    consult this, so switching it off cannot stop a payroll run.
+    """
+    from django.conf import settings
+
+    return bool(getattr(settings, "HORILLA_ALLOW_PYTHON_TAX_FORMULAS", False))
 
 
 class TaxCodeValidationError(ValueError):

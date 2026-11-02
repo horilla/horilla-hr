@@ -6,7 +6,7 @@ fixed at creation, and the combination that silently taxed everyone at 0 —
 Python mode enabled with no code — was accepted at save time.
 """
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 from horilla.testkit import make_company, make_employee, make_user
 from payroll.forms.tax_forms import FilingStatusForm
@@ -23,6 +23,7 @@ def _data(**overrides):
     return data
 
 
+@override_settings(HORILLA_ALLOW_PYTHON_TAX_FORMULAS=True)
 class FilingStatusModeSwitchTests(TestCase):
     def _create_in_bracket_mode(self):
         form = FilingStatusForm(data=_data())
@@ -81,6 +82,7 @@ class FilingStatusModeSwitchTests(TestCase):
         self.assertFalse((form.save().python_code or "").strip())
 
 
+@override_settings(HORILLA_ALLOW_PYTHON_TAX_FORMULAS=True)
 class TestPyCodeEndpointTests(TestCase):
     """
     The built-in formula preview that replaces the onecompiler.com iframe.
@@ -311,6 +313,7 @@ class SavingAnUnchangedSlabTableTests(TestCase):
         self.assertIsNone(top.max_income)
 
 
+@override_settings(HORILLA_ALLOW_PYTHON_TAX_FORMULAS=True)
 class FilingStatusTaxRulesFormTests(TestCase):
     def setUp(self):
         from payroll.models.models import FilingStatus
