@@ -111,16 +111,16 @@ and have nowhere on the form to set them.
 
   .oh-limit-note {
     border: 1px solid #e6e7eb; border-left: 3px solid var(--primary-600, #e54f38);
-    border-radius: 8px; background: #fbfbfc; padding: 12px 14px;
+    border-radius: 8px; background: #fbfbfc; padding: 6px 10px;
   }
   .oh-limit-note__head {
     display: flex; align-items: center; gap: 6px;
-    font-size: 11px; font-weight: 700; letter-spacing: .06em;
-    text-transform: uppercase; color: #6b7280; margin-bottom: 8px;
+    font-size: 10px; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; color: #6b7280; margin-bottom: 3px;
   }
   .oh-limit-note__row {
     display: flex; align-items: baseline; gap: 8px;
-    font-size: 13px; padding: 3px 0;
+    font-size: 12px; padding: 1px 0;
   }
   .oh-limit-note__label { color: #4b5563; }
   .oh-limit-note__dots {
@@ -129,9 +129,9 @@ and have nowhere on the form to set them.
   .oh-limit-note__value {
     font-weight: 650; font-variant-numeric: tabular-nums; color: #1f2430;
   }
-  .oh-limit-note__share { font-size: 11.5px; color: #9ca3af; }
-  .oh-limit-note__muted { font-size: 13px; color: #9ca3af; }
-  .oh-limit-note__foot { font-size: 11.5px; color: #9ca3af; margin-top: 8px; }
+  .oh-limit-note__share { font-size: 10.5px; color: #9ca3af; }
+  .oh-limit-note__muted { font-size: 12px; color: #9ca3af; }
+  .oh-limit-note__foot { font-size: 10.5px; color: #9ca3af; margin-top: 3px; }
 
   /* ---- steps ---- */
   .oh-steps {
@@ -333,7 +333,8 @@ and have nowhere on the form to set them.
               arithmetic repeated in JavaScript.
               {% endcomment %}
               <div class="col-12 oh-component-field" data-row
-                   data-section-of="{{ section.key }}">
+                   data-section-of="{{ section.key }}"
+                   {% if row.show_if %}data-show-if="{{ row.show_if }}"{% endif %}>
                 <div class="oh-limit-note" data-limit-note
                      data-url="{% url 'component-limit-preview' %}"
                      data-nothing="{% trans 'A percentage already follows the period, so this setting has nothing to scale here.' %}"
@@ -365,6 +366,27 @@ and have nowhere on the form to set them.
                   </div>
                 </div>
               </div>
+            {% endif %}
+
+            {% if row.field.name == "maximum_unit" and "per_attendance_fixed_amount" in form.fields %}
+              {% trans "Attendance" as t_attendance %}
+              {% trans "Each Validated Attendance Day In The Period Is Paid The Per Attendance Amount. With Prorate Half Days On, A Half Day Counts As Half." as x_attendance %}
+              {% include "payroll/component/_unit_note.html" with section_key=section.key based_on="attendance" title=t_attendance text=x_attendance %}
+              {% trans "Shift" as t_shift %}
+              {% trans "Each Validated Attendance On The Chosen Shift Is Paid The Per Shift Amount. With Prorate Half Days On, A Half Day Counts As Half." as x_shift %}
+              {% include "payroll/component/_unit_note.html" with section_key=section.key based_on="shift_id" title=t_shift text=x_shift %}
+              {% trans "Work Type" as t_worktype %}
+              {% trans "Each Validated Attendance With The Chosen Work Type Is Paid The Per Work Type Amount. With Prorate Half Days On, A Half Day Counts As Half." as x_worktype %}
+              {% include "payroll/component/_unit_note.html" with section_key=section.key based_on="work_type_id" title=t_worktype text=x_worktype %}
+              {% trans "Regular Overtime" as t_ot %}
+              {% trans "Only Approved Overtime Hours On A Normal Working Day Count, Never More Than Was Really Worked. Paid Per Hour, Or By Slab As A Multiple Of The Contract's Hourly Wage." as x_ot %}
+              {% include "payroll/component/_unit_note.html" with section_key=section.key based_on="overtime" title=t_ot text=x_ot %}
+              {% trans "Week Off Overtime" as t_wo %}
+              {% trans "Approved Hours Worked On A Week Off Count In Full, Since No Hours Are Scheduled. Paid Per Hour, Or By Slab As A Multiple Of The Contract's Hourly Wage." as x_wo %}
+              {% include "payroll/component/_unit_note.html" with section_key=section.key based_on="week_off_overtime" title=t_wo text=x_wo %}
+              {% trans "Holiday Overtime" as t_ho %}
+              {% trans "Approved Hours Worked On A Holiday Count In Full, Since No Hours Are Scheduled. Paid Per Hour, Or By Slab As A Multiple Of The Contract's Hourly Wage." as x_ho %}
+              {% include "payroll/component/_unit_note.html" with section_key=section.key based_on="holiday_overtime" title=t_ho text=x_ho %}
             {% endif %}
 
             {% if row.field.name == "end_range" %}

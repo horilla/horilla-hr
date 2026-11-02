@@ -24,6 +24,7 @@ one silently hides fields with nothing in the console to point at.
 
 from pathlib import Path
 
+from django import forms
 from django.test import TestCase
 from django.urls import reverse
 
@@ -289,11 +290,16 @@ class ComponentFormRenderTests(TestCase):
             with self.subTest(form=url_name):
                 body = self._body(url_name)
                 for name in form_class().fields:
-                    # The table writes specific_employees as it is ticked, and the
-                    # exclude list is gone from the form on purpose.
-                    if name in ("specific_employees", "exclude_employees") or (
-                        name in ("is_condition_based", "field", "condition", "value")
-                        and url_name == "create-allowance"
+                    # The table writes specific_employees as it is ticked, the
+                    # exclude list is gone from the form on purpose, and the table
+                    # replaces the condition rules on both forms.
+                    if name in (
+                        "specific_employees",
+                        "exclude_employees",
+                        "is_condition_based",
+                        "field",
+                        "condition",
+                        "value",
                     ):
                         continue
                     self.assertIn(f'name="{name}"', body, name)
@@ -378,6 +384,106 @@ class ComponentFormSaveTests(TestCase):
         allowance.refresh_from_db()
         self.assertEqual(allowance.title, "Conveyance Allowance")
         self.assertEqual(allowance.code, original)
+
+    def _post_overtime(self, slabs, title="Night OT"):
+        return self._post(
+            reverse("create-allowance"),
+            title=title,
+            sequence=200,
+            is_taxable="on",
+            is_fixed="",
+            based_on="overtime",
+            overtime_calc="slab",
+            overtime_slabs=slabs,
+        )
+
+    def test_overtime_slabs_save_with_the_allowance(self):
+        from payroll.models.models import Allowance
+
+        self._post_overtime("0|2|1.25\n2||1.5")
+
+        bands = list(Allowance.objects.get(title="Night OT").slabs.all())
+        self.assertEqual(
+            [(b.from_hours, b.to_hours, b.multiplier) for b in bands],
+            [(0, 2, 1.25), (2, None, 1.5)],
+        )
+
+    def test_overtime_slabs_with_a_gap_are_refused(self):
+        from payroll.models.models import Allowance
+
+        self._post_overtime("0|2|1.25\n3||1.5", title="Gap OT")
+
+        self.assertFalse(Allowance.objects.filter(title="Gap OT").exists())
+
+    def test_overtime_slabs_need_an_open_last_band(self):
+        from payroll.forms.component_forms import parse_slabs
+
+        with self.assertRaises(forms.ValidationError):
+            parse_slabs("0|2|1.25\n2|4|1.5")
+
+    def test_overtime_slabs_must_start_at_zero(self):
+        from payroll.forms.component_forms import parse_slabs
+
+        with self.assertRaises(forms.ValidationError):
+            parse_slabs("1||1.5")
+
+    def test_a_department_rule_saves_with_its_departments(self):
+        from base.models import Department
+        from payroll.models.models import Allowance
+
+        sales = Department.objects.create(department="Form Sales")
+        self._post(
+            reverse("create-allowance"),
+            title="Dept Bonus",
+            sequence=200,
+            is_taxable="on",
+            is_fixed="on",
+            amount="100",
+            apply_by="department",
+            apply_departments=[sales.pk],
+            include_active_employees="on",
+        )
+
+        allowance = Allowance.objects.get(title="Dept Bonus")
+        self.assertEqual(allowance.apply_by, "department")
+        self.assertEqual(list(allowance.apply_departments.all()), [sales])
+        self.assertFalse(allowance.include_active_employees)
+
+    def test_a_group_rule_with_nothing_chosen_is_refused(self):
+        from payroll.models.models import Allowance
+
+        self._post(
+            reverse("create-allowance"),
+            title="Empty Group",
+            sequence=200,
+            is_taxable="on",
+            is_fixed="on",
+            amount="100",
+            apply_by="job_role",
+        )
+
+        self.assertFalse(Allowance.objects.filter(title="Empty Group").exists())
+
+    def test_editing_a_slab_allowance_replaces_its_bands(self):
+        from payroll.models.models import Allowance
+
+        self._post_overtime("0|2|1.25\n2||1.5")
+        allowance = Allowance.objects.get(title="Night OT")
+        self._post(
+            reverse("update-allowance", kwargs={"pk": allowance.pk}),
+            title="Night OT",
+            code=allowance.code,
+            sequence=200,
+            is_taxable="on",
+            is_fixed="",
+            based_on="overtime",
+            overtime_calc="slab",
+            overtime_slabs="0||2",
+        )
+
+        self.assertEqual(
+            [(b.from_hours, b.multiplier) for b in allowance.slabs.all()], [(0, 2)]
+        )
 
 
 class UpdateCompensationHiddenTests(TestCase):

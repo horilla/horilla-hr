@@ -47,41 +47,18 @@ from payroll.widgets import component_widgets as widget
 logger = logging.getLogger(__name__)
 
 
-class CalendarDaysOnlySelect(forms.Select):
-    """
-    "This amount is" (maximum_unit), with every option but calendar days
-    disabled rather than removed: an existing component already set to one
-    of the other three bases keeps displaying and working exactly as before
-    (the model field and its choices are untouched), but a new or edited one
-    can no longer be switched to it from this form.
-    """
-
-    ENABLED_VALUE = "month_calendar_days"
-
-    def create_option(
-        self, name, value, label, selected, index, subindex=None, attrs=None
-    ):
-        option = super().create_option(
-            name, value, label, selected, index, subindex, attrs
-        )
-        if str(value) != self.ENABLED_VALUE:
-            option["attrs"]["disabled"] = "disabled"
-        return option
-
-
 def restrict_maximum_unit_to_calendar_days(form):
-    """Swap in CalendarDaysOnlySelect for maximum_unit, keeping whatever
-    attrs (CSS classes etc.) and choices the form's own widget already carries.
+    """
+    Take "This amount is" (maximum_unit) off the form without losing its value.
 
-    A widget's `choices` is only ever populated via the field's `choices`
-    property setter, which forwards to `widget.choices` -- replacing
-    `field.widget` with a fresh instance skips that, leaving the new widget
-    with none and the rendered <select> with no <option> tags at all.
+    A new component gets the model default, a month's worth split by calendar
+    days. An existing one keeps whatever it was set to, because a loan or a
+    statutory figure is deliberately flat and the engine still reads the stored
+    value. The field stays as a hidden input so an edit posts it back.
     """
     field = form.fields.get("maximum_unit")
     if field is not None:
-        field.widget = CalendarDaysOnlySelect(attrs=field.widget.attrs)
-        field.widget.choices = field.choices
+        field.widget = forms.HiddenInput()
 
 
 def save_apply_conditions(form, commit):
@@ -329,12 +306,259 @@ def restrict_to_system_fields(form):
             del form.fields[name]
 
 
-class AllowanceForm(ModelForm):
+SLAB_TEMPLATE = r"""
+<div class="oh-slab" data-slab-table="__ID__" data-i18n='__I18N__'>
+  <input type="hidden" name="__NAME__" id="__ID__" value="__VALUE__">
+  <div class="oh-slab__head">
+    <span class="oh-slab__title" data-t="title"></span>
+    <span class="oh-slab__count"></span>
+  </div>
+  <div class="oh-slab__rows"></div>
+  <div class="oh-slab__foot">
+    <span class="oh-slab__sum"></span>
+    <button type="button" class="oh-slab__add" data-slab-add></button>
+  </div>
+</div>
+<style>
+  .oh-slab { --s-line:#ece7e1; --s-mute:#8b90a0; --s-acc:var(--primary-600,#e54f38); --s-soft:#fdeeeb;
+    border:1px solid var(--s-line); border-radius:10px; background:#fbf8f5; padding:8px 12px; font-size:12px; }
+  .oh-slab__head { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; }
+  .oh-slab__title { font-weight:700; font-size:12.5px; }
+  .oh-slab__count { color:var(--s-mute); font-size:11px; }
+  .oh-slab__row { display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; padding:6px 0; border-top:1px solid var(--s-line); }
+  .oh-slab__no { width:20px; height:20px; border-radius:50%; background:var(--s-soft); color:var(--s-acc); font-weight:700; font-size:11px; display:flex; align-items:center; justify-content:center; flex:none; }
+  .oh-slab__lbl { font-size:9px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--s-mute); line-height:1.1; }
+  .oh-slab__val { font-weight:600; font-size:12px; }
+  .oh-slab__arrow { color:var(--s-mute); font-size:11px; }
+  .oh-slab__until { width:56px; height:28px; border:1px solid #d9d4cd; border-radius:6px; padding:0 6px; background:#fff; font-size:12px; }
+  .oh-slab__open { color:var(--s-mute); font-size:11.5px; min-width:56px; line-height:28px; }
+  .oh-slab__unit { color:var(--s-mute); font-size:11px; }
+  .oh-slab__tog { display:inline-flex; align-items:center; gap:5px; background:#f1ede8; border-radius:6px; padding:3px 8px; font-size:11.5px; color:#5b5f6d; cursor:pointer; user-select:none; margin:0; }
+  .oh-slab__tog input { accent-color:var(--s-acc); margin:0; }
+  .oh-slab__mult { display:inline-flex; align-items:center; gap:5px; background:var(--s-soft); border:1px solid #f0c9c2; border-radius:8px; padding:3px 10px; margin-left:auto; font-size:12px; }
+  .oh-slab__mult input { width:44px; border:0; background:transparent; font-weight:700; font-size:12.5px; outline:none; padding:0; }
+  .oh-slab__mult small { font-size:9px; font-weight:600; letter-spacing:.04em; color:var(--s-acc); }
+  .oh-slab__del { width:26px; height:26px; border:0; background:transparent; color:#8b90a0; border-radius:6px; cursor:pointer; font-size:18px; line-height:1; padding:0; }
+  .oh-slab__from { background:#f1ede8; color:#8b90a0; cursor:not-allowed; }
+  .oh-slab__del:disabled { opacity:.35; cursor:not-allowed; }
+  .oh-slab__del:disabled:hover { color:#8b90a0; background:transparent; }
+  .oh-slab__del:hover { color:var(--s-acc); background:var(--s-soft); }
+  .oh-slab__foot { display:flex; justify-content:space-between; align-items:center; gap:8px; border-top:1px solid var(--s-line); padding-top:8px; flex-wrap:wrap; }
+  .oh-slab__sum { color:#3a3f4d; font-size:11.5px; }
+  .oh-slab__add { border:1px dashed #c9c2b9; background:#fff; border-radius:6px; padding:3px 10px; font-weight:600; font-size:11.5px; cursor:pointer; }
+  .oh-slab__add:hover { border-color:var(--s-acc); color:var(--s-acc); }
+</style>
+<script>
+(function () {
+  var box = document.querySelector('[data-slab-table="__ID__"]');
+  if (!box || box.dataset.ready) return;
+  box.dataset.ready = "1";
+  var T = JSON.parse(box.dataset.i18n);
+  var hidden = box.querySelector("input[type=hidden]");
+  var rowsEl = box.querySelector(".oh-slab__rows");
+  var bands = [];
+
+  var titleEl = box.querySelector("[data-t=title]");
+  titleEl.textContent = T.title;
+  titleEl.title = T.help;
+  box.querySelector("[data-slab-add]").textContent = "+ " + T.add;
+
+  function num(v) { return +(+v).toFixed(2); }
+  function fromOf(i) { return i ? bands[i - 1].to : 0; }
+
+  function load() {
+    hidden.value.split("\n").forEach(function (line) {
+      if (!line.trim()) return;
+      var v = line.split("|");
+      bands.push({ to: v[1] === "" || v[1] === undefined ? null : parseFloat(v[1]), mult: v[2] });
+    });
+    if (!bands.length) bands = [{ to: 2, mult: "1.25" }, { to: null, mult: "1.5" }];
+  }
+
+  function rebuild() {
+    rowsEl.innerHTML = "";
+    bands.forEach(function (b, i) {
+      var last = i === bands.length - 1;
+      var row = document.createElement("div");
+      row.className = "oh-slab__row";
+      row.innerHTML =
+        '<span class="oh-slab__no">' + (i + 1) + "</span>" +
+        '<div><div class="oh-slab__lbl">' + T.from + '</div><input type="text" class="oh-slab__until oh-slab__from" data-from disabled></div>' +
+        '<span class="oh-slab__arrow">&rarr;</span>' +
+        '<div><div class="oh-slab__lbl">' + T.until + "</div>" +
+        (b.to === null
+          ? '<div class="oh-slab__open">' + T.noEnd + "</div>"
+          : '<input type="number" min="0" step="any" class="oh-slab__until" value="' + b.to + '"> <span class="oh-slab__unit">' + T.hrs + "</span>") +
+        "</div>" +
+        (last ? '<label class="oh-slab__tog"><input type="checkbox"' + (b.to === null ? " checked" : "") + "> " + T.open + "</label>" : "") +
+        '<span class="oh-slab__mult">&times; <input type="number" min="0" step="any" value="' + (b.mult || "") + '"><small>' + T.wage + "</small></span>" +
+        '<button type="button" class="oh-slab__del" aria-label="' + T.remove + '"' + (i === 0 ? " disabled" : "") + '>&times;</button>';
+      var until = row.querySelector(".oh-slab__until");
+      if (until) until.oninput = function () { b.to = parseFloat(until.value); refresh(); };
+      row.querySelector(".oh-slab__mult input").oninput = function (e) { b.mult = e.target.value; refresh(); };
+      var tog = row.querySelector(".oh-slab__tog input");
+      if (tog) tog.onchange = function () { b.to = tog.checked ? null : num(fromOf(i) + 2); rebuild(); };
+      row.querySelector(".oh-slab__del").onclick = function () {
+        if (bands.length > 1) { bands.splice(i, 1); rebuild(); }
+      };
+      rowsEl.appendChild(row);
+    });
+    refresh();
+  }
+
+  function refresh() {
+    var lines = [], text = [];
+    rowsEl.querySelectorAll("[data-from]").forEach(function (el, i) { el.value = num(fromOf(i)) + "h"; });
+    bands.forEach(function (b, i) {
+      var from = fromOf(i);
+      lines.push([from, b.to === null ? "" : b.to, b.mult === undefined ? "" : b.mult].join("|"));
+      text.push(num(from) + (b.to === null ? "h+" : "\u2013" + num(b.to) + "h") + " " + T.at + " " + (b.mult || 0) + "\u00d7");
+    });
+    box.querySelector(".oh-slab__count").textContent = bands.length + " " + T.bands + " \u00b7 " + T.sub;
+    box.querySelector(".oh-slab__sum").textContent = T.pays + " " + text.join(", " + T.then + " ") + " " + T.of;
+    hidden.value = lines.join("\n");
+  }
+
+  box.querySelector("[data-slab-add]").onclick = function () {
+    var last = bands[bands.length - 1];
+    if (last.to === null) { last.to = num(fromOf(bands.length - 1) + 2); bands.push({ to: null, mult: last.mult }); }
+    else bands.push({ to: num(last.to + 2), mult: last.mult });
+    rebuild();
+  };
+
+  load();
+  rebuild();
+})();
+</script>
+"""
+
+
+class SlabTableWidget(forms.Widget):
+    """
+    Band editor for overtime slabs. It posts one hidden value of
+    "from|to|multiplier" lines, which parse_slabs reads back.
+    """
+
+    def render(self, name, value, attrs=None, renderer=None):
+        import json
+
+        from django.utils.html import escape
+        from django.utils.safestring import mark_safe
+
+        field_id = (attrs or {}).get("id", f"id_{name}")
+        labels = {
+            "title": _("Overtime Slabs"),
+            "sub": _("Multiplier Of Hourly Wage"),
+            "bands": _("Bands"),
+            "from": _("From"),
+            "until": _("Until"),
+            "hrs": _("Hrs"),
+            "open": _("Open-Ended"),
+            "noEnd": _("No Upper End"),
+            "wage": _("Wage"),
+            "add": _("Add Band"),
+            "remove": _("Remove"),
+            "pays": _("Pays"),
+            "at": _("At"),
+            "then": _("Then"),
+            "of": _("Of The Hourly Wage."),
+            "help": _(
+                "Each Hour Of A Day's Overtime Is Paid At The Band It Falls In, As A "
+                "Multiple Of The Contract's Hourly Wage. An Employee Whose Contract "
+                "Has No Hourly Wage Gets Nothing."
+            ),
+        }
+        html = (
+            SLAB_TEMPLATE.replace(
+                "__I18N__",
+                escape(json.dumps({k: str(v) for k, v in labels.items()})).replace(
+                    "&quot;", '"'
+                ),
+            )
+            .replace("__ID__", escape(field_id))
+            .replace("__NAME__", escape(name))
+            .replace("__VALUE__", escape(value or ""))
+        )
+        return mark_safe(html)
+
+
+def parse_slabs(text):
+    """
+    Turn the table's "from|to|multiplier" lines into (from, to, multiplier)
+    tuples, checking they form one run of bands from the first hour up.
+    """
+    bands = []
+    for line in (text or "").splitlines():
+        if not line.strip():
+            continue
+        parts = (line.split("|") + ["", "", ""])[:3]
+        try:
+            start = float(parts[0])
+            end = float(parts[1]) if parts[1].strip() else None
+            multiplier = float(parts[2])
+        except ValueError:
+            raise forms.ValidationError(_("Every Band Needs A Number In Each Box."))
+        if start < 0 or multiplier < 0 or (end is not None and end <= start):
+            raise forms.ValidationError(
+                _("Each Band Must End After It Starts, And Cannot Be Negative.")
+            )
+        bands.append((start, end, multiplier))
+    bands.sort(key=lambda band: band[0])
+    if not bands:
+        raise forms.ValidationError(_("Add At Least One Band For Overtime Slabs."))
+    if bands[0][0] != 0:
+        raise forms.ValidationError(_("The First Band Must Start At Hour 0."))
+    for before, after in zip(bands, bands[1:]):
+        if before[1] is None or before[1] != after[0]:
+            raise forms.ValidationError(
+                _("Bands Must Follow On From Each Other, With No Gap Or Overlap.")
+            )
+    if bands[-1][1] is not None:
+        raise forms.ValidationError(
+            _("Leave The Last Band's To Hour Empty, So It Covers Every Hour After.")
+        )
+    return bands
+
+
+OVERTIME_TYPES = ("overtime", "week_off_overtime", "holiday_overtime")
+
+
+class AppliesByFormMixin:
+    """What an Allowance and a Deduction form share about who the component applies to."""
+
+    def hide_apply_by(self):
+        """The applies table draws and updates this field; the form only keeps it."""
+        self.fields["apply_by"].widget = forms.HiddenInput()
+        self.fields["apply_by"].required = False
+
+    def check_apply_by(self, cleaned_data):
+        """A group rule needs at least one group, and is never also an everyone rule."""
+        by = cleaned_data.get("apply_by") or "employees"
+        cleaned_data["apply_by"] = by
+        if by == "employees":
+            return
+        field = {
+            "department": "apply_departments",
+            "job_position": "apply_job_positions",
+            "job_role": "apply_job_roles",
+        }.get(by)
+        if not cleaned_data.get(field):
+            self.add_error("apply_by", _("Choose At Least One To Apply It To."))
+        cleaned_data["include_active_employees"] = False
+
+
+class AllowanceForm(AppliesByFormMixin, ModelForm):
     """
     Form for Allowance model
     """
 
     verbose_name = _("Allowance")
+
+    overtime_slabs = forms.CharField(
+        required=False,
+        label="",
+        widget=SlabTableWidget,
+    )
 
     class Meta:
         """
@@ -359,6 +583,18 @@ class AllowanceForm(ModelForm):
 
         if not self.instance.pk:
             self.fields["one_time_date"].initial = None
+            self.fields["prorate_partial_days"].initial = True
+        else:
+            self.fields["overtime_slabs"].initial = "\n".join(
+                "|".join(
+                    "" if value is None else f"{value:g}"
+                    for value in (slab.from_hours, slab.to_hours, slab.multiplier)
+                )
+                for slab in self.instance.slabs.all()
+            )
+        # Posts that predate the field leave it out; the model default is flat.
+        self.fields["overtime_calc"].required = False
+        self.hide_apply_by()
         apply_component_code_choices(self, payroll.models.models.Allowance)
         restrict_to_system_fields(self)
         from payroll.forms.component_layout import apply_labels
@@ -374,8 +610,28 @@ class AllowanceForm(ModelForm):
         table_html = render_to_string("generic/form.html", context)
         return table_html
 
+    def clean_slabs(self, cleaned_data):
+        """Validates the slab table, which only counts for a slab overtime allowance."""
+        self.slab_bands = []
+        cleaned_data["overtime_calc"] = cleaned_data.get("overtime_calc") or "flat"
+        uses_slabs = (
+            not cleaned_data.get("is_fixed")
+            and cleaned_data.get("based_on") in OVERTIME_TYPES
+            and cleaned_data["overtime_calc"] == "slab"
+        )
+        if not uses_slabs:
+            if cleaned_data.get("based_on") not in OVERTIME_TYPES:
+                cleaned_data["overtime_calc"] = "flat"
+            return
+        try:
+            self.slab_bands = parse_slabs(cleaned_data.get("overtime_slabs"))
+        except forms.ValidationError as error:
+            self.add_error("overtime_slabs", error)
+
     def clean(self, *args, **kwargs):
         cleaned_data = super().clean(*args, **kwargs)
+        self.clean_slabs(self.cleaned_data)
+        self.check_apply_by(self.cleaned_data)
 
         if cleaned_data.get("if_condition") == "range":
             cleaned_data["if_amount"] = 0
@@ -404,8 +660,22 @@ class AllowanceForm(ModelForm):
             cleaned_data["start_range"] = None
             cleaned_data["end_range"] = None
 
+    def save_slabs(self):
+        """Replaces the allowance's bands with the ones on the table."""
+        if not self.instance.pk:
+            return
+        self.instance.slabs.all().delete()
+        for start, end, multiplier in getattr(self, "slab_bands", []):
+            payroll.models.models.AllowanceSlab.objects.create(
+                allowance_id=self.instance,
+                from_hours=start,
+                to_hours=end,
+                multiplier=multiplier,
+            )
+
     def save(self, commit: bool = ...) -> Any:
         super().save(commit)
+        self.save_slabs()
         other_conditions = self.data.getlist("other_conditions")
         other_fields = self.data.getlist("other_fields")
         other_values = self.data.getlist("other_values")
@@ -430,7 +700,7 @@ class AllowanceForm(ModelForm):
         return multiple_conditions
 
 
-class DeductionForm(ModelForm):
+class DeductionForm(AppliesByFormMixin, ModelForm):
     """
     Form for Deduction model
     """
@@ -444,12 +714,7 @@ class DeductionForm(ModelForm):
 
         model = payroll.models.models.Deduction
         fields = "__all__"
-        exclude = [
-            "is_active",
-            "specific_employees",
-            "exclude_employees",
-            "include_active_employees",
-        ]
+        exclude = ["is_active"]
         widgets = {
             "one_time_date": forms.DateTimeInput(attrs={"type": "date"}),
         }
@@ -465,6 +730,7 @@ class DeductionForm(ModelForm):
                 }
             kwargs["initial"] = initial
         super().__init__(*args, **kwargs)
+        self.hide_apply_by()
         apply_component_code_choices(self, payroll.models.models.Deduction)
         restrict_to_system_fields(self)
         from payroll.forms.component_layout import apply_labels
@@ -474,6 +740,7 @@ class DeductionForm(ModelForm):
 
     def clean(self, *args, **kwargs):
         cleaned_data = super().clean(*args, **kwargs)
+        self.check_apply_by(self.cleaned_data)
 
         if cleaned_data.get("if_condition") == "range":
             cleaned_data["if_amount"] = 0
@@ -527,19 +794,6 @@ class DeductionForm(ModelForm):
         return table_html
 
     def save(self, commit: bool = ...) -> Any:
-        specific_employees = self.data.getlist("specific_employees")
-        include_all = self.data.get("include_active_employees")
-        condition_based = self.data.get("is_condition_based")
-        in_structure = (
-            bool(self.instance.pk) and self.instance.salary_structures.exists()
-        )
-        if (
-            not specific_employees
-            and not include_all
-            and not condition_based
-            and not in_structure
-        ):
-            self.instance.include_active_employees = True
         super().save(commit)
         other_conditions = self.data.getlist("other_conditions")
         other_fields = self.data.getlist("other_fields")

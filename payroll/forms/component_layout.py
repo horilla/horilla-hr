@@ -43,6 +43,10 @@ STEPS = [
 ]
 
 
+OVERTIME_TYPES = "overtime|week_off_overtime|holiday_overtime"
+DAY_BASED = f"attendance|shift_id|work_type_id|{OVERTIME_TYPES}"
+
+
 def _amount_fields():
     """Shared by both forms; each keeps only the ones it actually has."""
     return [
@@ -65,15 +69,28 @@ def _amount_fields():
         ("shift_per_attendance_amount", 6, f"{CALCULATED} based_on=shift_id"),
         ("work_type_id", 6, f"{CALCULATED} based_on=work_type_id"),
         ("work_type_per_attendance_amount", 6, f"{CALCULATED} based_on=work_type_id"),
+        ("overtime_calc", 6, f"{CALCULATED} based_on={OVERTIME_TYPES}"),
         (
             "amount_per_one_hr",
             6,
-            f"{CALCULATED} based_on=overtime|week_off_overtime|holiday_overtime",
+            f"{CALCULATED} based_on={OVERTIME_TYPES} overtime_calc=flat",
+        ),
+        (
+            "overtime_slabs",
+            12,
+            f"{CALCULATED} based_on={OVERTIME_TYPES} overtime_calc=slab",
+        ),
+        (
+            "prorate_partial_days",
+            6,
+            f"{CALCULATED} based_on=attendance|shift_id|work_type_id",
         ),
         # Not under "upper limit": it governs the fixed amount as well as the
         # ceiling, and a setting that only appeared once a ceiling was switched
         # on could not be found by anyone configuring a flat component.
-        ("maximum_unit", 6, ""),
+        # Not for what is paid per day or per hour: those already follow the
+        # period through the days and hours counted.
+        ("maximum_unit", 6, f"is_fixed=on,based_on!={DAY_BASED}"),
     ]
 
 
@@ -152,6 +169,10 @@ HANDLED_ELSEWHERE = {
     "specific_employees",
     "exclude_employees",
     "include_active_employees",
+    "apply_by",
+    "apply_departments",
+    "apply_job_positions",
+    "apply_job_roles",
 }
 
 # On the Allowance form the table is the whole targeting story, so the
@@ -315,6 +336,13 @@ def form_context(form, model):
         "applies_structure_count": structure_count,
         # The deduction form has no specific-employees field: its table is a read-out.
         "applies_editable": "specific_employees" in form.fields,
+        "applies_model": model.__name__.lower(),
+        "applies_groups": applies_groups(form),
+        "applies_mode": (
+            applies_group(form)[0]
+            if applies_group(form)[0] != "employees"
+            else ("all" if applies_everyone(form) else "selected")
+        ),
         "who_title": WHO_TITLE,
         "limit_note": _limit_note_context(instance),
     }
@@ -405,6 +433,71 @@ def applies_everyone(form):
     return bool(getattr(instance, "include_active_employees", False))
 
 
+# The group targeting modes: (apply_by value, form field, heading, model, name field)
+APPLY_GROUPS = [
+    ("department", "apply_departments", _("Departments"), "Department", "department"),
+    (
+        "job_position",
+        "apply_job_positions",
+        _("Job Positions"),
+        "JobPosition",
+        "job_position",
+    ),
+    ("job_role", "apply_job_roles", _("Job Roles"), "JobRole", "job_role"),
+]
+GROUP_FIELD = {key: field for key, field, *_rest in APPLY_GROUPS}
+
+
+def applies_group(form):
+    """
+    ``(apply_by, ids)`` for a department / job position / job role component, as
+    saved or as just posted. ``apply_by`` is "employees" for every other kind.
+    """
+    if "apply_by" not in getattr(form, "fields", {}):
+        return "employees", set()
+    if form.is_bound and hasattr(form, "data"):
+        by = form.data.get("apply_by") or "employees"
+        field = GROUP_FIELD.get(by)
+        ids = (
+            {int(v) for v in form.data.getlist(field) if v.isdigit()}
+            if field
+            else set()
+        )
+        return by, ids
+    instance = getattr(form, "instance", None)
+    by = getattr(instance, "apply_by", "employees") or "employees"
+    field = GROUP_FIELD.get(by)
+    if instance is not None and instance.pk and field:
+        return by, set(getattr(instance, field).values_list("pk", flat=True))
+    return by, set()
+
+
+def applies_groups(form):
+    """The choices for each group mode, with what is ticked, for the table's picker."""
+    from base import models as base_models
+
+    if "apply_by" not in getattr(form, "fields", {}):
+        return []
+    groups = []
+    for key, field, title, model_name, name_field in APPLY_GROUPS:
+        if form.is_bound and hasattr(form, "data"):
+            chosen = {int(v) for v in form.data.getlist(field) if v.isdigit()}
+        elif form.instance.pk:
+            chosen = set(getattr(form.instance, field).values_list("pk", flat=True))
+        else:
+            chosen = set()
+        items = [
+            {
+                "pk": obj.pk,
+                "name": getattr(obj, name_field),
+                "checked": obj.pk in chosen,
+            }
+            for obj in getattr(base_models, model_name).objects.order_by(name_field)
+        ]
+        groups.append({"key": key, "field": field, "title": title, "items": items})
+    return groups
+
+
 def applies_rows(form, model, page=1, query=""):
     """
     One page of the "who gets it" table, plus what a failed save had ticked.
@@ -431,14 +524,24 @@ def applies_rows(form, model, page=1, query=""):
         }
     everyone = applies_everyone(form)
     excluded = {int(v) for v in applies_excluded(form) if v.isdigit()}
+    by, group_ids = applies_group(form)
     rows, has_next, covered = applies_page(
-        model, pk, targeted, page, query, everyone=everyone, excluded=excluded
+        model,
+        pk,
+        targeted,
+        page,
+        query,
+        everyone=everyone,
+        excluded=excluded,
+        group=(by, group_ids) if by != "employees" else None,
     )
     # Those on a structure that carries it are counted separately, not as ticks.
     return rows, has_next, sorted(targeted - covered), len(covered)
 
 
-def applies_page(model, pk, targeted, page=1, query="", everyone=False, excluded=None):
+def applies_page(
+    model, pk, targeted, page=1, query="", everyone=False, excluded=None, group=None
+):
     from employee.models import Employee
     from payroll.models.models import Contract
 
@@ -461,18 +564,38 @@ def applies_page(model, pk, targeted, page=1, query="", everyone=False, excluded
     rows = []
     employees = (
         Employee.objects.filter(is_active=True, contract_set__contract_status="active")
-        .select_related("employee_work_info__department_id")
+        .select_related(
+            "employee_work_info__department_id",
+            "employee_work_info__job_position_id",
+            "employee_work_info__job_role_id",
+        )
         .distinct()
         .order_by("employee_first_name", "employee_last_name")
     )
     needle = (query or "").strip().lower()
     covered = set()
+    group_by, group_ids = group if group else ("employees", set())
+    group_attr = {
+        "department": ("department_id", "department"),
+        "job_position": ("job_position_id", "job_position"),
+        "job_role": ("job_role_id", "job_role"),
+    }.get(group_by)
     for employee in employees:
         structure = contracts.get(employee.pk)
         via = ""
         warning = ""
+        group_label = ""
+        if group_attr:
+            info = getattr(employee, "employee_work_info", None)
+            member = getattr(info, group_attr[0], None)
+            # Group mode lists only the people the chosen groups reach.
+            if member is None or member.pk not in group_ids:
+                continue
+            group_label = getattr(member, group_attr[1], "")
         if structure is not None and structure.pk in in_structures:
             via = "structure"
+        elif group_attr:
+            via = "group"
         elif employee.pk in targeted:
             via = "outside"
         if structure is not None and via != "structure":
@@ -483,7 +606,7 @@ def applies_page(model, pk, targeted, page=1, query="", everyone=False, excluded
         # this right here (not just in paint()) means the row renders in its
         # final state immediately, instead of painting over a sea of
         # wrongly-unticked boxes a moment after the form appears.
-        if via == "structure":
+        if via in ("structure", "group"):
             checked = True
         elif everyone:
             checked = employee.pk not in excluded
@@ -502,6 +625,7 @@ def applies_page(model, pk, targeted, page=1, query="", everyone=False, excluded
             ),
             "structure": structure.title if structure is not None else "",
             "via": via,
+            "group_label": group_label,
             "warning": warning,
             "checked": checked,
         }
@@ -519,7 +643,7 @@ def applies_page(model, pk, targeted, page=1, query="", everyone=False, excluded
     # Those it already reaches first, structure before outside.
     rows.sort(
         key=lambda r: (
-            {"structure": 0, "outside": 1, "": 2}[r["via"]],
+            {"structure": 0, "group": 1, "outside": 2, "": 3}[r["via"]],
             r["name"].lower(),
         )
     )
@@ -549,7 +673,6 @@ BASED_ON_GROUPS = [
         _("A rate per unit worked"),
         [
             "attendance",
-            "children",
             "shift_id",
             "work_type_id",
             "overtime",
@@ -557,6 +680,7 @@ BASED_ON_GROUPS = [
             "holiday_overtime",
         ],
     ),
+    (_("A rate per"), ["children"]),
 ]
 
 
