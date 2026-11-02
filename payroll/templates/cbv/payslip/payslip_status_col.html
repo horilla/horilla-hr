@@ -11,7 +11,8 @@
   </select>
 </div>
 {% else %}
-<div data-cell-index="3" class="oh-sticky-table__td"{% if instance.status_locked %} title="{{ instance.status_lock_message }}"{% endif %}>
+{# Plain text: the list already wraps this in a table cell, and a second one added its own padding and border, so locked rows came out taller than the rest. #}
+<div data-cell-index="3"{% if instance.status_locked %} title="{{ instance.status_lock_message }}"{% endif %}>
   {{instance.get_status_display}}
 </div>
 {% endif %}

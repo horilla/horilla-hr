@@ -18,7 +18,10 @@ previewed is what gets written.
 
 <style>
   .pe__head-sub { font-size: 12px; color: #8b90a0; margin-top: 2px; }
-  .pe__cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  /* minmax(0, ...): a bare 1fr will not shrink below its widest line, so a long rule such
+     as a slab summary stretched the earnings column and pushed deductions out of the modal. */
+  .pe__cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
+  .pe__cols > * { min-width: 0; }
   @media (max-width: 640px) { .pe__cols { grid-template-columns: 1fr; } }
   /* Salary adjustments: the same rows as the lines, with a note under them. It goes
      quiet and read-only once Basic Pay is typed over, because the loss of pay then no

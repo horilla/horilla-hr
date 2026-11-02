@@ -106,16 +106,13 @@ working is its own card so the payslip stays the statement it is.
         <!-- End of Payslip Payable -->
     </div>
 
-    <div class="grid sm:flex gap-5 sm:gap-0 justify-between items-center mt-2 w-full border-t border-[#d7d7d7] pt-2">
-        <div class="flex items-center gap-5">
-            <div>
-                <p class="mb-1 font-semibold">{% trans "Total Net Payable" %}</p>
-                <p class="text-sm text-[#858585]">{% trans "Gross Earnings - Total Deductions" %}</p>
-            </div>
-        </div>
+    {# The payslip's own net block (see .ps__net), in the page's own terms: Gross Pay, Total Deductions, Net Pay. #}
+    <div class="ps__net">
         <div>
-            <p class="text-lg font-semibold text-primary-600">{{ net_pay|floatformat:2|currency_symbol_position }}</p>
+            <div class="ps__net-label">{% trans "Net Pay" %}</div>
+            <div class="ps__net-sum">{% trans "Gross Pay" %} &minus; {% trans "Total Deductions" %}</div>
         </div>
+        <div class="ps__net-amount">{{ net_pay|floatformat:2|currency_symbol_position }}</div>
     </div>
 </div>
 {% if payslip|income_tax_explanation or payslip|ctc_breakdown %}
