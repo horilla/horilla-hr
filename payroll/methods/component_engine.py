@@ -182,6 +182,35 @@ def own_structure_only(queryset, model, employee):
     return queryset.exclude(pk__in=foreign.values("pk"))
 
 
+def group_targeted(employee, model=None):
+    """
+    Allowances (or deductions, with ``model``) aimed at this employee's
+    department, job position or job role.
+
+    Read from the employee's work information each time, so someone who joins
+    one of them, or moves between them, is covered from their next payslip with
+    nothing to add or remove by hand.
+    """
+    from django.db.models import Q
+
+    from employee.models import EmployeeWorkInformation
+
+    model = model or Allowance
+    info = EmployeeWorkInformation.objects.filter(employee_id=employee).first()
+    if info is None:
+        return model.objects.none()
+    query = Q()
+    if info.department_id_id:
+        query |= Q(apply_by="department", apply_departments=info.department_id_id)
+    if info.job_position_id_id:
+        query |= Q(apply_by="job_position", apply_job_positions=info.job_position_id_id)
+    if info.job_role_id_id:
+        query |= Q(apply_by="job_role", apply_job_roles=info.job_role_id_id)
+    if not query:
+        return model.objects.none()
+    return model.objects.filter(query).exclude(exclude_employees=employee)
+
+
 def eligible_allowances(employee, start_date, end_date):
     """
     The allowances in scope for this employee and period, in evaluation order.
@@ -202,7 +231,11 @@ def eligible_allowances(employee, start_date, end_date):
     )
 
     allowances = (
-        specific | conditional | active | structure_components(Allowance, employee)
+        specific
+        | conditional
+        | active
+        | group_targeted(employee)
+        | structure_components(Allowance, employee)
     )
     return (
         allowances.exclude(one_time_date__lt=start_date)
