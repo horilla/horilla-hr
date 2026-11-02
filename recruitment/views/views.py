@@ -865,23 +865,8 @@ def recruitment_close_pipeline(request, rec_id):
         messages.success(request, _("Recruitment closed successfully"))
     except (Recruitment.DoesNotExist, OverflowError):
         messages.error(request, _("Recruitment Does not exists.."))
-    # Two different callers hit this same view via htmx:
-    # - recruitment_pipeline_actions() (Pipeline page): hx-target points
-    #   straight at #pipelineContainer, so answering with cbv-pipeline-tab's
-    #   own freshly rendered content swaps it in directly.
-    # - the Recruitment list page's own Actions column: no special-casing,
-    #   same as before this view knew about the Pipeline page at all --
-    #   HorillaRedirect(request) answers an htmx request with an
-    #   HX-Redirect header, which htmx treats as a full browser redirect
-    #   regardless of hx-swap="none". That's what was actually making this
-    #   page's Close/Reopen "just work": a full reload back to the same
-    #   page, not the hx-on::after-request/$('#applyFilter') indirection
-    #   (which Archive/Delete also carry, unused for the same reason --
-    #   hx-swap="none" never inserts a response body anywhere, so a script
-    #   tag in it never runs; their own real mechanism is this same
-    #   redirect). Only the Pipeline caller gets the different, no-reload
-    #   treatment it specifically asked for.
-    if request.headers.get("HX-Target") == "pipelineContainer":
+    # The pipeline page re-renders its tab strip; other callers are redirected.
+    if request.headers.get("HX-Target") == "pipelineTabStrip":
         from recruitment.cbv.pipeline import RecruitmentTabView
 
         return RecruitmentTabView.as_view()(request)
@@ -896,7 +881,7 @@ def recruitment_reopen_pipeline(request, rec_id):
     """
     recruitment_obj = Recruitment.find(rec_id)
     if not recruitment_obj:
-        if request.headers.get("HX-Target") == "pipelineContainer":
+        if request.headers.get("HX-Target") == "pipelineTabStrip":
             messages.error(request, _("No Recruitment found matching the query."))
             from recruitment.cbv.pipeline import RecruitmentTabView
 
@@ -908,8 +893,7 @@ def recruitment_reopen_pipeline(request, rec_id):
     recruitment_obj.closed = False
     recruitment_obj.save()
     messages.success(request, _("Recruitment reopend successfully"))
-    # See recruitment_close_pipeline's comment above.
-    if request.headers.get("HX-Target") == "pipelineContainer":
+    if request.headers.get("HX-Target") == "pipelineTabStrip":
         from recruitment.cbv.pipeline import RecruitmentTabView
 
         return RecruitmentTabView.as_view()(request)
@@ -3319,7 +3303,9 @@ def candidate_logout(request):
     return redirect("candidate_login")
 
 
-TRACKING_PAGE_SIZE = 5
+# Big enough that the first page already fills the scroll boxes of the tracking
+# page (interviews, documents, notes), so nothing grows after the first paint.
+TRACKING_PAGE_SIZE = 12
 
 
 def _candidate_tracking_sections(candidate):
@@ -3342,6 +3328,22 @@ def _candidate_tracking_sections(candidate):
         .select_related("stage_id", "updated_by")
         .order_by("-id"),
     }
+
+
+def _filter_tracking_interviews(queryset, status):
+    """
+    Narrow the tracking page's interviews to one of its filter tabs: completed,
+    expired (not completed and past) or upcoming (not completed, today onwards).
+    Any other value leaves the list as it is.
+    """
+    today = date.today()
+    if status == "completed":
+        return queryset.filter(completed=True)
+    if status == "expired":
+        return queryset.filter(completed=False, interview_date__lt=today)
+    if status == "upcoming":
+        return queryset.filter(completed=False, interview_date__gte=today)
+    return queryset
 
 
 def _candidate_tracking_context(candidate):
@@ -3394,6 +3396,15 @@ def _candidate_tracking_context(candidate):
                 state = "upcoming"
             stages.append({"name": stage.stage, "state": state})
 
+    # "Stage N of M" and the completion percentage in the hero. A hired
+    # candidate has been through every stage whatever the current one is.
+    stage_total = len(stages)
+    if candidate.hired or candidate.converted:
+        stage_position = stage_total
+    else:
+        stage_position = max(current_index + 1, 0) if stages else 0
+    progress_percent = round(stage_position / stage_total * 100) if stage_total else 0
+
     # The page wears the colour theme of the company the candidate is
     # recruited for, not the viewer's session (candidates are anonymous).
     from horilla_theme.models import CompanyTheme, HorillaColorTheme
@@ -3417,6 +3428,18 @@ def _candidate_tracking_context(candidate):
         "tracking_company": company,
         "candidate": candidate,
         "stages": stages,
+        "candidate_initials": "".join(
+            word[0] for word in candidate.get_full_name().split()[:2]
+        ).upper(),
+        "interview_filters": [
+            ("", _("All")),
+            ("upcoming", _("Upcoming")),
+            ("completed", _("Completed")),
+            ("expired", _("Expired")),
+        ],
+        "stage_total": stage_total,
+        "stage_position": stage_position,
+        "progress_percent": progress_percent,
         "interviews_page": pages["interviews"],
         "documents_page": pages["documents"],
         "notes_page": pages["notes"],
@@ -3441,11 +3464,15 @@ def candidate_tracking_items(request, cand_id, section):
     queryset = _candidate_tracking_sections(candidate).get(section)
     if queryset is None:
         return HttpResponse(status=404)
+    status = ""
+    if section == "interviews":
+        status = request.GET.get("status", "")
+        queryset = _filter_tracking_interviews(queryset, status)
     page_obj = Paginator(queryset, TRACKING_PAGE_SIZE).get_page(request.GET.get("page"))
     return render(
         request,
         f"candidate/tracking/{section}_items.html",
-        {"candidate": candidate, "page_obj": page_obj},
+        {"candidate": candidate, "page_obj": page_obj, "status": status},
     )
 
 
