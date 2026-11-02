@@ -56,7 +56,14 @@
         id="{{form.container_id}}"
     >
         <div class="oh-profile-section__card">
-            <div class="row">
+            {% if form.wizard_template and not form.instance.pk %}
+                {% include form.wizard_template with part="header" %}
+            {% endif %}
+            {% if form.wizard_template and not form.instance.pk %}
+                <div class="row oh-step-panel" id="step-details" data-step-panel="details" role="tabpanel">
+            {% else %}
+                <div class="row">
+            {% endif %}
                 <div class="col-12 js-non-field-errors" style="padding-right: 0">
                     {{ form.non_field_errors }}
                 </div>
@@ -108,6 +115,10 @@
                 {{ field }}
             {% endfor %}
 
+            {% if form.wizard_template and not form.instance.pk %}
+                {% include form.wizard_template with part="step2" %}
+                {% include form.wizard_template with part="footer" %}
+            {% else %}
             <div class="d-flex flex gap-1 justify-end pt-3 mt-3">
                 {% if not form.instance.pk %}
                     <button
@@ -141,6 +152,7 @@
                     {% trans 'Save' %}
                 </button>
             </div>
+            {% endif %}
         </div>
     </div>
 </div>

@@ -1,0 +1,449 @@
+{% load i18n static horillafilters %}
+{% get_company as theme_obj %}
+{% comment %}
+    Two step "Add Recruitment" form, included from generic/form.html in three
+    parts (header / step2 / footer). It uses the step rail, panels and
+    Back / Save / Next row shared with the Allowance, Deduction and Leave Type
+    forms; src/js/componentForm.js switches the steps. Step 1 is the regular
+    form. Only the server check on "Next" (the details must be valid before the
+    pipeline step) and the pipeline builder itself are specific to this form.
+{% endcomment %}
+{% if part == "header" %}
+    <div
+        class="rec-wiz-root"
+        data-defaults="{{ form.default_pipeline_json }}"
+        data-types="{{ form.stage_types_json }}"
+    >
+        <style>
+            /* ---- steps: same as the Allowance, Deduction and Leave Type forms ---- */
+            .oh-steps { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 0 4px; margin-bottom: 1rem; }
+            .oh-steps__step {
+                flex: 1 1 180px; min-width: 0;
+                display: flex; align-items: center; gap: 10px;
+                border: 1px solid #e6e7eb; border-radius: 10px;
+                background: #fff; padding: 10px 12px; cursor: pointer;
+                text-align: left; position: relative;
+            }
+            .oh-steps__step:hover { border-color: #cfd2da; }
+            .oh-steps__num {
+                flex: 0 0 auto; width: 24px; height: 24px; border-radius: 50%;
+                display: inline-flex; align-items: center; justify-content: center;
+                background: #eceef2; color: #6b7280; font-size: 12px; font-weight: 700;
+            }
+            .oh-steps__text { min-width: 0; display: block; }
+            .oh-steps__label {
+                display: block; font-size: 13px; font-weight: 600; color: #1f2430;
+                overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            }
+            .oh-steps__hint {
+                display: block; font-size: 11.5px; color: #9ca3af;
+                overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            }
+            .oh-steps__step.is-current {
+                border-color: var(--primary-600, #e54f38);
+                box-shadow: inset 0 0 0 1px var(--primary-600, #e54f38);
+            }
+            .oh-steps__step.is-current .oh-steps__num { background: var(--primary-600, #e54f38); color: #fff; }
+            .oh-steps__step.is-done .oh-steps__num { background: #d6e9e1; color: #0f7b5f; }
+            .oh-steps__flag {
+                position: absolute; top: 6px; right: 8px;
+                width: 16px; height: 16px; border-radius: 50%;
+                background: #b00020; color: #fff;
+                font-size: 11px; font-weight: 700; line-height: 16px; text-align: center;
+            }
+            .oh-step-panel[hidden] { display: none !important; }
+            .oh-step-nav {
+                display: flex; align-items: center; gap: 8px;
+                width: 100%; margin-top: 14px; padding-top: 14px;
+                border-top: 1px solid #ececf0;
+            }
+            .oh-step-nav__spacer { flex: 1; }
+            .oh-step-nav [hidden] { display: none !important; }
+            @media (max-width: 640px) {
+                .oh-steps__hint { display: none; }
+                .oh-steps__step { flex: 1 1 100%; }
+            }
+
+            /* ---- pipeline step ---- */
+            .rec-wiz-root, .rec-wiz-step2 { --rw-primary: {{ theme_obj.primary_600|default:"#E54F38" }}; --rw-primary-soft: {{ theme_obj.primary_300|default:"#fcedeb" }}; }
+            .rec-wiz-hidden { display: none !important; }
+            .rec-wiz-step2 .rec-wiz-intro { font-size: 13px; color: #6b7280; margin-bottom: 12px; }
+            .rec-wiz-modes { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+            .rec-wiz-mode { flex: 1 1 220px; text-align: left; border: 1px solid #e6e7eb; border-radius: 10px; padding: 12px 14px; background: #fff; cursor: pointer; transition: all .15s; }
+            .rec-wiz-mode strong { display: block; font-size: 14px; color: #1f2430; }
+            .rec-wiz-mode small { color: #6b7280; font-size: 12px; }
+            .rec-wiz-mode.is-selected { border-color: var(--rw-primary); background: var(--rw-primary-soft); }
+            .rec-wiz-list { display: flex; flex-direction: column; gap: 8px; }
+            .rec-wiz-item { display: flex; align-items: center; gap: 10px; border: 1px solid #e6e7eb; border-radius: 10px; padding: 8px 12px; background: #fff; }
+            .rec-wiz-num { width: 22px; height: 22px; flex: 0 0 22px; border-radius: 9999px; background: #eceef2; color: #6b7280; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+            .rec-wiz-name { flex: 1; font-size: 14px; color: #1f2430; }
+            .rec-wiz-badge { font-size: 11px; padding: 2px 8px; border-radius: 9999px; background: #f3f4f6; color: #374151; white-space: nowrap; }
+            .rec-wiz-badge[data-type="applied"] { background: #e0ecff; color: #1d4ed8; }
+            .rec-wiz-badge[data-type="initial"] { background: #f3f4f6; color: #374151; }
+            .rec-wiz-badge[data-type="test"] { background: #fef3c7; color: #92400e; }
+            .rec-wiz-badge[data-type="interview"] { background: #ede9fe; color: #5b21b6; }
+            .rec-wiz-badge[data-type="hired"] { background: #dcfce7; color: #166534; }
+            .rec-wiz-badge[data-type="cancelled"] { background: #fee2e2; color: #991b1b; }
+            .rec-wiz-cta { margin-top: 14px; }
+            .rec-wiz-link { background: none; border: 0; padding: 0; color: var(--rw-primary); font-size: 13px; cursor: pointer; text-decoration: underline; }
+            .rec-wiz-row { display: flex; align-items: center; gap: 8px; border: 1px solid #e6e7eb; border-radius: 10px; padding: 6px 8px; background: #fff; }
+            .rec-wiz-row input[type="text"] { flex: 1; min-width: 0; border: 1px solid #e6e7eb; border-radius: 6px; padding: 6px 10px; font-size: 14px; }
+            .rec-wiz-row select { width: 150px; border: 1px solid #e6e7eb; border-radius: 6px; padding: 6px 8px; font-size: 14px; background: #fff; }
+            .rec-wiz-icon { width: 28px; height: 28px; border: 0; border-radius: 6px; background: #f3f4f6; color: #374151; cursor: pointer; line-height: 1; }
+            .rec-wiz-icon:hover:not(:disabled) { background: #e5e7eb; }
+            .rec-wiz-icon:disabled { opacity: .35; cursor: default; }
+            .rec-wiz-icon.is-remove:hover:not(:disabled) { background: #fee2e2; color: #991b1b; }
+            .rec-wiz-error { color: #b00020; font-size: 13px; margin-top: 10px; }
+            .rec-wiz-error ul { margin: 0; padding: 0; list-style: none; }
+        </style>
+        <div class="oh-steps" role="tablist" data-steps>
+            <button type="button" class="oh-steps__step" role="tab" data-step-tab="details" aria-controls="step-details">
+                <span class="oh-steps__num">1</span>
+                <span class="oh-steps__text">
+                    <span class="oh-steps__label">{% trans "Recruitment" %}</span>
+                    <span class="oh-steps__hint">{% trans "Title, job position, dates and managers." %}</span>
+                </span>
+                <span class="oh-steps__flag" data-step-flag hidden title="{% trans 'Something on this step needs attention' %}">!</span>
+            </button>
+            <button type="button" class="oh-steps__step" role="tab" data-step-tab="pipeline" aria-controls="step-pipeline">
+                <span class="oh-steps__num">2</span>
+                <span class="oh-steps__text">
+                    <span class="oh-steps__label">{% trans "Pipeline" %}</span>
+                    <span class="oh-steps__hint">{% trans "Default or custom stages." %}</span>
+                </span>
+                <span class="oh-steps__flag" data-step-flag hidden title="{% trans 'Something on this step needs attention' %}">!</span>
+            </button>
+        </div>
+    </div>
+{% elif part == "step2" %}
+    <div class="oh-step-panel rec-wiz-step2" id="step-pipeline" data-step-panel="pipeline" role="tabpanel" hidden>
+        <p class="rec-wiz-intro">
+            {% trans "Choose the stages candidates move through for this recruitment. You can always add, rename or reorder stages later from the pipeline." %}
+        </p>
+        <div class="rec-wiz-modes">
+            <button type="button" class="rec-wiz-mode" data-wiz-mode="default">
+                <strong>{% trans "Default pipeline" %}</strong>
+                <small>{% trans "One stage for every stage type." %}</small>
+            </button>
+            <button type="button" class="rec-wiz-mode" data-wiz-mode="custom">
+                <strong>{% trans "Custom pipeline" %}</strong>
+                <small>{% trans "Build the stages you need." %}</small>
+            </button>
+        </div>
+
+        <div data-wiz-panel="default">
+            <div class="rec-wiz-list">
+                {% for stage in form.default_pipeline %}
+                    <div class="rec-wiz-item">
+                        <span class="rec-wiz-num">{{ forloop.counter }}</span>
+                        <span class="rec-wiz-name">{{ stage.name }}</span>
+                        <span class="rec-wiz-badge" data-type="{{ stage.type }}">{{ stage.label }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="rec-wiz-cta">
+                <button type="button" class="oh-btn oh-btn--light" data-wiz-mode="custom">
+                    <ion-icon name="construct-outline" class="mr-1"></ion-icon>{% trans "Create a custom pipeline" %}
+                </button>
+            </div>
+        </div>
+
+        <div data-wiz-panel="custom" class="rec-wiz-hidden">
+            <div class="rec-wiz-list" data-wiz-rows></div>
+            <div class="rec-wiz-cta d-flex flex gap-2 items-center justify-between">
+                <button type="button" class="oh-btn oh-btn--light" data-wiz-add>
+                    <ion-icon name="add-outline" class="mr-1"></ion-icon>{% trans "Add stage" %}
+                </button>
+                <button type="button" class="rec-wiz-link" data-wiz-reset>{% trans "Reset to default" %}</button>
+            </div>
+        </div>
+
+        <div class="rec-wiz-error" data-wiz-error>{{ form.pipeline_stages.errors }}</div>
+    </div>
+{% elif part == "footer" %}
+    <div class="oh-step-nav">
+        <button type="button" class="oh-btn oh-btn--light" data-step-back hidden>
+            <ion-icon name="chevron-back-outline" class="mr-1"></ion-icon>
+            {% trans "Back" %}
+        </button>
+        <span class="oh-step-nav__spacer"></span>
+        <button type="submit" class="oh-btn oh-btn--secondary" data-step-save hidden {{ form.submit_button_attrs|safe }}>
+            {% trans "Save" %}
+        </button>
+        <button type="button" class="oh-btn oh-btn--secondary" data-step-next>
+            {% trans "Next" %}
+            <ion-icon name="chevron-forward-outline" class="ml-1"></ion-icon>
+        </button>
+    </div>
+    {# ?v= is a manual cache-bust, same convention as the other step forms. #}
+    <script src="{% static 'src/js/componentForm.js' %}?v=1"></script>
+    <script>
+        // Idempotent: called for every wizard root that is not set up yet. The
+        // form can be swapped in (or re-rendered with errors) before this script
+        // can see its markup, so it is also driven by htmx.onLoad, below.
+        window.recWizInit = function (root) {
+            if (!root || root.dataset.bound) return;
+            var form = root.closest("form");
+            if (!form) return;
+            root.dataset.bound = "1";
+
+            var defaults = JSON.parse(root.dataset.defaults);
+            var types = JSON.parse(root.dataset.types);
+            var modeInput = form.querySelector("[name=pipeline_mode]");
+            var stagesInput = form.querySelector("[name=pipeline_stages]");
+            var q = function (sel) { return form.querySelector(sel); };
+            var qa = function (sel) { return form.querySelectorAll(sel); };
+            var pipelinePanel = q("[data-step-panel=pipeline]");
+            var rowsEl = q("[data-wiz-rows]");
+            var errorEl = q("[data-wiz-error]");
+            var saveBtn = q("[data-step-save]");
+            var mode = modeInput.value === "custom" ? "custom" : "default";
+            var rows = [];
+
+            function clone(list) {
+                return list.map(function (s) { return { name: s.name, type: s.type }; });
+            }
+            try {
+                var saved = JSON.parse(stagesInput.value || "[]");
+                rows = Array.isArray(saved) && saved.length ? saved : clone(defaults);
+            } catch (e) {
+                rows = clone(defaults);
+            }
+
+            function sync() {
+                modeInput.value = mode;
+                stagesInput.value = mode === "custom" ? JSON.stringify(rows) : "";
+            }
+
+            function showError(msg) {
+                errorEl.textContent = msg || "";
+            }
+
+            function validateCustom() {
+                if (mode !== "custom") return "";
+                if (!rows.length) return "{% trans 'Add at least one stage to the pipeline.'|escapejs %}";
+                var seen = {};
+                for (var i = 0; i < rows.length; i++) {
+                    var name = (rows[i].name || "").trim();
+                    if (!name) return "{% trans 'Every stage needs a name.'|escapejs %}";
+                    if (seen[name.toLowerCase()]) return "{% trans 'Stage names must be unique.'|escapejs %}";
+                    seen[name.toLowerCase()] = true;
+                }
+                if (!rows.some(function (r) { return r.type === "applied"; })) {
+                    return "{% trans 'The pipeline needs at least one stage of type Applied.'|escapejs %}";
+                }
+                return "";
+            }
+
+            function iconBtn(label, text, cls, disabled, onClick) {
+                var b = document.createElement("button");
+                b.type = "button";
+                b.className = "rec-wiz-icon " + (cls || "");
+                b.title = label;
+                b.setAttribute("aria-label", label);
+                b.textContent = text;
+                b.disabled = !!disabled;
+                b.addEventListener("click", onClick);
+                return b;
+            }
+
+            function renderRows(focusIndex) {
+                rowsEl.innerHTML = "";
+                rows.forEach(function (row, i) {
+                    var el = document.createElement("div");
+                    el.className = "rec-wiz-row";
+
+                    var num = document.createElement("span");
+                    num.className = "rec-wiz-num";
+                    num.textContent = i + 1;
+                    el.appendChild(num);
+
+                    var input = document.createElement("input");
+                    input.type = "text";
+                    input.maxLength = 50;
+                    input.value = row.name;
+                    input.placeholder = "{% trans 'Stage name'|escapejs %}";
+                    input.addEventListener("input", function () {
+                        row.name = input.value;
+                        showError("");
+                        sync();
+                    });
+                    el.appendChild(input);
+
+                    var select = document.createElement("select");
+                    types.forEach(function (t) {
+                        var o = document.createElement("option");
+                        o.value = t[0];
+                        o.textContent = t[1];
+                        if (t[0] === row.type) o.selected = true;
+                        select.appendChild(o);
+                    });
+                    select.addEventListener("change", function () {
+                        row.type = select.value;
+                        showError("");
+                        sync();
+                    });
+                    el.appendChild(select);
+
+                    el.appendChild(iconBtn("{% trans 'Move up'|escapejs %}", "↑", "", i === 0, function () {
+                        rows.splice(i - 1, 0, rows.splice(i, 1)[0]);
+                        sync(); renderRows();
+                    }));
+                    el.appendChild(iconBtn("{% trans 'Move down'|escapejs %}", "↓", "", i === rows.length - 1, function () {
+                        rows.splice(i + 1, 0, rows.splice(i, 1)[0]);
+                        sync(); renderRows();
+                    }));
+                    el.appendChild(iconBtn("{% trans 'Remove stage'|escapejs %}", "×", "is-remove", rows.length === 1, function () {
+                        rows.splice(i, 1);
+                        showError("");
+                        sync(); renderRows();
+                    }));
+                    rowsEl.appendChild(el);
+                    if (focusIndex === i) input.focus();
+                });
+            }
+
+            function setMode(next) {
+                mode = next;
+                qa(".rec-wiz-mode[data-wiz-mode]").forEach(function (b) {
+                    b.classList.toggle("is-selected", b.dataset.wizMode === mode);
+                });
+                q("[data-wiz-panel=default]").classList.toggle("rec-wiz-hidden", mode !== "default");
+                q("[data-wiz-panel=custom]").classList.toggle("rec-wiz-hidden", mode !== "custom");
+                showError("");
+                if (mode === "custom") renderRows();
+                sync();
+            }
+
+            qa("[data-wiz-mode]").forEach(function (b) {
+                b.addEventListener("click", function () { setMode(b.dataset.wizMode); });
+            });
+            q("[data-wiz-add]").addEventListener("click", function () {
+                rows.push({ name: "", type: "interview" });
+                showError("");
+                sync();
+                renderRows(rows.length - 1);
+            });
+            q("[data-wiz-reset]").addEventListener("click", function () {
+                rows = clone(defaults);
+                showError("");
+                sync();
+                renderRows();
+            });
+
+            // Save only on the last step, as on the Leave Type form.
+            function syncSave() { saveBtn.hidden = pipelinePanel.hidden; }
+            new MutationObserver(syncSave).observe(pipelinePanel, { attributes: true, attributeFilter: ["hidden"] });
+            syncSave();
+
+            function dropValidateFlag() {
+                var flag = q("[name=validate_step]");
+                if (flag) flag.remove();
+            }
+
+            // Going forward from step 1 (Next, or the step 2 tab) first asks the
+            // server to validate the details without saving; the form is
+            // re-rendered with its errors if they are not valid. Capture phase,
+            // so componentForm.js only moves on once the check has passed.
+            var pending = null;
+            function gate(e) {
+                if (!form.isConnected) {
+                    document.removeEventListener("click", gate, true);
+                    return;
+                }
+                if (!form.contains(e.target)) return;
+                var next = e.target.closest("[data-step-next]");
+                var tab = e.target.closest("[data-step-tab]");
+                if (!next && !(tab && tab.dataset.stepTab === "pipeline")) return;
+                if (!pipelinePanel.hidden) return;
+                if (form.dataset.verified === "1") {
+                    form.dataset.verified = "";
+                    return;
+                }
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                dropValidateFlag();
+                var flag = document.createElement("input");
+                flag.type = "hidden";
+                flag.name = "validate_step";
+                flag.value = "1";
+                form.appendChild(flag);
+                pending = next || tab;
+                pending.disabled = true;
+                htmx.trigger(form, "submit");
+            }
+            document.addEventListener("click", gate, true);
+
+            // htmx fires beforeSwap on the swap *target* (the modal body, not
+            // the form), so listen on the document and match the form that made
+            // the request; drop the listener once this form is gone.
+            function onBeforeSwap(e) {
+                if (!form.isConnected) {
+                    document.removeEventListener("htmx:beforeSwap", onBeforeSwap);
+                    return;
+                }
+                var d = e.detail || {};
+                var source = d.requestConfig && d.requestConfig.elt;
+                if (source !== form) return;
+                // The marker is the whole response; a re-rendered form carries
+                // this very script, so a substring match would always hit.
+                if (d.xhr && d.xhr.responseText.trim() === "<!--pipeline-step-ok-->") {
+                    d.shouldSwap = false;
+                    var go = pending;
+                    setTimeout(function () {
+                        if (!go) return;
+                        // Step 1 is valid now: drop the "needs attention" flag.
+                        var flag = q("[data-step-tab=details] [data-step-flag]");
+                        if (flag) flag.hidden = true;
+                        go.disabled = false;
+                        form.dataset.verified = "1";
+                        go.click();
+                    }, 0);
+                }
+            }
+            document.addEventListener("htmx:beforeSwap", onBeforeSwap);
+            form.addEventListener("htmx:afterRequest", function () {
+                dropValidateFlag();
+                if (pending) pending.disabled = false;
+            });
+
+            saveBtn.addEventListener("click", function (e) {
+                dropValidateFlag();
+                var problem = validateCustom();
+                if (problem) {
+                    e.preventDefault();
+                    showError(problem);
+                } else {
+                    sync();
+                }
+            });
+
+            // Enter must not submit (and so create the recruitment) from step 1.
+            form.addEventListener("keydown", function (e) {
+                if (e.key !== "Enter") return;
+                var tag = e.target.tagName;
+                if (tag === "TEXTAREA" || tag === "BUTTON" || tag === "A" || tag === "SELECT") return;
+                e.preventDefault();
+            });
+
+            setMode(mode);
+        };
+
+        (function () {
+            function scan(scope) {
+                var found = [];
+                if (scope.matches && scope.matches(".rec-wiz-root")) found.push(scope);
+                if (scope.querySelectorAll) {
+                    found = found.concat([].slice.call(scope.querySelectorAll(".rec-wiz-root")));
+                }
+                found.forEach(function (root) { window.recWizInit(root); });
+            }
+            scan(document);
+            setTimeout(function () { scan(document); }, 0);
+            if (window.htmx && !window.recWizOnLoad) {
+                window.recWizOnLoad = true;
+                htmx.onLoad(scan);
+            }
+        })();
+    </script>
+{% endif %}
