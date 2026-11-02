@@ -89,42 +89,6 @@
         font-size: 0.75rem;
     }
 
-    /* ======= Editor Styles ======= */
-    #commentEditor {
-        padding: 0.8rem 1rem;
-        border-top: 1px solid #e5e7eb;
-        background: #fff;
-    }
-
-    .note-editor.note-frame {
-        border: 1px solid #d1d5db;
-        border-radius: 10px;
-    }
-
-    .note-toolbar {
-        border-bottom: 1px solid #e5e7eb !important;
-    }
-
-    .note-editable {
-        min-height: 60px;
-        font-size: 0.9rem;
-    }
-
-    /* Align send button right */
-    #commentEditor .note-toolbar .note-btn-group.send-group {
-        margin-left: auto;
-    }
-
-    #commentEditor .note-btn-group button {
-        border-radius: 6px;
-        background: #ff3b38;
-        color: white !important;
-    }
-
-    #commentEditor .note-btn-group button:hover {
-        background: #ff3b38;
-    }
-
     /* Alert message styling */
     .oh-alert {
         margin: 0.8rem 1rem;
@@ -159,19 +123,26 @@
         hx-target="#activityContainer"
         hx-post="{% url 'objective-detailed-view-comment' objective.id %}"
         id="commentForm"
+        class="p-3"
     >
         {% csrf_token %}
-        <div id="commentEditor">
-            <textarea rows="2" cols="2" name="comment" id="editor"></textarea>
-            <button
-                type="submit"
-                id="commentButton"
-                class="oh-btn oh-btn--secondary mt-2 mr-0 oh-btn--w-100-resp"
-                style="display: none"
-            >
-                {% trans 'Comment' %}
-            </button>
-        </div>
+        <input
+            type="text"
+            name="comment"
+            id="commentInput"
+            class="oh-input w-full mt-2"
+            placeholder="{% trans 'Add Comments' %}"
+            hx-on:keyup="toggleCommentButton(this);"
+        >
+        <button
+            type="submit"
+            id="commentButton"
+            class="oh-btn oh-btn--secondary mt-2"
+            style="display: none"
+        >
+            <i class="fa-regular fa-square-plus"></i>
+            {% trans "Add" %}
+        </button>
     </form>
     <ul class="oh-activity-list">
         {% for activity in activity_list %}
@@ -293,45 +264,3 @@
         {% endfor %}
     </ul>
 </div>
-
-<script>
-    var sendButton = function (context) {
-      var ui = $.summernote.ui
-      return ui
-        .button({
-          contents: 'Add comment <ion-icon name="paper-plane-outline"></ion-icon>',
-          tooltip: 'Send Content',
-          click: function () {
-            const content = context.invoke('code')
-            $("#commentEditor button[type=submit]").click()
-          }
-        })
-        .render()
-    }
-
-    // Initialize Summernote
-    $('#editor').summernote({
-      height: 70,
-      placeholder: 'Write a comment...',
-      toolbar: [
-        ['insert', ['link', 'picture', 'pdfUpload']],
-        ['sendGroup', ['send']]
-      ],
-      buttons: {
-        pdfUpload: pdfUploadButton,
-        send: sendButton
-      }
-    })
-
-    $(document).ready(function () {
-      $('.note-toolbar .note-btn-group').last().addClass('send-group')
-    })
-</script>
-<script>
-    $(document).ready(function () {
-    // Hide the Summernote backdrop if it ever appears
-      setInterval(function () {
-        $(".note-modal-backdrop").css("display", "none");
-      }, 300);
-    });
-</script>
