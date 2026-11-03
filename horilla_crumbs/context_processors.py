@@ -782,6 +782,11 @@ def breadcrumbs(request):
     """
     Active breadcrumbs context processor.
     """
+    user = getattr(request, "user", None)
+    if not (user and user.is_authenticated):
+        # The trail is only shown to logged-in users; keeping one for a
+        # logged-out page (the login page) would create a session row.
+        return {"breadcrumbs": []}
     try:
         current_language = get_language()
         if request.session.get("breadcrumbs_lang") != current_language:

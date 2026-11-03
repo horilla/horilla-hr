@@ -181,6 +181,8 @@ def login_required(view_func):
         request = getattr(_thread_locals, "request")
         if not getattr(self, "request", None):
             self.request = request
+        if not request.user.is_authenticated:
+            return unauthenticated_response(request)
         path = request.path
         res = path.split("/", 2)[1].capitalize().replace("-", " ").upper()
         if res == "PMS":
@@ -188,8 +190,6 @@ def login_required(view_func):
         request.session["title"] = res
         if path == "" or path == "/":
             request.session["title"] = "Dashboard".upper()
-        if not request.user.is_authenticated:
-            return unauthenticated_response(request)
         try:
             func = view_func(self, request, *args, **kwargs)
         except KeyError:

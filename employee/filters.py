@@ -41,6 +41,7 @@ from horilla.filters import (
     filter_name_or_badge_terms,
 )
 from horilla.horilla_middlewares import _thread_locals
+from horilla.methods import get_accessibility_cache_key
 from horilla_documents.models import Document, DocumentRequest
 from horilla_views.templatetags.generic_template_filters import getattribute
 from horilla_widgets.generic_ajax import register_ajax_field
@@ -654,7 +655,7 @@ class EmployeeFilter(HorillaFilterSet):
         request = getattr(_thread_locals, "request", None)
         if request:
             employee = getattr(request.user, "employee_get", None)
-            cache_key = request.session.session_key + "accessibility_filter"
+            cache_key = get_accessibility_cache_key(request)
             accessible = check_is_accessible("employee_view", cache_key, employee)
             if not accessible and employee.reporting_manager.exists():
                 queryset = filtersubordinatesemployeemodel(
