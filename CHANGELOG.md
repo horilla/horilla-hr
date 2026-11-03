@@ -32,7 +32,7 @@ date and open a fresh Unreleased above it.
 ### Security      — vulnerabilities fixed; link the advisory and credit the reporter
 -->
 
-## [2.3.0] — 2026-11-DD
+## [2.3.0] — 2026-11-03
 
 Security release. It fixes four privately reported vulnerabilities (the tax formula
 sandbox, missing authorization checks in 36 views, the client address behind nginx, and
