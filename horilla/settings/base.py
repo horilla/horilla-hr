@@ -500,6 +500,14 @@ DB_INIT_PASSWORD = env(
 # Instant rollback switch: set the COMPANY_SCOPED_PERMISSIONS env var to False.
 COMPANY_SCOPED_PERMISSIONS = env.bool("COMPANY_SCOPED_PERMISSIONS", default=True)
 
+# Whether new Python tax formulas can be created, saved or test-run. Off by
+# default: a formula is code that runs on the server for every payslip, so it is
+# opt-in. Formulas already stored keep being evaluated either way, so turning
+# this off never stops a payroll run; it only stops new code going in.
+HORILLA_ALLOW_PYTHON_TAX_FORMULAS = env.bool(
+    "HORILLA_ALLOW_PYTHON_TAX_FORMULAS", default=False
+)
+
 NO_PERMISSION_MODALS = [
     "companygroupassignment",
     "historicalbonuspoint",

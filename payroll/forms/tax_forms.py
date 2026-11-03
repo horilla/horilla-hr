@@ -14,7 +14,13 @@ from django.utils.translation import gettext_lazy as _
 
 from base.forms import ModelForm
 from payroll.methods import federal_tax
-from payroll.methods.safe_tax_code import TaxCodeValidationError, validate_tax_code
+from payroll.methods.safe_tax_code import (
+    PYTHON_FORMULAS_OFF_MESSAGE,
+    TaxCodeValidationError,
+    python_formulas_enabled,
+    same_formula,
+    validate_tax_code,
+)
 from payroll.models.models import FilingStatus
 from payroll.models.tax_models import TaxBracket
 
@@ -54,6 +60,26 @@ class FilingStatusForm(ModelForm):
             "need. Either way, the rules themselves are edited on this filing "
             "status' own page after saving."
         )
+        if not python_formulas_enabled() and not (
+            self.instance.pk and self.instance.use_py
+        ):
+            self.fields["use_py"].help_text = (
+                f"{self.fields['use_py'].help_text} {PYTHON_FORMULAS_OFF_MESSAGE}"
+            )
+
+    def clean(self):
+        cleaned = super().clean()
+        # Only *turning Python mode on* is refused. A filing status already in
+        # Python mode keeps saving its name and description, and its stored
+        # formula keeps running, so a payroll run never depends on this switch.
+        already_python = bool(self.instance.pk and self.instance.use_py)
+        if (
+            cleaned.get("use_py")
+            and not already_python
+            and not python_formulas_enabled()
+        ):
+            self.add_error("use_py", PYTHON_FORMULAS_OFF_MESSAGE)
+        return cleaned
 
     def save(self, commit=True):
         """
@@ -127,6 +153,16 @@ class FilingStatusTaxRulesForm(ModelForm):
         code = self.cleaned_data.get("python_code")
         if not self.instance.use_py:
             return code
+        # Unchanged code may be re-saved (the same form carries the slab and
+        # rebate fields); only new or edited code is refused while Python
+        # formulas are turned off.
+        # Compared ignoring line endings and surrounding whitespace: the form
+        # field trims, and browsers submit Windows line endings, so a stored
+        # formula would otherwise always look edited.
+        if not python_formulas_enabled() and not same_formula(
+            code, self.instance.python_code
+        ):
+            raise forms.ValidationError(PYTHON_FORMULAS_OFF_MESSAGE)
         # Refuse to store the combination that silently taxed everyone on this
         # filing status at 0: Python mode on with nothing to run.
         if not (code or "").strip():
