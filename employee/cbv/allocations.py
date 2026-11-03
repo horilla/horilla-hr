@@ -1124,6 +1124,7 @@ if app_installed("payroll"):
         template_name = "cbv/allocations/payroll/allowance/allowance_view.html"
 
     @method_decorator(login_required, name="dispatch")
+    @method_decorator(allocation_manager_can_enter(), name="dispatch")
     class AllowanceList(_KeepInstanceIdMixin, AllowanceListView):
         """
         AllowanceList

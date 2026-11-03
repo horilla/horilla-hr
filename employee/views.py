@@ -128,7 +128,7 @@ from horilla.decorators import (
 from horilla.filters import HorillaPaginator
 from horilla.group_by import group_by_queryset
 from horilla.http.response import HorillaRedirect, with_bulk_result
-from horilla.methods import dynamic_attr, get_horilla_model_class
+from horilla.methods import dynamic_attr, get_horilla_model_class, handle_no_permission
 from horilla_audit.models import AccountBlockUnblock, HistoryTrackingFields
 from horilla_auth.methods import generate_random_password
 from horilla_auth.models import HorillaUser
@@ -2747,6 +2747,10 @@ def get_manager_in(request):
         else:
             message = _("Employee archived")
     if save:
+        # Showing the records that block an archive needs only view access; the
+        # archive / un-archive itself is the same write as employee_archive.
+        if not request.user.has_perm("employee.delete_employee"):
+            return handle_no_permission(request)
         employee.save()
         employee.sync_login_access()
         messages.success(request, message)

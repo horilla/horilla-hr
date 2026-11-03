@@ -16,6 +16,7 @@ from base.forms import HolidayForm, HolidaysColumnExportForm
 from base.methods import has_export_access
 from base.models import Holidays
 from horilla_views.cbv_methods import (
+    AddOrChangePermissionMixin,
     hx_request_required,
     login_required,
     permission_required,
@@ -202,11 +203,13 @@ class HolidayExport(TemplateView):
 
 
 @method_decorator(login_required, name="dispatch")
-class HolidayFormView(HorillaFormView):
+class HolidayFormView(AddOrChangePermissionMixin, HorillaFormView):
     """
     form view for create button
     """
 
+    add_perm = "base.add_holidays"
+    change_perm = "base.change_holidays"
     form_class = HolidayForm
     model = Holidays
     new_display_title = _("Create Holiday")
@@ -242,6 +245,10 @@ class HolidayDuplicateFormView(HolidayFormView):
     """
 
     new_display_title = _("Duplicate Holiday")
+
+    def get_required_permission(self):
+        # The duplicate route carries a pk but always creates a new record.
+        return self.add_perm
 
     def get_queryset(self):
         # the form always creates a new record (an unsaved blank instance)

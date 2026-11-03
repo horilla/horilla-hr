@@ -205,6 +205,30 @@ def login_required(view_func):
     return wrapped_view
 
 
+class AddOrChangePermissionMixin:
+    """
+    Require ``add_perm`` to create and ``change_perm`` to edit.
+
+    A form view that serves both the create route (no ``pk``) and the update
+    route (``pk``) needs a different permission for each. Without this the
+    class carried ``login_required`` alone, so any signed-in user could write.
+    Put it first in the bases, before ``HorillaFormView``; ``login_required``
+    applied to ``dispatch`` still runs before it.
+    """
+
+    add_perm = None
+    change_perm = None
+
+    def get_required_permission(self):
+        return self.change_perm if self.kwargs.get("pk") else self.add_perm
+
+    def dispatch(self, request, *args, **kwargs):
+        perm = self.get_required_permission()
+        if perm and not request.user.has_perm(perm):
+            return handle_no_permission(request)
+        return super().dispatch(request, *args, **kwargs)
+
+
 @decorator_with_arguments
 def permission_required(function, perm):
     """
