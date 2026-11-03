@@ -4,8 +4,9 @@
     <a
         href="#"
         hx-get="{% url 'update-contract' instance.id %}"
-        hx-target="#listContainer"
-        hx-swap="innerHTML"
+        hx-target="#relatedObjectModalBody"
+        data-toggle="oh-modal-toggle"
+        data-target="#relatedObjectModal"
         hx-on:click="$(this).closest('.oh-modal--show').removeClass('oh-modal--show');"
         class="oh-btn oh-btn--light-bkg w-24 px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
     >

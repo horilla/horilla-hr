@@ -7,8 +7,9 @@
 				class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
 				href="#"
 				hx-get="{% url 'update-contract' instance.id %}"
-				hx-target="#listContainer"
-				hx-swap="innerHTML"
+				hx-target="#relatedObjectModalBody"
+				data-toggle="oh-modal-toggle"
+				data-target="#relatedObjectModal"
 				title="{% trans 'Update' %}"
 			>
 				<ion-icon

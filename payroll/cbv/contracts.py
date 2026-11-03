@@ -192,8 +192,9 @@ class ContractsNav(HorillaNavView):
             self.create_attrs = f"""
                             href="#"
                             hx-get="{reverse('contract-create')}"
-                            hx-target="#listContainer"
-                            hx-swap="innerHTML"
+                            hx-target="#relatedObjectModalBody"
+                            data-toggle="oh-modal-toggle"
+                            data-target="#relatedObjectModal"
                             """
         self.actions = []
         if has_export_access(self.request, Contract):

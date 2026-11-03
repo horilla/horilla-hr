@@ -16,8 +16,13 @@
 </style>
 
 <div id="contractFormTarget">
-    <div class="oh-wrapper d-flex justify-content-center mt-4 mb-4">
-        <form action="" hx-swap="none" class="oh-onboarding-card" method="post" enctype="multipart/form-data">
+    <div class="oh-wrapper d-flex flex-column align-items-center mt-4 mb-4">
+        {% if form.contract_status %}
+        <div class="oh-onboarding-card d-flex justify-content-end p-3">
+            <div style="min-width: 160px">{{ form.contract_status }}</div>
+        </div>
+        {% endif %}
+        <form id="contractForm" action="" hx-swap="none" class="oh-onboarding-card" method="post" enctype="multipart/form-data">
             {% csrf_token %} {{form.as_p}}
         </form>
     </div>
