@@ -23,6 +23,7 @@ from base.models import (
     PenaltyAccounts,
 )
 from employee.models import Employee, Policy
+from horilla.client_ip import client_ip
 from horilla.methods import get_horilla_model_class
 
 
@@ -624,7 +625,7 @@ def log_login_failed(sender, credentials, request, **kwargs):
     ban_duration = getattr(settings, "FAIL2BAN_BAN_TIME", 300)
 
     username = credentials.get("username", "unknown")
-    ip = request.META.get("REMOTE_ADDR", "unknown")
+    ip = client_ip(request) or "unknown"
     session_key = (
         request.session.session_key or request.session._get_or_create_session_key()
     )
