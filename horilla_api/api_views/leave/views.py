@@ -496,7 +496,7 @@ class LeaveRequestGetCreateAPIView(APIView):
         )
         return paginator.get_paginated_response(serializer.data)
 
-    @manager_permission_required("leave.add_leaverequest")
+    @manager_or_owner_permission_required(LeaveRequest, "leave.add_leaverequest")
     def post(self, request):
         data = request.data
         if isinstance(data, QueryDict):

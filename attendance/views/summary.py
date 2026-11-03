@@ -51,6 +51,7 @@ from attendance.models import (
     AttendanceSummaryOverride,
 )
 from base.methods import (
+    employees_in_scope,
     filtersubordinatesemployeemodel,
     get_company_leave_dates,
     get_holiday_dates,
@@ -69,6 +70,7 @@ from base.models import (
 from employee.filters import EmployeeFilter
 from employee.models import Employee, EmployeeTag
 from horilla.decorators import hx_request_required, login_required, manager_can_enter
+from horilla.methods import handle_no_permission
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -3390,6 +3392,13 @@ def attendance_monthly_summary_conflict_resolve(request):
     )
     date = _parse_date(date_str, None)
 
+    # manager_can_enter admits any manager of anybody; the employee named here
+    # must be one of the caller's reports unless they hold the permission.
+    if emp_id and not employees_in_scope(
+        request, [emp_id], "attendance.change_attendance"
+    ):
+        return handle_no_permission(request)
+
     try:
         emp = Employee.objects.get(pk=emp_id)
     except Employee.DoesNotExist:
@@ -4035,6 +4044,13 @@ def attendance_monthly_summary_conflict_bulk_resolve(request):
         request.POST.get("to_date") or request.GET.get("to_date"), datetime.date.today()
     )
 
+    # manager_can_enter admits any manager of anybody; the employee named here
+    # must be one of the caller's reports unless they hold the permission.
+    if emp_id and not employees_in_scope(
+        request, [emp_id], "attendance.change_attendance"
+    ):
+        return handle_no_permission(request)
+
     try:
         emp = Employee.objects.get(pk=emp_id)
     except Employee.DoesNotExist:
@@ -4147,6 +4163,9 @@ def attendance_monthly_summary_bulk_override(request):
     if from_date > to_date:
         from_date, to_date = to_date, from_date
 
+    if not employees_in_scope(request, emp_ids, "attendance.change_attendance"):
+        return JsonResponse({"error": "Permission denied"}, status=403)
+
     employees = list(Employee.objects.filter(pk__in=emp_ids))
     dates = list(_iter_dates(from_date, to_date))
 
@@ -4230,6 +4249,13 @@ def attendance_monthly_summary_daily_hours_edit(request):
         request.POST.get("to_date") or request.GET.get("to_date"), datetime.date.today()
     )
     date = _parse_date(date_str, None)
+
+    # manager_can_enter admits any manager of anybody; the employee named here
+    # must be one of the caller's reports unless they hold the permission.
+    if emp_id and not employees_in_scope(
+        request, [emp_id], "attendance.change_attendance"
+    ):
+        return handle_no_permission(request)
 
     try:
         emp = Employee.objects.get(pk=emp_id)

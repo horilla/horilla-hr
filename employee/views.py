@@ -52,6 +52,7 @@ from base.forms import ModelForm
 from base.import_template_data import import_template_frame, write_import_xlsx
 from base.methods import (
     choosesubordinates,
+    employees_in_scope,
     filtersubordinates,
     filtersubordinatesemployeemodel,
     get_key_instances,
@@ -1949,6 +1950,16 @@ def employee_create_update_personal_info(request, obj_id=None):
     """
     This method is used to update employee's personal info.
     """
+    # manager_can_enter admits anyone who manages anybody. Creating an employee
+    # (and sending the invitation) needs the add permission; updating one is
+    # limited to the caller's reports, themselves, or a holder of the permission.
+    if obj_id is None:
+        if not request.user.has_perm("employee.add_employee"):
+            return handle_no_permission(request)
+    elif not employees_in_scope(
+        request, [obj_id], "employee.change_employee", include_self=True
+    ):
+        return handle_no_permission(request)
     employee = Employee.objects.filter(id=obj_id).first()
     form = EmployeeForm(request.POST, request.FILES, instance=employee)
     if form.is_valid():
@@ -2881,6 +2892,10 @@ def employee_bank_details_view_create(request, obj_id):
     args:
         obj_id : employee instance id
     """
+    if not employees_in_scope(
+        request, [obj_id], "employee.add_employeebankdetails", include_self=True
+    ):
+        return handle_no_permission(request)
     employee = Employee.objects.get(id=obj_id)
     form = EmployeeForm(instance=employee)
     bank_form = EmployeeBankDetailsUpdateForm(request.POST)
@@ -3696,6 +3711,8 @@ def add_note(request, emp_id=None):
     if not employee_obj:
         messages.error(request, _("Employee not found."))
         return HorillaRedirect(request)
+    if not employees_in_scope(request, [emp_id], "employee.add_employeenote"):
+        return handle_no_permission(request)
 
     form = EmployeeNoteForm(initial={"employee_id": emp_id})
     if request.method == "POST":

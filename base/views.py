@@ -3711,6 +3711,22 @@ def rotating_shift_assign_import(request):
             pd.read_csv(file) if file_extension == "csv" else pd.read_excel(file)
         )
         work_info_dicts = data_frame.to_dict("records")
+        # manager_can_enter admits any manager of anybody, so refuse the whole
+        # import if it names an employee outside the caller's team. This runs
+        # before any row is processed, because rows create rotating shifts, and
+        # because rows are paired with employees by position, so employees
+        # cannot be dropped one by one without misaligning the rest.
+        badge_ids = [
+            str(row["Badge Id"]) for row in work_info_dicts if "Badge Id" in row
+        ]
+        named = Employee.objects.filter(badge_id__in=badge_ids)
+        in_scope = filtersubordinatesemployeemodel(
+            request, named, "base.add_rotatingshiftassign"
+        )
+        if in_scope.count() != named.count():
+            from horilla.methods import handle_no_permission
+
+            return handle_no_permission(request)
         try:
             keys_list = list(work_info_dicts[0].keys())
             error_dict = {key: [] for key in keys_list}

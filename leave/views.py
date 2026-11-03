@@ -38,6 +38,7 @@ from base.methods import (
     check_manager,
     choosesubordinates,
     closest_numbers,
+    employees_in_scope,
     eval_validate,
     export_data,
     filtersubordinates,
@@ -1785,6 +1786,8 @@ def leave_assign_one(request, obj_id):
             )
 
         employee_ids = list(map(int, request.POST.getlist("employee_id")))
+        if not employees_in_scope(request, employee_ids, "leave.add_availableleave"):
+            return handle_no_permission(request)
 
         existing_leaves_set = set(
             AvailableLeave.objects.filter(
@@ -2026,6 +2029,10 @@ def leave_assign(request):
     if request.method == "POST":
         leave_type_ids = request.POST.getlist("leave_type_id")
         employee_ids = request.POST.getlist("employee_id")
+        # manager_can_enter admits any manager of anybody; the employees named
+        # here must be the caller's own reports unless they hold the permission.
+        if not employees_in_scope(request, employee_ids, "leave.add_availableleave"):
+            return handle_no_permission(request)
 
         if leave_type_ids and employee_ids:
             leave_types = LeaveType.objects.filter(id__in=leave_type_ids)
@@ -2326,9 +2333,13 @@ def assign_leave_type_import(request):
             else:
                 assign_leave_dicts = data_frame.dropna(how="all").to_dict("records")
 
+        # Only employees the user may assign leave to; anyone else reads as
+        # "does not exist" rather than confirming the badge is real.
         employees = {
             emp.badge_id.strip().lower(): emp
-            for emp in Employee.objects.all()
+            for emp in filtersubordinatesemployeemodel(
+                request, Employee.objects.all(), "leave.add_availableleave"
+            )
             if emp.badge_id
         }
         leave_types = {lt.name.strip().lower(): lt for lt in LeaveType.objects.all()}
