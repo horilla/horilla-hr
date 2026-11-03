@@ -506,18 +506,48 @@ class LeaveAllocationRequestFormView(EmployeeScopeMixin, HorillaFormView):
 
 
 @method_decorator(login_required, name="dispatch")
-class LeaveAllocationBulkFormView(HorillaFormView):
+class LeaveAllocationBulkFormView(EmployeeScopeMixin, HorillaFormView):
     """
     Form view to bulk allocate (and optionally approve) leave for multiple
     employees at once.
     """
 
+    # The employees named must be the caller's reports unless they hold the
+    # permission to allocate leave to anyone.
+    scope_perm = "leave.add_leaveallocationrequest"
+
     model = LeaveAllocationRequest
     form_class = LeaveAllocationBulkForm
     new_display_title = _("Bulk Allocate Leave")
 
+    def can_approve_for(self, employee_ids):
+        """
+        Approving credits the balance at once, so it needs the same right as
+        approving a single request: the delete permission, or being the
+        reporting manager of every chosen employee.
+        """
+        user = self.request.user
+        if user.has_perm("leave.delete_leaveallocationrequest"):
+            return True
+        manager = getattr(user, "employee_get", None)
+        if manager is None:
+            return False
+        return not (
+            Employee.objects.filter(id__in=employee_ids)
+            .exclude(employee_work_info__reporting_manager_id=manager)
+            .exists()
+        )
+
     def form_valid(self, form: LeaveAllocationBulkForm) -> HttpResponse:
         if form.is_valid():
+            if form.cleaned_data.get("is_approved") and not self.can_approve_for(
+                self.request.POST.getlist("employee_id")
+            ):
+                form.add_error(
+                    "is_approved",
+                    _("Approval is limited to the managers of the chosen employees."),
+                )
+                return self.form_invalid(form)
             created_requests = form.save()
             messages.success(
                 self.request,

@@ -1033,6 +1033,15 @@ class GroupAssignView(TemplateView):
 
     template_name = "cbv/allocations/auth/group_form.html"
 
+    def dispatch(self, request, *args, **kwargs):
+        # Putting someone in a permission group changes what they can do, so
+        # only a superuser may, as on the employee profile (see
+        # can_edit_employee_permissions). The allocation gate above checks the
+        # employee in ``instance_id``, not the one named in ``employee``.
+        if not request.user.is_superuser:
+            return handle_no_permission(request)
+        return super().dispatch(request, *args, **kwargs)
+
     def get(self, request, *args, **kwargs):
         """
         Get

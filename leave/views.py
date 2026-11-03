@@ -1069,6 +1069,20 @@ def _may_act_on_leave_request(request, leave_request, perm, owner_allowed=False)
     return bool(conditional) and employee in conditional["managers"]
 
 
+def _comment_on(model, comment_id, request_id):
+    """
+    The comment, but only if it belongs to the request named in the URL.
+
+    The file-upload branch took a comment id from the query string and attached
+    files to whichever comment that was, so access to one request's comments
+    was enough to add files to another's. A missing or non-numeric id is
+    refused here too, instead of raising.
+    """
+    if not str(comment_id or "").isdigit():
+        return None
+    return model.objects.filter(id=comment_id, request_id=request_id).first()
+
+
 def _leave_decision_denied(request):
     """Denial in the shape the approve/reject callers read: the leave list
     and the calendar take the outcome from HX-Trigger's horillaMessage."""
@@ -5343,8 +5357,11 @@ def view_leaverequest_comment(request, leave_id):
 
     if request.FILES:
         files = request.FILES.getlist("files")
-        comment_id = request.GET["comment_id"]
-        comment = LeaverequestComment.objects.get(id=comment_id)
+        comment = _comment_on(
+            LeaverequestComment, request.GET.get("comment_id"), leave_id
+        )
+        if comment is None:
+            return render(request, "decorator_404.html")
         attachments = []
         for file in files:
             file_instance = LeaverequestFile()
@@ -5506,8 +5523,11 @@ def view_allocationrequest_comment(request, leave_id):
 
     if request.FILES:
         files = request.FILES.getlist("files")
-        comment_id = request.GET["comment_id"]
-        comment = LeaveallocationrequestComment.objects.get(id=comment_id)
+        comment = _comment_on(
+            LeaveallocationrequestComment, request.GET.get("comment_id"), leave_id
+        )
+        if comment is None:
+            return render(request, "decorator_404.html")
         attachments = []
         for file in files:
             file_instance = LeaverequestFile()
@@ -6291,6 +6311,18 @@ if apps.is_installed("attendance"):
         """
         This method is used to show Leave request comments
         """
+        comp_leave = CompensatoryLeaveRequest.objects.filter(id=comp_leave_id).first()
+        if not comp_leave:
+            return HttpResponse()
+        if not _may_act_on_leave_request(
+            request,
+            comp_leave,
+            "leave.view_compensatoryleaverequestcomment",
+            owner_allowed=True,
+        ):
+            messages.warning(request, _("You don't have permission"))
+            return render(request, "decorator_404.html")
+
         comments = CompensatoryLeaverequestComment.objects.filter(
             request_id=comp_leave_id
         ).order_by("-created_at")
@@ -6300,8 +6332,13 @@ if apps.is_installed("attendance"):
 
         if request.FILES:
             files = request.FILES.getlist("files")
-            comment_id = request.GET["comment_id"]
-            comment = CompensatoryLeaverequestComment.objects.get(id=comment_id)
+            comment = _comment_on(
+                CompensatoryLeaverequestComment,
+                request.GET.get("comment_id"),
+                comp_leave_id,
+            )
+            if comment is None:
+                return render(request, "decorator_404.html")
             attachments = []
             for file in files:
                 file_instance = LeaverequestFile()
@@ -6332,6 +6369,14 @@ if apps.is_installed("attendance"):
             return HorillaRedirect(
                 request, message=_("Compensatory leave request not found.")
             )
+        if not _may_act_on_leave_request(
+            request,
+            comp_leave,
+            "leave.add_compensatoryleaverequestcomment",
+            owner_allowed=True,
+        ):
+            messages.warning(request, _("You don't have permission"))
+            return render(request, "decorator_404.html")
 
         emp = request.user.employee_get
         form = CompensatoryLeaveRequestcommentForm(
