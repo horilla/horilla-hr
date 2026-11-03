@@ -374,12 +374,25 @@ def allocation_manager_can_enter(function):
     from employee.models import Employee
 
     def _function(request, *args, **kwargs):
-        instance_id = request.GET.get("instance_id") or request.POST.get("instance_id")
-        employee = (
-            Employee.objects.filter(pk=instance_id).first() if instance_id else None
-        )
-        if not allocation_accessibility(request, employee):
+        # The views read ``instance_id`` from the query string in some places
+        # and from the form body in others (the write usually reads the body).
+        # Checking only the first one found let a caller pass the gate with an
+        # employee they may reach and then write to another. Every value
+        # supplied, in either place, has to pass.
+        supplied = [
+            value
+            for value in request.GET.getlist("instance_id")
+            + request.POST.getlist("instance_id")
+            if value
+        ]
+        if not supplied:
             return handle_no_permission(request)
+        for value in supplied:
+            employee = (
+                Employee.objects.filter(pk=value).first() if value.isdigit() else None
+            )
+            if not allocation_accessibility(request, employee):
+                return handle_no_permission(request)
         return function(request, *args, **kwargs)
 
     return _function

@@ -1484,9 +1484,25 @@ class ToggleDashboardAccess(View):
         """
         post
         """
-        instance = Employee.objects.get(pk=request.GET["instance_id"])
-        instance.employee_user_id.is_active = not instance.employee_user_id.is_active
-        instance.employee_user_id.save()
+        instance = Employee.objects.filter(
+            pk=request.GET.get("instance_id") or request.POST.get("instance_id")
+        ).first()
+        if instance is None:
+            return handle_no_permission(request)
+        account = instance.employee_user_id
+        # Recruitment and onboarding managers, and a reporting manager, keep
+        # this action for ordinary accounts. It never reaches a superuser's
+        # account (unless the caller is one), and nobody switches off their own
+        # sign-in from here.
+        if account == request.user or (
+            account.is_superuser and not request.user.is_superuser
+        ):
+            return handle_no_permission(
+                request,
+                message=_("This account's login access can't be changed from here."),
+            )
+        account.is_active = not account.is_active
+        account.save()
         if instance.employee_user_id.is_active:
             messages.success(request, _("Login access provided"))
         else:
