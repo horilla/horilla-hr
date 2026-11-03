@@ -9,6 +9,7 @@ import ast
 import json
 import os
 import re
+import secrets
 from datetime import datetime, timezone
 from functools import lru_cache
 from urllib.parse import urlencode
@@ -18,6 +19,7 @@ import django
 import requests
 from django import forms
 from django.conf import settings
+from django.contrib.auth.hashers import check_password, make_password
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.core.files.storage import default_storage
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -765,6 +767,7 @@ class Candidate(HorillaModel):
         bases=[
             HorillaAuditInfo,
         ],
+        excluded_fields=["portal_password"],
     )
     sequence = models.IntegerField(null=True, default=0)
 
@@ -775,6 +778,16 @@ class Candidate(HorillaModel):
         default="not_sent",
         editable=False,
         verbose_name=_("Offer Letter Status"),
+    )
+    # Hash of the password the candidate logs in to the application tracking
+    # page with. Empty until an invitation has been sent; set only by
+    # `issue_portal_password`, never through a form.
+    portal_password = models.CharField(
+        max_length=128,
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("Portal Password"),
     )
     objects = HorillaCompanyManager(related_company_field="recruitment_id__company_id")
     last_updated = models.DateField(null=True, auto_now=True)
@@ -788,6 +801,39 @@ class Candidate(HorillaModel):
 
     def __str__(self):
         return f"{self.name}"
+
+    PORTAL_PASSWORD_LENGTH = 10
+    # No look-alikes (0/O, 1/l/I) so the password survives being read off an email.
+    PORTAL_PASSWORD_ALPHABET = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+    @classmethod
+    def generate_portal_password(cls):
+        """
+        A new random password for the application tracking page (not stored).
+        """
+        return "".join(
+            secrets.choice(cls.PORTAL_PASSWORD_ALPHABET)
+            for _position in range(cls.PORTAL_PASSWORD_LENGTH)
+        )
+
+    def issue_portal_password(self, raw_password):
+        """
+        Make `raw_password` the one password that opens the tracking page,
+        replacing any earlier one. Only its hash is kept. Written with
+        `update()` so it neither records a history entry nor fires the
+        automations a candidate save does.
+        """
+        hashed = make_password(raw_password)
+        type(self)._base_manager.filter(pk=self.pk).update(portal_password=hashed)
+        self.portal_password = hashed
+
+    def check_portal_password(self, raw_password):
+        """
+        Whether `raw_password` is this candidate's tracking page password.
+        """
+        return bool(self.portal_password) and check_password(
+            raw_password, self.portal_password
+        )
 
     def stage_drop_down(self):
         """

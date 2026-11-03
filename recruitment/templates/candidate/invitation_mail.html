@@ -1,0 +1,26 @@
+{% load i18n %}
+<div style="font-family: 'Segoe UI', Arial, sans-serif; background-color: #f4f6f9; padding: 24px;">
+    <div style="max-width: 640px; margin: auto; background: #ffffff; border-radius: 12px; padding: 28px; box-shadow: 0 4px 14px rgba(0,0,0,0.08); border: 1px solid #eceff3;">
+        <h2 style="margin: 0 0 18px 0; color: #1f2937; font-size: 22px;">{% trans "Track your application" %}</h2>
+        <p style="font-size: 14px; color: #374151; line-height: 1.7; margin: 0 0 14px 0;">
+            {% blocktrans with name=candidate.get_full_name %}Hi {{ name }},{% endblocktrans %}
+        </p>
+        <p style="font-size: 14px; color: #374151; line-height: 1.7; margin: 0 0 16px 0;">
+            {% blocktrans with company=company_name %}You can follow your application with {{ company }} on the application tracking page using the login details below.{% endblocktrans %}
+        </p>
+        <div style="margin: 18px 0; padding: 16px; background: #f9fafb; border-left: 4px solid hsl(8, 77%, 56%); border-radius: 8px;">
+            <p style="margin: 0 0 8px 0; font-size: 14px; color: #111827;">
+                <strong>{% trans "Login page" %}:</strong>
+                <a href="{{ login_url }}" target="_blank" style="color: hsl(8, 77%, 56%); text-decoration: none;">{{ login_url }}</a>
+            </p>
+            <p style="margin: 0 0 8px 0; font-size: 14px; color: #111827;"><strong>{% trans "Email" %}:</strong> {{ candidate.email }}</p>
+            <p style="margin: 0; font-size: 14px; color: #111827;"><strong>{% trans "Password" %}:</strong> <span style="font-family: Consolas, 'Courier New', monospace; font-size: 15px; letter-spacing: 1px;">{{ password }}</span></p>
+        </div>
+        <p style="font-size: 13px; color: #6b7280; margin: 0 0 18px 0;">
+            {% trans "For security, please keep these details private. If you receive a newer invitation, only the password in the newest one works." %}
+        </p>
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+        <p style="font-size: 13px; color: #6b7280; margin: 0;">{% trans "Regards," %}</p>
+        <p style="font-size: 13px; color: #111827; margin: 6px 0 0 0;"><strong>{{ company_name }}</strong></p>
+    </div>
+</div>
