@@ -113,7 +113,8 @@ def manager_or_owner_permission_required(model_class, perm):
                 # Compare as text: a form-encoded body delivers the id as a
                 # string and JSON as an int, and an owner whose own id failed to
                 # match would previously fall through to the manager branch.
-                target_id = request.data.get("employee_id")
+                data = request.data if hasattr(request.data, "get") else {}
+                target_id = data.get("employee_id")
                 if target_id is not None and str(target_id) == str(employee.id):
                     return func(self, request, *args, **kwargs)
                 target = Employee.objects.filter(pk=target_id).first()

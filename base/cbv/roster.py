@@ -436,11 +436,18 @@ class RosterPublishView(View):
                 pass
 
         dept_label = departments.first() if dept_id else _("All Departments")
-        messages.success(
-            request,
-            _("Roster published for %(dept)s (%(range)s).")
-            % {"dept": dept_label, "range": date_label},
-        )
+        if all_employee_ids:
+            messages.success(
+                request,
+                _("Roster published for %(dept)s (%(range)s).")
+                % {"dept": dept_label, "range": date_label},
+            )
+        else:
+            messages.info(
+                request,
+                _("Nothing to publish for %(dept)s (%(range)s).")
+                % {"dept": dept_label, "range": date_label},
+            )
         grid_params = f"from_date={from_date}"
         if to_date:
             grid_params += f"&to_date={to_date}"
@@ -715,6 +722,11 @@ class RosterTemplateDownloadView(View):
         dv = DataValidation(
             type="list", formula1=dv_formula, allow_blank=True, showErrorMessage=False
         )
+        # Only employees the caller may plan; otherwise the sheet lists the
+        # whole company and every other row fails on import.
+        scope = _roster_scope(request)
+        if scope is not None:
+            emp_qs = emp_qs.filter(pk__in=scope)
         last_row = max(emp_qs.count() + 2, 100)
         dv.sqref = f"C2:{get_column_letter(len(date_range) + 2)}{last_row}"
         ws.add_data_validation(dv)

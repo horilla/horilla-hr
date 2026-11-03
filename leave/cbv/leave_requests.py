@@ -527,6 +527,32 @@ class LeaveRequestFormView(EmployeeScopeMixin, HorillaFormView):
     template_name = "cbv/leave_requests/form/inherit.html"
     new_display_title = _("Leave Request")
 
+    def get_scoped_employee_ids(self, request):
+        """
+        On the edit route, who may open the record is decided by
+        ``get_queryset`` below, which also admits a manager that a
+        multiple-approval condition nominated for this request. The scope check
+        must not override that, so the record's own employee is left out here;
+        any other employee posted (moving the request to someone else) is
+        still checked.
+        """
+        pk = self.kwargs.get("pk")
+        if not pk:
+            return super().get_scoped_employee_ids(request)
+        from leave.views import _may_act_on_leave_request
+
+        instance = LeaveRequest.objects.filter(pk=pk).first()
+        if instance is None or not _may_act_on_leave_request(
+            request, instance, "leave.change_leaverequest", owner_allowed=True
+        ):
+            return super().get_scoped_employee_ids(request)
+        posted = request.POST.getlist("employee_id") if request.method == "POST" else []
+        return [
+            value
+            for value in posted
+            if value and str(value) != str(instance.employee_id_id)
+        ]
+
     def get_queryset(self):
         # The base class loads any pk; manager_can_enter above only checks
         # that the user manages *someone*. None makes it answer "not found".

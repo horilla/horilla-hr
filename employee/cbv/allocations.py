@@ -1490,6 +1490,10 @@ class ToggleDashboardAccess(View):
         if instance is None:
             return handle_no_permission(request)
         account = instance.employee_user_id
+        if account is None:
+            return handle_no_permission(
+                request, message=_("This employee has no login account.")
+            )
         # Recruitment and onboarding managers, and a reporting manager, keep
         # this action for ordinary accounts. It never reaches a superuser's
         # account (unless the caller is one), and nobody switches off their own

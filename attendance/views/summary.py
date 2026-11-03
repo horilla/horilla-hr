@@ -2203,6 +2203,13 @@ def attendance_monthly_summary_detail(request):
     to_date = _parse_date(request.GET.get("to_date"), datetime.date.today())
     metric = request.GET.get("metric", "present")
 
+    # Reading an employee's attendance: themselves, one of their reports, or
+    # a holder of the view permission.
+    if emp_id and not employees_in_scope(
+        request, [emp_id], "attendance.view_attendance", include_self=True
+    ):
+        return handle_no_permission(request)
+
     try:
         emp = Employee.objects.get(pk=emp_id)
     except Employee.DoesNotExist:
@@ -3354,6 +3361,13 @@ def attendance_monthly_summary_calendar(request):
         request.GET.get("from_date"), datetime.date.today().replace(day=1)
     )
     to_date = _parse_date(request.GET.get("to_date"), datetime.date.today())
+
+    # Reading an employee's attendance: themselves, one of their reports, or
+    # a holder of the view permission.
+    if emp_id and not employees_in_scope(
+        request, [emp_id], "attendance.view_attendance", include_self=True
+    ):
+        return handle_no_permission(request)
 
     try:
         emp = Employee.objects.get(pk=emp_id)

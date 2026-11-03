@@ -5393,6 +5393,16 @@ def create_allocationrequest_comment(request, leave_id):
         return HorillaRedirect(
             request, message=_("Leave allocation request not found.")
         )
+    # Same rule as viewing these comments: the owner, their manager, an
+    # approver named for the request, or a holder of the permission.
+    if not _may_act_on_leave_request(
+        request,
+        leave,
+        "leave.add_leaveallocationrequestcomment",
+        owner_allowed=True,
+    ):
+        messages.warning(request, _("You don't have permission"))
+        return render(request, "decorator_404.html")
 
     emp = request.user.employee_get
     form = LeaveallocationrequestcommentForm(
