@@ -70,6 +70,7 @@
         		if ($msg.length) $msg.click();
         	}
         	document.addEventListener("reloadPayrollContracts", function () {
+        		$("#relatedObjectModal").removeClass("oh-modal--show");
         		refreshContractsListContainer();
         	});
         	document.addEventListener("DOMContentLoaded", syncContractsNavVisibility);

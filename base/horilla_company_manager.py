@@ -8,6 +8,7 @@ from django.apps import apps
 from django.core.exceptions import FieldDoesNotExist
 from django.db import models
 from django.db.models import Q
+from django.db.models.fields.reverse_related import ForeignObjectRel
 from django.db.models.query import QuerySet
 
 from horilla.horilla_middlewares import _thread_locals, get_selected_company
@@ -53,6 +54,90 @@ def clean(self, *args, **kwargs):
 models.Model.clean = clean
 
 setattr(QuerySet, "update", update)
+
+
+def has_multi_valued_join(query):
+    """Return True when the query joins through a many-valued relation."""
+    for join in query.alias_map.values():
+        join_field = getattr(join, "join_field", None)
+        if isinstance(join_field, ForeignObjectRel) and join_field.multiple:
+            return True
+    return False
+
+
+class DistinctGuardMixin:
+    """Queryset mixin that applies DISTINCT only where duplicate rows can occur."""
+
+    def _apply_guard(self):
+        if not self._query.distinct and has_multi_valued_join(self._query):
+            self._query.distinct = True
+        return self
+
+    def _filter_or_exclude_inplace(self, negate, args, kwargs):
+        super()._filter_or_exclude_inplace(negate, args, kwargs)
+        self._apply_guard()
+
+    def order_by(self, *field_names):
+        return super().order_by(*field_names)._apply_guard()
+
+    def annotate(self, *args, **kwargs):
+        return super().annotate(*args, **kwargs)._apply_guard()
+
+    def alias(self, *args, **kwargs):
+        return super().alias(*args, **kwargs)._apply_guard()
+
+    def _aligned_with(self, other):
+        if (
+            isinstance(other, DistinctGuardMixin)
+            and self.query.distinct != other.query.distinct
+        ):
+            left, right = self._chain(), other._chain()
+            left.query.distinct = right.query.distinct = True
+            return left, right
+        return self, other
+
+    def __or__(self, other):
+        left, right = self._aligned_with(other)
+        return super(DistinctGuardMixin, left).__or__(right)
+
+    def __and__(self, other):
+        left, right = self._aligned_with(other)
+        return super(DistinctGuardMixin, left).__and__(right)
+
+    def __reduce__(self):
+        return (
+            _restore_guarded_queryset,
+            (self._unguarded_queryset_class, self.__getstate__()),
+        )
+
+
+def _restore_guarded_queryset(queryset_class, state):
+    """Rebuild a pickled guarded queryset from its original queryset class."""
+    guarded = guarded_queryset_class(queryset_class)
+    queryset = guarded.__new__(guarded)
+    queryset.__setstate__(state)
+    return queryset
+
+
+_guarded_queryset_classes = {}
+
+
+def guarded_queryset_class(queryset_class):
+    """Return the queryset class extended with the DISTINCT guard."""
+    if issubclass(queryset_class, DistinctGuardMixin):
+        return queryset_class
+    guarded = _guarded_queryset_classes.get(queryset_class)
+    if guarded is None:
+        guarded = type(
+            f"Guarded{queryset_class.__name__}",
+            (DistinctGuardMixin, queryset_class),
+            {
+                "__module__": queryset_class.__module__,
+                "_unguarded_queryset_class": queryset_class,
+            },
+        )
+        _guarded_queryset_classes[queryset_class] = guarded
+    return guarded
 
 
 class HorillaCompanyManager(models.Manager):
@@ -157,10 +242,10 @@ class HorillaCompanyManager(models.Manager):
             if not filter_ids:
                 return qs.none()
             try:
-                return qs.filter(
+                return self._guarded_queryset().filter(
                     Q(**{f"{filter_path}__in": list(filter_ids)})
                     | Q(**{f"{filter_path}__isnull": True})
-                ).distinct()
+                )
             except Exception as e:
                 logger.exception(
                     f"Company filter (all-my-companies) failed for model "
@@ -169,15 +254,20 @@ class HorillaCompanyManager(models.Manager):
                 return qs.none()
 
         try:
-            return qs.filter(
+            return self._guarded_queryset().filter(
                 Q(**{filter_path: company}) | Q(**{f"{filter_path}__isnull": True})
-            ).distinct()
+            )
         except Exception as e:
             logger.exception(
                 f"Company filter failed for model {self.model.__name__} "
                 f"with path '{filter_path}': {e}"
             )
             return qs.none()
+
+    def _guarded_queryset(self):
+        """Return an empty queryset of this manager's class with the DISTINCT guard."""
+        queryset_class = guarded_queryset_class(self._queryset_class)
+        return queryset_class(model=self.model, using=self._db, hints=self._hints)
 
     def _get_is_active_filter(self):
         """
