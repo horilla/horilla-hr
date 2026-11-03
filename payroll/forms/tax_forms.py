@@ -18,6 +18,7 @@ from payroll.methods.safe_tax_code import (
     PYTHON_FORMULAS_OFF_MESSAGE,
     TaxCodeValidationError,
     python_formulas_enabled,
+    same_formula,
     validate_tax_code,
 )
 from payroll.models.models import FilingStatus
@@ -155,11 +156,12 @@ class FilingStatusTaxRulesForm(ModelForm):
         # Unchanged code may be re-saved (the same form carries the slab and
         # rebate fields); only new or edited code is refused while Python
         # formulas are turned off.
-        # Compared stripped: the form field trims whitespace, so a stored
-        # formula ending in a newline would otherwise always look edited.
-        if not python_formulas_enabled() and (code or "").strip() != (
-            self.instance.python_code or ""
-        ).strip():
+        # Compared ignoring line endings and surrounding whitespace: the form
+        # field trims, and browsers submit Windows line endings, so a stored
+        # formula would otherwise always look edited.
+        if not python_formulas_enabled() and not same_formula(
+            code, self.instance.python_code
+        ):
             raise forms.ValidationError(PYTHON_FORMULAS_OFF_MESSAGE)
         # Refuse to store the combination that silently taxed everyone on this
         # filing status at 0: Python mode on with nothing to run.

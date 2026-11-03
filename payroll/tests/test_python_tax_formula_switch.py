@@ -62,9 +62,7 @@ class WhenPythonFormulasAreOffFormTests(TestCase):
 
     def test_switching_back_to_slabs_is_always_allowed(self):
         status = make_filing_status("Coded", use_py=True, python_code=WORKING)
-        form = FilingStatusForm(
-            instance=status, data=dict(BASE, filing_status="Coded")
-        )
+        form = FilingStatusForm(instance=status, data=dict(BASE, filing_status="Coded"))
         self.assertTrue(form.is_valid(), form.errors.as_text())
         self.assertFalse(form.save().use_py)
 
@@ -148,3 +146,72 @@ class WhenPythonFormulasAreOnTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["result"], 100.0)
+
+
+CRLF = WORKING.replace("\n", "\r\n")
+
+
+@override_settings(HORILLA_ALLOW_PYTHON_TAX_FORMULAS=False)
+class LineEndingTests(TestCase):
+    """Browsers submit a textarea with Windows line endings."""
+
+    def setUp(self):
+        _admin_client(self)
+        self.status = make_filing_status("Coded", use_py=True, python_code=WORKING)
+
+    def test_an_untouched_formula_posted_with_windows_line_endings_is_not_edited(self):
+        payload = {"standard_deduction": "0", "cess_percent": "0", "python_code": CRLF}
+        form = FilingStatusTaxRulesForm(payload, instance=self.status)
+        self.assertTrue(form.is_valid(), form.errors.as_text())
+
+    def test_the_ajax_save_accepts_it_and_does_not_rewrite_the_stored_text(self):
+        response = self.client.post(
+            f"/payroll/update-py-code/{self.status.pk}/", {"code": CRLF}, **self.hx
+        )
+        self.assertEqual(response.status_code, 200)
+        self.status.refresh_from_db()
+        self.assertEqual(self.status.python_code, WORKING)
+
+
+class AdminFormTests(TestCase):
+    """The Django admin applies the same rules as the payroll pages."""
+
+    def _form(self, instance, **changes):
+        from django.forms.models import model_to_dict
+
+        from payroll.admin import FilingStatusAdminForm
+
+        data = {k: v for k, v in model_to_dict(instance).items() if v is not None}
+        data.update(changes)
+        return FilingStatusAdminForm(data, instance=instance)
+
+    @override_settings(HORILLA_ALLOW_PYTHON_TAX_FORMULAS=False)
+    def test_editing_a_formula_is_refused_while_off(self):
+        status = make_filing_status("Coded", use_py=True, python_code=WORKING)
+        self.assertFalse(self._form(status, python_code=EDITED).is_valid())
+
+    @override_settings(HORILLA_ALLOW_PYTHON_TAX_FORMULAS=False)
+    def test_turning_python_mode_on_is_refused_while_off(self):
+        status = make_filing_status("Slabs", use_py=False)
+        self.assertFalse(
+            self._form(status, use_py=True, python_code=WORKING).is_valid()
+        )
+
+    @override_settings(HORILLA_ALLOW_PYTHON_TAX_FORMULAS=False)
+    def test_other_fields_still_save_while_off(self):
+        status = make_filing_status("Coded", use_py=True, python_code=WORKING)
+        form = self._form(status, filing_status="Coded renamed")
+        self.assertTrue(form.is_valid(), form.errors.as_text())
+
+    @override_settings(HORILLA_ALLOW_PYTHON_TAX_FORMULAS=True)
+    def test_code_is_checked_when_on(self):
+        status = make_filing_status("Coded", use_py=True, python_code=WORKING)
+        form = self._form(status, python_code="import os\n" + WORKING)
+        self.assertFalse(form.is_valid())
+        self.assertIn("python_code", form.errors)
+
+    @override_settings(HORILLA_ALLOW_PYTHON_TAX_FORMULAS=True)
+    def test_a_valid_edit_saves_when_on(self):
+        status = make_filing_status("Coded", use_py=True, python_code=WORKING)
+        form = self._form(status, python_code=EDITED)
+        self.assertTrue(form.is_valid(), form.errors.as_text())

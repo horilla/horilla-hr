@@ -37,6 +37,7 @@ import threading
 __all__ = [
     "PYTHON_FORMULAS_OFF_MESSAGE",
     "python_formulas_enabled",
+    "same_formula",
     "TaxCodeValidationError",
     "TaxFormulaTimeout",
     "validate_tax_code",
@@ -65,6 +66,17 @@ def python_formulas_enabled() -> bool:
     from django.conf import settings
 
     return bool(getattr(settings, "HORILLA_ALLOW_PYTHON_TAX_FORMULAS", False))
+
+
+def same_formula(first, second) -> bool:
+    """Whether two formula texts are the same, ignoring line endings and the
+    whitespace at either end. A browser submits a textarea with Windows line
+    endings, so a formula re-saved untouched would otherwise look edited."""
+
+    def normalise(text):
+        return (text or "").replace("\r\n", "\n").replace("\r", "\n").strip()
+
+    return normalise(first) == normalise(second)
 
 
 class TaxCodeValidationError(ValueError):
