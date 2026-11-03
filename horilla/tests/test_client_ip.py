@@ -69,3 +69,26 @@ class ClientIpTests(SimpleTestCase):
     def test_a_chain_of_trusted_proxies_is_followed(self):
         # client -> load balancer (10.0.0.4) -> nginx
         self.assertEqual(ip(NGINX, "8.8.8.8, 81.2.69.160, 10.0.0.4"), "81.2.69.160")
+
+
+class Ipv4MappedAddressTests(SimpleTestCase):
+    """A dual-stack listener reports IPv4 clients as ::ffff:a.b.c.d."""
+
+    def setUp(self):
+        client_ip_module._resolved.clear()
+
+    @override_settings(HORILLA_TRUSTED_PROXIES=["172.16.0.0/12"])
+    def test_a_mapped_proxy_address_is_trusted_by_an_ipv4_range(self):
+        self.assertEqual(ip("::ffff:172.19.0.3", "192.168.1.50"), "192.168.1.50")
+
+    @override_settings(HORILLA_TRUSTED_PROXIES=[])
+    def test_a_mapped_client_address_reads_as_ipv4(self):
+        self.assertEqual(ip("::ffff:203.0.113.9"), "203.0.113.9")
+
+    @override_settings(HORILLA_TRUSTED_PROXIES=["172.16.0.0/12"])
+    def test_a_mapped_entry_in_the_header_reads_as_ipv4(self):
+        self.assertEqual(ip("172.19.0.3", "::ffff:1.2.3.4"), "1.2.3.4")
+
+    @override_settings(HORILLA_TRUSTED_PROXIES=[])
+    def test_a_real_ipv6_client_is_unchanged(self):
+        self.assertEqual(ip("2001:db8::1"), "2001:db8::1")

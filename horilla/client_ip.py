@@ -28,9 +28,15 @@ _resolved = {}  # hostname -> (time resolved, {addresses})
 
 def _address(value):
     try:
-        return ipaddress.ip_address(value.strip())
+        address = ipaddress.ip_address(value.strip())
     except ValueError:
         return None
+    # An IPv4 client reaching a dual-stack listener arrives as ::ffff:a.b.c.d.
+    # Treat it as the IPv4 address it is, so trusted-proxy ranges, lockouts and
+    # office-IP rules written in IPv4 still match.
+    if address.version == 6 and address.ipv4_mapped:
+        return address.ipv4_mapped
+    return address
 
 
 def _resolve(hostname):
