@@ -30,6 +30,7 @@ from dateutil import parser as dateutil_parser
 from django import template
 from django.contrib import messages
 from django.core import serializers
+from django.core.cache import cache
 from django.core.cache import cache as CACHE
 from django.core.mail import EmailMessage
 from django.core.paginator import Paginator
@@ -3275,15 +3276,62 @@ def candidate_self_tracking_rating_option(request):
     return HttpResponse("<script>$('#reloadMessagesButton').click()</script>")
 
 
+# The candidate login checks its password itself, so neither django-axes nor
+# the failed-login handler sees it. Without a limit an emailed password could
+# be guessed without end. Per email: guessing one candidate's password. Per
+# client address, higher: one office or network behind a shared address must
+# not lock each other out.
+CANDIDATE_LOGIN_WINDOW = 15 * 60
+CANDIDATE_LOGIN_EMAIL_LIMIT = 5
+CANDIDATE_LOGIN_ADDRESS_LIMIT = 20
+
+
+def _candidate_login_counters(request, email):
+    from horilla.client_ip import client_ip
+
+    return (
+        (f"candidate-login:email:{email.lower()}", CANDIDATE_LOGIN_EMAIL_LIMIT),
+        (
+            f"candidate-login:address:{client_ip(request) or 'unknown'}",
+            CANDIDATE_LOGIN_ADDRESS_LIMIT,
+        ),
+    )
+
+
+def _candidate_login_blocked(counters):
+    return any(cache.get(key, 0) >= limit for key, limit in counters)
+
+
+def _record_candidate_login_failure(counters):
+    for key, _limit in counters:
+        if not cache.add(key, 1, CANDIDATE_LOGIN_WINDOW):
+            try:
+                cache.incr(key)
+            except ValueError:
+                cache.set(key, 1, CANDIDATE_LOGIN_WINDOW)
+
+
 def candidate_login(request):
     if request.method == "POST":
         email = request.POST.get("email", "").strip()
         password = request.POST.get("password", "").strip()
 
+        counters = _candidate_login_counters(request, email)
+        if _candidate_login_blocked(counters):
+            return render(
+                request,
+                "candidate/self_login.html",
+                {"error": _("Too many attempts. Please try again in a few minutes.")},
+                status=429,
+            )
+
         backend = CandidateAuthenticationBackend()
         candidate = backend.authenticate(request, username=email, password=password)
 
         if candidate is not None:
+            cache.delete(counters[0][0])
+            # A new session key on login, so a key planted before it is useless.
+            request.session.cycle_key()
             request.session["candidate_id"] = candidate.id
             request.session["candidate_email"] = candidate.email
             # The login page shows no messages, so one left by an earlier action
@@ -3292,6 +3340,7 @@ def candidate_login(request):
             messages.success(request, _("Logged in successfully."))
             return redirect("candidate-self-status-tracking")
         else:
+            _record_candidate_login_failure(counters)
             return render(
                 request, "candidate/self_login.html", {"error": "Invalid credentials"}
             )
