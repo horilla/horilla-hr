@@ -52,6 +52,7 @@ from base.forms import ModelForm
 from base.import_template_data import import_template_frame, write_import_xlsx
 from base.methods import (
     choosesubordinates,
+    employees_in_scope,
     filtersubordinates,
     filtersubordinatesemployeemodel,
     get_key_instances,
@@ -128,7 +129,7 @@ from horilla.decorators import (
 from horilla.filters import HorillaPaginator
 from horilla.group_by import group_by_queryset
 from horilla.http.response import HorillaRedirect, with_bulk_result
-from horilla.methods import dynamic_attr, get_horilla_model_class
+from horilla.methods import dynamic_attr, get_horilla_model_class, handle_no_permission
 from horilla_audit.models import AccountBlockUnblock, HistoryTrackingFields
 from horilla_auth.methods import generate_random_password
 from horilla_auth.models import HorillaUser
@@ -1674,6 +1675,13 @@ def employee_view_update(request, obj_id, **kwargs):
         return HorillaRedirect(
             request, message=_("No Employee found matching the query.")
         )
+    # manager_can_enter admits anyone who manages anybody; the employee being
+    # edited must be one of the caller's reports, themselves, or the caller
+    # must hold the permission.
+    if not employees_in_scope(
+        request, [(employee or emp).id], "employee.change_employee", include_self=True
+    ):
+        return handle_no_permission(request)
 
     selected_company_id = request.session["selected_company"]
     user = Employee.objects.filter(employee_user_id=request.user).first()
@@ -1949,6 +1957,16 @@ def employee_create_update_personal_info(request, obj_id=None):
     """
     This method is used to update employee's personal info.
     """
+    # manager_can_enter admits anyone who manages anybody. Creating an employee
+    # (and sending the invitation) needs the add permission; updating one is
+    # limited to the caller's reports, themselves, or a holder of the permission.
+    if obj_id is None:
+        if not request.user.has_perm("employee.add_employee"):
+            return handle_no_permission(request)
+    elif not employees_in_scope(
+        request, [obj_id], "employee.change_employee", include_self=True
+    ):
+        return handle_no_permission(request)
     employee = Employee.objects.filter(id=obj_id).first()
     form = EmployeeForm(request.POST, request.FILES, instance=employee)
     if form.is_valid():
@@ -2020,6 +2038,12 @@ def employee_update_work_info(request, obj_id=None):
     """
     This method is used to update employee work info
     """
+    # Work information holds the reporting manager and pay, so not even the
+    # employee themselves may change it here without the permission.
+    if not employees_in_scope(
+        request, [obj_id], "employee.change_employeeworkinformation"
+    ):
+        return handle_no_permission(request)
     employee = Employee.objects.filter(id=obj_id).first()
     form = EmployeeWorkInformationForm(
         request.POST,
@@ -2058,6 +2082,10 @@ def employee_update_bank_details(request, obj_id=None):
     """
     This method is used to render form to create employee's bank information.
     """
+    if not employees_in_scope(
+        request, [obj_id], "employee.change_employeebankdetails", include_self=True
+    ):
+        return handle_no_permission(request)
     employee = Employee.objects.filter(id=obj_id).first()
     form = EmployeeBankDetailsForm(
         request.POST,
@@ -2747,6 +2775,10 @@ def get_manager_in(request):
         else:
             message = _("Employee archived")
     if save:
+        # Showing the records that block an archive needs only view access; the
+        # archive / un-archive itself is the same write as employee_archive.
+        if not request.user.has_perm("employee.delete_employee"):
+            return handle_no_permission(request)
         employee.save()
         employee.sync_login_access()
         messages.success(request, message)
@@ -2812,6 +2844,10 @@ def employee_work_info_view_create(request, obj_id):
     args:
         obj_id : employee instance id
     """
+    if not employees_in_scope(
+        request, [obj_id], "employee.add_employeeworkinformation"
+    ):
+        return handle_no_permission(request)
 
     employee = Employee.objects.get(id=obj_id)
     form = EmployeeForm(instance=employee)
@@ -2850,6 +2886,12 @@ def employee_work_info_view_update(request, obj_id):
     """
 
     work_information = EmployeeWorkInformation.objects.get(id=obj_id)
+    if not employees_in_scope(
+        request,
+        [work_information.employee_id_id],
+        "employee.change_employeeworkinformation",
+    ):
+        return handle_no_permission(request)
     form = EmployeeForm(instance=work_information.employee_id)
     bank_form = EmployeeBankDetailsUpdateForm(
         instance=work_information.employee_id.employee_bank_details
@@ -2877,6 +2919,10 @@ def employee_bank_details_view_create(request, obj_id):
     args:
         obj_id : employee instance id
     """
+    if not employees_in_scope(
+        request, [obj_id], "employee.add_employeebankdetails", include_self=True
+    ):
+        return handle_no_permission(request)
     employee = Employee.objects.get(id=obj_id)
     form = EmployeeForm(instance=employee)
     bank_form = EmployeeBankDetailsUpdateForm(request.POST)
@@ -2906,6 +2952,15 @@ def employee_bank_details_view_update(request, obj_id):
     This method is used to update employee bank details.
     """
     employee_bank_instance = EmployeeBankDetails.objects.get(id=obj_id)
+    # The account salary is paid into: the same rule as the API fix for
+    # GHSA-39gq-9wwx-p8hx, applied to the web route.
+    if not employees_in_scope(
+        request,
+        [employee_bank_instance.employee_id_id],
+        "employee.change_employeebankdetails",
+        include_self=True,
+    ):
+        return handle_no_permission(request)
     form = EmployeeForm(instance=employee_bank_instance.employee_id)
     work_form = EmployeeWorkInformationUpdateForm(
         instance=employee_bank_instance.employee_id.employee_work_info
@@ -3692,6 +3747,8 @@ def add_note(request, emp_id=None):
     if not employee_obj:
         messages.error(request, _("Employee not found."))
         return HorillaRedirect(request)
+    if not employees_in_scope(request, [emp_id], "employee.add_employeenote"):
+        return handle_no_permission(request)
 
     form = EmployeeNoteForm(initial={"employee_id": emp_id})
     if request.method == "POST":
@@ -3733,6 +3790,10 @@ def employee_note_update(request, note_id):
         return HorillaRedirect(
             request, message=_("No Employee Note found matching the query.")
         )
+    if not employees_in_scope(
+        request, [note.employee_id_id], "employee.change_employeenote"
+    ):
+        return handle_no_permission(request)
 
     form = EmployeeNoteForm(instance=note)
     if request.POST:
@@ -3769,6 +3830,10 @@ def employee_note_delete(request, note_id):
         return HorillaRedirect(
             request, message=_("No Employee Note found matching the query.")
         )
+    if not employees_in_scope(
+        request, [note.employee_id_id], "employee.delete_employeenote"
+    ):
+        return handle_no_permission(request)
 
     emp_id = note.employee_id.id
     note.delete()
@@ -3789,6 +3854,8 @@ def add_more_employee_files(request, note_id):
     if not note:
         messages.error(request, _("Note not found."))
         return HorillaRedirect(request)
+    if not employees_in_scope(request, [note.employee_id_id], "employee.add_notefiles"):
+        return handle_no_permission(request)
     employee_id = note.employee_id.id
 
     if request.method == "POST":
@@ -3822,6 +3889,12 @@ def delete_employee_note_file(request, note_file_id):
     """
     file = NoteFiles.objects.filter(id=note_file_id).first()
     if file:
+        # A file belongs to a note about an employee; that employee must be in
+        # the caller's scope. A file on no note needs the permission.
+        note = EmployeeNote.objects.filter(note_files=file).first()
+        owner = note.employee_id_id if note else None
+        if not employees_in_scope(request, [owner], "employee.delete_notefiles"):
+            return handle_no_permission(request)
         file.delete()
     return HttpResponse()
 

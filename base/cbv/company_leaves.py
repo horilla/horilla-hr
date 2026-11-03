@@ -14,7 +14,11 @@ from django.utils.translation import gettext_lazy as _
 from base.filters import CompanyLeaveFilter
 from base.forms import CompanyLeaveForm
 from base.models import CompanyLeaves
-from horilla_views.cbv_methods import login_required, permission_required
+from horilla_views.cbv_methods import (
+    AddOrChangePermissionMixin,
+    login_required,
+    permission_required,
+)
 from horilla_views.generic.cbv.views import (
     HorillaDetailedView,
     HorillaFormView,
@@ -126,11 +130,13 @@ class CompanyLeaveDetailView(HorillaDetailedView):
 
 
 @method_decorator(login_required, name="dispatch")
-class CompanyleaveFormView(HorillaFormView):
+class CompanyleaveFormView(AddOrChangePermissionMixin, HorillaFormView):
     """
     form view for create button
     """
 
+    add_perm = "base.add_companyleaves"
+    change_perm = "base.change_companyleaves"
     form_class = CompanyLeaveForm
     model = CompanyLeaves
     new_display_title = _("Create Weekly Off Days")

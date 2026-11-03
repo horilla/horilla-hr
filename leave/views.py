@@ -38,6 +38,7 @@ from base.methods import (
     check_manager,
     choosesubordinates,
     closest_numbers,
+    employees_in_scope,
     eval_validate,
     export_data,
     filtersubordinates,
@@ -1068,6 +1069,20 @@ def _may_act_on_leave_request(request, leave_request, perm, owner_allowed=False)
     return bool(conditional) and employee in conditional["managers"]
 
 
+def _comment_on(model, comment_id, request_id):
+    """
+    The comment, but only if it belongs to the request named in the URL.
+
+    The file-upload branch took a comment id from the query string and attached
+    files to whichever comment that was, so access to one request's comments
+    was enough to add files to another's. A missing or non-numeric id is
+    refused here too, instead of raising.
+    """
+    if not str(comment_id or "").isdigit():
+        return None
+    return model.objects.filter(id=comment_id, request_id=request_id).first()
+
+
 def _leave_decision_denied(request):
     """Denial in the shape the approve/reject callers read: the leave list
     and the calendar take the outcome from HX-Trigger's horillaMessage."""
@@ -1785,6 +1800,8 @@ def leave_assign_one(request, obj_id):
             )
 
         employee_ids = list(map(int, request.POST.getlist("employee_id")))
+        if not employees_in_scope(request, employee_ids, "leave.add_availableleave"):
+            return handle_no_permission(request)
 
         existing_leaves_set = set(
             AvailableLeave.objects.filter(
@@ -2026,6 +2043,10 @@ def leave_assign(request):
     if request.method == "POST":
         leave_type_ids = request.POST.getlist("leave_type_id")
         employee_ids = request.POST.getlist("employee_id")
+        # manager_can_enter admits any manager of anybody; the employees named
+        # here must be the caller's own reports unless they hold the permission.
+        if not employees_in_scope(request, employee_ids, "leave.add_availableleave"):
+            return handle_no_permission(request)
 
         if leave_type_ids and employee_ids:
             leave_types = LeaveType.objects.filter(id__in=leave_type_ids)
@@ -2326,9 +2347,13 @@ def assign_leave_type_import(request):
             else:
                 assign_leave_dicts = data_frame.dropna(how="all").to_dict("records")
 
+        # Only employees the user may assign leave to; anyone else reads as
+        # "does not exist" rather than confirming the badge is real.
         employees = {
             emp.badge_id.strip().lower(): emp
-            for emp in Employee.objects.all()
+            for emp in filtersubordinatesemployeemodel(
+                request, Employee.objects.all(), "leave.add_availableleave"
+            )
             if emp.badge_id
         }
         leave_types = {lt.name.strip().lower(): lt for lt in LeaveType.objects.all()}
@@ -5332,8 +5357,11 @@ def view_leaverequest_comment(request, leave_id):
 
     if request.FILES:
         files = request.FILES.getlist("files")
-        comment_id = request.GET["comment_id"]
-        comment = LeaverequestComment.objects.get(id=comment_id)
+        comment = _comment_on(
+            LeaverequestComment, request.GET.get("comment_id"), leave_id
+        )
+        if comment is None:
+            return render(request, "decorator_404.html")
         attachments = []
         for file in files:
             file_instance = LeaverequestFile()
@@ -5365,6 +5393,16 @@ def create_allocationrequest_comment(request, leave_id):
         return HorillaRedirect(
             request, message=_("Leave allocation request not found.")
         )
+    # Same rule as viewing these comments: the owner, their manager, an
+    # approver named for the request, or a holder of the permission.
+    if not _may_act_on_leave_request(
+        request,
+        leave,
+        "leave.add_leaveallocationrequestcomment",
+        owner_allowed=True,
+    ):
+        messages.warning(request, _("You don't have permission"))
+        return render(request, "decorator_404.html")
 
     emp = request.user.employee_get
     form = LeaveallocationrequestcommentForm(
@@ -5495,8 +5533,11 @@ def view_allocationrequest_comment(request, leave_id):
 
     if request.FILES:
         files = request.FILES.getlist("files")
-        comment_id = request.GET["comment_id"]
-        comment = LeaveallocationrequestComment.objects.get(id=comment_id)
+        comment = _comment_on(
+            LeaveallocationrequestComment, request.GET.get("comment_id"), leave_id
+        )
+        if comment is None:
+            return render(request, "decorator_404.html")
         attachments = []
         for file in files:
             file_instance = LeaverequestFile()
@@ -6280,6 +6321,18 @@ if apps.is_installed("attendance"):
         """
         This method is used to show Leave request comments
         """
+        comp_leave = CompensatoryLeaveRequest.objects.filter(id=comp_leave_id).first()
+        if not comp_leave:
+            return HttpResponse()
+        if not _may_act_on_leave_request(
+            request,
+            comp_leave,
+            "leave.view_compensatoryleaverequestcomment",
+            owner_allowed=True,
+        ):
+            messages.warning(request, _("You don't have permission"))
+            return render(request, "decorator_404.html")
+
         comments = CompensatoryLeaverequestComment.objects.filter(
             request_id=comp_leave_id
         ).order_by("-created_at")
@@ -6289,8 +6342,13 @@ if apps.is_installed("attendance"):
 
         if request.FILES:
             files = request.FILES.getlist("files")
-            comment_id = request.GET["comment_id"]
-            comment = CompensatoryLeaverequestComment.objects.get(id=comment_id)
+            comment = _comment_on(
+                CompensatoryLeaverequestComment,
+                request.GET.get("comment_id"),
+                comp_leave_id,
+            )
+            if comment is None:
+                return render(request, "decorator_404.html")
             attachments = []
             for file in files:
                 file_instance = LeaverequestFile()
@@ -6321,6 +6379,14 @@ if apps.is_installed("attendance"):
             return HorillaRedirect(
                 request, message=_("Compensatory leave request not found.")
             )
+        if not _may_act_on_leave_request(
+            request,
+            comp_leave,
+            "leave.add_compensatoryleaverequestcomment",
+            owner_allowed=True,
+        ):
+            messages.warning(request, _("You don't have permission"))
+            return render(request, "decorator_404.html")
 
         emp = request.user.employee_get
         form = CompensatoryLeaveRequestcommentForm(

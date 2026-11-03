@@ -298,6 +298,15 @@ _DEFAULT_HRMS_GROUPS = {
             "employee": ("view",),
             "base": ("view",),
         },
+        # Shift planning is attendance work: the Roster Planner is limited to
+        # holders of change_roster (everyone else sees only their own reports).
+        "extra_permissions": (
+            "base.add_roster",
+            "base.change_roster",
+            "base.delete_roster",
+            "base.add_rosterpublishlog",
+            "base.change_rosterpublishlog",
+        ),
     },
     "Leave Manager": {
         "apps": ("leave", "employee"),
@@ -414,6 +423,18 @@ def _resolve_group_permissions(config):
                     codename__startswith=f"{action}_",
                 ).values_list("id", flat=True)
             )
+
+    # Individual permissions a group needs beyond its app-wide actions, as
+    # "app_label.codename". Skipped when the app is not installed yet.
+    for dotted in config.get("extra_permissions", ()):
+        app_label, codename = dotted.split(".", 1)
+        if not _is_app_available(app_label):
+            continue
+        permission_ids.extend(
+            Permission.objects.filter(
+                content_type__app_label=app_label, codename=codename
+            ).values_list("id", flat=True)
+        )
 
     # Admin also needs Django auth group/permission management
     if config.get("apps") == "__all__" and _is_app_available("auth"):

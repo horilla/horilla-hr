@@ -15,7 +15,11 @@ from django.utils.translation import gettext_lazy as _
 from django.utils.translation import gettext_noop
 
 from employee.models import Employee
-from horilla_views.cbv_methods import login_required, permission_required
+from horilla_views.cbv_methods import (
+    EmployeeScopeMixin,
+    login_required,
+    permission_required,
+)
 from horilla_views.generic.cbv.views import (
     HorillaCardView,
     HorillaDetailedView,
@@ -350,10 +354,20 @@ class LeaveTypeCardView(HorillaCardView):
 
 @method_decorator(login_required, name="dispatch")
 @method_decorator(permission_required(perm="leave.view_leavetype"), name="dispatch")
-class LeaveTypeAssignForm(HorillaFormView):
+class LeaveTypeAssignForm(EmployeeScopeMixin, HorillaFormView):
     """
     form view
     """
+
+    # Seeing the leave types page is not the right to give someone a leave
+    # balance. The employees named in the POST must be the caller's reports
+    # unless they hold the permission to assign leave to anyone. The pk here
+    # is a leave type, not an employee, so it is not used for the check.
+    scope_perm = "leave.add_availableleave"
+    scope_instance_field = None
+
+    def get_scope_perm(self):
+        return self.scope_perm
 
     form_class = LeaveOneAssignForm
     model = LeaveType

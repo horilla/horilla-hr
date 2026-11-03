@@ -17,7 +17,11 @@ from base.forms import MultipleApproveConditionForm
 from base.models import MultipleApprovalCondition, MultipleApprovalManagers
 from base.widgets import CustomModelChoiceWidget
 from employee.models import Employee
-from horilla_views.cbv_methods import login_required, permission_required
+from horilla_views.cbv_methods import (
+    AddOrChangePermissionMixin,
+    login_required,
+    permission_required,
+)
 from horilla_views.generic.cbv.views import (
     HorillaDetailedView,
     HorillaFormView,
@@ -156,11 +160,13 @@ class MultipleApprovalConditionDetailView(HorillaDetailedView):
 
 
 @method_decorator(login_required, name="dispatch")
-class MultipleApprovalConditionFormView(HorillaFormView):
+class MultipleApprovalConditionFormView(AddOrChangePermissionMixin, HorillaFormView):
     """
     Create and edit form
     """
 
+    add_perm = "base.add_multipleapprovalcondition"
+    change_perm = "base.change_multipleapprovalcondition"
     model = MultipleApprovalCondition
     form_class = MultipleApproveConditionForm
     new_display_title = _("Create Multiple Approval Condition")

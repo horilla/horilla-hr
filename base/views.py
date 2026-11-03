@@ -124,6 +124,7 @@ from base.methods import (
     check_manager,
     choosesubordinates,
     closest_numbers,
+    employees_in_scope,
     export_data,
     filtersubordinates,
     filtersubordinatesemployeemodel,
@@ -3711,6 +3712,24 @@ def rotating_shift_assign_import(request):
             pd.read_csv(file) if file_extension == "csv" else pd.read_excel(file)
         )
         work_info_dicts = data_frame.to_dict("records")
+        # manager_can_enter admits any manager of anybody, so refuse the whole
+        # import if it names an employee outside the caller's team. This runs
+        # before any row is processed, because rows create rotating shifts, and
+        # because rows are paired with employees by position, so employees
+        # cannot be dropped one by one without misaligning the rest.
+        badge_ids = [
+            str(row["Badge Id"]) for row in work_info_dicts if "Badge Id" in row
+        ]
+        named_ids = list(
+            Employee.objects.filter(badge_id__in=badge_ids).values_list("id", flat=True)
+        )
+        if not employees_in_scope(request, named_ids, "base.add_rotatingshiftassign"):
+            from horilla.methods import handle_no_permission
+
+            return handle_no_permission(
+                request,
+                message=_("The file names employees outside your team."),
+            )
         try:
             keys_list = list(work_info_dicts[0].keys())
             error_dict = {key: [] for key in keys_list}

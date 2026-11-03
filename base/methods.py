@@ -637,6 +637,31 @@ def get_subordinate_employee_ids(
         return direct_sub_ids
 
 
+def employees_in_scope(request, employee_ids, perm, include_self=False):
+    """
+    Whether the caller may act on every employee in ``employee_ids``.
+
+    True when the caller holds ``perm``, or every id is one of the caller's
+    subordinates (or the caller, with ``include_self``). It is the same rule
+    ``choosesubordinates`` applies to an employee dropdown, enforced on the
+    server for the ids that were actually submitted.
+    """
+    if request.user.has_perm(perm):
+        return True
+    employee = getattr(request.user, "employee_get", None)
+    if employee is None:
+        return False
+    allowed = {
+        str(pk)
+        for pk in get_subordinate_employee_ids(
+            request, nested=settings.NESTED_SUBORDINATE_VISIBILITY
+        )
+    }
+    if include_self:
+        allowed.add(str(employee.id))
+    return all(str(pk) in allowed for pk in employee_ids)
+
+
 def choosesubordinatesemployeemodel(request, form, perm):
     user = request.user
     if user.has_perm(perm):

@@ -26,7 +26,7 @@ from base.methods import (
     is_reportingmanager,
 )
 from employee.models import Employee
-from horilla_views.cbv_methods import login_required
+from horilla_views.cbv_methods import EmployeeScopeMixin, login_required
 from horilla_views.generic.cbv.views import (
     HorillaDetailedView,
     HorillaFormView,
@@ -493,10 +493,13 @@ class AttendanceListTabDetailView(HorillaDetailedView):
 
 
 @method_decorator(login_required, name="dispatch")
-class NewAttendanceRequestFormView(HorillaFormView):
+class NewAttendanceRequestFormView(EmployeeScopeMixin, HorillaFormView):
     """
     form view for create  attendance request
     """
+
+    scope_perm = "attendance.change_attendance"
+    scope_include_self = True
 
     form_class = NewRequestForm
     model = Attendance
