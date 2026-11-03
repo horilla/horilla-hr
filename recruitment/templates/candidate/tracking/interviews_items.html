@@ -14,9 +14,9 @@
                 <span class="inline-flex items-center gap-[6px]">
                     {% include "candidate/tracking/icon.html" with name="clock" size=17 %}{{ interview.interview_time|time:"g:i A" }}
                 </span>
-                {% for interviewer in interview.employee_id.all %}
+                {% for interviewer in interview.interviewers %}
                     <span class="inline-flex items-center gap-[6px]">
-                        {% include "candidate/tracking/icon.html" with name="user" size=17 %}{{ interviewer }}
+                        {% include "candidate/tracking/icon.html" with name="user" size=17 %}{{ interviewer.name }}{% if interviewer.role %} &middot; {{ interviewer.role }}{% endif %}
                     </span>
                 {% endfor %}
             </div>

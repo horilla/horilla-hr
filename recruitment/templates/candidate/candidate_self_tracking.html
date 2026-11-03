@@ -112,6 +112,13 @@
                 background: {{ theme_obj.primary_50|default:'#f6f6f6' }};
             }
 
+            /* Streamed HTML and the Tailwind runtime make the boxes grow while the page
+               parses; keep the page hidden until it has settled (see the script at the
+               end of the body), with a timeout so it can never stay hidden. */
+            #trackingRoot.tracking-loading {
+                visibility: hidden;
+            }
+
             .oh-rate {
                 height: auto;
             }
@@ -135,7 +142,7 @@
         </button>
 
         <!-- The page is laid out in the design's own pixel sizes; zoom brings it to the display scale it was drawn for -->
-        <div id="trackingRoot" style="zoom: 0.8">
+        <div id="trackingRoot" class="tracking-loading" style="zoom: 0.8">
 
         <!-- Top bar -->
         <header class="sticky top-0 z-20 bg-white border-b border-dark-50/70 h-[80px]">
@@ -151,9 +158,30 @@
                     <span class="text-[22.5px] leading-[28px] font-semibold truncate">{% firstof tracking_company.company white_label_company_name %}</span>
                     <span class="hidden sm:inline text-[18.75px] text-[#7b6f6a] -ml-[2px]">/ {% trans "Application Tracking" %}</span>
                 </div>
-                <div class="flex items-center gap-[10px] h-[46px] pl-[9px] pr-[16px] rounded-full border border-dark-50 text-[18.75px] shrink-0">
-                    <span class="w-[32px] h-[32px] rounded-full bg-primary-400 text-primary-700 text-[13px] font-semibold flex items-center justify-center">{{ candidate_initials }}</span>
-                    <span class="hidden sm:inline">{{ candidate.get_full_name|title }}</span>
+                <div class="flex items-center gap-[12px] shrink-0">
+                    <div class="flex items-center gap-[10px] h-[46px] pl-[9px] pr-[16px] rounded-full border border-dark-50 text-[18.75px]">
+                        <span class="w-[32px] h-[32px] rounded-full bg-primary-400 text-primary-700 text-[13px] font-semibold flex items-center justify-center">{{ candidate_initials }}</span>
+                        <span class="hidden sm:inline">{{ candidate.get_full_name|title }}</span>
+                    </div>
+                    {% if request.user.is_authenticated %}
+                        <!-- A manager looking at the candidate's page goes back to where they came from -->
+                        <a
+                            href="{% url 'candidate-view' %}"
+                            onclick="if (document.referrer && history.length > 1) { history.back(); return false; }"
+                            class="inline-flex items-center gap-[8px] h-[46px] px-[18px] rounded-full border border-dark-50 text-[18.75px] hover:bg-primary-50 [transition:.2s]"
+                        >
+                            {% include "candidate/tracking/icon.html" with name="back" size=18 %}
+                            {% trans "Back" %}
+                        </a>
+                    {% else %}
+                        <a
+                            href="{% url 'candidate-logout' %}"
+                            class="inline-flex items-center gap-[8px] h-[46px] px-[18px] rounded-full border border-dark-50 text-[18.75px] hover:bg-primary-50 [transition:.2s]"
+                        >
+                            {% include "candidate/tracking/icon.html" with name="logout" size=18 %}
+                            {% trans "Logout" %}
+                        </a>
+                    {% endif %}
                 </div>
             </div>
         </header>
@@ -262,7 +290,8 @@
                 </section>
             {% endif %}
 
-            <div class="grid grid-cols-1 lg:grid-cols-[894fr_473fr] gap-[32px]">
+            <!-- minmax(0, ...) so the split is fixed and not widened by the widest row loaded so far -->
+            <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,5fr)_minmax(0,4fr)] gap-[32px]">
 
                 <!-- Interviews -->
                 <section class="relative lg:min-h-[560px] bg-white rounded-[30px] border border-dark-50/60 shadow-card overflow-hidden">
@@ -319,7 +348,8 @@
 
                     <!-- Notes -->
                     <section class="bg-white rounded-[30px] border border-dark-50/60 shadow-card overflow-hidden" id="note">
-                        {% if messages %}
+                        <!-- Only for the note form's partial swap, which replaces just #note and so never shows the page's own message toast -->
+                        {% if messages and request.META.HTTP_HX_REQUEST %}
                             <div class="oh-wrapper">
                                 {% for message in messages %}
                                     <div class="oh-alert-container">
@@ -378,6 +408,18 @@
             </div>
         </main>
         </div>
+        <script>
+            (function () {
+                var root = document.getElementById("trackingRoot");
+                function reveal() { root.classList.remove("tracking-loading"); }
+                // This script sits right after the page content, so that content is
+                // fully parsed here (DOMContentLoaded waits for the heavy scripts below).
+                // Two frames on, the Tailwind runtime has generated its styles and the
+                // boxes have their final size.
+                requestAnimationFrame(function () { requestAnimationFrame(reveal); });
+                setTimeout(reveal, 3000);
+            })();
+        </script>
         <script>
             // The scroll trigger of "Loading more..." does not fire on first paint, so a
             // list stays short until it is scrolled: load the next page while the trigger

@@ -17,7 +17,7 @@
         {% endif %}
         <p class="text-[18px] leading-[25px] pr-[26px] break-words">{{ note.description }}</p>
         <small class="mt-[9px] flex items-center flex-wrap gap-[8px] text-[15px] leading-[20px] text-[#857b76]">
-            {{ note.updated_user }}
+            {{ note.author_name }}{% if note.author_role %} &middot; <span class="font-medium text-[#6b615c]">{{ note.author_role }}</span>{% endif %}
             {% include "candidate/tracking/icon.html" with name="chevron" size=14 %}
             {{ note.stage_id.stage }}
         </small>

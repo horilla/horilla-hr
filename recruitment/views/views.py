@@ -37,6 +37,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import Case, IntegerField, ProtectedError, Q, When
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -2279,7 +2280,7 @@ def form_send_mail(request, cand_id=None):
                 "{{ request.scheme }}://{{ request.get_host }}/recruitment/candidate-login/"
                 "</a></p>"
                 '<p style="margin: 0 0 8px 0; font-size: 14px; color: #111827;"><strong>Username (Email):</strong> {{instance.email}}</p>'
-                '<p style="margin: 0; font-size: 14px; color: #111827;"><strong>Password (Mobile Number):</strong> {{instance.mobile}}</p>'
+                '<p style="margin: 0; font-size: 14px; color: #111827;"><strong>Password:</strong> the one in your invitation email</p>'
                 "</div>"
                 '<p style="font-size: 13px; color: #6b7280; margin: 0 0 18px 0;">'
                 "For security, please keep these credentials private.</p>"
@@ -3277,14 +3278,18 @@ def candidate_self_tracking_rating_option(request):
 def candidate_login(request):
     if request.method == "POST":
         email = request.POST.get("email", "").strip()
-        mobile = request.POST.get("phone", "").strip()
+        password = request.POST.get("password", "").strip()
 
         backend = CandidateAuthenticationBackend()
-        candidate = backend.authenticate(request, username=email, password=mobile)
+        candidate = backend.authenticate(request, username=email, password=password)
 
         if candidate is not None:
             request.session["candidate_id"] = candidate.id
             request.session["candidate_email"] = candidate.email
+            # The login page shows no messages, so one left by an earlier action
+            # (e.g. "You have been logged out.") would otherwise surface here.
+            list(messages.get_messages(request))
+            messages.success(request, _("Logged in successfully."))
             return redirect("candidate-self-status-tracking")
         else:
             return render(
@@ -3294,13 +3299,74 @@ def candidate_login(request):
     return render(request, "candidate/self_login.html")
 
 
+@login_required
+@require_http_methods(["POST"])
+@manager_can_enter(perm="recruitment.change_candidate")
+def candidate_send_invitation(request, cand_id):
+    """
+    Mail the candidate a freshly generated password for the application
+    tracking page. Every call replaces the earlier password; the new one only
+    takes effect once the mail has gone out, so a failed send leaves the
+    candidate's current login working.
+    """
+    reload_messages = HttpResponse(
+        "<script>$('#reloadMessagesButton').click()</script>"
+    )
+
+    if not check_candidate_self_tracking(request)["check_candidate_self_tracking"]:
+        messages.error(request, _("Candidate self tracking is not enabled."))
+        return reload_messages
+    candidate = Candidate.objects.filter(id=cand_id).first()
+    if candidate is None:
+        messages.error(request, _("No Candidate found matching the query."))
+        return reload_messages
+    if not candidate.email:
+        messages.error(request, _("The candidate has no email address."))
+        return reload_messages
+
+    password = Candidate.generate_portal_password()
+    company = (
+        candidate.recruitment_id.company_id if candidate.recruitment_id_id else None
+    )
+    company_name = company.company if company else "Horilla"
+    body = render_to_string(
+        "candidate/invitation_mail.html",
+        {
+            "candidate": candidate,
+            "password": password,
+            "company_name": company_name,
+            "login_url": request.build_absolute_uri(reverse("candidate-login")),
+        },
+    )
+    email = EmailMessage(
+        subject=_("Your application tracking login - %(company)s")
+        % {"company": company_name},
+        body=body,
+        to=[candidate.email],
+    )
+    email.content_subtype = "html"
+    try:
+        email.send()
+    except Exception as e:
+        logger.exception(e)
+        messages.error(request, _("The invitation could not be sent."))
+        return reload_messages
+
+    candidate.issue_portal_password(password)
+    messages.success(
+        request,
+        _("Invitation sent to %(email)s.") % {"email": candidate.email},
+    )
+    return reload_messages
+
+
 def candidate_logout(request):
     """Logs out the candidate by clearing session data."""
 
     request.session.pop("candidate_id", None)
     request.session.pop("candidate_email", None)
     messages.success(request, _("You have been logged out."))
-    return redirect("candidate_login")
+    return redirect("candidate-login")
 
 
 # Big enough that the first page already fills the scroll boxes of the tracking
@@ -3320,7 +3386,9 @@ def _candidate_tracking_sections(candidate):
                 default=1,
                 output_field=IntegerField(),
             )
-        ).order_by("is_today", "-interview_date", "interview_time", "-id"),
+        )
+        .prefetch_related("employee_id")
+        .order_by("is_today", "-interview_date", "interview_time", "-id"),
         "documents": candidate.candidatedocument_set.select_related(
             "document_request_id"
         ).order_by("-id"),
@@ -3328,6 +3396,73 @@ def _candidate_tracking_sections(candidate):
         .select_related("stage_id", "updated_by")
         .order_by("-id"),
     }
+
+
+def _employee_role_resolver(candidate):
+    """
+    Returns `role(employee, stage, default)`: the part an employee plays in the
+    candidate's recruitment (Recruitment Manager, then Stage Manager of the given
+    stage), else `default`. The tracking page shows this to the candidate in
+    place of the badge id in `str(employee)`, which means nothing to them.
+    """
+    recruitment = candidate.recruitment_id
+    recruitment_managers = (
+        set(recruitment.recruitment_managers.values_list("id", flat=True))
+        if recruitment
+        else set()
+    )
+    stage_managers = {}
+
+    def role(employee, stage, default):
+        if employee.id in recruitment_managers:
+            return _("Recruitment Manager")
+        if stage is None:
+            return default
+        if stage.id not in stage_managers:
+            stage_managers[stage.id] = set(
+                stage.stage_managers.values_list("id", flat=True)
+            )
+        if employee.id in stage_managers[stage.id]:
+            return _("Stage Manager")
+        return default
+
+    return role
+
+
+def _label_note_authors(page_obj, candidate):
+    """
+    Give each note of the page an `author_name` and `author_role` for the
+    tracking page; a candidate's own note keeps the candidate's name, no role.
+    """
+    role = _employee_role_resolver(candidate)
+    for note in page_obj:
+        employee = note.updated_by
+        if employee is None:
+            note.author_name = note.candidate_id.get_full_name()
+            note.author_role = ""
+        else:
+            note.author_name = employee.get_full_name()
+            note.author_role = role(employee, note.stage_id, _("Recruiter"))
+    return page_obj
+
+
+def _label_interviewers(page_obj, candidate):
+    """
+    Give each interview of the page its `interviewers`, each an employee's name
+    and role in this recruitment (as for the notes), judged by the candidate's
+    current stage.
+    """
+    role = _employee_role_resolver(candidate)
+    stage = candidate.stage_id
+    for interview in page_obj:
+        interview.interviewers = [
+            {
+                "name": employee.get_full_name(),
+                "role": role(employee, stage, _("Interviewer")),
+            }
+            for employee in interview.employee_id.all()
+        ]
+    return page_obj
 
 
 def _filter_tracking_interviews(queryset, status):
@@ -3358,6 +3493,8 @@ def _candidate_tracking_context(candidate):
         name: Paginator(queryset, TRACKING_PAGE_SIZE).get_page(1)
         for name, queryset in sections.items()
     }
+    _label_note_authors(pages["notes"], candidate)
+    _label_interviewers(pages["interviews"], candidate)
 
     stages = []
     if candidate.recruitment_id_id:
@@ -3469,6 +3606,10 @@ def candidate_tracking_items(request, cand_id, section):
         status = request.GET.get("status", "")
         queryset = _filter_tracking_interviews(queryset, status)
     page_obj = Paginator(queryset, TRACKING_PAGE_SIZE).get_page(request.GET.get("page"))
+    if section == "notes":
+        _label_note_authors(page_obj, candidate)
+    elif section == "interviews":
+        _label_interviewers(page_obj, candidate)
     return render(
         request,
         f"candidate/tracking/{section}_items.html",
