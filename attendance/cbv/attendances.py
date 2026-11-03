@@ -33,6 +33,7 @@ from employee.filters import EmployeeFilter
 from employee.models import Employee
 from horilla.filters import HorillaFilterSet
 from horilla_views.cbv_methods import (
+    EmployeeScopeMixin,
     hx_request_required,
     login_required,
     render_template,
@@ -699,10 +700,13 @@ class ValidatedDetailView(GenericAttendancesDetailView):
 
 @method_decorator(login_required, name="dispatch")
 @method_decorator(manager_can_enter("attendance.add_attendance"), name="dispatch")
-class AttendancesFormView(HorillaFormView):
+class AttendancesFormView(EmployeeScopeMixin, HorillaFormView):
     """
     form view
     """
+
+    scope_perm = "attendance.add_attendance"
+    scope_include_self = False
 
     form_class = AttendanceForm
     model = Attendance

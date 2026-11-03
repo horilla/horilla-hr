@@ -16,7 +16,7 @@ from django.utils.translation import gettext_noop
 from base.methods import choosesubordinates, filtersubordinates, is_reportingmanager
 from employee.cbv.employee_profile import EmployeeProfileView
 from employee.models import Employee
-from horilla_views.cbv_methods import login_required
+from horilla_views.cbv_methods import EmployeeScopeMixin, login_required
 from horilla_views.generic.cbv.views import (
     HorillaDetailedView,
     HorillaFormView,
@@ -428,10 +428,13 @@ class LeaveAllocationsRequestsTabDetailView(LeaveAllocationRequestDetailView):
 
 
 @method_decorator(login_required, name="dispatch")
-class LeaveAllocationRequestFormView(HorillaFormView):
+class LeaveAllocationRequestFormView(EmployeeScopeMixin, HorillaFormView):
     """
     Form View
     """
+
+    scope_perm = "leave.add_leaveallocationrequest"
+    scope_include_self = True
 
     model = LeaveAllocationRequest
     form_class = LeaveAllocationRequestForm

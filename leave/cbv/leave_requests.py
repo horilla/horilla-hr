@@ -30,7 +30,11 @@ from base.methods import (
 from base.models import PenaltyAccounts
 from horilla.horilla_middlewares import _thread_locals
 from horilla.methods import get_horilla_model_class
-from horilla_views.cbv_methods import hx_request_required, login_required
+from horilla_views.cbv_methods import (
+    EmployeeScopeMixin,
+    hx_request_required,
+    login_required,
+)
 from horilla_views.generic.cbv.views import (
     HorillaDetailedView,
     HorillaFormView,
@@ -510,10 +514,13 @@ class LeaveRequestsDetailView(HorillaDetailedView):
 
 @method_decorator(login_required, name="dispatch")
 @method_decorator(manager_can_enter("leave.add_leaverequest"), name="dispatch")
-class LeaveRequestFormView(HorillaFormView):
+class LeaveRequestFormView(EmployeeScopeMixin, HorillaFormView):
     """
     form view
     """
+
+    scope_perm = "leave.add_leaverequest"
+    scope_include_self = True
 
     model = LeaveRequest
     form_class = LeaveRequestCreationForm

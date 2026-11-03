@@ -33,6 +33,7 @@ from base.views import include_employee_instance, shift_requests_url
 from employee.models import Employee
 from horilla.http.response import HorillaRedirect
 from horilla_views.cbv_methods import (
+    EmployeeScopeMixin,
     hx_request_required,
     login_required,
     permission_required,
@@ -485,10 +486,13 @@ class ShiftTypeCreateFormView(ShiftTypeFormView):
 
 
 @method_decorator(login_required, name="dispatch")
-class ShiftRequestFormView(HorillaFormView):
+class ShiftRequestFormView(EmployeeScopeMixin, HorillaFormView):
     """
     Form View
     """
+
+    scope_perm = "base.add_shiftrequest"
+    scope_include_self = True
 
     model = ShiftRequest
     form_class = ShiftRequestForm
@@ -553,10 +557,17 @@ class ShiftRequestFormView(HorillaFormView):
 
 
 @method_decorator(login_required, name="dispatch")
-class ShiftRequestFormDuplicate(HorillaFormView):
+class ShiftRequestFormDuplicate(EmployeeScopeMixin, HorillaFormView):
     """
     Duplicate form view
     """
+
+    scope_perm = "base.add_shiftrequest"
+    scope_include_self = True
+
+    def get_scope_perm(self):
+        # Always creates a new record, although the route carries a pk.
+        return self.scope_perm
 
     model = ShiftRequest
     form_class = ShiftRequestForm
@@ -611,10 +622,13 @@ class ShiftRequestFormDuplicate(HorillaFormView):
 
 
 @method_decorator(login_required, name="dispatch")
-class ShiftAllocationFormView(HorillaFormView):
+class ShiftAllocationFormView(EmployeeScopeMixin, HorillaFormView):
     """
     Form View
     """
+
+    scope_perm = "base.add_shiftrequest"
+    scope_include_self = True
 
     model = ShiftRequest
     form_class = ShiftAllocationForm

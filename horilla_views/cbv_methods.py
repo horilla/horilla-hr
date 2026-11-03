@@ -205,6 +205,64 @@ def login_required(view_func):
     return wrapped_view
 
 
+class EmployeeScopeMixin:
+    """
+    Refuse a write that names an employee the caller may not act on.
+
+    The employee dropdown on these forms is narrowed to the caller's reports
+    only when the form is *rendered*, so a submitted ``employee_id`` was never
+    checked. This checks it on the server, before the form is bound: the caller
+    holds ``scope_perm`` (or, on an update route, ``scope_change_perm``), or
+    every submitted employee is one of their reports (or themselves, with
+    ``scope_include_self``). On an update route it also checks the employee the
+    existing record belongs to. Put it first in the bases, before
+    ``HorillaFormView``.
+    """
+
+    scope_perm = None
+    scope_change_perm = None
+    scope_fields = ("employee_id",)
+    scope_include_self = False
+    scope_instance_field = "employee_id"
+
+    def get_scope_perm(self):
+        if self.kwargs.get("pk"):
+            if self.scope_change_perm:
+                return self.scope_change_perm
+            return (self.scope_perm or "").replace(".add_", ".change_")
+        return self.scope_perm
+
+    def get_scoped_employee_ids(self, request):
+        ids = []
+        if request.method == "POST":
+            for field in self.scope_fields:
+                ids += [value for value in request.POST.getlist(field) if value]
+        pk = self.kwargs.get("pk")
+        model = getattr(self, "model", None)
+        if pk and model is not None and self.scope_instance_field:
+            instance = model.objects.filter(pk=pk).first()
+            owner = getattr(instance, self.scope_instance_field, None)
+            if owner is not None:
+                if hasattr(owner, "all"):
+                    ids += [employee.pk for employee in owner.all()]
+                else:
+                    ids.append(owner.pk)
+        return ids
+
+    def dispatch(self, request, *args, **kwargs):
+        from base.methods import employees_in_scope
+
+        ids = self.get_scoped_employee_ids(request)
+        perm = self.get_scope_perm()
+        if (
+            ids
+            and perm
+            and not employees_in_scope(request, ids, perm, self.scope_include_self)
+        ):
+            return handle_no_permission(request)
+        return super().dispatch(request, *args, **kwargs)
+
+
 class AddOrChangePermissionMixin:
     """
     Require ``add_perm`` to create and ``change_perm`` to edit.

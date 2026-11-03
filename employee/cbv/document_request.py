@@ -35,6 +35,7 @@ from horilla_documents.forms import DocumentRequestForm, DocumentUpdateForm
 from horilla_documents.models import Document, DocumentRequest
 from horilla_views import models as horilla_views_models
 from horilla_views.cbv_methods import (
+    EmployeeScopeMixin,
     hx_request_required,
     login_required,
     saved_filter_path_query,
@@ -96,10 +97,13 @@ def htmx_refresh_document_request_container(request) -> Optional[HttpResponse]:
 @method_decorator(
     manager_can_enter("horilla_documents.add_documentrequest"), name="dispatch"
 )
-class DocumentRequestCreateForm(HorillaFormView):
+class DocumentRequestCreateForm(EmployeeScopeMixin, HorillaFormView):
     """
     form view for create and update document request
     """
+
+    scope_perm = "horilla_documents.add_documentrequest"
+    scope_include_self = False
 
     form_class = DocumentRequestForm
     model = DocumentRequest
@@ -152,10 +156,13 @@ class DocumentRequestCreateForm(HorillaFormView):
 
 
 @method_decorator(login_required, name="dispatch")
-class DocumentCreateForm(HorillaFormView):
+class DocumentCreateForm(EmployeeScopeMixin, HorillaFormView):
     """
     form view for upload document
     """
+
+    scope_perm = "horilla_documents.add_document"
+    scope_include_self = True
 
     form_class = DocumentForm
     model = Document
