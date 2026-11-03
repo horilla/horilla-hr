@@ -1730,7 +1730,7 @@ class QuestionOrdering(HorillaModel):
     question_id = models.ForeignKey(RecruitmentSurvey, on_delete=models.CASCADE)
     recruitment_id = models.ForeignKey(Recruitment, on_delete=models.CASCADE)
     sequence = models.IntegerField(default=0)
-    objects = HorillaCompanyManager(related_company_field="recruitment_ids__company_id")
+    objects = HorillaCompanyManager(related_company_field="recruitment_id__company_id")
 
 
 class RecruitmentSurveyAnswer(HorillaModel):
