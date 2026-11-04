@@ -223,8 +223,9 @@
             <div class="pd-period-picker">
                 <button class="pd-period-preset" data-preset="today">{% trans "Today" %}</button>
                 <button class="pd-period-preset" data-preset="this_week">{% trans "This Week" %}</button>
-                <button class="pd-period-preset" data-preset="last_month">{% trans "Last Month" %}</button>
+                <button class="pd-period-preset" data-preset="last_week">{% trans "Last Week" %}</button>
                 <button class="pd-period-preset" data-preset="this_month">{% trans "This Month" %}</button>
+                <button class="pd-period-preset" data-preset="last_month">{% trans "Last Month" %}</button>
                 <button class="pd-period-preset" data-preset="this_year">{% trans "This Year" %}</button>
                 <input type="date" id="pd-from-date" title="{% trans 'From' %}">
                 <span class="pd-period-picker__sep">&rarr;</span>
@@ -371,8 +372,9 @@ function pdInit() {
         const t = new Date(), y = t.getFullYear(), m = t.getMonth();
         if (p === 'today') return [t, t];
         if (p === 'this_week') { const s = new Date(y, m, t.getDate() - ((t.getDay() + 6) % 7)); return [s, new Date(s.getFullYear(), s.getMonth(), s.getDate() + 6)]; }
-        if (p === 'last_month') return [new Date(y, m - 1, 1), new Date(y, m, 0)];
+        if (p === 'last_week') { const s = new Date(y, m, t.getDate() - ((t.getDay() + 6) % 7) - 7); return [s, new Date(s.getFullYear(), s.getMonth(), s.getDate() + 6)]; }
         if (p === 'this_month') return [new Date(y, m, 1), new Date(y, m + 1, 0)];
+        if (p === 'last_month') return [new Date(y, m - 1, 1), new Date(y, m, 0)];
         if (p === 'this_year') return [new Date(y, 0, 1), new Date(y, 11, 31)];
         return null;
     }

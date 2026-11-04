@@ -235,7 +235,9 @@
             <div class="pr-period-picker">
                 <button class="pr-period-preset" data-preset="today" onclick="prSetPreset('today',this)">{% trans "Today" %}</button>
                 <button class="pr-period-preset" data-preset="week" onclick="prSetPreset('week',this)">{% trans "This Week" %}</button>
-                <button class="pr-period-preset pr-period-preset--active" data-preset="month" onclick="prSetPreset('month',this)">{% trans "This Month" %}</button>
+                <button class="pr-period-preset" data-preset="last_week" onclick="prSetPreset('last_week',this)">{% trans "Last Week" %}</button>
+                <button class="pr-period-preset" data-preset="month" onclick="prSetPreset('month',this)">{% trans "This Month" %}</button>
+                <button class="pr-period-preset" data-preset="last_month" onclick="prSetPreset('last_month',this)">{% trans "Last Month" %}</button>
                 <button class="pr-period-preset" data-preset="year" onclick="prSetPreset('year',this)">{% trans "This Year" %}</button>
                 <input type="date" id="pr-from-date" title="{% trans 'From' %}">
                 <span class="pr-period-picker__sep">&rarr;</span>
@@ -372,28 +374,24 @@
 
     let prFromDate = "", prToDate = "";
 
-    function prSetPreset(preset, btn) {
-        document.querySelectorAll(".pr-period-preset").forEach(b => b.classList.remove("pr-period-preset--active"));
-        btn.classList.add("pr-period-preset--active");
-        const today = new Date();
-        const pad = n => String(n).padStart(2, "0");
-        const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-        if (preset === "today") {
-            prFromDate = prToDate = fmt(today);
-        } else if (preset === "week") {
-            const dow = (today.getDay() + 6) % 7; // 0 = Monday
-            const weekStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() - dow);
-            prFromDate = fmt(weekStart);
-            prToDate = fmt(new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6));
-        } else if (preset === "month") {
-            prFromDate = fmt(new Date(today.getFullYear(), today.getMonth(), 1));
-            prToDate = fmt(new Date(today.getFullYear(), today.getMonth()+1, 0));
-        } else if (preset === "year") {
-            prFromDate = fmt(new Date(today.getFullYear(), 0, 1));
-            prToDate = fmt(new Date(today.getFullYear(), 11, 31));
-        }
+    const PR_PERIOD_KEY = "pr_period_v1";
+    function prSavePeriod() { sessionStorage.setItem(PR_PERIOD_KEY, JSON.stringify({ from: prFromDate, to: prToDate })); }
+    function prSyncPresetActive() {
+        document.querySelectorAll(".pr-period-preset").forEach(b => {
+            const r = prPresetRange(b.dataset.preset);
+            b.classList.toggle("pr-period-preset--active", !!r && prFromDate === prFmt(r[0]) && prToDate === prFmt(r[1]));
+        });
+    }
+
+    function prSetPreset(preset) {
+        const r = prPresetRange(preset);
+        if (!r) return;
+        prFromDate = prFmt(r[0]);
+        prToDate = prFmt(r[1]);
         document.getElementById("pr-from-date").value = prFromDate;
         document.getElementById("pr-to-date").value = prToDate;
+        prSavePeriod();
+        prSyncPresetActive();
         prLoadAll();
     }
     window.prSetPreset = prSetPreset;
@@ -748,7 +746,9 @@
     const PR_PRESET_LABELS = {
         today: '{% trans "Today"|escapejs %}',
         week: '{% trans "This Week"|escapejs %}',
+        last_week: '{% trans "Last Week"|escapejs %}',
         month: '{% trans "This Month"|escapejs %}',
+        last_month: '{% trans "Last Month"|escapejs %}',
         year: '{% trans "This Year"|escapejs %}',
     };
     function prPad(n) { return String(n).padStart(2, "0"); }
@@ -761,7 +761,13 @@
             const from = new Date(t.getFullYear(), t.getMonth(), t.getDate() - dow);
             return [from, new Date(from.getFullYear(), from.getMonth(), from.getDate() + 6)];
         }
+        if (p === "last_week") {
+            const dow = (t.getDay() + 6) % 7;
+            const from = new Date(t.getFullYear(), t.getMonth(), t.getDate() - dow - 7);
+            return [from, new Date(from.getFullYear(), from.getMonth(), from.getDate() + 6)];
+        }
         if (p === "month") return [new Date(t.getFullYear(), t.getMonth(), 1), new Date(t.getFullYear(), t.getMonth()+1, 0)];
+        if (p === "last_month") return [new Date(t.getFullYear(), t.getMonth()-1, 1), new Date(t.getFullYear(), t.getMonth(), 0)];
         if (p === "year") return [new Date(t.getFullYear(), 0, 1), new Date(t.getFullYear(), 11, 31)];
         return null;
     }
@@ -775,7 +781,7 @@
         const from = new Date(prFromDate + "T00:00:00");
         const to = new Date(prToDate + "T00:00:00");
         let detail;
-        if (preset === "month") detail = from.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+        if (preset === "month" || preset === "last_month") detail = from.toLocaleDateString("en-US", { month: "long", year: "numeric" });
         else if (preset === "year") detail = String(from.getFullYear());
         else if (preset === "today") detail = prShortDate(from);
         else detail = prShortDate(from) + " – " + prShortDate(to);
@@ -842,23 +848,31 @@
 
     document.getElementById("pr-from-date").addEventListener("change", function() {
         prFromDate = this.value;
-        document.querySelectorAll(".pr-period-preset").forEach(b => b.classList.remove("pr-period-preset--active"));
+        prSavePeriod();
+        prSyncPresetActive();
         prLoadAll();
     });
     document.getElementById("pr-to-date").addEventListener("change", function() {
         prToDate = this.value;
-        document.querySelectorAll(".pr-period-preset").forEach(b => b.classList.remove("pr-period-preset--active"));
+        prSavePeriod();
+        prSyncPresetActive();
         prLoadAll();
     });
 
-    // Init with current month (end-of-month so future deadlines/tasks are visible)
-    const today = new Date();
-    const pad = n => String(n).padStart(2, "0");
-    const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-    prFromDate = fmt(new Date(today.getFullYear(), today.getMonth(), 1));
-    prToDate = fmt(new Date(today.getFullYear(), today.getMonth()+1, 0));
+    // Init with the period saved for this tab, else the current month
+    // (end-of-month so future deadlines/tasks are visible)
+    const prSaved = (() => { try { return JSON.parse(sessionStorage.getItem(PR_PERIOD_KEY)); } catch { return null; } })();
+    if (prSaved && prSaved.from && prSaved.to) {
+        prFromDate = prSaved.from;
+        prToDate = prSaved.to;
+    } else {
+        const [f, t] = prPresetRange("month");
+        prFromDate = prFmt(f);
+        prToDate = prFmt(t);
+    }
     document.getElementById("pr-from-date").value = prFromDate;
     document.getElementById("pr-to-date").value = prToDate;
+    prSyncPresetActive();
     prLoadAll();
 })();
 </script>
