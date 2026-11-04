@@ -22,6 +22,7 @@ class DynamicFieldsConfig(AppConfig):
         from django.contrib.contenttypes.models import ContentType
         from simple_history.models import HistoricalRecords
 
+        from dynamic_fields import signals  # noqa: F401
         from dynamic_fields.models import DynamicField
 
         try:
