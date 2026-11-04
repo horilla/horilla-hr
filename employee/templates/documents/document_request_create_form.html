@@ -41,7 +41,10 @@
                     </div>
                 </div>
             {% elif form.candidate_id %}
-                <div class="col-sm-12 col-md-12 col-lg-12 {% if form.candidate_id.initial %}d-none{% endif %}">
+                <div
+                    class="col-sm-12 col-md-12 col-lg-12 {% if form.candidate_id.initial %}d-none{% endif %}"
+                    id="candidateRequestField"
+                >
                     <div class="oh-input-group">
                         <label
                             class="oh-label"
@@ -82,3 +85,20 @@
         </div>
     </form>
 </div>
+
+{% if form.candidate_id and not form.candidate_id.initial and not form.is_bound %}
+<script>
+    // Bulk "Create document request": pre-fill the candidates with the rows
+    // ticked in the list, which are kept in #selectedInstances.
+    (function () {
+        var ids = [];
+        try {
+            ids = JSON.parse($("#selectedInstances").attr("data-ids") || "[]");
+        } catch (e) {}
+        ids = ids.map(String);
+        var select = $("#{{ form.candidate_id.id_for_label }}");
+        if (!ids.length || !select.length) return;
+        select.val(ids).trigger("change");
+    })();
+</script>
+{% endif %}
