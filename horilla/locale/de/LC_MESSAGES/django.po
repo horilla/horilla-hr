@@ -26103,3 +26103,9 @@ msgstr "Schnellfilter"
 #, python-format
 msgid "Quick filter (%(counter)s)"
 msgstr "Schnellfilter (%(counter)s)"
+
+#: horilla_theme/templates/employee/create_form/custom_fields.html
+#: horilla_theme/templates/tabs/personal_tab.html
+msgctxt "employee form section"
+msgid "Custom"
+msgstr "Benutzerdefiniert"

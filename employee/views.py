@@ -416,6 +416,12 @@ def about_tab(request, pk, **kwargs):
     )
     bank_details = EmployeeBankDetails.objects.filter(employee_id=employee).first()
     work_info = EmployeeWorkInformation.objects.filter(employee_id=employee).first()
+    # add_df is the dynamic fields app's "Add Field" button, not a value to show.
+    custom_fields = [
+        field
+        for field in EmployeeForm(instance=employee).custom_fields()
+        if field.name != "add_df"
+    ]
     return render(
         request,
         "tabs/personal_tab.html",
@@ -425,6 +431,7 @@ def about_tab(request, pk, **kwargs):
             "contracts": contracts,
             "bank_details": bank_details,
             "work_info": work_info,
+            "custom_fields": custom_fields,
         },
     )
 
