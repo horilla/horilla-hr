@@ -396,6 +396,67 @@ def load_component_library(request):
 
 @login_required
 @permission_required("payroll.view_allowance")
+def employee_pick_rows(request):
+    """
+    Active employees, a page at a time, for the employee picker on a component's form.
+
+    ``?q=`` searches name, badge id and department; ``?department=``, ``?job_position=`` and
+    ``?job_role=`` narrow it to one of each. ``?ids=1`` answers with every matching id instead,
+    for the header box that picks them all. The next page number travels in X-Next-Page, as it
+    does for the applies table, and X-Column names the group column the rows show.
+    """
+    from django.core.paginator import Paginator
+    from django.db.models import Q
+    from django.http import HttpResponse
+    from django.template.loader import render_to_string
+
+    from employee.models import Employee
+
+    query = (request.GET.get("q") or "").strip()
+    employees = (
+        Employee.objects.filter(is_active=True)
+        .select_related(
+            "employee_work_info__department_id",
+            "employee_work_info__job_position_id",
+            "employee_work_info__job_role_id",
+        )
+        .order_by("employee_first_name", "employee_last_name", "pk")
+    )
+    if query:
+        employees = employees.filter(
+            Q(employee_first_name__icontains=query)
+            | Q(employee_last_name__icontains=query)
+            | Q(badge_id__icontains=query)
+            | Q(employee_work_info__department_id__department__icontains=query)
+        )
+    column = "department"
+    for name in ("department", "job_position", "job_role"):
+        value = request.GET.get(name) or ""
+        if value.isdigit():
+            employees = employees.filter(
+                **{f"employee_work_info__{name}_id": int(value)}
+            )
+            if name != "department":
+                column = name
+    if request.GET.get("ids"):
+        return JsonResponse(
+            {"ids": [str(pk) for pk in employees.values_list("pk", flat=True)]}
+        )
+
+    page = Paginator(employees, 25).get_page(request.GET.get("page") or 1)
+    html = render_to_string(
+        "payroll/component/_employee_pick_rows.html",
+        {"rows": page.object_list, "column": column},
+        request=request,
+    )
+    response = HttpResponse(html)
+    response["X-Column"] = column
+    response["X-Next-Page"] = str(page.next_page_number()) if page.has_next() else ""
+    return response
+
+
+@login_required
+@permission_required("payroll.view_allowance")
 def component_applies_rows(request):
     """
     Next page of the "who gets it" table on the component form, as table rows.

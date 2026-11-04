@@ -1,0 +1,13 @@
+{% for employee in rows %}
+{% if column == "job_position" %}{% firstof employee.employee_work_info.job_position_id "-" as group %}
+{% elif column == "job_role" %}{% firstof employee.employee_work_info.job_role_id "-" as group %}
+{% else %}{% firstof employee.employee_work_info.department_id "-" as group %}{% endif %}
+<tr data-pick-row data-pk="{{ employee.pk }}">
+  <td title="{{ employee.badge_id|default:'' }}">{{ employee.badge_id|default:"-" }}</td>
+  <td title="{{ employee.get_full_name }}">{{ employee.get_full_name }}</td>
+  <td title="{{ group }}">{{ group }}</td>
+  <td><input type="checkbox" data-pick-box value="{{ employee.pk }}"></td>
+</tr>
+{% empty %}
+<tr data-pick-empty><td colspan="4" style="padding:14px;text-align:center;color:#9ca3af">No employees found.</td></tr>
+{% endfor %}

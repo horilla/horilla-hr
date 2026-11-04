@@ -88,7 +88,8 @@ class EditableFieldTests(TestCase):
             with self.subTest(key=key):
                 template = model.objects.entire().get(system_key=key)
                 form = form_class(instance=template)
-                self.assertEqual(sorted(form.fields), sorted(editable_fields(key)))
+                # Only the table of employees: the tax setting itself is set there, per employee.
+                self.assertEqual(sorted(form.fields), ["tax_exception_employees"])
 
     def test_an_ordinary_component_keeps_its_whole_form(self):
         ordinary = Allowance.objects.create(title="Ordinary", is_fixed=True, amount=1)

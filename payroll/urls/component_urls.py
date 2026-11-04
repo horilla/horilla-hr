@@ -30,6 +30,11 @@ urlpatterns = [
         name="component-code-check",
     ),
     path(
+        "employee-pick-rows/",
+        component_formula_views.employee_pick_rows,
+        name="employee-pick-rows",
+    ),
+    path(
         "component-applies-rows/",
         component_formula_views.component_applies_rows,
         name="component-applies-rows",
