@@ -1,8 +1,26 @@
 {% load i18n static basefilters %}
 {% is_manager_of request.user instance as can_manage %}
 {% with can_change=perms.leave.change_leaverequest can_delete=perms.leave.delete_leaverequest can_penalty=perms.base.change_penaltyaccounts leave_manager=request.user|is_leave_approval_manager %}
+<style>
+    /* One tidy row: compact buttons that share the width, so the longest label
+       set (Approve/Reject Cancellation + Penalty + Edit + Delete) no longer
+       pushes Delete onto a second line. They only wrap on a narrow screen. */
+    .lr-detail-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.375rem;
+    }
+    .lr-detail-actions > .oh-btn {
+        flex: 0 1 auto;
+        padding: 0.5rem;
+        gap: 0.3rem;
+        white-space: nowrap;
+        margin: 0;
+    }
+</style>
 <div
-    class="flex items-center gap-2 flex-wrap"
+    class="lr-detail-actions"
     hx-get="{% url 'leave-requests-detail-view' instance.id %}"
     hx-trigger="reloadLeaveRequestList from:body"
     hx-target="#genericModalBody"
