@@ -212,33 +212,15 @@ def _history_rows_by_pk(model, history_related_name, rows):
     return grouped
 
 
-def get_employee_model_history(
-    employee, model_key, date_from=None, date_to=None, sort="-date"
-):
+def build_model_history(model, model_key, model_label, rows):
     """
-    Merged, per-record-tagged history feed for every row of ``model_key``
-    belonging to ``employee``.
+    History entries for already-fetched ``rows`` of ``model``, tagged with the
+    record they belong to. Shared by the employee and candidate History tabs.
 
     Returns ``(entries, tracking_status)`` where ``tracking_status`` is one
     of "simple_history", "auditlog", or "none".
     """
-    app_label, model_name = model_key.split(".", 1)
-    model = apps.get_model(app_label, model_name)
-    field_name = _employee_field_name(model)
-    if not field_name:
-        return [], "none"
-
-    rows = list(
-        model._base_manager.filter(**{field_name: employee})
-        .distinct()
-        .order_by("-pk")[:MAX_RECORDS_PER_MODEL]
-    )
-    if "__" not in field_name:
-        for row in rows:
-            setattr(row, field_name, employee)
-
     history_related_name = _history_related_name(model)
-    model_label = _model_label(model)
     entries = []
 
     if history_related_name:
@@ -288,6 +270,11 @@ def get_employee_model_history(
         else:
             tracking_status = "none"
 
+    return entries, tracking_status
+
+
+def filter_and_sort_entries(entries, date_from=None, date_to=None, sort="-date"):
+    """Date-range filter and order a merged feed."""
     if date_from:
         entries = [
             e
@@ -304,8 +291,41 @@ def get_employee_model_history(
     entries.sort(
         key=lambda e: e["history_date"] or timezone.now(), reverse=sort != "date"
     )
+    return entries
 
-    return entries, tracking_status
+
+def get_employee_model_history(
+    employee, model_key, date_from=None, date_to=None, sort="-date"
+):
+    """
+    Merged, per-record-tagged history feed for every row of ``model_key``
+    belonging to ``employee``.
+
+    Returns ``(entries, tracking_status)`` where ``tracking_status`` is one
+    of "simple_history", "auditlog", or "none".
+    """
+    app_label, model_name = model_key.split(".", 1)
+    model = apps.get_model(app_label, model_name)
+    field_name = _employee_field_name(model)
+    if not field_name:
+        return [], "none"
+
+    rows = list(
+        model._base_manager.filter(**{field_name: employee})
+        .distinct()
+        .order_by("-pk")[:MAX_RECORDS_PER_MODEL]
+    )
+    if "__" not in field_name:
+        for row in rows:
+            setattr(row, field_name, employee)
+
+    entries, tracking_status = build_model_history(
+        model, model_key, _model_label(model), rows
+    )
+    return (
+        filter_and_sort_entries(entries, date_from, date_to, sort),
+        tracking_status,
+    )
 
 
 def get_employee_entries_by_keys(employee, keys, sort="-date"):
@@ -330,7 +350,7 @@ def get_employee_entries_by_keys(employee, keys, sort="-date"):
     return selected
 
 
-def _entry_search_text(entry):
+def entry_search_text(entry):
     parts = [
         entry.get("model_label"),
         entry.get("record_repr"),
@@ -362,7 +382,7 @@ def get_employee_history_search(
         if tracking_status == "none":
             continue
         for entry in model_entries:
-            if phrase in _entry_search_text(entry):
+            if phrase in entry_search_text(entry):
                 matched.append(entry)
 
     matched.sort(
