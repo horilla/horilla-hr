@@ -82,7 +82,7 @@ def dashboard(request):
     hired = []
     for job in jobs:
         hire = Candidate.objects.filter(
-            job_position_id=job, stage_id__stage_type="hired"
+            job_position_id=job, stage_id__stage_type="shortlisted"
         )
         hired.append(hire.count())
     cancelled = []
@@ -128,7 +128,7 @@ def dashboard(request):
             total_vacancy += openings.vacancy
 
     hired_candidates = candidates.filter(
-        Q(hired=True) | Q(stage_id__stage_type="hired")
+        Q(hired=True) | Q(stage_id__stage_type="shortlisted")
     ).distinct()
     total_candidates = len(candidates)
     total_hired_candidates = len(hired_candidates)

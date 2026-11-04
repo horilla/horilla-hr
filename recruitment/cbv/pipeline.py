@@ -930,7 +930,7 @@ class CandidateCard(HorillaKanbanView):
         stage = self.resolve_kanban_group(self.request.POST.get("groupId"))
         if (
             stage
-            and stage.stage_type == "hired"
+            and stage.stage_type == "shortlisted"
             and stage.recruitment_id.is_vacancy_filled()
         ):
             payload = json.loads(response.content)

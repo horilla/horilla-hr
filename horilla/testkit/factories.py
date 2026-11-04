@@ -299,7 +299,9 @@ def get_hired_stage(*, recruitment):
     """The hired stage the Recruitment signal creates, if present."""
     from recruitment.models import Stage
 
-    return Stage.objects.filter(recruitment_id=recruitment, stage_type="hired").first()
+    return Stage.objects.filter(
+        recruitment_id=recruitment, stage_type="shortlisted"
+    ).first()
 
 
 def make_candidate(
