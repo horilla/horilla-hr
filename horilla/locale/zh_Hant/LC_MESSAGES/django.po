@@ -32910,6 +32910,12 @@ msgstr "帳號"
 msgid "Message templates and flows created successfully."
 msgstr "訊息模板和流創建成功。"
 
+#: horilla_theme/templates/employee/create_form/custom_fields.html
+#: horilla_theme/templates/tabs/personal_tab.html
+msgctxt "employee form section"
+msgid "Custom"
+msgstr "自訂"
+
 #~ msgid "Tracking Id"
 #~ msgstr "追蹤 ID"
 

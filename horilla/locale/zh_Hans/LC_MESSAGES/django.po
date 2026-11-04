@@ -36130,6 +36130,12 @@ msgstr "电话号码"
 msgid "Message templates and flows created successfully."
 msgstr "消息模板和流创建成功。"
 
+#: horilla_theme/templates/employee/create_form/custom_fields.html
+#: horilla_theme/templates/tabs/personal_tab.html
+msgctxt "employee form section"
+msgid "Custom"
+msgstr "自定义"
+
 #~ msgid "Tracking Id"
 #~ msgstr "追蹤ID"
 

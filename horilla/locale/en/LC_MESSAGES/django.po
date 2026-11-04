@@ -36959,6 +36959,12 @@ msgstr "Shift Requests"
 
 #, fuzzy
 #~| msgid "employee"
+#: horilla_theme/templates/employee/create_form/custom_fields.html
+#: horilla_theme/templates/tabs/personal_tab.html
+msgctxt "employee form section"
+msgid "Custom"
+msgstr ""
+
 #~ msgid "Tracking ID"
 #~ msgstr "Employee"
 

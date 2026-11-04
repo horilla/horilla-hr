@@ -33451,6 +33451,12 @@ msgstr "Număr de telefon"
 msgid "Message templates and flows created successfully."
 msgstr "Șabloanele de mesaje și fluxurile au fost create cu succes."
 
+#: horilla_theme/templates/employee/create_form/custom_fields.html
+#: horilla_theme/templates/tabs/personal_tab.html
+msgctxt "employee form section"
+msgid "Custom"
+msgstr "Personalizat"
+
 #~ msgid "Tracking Id"
 #~ msgstr "ID de urmărire"
 

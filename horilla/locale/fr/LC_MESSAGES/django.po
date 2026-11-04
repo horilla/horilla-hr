@@ -33583,6 +33583,12 @@ msgstr "Numéro de téléphone"
 msgid "Message templates and flows created successfully."
 msgstr "Modèles de messages et flux créés avec succès."
 
+#: horilla_theme/templates/employee/create_form/custom_fields.html
+#: horilla_theme/templates/tabs/personal_tab.html
+msgctxt "employee form section"
+msgid "Custom"
+msgstr "Personnalisé"
+
 #~ msgid "Tracking Id"
 #~ msgstr "ID de suivi"
 
