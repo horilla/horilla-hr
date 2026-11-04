@@ -1,5 +1,19 @@
 {% load i18n static i18n %}
 {% if skill_zones %}
+    <style>
+        #skill_zone_container .oh-tabs__movable-header {
+            background-color: #FCEEEA !important;
+        }
+        #skill_zone_container .oh-tabs__movable-header:hover {
+            background-color: #FAE2DB !important;
+        }
+        #skill_zone_container .talent-pool-head .fixed-table th,
+        #skill_zone_container .talent-pool-head .fixed-table td {
+            border: none;
+            border-radius: 0;
+        }
+    </style>
+    <div class="bg-white p-4 rounded-md shadow-card relative">
     {% comment %}
     One column header shared by every talent pool's table below, instead of
     each accordion panel repeating its own -- mirrors the objective detail
@@ -14,7 +28,7 @@
     different widths and every column past the first drifts out of
     alignment. See the wrapper right before each pool's own table.
     {% endcomment %}
-    <div class="bg-white border border-[#EAE8E3] rounded-lg mb-1.5 overflow-hidden px-5">
+    <div class="talent-pool-head bg-white border border-[#EAE8E3] rounded-lg mb-1.5 overflow-hidden px-5">
         <table class="fixed-table w-full table-fixed border-separate">
             {% include "skill_zone/_talent_pool_colgroup.html" %}
             <thead>
@@ -31,11 +45,12 @@
         </table>
     </div>
 
+    <div class="accordion-wrapper space-y-1.5">
     {% for skill_zone in skill_zones %}
-        <div class="oh-tabs__movable-area mb-1.5" data-sz-id="{{ skill_zone.grouper.id }}">
-            <div class="oh-tabs__movable bg-white border border-[#EAE8E3] !rounded-lg overflow-hidden">
+        <div class="oh-tabs__movable-area" data-sz-id="{{ skill_zone.grouper.id }}">
+            <div class="oh-tabs__movable bg-white border border-[#EAE8E3] rounded-lg">
                 <div
-                    class="oh-tabs__movable-header !rounded-none bg-primary-100 text-primary-600 hover:bg-primary-200 transition-colors"
+                    class="oh-tabs__movable-header !rounded-none transition-colors"
                     style="cursor: pointer"
                     onclick="
                         var $body = $(this).parent().find('.oh-tabs__movable-body');
@@ -55,8 +70,8 @@
                 >
                     <div class="flex items-center gap-2.5">
                         <span
-                            class="inline-flex items-center justify-center rounded-full font-semibold min-w-[22px] h-[22px] px-1.5 text-[11px] bg-primary-600 text-white"
-                            title="{{skill_zone.list|length}} Candidate"
+                            class="w-6 h-6 bg-primary-600 rounded-full text-white flex items-center justify-center text-xs flex-shrink-0"
+                            title="{{skill_zone.list|length}} {% trans 'Candidate' %}"
                         >
                             {{ skill_zone.list|length }}
                         </span>
@@ -65,7 +80,7 @@
 
                     {% if perms.recruitment.add_skillzonecandidate or perms.recruitment.change_skillzone or perms.recruitment.delete_skillzone %}
                         <div class="d-flex align-items-center">
-                        <span class="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/50 transition-colors shrink-0 me-2">
+                        <span class="w-6 h-6 flex items-center justify-center rounded-full hover:bg-[#F3F2EE] transition-colors shrink-0 me-2">
                             <ion-icon name="chevron-up-outline" class="oh-tabs__movable-fold-icon text-sm text-gray-600"></ion-icon>
                         </span>
                         <div onclick="event.stopPropagation()" class="relative" x-data="{open: false}">
@@ -260,16 +275,18 @@
                                                     {{ sz_candidate.added_on }}
                                                 </td>
                                                 <td class="text-sm text-center px-1.5 py-0.5 text-[#666] h-[24px]">
-                                                    <a
-                                                        onclick="event.stopPropagation()"
-                                                        class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
-                                                        href="{{sz_candidate.candidate_id.resume.url}}"
-                                                        target="_blank"
-                                                        title="{% trans 'View resume' %}"
-                                                        rel="noopener noreferrer"
-                                                    >
-                                                        <ion-icon name="document-outline"></ion-icon>
-                                                    </a>
+                                                    <div class="flex items-center justify-center" onclick="event.stopPropagation()">
+                                                        <a
+                                                            style="text-decoration: none"
+                                                            class="oh-btn oh-btn--light"
+                                                            href="{{sz_candidate.candidate_id.resume.url}}"
+                                                            target="_blank"
+                                                            title="{% trans 'View resume' %}"
+                                                            rel="noopener noreferrer"
+                                                        >
+                                                            <span class="oh-file-icon oh-file-icon--pdf"></span>
+                                                        </a>
+                                                    </div>
                                                 </td>
                                                 {% if perms.recruitment.change_skillzonecandidate or perms.recruitment.delete_skillzonecandidate %}
                                                     <td class="h-[24px] py-0.5" onclick="event.stopPropagation()">
@@ -328,6 +345,7 @@
             </div>
         </div>
     {% endfor %}
+    </div>
 
     <script>
         (function () {
@@ -403,6 +421,7 @@
             </div>
         </div>
     {% endif %}
+    </div>
 {% else %}
     <div class="oh-wrapper h-full" align="center">
         <div class="xl:col-span-4 md:col-span-6 col-span-12 bg-white p-6 rounded-md shadow-card h-[70%]">
