@@ -10,7 +10,7 @@ from base.models import Holidays
 
 
 class TestCompanyLeaveAndRange(HolidayFixtureMixin, TestCase):
-    def test_sunday_company_leave_zeroes_minimum_hour(self):
+    def test_sunday_company_leave_retains_minimum_hour(self):
         from base.models import CompanyLeaves
 
         # A fixed Sunday and the Monday after it. The fixture holidays always fall on the
@@ -23,9 +23,12 @@ class TestCompanyLeaveAndRange(HolidayFixtureMixin, TestCase):
             based_on_week_day="6",
         )
         company_leave.company_id.set([self.company])
+
+        # Issue #1223: Flexible off-day policy retains the standard shift minimum (08:00)
+        # instead of dropping to 00:00 to prevent automatic overtime on short visits.
         self.assertEqual(
             attendance_day_checking(str(sunday), "08:00"),
-            "00:00",
+            "08:00",
         )
         monday = sunday + timedelta(days=1)
         self.assertEqual(
@@ -33,7 +36,7 @@ class TestCompanyLeaveAndRange(HolidayFixtureMixin, TestCase):
             "08:00",
         )
 
-    def test_multi_day_holiday_zeroes_middle_day(self):
+    def test_multi_day_holiday_retains_middle_day(self):
         # A fixed three-day holiday, the 14th to the 16th: never the 1st of a month, so
         # neither it nor the day after can be one of the fixture holidays.
         start = date(2024, 5, 14)
@@ -47,5 +50,7 @@ class TestCompanyLeaveAndRange(HolidayFixtureMixin, TestCase):
         )
         middle = start + timedelta(days=1)
         outside = end + timedelta(days=1)
-        self.assertEqual(attendance_day_checking(str(middle), "08:00"), "00:00")
+
+        # Issue #1223: Retain 08:00 on holiday to avoid 00:00 overtime bug
+        self.assertEqual(attendance_day_checking(str(middle), "08:00"), "08:00")
         self.assertEqual(attendance_day_checking(str(outside), "08:00"), "08:00")
