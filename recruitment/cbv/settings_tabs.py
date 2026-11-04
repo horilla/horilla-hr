@@ -11,7 +11,7 @@ from django.utils.translation import gettext_lazy as _
 
 from horilla_views.cbv_methods import hx_request_required, login_required
 from horilla_views.generic.cbv.views import HorillaTabView, TemplateView
-from recruitment.models import RejectReason, Skill, Stage
+from recruitment.models import RejectReason, Skill
 
 
 @method_decorator(login_required, name="dispatch")
@@ -32,11 +32,6 @@ class RecruitmentSettingsTabView(HorillaTabView):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.tabs = [
-            {
-                "title": _("Stages"),
-                "url": f"{reverse('recruitment-settings-stage-tab')}",
-                "badge": Stage.objects.count(),
-            },
             {
                 "title": _("Rejection Reasons"),
                 "url": f"{reverse('recruitment-settings-reject-reason-tab')}",
@@ -68,13 +63,3 @@ class RecruitmentSettingsSkillTab(TemplateView):
     """
 
     template_name = "cbv/recruitment_settings/skill_tab.html"
-
-
-@method_decorator(login_required, name="dispatch")
-@method_decorator(hx_request_required, name="dispatch")
-class RecruitmentSettingsStageTab(TemplateView):
-    """
-    stages tab content, embeds the existing stage nav + list
-    """
-
-    template_name = "cbv/recruitment_settings/stage_tab.html"
