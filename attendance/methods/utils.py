@@ -166,21 +166,15 @@ def get_diff_dict(first_dict, other_dict, model=None):
 
 def get_client_ip(request):
     """
-    The caller's IP, honoring only as many proxy hops as this deployment has
-    declared trustworthy (AXES_PROXY_COUNT) -- the same setting django-axes
-    itself uses for lockouts. Trusting X-Forwarded-For unconditionally lets
-    any client claim to be calling from an allowed office network, since
-    that header is attacker-supplied unless a trusted reverse proxy is
-    known to overwrite rather than append to it.
+    The caller's IP, the same address django-axes uses for lockouts
+    (horilla.client_ip): X-Forwarded-For counts only when the connection comes
+    from a trusted reverse proxy (HORILLA_TRUSTED_PROXIES). Trusting the
+    header unconditionally lets any client claim to be calling from an
+    allowed office network, since it is attacker-supplied.
     """
-    from ipware import get_client_ip as _get_client_ip
+    from horilla.client_ip import client_ip
 
-    ip, _is_routable = _get_client_ip(
-        request,
-        proxy_count=settings.AXES_IPWARE_PROXY_COUNT,
-        request_header_order=settings.AXES_IPWARE_META_PRECEDENCE_ORDER,
-    )
-    return ip or request.META.get("REMOTE_ADDR")
+    return client_ip(request)
 
 
 def geofence_denial_web(request, company):

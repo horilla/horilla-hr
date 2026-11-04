@@ -17,6 +17,15 @@
         #ticketComment + .note-editor .note-editable {
             border-radius: 12px;
         }
+
+        /* Dark Mode Overrides for Rich Text Editor */
+        body.dark #ticketComment + .note-editor .note-editable {
+            background-color: #242424;
+            color: #e5e7eb;
+        }
+        body.dark #ticketComment + .note-editor.note-frame {
+            background-color: #1b1b1b;
+        }
     </style>
     <button
         class="reload-record"
@@ -83,7 +92,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="bg-[#f7f7f7] p-3 rounded-md mb-3">
+                    <div class="bg-primary-50 p-3 rounded-md mb-3">
                         <div class="flex justify-between items-center text-sm mb-3">
                             <span class="font-medium text-xs">{% trans "Ticket ID" %}</span>
                             <span
@@ -161,7 +170,7 @@
                                     </div>
                                 </form>
                             {% else %}
-                                {{ticket.get_priority_stars|safe}}
+                                {{ ticket.get_priority_stars|safe }}
                             {% endif %}
                         </div>
                         <div class="flex justify-between items-center text-sm mb-5">
@@ -200,12 +209,12 @@
                             {{ remaining }}
                         </p>
                     </div>
-                    <div class="bg-[#f7f7f7] p-3 rounded-md mb-3">
+                    <div class="bg-primary-50 p-3 rounded-md mb-3">
                         <div class="flex justify-between items-center text-sm mb-3">
                             {% if perms.helpdesk.change_ticket or request.user.employee_get == ticket.employee_id %}
                                 <p>{% trans "Forwarded to" %}</p>
                                 <button
-                                    class="w-6 h-6 rounded-md bg-info-600 flex items-center justify-center text-white text-xs transition duration-300 hover:bg-info-700"
+                                    class="w-6 h-6 rounded-md bg-primary-600 flex items-center justify-center text-white text-xs transition duration-300 hover:bg-primary-700"
                                     hx-get="{% url 'ticket-change-raised-on' ticket.id %}"
                                     data-target="#objectDetailsModalW25"
                                     data-toggle="oh-modal-toggle"
@@ -225,7 +234,7 @@
                             <div class="flex gap-1">
                                 {% if perms.helpdesk.change_claimrequest or perms.helpdesk.change_ticket or request.user.employee_get|is_department_manager:ticket %}
                                     <button
-                                        class="w-6 h-6 rounded-md bg-info-600 flex items-center justify-center text-white text-xs transition duration-300 hover:bg-info-700"
+                                        class="w-6 h-6 rounded-md bg-primary-600 flex items-center justify-center text-white text-xs transition duration-300 hover:bg-primary-700"
                                         data-toggle="oh-modal-toggle"
                                         data-target="#objectDetailsModal"
                                         hx-get="{% url 'view-ticket-claim-request' ticket.id %}"
@@ -238,7 +247,7 @@
 
                                 {% if perms.helpdesk.change_ticket or request.user.employee_get|is_department_manager:ticket %}
                                     <button
-                                        class="w-6 h-6 rounded-md bg-info-600 flex items-center justify-center text-white text-xs transition duration-300 hover:bg-info-700"
+                                        class="w-6 h-6 rounded-md bg-primary-600 flex items-center justify-center text-white text-xs transition duration-300 hover:bg-primary-700"
                                         hx-get="{% url 'ticket-change-assignees' ticket.id %}"
                                         data-toggle="oh-modal-toggle"
                                         data-target="#objectDetailsModalW25"
@@ -262,7 +271,7 @@
                                                 <img
                                                     src="{{employee.get_avatar}}"
                                                     alt=""
-                                                    class="w-6 h-6 rounded-full"
+                                                    class="w-6 h-6 rounded-full object-cover"
                                                 >
                                             </a>
                                         </span>
@@ -376,7 +385,7 @@
                 <div class="flex justify-end">
                     {% if perms.helpdesk.change_ticket or request.user.employee_get|is_department_manager:ticket %}
                         <button
-                            class="p-3 h-6 mb-2 rounded-md bg-info-600 flex items-center justify-center text-white text-xs transition duration-300 hover:bg-info-700"
+                            class="p-3 h-6 mb-2 rounded-md bg-primary-600 flex items-center justify-center text-white text-xs transition duration-300 hover:bg-primary-700"
                             title="{% trans 'Edit Ticket' %}"
                             data-toggle="oh-modal-toggle"
                             data-target="#objectCreateModal"
@@ -389,13 +398,14 @@
                     {% endif %}
                 </div>
                 <div class="h-[80%] lg:h-[calc(100%_-_55px)]">
-                    <div class="bg-[#fff6e8] p-3 rounded-md border border-[#ffe2b6] mb-5">
+                    <div class="bg-primary-50 p-3 rounded-md border border-primary-200 mb-5">
                         <div class="flex items-center justify-between mb-3">
                             <div class="flex gap-3 items-center font-semibold text-sm">
                                 <img
                                     src="{{ticket.employee_id.get_avatar}}"
                                     alt=""
                                     width="30"
+                                    class="w-8 h-8 rounded-full object-cover"
                                 ><span>{{ ticket.employee_id }}</span>
                             </div>
                             <p class="text-sm text-[#ff8c00] font-semibold">
@@ -410,14 +420,14 @@
                         {% for item in sorted_activity_list %}
                             {% if item.type == 'comment' %}
                                 <div class="w-full flex mb-3 {% if item.comment.employee_id == ticket.employee_id %}justify-end {% else %}justify-start {% endif %}">
-                                    <div class="bg-[#d944bb1a] p-5 rounded-2xl max-w-[90%] md:w-[60%] mb-3 md:mb-1">
+                                    <div class="bg-primary-50 p-5 rounded-2xl max-w-[90%] md:w-[60%] mb-3 md:mb-1">
                                         <div class="flex flex-wrap items-center justify-between mb-3">
                                             <div class="flex gap-3 items-center font-semibold text-sm">
                                                 <img
                                                     src="{{item.comment.employee_id.get_avatar}}"
                                                     alt="{{item.comment.employee_id}}"
                                                     width="30"
-                                                    class="rounded-full"
+                                                    class="w-8 h-8 rounded-full object-cover"
                                                 ><span>{{ item.comment.employee_id.get_full_name }}</span>
                                             </div>
                                             <p class="text-sm font-semibold">
@@ -471,7 +481,7 @@
                                                             hx-target="#viewFile"
                                                             hx-get="{% url 'view-ticket-document' attachment.id %}"
                                                         >
-                                                            <div class="oh-helpdesk__icon bg-[#d944bb1a]">
+                                                            <div class="oh-helpdesk__icon bg-primary-50">
                                                                 <span
                                                                     class="
                                                                         oh-file-icon
@@ -505,16 +515,26 @@
                                 {% else %}
                                     <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
                                         <div class="flex flex-wrap items-center gap-1.5 text-sm min-w-0">
-                                            <span><i>{{ item.history.updated_by }}</i> {% trans "updated" %} <strong>{{ item.history.changes.0.field|safe }}</strong></span>
-                                            <span class="inline-flex max-w-full items-center rounded-md px-2 py-0.5 text-xs bg-primary-50 text-dark-100 border border-dark-50" style="text-decoration:line-through;text-decoration-color:#c4c4c4;">
+                                            <span><i>{{ item.history.updated_by }}</i> {% trans "updated" %} <strong
+                                                >{{ item.history.changes.0.field|safe }}</strong></span>
+                                            <span
+                                                class="inline-flex max-w-full items-center rounded-md px-2 py-0.5 text-xs bg-primary-50 text-dark-100 border border-dark-50"
+                                                style="text-decoration: line-through; text-decoration-color: #c4c4c4"
+                                            >
                                                 {% if item.history.changes.0.is_fk %}
                                                     {{ item.history.pair.1|fk_history:item.history.changes.0|safe }}
                                                 {% else %}
                                                     {{ item.history.changes.0.old|safe }}
                                                 {% endif %}
                                             </span>
-                                            <img src="{% static '/images/ui/arrow-right-line.svg' %}" alt="" class="w-3 h-3 opacity-60">
-                                            <span class="inline-flex max-w-full items-center rounded-md px-2 py-0.5 text-xs font-medium bg-green-50 text-green-700 border border-green-200">
+                                            <img
+                                                src="{% static '/images/ui/arrow-right-line.svg' %}"
+                                                alt=""
+                                                class="w-3 h-3 opacity-60"
+                                            >
+                                            <span
+                                                class="inline-flex max-w-full items-center rounded-md px-2 py-0.5 text-xs font-medium bg-green-50 text-green-700 border border-green-200"
+                                            >
                                                 {% if item.history.changes.0.is_fk %}
                                                     {{ item.history.pair.0|fk_history:item.history.changes.0|safe }}
                                                 {% else %}
@@ -523,8 +543,12 @@
                                             </span>
                                         </div>
                                         <p class="text-sm text-primary-600 font-semibold mb-0">
-                                            <span class="dateformat_changer">{{ item.history.pair.0.history_date|date }}</span>
-                                            <span class="timeformat_changer">{{ item.history.pair.0.history_date|time }}</span>
+                                            <span
+                                                class="dateformat_changer"
+                                            >{{ item.history.pair.0.history_date|date }}</span>
+                                            <span
+                                                class="timeformat_changer"
+                                            >{{ item.history.pair.0.history_date|time }}</span>
                                         </p>
                                     </div>
                                 {% endif %}
@@ -577,7 +601,7 @@
 
                                     <!-- Textarea -->
                                     <textarea
-                                        class="w-full p-3 rounded-full text-sm bg-[#f1f1f1] placeholder:text-xs focus:outline-none resize-none"
+                                        class="w-full p-3 rounded-full text-sm bg-primary-50 placeholder:text-xs focus:outline-none resize-none"
                                         placeholder="{% trans 'Write your message here...' %}"
                                         name="comment"
                                         id="ticketComment"
@@ -587,7 +611,7 @@
                                     <button
                                         type="submit"
                                         onclick="validateComment(event)"
-                                        class="h-9 w-9 flex justify-center items-center cursor-pointer bg-white text-brand-600 rounded-full hover:bg-brand-200 transition duration-300"
+                                        class="h-9 w-9 flex justify-center items-center cursor-pointer bg-white text-primary-600 rounded-full hover:bg-primary-200 transition duration-300"
                                         title="{% trans 'Send' %}"
                                     >
                                         <i class="fa-solid fa-paper-plane"></i>
@@ -610,7 +634,12 @@
                     aria-label="{% trans 'Close' %}"
                     onclick="$(this).closest('.oh-modal--show').removeClass('oh-modal--show')"
                 >
-                    <ion-icon name="close-outline" role="img" class="md hydrated" aria-label="{% trans 'close outline' %}"></ion-icon>
+                    <ion-icon
+                        name="close-outline"
+                        role="img"
+                        class="md hydrated"
+                        aria-label="{% trans 'close outline' %}"
+                    ></ion-icon>
                 </button>
             </div>
             <div class="oh-modal__dialog-body" id="viewFile"></div>

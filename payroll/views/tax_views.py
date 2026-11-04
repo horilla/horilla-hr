@@ -31,9 +31,12 @@ from payroll.forms.tax_forms import (
     TaxBracketFormSet,
 )
 from payroll.methods.safe_tax_code import (
+    PYTHON_FORMULAS_OFF_MESSAGE,
     TaxCodeValidationError,
     TaxFormulaTimeout,
+    python_formulas_enabled,
     run_tax_formula,
+    same_formula,
     validate_tax_code,
 )
 from payroll.methods.tax_calc import TaxComputationError, preview_yearly_tax
@@ -398,13 +401,19 @@ def update_py_code(request, pk):
         messages.error(request, _("Filing status not found"))
         return JsonResponse({"message": "Filing status not found"}, status=404)
 
+    # Saving the code that is already stored stays harmless; new or edited code
+    # is refused while Python formulas are turned off.
+    if not python_formulas_enabled() and not same_formula(filing.python_code, code):
+        return JsonResponse({"message": str(PYTHON_FORMULAS_OFF_MESSAGE)}, status=403)
+
     try:
         validate_tax_code(code)
     except TaxCodeValidationError as exc:
         messages.error(request, _("Invalid tax code"))
         return JsonResponse({"message": str(exc)}, status=400)
 
-    if not filing.python_code == code:
+    # A change in line endings or surrounding whitespace only is not saved.
+    if not same_formula(filing.python_code, code):
         filing.python_code = code
         filing.save()
         messages.success(request, _("Python code saved successfully!"))
@@ -556,6 +565,10 @@ def test_py_code(request):
 
     Nothing is saved.
     """
+    if not python_formulas_enabled():
+        return JsonResponse(
+            {"ok": False, "error": str(PYTHON_FORMULAS_OFF_MESSAGE)}, status=403
+        )
     code = request.POST.get("code") or ""
     raw_income = request.POST.get("sample_income") or "0"
     try:

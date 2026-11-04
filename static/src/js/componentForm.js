@@ -63,24 +63,30 @@
   }
 
   // "is_fixed=off based_on=component|formula" — every clause must hold.
+  // "name!=a|b" holds when the value is none of those. Groups separated by a
+  // comma are alternatives: "is_fixed=on,based_on!=attendance" is either.
   function satisfied(form, spec) {
-    return spec
-      .split(/\s+/)
-      .filter(Boolean)
-      .every(function (clause) {
-        var split = clause.indexOf("=");
-        if (split === -1) return true;
-        var name = clause.slice(0, split);
-        var wanted = clause.slice(split + 1).split("|");
-        var field = form.querySelector("[name='" + name + "']");
-        // One layout serves both forms, so a rule can name a field only one of
-        // them has. Treat that clause as inapplicable rather than false: the
-        // condition rows are gated on include_active_employees, which exists on
-        // Allowance and not on Deduction, and returning false here hid them on
-        // every deduction.
-        if (!field) return true;
-        return wanted.indexOf(valueOf(field)) !== -1;
-      });
+    return spec.split(",").some(function (group) {
+      return group
+        .split(/\s+/)
+        .filter(Boolean)
+        .every(function (clause) {
+          var negate = clause.indexOf("!=") !== -1;
+          var split = negate ? clause.indexOf("!=") : clause.indexOf("=");
+          if (split === -1) return true;
+          var name = clause.slice(0, split);
+          var wanted = clause.slice(split + (negate ? 2 : 1)).split("|");
+          var field = form.querySelector("[name='" + name + "']");
+          // One layout serves both forms, so a rule can name a field only one
+          // of them has. Treat that clause as inapplicable rather than false:
+          // the condition rows are gated on include_active_employees, which
+          // exists on Allowance and not on Deduction, and returning false here
+          // hid them on every deduction.
+          if (!field) return true;
+          var found = wanted.indexOf(valueOf(field)) !== -1;
+          return negate ? !found : found;
+        });
+    });
   }
 
   function sync(root) {

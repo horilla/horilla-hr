@@ -1,0 +1,41 @@
+{% extends 'index.html' %}
+{% load i18n %}
+{% load static %}
+
+{% block content %}
+<main :class="sidebarOpen ? 'oh-main__sidebar-visible' : ''">
+  {% include "payroll/batch/_batch.css.html" %}
+
+  <section class="oh-wrapper pb pb--wizard">
+
+    <div class="oh-main__titlebar oh-main__titlebar--left mb-3">
+      <h1 class="oh-main__titlebar-title fw-bold mb-0">{{ batch.batch_name }}</h1>
+      <div style="font-size:.8rem;color:#6b7280;">
+        {{ batch.period_start|date:"j M Y" }} &ndash; {{ batch.period_end|date:"j M Y" }}
+      </div>
+    </div>
+
+    {% include "payroll/batch/_steps.html" with step=step %}
+
+    <div class="pb__panel">
+      <div style="padding:1.25rem;">
+        <h2 style="font-size:1rem;font-weight:700;margin:0 0 6px;">{% trans "Go Back To Review & Regularize?" %}</h2>
+        <p style="margin:0 0 14px;color:#4b5563;">
+          {% trans "This Batch Has Already Been Generated. Going Back Discards Its Draft Payslips, So You Can Fix Attendance Or Contracts And Generate Again." %}
+        </p>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <form method="post" action="{% url 'payroll-batch-reopen' batch.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="oh-btn oh-btn--secondary">
+              <ion-icon name="arrow-undo-outline" class="me-1"></ion-icon>
+              {% trans "Go Back To Review & Regularize" %}
+            </button>
+          </form>
+          <a href="{% url 'payroll-batch-detail' batch.pk %}" class="pb__btn">{% trans "Cancel" %}</a>
+        </div>
+      </div>
+    </div>
+
+  </section>
+</main>
+{% endblock %}

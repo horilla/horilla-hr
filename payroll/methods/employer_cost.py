@@ -58,6 +58,7 @@ def eligible_deductions(employee, start_date, end_date):
     the ones those passes use.
     """
     from payroll.methods.component_engine import (
+        group_targeted,
         own_structure_only,
         structure_components,
     )
@@ -73,7 +74,13 @@ def eligible_deductions(employee, start_date, end_date):
         exclude_employees=employee
     )
     deductions = (
-        (specific | conditional | active | structure_components(Deduction, employee))
+        (
+            specific
+            | conditional
+            | active
+            | group_targeted(employee, Deduction)
+            | structure_components(Deduction, employee)
+        )
         .distinct()
         .exclude(one_time_date__lt=start_date)
         .exclude(one_time_date__gt=end_date)

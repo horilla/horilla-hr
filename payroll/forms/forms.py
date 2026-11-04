@@ -146,6 +146,7 @@ class ContractForm(ModelForm):
         self.fields["contract_status"].widget.attrs.update(
             {
                 "class": "oh-select",
+                "form": "contractForm",
             }
         )
         if self.instance and self.instance.pk:
@@ -154,6 +155,7 @@ class ContractForm(ModelForm):
                 {
                     "hx-target": "this",
                     "hx-post": dynamic_url,
+                    "hx-include": "#contractForm",
                     "hx-swap": "beforebegin",
                 }
             )
@@ -278,7 +280,7 @@ class ContractForm(ModelForm):
         """
         Render the url for contract status update through hx request
         """
-        return f"/payroll/update-contract-status/{instance.pk}"
+        return f"/payroll/update-contract-status/{instance.pk}/"
 
 
 class ReimbursementRequestCommentForm(ModelForm):

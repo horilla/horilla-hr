@@ -1,4 +1,4 @@
-{% load i18n generic_template_filters horillafilters i18n %}
+{% load i18n generic_template_filters horillafilters %}
 {% get_company as theme_obj %}
 
 <style>
@@ -47,83 +47,47 @@
     }
 </style>
 
-<div id="{{view_id}}">
-    {% if show_filter_tags %}
-        {% include "generic/filter_tags.html" %}
-    {% endif %}
-
-    {# PipelineNav builds title/Filter (RecruitmentFilter -- Is Closed, #}
-    {# managers, etc)/Create. Shown whether or not there are tabs: each #}
-    {# tab's own Nav filters that ONE recruitment's candidates, a separate #}
-    {# concern from filtering WHICH recruitments show as tabs at all, so #}
-    {# showing this only when the tab list was empty meant the Is Closed #}
-    {# filter -- and the Create button -- became unreachable the moment #}
-    {# any recruitment was open. #}
-    <div hx-get="{% url 'cbv-pipeline-nav' %}" hx-trigger="load[this.children.length===0]"></div>
-
-    <div class="bg-white p-3 rounded-md shadow-card oh-tabs">
-        {% if not tabs %}
-            <div class="flex flex-col items-center justify-center py-10">
-                <img src="/static/horilla_theme/assets/img/no-records.svg" alt="" width="300" class="mb-4">
-                <p class="text-[#666]">{% trans "No records available at the moment" %}</p>
-            </div>
-        {% else %}
-        <div class="flex flex-nowrap items-start gap-2 mb-3">
-            <div class="flex gap-1 flex-wrap oh-tabs__tab-scroll min-w-0 flex-1">
-                {% for tab in tabs %}
-                    <div class="relative inline-block dropdown-wrapper-tab">
-                        <button
-                            class="oh-tabs__tab flex {% if forloop.counter == 1 and not active_target %} oh-tabs__tab--active {% endif %}"
-                            data-tab-index="{{ forloop.counter0 }}"
-                            data-target="#{{view_id}}{{forloop.counter}}"
-                            data-tab-url="{{tab.url}}"
-                            data-path="{{request.path}}"
-                            onclick="switchTab($(this));
-									if (typeof clearSelectionsOnTabSwitch === 'function') {
-										clearSelectionsOnTabSwitch('{{view_id|escapejs}}');
-									} else if (typeof clearSelection === 'function') {
-										clearSelection('selectedInstances');
-										if ($('#selectedTickets').length) { clearSelection('selectedTickets'); }
-									}
-									var tabContentEl = document.querySelector('#{{view_id}}{{forloop.counter}}');
-									if (!$(this).attr('data-loaded') || !tabContentEl || !tabContentEl.innerHTML.trim()) {
-										htmx.ajax('GET', '{{tab.url}}', {target: '#{{view_id}}{{forloop.counter}}', source: this});
-										this.setAttribute('data-loaded', 'true');
-									}"
-                        >
-                            <span
-                                class="min-w-6 h-6 px-1 bg-primary-600 rounded-full text-white text-xs flex items-center justify-center tab-badge"
-                                id="badge-{{view_id}}{{forloop.counter}}"
-                                {% if tab.badge_label %}
-                                    data-badge-label="{{tab.badge_label}}"
-                                    title='{{tab.badge|default:0}} {{tab.badge_label|default:"Items"}}'
-                                {% else %}
-                                    title="{{tab.badge|default:0}} {% trans 'Items' %}"
-                                {% endif %}
-                                onclick="event.stopPropagation()"
-                            >
-                                {% if tab.badge|default:0 > 999 %}999+{% else %}{{ tab.badge|default:0 }}{% endif %}
-                            </span>
-
-                            {{ tab.title }}
-                        </button>
-                    </div>
-                {% endfor %}
-            </div>
-        </div>
-
-        <div class="oh-tabs__contents">
+{% if not tabs %}
+    <div class="flex flex-col items-center justify-center py-10">
+        <img src="/static/horilla_theme/assets/img/no-records.svg" alt="" width="300" class="mb-4">
+        <p class="text-[#666]">{% trans "No records available at the moment" %}</p>
+    </div>
+{% else %}
+    <div class="flex flex-nowrap items-start gap-2 mb-3">
+        <div class="flex gap-1 flex-wrap oh-tabs__tab-scroll min-w-0 flex-1">
             {% for tab in tabs %}
-                <div
-                    class="oh-tabs__content {% if forloop.counter == 1 and not active_target %} oh-tabs__content--active {% endif %}"
-                    id="{{view_id}}{{forloop.counter}}"
-                >
+                <div class="relative inline-block dropdown-wrapper-tab">
+                    <button
+                        class="oh-tabs__tab flex"
+                        data-tab-index="{{ forloop.counter0 }}"
+                        data-rec-id="{{ tab.rec_id }}"
+                        data-target="#pipelinePane{{ tab.rec_id }}"
+                        data-tab-url="{{ tab.url }}"
+                        data-content-url="{{ tab.content_url }}"
+                        data-path="{% url 'cbv-pipeline-tab' %}"
+                        onclick="pipelineOpenTab(this)"
+                    >
+                        <span
+                            class="min-w-6 h-6 px-1 bg-primary-600 rounded-full text-white text-xs flex items-center justify-center tab-badge"
+                            id="badge-pipelinePane{{ tab.rec_id }}"
+                            {% if tab.badge_label %}
+                                data-badge-label="{{ tab.badge_label }}"
+                                title='{{ tab.badge|default:0 }} {{ tab.badge_label|default:"Items" }}'
+                            {% else %}
+                                title="{{ tab.badge|default:0 }} {% trans 'Items' %}"
+                            {% endif %}
+                            onclick="event.stopPropagation()"
+                        >
+                            {% if tab.badge|default:0 > 999 %}999+{% else %}{{ tab.badge|default:0 }}{% endif %}
+                        </span>
+
+                        {{ tab.title }}
+                    </button>
                 </div>
             {% endfor %}
         </div>
-        {% endif %}
     </div>
-</div>
+{% endif %}
 
 <script>
     function toggleHighlight(checkbox) {
@@ -136,100 +100,7 @@
     	}
     }
 
-    function switchTab($elem) {
-    	if (!document.body.contains($elem[0])) {
-    		return;
-    	}
-
-    	let target = $elem.data("target")
-    	let path = $elem.data("path")
-
-    	$(".oh-tabs__tab").removeClass('oh-tabs__tab--active')
-    	$elem.addClass("oh-tabs__tab--active")
-
-    	$(".oh-tabs__content").removeClass("oh-tabs__content--active")
-    	$(target).addClass("oh-tabs__content--active")
-
-    	document.dispatchEvent(new CustomEvent('oh:tab-switched', {
-    		detail: { tabUrl: $elem.attr('data-tab-url'), target: target }
-    	}));
-
-    	let tabIndex = $elem.data("tab-index")
-    	let url_target = `[data-tab-index="${tabIndex}"]`
-    	$.ajax({
-    		type: "get",
-    		url: "{% url 'active-tab' %}",
-    		data: {
-    			"path":path,
-    			"target":url_target,
-    		},
-    		success: function (response) {
-
-    		}
-    	});
-    }
-
-    $(document).ready(function () {
-    	function triggerInitialTabLoad() {
-    		var $scope = $("#{{view_id}}");
-    		if (!$scope.length) return;
-
-    		var $tabs = $scope.find(".oh-tabs__tab");
-    		if (!$tabs.length) return;
-
-    		var $preferred = $();
-    		{% if active_target %}
-    			$preferred = $scope.find(`{{active_target|safe}}`).first();
-    		{% endif %}
-    		if (!$preferred.length) {
-    			$preferred = $tabs.filter(".oh-tabs__tab--active").first();
-    		}
-    		if (!$preferred.length) {
-    			$preferred = $tabs.first();
-    		}
-
-    		if (!$preferred.hasClass("oh-tabs__tab--active")) {
-    			$tabs.removeClass("oh-tabs__tab--active");
-    			$preferred.addClass("oh-tabs__tab--active");
-    		}
-    		var preferredTarget = $preferred.attr("data-target");
-    		if (preferredTarget) {
-    			$scope.find(".oh-tabs__content").removeClass("oh-tabs__content--active");
-    			$(preferredTarget).addClass("oh-tabs__content--active");
-    		}
-
-    		function loadTab(el) {
-    			if (!document.body.contains(el)) {
-    				return $.Deferred().resolve().promise();
-    			}
-    			var url = $(el).attr('data-tab-url');
-    			var target = $(el).attr('data-target');
-    			var targetEl = target ? document.querySelector(target) : null;
-    			if (!url || !target || !targetEl) {
-    				return $.Deferred().resolve().promise();
-    			}
-    			$(el).attr('data-loaded', 'true');
-    			var req = htmx.ajax('GET', url, {target: target, source: el});
-    			if (req && typeof req.then === 'function') {
-    				return req.catch(function () {
-    					$(el).removeAttr('data-loaded');
-    					if (typeof renderLoadFailure === 'function') {
-    						renderLoadFailure(target, null, "htmx.ajax('GET', '" + url + "', {target: '" + target + "'});");
-    					}
-    				});
-    			}
-    			return $.Deferred().resolve().promise();
-    		}
-
-    		setTimeout(function () {
-    			Promise.resolve(loadTab($preferred[0])).then(function () {
-    				if (document.body.contains($preferred[0])) {
-    					$preferred[0].click();
-    				}
-    			});
-    		}, 25);
-    	}
-
-    	triggerInitialTabLoad();
-    });
+    setTimeout(function () {
+    	pipelineTabsRendered("{{ active_target|default:''|escapejs }}");
+    }, 0);
 </script>

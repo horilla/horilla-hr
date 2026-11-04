@@ -1,0 +1,57 @@
+{% load i18n %}
+{% comment %}
+    Pager for one stage of the task list view, shown in the stage header before
+    its Add Task button. Expects `stage` with its `page_obj` (see
+    project.views.paginate_stage_tasks). The header is a <button>, so this is
+    made of spans, not buttons or inputs. taskStagePage() lives in
+    task_navbar.html: it keeps the stage's page in the filter form, so search
+    and filters carry over, and re-applies the form. (The card view loads more
+    tasks by scrolling instead.)
+{% endcomment %}
+{% with page=stage.page_obj %}
+    {% if page.paginator.num_pages > 1 %}
+        <div
+            class="task-stage-pager inline-flex items-center gap-2 text-xs text-[#666] font-normal"
+            onclick="event.stopPropagation()"
+        >
+            <span class="whitespace-nowrap">
+                {{ page.start_index }}–{{ page.end_index }} {% trans "of" %} {{ page.paginator.count }}
+            </span>
+            <div class="inline-flex items-center h-8 gap-0.5 bg-white border border-primary-500 rounded-md px-1 flex-shrink-0">
+                <span
+                    role="button"
+                    class="w-7 h-7 flex items-center justify-center rounded text-xs leading-none transition duration-300 {% if page.has_previous %}hover:bg-[#f5f5f5] cursor-pointer{% else %}text-[#ccc] cursor-not-allowed{% endif %}"
+                    {% if page.has_previous %}onclick="taskStagePage({{ stage.id }}, 1)"{% else %}aria-disabled="true"{% endif %}
+                    title="{% trans 'First page' %}"
+                >
+                    <i class="fa-solid fa-angles-left"></i>
+                </span>
+                <span
+                    role="button"
+                    class="w-7 h-7 flex items-center justify-center rounded text-xs leading-none transition duration-300 {% if page.has_previous %}hover:bg-[#f5f5f5] cursor-pointer{% else %}text-[#ccc] cursor-not-allowed{% endif %}"
+                    {% if page.has_previous %}onclick="taskStagePage({{ stage.id }}, {{ page.previous_page_number }})"{% else %}aria-disabled="true"{% endif %}
+                    title="{% trans 'Previous page' %}"
+                >
+                    <i class="fa-solid fa-angle-left"></i>
+                </span>
+                <span class="px-1 whitespace-nowrap leading-none">{{ page.number }} / {{ page.paginator.num_pages }}</span>
+                <span
+                    role="button"
+                    class="w-7 h-7 flex items-center justify-center rounded text-xs leading-none transition duration-300 {% if page.has_next %}hover:bg-[#f5f5f5] cursor-pointer{% else %}text-[#ccc] cursor-not-allowed{% endif %}"
+                    {% if page.has_next %}onclick="taskStagePage({{ stage.id }}, {{ page.next_page_number }})"{% else %}aria-disabled="true"{% endif %}
+                    title="{% trans 'Next page' %}"
+                >
+                    <i class="fa-solid fa-angle-right"></i>
+                </span>
+                <span
+                    role="button"
+                    class="w-7 h-7 flex items-center justify-center rounded text-xs leading-none transition duration-300 {% if page.has_next %}hover:bg-[#f5f5f5] cursor-pointer{% else %}text-[#ccc] cursor-not-allowed{% endif %}"
+                    {% if page.has_next %}onclick="taskStagePage({{ stage.id }}, {{ page.paginator.num_pages }})"{% else %}aria-disabled="true"{% endif %}
+                    title="{% trans 'Last page' %}"
+                >
+                    <i class="fa-solid fa-angles-right"></i>
+                </span>
+            </div>
+        </div>
+    {% endif %}
+{% endwith %}

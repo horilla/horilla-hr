@@ -138,12 +138,20 @@
 		nav.html(template);
 
 		// Events (clean separation)
-		nav.on("click", ".oh-titlebar__tag-close", function () {
+		nav.off("click.filterTags");
+
+		nav.on("click.filterTags", ".oh-titlebar__tag-close", function () {
+			const chip = $(this).closest(".filter-field");
 			clearFilterFromTag($(this));
+			chip.remove();
+			if (!nav.find(".filter-field").length) {
+				nav.empty();
+			}
 		});
 
-		nav.on("click", ".clear-all", function () {
+		nav.on("click.filterTags", ".clear-all", function () {
 			clearAllFilter($(this));
+			nav.empty();
 		});
 
 		$("#saveFilterBtn").on("click", function () {

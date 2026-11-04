@@ -9,6 +9,7 @@ payroll.methods.earning_working built; same look as the loss-of-pay popover.
   <div class="ps__pop" x-show="open" x-cloak x-transition.opacity.duration.150ms>
     <div class="ps__pop-title">{% trans "How this was worked out" %}</div>
     {% if w.rule %}<div class="ps__pop-sub"><b>{{ w.rule }}</b></div>{% endif %}
+    {% if w.kind %}<div class="ps__pop-note" style="margin:0 0 6px;padding:0;border:0;color:#6b7280;">{{ w.kind }}</div>{% endif %}
     {% for label, value in w.steps %}
       <div class="ps__pop-row">
         <span class="lbl">{{ label }}</span>
@@ -18,6 +19,19 @@ payroll.methods.earning_working built; same look as the loss-of-pay popover.
     {% if w.equation %}
       <div class="ps__pop-rule"></div>
       <div class="ps__pop-eqn">{{ w.equation }}</div>
+    {% endif %}
+    {% if w.days %}
+      <div class="ps__pop-rule"></div>
+      <div class="ps__pop-sub"><b>{% trans "Day by day" %}</b></div>
+      <div class="ps__pop-days">
+        {% for d in w.days %}
+          <div class="ps__pop-row">
+            <span class="lbl">{% if d.date %}{{ d.date|date:"D, d M" }}{% endif %} · {{ d.hours }}</span>
+            <span class="val">{{ d.amount|floatformat:2 }}</span>
+          </div>
+          <div class="ps__pop-eqn" style="margin-bottom:3px;">{{ d.detail }}</div>
+        {% endfor %}
+      </div>
     {% endif %}
     {% if w.ceiling %}
       <div class="ps__pop-row">

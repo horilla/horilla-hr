@@ -59,7 +59,7 @@ the pay was worked out from. Everything below is the caveats.
 
   /* ---- the arithmetic ---- */
   .ps__ledger {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
     align-items: start; margin-bottom: 10px;
   }
   @media (max-width: 820px) { .ps__ledger { grid-template-columns: 1fr; } }
@@ -139,26 +139,28 @@ the pay was worked out from. Everything below is the caveats.
   .ps__net {
     display: flex; align-items: center; justify-content: space-between;
     gap: 14px; flex-wrap: wrap;
-    border-radius: 10px; padding: 14px 16px;
-    background: var(--primary-600, #e54f38); color: #fff;
+    border: 1px solid #e6e7eb; border-radius: 10px; padding: 10px 14px;
+    background: #f9fafb; color: #1f2430;
   }
-  .ps__net-label { font-size: 13px; font-weight: 600; opacity: .92; }
-  .ps__net-sum { font-size: 12px; opacity: .85; font-variant-numeric: tabular-nums; }
-  .ps__net--short { background: #8b3a2b; }
-  .ps__short {
-    margin-top: 10px; border-radius: 9px; padding: 10px 12px;
-    background: #fdeeeb; color: #a3301d; font-size: 12.5px;
-  }
+  .ps__net-label { font-size: 13px; font-weight: 600; }
+  .ps__net-sum { font-size: 11.5px; color: #9ca3af; font-variant-numeric: tabular-nums; }
   .ps__net-amount {
-    font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums;
-    line-height: 1.1;
+    font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums;
+    line-height: 1.1; color: var(--primary-600, #e54f38);
+  }
+  .ps__net--short .ps__net-amount { color: #8b3a2b; }
+  /* Every gap on the payslip is 10px: the block above supplies it, so nothing here adds its own. */
+  .ps__short {
+    margin-bottom: 10px; border-radius: 9px; padding: 10px 12px;
+    background: #fdeeeb; color: #a3301d; font-size: 12.5px;
   }
 
   /* ---- supporting ---- */
   .ps__panels {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 14px; margin-top: 14px;
+    gap: 10px;
   }
+  .ps__panels { margin-bottom: 10px; }
   .ps__panel { border: 1px solid #e6e7eb; border-radius: 10px; overflow: hidden; }
   .ps__panel-head {
     padding: 9px 12px; background: #f4f5f7; border-bottom: 1px solid #e6e7eb;
@@ -240,6 +242,12 @@ the pay was worked out from. Everything below is the caveats.
     margin-top: 8px; padding-top: 6px; border-top: 1px solid #f1f2f4;
     color: #9ca3af; font-size: 11px;
   }
+  /* The overtime day list scrolls inside the popover: keep its bar thin and quiet. */
+  .ps__pop-days { max-height: 190px; overflow-y: auto; padding-right: 4px; scrollbar-width: thin; scrollbar-color: #d1d5db transparent; }
+  .ps__pop-days::-webkit-scrollbar { width: 4px; }
+  .ps__pop-days::-webkit-scrollbar-track { background: transparent; }
+  .ps__pop-days::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 999px; }
+  .ps__pop-days::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
 </style>
 
 <div class="ps">
@@ -332,14 +340,20 @@ the pay was worked out from. Everything below is the caveats.
         <div class="ps__fact-label">
           {% if lop_reflected_in_basic %}{% trans "Adjusted Basic" %}
           {% else %}{% trans "Basic pay" %}{% endif %}
+          {% if lop_reflected_in_basic and unpaid_days %}
+            <span class="ps__info" x-data="{open:false}" @mouseenter="open=true" @mouseleave="open=false">
+              <button type="button" class="ps__i" aria-label="{% trans 'More info' %}" @focus="open=true" @blur="open=false"><ion-icon name="information-circle-outline"></ion-icon></button>
+              <div class="ps__pop" x-show="open" x-cloak x-transition.opacity.duration.150ms>
+                <div class="ps__pop-title">{% trans "Why This Is Adjusted" %}</div>
+                <p class="ps__pop-note" style="margin:0; padding:0; border:0; color:#1f2430;">
+                  {% blocktrans %}Basic Pay After {{ unpaid_days }} Days Of Loss Of Pay (LOP) Were Taken Off.{% endblocktrans %}
+                </p>
+              </div>
+            </span>
+          {% endif %}
         </div>
         <div class="ps__fact-value">
           {{ basic_pay|floatformat:2|currency_symbol_position }}
-          {% if lop_reflected_in_basic and unpaid_days %}
-            <span class="ps__fact-note">
-              {% blocktrans %}(After {{ unpaid_days }} days LOP){% endblocktrans %}
-            </span>
-          {% endif %}
         </div>
       </div>
       <div>
@@ -615,8 +629,8 @@ the pay was worked out from. Everything below is the caveats.
     </div>
   {% endif %}
 
+  {% if custom_leave_breakdown %}
   <div class="ps__panels">
-    {% if custom_leave_breakdown %}
       <div class="ps__panel">
         <div class="ps__panel-head">{% trans "Partially paid leave" %}</div>
         <table class="ps__table">
@@ -642,8 +656,8 @@ the pay was worked out from. Everything below is the caveats.
           </tbody>
         </table>
       </div>
-    {% endif %}
   </div>
+  {% endif %}
 </div>
 
 {% if request.META.HTTP_HX_REQUEST and payslip|income_tax_explanation or request.META.HTTP_HX_REQUEST and payslip|ctc_breakdown %}

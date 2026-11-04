@@ -705,6 +705,7 @@ class HorillaListView(ListView):
 
         instance_ids = request.POST.get("instance_ids", "[]")
         instance_ids = eval_validate(instance_ids)
+        reload_state = self.bulk_reload_state(instance_ids)
         form = DynamicBulkUpdateForm(
             request.POST,
             request.FILES,
@@ -723,7 +724,12 @@ class HorillaListView(ListView):
                 <script id="{script_id}">
                     $("#{script_id}").closest(".oh-modal--show").removeClass("oh-modal--show");
                     $("#{self.selected_instances_key_id}").attr("data-ids", "[]");
-                    $(".reload-record").click()
+                    if (typeof clearSelectionsOnTabSwitch === "function") {{
+                        // Reset the checkboxes and Unselect/Update/Select buttons
+                        // now; the reload below only lands once the lists re-render.
+                        clearSelectionsOnTabSwitch("{self.view_id}");
+                    }}
+                    {self.bulk_reload_script(request, instance_ids, reload_state)}
                     $("#reloadMessagesButton").click()
                 </script>
                 """
@@ -741,6 +747,22 @@ class HorillaListView(ListView):
                 "instance_ids": instance_ids,
             },
         )
+
+    def bulk_reload_state(self, instance_ids):
+        """
+        Snapshot taken before a bulk update is applied, handed to
+        bulk_reload_script afterwards. Override when the script needs to know
+        what the records looked like before they were changed.
+        """
+        return None
+
+    def bulk_reload_script(self, request, instance_ids, reload_state) -> str:
+        """
+        JS run once a bulk update is saved, to refresh what is on screen.
+        Reloads every list on the page by default; override to reload only
+        the lists the update touched when reloading them all is costly.
+        """
+        return '$(".reload-record").click()'
 
     def get_bulk_form(self):
         """

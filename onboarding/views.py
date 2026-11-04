@@ -51,6 +51,7 @@ from horilla import settings
 from horilla.decorators import hx_request_required, login_required, permission_required
 from horilla.group_by import group_by_queryset as general_group_by
 from horilla.http.response import HorillaRedirect
+from horilla.methods import get_session_key
 from horilla_auth.models import HorillaUser
 from horilla_documents.models import Document
 from notifications.signals import notify
@@ -1172,7 +1173,7 @@ def user_save(form, onboarding_portal, request, token):
     """
     user = form.save(commit=False)
     user.username = onboarding_portal.candidate_id.email
-    session_key = request.session.session_key
+    session_key = get_session_key(request)
     portal_user[session_key] = user
     onboarding_portal.count = 1
     onboarding_portal.save()
@@ -1239,7 +1240,7 @@ def employee_creation(request, token):
         "address": candidate.address,
         "dob": candidate.dob,
     }
-    session_key = request.session.session_key
+    session_key = get_session_key(request)
     user = portal_user.get(session_key)
     if user is None:
         # Fallback for direct/opened links where in-memory portal state is absent.

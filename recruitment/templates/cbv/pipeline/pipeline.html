@@ -40,19 +40,12 @@
 
     {% include "generic/components.html" %}
 
-    {% comment %}
-    No page-level Nav here, matching /recruitment/recruitment-settings-view/:
-    that page renders its tab view alone and lets each tab's own Nav carry the
-    title, Create button and Search+Filter. PipelineNav's title/Create/view-type
-    controls now live on RecruitmentCandidateNav (the per-job-tab Nav) instead.
-    {% endcomment %}
-    <div
-        class="oh-wrapper"
-        id="pipelineContainer"
-        hx-get="{% url 'cbv-pipeline-tab' %}"
-        hx-trigger="load"
-        hx-on::after-swap="var t = this.querySelector('.oh-tabs__tab--active') || this.querySelector('.oh-tabs__tab'); if (t) { t.click(); }"
-    >
+    <div class="oh-wrapper">
+        <div hx-get="{% url 'cbv-pipeline-nav' %}" hx-trigger="load"></div>
+        <div id="pipelineContainer" class="bg-white p-3 rounded-md shadow-card oh-tabs">
+            <div id="pipelineTabStrip"></div>
+            <div id="pipelinePanes" class="oh-tabs__contents"></div>
+        </div>
     </div>
     <div class="oh-activity-sidebar" id="activitySidebar" style="z-index: 1000">
         <div class="oh-activity-sidebar__body" id="noteContainer">
@@ -98,6 +91,88 @@
     </div>
 
     <script>
+        function pipelineOpenTab(btn) {
+        	const $btn = $(btn);
+        	const paneId = $btn.attr("data-target").slice(1);
+        	const $panes = $("#pipelinePanes");
+        	let pane = document.getElementById(paneId);
+        	if (!pane) {
+        		pane = $('<div class="oh-tabs__content"></div>').attr("id", paneId).appendTo($panes)[0];
+        	}
+        	$("#pipelineTabStrip .oh-tabs__tab").removeClass("oh-tabs__tab--active");
+        	$btn.addClass("oh-tabs__tab--active");
+        	$panes.children(".oh-tabs__content").removeClass("oh-tabs__content--active");
+        	$(pane).addClass("oh-tabs__content--active");
+
+        	document.dispatchEvent(new CustomEvent("oh:tab-switched", {
+        		detail: { tabUrl: $btn.attr("data-tab-url"), target: "#" + paneId }
+        	}));
+        	$.ajax({
+        		type: "get",
+        		url: "{% url 'active-tab' %}",
+        		data: {
+        			path: $btn.attr("data-path"),
+        			target: `[data-tab-index="${$btn.attr("data-tab-index")}"]`,
+        		},
+        	});
+        	if (typeof clearSelectionsOnTabSwitch === "function") {
+        		clearSelectionsOnTabSwitch("pipelineContainer");
+        	}
+
+        	if (!$btn.attr("data-loaded") || !pane.innerHTML.trim()) {
+        		const url = $btn.attr("data-tab-url");
+        		btn.setAttribute("data-loaded", "true");
+        		const req = htmx.ajax("GET", url, { target: "#" + paneId, source: btn });
+        		if (req && typeof req.catch === "function") {
+        			req.catch(function () {
+        				btn.removeAttribute("data-loaded");
+        				if (typeof renderLoadFailure === "function") {
+        					renderLoadFailure("#" + paneId, null, "pipelineOpenTab(document.querySelector('#pipelineTabStrip [data-target=\"#" + paneId + "\"]'));");
+        				}
+        			});
+        		}
+        	}
+        }
+
+        function pipelineTabsRendered(savedSelector) {
+        	const $buttons = $("#pipelineTabStrip .oh-tabs__tab");
+        	const $panes = $("#pipelinePanes");
+        	const currentId = $panes.children(".oh-tabs__content--active").attr("id");
+
+        	$panes.children(".oh-tabs__content").each(function () {
+        		if (!$buttons.filter(`[data-target="#${this.id}"]`).length) {
+        			$(this).remove();
+        		}
+        	});
+        	if (!$buttons.length) return;
+
+        	const $current = currentId ? $buttons.filter(`[data-target="#${currentId}"]`) : $();
+        	if ($current.length) {
+        		const board = document.getElementById("pipelineTabContent" + $current.attr("data-rec-id"));
+        		if (!board) {
+        			pipelineOpenTab($current[0]);
+        			return;
+        		}
+        		$buttons.removeClass("oh-tabs__tab--active");
+        		$current.addClass("oh-tabs__tab--active").attr("data-loaded", "true");
+        		if (typeof clearSelectionsOnTabSwitch === "function") {
+        			clearSelectionsOnTabSwitch("pipelineContainer");
+        		}
+        		htmx.trigger(board, "htmx:abort");
+        		htmx.ajax("GET", $current.attr("data-content-url"), { target: board, source: board });
+        		return;
+        	}
+
+        	let $next = $();
+        	if (!currentId && savedSelector) {
+        		$next = $buttons.filter(savedSelector).first();
+        	}
+        	if (!$next.length) {
+        		$next = $buttons.first();
+        	}
+        	pipelineOpenTab($next[0]);
+        }
+
         function archiveCandidate(url, msg) {
         	Swal.fire({
         		text: msg,

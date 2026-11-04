@@ -2821,6 +2821,24 @@ class DynamicMailConfForm(ModelForm):
     # def clean(self):
     #     from_mail = self.from_email
     #     return super().clean()
+    def full_clean(self):
+        """
+        `company_id` is a hidden field and the form never shows a hidden field's
+        errors, so a company that already has its mail server (the field is
+        unique) made Save fail without a word. Show that error on the form.
+        """
+        super().full_clean()
+        company_errors = self._errors.pop("company_id", None) if self._errors else None
+        for error in company_errors.as_data() if company_errors else []:
+            if error.code == "unique":
+                error = ValidationError(
+                    _(
+                        "A mail server is already set up for this company. "
+                        "Edit the existing one instead."
+                    )
+                )
+            self.add_error(None, error)
+
     def as_p(self):
         """
         Render the form fields as HTML table rows with Bootstrap styling.

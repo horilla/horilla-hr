@@ -3,10 +3,12 @@
 from .asset_allocation import AssetAllocationDataset
 from .assets import AssetsDataset
 from .assigned_leave import AssignedLeaveDataset
+from .candidates import CandidatesDataset
 from .employees import EmployeesDataset
 
 DATASETS = {
     "employees": EmployeesDataset(),
+    "candidates": CandidatesDataset(),
     "assigned_leave": AssignedLeaveDataset(),
     "assets": AssetsDataset(),
     "asset_allocation": AssetAllocationDataset(),

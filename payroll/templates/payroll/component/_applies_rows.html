@@ -1,9 +1,11 @@
 {% load i18n %}
 {% for r in rows %}
-<tr data-applies-row data-pk="{{ r.pk }}"{% if r.via == "structure" %} data-locked class="is-locked"{% endif %}>
+<tr data-applies-row data-pk="{{ r.pk }}"{% if r.via == "structure" or r.via == "group" %} data-locked class="is-locked"{% endif %}>
   <td>
     {% if r.via == "structure" %}
       <input type="checkbox" checked disabled title="{% trans 'Applied through the salary structure' %}">
+    {% elif r.via == "group" %}
+      <input type="checkbox" checked disabled title="{% trans 'Applied through the chosen group' %}">
     {% elif editable %}
       <input type="checkbox" data-applies-pick value="{{ r.pk }}"{% if r.checked %} checked{% endif %}>
     {% else %}
@@ -11,17 +13,16 @@
     {% endif %}
   </td>
   <td>{{ r.code|default:"-" }}</td>
-  <td>{{ r.name }}</td>
-  <td>{{ r.department|default:"-" }}</td>
-  <td>{{ r.structure|default:"-" }}</td>
+  <td title="{{ r.name }}">{{ r.name }}</td>
+  <td title="{{ r.department }}">{{ r.department|default:"-" }}</td>
+  <td title="{{ r.structure }}">{{ r.structure|default:"-" }}</td>
   <td>
     {% if r.via == "structure" %}
       <span class="oh-applies__pill oh-applies__pill--structure">{% trans "Via structure" %}</span>
+    {% elif r.via == "group" %}
+      <span class="oh-applies__pill oh-applies__pill--structure" title="{{ r.group_label }}">{{ r.group_label }}</span>
     {% else %}
-      <span class="oh-applies__pill oh-applies__pill--outside" data-applies-outside{% if not r.checked %} hidden{% endif %}>{% trans "Outside structure" %}</span>
-      {% if r.warning %}
-        <span class="oh-applies__warn" data-applies-outside{% if not r.checked %} hidden{% endif %} title="{% blocktrans with s=r.warning %}On the {{ s }} structure, which does not include this component. It is applied to them outside that structure.{% endblocktrans %}">&#9888; {% trans "Not in" %} {{ r.warning }}</span>
-      {% endif %}
+      <span class="oh-applies__pill oh-applies__pill--outside" data-applies-outside{% if not r.checked %} hidden{% endif %} title="{% if r.warning %}{% blocktrans with s=r.warning %}On the {{ s }} structure, which does not include this component. It is applied to them outside that structure.{% endblocktrans %}{% else %}{% trans 'Applied outside a salary structure.' %}{% endif %}">{% trans "Outside structure" %}</span>
       <span class="oh-applies__none" data-applies-inside{% if r.checked %} hidden{% endif %}>&mdash;</span>
     {% endif %}
   </td>

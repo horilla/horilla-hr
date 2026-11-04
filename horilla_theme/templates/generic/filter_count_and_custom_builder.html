@@ -34,9 +34,9 @@
     whose name contains a literal script tag can't inject markup here.
 {% endcomment %}
 <script>
-    function updateFilterCountBadge() {
-        var $form = $('.navFilterForm').first();
-        if (!$form.length) return;
+    // Active filters in one nav form. A page can hold several (a page-level
+    // nav plus one per tab), so each badge counts the form it sits in.
+    function countActiveFilters($form) {
         var count = 0;
 
         // [hidden] excludes housekeeping fields the form itself always
@@ -94,7 +94,17 @@
             if (field && $value.val()) count++;
         });
 
-        $('.js-filter-count-badge').text(count).toggleClass('oh-filter-count-badge--hidden', count === 0);
+        return count;
+    }
+    function updateFilterCountBadge() {
+        $('.js-filter-count-badge').each(function () {
+            var $badge = $(this);
+            var $form = $badge.closest('.navFilterForm');
+            if (!$form.length) $form = $('.navFilterForm').first();
+            if (!$form.length) return;
+            var count = countActiveFilters($form);
+            $badge.text(count).toggleClass('oh-filter-count-badge--hidden', count === 0);
+        });
     }
     $(document).ready(updateFilterCountBadge);
     $(document).on('htmx:afterSettle', updateFilterCountBadge);

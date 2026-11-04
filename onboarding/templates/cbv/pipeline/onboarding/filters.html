@@ -18,13 +18,13 @@
                 <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label class="oh-label">{% trans 'Managers' %}</label>
-                        {{ filter_instance_context_name.form.recruitment_managers }}
+                        {{ form.recruitment_managers }}
                     </div>
                 </div>
                 <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label class="oh-label">{% trans 'Company' %}</label>
-                        {{ filter_instance_context_name.form.company_id }}
+                        {{ form.company_id }}
                     </div>
                 </div>
             </div>
@@ -32,13 +32,13 @@
                 <div class="col-sm-12 col-md-12 col-lg-6">
                     <div class="oh-input-group">
                         <label class="oh-label">{% trans 'Published' %}</label>
-                        {{ filter_instance_context_name.form.is_published }}
+                        {{ form.is_published }}
                     </div>
                 </div>
                 <div class="col-sm-12 col-md-12 col-lg-6">
                     <div class="oh-input-group">
                         <label class="oh-label">{% trans 'Closed' %}</label>
-                        {{ filter_instance_context_name.form.closed }}
+                        {{ form.closed }}
                     </div>
                 </div>
             </div>
@@ -69,12 +69,24 @@
                      markup/JS are generic (initCustomFilterBuilder,
                      horilla_nav.html). -->
                 <div class="col-sm-12 col-md-12 col-lg-12">
+                    <label class="oh-label">{% trans "Recruitment" %}</label>
                     <div class="oh-input-group">
                         <div id="customFilterRowsContainer-onboarding-recruitment" class="oh-custom-filter-rows"></div>
                         <button
                             type="button"
                             class="oh-custom-filter-add"
                             onclick="addCustomFilterRow('onboarding-recruitment')"
+                        >+ {% trans "Add filter" %}</button>
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-12 mt-2">
+                    <label class="oh-label">{% trans "Candidate" %}</label>
+                    <div class="oh-input-group">
+                        <div id="customFilterRowsContainer-onboarding-candidate" class="oh-custom-filter-rows"></div>
+                        <button
+                            type="button"
+                            class="oh-custom-filter-add"
+                            onclick="addCustomFilterRow('onboarding-candidate')"
                         >+ {% trans "Add filter" %}</button>
                     </div>
                 </div>
@@ -96,6 +108,48 @@
                     <div class="oh-input-group">
                         <label class="oh-label">{% trans 'Tasks' %}</label>
                         {{ candidate_filter_obj.form.tasks }}
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-sm-12 col-md-12 col-lg-6">
+                    <div class="oh-input-group">
+                        <label class="oh-label">{% trans 'Task Status' %}</label>
+                        {{ pipeline_candidate_filter.form.task_status }}
+                    </div>
+                    <div class="oh-input-group">
+                        <label class="oh-label">{% trans 'Start Date' %}</label>
+                        {{ pipeline_candidate_filter.form.start_date }}
+                    </div>
+                    <div class="oh-input-group">
+                        <label class="oh-label">{% trans 'End Date' %}</label>
+                        {{ pipeline_candidate_filter.form.end_date }}
+                    </div>
+                    <div class="oh-input-group">
+                        <label class="oh-label">{% trans 'Scheduled From' %}</label>
+                        {{ pipeline_candidate_filter.form.scheduled_from }}
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-6">
+                    <div class="oh-input-group">
+                        <label class="oh-label">{% trans 'Portal Sent' %}?</label>
+                        {{ pipeline_candidate_filter.form.portal_sent }}
+                    </div>
+                    <div class="oh-input-group">
+                        <label class="oh-label">{% trans 'Joining Set' %}?</label>
+                        {{ pipeline_candidate_filter.form.joining_set }}
+                    </div>
+                    <div class="oh-input-group">
+                        <label class="oh-label">{% trans 'Probation End From' %}</label>
+                        {{ pipeline_candidate_filter.form.probation_end_from }}
+                    </div>
+                    <div class="oh-input-group">
+                        <label class="oh-label">{% trans 'Probation End Till' %}</label>
+                        {{ pipeline_candidate_filter.form.probation_end_till }}
+                    </div>
+                    <div class="oh-input-group">
+                        <label class="oh-label">{% trans 'Scheduled Till' %}</label>
+                        {{ pipeline_candidate_filter.form.scheduled_till }}
                     </div>
                 </div>
             </div>
@@ -137,6 +191,9 @@
 </div>
 {{ custom_filter_fields|json_script:"customFilterFields-onboarding-recruitment" }}
 {{ custom_filter_rows|json_script:"customFilterRows-onboarding-recruitment" }}
+{{ candidate_custom_filter_fields|json_script:"customFilterFields-onboarding-candidate" }}
+{{ candidate_custom_filter_rows|json_script:"customFilterRows-onboarding-candidate" }}
 <script>
     initCustomFilterBuilder('onboarding-recruitment');
+    initCustomFilterBuilder('onboarding-candidate');
 </script>

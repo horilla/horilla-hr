@@ -1,15 +1,5 @@
 {% load i18n static %}
 {% comment %}
-This tab's actions (offboarding-level: Add Stage/Manage Stage Order/Edit/
-Delete) used to render as their own dropdown here, above the stage list.
-Gone now: OffboardingPipelineTabNav - this tab's own Nav, loaded just
-below - builds them itself and renders them next to Filter, so it needs
-neither this dropdown nor an out-of-band swap to fill it in.
-
-What's left mirrors recruitment_pipeline_shell.html: the tab's own Nav, a
-selected-instances checkpoint badge, then the tab's list container.
-{% endcomment %}
-{% comment %}
 Load order matters here. Both of these used to fire on `load`, and the
 board's request fans out into one fetch per stage - so the single Nav
 request sat behind all of them in the queue and the toolbar
@@ -60,14 +50,6 @@ immediately isn't starved by the many that fill in behind it.
 
 <script>
     (function () {
-        // OffboardingPipelineTabNav (this tab's own Search+Filter) reuses
-        // horilla_nav.html, whose ids (#filterForm, #applyFilter,
-        // #filterDropdownWrapper, ...) assume exactly one live instance
-        // page-wide. Offboarding tabs keep their content in the DOM (just
-        // hidden) after being visited once, so without this, a second
-        // visited tab would leave two Navs' worth of duplicate ids around
-        // and jQuery would bind to whichever copy it finds first - possibly
-        // the wrong tab's. Mirrors recruitment_pipeline_shell.html's guard.
         var myContent = document.currentScript.closest(".oh-tabs__content");
         var contents = myContent && myContent.closest(".oh-tabs__contents");
         if (!contents) return;

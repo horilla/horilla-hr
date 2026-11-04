@@ -149,15 +149,6 @@ def _get_setup_checklist_context(request):
         except Exception:
             return False
 
-    def _has_imported():
-        # Optional step: a finished Master Data Import counts, whoever ran it.
-        try:
-            from master_import.models import ImportJob
-
-            return ImportJob.objects.filter(status=ImportJob.DONE).exists()
-        except Exception:
-            return False
-
     def _has_mail_server():
         try:
             return DynamicEmailConfiguration.objects.filter(
@@ -167,6 +158,13 @@ def _get_setup_checklist_context(request):
             return False
 
     steps = [
+        {
+            "key": "first_employee",
+            "title": _("First Employee"),
+            "description": _("Add your first employee to bring everything together."),
+            "url": _safe_url("employee-view-new"),
+            "done": _has_employees() if company_pk else False,
+        },
         {
             "key": "company",
             "title": _("Company"),
@@ -228,31 +226,7 @@ def _get_setup_checklist_context(request):
             "url": _safe_url("mail-server-conf"),
             "done": _has_mail_server(),
         },
-        {
-            "key": "master_import",
-            "title": _("Import Data"),
-            "description": _(
-                "Bring in employees, leave balances and assets from a spreadsheet."
-            ),
-            "url": _safe_url("master-import"),
-            "done": _has_imported(),
-            # Not needed to finish setup: the checklist can hide without it.
-            "optional": True,
-        },
-        {
-            "key": "first_employee",
-            "title": _("First Employee"),
-            "description": _("Add your first employee to bring everything together."),
-            "url": _safe_url("employee-view-new"),
-            "done": _has_employees() if company_pk else False,
-        },
     ]
-
-    # Only installed apps get a step; an import is a convenience, not a requirement.
-    from django.apps import apps
-
-    if not apps.is_installed("master_import"):
-        steps = [s for s in steps if s["key"] != "master_import"]
 
     # 5. Preview mode overrides all done flags to False
     if preview_mode:
@@ -278,8 +252,6 @@ def _get_setup_checklist_context(request):
     return {
         "show_setup_checklist": True,
         "setup_steps": steps,
-        "setup_completed": completed,
-        "setup_total": total,
         "setup_next_step": next_step,
         "setup_progress_pct": progress_pct,
         "setup_dismiss_url": _safe_url("dashboard-dismiss-setup-checklist"),

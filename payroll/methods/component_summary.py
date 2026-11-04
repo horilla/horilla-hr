@@ -57,6 +57,22 @@ def _rate(value):
         return _("an unset rate")
 
 
+def _slab_summary(component, unit):
+    """ "0–2h ×1.25, 2h+ ×1.5 of the hourly wage, per week-off hour": the bands as written."""
+    try:
+        slabs = list(component.slabs.all())
+    except Exception:  # a component with no slab relation
+        slabs = []
+    if not slabs:
+        return str(_("Slabs not set"))
+    parts = []
+    for slab in slabs:
+        start = f"{slab.from_hours:g}"
+        span = f"{start}h+" if slab.to_hours is None else f"{start}–{slab.to_hours:g}h"
+        parts.append(f"{span} ×{slab.multiplier:g}")
+    return f"{', '.join(parts)} {_('of the hourly wage')}, {unit}"
+
+
 def calculation_summary(component):
     """
     One line saying how this component's amount is worked out.
@@ -95,6 +111,11 @@ def calculation_summary(component):
         "holiday_overtime": ("amount_per_one_hr", _("per holiday hour")),
     }
     if based_on in per_unit:
+        if (
+            getattr(component, "overtime_calc", "flat") == "slab"
+            and "overtime" in based_on
+        ):
+            return _slab_summary(component, per_unit[based_on][1])
         field, unit = per_unit[based_on]
         return f"{_number(getattr(component, field, None))} {unit}"
 

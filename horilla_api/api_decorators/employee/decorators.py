@@ -8,6 +8,7 @@ from rest_framework.response import Response
 
 from accessibility.methods import check_is_accessible
 from horilla.horilla_middlewares import _thread_locals
+from horilla.methods import get_accessibility_cache_key
 from horilla_views.cbv_methods import decorator_with_arguments
 
 
@@ -49,12 +50,10 @@ def enter_if_accessible(function, feature, perm=None, method=None):
             self.request = request
 
         accessible = False
-        session_key = getattr(request.session, "session_key", None)
-        if session_key:
-            cache_key = session_key + "accessibility_filter"
-            employee = getattr(request.user, "employee_get", None)
-            if employee:
-                accessible = check_is_accessible(feature, cache_key, employee)
+        cache_key = get_accessibility_cache_key(request)
+        employee = getattr(request.user, "employee_get", None)
+        if employee:
+            accessible = check_is_accessible(feature, cache_key, employee)
         has_perm = True
         if perm:
             has_perm = request.user.has_perm(perm)

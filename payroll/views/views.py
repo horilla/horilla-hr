@@ -99,16 +99,16 @@ def contract_create(request):
                 )
                 return response
             return redirect("view-contract")
-    template_name = (
-        "payroll/common/form_fragment.html" if is_htmx else "payroll/common/form.html"
-    )
     return render(
         request,
-        template_name,
+        "payroll/common/form_modal.html" if is_htmx else "payroll/common/form.html",
         {
             "form": form,
             "post_url": request.get_full_path(),
             "back_url": reverse("contract-filter"),
+            "in_modal": is_htmx,
+            "form_target": "#relatedObjectModalBody",
+            "modal_title": _("Contract"),
         },
     )
 
@@ -148,29 +148,17 @@ def contract_update(request, contract_id, **kwargs):
                 )
                 return response
             return redirect(reverse("view-contract"))
-    # ?modal=1 asks for the same form in the app's standard modal chrome --
-    # header, close button, and a post that lands back in the modal instead of
-    # in #listContainer, which on another page belongs to something else
-    # entirely. Opt-in so the contracts page keeps its full-width card.
-    in_modal = bool(request.GET.get("modal"))
-    if in_modal:
-        template_name = "payroll/common/form_modal.html"
-    else:
-        template_name = (
-            "payroll/common/form_fragment.html"
-            if is_htmx
-            else "payroll/common/form.html"
-        )
+    in_modal = is_htmx or bool(request.GET.get("modal"))
     return render(
         request,
-        template_name,
+        "payroll/common/form_modal.html" if in_modal else "payroll/common/form.html",
         {
             "form": contract_form,
             "post_url": request.get_full_path(),
             "back_url": reverse("contract-filter"),
             "in_modal": in_modal,
-            "form_target": "#relatedObjectModalBody" if in_modal else "#listContainer",
-            "modal_title": _("Contract") if in_modal else "",
+            "form_target": "#relatedObjectModalBody",
+            "modal_title": _("Contract"),
         },
     )
 

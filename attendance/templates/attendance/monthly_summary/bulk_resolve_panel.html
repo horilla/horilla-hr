@@ -1,40 +1,6 @@
 {% load i18n %}
+{% include "attendance/monthly_summary/_crp_dd_styles.html" %}
 <style>
-.crpb-mark-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-  gap: 7px;
-  margin-bottom: 14px;
-}
-.crpb-mark-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  padding: 9px 6px;
-  border-radius: 8px;
-  border: 1.5px solid;
-  cursor: pointer;
-  font-size: .72rem;
-  font-weight: 600;
-  transition: opacity .12s, box-shadow .12s;
-  background: #fff;
-  text-align: center;
-  line-height: 1.3;
-}
-.crpb-mark-btn:hover { box-shadow: 0 0 0 2px currentColor; opacity: .9; }
-.crpb-mark-btn ion-icon { font-size: 1.15rem; }
-.crpb-full   { color:#065f46; border-color:#6ee7b7; background:#d1fae5; }
-.crpb-half   { color:#1e3a8a; border-color:#93c5fd; background:linear-gradient(135deg,#d1fae5 50%,#dbeafe 50%); }
-.crpb-halfabs { color:#7f1d1d; border-color:#fca5a5; background:linear-gradient(135deg,#fee2e2 50%,#d1fae5 50%); }
-.crpb-absent { color:#991b1b; border-color:#fca5a5; background:#fee2e2; }
-.crpb-paid   { color:#1e40af; border-color:#93c5fd; background:#dbeafe; }
-.crpb-unpaid { color:#9a3412; border-color:#fdba74; background:#ffedd5; }
-.crpb-hol    { color:#134e4a; border-color:#5eead4; background:#ccfbf1; }
-.crpb-woff   { color:#4c1d95; border-color:#c4b5fd; background:#ede9fe; }
-.crpb-ot     { color:#92400e; border-color:#fed7aa; background:#ffedd5; }
-
 .crpb-date-chip {
   display: inline-block;
   font-size: .68rem;
@@ -72,56 +38,76 @@
       {% for d in dates %}<span class="crpb-date-chip">{{ d|date:"d M" }}</span>{% endfor %}
     </div>
 
-    <!-- ── Mark all as grid ─────────────────────────────────────────────── -->
+    <!-- ── Mark all as: the same dropdown the single day uses ──────────────── -->
     <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6c757d;margin-bottom:7px;">
       {% trans "Mark all selected days as" %}
     </div>
-    <div class="crpb-mark-grid">
-      <button class="crpb-mark-btn crpb-full" onclick="msCalBulkResolvePost('full_present')">
-        <ion-icon name="checkmark-circle-outline"></ion-icon>
-        {% trans "Full Present" %}
-      </button>
-      <button class="crpb-mark-btn crpb-half" onclick="msCalBulkResolvePost('half_present')">
-        <ion-icon name="remove-circle-outline"></ion-icon>
-        {% trans "Half Day" %}
-      </button>
-      <button class="crpb-mark-btn crpb-halfabs" onclick="msCalBulkResolvePost('half_absent')">
-        <ion-icon name="contrast-outline"></ion-icon>
-        {% trans "Half Absent" %}
-      </button>
-      <button class="crpb-mark-btn crpb-absent" onclick="msCalBulkResolvePost('absent')">
-        <ion-icon name="close-circle-outline"></ion-icon>
-        {% trans "Absent" %}
-      </button>
-      <button class="crpb-mark-btn crpb-paid" onclick="msCalBulkResolvePost('paid_leave')">
-        <ion-icon name="calendar-outline"></ion-icon>
-        {% trans "Paid Leave" %}
-      </button>
-      <button class="crpb-mark-btn crpb-unpaid" onclick="msCalBulkResolvePost('unpaid_leave')">
-        <ion-icon name="calendar-clear-outline"></ion-icon>
-        {% trans "Unpaid Leave" %}
-      </button>
-      <button class="crpb-mark-btn crpb-hol" onclick="msCalBulkResolvePost('holiday')">
-        <ion-icon name="sunny-outline"></ion-icon>
-        {% trans "Holiday" %}
-      </button>
-      <button class="crpb-mark-btn crpb-woff" onclick="msCalBulkResolvePost('week_off')">
-        <ion-icon name="moon-outline"></ion-icon>
-        {% trans "Week Off" %}
-      </button>
-      <button class="crpb-mark-btn crpb-ot" onclick="msCalBulkResolvePost('approve_ot')">
-        <ion-icon name="checkmark-done-outline"></ion-icon>
-        {% trans "Approve as Overtime" %}
-      </button>
+    <div class="crp-pick">
+      <div class="crp-choice-wrap">
+        <select id="crpb-choice" data-dd
+                onchange="msCalBulkChoiceChange(); var s = document.getElementById('crpb-save'); if (s) { s.disabled = !this.value && s.dataset.approved !== '1'; }">
+          <option value="" data-color="#e5e7eb" selected>{% trans "Choose Status" %}</option>
+          <optgroup label="{% trans 'Present' %}">
+            <option value="full_present" data-color="#86efac">{% trans "Full Present" %}</option>
+          </optgroup>
+          <optgroup label="{% trans 'Away' %}">
+            <option value="absent" data-color="#fca5a5">{% trans "Absent" %}</option>
+            <option value="paid_leave" data-color="#93c5fd">{% trans "Paid Leave" %}</option>
+            <option value="unpaid_leave" data-color="#fdba74">{% trans "Unpaid Leave" %}</option>
+          </optgroup>
+          <optgroup label="{% trans 'Days off' %}">
+            <option value="holiday" data-color="#5eead4">{% trans "Holiday" %}</option>
+            <option value="week_off" data-color="#c4b5fd">{% trans "Week Off" %}</option>
+          </optgroup>
+          <optgroup label="{% trans 'Split' %}">
+            <option value="split" data-color="split">{% trans "Split Day (two halves)" %}</option>
+          </optgroup>
+        </select>
+      </div>
     </div>
 
-    <button onclick="msCalClosePanel()"
-            style="background:#f9fafb;color:#6b7280;border:1px solid #d1d5db;border-radius:6px;
-                   padding:6px 14px;font-size:.78rem;font-weight:600;cursor:pointer;
-                   display:flex;align-items:center;gap:5px;">
-      <ion-icon name="close-outline" style="font-size:.9rem;"></ion-icon>
-      {% trans "Clear Selection" %}
-    </button>
+    <div class="crp-split" id="crp-split-box" data-crp-split style="display:none;margin-top:10px;">
+      <label>{% trans "First half" %}
+        <select id="crp-split-a" data-dd onchange="msCalSplitPreview()">
+          <option value="P" data-color="#86efac" selected>{% trans "Present" %}</option>
+          <option value="A" data-color="#fca5a5">{% trans "Absent" %}</option>
+          <option value="PL" data-color="#93c5fd">{% trans "Paid Leave" %}</option>
+          <option value="UL" data-color="#fdba74">{% trans "Unpaid Leave" %}</option>
+        </select>
+      </label>
+      <span class="crp-split-plus">+</span>
+      <label>{% trans "Second half" %}
+        <select id="crp-split-b" data-dd onchange="msCalSplitPreview()">
+          <option value="P" data-color="#86efac">{% trans "Present" %}</option>
+          <option value="A" data-color="#fca5a5" selected>{% trans "Absent" %}</option>
+          <option value="PL" data-color="#93c5fd">{% trans "Paid Leave" %}</option>
+          <option value="UL" data-color="#fdba74">{% trans "Unpaid Leave" %}</option>
+        </select>
+      </label>
+      <div class="crp-split-bar" id="crp-split-bar"></div>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:nowrap;gap:8px;margin-top:16px;">
+      <button type="button" onclick="msCalClosePanel()" title="{% trans 'Clear Selection' %}"
+              style="background:#f9fafb;color:#6b7280;border:1px solid #d1d5db;border-radius:10px;height:38px;
+                     padding:0 10px;font-size:.76rem;font-weight:600;cursor:pointer;flex:0 0 auto;
+                     display:flex;align-items:center;gap:3px;white-space:nowrap;">
+        <ion-icon name="close-outline" style="font-size:.9rem;"></ion-icon>
+        {% trans "Clear" %}
+      </button>
+      <div style="display:flex;align-items:center;gap:6px;margin-left:auto;flex:0 0 auto;">
+        {% if ot_dates %}
+        <button type="button" class="oh-btn oh-btn--success" id="crpb-approve-ot"
+                style="height:38px;padding:0 12px;font-size:.76rem;font-weight:700;white-space:nowrap;"
+                title="{% blocktrans count counter=ot_dates|length %}Approve The Overtime On {{ counter }} Selected Day{% plural %}Approve The Overtime On {{ counter }} Selected Days{% endblocktrans %}"
+                data-approving="{% trans 'Approving...' %}" data-done="{% trans 'Overtime Approved' %}"
+                onclick="msCalBulkApproveOt(this)">
+          <ion-icon class="me-1" name="checkmark-outline"></ion-icon><span>{% trans "Approve Overtime" %}</span>
+        </button>
+        {% endif %}
+        <button type="button" class="crp-apply" id="crpb-save" disabled style="padding:0 16px;" onclick="msCalBulkSave()">{% trans "Save" %}</button>
+      </div>
+    </div>
 
   </div>
 </div>

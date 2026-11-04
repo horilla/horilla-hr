@@ -49,6 +49,22 @@ def stage_cache_version(rec_id):
     return version
 
 
+def pipeline_content_url(rec_id, view_type, params):
+    """
+    Return the URL of a recruitment's board (kanban or stage lists) carrying
+    the filter query from params.
+    """
+    query = params.copy()
+    for key in ("referrer", "open_tab", "view"):
+        query.pop(key, None)
+    if view_type == "list":
+        query["view"] = view_type
+        path = reverse("get-stages-recruitment", kwargs={"rec_id": rec_id})
+    else:
+        path = reverse("candidate-card-cbv", kwargs={"pk": rec_id})
+    return f"{path}?{query.urlencode()}"
+
+
 @method_decorator(login_required, name="dispatch")
 @method_decorator(
     manager_can_enter(perm="recruitment.view_recruitment"), name="dispatch"
@@ -134,24 +150,14 @@ def recruitment_pipeline_actions(request, rec):
         )
 
     if change_perm or rec_manager_perm:
-        # A plain href gets redirected back to HTTP_REFERER on a real
-        # navigation -- a full flash/reload of the whole page, sidebar
-        # included. Targeting this request straight at #pipelineContainer
-        # instead: recruitment_close_pipeline/recruitment_reopen_pipeline
-        # answer an htmx request with cbv-pipeline-tab's own freshly
-        # rendered content (see their own comments), so this one
-        # request/response both performs the update and supplies what
-        # replaces #pipelineContainer -- no separate indirection (a hidden
-        # "refresh" button clicked via hx-on::after-request to fire a
-        # second, independent request) that turned out not to reliably
-        # swap even though this action's own request plainly succeeded.
         if rec.closed:
             actions.append(
                 {
                     "action": _("Reopen"),
                     "attrs": f"""
                         hx-get="{reverse("recruitment-reopen-pipeline", kwargs={"rec_id": rec.pk})}"
-                        hx-target="#pipelineContainer"
+                        hx-target="#pipelineTabStrip"
+                        hx-include="#filterForm"
                         hx-swap="innerHTML"
                         hx-confirm="{_("Are you sure you want to reopen this recruitment?")}"
                         hx-on::after-request="if(event.detail.successful){{$('#reloadMessagesButton').click();}}"
@@ -165,7 +171,8 @@ def recruitment_pipeline_actions(request, rec):
                     "action": _("Close"),
                     "attrs": f"""
                         hx-get="{reverse("recruitment-close-pipeline", kwargs={"rec_id": rec.pk})}"
-                        hx-target="#pipelineContainer"
+                        hx-target="#pipelineTabStrip"
+                        hx-include="#filterForm"
                         hx-swap="innerHTML"
                         hx-confirm="{_("Are you sure you want to close this recruitment?")}"
                         hx-on::after-request="if(event.detail.successful){{$('#reloadMessagesButton').click();}}"
@@ -212,19 +219,14 @@ class RecruitmentTabView(HorillaTabView):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         recruitments = self.filter_class(self.request.GET).qs.filter(is_active=True)
-        # Open recruitments by default (this page is meant for active,
-        # day-to-day pipeline work), but an explicit "Is Closed" filter
-        # (PipelineNav's own filter panel) should actually be respected --
-        # forcing closed=False unconditionally made "Is Closed: Yes" always
-        # return zero tabs, even with closed recruitments in the database.
-        if "closed" not in self.request.GET:
+        if self.request.GET.get("closed") in (None, "", "unknown"):
             recruitments = recruitments.filter(closed=False)
         recruitments = recruitments.order_by("-id")
         view_type = self.request.GET.get("view")
         if not view_type and self.request.user and self.request.user.is_authenticated:
             active_view = (
                 ActiveView.objects.filter(created_by=self.request.user)
-                .filter(Q(path=self.request.path) | Q(path=reverse("cbv-pipeline")))
+                .filter(Q(path=self.request.path) | Q(path=reverse("cbv-pipeline-nav")))
                 .first()
             )
             if active_view and active_view.type:
@@ -253,6 +255,7 @@ class RecruitmentTabView(HorillaTabView):
                 is_active=True,
                 stage_id__recruitment_id__in=recruitments.values_list("pk", flat=True),
             )
+            .order_by()
             .values("stage_id__recruitment_id")
             .annotate(total=Count("id", distinct=True))
             .values_list("stage_id__recruitment_id", "total")
@@ -284,9 +287,12 @@ class RecruitmentTabView(HorillaTabView):
             tab["title"] = rec
             url = reverse("recruitment-pipeline-shell", kwargs={"rec_id": rec.pk})
 
-            if view_type == "list":
-                url += f"?view={view_type}"
+            url += f"?view={view_type}"
             tab["url"] = url
+            tab["rec_id"] = rec.pk
+            tab["content_url"] = pipeline_content_url(
+                rec.pk, view_type, self.request.GET
+            )
 
             self.query_params["view"] = view_type
             tab["badge_label"] = _("Candidates")
@@ -295,8 +301,6 @@ class RecruitmentTabView(HorillaTabView):
                 self.tabs.append(tab)
 
     show_filter_tags = False
-    # Create (and now Filter) live on PipelineNav instead, shown above the
-    # tab strip whether or not there are tabs -- see recruitment_tabs.html.
 
 
 @method_decorator(login_required, name="dispatch")
@@ -319,46 +323,28 @@ class RecruitmentPipelineContentShell(TemplateView):
             )
         return super().dispatch(request, *args, **kwargs)
 
-    def saved_view_type(self, rec_id):
+    def saved_view_type(self):
         """
-        Return the list/card view type the user last chose for this
-        recruitment, or None if there is none.
+        Return the list/card view type the user last chose, or None.
         """
         user = self.request.user
         if not (user and user.is_authenticated):
             return None
-        active_view = (
-            ActiveView.objects.filter(created_by=user)
-            .filter(
-                Q(
-                    path=reverse(
-                        "recruitment-pipeline-tab-nav", kwargs={"rec_id": rec_id}
-                    )
-                )
-                | Q(path=reverse("cbv-pipeline-nav"))
-            )
-            .order_by("-path")
-            .first()
-        )
+        active_view = ActiveView.objects.filter(
+            created_by=user, path=reverse("cbv-pipeline-nav")
+        ).first()
         return active_view.type if active_view else None
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         rec = models.Recruitment.objects.entire().get(pk=self.kwargs.get("rec_id"))
-        view_type = (
-            self.request.GET.get("view") or self.saved_view_type(rec.pk) or "card"
+        view_type = self.request.GET.get("view") or self.saved_view_type() or "card"
+        context["content_url"] = pipeline_content_url(
+            rec.pk, view_type, self.request.GET
         )
-        content_url = reverse("candidate-card-cbv", kwargs={"pk": rec.pk})
-        if view_type == "list":
-            content_url = (
-                reverse("get-stages-recruitment", kwargs={"rec_id": rec.pk})
-                + f"?view={view_type}"
-            )
-        context["content_url"] = content_url
         context["rec_id"] = rec.pk
-        context["nav_url"] = (
-            reverse("recruitment-pipeline-tab-nav", kwargs={"rec_id": rec.pk})
-            + f"?view={view_type}"
+        context["nav_url"] = reverse(
+            "recruitment-pipeline-tab-nav", kwargs={"rec_id": rec.pk}
         )
         return context
 
@@ -369,32 +355,20 @@ class RecruitmentPipelineContentShell(TemplateView):
 )
 class RecruitmentCandidateNav(HorillaNavView):
     """
-    Navigation bar of a recruitment's pipeline tab, with search, filter,
-    list/card toggle, the Add candidate button and the recruitment actions.
+    Bar of a recruitment's pipeline tab with the Add candidate button and the
+    recruitment actions.
     """
 
-    filter_form_context_name = "form"
-    filter_body_template = "cbv/candidates/filter.html"
-    modern_filter = True
-    apply_first_filter = True
     template_name = "generic/inline_nav.html"
-    nav_title = _("Pipeline")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         rec_id = self.request.resolver_match.kwargs.get("rec_id")
-        view_type = self.request.GET.get("view")
-        if view_type == "list":
-            self.search_url = (
-                reverse("get-stages-recruitment", kwargs={"rec_id": rec_id})
-                + f"?view={view_type}"
-            )
-        else:
-            self.search_url = reverse("candidate-card-cbv", kwargs={"pk": rec_id})
         self.search_swap_target = f"#pipelineTabContent{rec_id}"
-        self.filter_instance = filters.CandidateFilter()
 
         rec = models.Recruitment.objects.filter(pk=rec_id).first()
+        if rec:
+            self.nav_title = str(rec)
         if rec and (
             self.request.user.has_perm("recruitment.add_candidate")
             or self.request.user.has_perm("recruitment.change_recruitment")
@@ -407,28 +381,6 @@ class RecruitmentCandidateNav(HorillaNavView):
                 data-target="#genericModal"
                 data-toggle="oh-modal-toggle"
             """
-
-        self.view_types = [
-            {
-                "type": "list",
-                "icon": "list-outline",
-                "url": (
-                    reverse("get-stages-recruitment", kwargs={"rec_id": rec_id})
-                    + "?view=list"
-                ),
-                "attrs": """
-                    title ='List'
-                """,
-            },
-            {
-                "type": "card",
-                "icon": "grid-outline",
-                "url": reverse("candidate-card-cbv", kwargs={"pk": rec_id}),
-                "attrs": """
-                    title ='Card'
-                """,
-            },
-        ]
 
         if rec:
             self.actions = recruitment_pipeline_actions(self.request, rec)
@@ -497,6 +449,7 @@ class GetStages(TemplateView):
         stage_ids = [s.id for s in stages_list]
         counts = (
             candidates_qs.filter(stage_id__in=stage_ids)
+            .order_by()
             .values("stage_id")
             .annotate(total=Count("id"))
         )
@@ -511,6 +464,33 @@ class GetStages(TemplateView):
         context["view_id"] = get_short_uuid(6, "hsv")
         context["rec_id"] = kwargs["rec_id"]
         return context
+
+
+def stage_reload_script(stage_ids):
+    """
+    JS that refreshes the candidate lists of the given pipeline stages.
+
+    A stage already on screen reloads its own list. A stage that never loaded
+    (an empty one is rendered collapsed and only fetched when opened) has no
+    list to reload, so its body is fetched and opened instead; otherwise its
+    count badge, and the tab's total, stay stale.
+    """
+    stage_ids_js = json.dumps(sorted(filter(None, stage_ids)))
+    if stage_ids_js == "[]":
+        return ""
+    return (
+        "(function(ids){ids.forEach(function(id){"
+        "var key='/candidate-lists-cbv/'+id+'/';"
+        "var $list=$('[data-list-path*=\"'+key+'\"]');"
+        "if($list.length){$list.find('.reload-record').click();return;}"
+        "$('.oh-tabs__movable-body[hx-get*=\"'+key+'\"]').each(function(){"
+        "var body=this;$(body).removeClass('d-none');"
+        "$(body).closest('.oh-tabs__movable')"
+        ".find('.movable-toggle-icon,.oh-tabs__movable-fold-icon')"
+        ".attr('name','chevron-up-outline');"
+        "htmx.ajax('GET',body.getAttribute('hx-get'),{target:body,swap:'innerHTML'});"
+        "});});})(" + stage_ids_js + ");"
+    )
 
 
 @method_decorator(login_required, name="dispatch")
@@ -531,6 +511,7 @@ class CandidateList(HorillaListView):
     filter_keys_to_remove = ["rec_id", "obj_id"]
     records_per_page = 10
     records_count_in_tab = False
+
     template_name = "cbv/pipeline/candidate_list.html"
 
     custom_empty_template = "cbv/pipeline/empty.html"
@@ -572,6 +553,30 @@ class CandidateList(HorillaListView):
         "stage_id",
         "hired_date",
     ]
+
+    def bulk_reload_state(self, instance_ids):
+        """
+        Stages the selected candidates are in before the bulk update moves them.
+        """
+        return set(
+            models.Candidate.objects.filter(pk__in=instance_ids).values_list(
+                "stage_id", flat=True
+            )
+        )
+
+    def bulk_reload_script(self, request, instance_ids, reload_state):
+        """
+        Reload only the stages the bulk update touched (the ones the candidates
+        left and the one they moved to). The default reloads every list on the
+        page, which on a recruitment with many stages re-renders them all.
+        """
+        stage_ids = {stage_id for stage_id in reload_state or () if stage_id}
+        new_stage = request.POST.get("stage_id")
+        if new_stage and new_stage.isdigit():
+            stage_ids.add(int(new_stage))
+        if not stage_ids:
+            return super().bulk_reload_script(request, instance_ids, reload_state)
+        return stage_reload_script(stage_ids)
 
     row_attrs = """
         class="cursor-pointer"
@@ -941,21 +946,27 @@ class CandidateCard(HorillaKanbanView):
 )
 class PipelineNav(HorillaNavView):
     """
-    HorillaNavView
+    Search, view type, filter and Create for the recruitment pipeline page.
     """
 
     nav_title = _("Pipeline")
-    search_swap_target = "#pipelineContainer"
-    apply_first_filter = False
+    search_swap_target = "#pipelineTabStrip"
+    filter_body_template = "cbv/pipeline/pipeline_filter.html"
+    filter_instance = filters.RecruitmentFilter()
+    filter_form_context_name = "form"
     modern_filter = True
-    # Just the Create button here -- no Search box, no Filter dropdown.
-    # search_url still has to be set (below): horilla_nav.html only renders
-    # this whole bar -- Create included -- under `{% if search_url %}`.
-    hide_search = True
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.search_url = str(reverse_lazy("cbv-pipeline-tab"))
+        self.search_in = [
+            ("title", _("Recruitment")),
+            ("candidate", _("Candidate")),
+            ("stage", _("Stage")),
+            ("job_position_id", _("Job Position")),
+            ("company_id", _("Company")),
+            ("recruitment_managers", _("Recruitment Managers")),
+        ]
         if self.request.user.has_perm("recruitment.add_recruitment"):
             self.create_attrs = f"""
                 hx-get="{reverse_lazy('recruitment-create')}?{urlencode({'pipeline': 'true'})}"
@@ -965,6 +976,25 @@ class PipelineNav(HorillaNavView):
             """
         else:
             self.create_attrs = None
+
+        self.view_types = [
+            {
+                "type": "list",
+                "icon": "list-outline",
+                "url": f'{reverse_lazy("cbv-pipeline-tab")}?view=list',
+                "attrs": """
+                    title ='List'
+                """,
+            },
+            {
+                "type": "card",
+                "icon": "grid-outline",
+                "url": f'{reverse_lazy("cbv-pipeline-tab")}?view=card',
+                "attrs": """
+                    title ='Card'
+                """,
+            },
+        ]
 
     def get_context_data(self, **kwargs):
         """
@@ -1015,19 +1045,12 @@ class ChangeStage(HorillaFormView):
             stage_ids: ids of the stages whose candidate lists changed
                 (the one the candidate left and the one it moved to).
         """
-        selectors = ",".join(
-            f'[data-list-path*="/candidate-lists-cbv/{stage_id}/"]'
-            for stage_id in sorted(filter(None, stage_ids))
-        )
         script_id = get_short_uuid(4, "chgstage")
-        reload_scoped = (
-            f"$('{selectors}').find('.reload-record').click();" if selectors else ""
-        )
         return DjangoHttpResponse(
             f"<script id='{script_id}'>"
             "$('#reloadMessagesButton').click();"
             f"$('#{script_id}').closest('.oh-modal--show').first()"
             ".removeClass('oh-modal--show');"
-            f"{reload_scoped}"
+            f"{stage_reload_script(stage_ids)}"
             "</script>"
         )

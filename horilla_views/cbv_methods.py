@@ -181,6 +181,8 @@ def login_required(view_func):
         request = getattr(_thread_locals, "request")
         if not getattr(self, "request", None):
             self.request = request
+        if not request.user.is_authenticated:
+            return unauthenticated_response(request)
         path = request.path
         res = path.split("/", 2)[1].capitalize().replace("-", " ").upper()
         if res == "PMS":
@@ -188,8 +190,6 @@ def login_required(view_func):
         request.session["title"] = res
         if path == "" or path == "/":
             request.session["title"] = "Dashboard".upper()
-        if not request.user.is_authenticated:
-            return unauthenticated_response(request)
         try:
             func = view_func(self, request, *args, **kwargs)
         except KeyError:
@@ -203,6 +203,88 @@ def login_required(view_func):
         return func
 
     return wrapped_view
+
+
+class EmployeeScopeMixin:
+    """
+    Refuse a write that names an employee the caller may not act on.
+
+    The employee dropdown on these forms is narrowed to the caller's reports
+    only when the form is *rendered*, so a submitted ``employee_id`` was never
+    checked. This checks it on the server, before the form is bound: the caller
+    holds ``scope_perm`` (or, on an update route, ``scope_change_perm``), or
+    every submitted employee is one of their reports (or themselves, with
+    ``scope_include_self``). On an update route it also checks the employee the
+    existing record belongs to. Put it first in the bases, before
+    ``HorillaFormView``.
+    """
+
+    scope_perm = None
+    scope_change_perm = None
+    scope_fields = ("employee_id",)
+    scope_include_self = False
+    scope_instance_field = "employee_id"
+
+    def get_scope_perm(self):
+        if self.kwargs.get("pk"):
+            if self.scope_change_perm:
+                return self.scope_change_perm
+            return (self.scope_perm or "").replace(".add_", ".change_")
+        return self.scope_perm
+
+    def get_scoped_employee_ids(self, request):
+        ids = []
+        if request.method == "POST":
+            for field in self.scope_fields:
+                ids += [value for value in request.POST.getlist(field) if value]
+        pk = self.kwargs.get("pk")
+        model = getattr(self, "model", None)
+        if pk and model is not None and self.scope_instance_field:
+            instance = model.objects.filter(pk=pk).first()
+            owner = getattr(instance, self.scope_instance_field, None)
+            if owner is not None:
+                if hasattr(owner, "all"):
+                    ids += [employee.pk for employee in owner.all()]
+                else:
+                    ids.append(owner.pk)
+        return ids
+
+    def dispatch(self, request, *args, **kwargs):
+        from base.methods import employees_in_scope
+
+        ids = self.get_scoped_employee_ids(request)
+        perm = self.get_scope_perm()
+        if (
+            ids
+            and perm
+            and not employees_in_scope(request, ids, perm, self.scope_include_self)
+        ):
+            return handle_no_permission(request)
+        return super().dispatch(request, *args, **kwargs)
+
+
+class AddOrChangePermissionMixin:
+    """
+    Require ``add_perm`` to create and ``change_perm`` to edit.
+
+    A form view that serves both the create route (no ``pk``) and the update
+    route (``pk``) needs a different permission for each. Without this the
+    class carried ``login_required`` alone, so any signed-in user could write.
+    Put it first in the bases, before ``HorillaFormView``; ``login_required``
+    applied to ``dispatch`` still runs before it.
+    """
+
+    add_perm = None
+    change_perm = None
+
+    def get_required_permission(self):
+        return self.change_perm if self.kwargs.get("pk") else self.add_perm
+
+    def dispatch(self, request, *args, **kwargs):
+        perm = self.get_required_permission()
+        if perm and not request.user.has_perm(perm):
+            return handle_no_permission(request)
+        return super().dispatch(request, *args, **kwargs)
 
 
 @decorator_with_arguments
@@ -292,12 +374,25 @@ def allocation_manager_can_enter(function):
     from employee.models import Employee
 
     def _function(request, *args, **kwargs):
-        instance_id = request.GET.get("instance_id") or request.POST.get("instance_id")
-        employee = (
-            Employee.objects.filter(pk=instance_id).first() if instance_id else None
-        )
-        if not allocation_accessibility(request, employee):
+        # The views read ``instance_id`` from the query string in some places
+        # and from the form body in others (the write usually reads the body).
+        # Checking only the first one found let a caller pass the gate with an
+        # employee they may reach and then write to another. Every value
+        # supplied, in either place, has to pass.
+        supplied = [
+            value
+            for value in request.GET.getlist("instance_id")
+            + request.POST.getlist("instance_id")
+            if value
+        ]
+        if not supplied:
             return handle_no_permission(request)
+        for value in supplied:
+            employee = (
+                Employee.objects.filter(pk=value).first() if value.isdigit() else None
+            )
+            if not allocation_accessibility(request, employee):
+                return handle_no_permission(request)
         return function(request, *args, **kwargs)
 
     return _function

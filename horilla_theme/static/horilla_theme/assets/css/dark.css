@@ -565,3 +565,19 @@ body.dark .select2-container--default .select2-results__option--highlighted.sele
   background-color: rgba(229, 79, 56, 0.18) !important;
   color: var(--primary-300, #fcedeb);
 }
+/* Helpdesk ticket detail: hardcoded light backgrounds that left the
+   white dark-mode text unreadable. */
+body.dark .bg-\[\#f7f7f7\] {
+  background-color: #333333 !important;
+}
+body.dark .bg-\[\#fff6e8\] {
+  background-color: #3a3126 !important;
+  border-color: #5c4a2e !important;
+}
+body.dark .bg-\[\#d944bb1a\] {
+  background-color: #2f2a2e !important;
+}
+body.dark .bg-\[\#f1f1f1\] {
+  background-color: #333333 !important;
+  color: white;
+}

@@ -80,6 +80,7 @@
                     </div>
 
                     <div class="flex items-center gap-3">
+                        {% include "task/new/_stage_pager.html" %}
                         {% if request.user|is_project_manager:stage.project %}
                             <span
                                 class="ml-2 px-4 py-2 bg-white rounded-md text-xs flex items-center gap-2 border border-brand-500 hover:border-brand-600 transition duration-300"
@@ -138,13 +139,12 @@
 
                 <div class="accordion-panel-pr max-h-0 overflow-hidden transition-all duration-300 bg-white px-2 text-sm text-gray-700">
                     <div class="py-2">
-                        {% if stage.tasks.exists %}
+                        {% if stage.page_obj.paginator.count %}
                             <div class="overflow-x-auto">
                                 <table class="fixed-table w-full table-fixed border-separate">
                                     {% include "task/new/_task_colgroup.html" %}
                                     <tbody>
-                                        {% for task in stage.tasks.all %}
-                                            {% if task in tasks %}
+                                        {% for task in stage.page_obj %}
                                                 <tr
                                                     class="border-b border-[#f3f3f3]"
                                                     data-target="#genericModal"
@@ -196,6 +196,7 @@
                                                             <select
                                                                 class="oh-select"
                                                                 hx-get="{% url 'task-stage-change' task.id %}?view=list"
+                                                                hx-include="#taskFilterForm [name^='stage_page_']"
                                                                 hx-trigger="change"
                                                                 hx-target="#taskListRoot"
                                                                 hx-select="#taskListRoot"
@@ -273,7 +274,6 @@
                                                         </td>
                                                     {% endif %}
                                                 </tr>
-                                            {% endif %}
                                         {% endfor %}
                                     </tbody>
                                 </table>
@@ -332,6 +332,14 @@
     {% if reopen_stage_id %}
         document.getElementById('stageAccordionBtn{{ reopen_stage_id }}')?.click();
     {% endif %}
+
+    // The list is swapped whole when the page, search or filters change, which
+    // collapses every stage; open again the ones that were open (see
+    // task_navbar.html).
+    (window.__taskOpenStages || []).forEach((stageId) => {
+        document.getElementById('stageAccordionBtn' + stageId)?.click();
+    });
+    window.__taskOpenStages = null;
 </script>
 </div>
 

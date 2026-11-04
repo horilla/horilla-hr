@@ -23,6 +23,7 @@ from base.models import (
     PenaltyAccounts,
 )
 from employee.models import Employee, Policy
+from horilla.client_ip import client_ip
 from horilla.methods import get_horilla_model_class
 
 
@@ -298,6 +299,15 @@ _DEFAULT_HRMS_GROUPS = {
             "employee": ("view",),
             "base": ("view",),
         },
+        # Shift planning is attendance work: the Roster Planner is limited to
+        # holders of change_roster (everyone else sees only their own reports).
+        "extra_permissions": (
+            "base.add_roster",
+            "base.change_roster",
+            "base.delete_roster",
+            "base.add_rosterpublishlog",
+            "base.change_rosterpublishlog",
+        ),
     },
     "Leave Manager": {
         "apps": ("leave", "employee"),
@@ -414,6 +424,18 @@ def _resolve_group_permissions(config):
                     codename__startswith=f"{action}_",
                 ).values_list("id", flat=True)
             )
+
+    # Individual permissions a group needs beyond its app-wide actions, as
+    # "app_label.codename". Skipped when the app is not installed yet.
+    for dotted in config.get("extra_permissions", ()):
+        app_label, codename = dotted.split(".", 1)
+        if not _is_app_available(app_label):
+            continue
+        permission_ids.extend(
+            Permission.objects.filter(
+                content_type__app_label=app_label, codename=codename
+            ).values_list("id", flat=True)
+        )
 
     # Admin also needs Django auth group/permission management
     if config.get("apps") == "__all__" and _is_app_available("auth"):
@@ -603,10 +625,13 @@ def log_login_failed(sender, credentials, request, **kwargs):
     ban_duration = getattr(settings, "FAIL2BAN_BAN_TIME", 300)
 
     username = credentials.get("username", "unknown")
-    ip = request.META.get("REMOTE_ADDR", "unknown")
-    session_key = (
-        request.session.session_key or request.session._get_or_create_session_key()
-    )
+    ip = client_ip(request) or "unknown"
+    # Attempts and bans are tracked by session key, so the client must keep
+    # one session from its first failed login on. The middleware doesn't
+    # create sessions, and an unsaved key would not reach the client.
+    if not request.session.session_key:
+        request.session.create()
+    session_key = request.session.session_key
 
     # Check if currently banned
     if session_key in ban_time and ban_time[session_key] > time.time():
@@ -661,9 +686,11 @@ class Fail2BanMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        # Only a session that failed a login can be banned, and
+        # log_login_failed creates that one. Creating a session here wrote a
+        # row for every request without a cookie (health checks, devices,
+        # scripts), and such a request was never bannable anyway.
         session_key = request.session.session_key
-        if not session_key:
-            request.session.create()
 
         # Check ban and enforce it
         if session_key in ban_time and ban_time[session_key] > time.time():

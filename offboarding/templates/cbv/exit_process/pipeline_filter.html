@@ -1,5 +1,9 @@
 {% load static i18n %}
 <div class="oh-dropdown__filter-body">
+    <input type="hidden" name="stage_type" value="{{ deep_link_params.stage_type }}">
+    <input type="hidden" name="stage_type_exclude" value="{{ deep_link_params.stage_type_exclude }}">
+    <input type="hidden" name="employee_id" value="{{ deep_link_params.employee_id }}">
+    <input type="hidden" name="exit_reason" value="{{ deep_link_params.exit_reason }}">
     <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
       <div class="oh-accordion-header">
         <span class="oh-filter-section-icon"><ion-icon name="people-outline"></ion-icon></span>
@@ -95,7 +99,7 @@
           </div>
           <div class="col-sm-12 col-md-12 col-lg-12 mb-1">
             <div class="oh-input-group">
-              <label class="oh-label">{% trans 'Status' %}</label>
+              <label class="oh-label">{% trans 'Stage Type' %}</label>
               {{stage_filter.form.type}}
             </div>
           </div>

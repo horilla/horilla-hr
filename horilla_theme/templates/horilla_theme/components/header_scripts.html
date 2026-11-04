@@ -73,6 +73,16 @@
         overflow-y: visible !important;
     }
 
+    /* The rule above removes a list's height cap inside a tab, so the whole page scrolls. The
+       payroll lists keep the cap every list has (the Employees table, say): a fixed height, the
+       header held in place, and the rows scrolling inside. That is the payslips tab, the batches
+       tab, and a batch's own payslips, which are the payslip list again. */
+    #payslip-div .heightContainer,
+    #payroll-batch-div .heightContainer {
+        max-height: calc(100vh - 260px) !important;
+        overflow-y: auto !important;
+    }
+
     [id^="pipelineTabContent"] .heightContainer {
         max-height: calc(100vh - 260px) !important;
         overflow-y: auto !important;

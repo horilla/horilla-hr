@@ -6,6 +6,7 @@ One field: label, control, help and errors.
 payroll/forms/component_layout.py; componentForm.js reads it and toggles the
 [hidden] attribute. Fields with no rule are always shown.
 {% endcomment %}
+{% if row.field.is_hidden %}{{ row.field }}{{ row.field.errors }}{% else %}
 <div class="col-12 col-md-{{ row.width }} oh-component-field"
      data-row
      data-section-of="{{ section_key }}"
@@ -17,6 +18,7 @@ payroll/forms/component_layout.py; componentForm.js reads it and toggles the
   making every field that has help text taller than its neighbour and leaving
   the two columns of a row misaligned.
   {% endcomment %}
+  {% if row.field.label %}
   <div class="oh-component-field__label">
     <label class="oh-label mb-0{% if row.field.field.required %} required-star{% endif %}"
            for="{{ row.field.id_for_label }}">{{ row.field.label }}</label>
@@ -24,6 +26,7 @@ payroll/forms/component_layout.py; componentForm.js reads it and toggles the
       <span class="oh-info" title="{{ row.field.help_text }}"></span>
     {% endif %}
   </div>
+  {% endif %}
   {% if row.field.field.widget.input_type == "checkbox" %}
     <div class="oh-switch" style="width:30px">
       {{ row.field|add_class:"oh-switch__checkbox" }}
@@ -35,3 +38,4 @@ payroll/forms/component_layout.py; componentForm.js reads it and toggles the
   {% endif %}
   {{ row.field.errors }}
 </div>
+{% endif %}

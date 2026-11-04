@@ -1,0 +1,16 @@
+{% load i18n %}
+{% comment %}
+The "How This Works Out" note for a type paid per unit worked. Shown only while
+that type is the Based On choice; the styling is the limit note's.
+{% endcomment %}
+<div class="col-12 oh-component-field" data-row
+     data-section-of="{{ section_key }}"
+     data-show-if="is_fixed=off based_on={{ based_on }}">
+  <div class="oh-limit-note">
+    <div class="oh-limit-note__head">
+      <ion-icon name="information-circle-outline"></ion-icon>
+      <span>&ldquo;{{ title }}&rdquo; {% trans "Works Out As" %}</span>
+    </div>
+    <div class="oh-limit-note__muted">{{ text }}</div>
+  </div>
+</div>

@@ -42,3 +42,14 @@ settings REFUSE to import with them. Flagging that fixture as a leak would
 report the negative security test as the vulnerability it guards against.
 """
 paths = ['''\.github/workflows/quality\.yml''']
+
+[[allowlists]]
+description = """
+The character set the candidate portal draws its emailed passwords from
+(Candidate.generate_portal_password). It is a list of letters and digits, high
+entropy because it has no repeats, and not a credential.
+"""
+regexTarget = "line"
+regexes = [
+  '''PORTAL_PASSWORD_ALPHABET\s*=''',
+]

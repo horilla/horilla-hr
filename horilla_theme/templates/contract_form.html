@@ -1,95 +1,59 @@
 {% load widget_tweaks %}
 {% load i18n %}
 
-<div class="oh-general__tab-target oh-profile-section mb-4 p-10" id="personal" style="border: none">
-    <div class="oh-profile-section__card p-10" style="border: 1px solid #cdd5df; border-radius: 10px">
-        <!-- Header -->
-        <div class="oh-payslip__header mb-4">
-            <div class="oh-payslip__header-left">
-                <h2 class="text-xl font-semibold mb-3">
-                    {{ form.verbose_name }}
-                </h2>
-            </div>
-            <div class="oh-payslip__header-right flex justify-end">
-                <div class="w-[10%]">
-                    {{ form.contract_status }}
-                </div>
-            </div>
+<div
+    class="oh-general__tab-target oh-profile-section bg-[white] rounded-md border border-dark-50 p-[20px] w-full"
+    id="personal"
+>
+<div class="oh-profile-section__card">
+    <div class="row">
+        <div class="col-12 js-non-field-errors" style="padding-right: 0">
+            {{ form.non_field_errors }}
         </div>
 
-        <!-- Form Fields -->
-        <div class="row">
-            <div class="col-12">
-                {{ form.non_field_errors }}
-            </div>
-
-            {% for field in form.visible_fields %}
-                {% if field.name != 'contract_status' %}
-                    {% if field.name == 'note' %}
-                        <div class="col-12">
-                            <div class="oh-input__group">
-                                <div class="oh-label__info" style="display: ruby">
-                                    <label
-                                        class="oh-label {% if field.field.required %}required-star{% endif %}"
-                                        for="id_{{ field.name }}"
-                                    >
-                                        {% trans field.label %}
-                                    </label>
-                                    {% if field.help_text != "" %}
-                                        <span class="oh-info mr-2" title="{{ field.help_text }}"> </span>
-                                    {% endif %}
-                                </div>
-
-                                {% if field.field.widget.input_type == "checkbox" %}
-                                    <div class="oh-switch" style="width: 30px">
-                                        {{ field|add_class:"oh-switch__checkbox" }}
-                                    </div>
-                                {% else %}
-                                    {{ field|add_class:"form-control" }}
-                                {% endif %}
-
-                                {{ field.errors }}
-                            </div>
-                        </div>
-                    {% else %}
-                        <div class="col-12 col-md-6">
-                            <div class="oh-input__group">
-                                <div class="oh-label__info" style="display: ruby" for="id_{{ field.name }}">
-                                    <label
-                                        class="oh-label {% if field.field.required %}required-star{% endif %}"
-                                        for="id_{{ field.name }}"
-                                    >
-                                        {% trans field.label %}
-                                    </label>
-                                    {% if field.help_text != "" %}
-                                        <span class="oh-info mr-2" title="{{ field.help_text }}"> </span>
-                                    {% endif %}
-                                </div>
-
-                                {% if field.field.widget.input_type == "checkbox" %}
-                                    <div class="oh-switch" style="width: 30px">
-                                        {{ field|add_class:"oh-switch__checkbox" }}
-                                    </div>
-                                {% else %}
-                                    {{ field|add_class:"form-control" }}
-                                {% endif %}
-
-                                {{ field.errors }}
-                            </div>
+        {% for field in form.visible_fields %}
+            {% if field.name != 'contract_status' %}
+                <div
+                    class="col-12 {% if field.name != 'note' %}col-md-6{% endif %}"
+                    id="id_{{ field.name }}_parent_div"
+                >
+                    {% if field.label %}
+                        <div class="flex oh-label" for="id_{{ field.name }}">
+                            <label
+                                class="{% if field.field.required %}required-star{% endif %}"
+                                for="id_{{ field.name }}"
+                            >{% trans field.label %}</label>
+                            {% if field.help_text != "" %}
+                                <span class="oh-info mr-2" title="{{ field.help_text }}"></span>
+                            {% endif %}
                         </div>
                     {% endif %}
-                {% endif %}
-            {% endfor %}
-        </div>
 
-        <!-- Submit -->
-        <hr class="mt-5 mb-3" style="color: #cdd5df">
-        <div class="col-lg-12 d-flex justify-content-end">
-            <button type="submit" class="oh-btn oh-btn--secondary">
-                {% trans "Save" %}
-            </button>
-        </div>
+                    {% if field.field.widget.input_type == "checkbox" %}
+                        <div class="oh-switch" style="width: 30px">
+                            {{ field|add_class:"oh-switch__checkbox" }}
+                        </div>
+                        {{ field.errors }}
+                    {% else %}
+                        <div id="dynamic_field_{{ field.name }}">
+                            {{ field|add_class:"form-control" }} {{ field.errors }}
+                        </div>
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% endfor %}
     </div>
+
+    {% for field in form.hidden_fields %}
+        {{ field }}
+    {% endfor %}
+
+    <div class="d-flex flex gap-1 justify-end pt-3 mt-3">
+        <button type="submit" class="oh-btn oh-btn--secondary mt-2 mr-0 pl-4 pr-5 oh-btn--w-100-resp">
+            {% trans "Save" %}
+        </button>
+    </div>
+</div>
 </div>
 
 <script>

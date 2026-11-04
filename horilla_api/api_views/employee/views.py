@@ -29,6 +29,7 @@ from employee.models import (
 )
 from employee.views import can_access_document, work_info_export, work_info_import
 from horilla.decorators import check_manager
+from horilla.methods import get_accessibility_cache_key
 from horilla_api.api_decorators.base.decorators import permission_required
 from horilla_api.api_methods.base.pagination import HorillaPageNumberPagination
 from horilla_api.api_methods.employee.methods import get_next_badge_id
@@ -279,11 +280,8 @@ def directory_is_accessible(request):
     employee = getattr(request.user, "employee_get", None)
     if not employee:
         return False
-    session_key = getattr(request.session, "session_key", None)
-    if not session_key:
-        return False
     return check_is_accessible(
-        "employee_view", session_key + "accessibility_filter", employee
+        "employee_view", get_accessibility_cache_key(request), employee
     )
 
 

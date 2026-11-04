@@ -1,12 +1,4 @@
 {% load i18n static %}
-{% comment %}
-Mirrors recruitment/templates/cbv/pipeline/recruitment_pipeline_shell.html:
-this tab's own Nav (RecruitmentCandidateNav, carrying Search+Filter and the
-job-level Actions dropdown) loads first, then the board is triggered off
-its htmx:afterSettle (`ohPipelineNavReady`) rather than both firing on
-`load` in parallel - otherwise the board's per-stage requests queue ahead
-of the single Nav request and the toolbar is the last thing to appear.
-{% endcomment %}
 <div id="pipelineNav{{ rec_id }}" hx-get="{{ nav_url }}" hx-trigger="load"></div>
 <div
     class="oh-checkpoint-badge mb-2"
@@ -44,12 +36,6 @@ of the single Nav request and the toolbar is the last thing to appear.
 
 <script>
     (function () {
-        // RecruitmentCandidateNav reuses generic/inline_nav.html, whose ids
-        // (#filterForm<swap-target>, #applyFilter, ...) assume one live
-        // instance per swap target. Job tabs keep their content in the DOM
-        // (just hidden) after being visited once, so clear any other
-        // already-loaded tab's content when this one settles - mirrors the
-        // same guard recruitment's shell uses.
         var myContent = document.currentScript.closest(".oh-tabs__content");
         var contents = myContent && myContent.closest(".oh-tabs__contents");
         if (!contents) return;

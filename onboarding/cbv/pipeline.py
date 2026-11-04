@@ -44,6 +44,34 @@ from recruitment.cbv.candidates import CandidateDetail
 from recruitment.methods import recruitment_manages
 
 
+def onboarding_view_type(request):
+    """
+    Return the requested list/card view type, else the saved one, else "list".
+    """
+    view_type = request.GET.get("view")
+    if not view_type and request.user.is_authenticated:
+        active_view = ActiveView.objects.filter(
+            created_by=request.user, path=reverse("cbv-pipeline-nav-onboarding")
+        ).first()
+        view_type = active_view.type if active_view else None
+    return view_type or "list"
+
+
+def onboarding_content_url(rec_id, view_type, params):
+    """
+    Return the URL of a recruitment's onboarding board (stage lists or
+    kanban) carrying the filter query from params.
+    """
+    query = params.copy()
+    for key in ("referrer", "open_tab", "view"):
+        query.pop(key, None)
+    if view_type == "card":
+        path = reverse("candidate-card-cbv-onboarding", kwargs={"pk": rec_id})
+    else:
+        path = reverse("get-stages-onboarding", kwargs={"recruitment_id": rec_id})
+    return f"{path}?{query.urlencode()}"
+
+
 @method_decorator(login_required, name="dispatch")
 @method_decorator(
     all_manager_can_enter(perm="recruitment.view_recruitment"), name="dispatch"
@@ -62,24 +90,15 @@ class PipelineView(TemplateView):
 )
 class PipelineNav(HorillaNavView):
     """
-    HorillaNavView
+    Search, view type and filter for the onboarding pipeline page.
     """
 
     search_url = reverse_lazy("cbv-pipeline-tab-onboarding")
     nav_title = _("Onboarding Tasks")
-    search_swap_target = "#pipelineContainer"
-    apply_first_filter = False
+    search_swap_target = "#pipelineTabStrip"
     filter_body_template = "cbv/pipeline/onboarding/filters.html"
     filter_instance = onboarding_filters.RecruitmentFilter()
-    # filter_instance_context_name = "filter"
     filter_form_context_name = "form"
-    # Modern slide-over filter panel (generic/horilla_nav.html's own
-    # {% if modern_filter %} branch) -- same treatment as every other
-    # panel this session. onboarding_filters.RecruitmentFilter inherits
-    # recruitment.filters.RecruitmentFilter.ajax_fields (Managers,
-    # Company); OnboardingStageFilter/OnboardingCandidateFilter each
-    # carry their own ajax_fields for the Stage Manager/Tasks pickers
-    # this combined panel renders.
     modern_filter = True
 
     def __init__(self, **kwargs) -> None:
@@ -89,8 +108,8 @@ class PipelineNav(HorillaNavView):
             {
                 "type": "list",
                 "icon": "list-outline",
-                "url": f'{reverse_lazy("cbv-pipeline-tab-onboarding")}',
-                "attrs": f"""
+                "url": f'{reverse_lazy("cbv-pipeline-tab-onboarding")}?view=list',
+                "attrs": """
                     title ='List'
                 """,
             },
@@ -98,7 +117,7 @@ class PipelineNav(HorillaNavView):
                 "type": "card",
                 "icon": "grid-outline",
                 "url": f'{reverse_lazy("cbv-pipeline-tab-onboarding")}?view=card',
-                "attrs": f"""
+                "attrs": """
                     title ='Card'
                 """,
             },
@@ -109,10 +128,19 @@ class PipelineNav(HorillaNavView):
         context data
         """
         context = super().get_context_data(**kwargs)
-        stage_filter_obj = onboarding_filters.OnboardingStageFilter()
-        candidate_filter_obj = onboarding_filters.OnboardingCandidateFilter()
-        context["stage_filter_obj"] = stage_filter_obj
-        context["candidate_filter_obj"] = candidate_filter_obj
+        params = self._effective_get_params()
+        pipeline_candidate_filter = onboarding_filters.PipelineCandidateFilter(params)
+        context["stage_filter_obj"] = onboarding_filters.OnboardingStageFilter(params)
+        context["candidate_filter_obj"] = onboarding_filters.OnboardingCandidateFilter(
+            params
+        )
+        context["pipeline_candidate_filter"] = pipeline_candidate_filter
+        context["candidate_custom_filter_fields"] = getattr(
+            pipeline_candidate_filter, "custom_filter_fields", []
+        )
+        context["candidate_custom_filter_rows"] = getattr(
+            pipeline_candidate_filter, "custom_filter_rows", []
+        )
         return context
 
 
@@ -190,44 +218,27 @@ class RecruitmentTabView(HorillaTabView):
     RecruitmentTabView
     """
 
+    template_name = "cbv/pipeline/onboarding/recruitment_tabs.html"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         recruitments = onboarding_filters.RecruitmentFilter(self.request.GET).qs.filter(
             is_active=True
         )
-        view_type = self.request.GET.get("view", "list")
-        # Carry over any other query params (e.g. ?task_status=stuck from the
-        # dashboard's Stuck Tasks tile) down into each tab's shell, which in
-        # turn forwards them to the actual board content request -- "view"
-        # is excluded since it's already handled by the view_type/url logic
-        # below, not meant to be a board-content filter itself.
-        extra_params = self.request.GET.copy()
-        extra_params.pop("view", None)
-        extra_qs = extra_params.urlencode()
+        view_type = onboarding_view_type(self.request)
         self.tabs = []
-        # Candidates on each job's board (one stage row per candidate), not
-        # how many stages it has.
-        candidate_stage_qs = onboarding_models.CandidateStage.objects.filter(
-            onboarding_stage_id__recruitment_id__in=recruitments.values_list(
-                "pk", flat=True
+        candidate_stage_qs = onboarding_filters.PipelineCandidateFilter(
+            self.request.GET,
+            queryset=onboarding_models.CandidateStage.objects.filter(
+                onboarding_stage_id__recruitment_id__in=recruitments.values_list(
+                    "pk", flat=True
+                ),
+                onboarding_stage_id__is_active=True,
             ),
-            onboarding_stage_id__is_active=True,
-        )
-        # The card/kanban board sets records_count_in_tab = False precisely so
-        # this tab badge counts candidates, not columns -- but unlike the list
-        # board's own stage badges (CandidatePipeline.get_queryset), nothing
-        # ever patches this one from the client side, so a task_status filter
-        # left unapplied here stuck permanently at the unfiltered total: the
-        # dashboard's Stuck Tasks tile landed on a tab badge that kept showing
-        # every candidate, never the stuck ones, no matter what the board
-        # underneath it correctly rendered.
-        task_status = self.request.GET.get("task_status")
-        if task_status:
-            candidate_stage_qs = candidate_stage_qs.filter(
-                candidate_id__candidate_task__status=task_status
-            )
+        ).qs
         candidate_counts = dict(
-            candidate_stage_qs.values("onboarding_stage_id__recruitment_id")
+            candidate_stage_qs.order_by()
+            .values("onboarding_stage_id__recruitment_id")
             .annotate(total=Count("candidate_id", distinct=True))
             .values_list("onboarding_stage_id__recruitment_id", "total")
         )
@@ -235,14 +246,11 @@ class RecruitmentTabView(HorillaTabView):
             tab = {}
             tab["title"] = rec
             url = reverse("onboarding-pipeline-shell", kwargs={"rec_id": rec.pk})
-            query_parts = []
-            if view_type != "list":
-                query_parts.append(f"view={view_type}")
-            if extra_qs:
-                query_parts.append(extra_qs)
-            if query_parts:
-                url += "?" + "&".join(query_parts)
-            tab["url"] = url
+            tab["url"] = f"{url}?view={view_type}"
+            tab["rec_id"] = rec.pk
+            tab["content_url"] = onboarding_content_url(
+                rec.pk, view_type, self.request.GET
+            )
 
             tab["badge_label"] = _("Candidates")
             tab["badge"] = candidate_counts.get(rec.pk, 0)
@@ -255,64 +263,19 @@ class RecruitmentTabView(HorillaTabView):
 )
 class RecruitmentCandidateNav(HorillaNavView):
     """
-    Per-job-tab Search+Filter for the Onboarding pipeline page, mirroring
-    recruitment.cbv.pipeline.RecruitmentCandidateNav: one instance per job
-    tab, searching/filtering that job's own onboarding candidates
-    (PipelineCandidateFilter) rather than the page-level RecruitmentFilter
-    (which decides which RECRUITMENTS show up as tabs at all).
+    Bar of a recruitment's onboarding tab with the recruitment actions.
     """
 
-    filter_form_context_name = "form"
-    filter_body_template = "cbv/pipeline/onboarding/candidate_filter.html"
-    apply_first_filter = True
     template_name = "generic/inline_nav.html"
-    nav_title = _("Pipeline")
-    # Modern slide-over filter panel (generic/inline_nav.html's own
-    # {% if modern_filter %} branch) -- same treatment as the page-level
-    # PipelineNav/filters.html and the sibling recruitment/offboarding
-    # per-tab panels. PipelineCandidateFilter is now a HorillaFilterSet
-    # subclass so it gets the Advanced "+ Add filter" builder too.
-    modern_filter = True
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         rec_id = self.request.resolver_match.kwargs.get("rec_id")
-        view_type = self.request.GET.get("view")
-        if view_type == "card":
-            self.search_url = reverse(
-                "candidate-card-cbv-onboarding", kwargs={"pk": rec_id}
-            )
-        else:
-            self.search_url = reverse(
-                "get-stages-onboarding", kwargs={"recruitment_id": rec_id}
-            )
         self.search_swap_target = f"#pipelineTabContent{rec_id}"
-        self.filter_instance = onboarding_filters.PipelineCandidateFilter()
-
-        self.view_types = [
-            {
-                "type": "list",
-                "icon": "list-outline",
-                "url": reverse(
-                    "get-stages-onboarding", kwargs={"recruitment_id": rec_id}
-                ),
-                "attrs": """
-                    title ='List'
-                """,
-            },
-            {
-                "type": "card",
-                "icon": "grid-outline",
-                "url": reverse("candidate-card-cbv-onboarding", kwargs={"pk": rec_id})
-                + "?view=card",
-                "attrs": """
-                    title ='Card'
-                """,
-            },
-        ]
 
         rec = recruitment_models.Recruitment.objects.filter(pk=rec_id).first()
         if rec:
+            self.nav_title = str(rec)
             self.actions = recruitment_pipeline_actions_onboarding(self.request, rec)
 
 
@@ -322,73 +285,24 @@ class RecruitmentCandidateNav(HorillaNavView):
 )
 class RecruitmentPipelineContentShell(TemplateView):
     """
-    Shell rendered for a single recruitment's onboarding pipeline tab -
-    wraps this tab's own Nav (RecruitmentCandidateNav, which carries the
-    Search+Filter and job-level Actions) and an htmx-loaded embed of the
-    existing list/kanban content.
+    Shell rendered for a single recruitment's onboarding pipeline tab: its
+    own bar (RecruitmentCandidateNav) and an htmx-loaded list/kanban board.
     """
 
     template_name = "cbv/pipeline/onboarding/recruitment_pipeline_shell.html"
-
-    def saved_view_type(self, rec_id):
-        """
-        The list/card choice this user last made, for this job's tab.
-        """
-        user = self.request.user
-        if not (user and user.is_authenticated):
-            return None
-        active_view = (
-            ActiveView.objects.filter(created_by=user)
-            .filter(
-                Q(
-                    path=reverse(
-                        "onboarding-pipeline-tab-nav", kwargs={"rec_id": rec_id}
-                    )
-                )
-            )
-            .order_by("-path")
-            .first()
-        )
-        return active_view.type if active_view else None
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         rec = get_object_or_404(
             recruitment_models.Recruitment, pk=self.kwargs.get("rec_id")
         )
-        # Falls back to "list" (not just None) when neither this request nor
-        # a saved ActiveView row picked a view - content_url below already
-        # defaults to the list endpoint in that case, so the Nav's view-type
-        # toggle must resolve to the same "list" here too. Passing a falsy
-        # view_type through left nav_url without a `?view=`, so on a user's
-        # very first visit (no saved choice yet) HorillaNavView never marked
-        # either toggle button active even though list content was already
-        # on screen - and inline_nav.html's onload script then read "no
-        # button active" as "no filter has run yet" and fired an extra,
-        # redundant full-board resubmit right behind the first load.
-        view_type = (
-            self.request.GET.get("view") or self.saved_view_type(rec.pk) or "list"
+        view_type = onboarding_view_type(self.request)
+        context["content_url"] = onboarding_content_url(
+            rec.pk, view_type, self.request.GET
         )
-        content_url = reverse(
-            "get-stages-onboarding", kwargs={"recruitment_id": rec.pk}
-        )
-        if view_type == "card":
-            content_url = reverse(
-                "candidate-card-cbv-onboarding", kwargs={"pk": rec.pk}
-            )
-        # Forward any extra query params (e.g. ?task_status=stuck) through to
-        # the actual board content request -- "view" is excluded since it
-        # only picks which endpoint above, not a board-content filter itself.
-        extra_params = self.request.GET.copy()
-        extra_params.pop("view", None)
-        extra_qs = extra_params.urlencode()
-        if extra_qs:
-            content_url += f"?{extra_qs}"
-        context["content_url"] = content_url
         context["rec_id"] = rec.pk
-        context["nav_url"] = (
-            reverse("onboarding-pipeline-tab-nav", kwargs={"rec_id": rec.pk})
-            + f"?view={view_type}"
+        context["nav_url"] = reverse(
+            "onboarding-pipeline-tab-nav", kwargs={"rec_id": rec.pk}
         )
         return context
 

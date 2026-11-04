@@ -132,6 +132,8 @@ def allowances_deductions_tab(request, emp_id):
     active_contracts = employee.contract_set.filter(contract_status="active").first()
     basic_pay = active_contracts.wage if active_contracts else None
     if basic_pay:
+        from payroll.methods.component_engine import group_targeted
+
         allowances = (
             Allowance.objects.filter(specific_employees=employee)
             | Allowance.objects.filter(is_condition_based=True).exclude(
@@ -140,6 +142,7 @@ def allowances_deductions_tab(request, emp_id):
             | Allowance.objects.filter(include_active_employees=True).exclude(
                 exclude_employees=employee
             )
+            | group_targeted(employee, Allowance)
         )
 
         for allowance in allowances:
@@ -187,6 +190,7 @@ def allowances_deductions_tab(request, emp_id):
             | Deduction.objects.filter(
                 include_active_employees=True,
             ).exclude(exclude_employees=employee)
+            | group_targeted(employee, Deduction)
         )
         for deduction in deductions:
             applicable = True

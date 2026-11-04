@@ -51,6 +51,7 @@ from attendance.models import (
     AttendanceSummaryOverride,
 )
 from base.methods import (
+    employees_in_scope,
     filtersubordinatesemployeemodel,
     get_company_leave_dates,
     get_holiday_dates,
@@ -69,6 +70,7 @@ from base.models import (
 from employee.filters import EmployeeFilter
 from employee.models import Employee, EmployeeTag
 from horilla.decorators import hx_request_required, login_required, manager_can_enter
+from horilla.methods import handle_no_permission
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -151,8 +153,49 @@ def overtime_eligibility(overtime_seconds, condition):
     return overtime_seconds > 0 and overtime_seconds >= minimum, minimum
 
 
+def _day_overtime(emp, day, attendance, cap):
+    """The overtime a day really has: all the hours on a day off, else what was worked beyond the minimum."""
+    holidays, week_offs = exclusion_sets(emp, day, day)
+    overtime = (
+        (attendance.at_work_second or 0)
+        if (day in holidays or day in week_offs)
+        else real_overtime_seconds(
+            attendance.at_work_second,
+            attendance.minimum_hour,
+            attendance.overtime_second,
+        )
+    )
+    return min(overtime, cap) if cap else overtime
+
+
+def pending_overtime_dates(emp, dates):
+    """The days that have overtime meeting the validation rule's minimum and not yet approved."""
+    from attendance.methods.utils import strtime_seconds
+    from attendance.models import AttendanceValidationCondition
+
+    condition = AttendanceValidationCondition.objects.first()
+    cap = (
+        strtime_seconds(condition.overtime_cutoff)
+        if condition and condition.overtime_cutoff
+        else 0
+    )
+    pending = []
+    for day in dates:
+        attendance = Attendance.objects.filter(
+            employee_id=emp, attendance_date=day
+        ).first()
+        if not attendance or attendance.attendance_overtime_approve:
+            continue
+        if overtime_eligibility(_day_overtime(emp, day, attendance, cap), condition)[0]:
+            pending.append(day)
+    return pending
+
+
 def approve_overtime_if_eligible(emp, dates):
-    """Approve the overtime of each day that meets the validation rule's minimum; drop the mark on the rest."""
+    """
+    Approve the overtime of each day that meets the validation rule's minimum; drop the mark on
+    the rest. Returns the days approved.
+    """
     from attendance.methods.utils import strtime_seconds
     from attendance.models import (
         AttendanceConflictResolution,
@@ -165,32 +208,23 @@ def approve_overtime_if_eligible(emp, dates):
         if condition and condition.overtime_cutoff
         else 0
     )
+    approved = []
     for day in dates:
         attendance = Attendance.objects.filter(
             employee_id=emp, attendance_date=day
         ).first()
         if not attendance:
             continue
-        holidays, week_offs = exclusion_sets(emp, day, day)
-        overtime = (
-            (attendance.at_work_second or 0)
-            if (day in holidays or day in week_offs)
-            else real_overtime_seconds(
-                attendance.at_work_second,
-                attendance.minimum_hour,
-                attendance.overtime_second,
-            )
-        )
-        if cap:
-            overtime = min(overtime, cap)
-        if overtime_eligibility(overtime, condition)[0]:
+        if overtime_eligibility(_day_overtime(emp, day, attendance, cap), condition)[0]:
             Attendance.objects.filter(pk=attendance.pk).update(
                 attendance_overtime_approve=True
             )
+            approved.append(day)
         else:
             AttendanceConflictResolution._base_manager.filter(
                 employee_id=emp, date=day, resolution="approve_ot"
             ).delete()
+    return approved
 
 
 def ot_counts(approved, resolution):
@@ -2169,6 +2203,13 @@ def attendance_monthly_summary_detail(request):
     to_date = _parse_date(request.GET.get("to_date"), datetime.date.today())
     metric = request.GET.get("metric", "present")
 
+    # Reading an employee's attendance: themselves, one of their reports, or
+    # a holder of the view permission.
+    if emp_id and not employees_in_scope(
+        request, [emp_id], "attendance.view_attendance", include_self=True
+    ):
+        return handle_no_permission(request)
+
     try:
         emp = Employee.objects.get(pk=emp_id)
     except Employee.DoesNotExist:
@@ -3321,6 +3362,13 @@ def attendance_monthly_summary_calendar(request):
     )
     to_date = _parse_date(request.GET.get("to_date"), datetime.date.today())
 
+    # Reading an employee's attendance: themselves, one of their reports, or
+    # a holder of the view permission.
+    if emp_id and not employees_in_scope(
+        request, [emp_id], "attendance.view_attendance", include_self=True
+    ):
+        return handle_no_permission(request)
+
     try:
         emp = Employee.objects.get(pk=emp_id)
     except Employee.DoesNotExist:
@@ -3357,6 +3405,13 @@ def attendance_monthly_summary_conflict_resolve(request):
         request.POST.get("to_date") or request.GET.get("to_date"), datetime.date.today()
     )
     date = _parse_date(date_str, None)
+
+    # manager_can_enter admits any manager of anybody; the employee named here
+    # must be one of the caller's reports unless they hold the permission.
+    if emp_id and not employees_in_scope(
+        request, [emp_id], "attendance.change_attendance"
+    ):
+        return handle_no_permission(request)
 
     try:
         emp = Employee.objects.get(pk=emp_id)
@@ -4003,6 +4058,13 @@ def attendance_monthly_summary_conflict_bulk_resolve(request):
         request.POST.get("to_date") or request.GET.get("to_date"), datetime.date.today()
     )
 
+    # manager_can_enter admits any manager of anybody; the employee named here
+    # must be one of the caller's reports unless they hold the permission.
+    if emp_id and not employees_in_scope(
+        request, [emp_id], "attendance.change_attendance"
+    ):
+        return handle_no_permission(request)
+
     try:
         emp = Employee.objects.get(pk=emp_id)
     except Employee.DoesNotExist:
@@ -4035,15 +4097,20 @@ def attendance_monthly_summary_conflict_bulk_resolve(request):
             "week_off",
             "approve_ot",
         }
-        if resolution in _valid or parse_split(resolution):
+        if resolution == "approve_ot":
+            # Approving overtime only flips the days' approval; it is not a status, so no
+            # resolution row is made. "quiet" answers without redrawing the calendar, which
+            # the panel then refreshes only when Save is pressed.
+            approved = approve_overtime_if_eligible(emp, dates)
+            if request.POST.get("quiet"):
+                return JsonResponse({"approved": len(approved)})
+        elif resolution in _valid or parse_split(resolution):
             for d in dates:
                 AttendanceConflictResolution._base_manager.update_or_create(
                     employee_id=emp,
                     date=d,
                     defaults={"resolution": resolution, "conflict_type": ""},
                 )
-            if resolution == "approve_ot":
-                approve_overtime_if_eligible(emp, dates)
 
         # Re-render the full calendar so counts and dots update immediately,
         # same as the single-day path.
@@ -4053,7 +4120,12 @@ def attendance_monthly_summary_conflict_bulk_resolve(request):
         )
 
     # ── GET: render the "mark all as" panel for the selected dates ──────────
-    context = {"employee": emp, "dates": dates}
+    # The Approve Overtime button is offered only when a selected day has overtime to approve.
+    context = {
+        "employee": emp,
+        "dates": dates,
+        "ot_dates": pending_overtime_dates(emp, dates),
+    }
     return render(
         request, "attendance/monthly_summary/bulk_resolve_panel.html", context
     )
@@ -4104,6 +4176,9 @@ def attendance_monthly_summary_bulk_override(request):
 
     if from_date > to_date:
         from_date, to_date = to_date, from_date
+
+    if not employees_in_scope(request, emp_ids, "attendance.change_attendance"):
+        return JsonResponse({"error": "Permission denied"}, status=403)
 
     employees = list(Employee.objects.filter(pk__in=emp_ids))
     dates = list(_iter_dates(from_date, to_date))
@@ -4188,6 +4263,13 @@ def attendance_monthly_summary_daily_hours_edit(request):
         request.POST.get("to_date") or request.GET.get("to_date"), datetime.date.today()
     )
     date = _parse_date(date_str, None)
+
+    # manager_can_enter admits any manager of anybody; the employee named here
+    # must be one of the caller's reports unless they hold the permission.
+    if emp_id and not employees_in_scope(
+        request, [emp_id], "attendance.change_attendance"
+    ):
+        return handle_no_permission(request)
 
     try:
         emp = Employee.objects.get(pk=emp_id)

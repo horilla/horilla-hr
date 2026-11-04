@@ -18,16 +18,77 @@
     }
     .dark .breadcrumb li.crumb-has-tip:hover::after { background: #242424; color: #e2e8f0; }
 </style>
+<style>
+    /* A trail longer than four steps folds its middle into a "+N" chip that opens the hidden steps. */
+    .breadcrumb li.crumb-more { position: relative; }
+    .crumb-more details { position: relative; }
+    .crumb-more summary {
+        list-style: none; cursor: pointer; user-select: none;
+        display: inline-block; padding: 0 9px; border-radius: 999px;
+        background: #f1f2f4; color: #4b5563; font-weight: 600; font-size: 0.74rem;
+        line-height: 1.55;
+    }
+    .crumb-more summary::-webkit-details-marker { display: none; }
+    .crumb-more summary:hover, .crumb-more details[open] summary { background: #fdeeeb; color: #e54f38; }
+    .crumb-more-list {
+        position: absolute; top: calc(100% + 6px); left: 0; z-index: 60;
+        min-width: 190px; max-width: 320px; margin: 0; padding: 4px; list-style: none;
+        background: #fff; border: 1px solid rgba(128, 128, 128, 0.25); border-radius: 8px;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+    }
+    .crumb-more-list li { padding: 0; }
+    .crumb-more-list li::before { content: none !important; }
+    .crumb-more-list a, .crumb-more-list span {
+        display: block; max-width: none; padding: 6px 10px; border-radius: 6px;
+        font-size: 0.8rem; color: #1f2430; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .crumb-more-list a:hover { background: #fdeeeb; color: #e54f38; }
+    .dark .crumb-more summary { background: #2a2a2a; color: #e2e8f0; }
+    .dark .crumb-more-list { background: #242424; }
+    .dark .crumb-more-list a, .dark .crumb-more-list span { color: #e2e8f0; }
+</style>
 <ul class="breadcrumb ms-4">
-    {% for breadcrumb in breadcrumbs|unique_breadcrumbs %}
-        <li class="{% if request.path in breadcrumb.url %}oh-breadcrumb-current{% endif %}{% if breadcrumb.name|length > 30 %} crumb-has-tip{% endif %}"{% if breadcrumb.name|length > 30 %} data-full="{{ breadcrumb.name }}"{% endif %}>
-                {% if breadcrumb.clickable and breadcrumb.found %}
-                    <a href="{{breadcrumb.url}}">{% trans breadcrumb.name %}</a>
-                {% elif not breadcrumb.clickable %}
-                    <span>{% trans breadcrumb.name %}</span>
-                {% else %}
-                    <a href="#">{% trans breadcrumb.name %}</a>
-                {% endif %}
-        </li>
-    {% endfor %}
+    {% with groups=breadcrumbs|unique_breadcrumbs|collapse_breadcrumbs %}
+        {% if groups.collapsed %}
+            {% include "base/navbar_components/_crumb.html" with breadcrumb=groups.first %}
+            <li class="crumb-more">
+                <details>
+                    <summary title="{% trans 'Show The Steps In Between' %}">+{{ groups.hidden|length }}</summary>
+                    <ul class="crumb-more-list">
+                        {% for breadcrumb in groups.hidden %}
+                            <li>
+                                {% if breadcrumb.clickable and breadcrumb.found %}
+                                    <a href="{{ breadcrumb.url }}">{% trans breadcrumb.name %}</a>
+                                {% else %}
+                                    <span>{% trans breadcrumb.name %}</span>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </details>
+            </li>
+            {% for breadcrumb in groups.tail %}
+                {% include "base/navbar_components/_crumb.html" with breadcrumb=breadcrumb %}
+            {% endfor %}
+        {% else %}
+            {% for breadcrumb in groups.all %}
+                {% include "base/navbar_components/_crumb.html" with breadcrumb=breadcrumb %}
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
 </ul>
+<script>
+    // The "+N" list closes on a click anywhere else, or on Escape.
+    if (!window._crumbMoreWired) {
+        window._crumbMoreWired = true;
+        document.addEventListener("click", function (e) {
+            document.querySelectorAll(".crumb-more details[open]").forEach(function (d) {
+                if (!d.contains(e.target)) d.removeAttribute("open");
+            });
+        });
+        document.addEventListener("keydown", function (e) {
+            if (e.key !== "Escape") return;
+            document.querySelectorAll(".crumb-more details[open]").forEach(function (d) { d.removeAttribute("open"); });
+        });
+    }
+</script>

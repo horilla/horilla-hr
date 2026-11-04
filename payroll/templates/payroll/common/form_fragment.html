@@ -36,6 +36,7 @@
     </div>
     <div class="{% if in_modal %}{% else %}oh-wrapper d-flex justify-content-center mt-4 mb-4{% endif %}">
         <form
+            id="{{ form_id|default:'contractForm' }}"
             action=""
             hx-post="{{ post_url }}"
             hx-target="{{ form_target|default:'#listContainer' }}"

@@ -5,15 +5,17 @@
 .hcl-banner {
     background: linear-gradient(135deg, #fef4f2 0%, #ffffff 55%);
     border: 1px solid #f4b8b0;
-    border-radius: 16px;
-    padding: 24px 28px 20px;
+    border-radius: 14px;
+    padding: 14px 18px 12px;
     position: relative;
     overflow: hidden;
-    margin-bottom: 24px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04), 0 4px 14px rgba(0, 0, 0, 0.05);
 }
 .dark .hcl-banner {
     background: linear-gradient(135deg, #3d1510 0%, #0f172a 55%);
     border-color: #6b1a10;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 /* ── Decorative blob ────────────────────────────────────────────────────── */
@@ -28,19 +30,19 @@
 .hcl-header {
     display: flex; align-items: flex-start;
     justify-content: space-between; gap: 12px;
-    margin-bottom: 18px;
+    margin-bottom: 12px;
 }
 .hcl-icon {
-    width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
+    width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
     background: linear-gradient(135deg, #e54f38, #e8705e);
     display: flex; align-items: center; justify-content: center;
 }
 .hcl-title {
-    margin: 0; font-size: 15px; font-weight: 700; color: #1f2937;
+    margin: 0; font-size: 13px; font-weight: 700; color: #1f2937;
 }
 .dark .hcl-title { color: #fde0db; }
 .hcl-subtitle {
-    margin: 3px 0 0; font-size: 12px; color: #6b7280;
+    margin: 2px 0 0; font-size: 11px; color: #6b7280;
 }
 .dark .hcl-subtitle { color: #9ca3af; }
 
@@ -107,13 +109,13 @@
     box-shadow: 0 0 0 3px rgba(229,79,56,0.12);
 }
 
-/* Step number / checkmark */
-.hcl-circle-num {
-    font-size: 11px; font-weight: 700; user-select: none;
+/* Step dot / checkmark */
+.hcl-circle-dot {
+    width: 8px; height: 8px; border-radius: 50%; display: block;
 }
-.hcl-circle-num-active  { color: #e54f38; }
-.hcl-circle-num-pending { color: #9ca3af; }
-.dark .hcl-circle-num-pending { color: #6b7280; }
+.hcl-circle-dot-active  { background: #e54f38; }
+.hcl-circle-dot-pending { background: #9ca3af; }
+.dark .hcl-circle-dot-pending { background: #6b7280; }
 
 /* Step label */
 .hcl-label {
@@ -128,12 +130,12 @@
 
 /* ── Action card ────────────────────────────────────────────────────────── */
 .hcl-action {
-    margin-top: 18px;
+    margin-top: 12px;
     background: #ffffff;
     border: 1px solid #f4b8b0;
     border-left: 4px solid #e54f38;
-    border-radius: 10px;
-    padding: 14px 18px;
+    border-radius: 8px;
+    padding: 10px 14px;
     display: flex; align-items: center;
     justify-content: space-between; gap: 16px;
     flex-wrap: wrap;
@@ -144,18 +146,18 @@
     border-left-color: #ea6e5a;
 }
 .hcl-action-title {
-    margin: 0; font-size: 14px; font-weight: 600; color: #1f2937;
+    margin: 0; font-size: 12.5px; font-weight: 600; color: #1f2937;
 }
 .dark .hcl-action-title { color: #fde0db; }
 .hcl-action-desc {
-    margin: 4px 0 0; font-size: 13px; color: #6b7280;
+    margin: 2px 0 0; font-size: 11.5px; color: #6b7280;
 }
 .dark .hcl-action-desc { color: #9ca3af; }
 .hcl-action-btn {
     display: inline-flex; align-items: center; gap: 6px;
-    padding: 9px 18px; border-radius: 8px;
+    padding: 7px 14px; border-radius: 7px;
     background: linear-gradient(135deg, #e54f38, #e8705e);
-    color: #ffffff; font-size: 13px; font-weight: 600;
+    color: #ffffff; font-size: 12px; font-weight: 600;
     text-decoration: none; white-space: nowrap; flex-shrink: 0;
     transition: opacity 0.15s, transform 0.15s;
 }
@@ -179,7 +181,7 @@
         <div class="hcl-header">
             <div style="display:flex; align-items:center; gap:12px;">
                 <div class="hcl-icon" aria-hidden="true">
-                    <svg width="20" height="20" fill="none" stroke="white" stroke-width="2"
+                    <svg width="15" height="15" fill="none" stroke="white" stroke-width="2"
                          stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
                         <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
                     </svg>
@@ -187,10 +189,7 @@
                 <div>
                     <h3 class="hcl-title">{% trans "Get started with Horilla HR" %}</h3>
                     <p class="hcl-subtitle">
-                        {% blocktrans with done=setup_completed total=setup_total %}
-                            {{ done }} of {{ total }} steps complete
-                        {% endblocktrans %}
-                        — {% trans "finish setup to unlock your full HR system" %}
+                        {% trans "Finish setup to unlock your full HR system" %}
                     </p>
                 </div>
             </div>
@@ -249,7 +248,7 @@
                 <a href="{{ setup_next_step.url }}" class="hcl-action-btn"
                    aria-label="{% blocktrans with title=setup_next_step.title %}Set up {{ title }}{% endblocktrans %}">
                     {% trans "Set up now" %}
-                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"
+                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"
                          viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"
                          aria-hidden="true">
                         <line x1="5" y1="12" x2="19" y2="12"/>

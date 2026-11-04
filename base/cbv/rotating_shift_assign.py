@@ -26,7 +26,11 @@ from base.methods import (
 )
 from base.models import RotatingShiftAssign
 from employee.models import Employee
-from horilla_views.cbv_methods import hx_request_required, login_required
+from horilla_views.cbv_methods import (
+    EmployeeScopeMixin,
+    hx_request_required,
+    login_required,
+)
 from horilla_views.generic.cbv.views import (
     HorillaDetailedView,
     HorillaFormView,
@@ -312,10 +316,13 @@ class RotatingExportView(TemplateView):
 
 @method_decorator(login_required, name="dispatch")
 @method_decorator(manager_can_enter("base.add_rotatingshiftassign"), name="dispatch")
-class RotatingShiftFormView(HorillaFormView):
+class RotatingShiftFormView(EmployeeScopeMixin, HorillaFormView):
     """
     Create and edit form
     """
+
+    scope_perm = "base.add_rotatingshiftassign"
+    scope_include_self = False
 
     model = RotatingShiftAssign
     form_class = RotatingShiftAssignForm

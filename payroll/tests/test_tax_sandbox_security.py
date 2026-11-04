@@ -61,6 +61,50 @@ class SandboxContainmentTests(SimpleTestCase):
         "object reflection": _fn("return object.__subclasses__()"),
         "breakpoint": _fn("breakpoint()\n    return 0"),
         "dunder inside a string literal": _fn('s = "__subclasses__"\n    return 0'),
+        # GHSA-j58f-hghh-3mxj: none of these attribute names start with "__",
+        # so the old blocklist never looked at them. A generator's frame links
+        # back to the caller's frame, whose builtins are the real ones.
+        "generator frame walk (reported PoC shape)": (
+            "def calculate_federal_tax(y):\n"
+            "    box = []\n"
+            "    def probe():\n"
+            "        box.append(g.gi_frame.f_back)\n"
+            "        yield 0\n"
+            "    g = probe()\n"
+            "    list(g)\n"
+            "    fr = box[0]\n"
+            "    while fr is not None:\n"
+            "        b = fr.f_builtins\n"
+            "        fr = fr.f_back\n"
+            "    return 0\n"
+        ),
+        "generator expression frame": _fn(
+            "g = (i for i in [1])\n    return g.gi_frame.f_back"
+        ),
+        "frame attribute of a generator, no yield statement": _fn(
+            "g = (i for i in [1])\n    return g.gi_frame.f_builtins"
+        ),
+        "coroutine style frame attribute": _fn("return y.cr_frame"),
+        "traceback frame attribute": _fn(
+            "try:\n        return 1 / 0\n    except Exception as e:\n"
+            "        return e.tb_frame"
+        ),
+        "any attribute outside the allow-list": _fn("return y.real"),
+        "str method outside the allow-list": _fn('return "abc".upper()'),
+        "module-style attribute call": _fn("return y.popen('id')"),
+        "assigning to an attribute": _fn("y.anything = 1\n    return 0"),
+        "yield statement": "def calculate_federal_tax(y):\n    yield 1\n",
+        "yield from": "def calculate_federal_tax(y):\n    yield from [1]\n",
+        "class definition": "class A:\n    pass\n" + _fn("return 0"),
+        "with statement": _fn("with y:\n        pass\n    return 0"),
+        "decorated function": (
+            "def deco(f):\n    return f\n"
+            "@deco\ndef calculate_federal_tax(y):\n    return 0\n"
+        ),
+        "dunder function name": "def __x__(y):\n    return 0\n" + _fn("return 0"),
+        "dunder argument name": "def calculate_federal_tax(__y):\n    return 0\n",
+        "lambda with dunder attribute": _fn("return (lambda: y.__class__)()"),
+        "await": "def calculate_federal_tax(y):\n    return await y\n",
     }
 
     def test_every_escape_attempt_is_blocked(self):
@@ -179,3 +223,27 @@ class SandboxUsabilityTests(SimpleTestCase):
     def test_ordinary_arithmetic_and_helpers_are_allowed(self):
         code = _fn("return round(min(max(y * 0.1, 100), 50000), 2)")
         self.assertEqual(run_tax_formula(code, 100000), 10000.0)
+
+    def test_container_methods_on_the_allow_list_work(self):
+        code = (
+            "def calculate_federal_tax(y):\n"
+            "    bands = []\n"
+            "    bands.append(0.1)\n"
+            "    bands.extend([0.2])\n"
+            "    rates = {'low': 0.1}\n"
+            "    rates.update({'high': 0.3})\n"
+            "    return y * rates.get('high', 0) + sum(bands)\n"
+        )
+        self.assertAlmostEqual(run_tax_formula(code, 1000), 300.3)
+
+    def test_comprehensions_loops_and_branching_work(self):
+        code = (
+            "def calculate_federal_tax(y):\n"
+            "    slabs = [(0, 100, 0.0), (100, 1000, 0.1)]\n"
+            "    tax = 0\n"
+            "    for lo, hi, rate in slabs:\n"
+            "        if y > lo:\n"
+            "            tax += (min(y, hi) - lo) * rate\n"
+            "    return sum([t for t in [tax]])\n"
+        )
+        self.assertEqual(run_tax_formula(code, 600), 50.0)

@@ -221,13 +221,6 @@ def login_required(view_func):
     @wraps(view_func)
     def wrapped_view(request, *args, **kwargs):
         path = request.path
-        res = path.split("/", 2)[1].capitalize().replace("-", " ").upper()
-        if res == "PMS":
-            res = "Performance"
-        request.session["title"] = res
-        if path == "" or path == "/":
-            request.session["title"] = "Dashboard".upper()
-
         login_url = reverse("login")
         try:
             query_string = urlencode(request.GET)
@@ -248,6 +241,14 @@ def login_required(view_func):
             if request.headers.get("HX-Request"):
                 return HttpResponse(status=204, headers={"HX-Refresh": "true"})
             return redirect(redirect_url)
+        # Only after the login check: writing the session for a logged-out
+        # visitor would create a session row on every redirect to the login.
+        res = path.split("/", 2)[1].capitalize().replace("-", " ").upper()
+        if res == "PMS":
+            res = "Performance"
+        request.session["title"] = res
+        if path == "" or path == "/":
+            request.session["title"] = "Dashboard".upper()
         try:
             func = view_func(request, *args, **kwargs)
         except KeyError:

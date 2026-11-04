@@ -1,6 +1,7 @@
 {% load i18n %}
 <input type="hidden" id="cal-resolve-date" value="{{ date|date:'Y-m-d' }}">
 
+{% include "attendance/monthly_summary/_crp_dd_styles.html" %}
 <style>
 .crp-shell { display: flex; flex-direction: column; max-height: min(660px, calc(100vh - 24px)); }
 .crp-head { flex: 0 0 auto; background: #fff; border-bottom: 1px solid #f1f5f9; }
@@ -10,46 +11,10 @@
   color: #9ca3af; margin: 10px 0 5px;
 }
 .crp-group:first-of-type { margin-top: 0; }
-.crp-pick { display: flex; align-items: center; gap: 8px; }
-.crp-choice-wrap { position: relative; flex: 1 1 auto; min-width: 0; }
-/* The status pickers: the native list cannot carry a colour, so each select is
-   replaced by a button and a list whose rows show the status colour. */
-.crp-dd { position: relative; width: 100%; }
-.crp-dd-src { display: none !important; }
-.crp-dd-btn {
-  display: flex; align-items: center; gap: 10px; width: 100%; height: 38px; padding: 0 34px 0 12px;
-  border: 1.5px solid #e5e7eb; border-radius: 10px; background-color: #fff; color: #1f2937;
-  font-size: .84rem; font-weight: 600; cursor: pointer; text-align: left;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%236b7280' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 12px center;
-  transition: border-color .12s, box-shadow .12s;
-}
-.crp-dd-btn:hover { border-color: #cbd5e1; }
-.crp-dd.open .crp-dd-btn, .crp-dd-btn:focus { outline: none; border-color: #e54f38; box-shadow: 0 0 0 3px rgba(229,79,56,.15); }
-.crp-split .crp-dd-btn { height: 34px; font-size: .78rem; padding-left: 10px; }
-.crp-dd-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.crp-dd-dot { flex: 0 0 auto; width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(0,0,0,.12); background: #e5e7eb; }
-.crp-dd-list {
-  display: none; overflow-y: auto; padding: 4px; background: #fff;
-  border: 1.5px solid #e5e7eb; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.14);
-}
-/* Open: moved to <body> and positioned by script, above the popover. */
-.crp-dd-list.is-open { display: block; }
-.crp-dd-group { padding: 6px 8px 2px; font-size: .62rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #9ca3af; }
-.crp-dd-item { display: flex; align-items: center; gap: 9px; padding: 7px 8px; border-radius: 7px; font-size: .82rem; font-weight: 600; color: #1f2937; cursor: pointer; }
-.crp-dd-item:hover { background: #f3f4f6; }
-.crp-dd-item.sel { background: #fef2f0; }
-.crp-dd-item.dis { opacity: .4; cursor: not-allowed; }
 .crp-ctx { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f8fafc; }
 .crp-ctx-name { font-size: .76rem; font-weight: 600; color: #374151; }
 /* One colour for every conflict line: the title, the note under the leave, the half-day explanation. */
 .crp-ctx-note { flex-basis: 100%; margin: 0; font-size: .74rem; font-weight: 600; line-height: 1.4; color: #92400e; }
-/* Quiet scrollbars for the popover and its pickers. */
-.crp-scroll, .crp-dd-list { scrollbar-width: thin; scrollbar-color: #d1d5db transparent; }
-.crp-scroll::-webkit-scrollbar, .crp-dd-list::-webkit-scrollbar { width: 6px; }
-.crp-scroll::-webkit-scrollbar-track, .crp-dd-list::-webkit-scrollbar-track { background: transparent; }
-.crp-scroll::-webkit-scrollbar-thumb, .crp-dd-list::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 999px; }
-.crp-scroll::-webkit-scrollbar-thumb:hover, .crp-dd-list::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
 .crp-hours-row { display: flex; align-items: center; gap: 10px; }
 .crp-shiftrow { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 8px; margin-top: 10px; }
 .crp-shiftrow label { display: flex; flex-direction: column; gap: 3px; font-size: .62rem; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #9ca3af; }
@@ -93,14 +58,6 @@
 .crp-hours-unit { font-size: .68rem; color: #9ca3af; }
 .crp-hours-error { margin-top: 6px; font-size: .72rem; font-weight: 600; color: #dc2626; }
 .crp-hours-note { margin-top: 6px; font-size: .7rem; color: #6b7280; }
-.crp-foot { flex: 0 0 auto; display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding: 10px 16px; background: #fff; border-top: 1px solid #f1f5f9; }
-.crp-apply {
-  flex: 0 0 auto; height: 38px; padding: 0 20px; border: 0; border-radius: 10px; cursor: pointer;
-  background: #e54f38; color: #fff; font-size: .82rem; font-weight: 700; white-space: nowrap;
-}
-.crp-apply:hover:not([disabled]) { background: #ce4732; }
-.crp-apply[disabled] { opacity: .4; cursor: not-allowed; }
-.crp-foot-note { margin-right: auto; font-size: .72rem; color: #9ca3af; }
 .crp-mark-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .crp-mark-btn {
   display: flex; flex-direction: row; align-items: center; justify-content: flex-start;
@@ -121,14 +78,6 @@
 .crp-mark-grid > .crp-mark-btn:only-child { grid-column: 1 / -1; }
 
 /* Split the day: each half is its own status. */
-.crp-split { display: grid; grid-template-columns: minmax(0, 1fr) 16px minmax(0, 1fr); gap: 6px; align-items: end; }
-.crp-split label { display: flex; flex-direction: column; gap: 3px; font-size: .64rem; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #9ca3af; }
-.crp-split select {
-  height: 34px; border: 1.5px solid #e5e7eb; border-radius: 8px; background: #fff; color: #1f2937;
-  font-size: .78rem; font-weight: 600; padding: 0 8px; width: 100%;
-}
-.crp-split-plus { text-align: center; font-weight: 700; color: #9ca3af; padding-bottom: 8px; }
-.crp-split-bar { grid-column: 1 / -1; height: 8px; border-radius: 999px; border: 1px solid #e5e7eb; }
 .crp-split-go {
   grid-column: 1 / -1; height: 34px; border-radius: 8px; border: 0; cursor: pointer;
   background: var(--primary-600, #e54f38); color: #fff; font-size: .8rem; font-weight: 700;
@@ -209,7 +158,10 @@
   <div class="crp-head"
        style="padding:11px 16px;display:flex;align-items:center;justify-content:space-between;">
     <div style="display:flex;align-items:center;gap:8px;">
-      {% if conflict_type == "paid_leave" or conflict_type == "unpaid_leave" %}
+      {% if existing_resolution and conflict_type == "paid_leave" or existing_resolution and conflict_type == "unpaid_leave" %}
+        <ion-icon name="checkmark-circle-outline" style="color:#10b981;font-size:1.1rem;flex-shrink:0;"></ion-icon>
+        <span style="font-weight:700;font-size:.88rem;color:#065f46;">{% trans "Overridden" %} — {{ date|date:"d M Y" }}</span>
+      {% elif conflict_type == "paid_leave" or conflict_type == "unpaid_leave" %}
         <ion-icon name="warning-outline" style="color:#e85d04;font-size:1.1rem;flex-shrink:0;"></ion-icon>
         <span style="font-weight:700;font-size:.88rem;color:#92400e;">
           {% trans "Conflict" %} — {{ date|date:"d M Y" }}
@@ -250,6 +202,7 @@
   <!-- ── What else is on the day: the leave, holiday or week off it overlaps ─── -->
   {% if conflict_type %}
   <div class="crp-ctx">
+{% if existing_resolution and conflict_type == "paid_leave" or existing_resolution and conflict_type == "unpaid_leave" %}{# Settled: the leave is no longer shown, only that it was settled. #}{% else %}
     {% if conflict_type == "paid_leave" %}
       <span class="crp-pill" style="background:#dbeafe;color:#1e40af;">{% trans "Paid Leave" %}</span>
     {% elif conflict_type == "unpaid_leave" %}
@@ -260,7 +213,11 @@
       <span class="crp-pill" style="background:#ede9fe;color:#4c1d95;">{% trans "Week Off" %}</span>
     {% endif %}
     {% if conflict_label %}<span class="crp-ctx-name">{{ conflict_label }}</span>{% endif %}
-    {% if clash_reason %}
+    {% endif %}
+    {% if existing_resolution and conflict_type == "paid_leave" or existing_resolution and conflict_type == "unpaid_leave" %}
+      {# Already settled by a regularization: say so instead of repeating the clash. #}
+      <span class="crp-ctx-note" style="color:#047857;"><ion-icon name="checkmark-circle-outline" style="vertical-align:-2px;"></ion-icon> {% trans "Settled By Regularization" %}</span>
+    {% elif clash_reason %}
       <div class="crp-clash" style="flex-basis:100%;margin-top:6px;font-size:.78rem;line-height:1.45;color:#92400e;">
         <div><b>{{ clash_label }}</b></div>
         <div>{% trans "Shift" %}: <b>{{ clash_shift }}</b></div>

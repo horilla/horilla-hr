@@ -25,6 +25,9 @@ services:
       SECURE_SSL_REDIRECT: ${SECURE_SSL_REDIRECT:-0}
       GUNICORN_WORKERS: ${GUNICORN_WORKERS:-}
       GUNICORN_LOG_LEVEL: ${GUNICORN_LOG_LEVEL:-info}
+      # The client IP for login lockouts and the office-IP restriction comes
+      # from X-Forwarded-For only on connections from these proxies.
+      HORILLA_TRUSTED_PROXIES: ${HORILLA_TRUSTED_PROXIES:-nginx}
     volumes: !override
       - staticfiles:/app/staticfiles
       - media:/app/media

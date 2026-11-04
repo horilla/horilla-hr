@@ -9,6 +9,7 @@ import contextlib
 import operator
 
 from django.apps import apps
+from django.db.models import Q
 
 # from attendance.models import Attendance
 from horilla.methods import get_horilla_model_class
@@ -18,6 +19,7 @@ from payroll.methods.component_engine import (
     accumulate,
     component_applies_to,
     eligible_allowances,
+    group_targeted,
     new_context,
     own_structure_only,
     record,
@@ -450,12 +452,18 @@ def calculate_allowance(**kwargs):
     # produced and payslip templates render. Existing rows keep it through the
     # sequence backfill (taxable 100, non-taxable 200); new ones order by their
     # own sequence within each group.
+    notes = context.get("_allowance_notes") or {}
+    day_rows = context.get("_allowance_days") or {}
     serialized_allowances = [
         {
             "allowance_id": allowance.id,
             "title": allowance.title,
             "is_taxable": allowance.is_taxable,
             "amount": amount,
+            # Why an amount is what it is, when the engine had something to say.
+            **({"note": notes[allowance.id]} if allowance.id in notes else {}),
+            # Overtime, day by day: what the amount was made of.
+            **({"days": day_rows[allowance.id]} if day_rows.get(allowance.id) else {}),
             # Paid on top of a CTC Down package rather than out of it; absent otherwise.
             **(
                 {"outside_ctc": True} if outside and context.get(GROSS_IS_FIXED) else {}
@@ -500,6 +508,9 @@ def calculate_tax_deduction(*_args, **kwargs):
     deductions = (
         specific_deductions
         | active_employee_deduction
+        | group_targeted(employee, models.Deduction).filter(
+            is_pretax=False, is_tax=True
+        )
         | structure_components(models.Deduction, employee).filter(
             is_pretax=False, is_tax=True
         )
@@ -595,6 +606,9 @@ def calculate_pre_tax_deduction(*_args, **kwargs):
         specific_deductions
         | conditional_deduction
         | active_employee_deduction
+        | group_targeted(employee, models.Deduction).filter(
+            is_pretax=True, is_tax=False
+        )
         | structure_components(models.Deduction, employee).filter(
             is_pretax=True, is_tax=False
         )
@@ -699,6 +713,9 @@ def calculate_post_tax_deduction(*_args, **kwargs):
         specific_deductions
         | conditional_deduction
         | active_employee_deduction
+        | group_targeted(employee, models.Deduction).filter(
+            is_pretax=False, is_tax=False
+        )
         | structure_components(models.Deduction, employee).filter(
             is_pretax=False, is_tax=False
         )
@@ -1069,6 +1086,35 @@ def calculate_based_on_net_pay(component, net_pay, day_dict):
     return amount
 
 
+def _attendance_units(employee, start_date, end_date, component, **filters):
+    """
+    Attendances paid for: one each, or a half for a half day when the component
+    prorates. Half days are the ones HR resolved as half present or a split day.
+    """
+    Attendance = get_horilla_model_class(app_label="attendance", model="attendance")
+    rows = list(
+        Attendance.objects.filter(
+            employee_id=employee,
+            attendance_date__range=(start_date, end_date),
+            attendance_validated=True,
+            **filters,
+        ).values_list("attendance_date", flat=True)
+    )
+    if not getattr(component, "prorate_partial_days", False):
+        return len(rows)
+    from attendance.models import AttendanceConflictResolution
+
+    half_dates = set(
+        AttendanceConflictResolution.objects.filter(
+            Q(resolution__in=("half_present", "half_absent"))
+            | Q(resolution__startswith="split:"),
+            employee_id=employee,
+            date__range=(start_date, end_date),
+        ).values_list("date", flat=True)
+    )
+    return sum(0.5 if day in half_dates else 1 for day in rows)
+
+
 def calculate_based_on_attendance(*_args, **kwargs):
     """
     Calculates the amount of an allowance or deduction based on the attendance of an employee.
@@ -1094,11 +1140,7 @@ def calculate_based_on_attendance(*_args, **kwargs):
     component = kwargs["component"]
     day_dict = kwargs["day_dict"]
 
-    count = Attendance.objects.filter(
-        employee_id=employee,
-        attendance_date__range=(start_date, end_date),
-        attendance_validated=True,
-    ).count()
+    count = _attendance_units(employee, start_date, end_date, component)
     amount = count * component.per_attendance_fixed_amount
     amount = compute_limit(component, amount, day_dict)
     return amount
@@ -1129,19 +1171,16 @@ def calculate_based_on_shift(*_args, **kwargs):
     day_dict = kwargs["day_dict"]
 
     shift_id = component.shift_id.id
-    count = Attendance.objects.filter(
-        employee_id=employee,
-        shift_id=shift_id,
-        attendance_date__range=(start_date, end_date),
-        attendance_validated=True,
-    ).count()
+    count = _attendance_units(
+        employee, start_date, end_date, component, shift_id=shift_id
+    )
     amount = count * component.shift_per_attendance_amount
 
     amount = compute_limit(component, amount, day_dict)
     return amount
 
 
-def _classify_approved_overtime_seconds(employee, start_date, end_date):
+def _approved_overtime_by_day(employee, start_date, end_date):
     """
     Splits APPROVED (or regularized) overtime attendance in the period into three mutually
     exclusive buckets, so "Regular Overtime", "Week Off Overtime", and
@@ -1157,7 +1196,7 @@ def _classify_approved_overtime_seconds(employee, start_date, end_date):
     the monthly attendance summary displays for that day.
     """
     if not apps.is_installed("attendance"):
-        return 0, 0, 0
+        return {}, {}, {}
 
     from attendance.methods.utils import real_overtime_seconds
     from attendance.models import AttendanceConflictResolution
@@ -1188,20 +1227,135 @@ def _classify_approved_overtime_seconds(employee, start_date, end_date):
         Q(attendance_overtime_approve=True)
         | Q(attendance_date__in=regularized_dates)
     )
-    regular_ot = week_off_ot = holiday_ot = 0
+    regular_days, week_off_days, holiday_days = {}, {}, {}
     for attendance in attendances:
         att_date = attendance.attendance_date
         if att_date in working_day_dates or att_date in regularized_dates:
-            regular_ot += real_overtime_seconds(
+            seconds = real_overtime_seconds(
                 attendance.at_work_second,
                 attendance.minimum_hour,
                 attendance.overtime_second,
             )
+            bucket = regular_days
         elif att_date in holiday_dates:
-            holiday_ot += attendance.at_work_second or 0
+            seconds = attendance.at_work_second or 0
+            bucket = holiday_days
         else:
-            week_off_ot += attendance.at_work_second or 0
-    return regular_ot, week_off_ot, holiday_ot
+            seconds = attendance.at_work_second or 0
+            bucket = week_off_days
+        bucket[att_date] = bucket.get(att_date, 0) + seconds
+    return regular_days, week_off_days, holiday_days
+
+
+def _classify_approved_overtime_seconds(employee, start_date, end_date):
+    """The same three buckets as _approved_overtime_by_day, as totals of seconds."""
+    return tuple(
+        sum(days.values())
+        for days in _approved_overtime_by_day(employee, start_date, end_date)
+    )
+
+
+def _contract_hourly_rate(employee):
+    """The contract's pay for one regular hour, or 0 when it states none."""
+    contract = (
+        forced_contract(employee)
+        or Contract.objects.filter(
+            employee_id=employee, contract_status="active"
+        ).first()
+    )
+    return float(getattr(contract, "hourly_wage", 0) or 0)
+
+
+def slab_hours_breakdown(hours, slabs, rate):
+    """[(hours in the band, multiplier, pay)] for one day's overtime, each hour paid at its band."""
+    parts = []
+    for slab in slabs:
+        top = hours if slab.to_hours is None else min(hours, slab.to_hours)
+        span = max(0.0, top - slab.from_hours)
+        if span:
+            parts.append((span, slab.multiplier, span * rate * slab.multiplier))
+    return parts
+
+
+def slab_hours_pay(hours, slabs, rate):
+    """Pay for one day's overtime hours, each hour paid at the band it falls in."""
+    return sum(
+        pay for _span, _multiplier, pay in slab_hours_breakdown(hours, slabs, rate)
+    )
+
+
+def _note(kwargs, component, text):
+    """Leaves a plain-words reason beside a component's amount for the payslip."""
+    context = kwargs.get("component_context")
+    if isinstance(context, dict):
+        # Underscore keys are dropped when the context is stored on the payslip,
+        # so this carries a sentence without ever being read as an amount.
+        context.setdefault("_allowance_notes", {})[component.pk] = text
+
+
+def _record_days(kwargs, component, rows):
+    """Keeps the day-by-day working for the payslip line, which saves it beside the amount."""
+    context = kwargs.get("component_context")
+    if isinstance(context, dict):
+        context.setdefault("_allowance_days", {})[component.pk] = rows
+
+
+def _day_key(day):
+    return day.isoformat() if hasattr(day, "isoformat") else str(day)
+
+
+def _overtime_amount(kwargs, days):
+    """Amount of an overtime allowance from {date: seconds}, flat or by slab."""
+    component = kwargs["component"]
+    day_dict = kwargs["day_dict"]
+    if component.overtime_calc != "slab":
+        rate = float(component.amount_per_one_hr or 0)
+        _record_days(
+            kwargs,
+            component,
+            [
+                {
+                    "date": _day_key(day),
+                    "seconds": seconds,
+                    "rate": rate,
+                    "amount": round(seconds / 3600 * rate, 2),
+                }
+                for day, seconds in sorted(
+                    days.items(), key=lambda item: _day_key(item[0])
+                )
+                if seconds
+            ],
+        )
+        return _amount_from_seconds(sum(days.values()), component, day_dict)
+    rate = _contract_hourly_rate(kwargs["employee"])
+    if not rate:
+        _note(
+            kwargs,
+            component,
+            "Overtime slabs pay a multiple of the regular hourly wage, and this "
+            "employee's contract has no hourly wage stated, so nothing is paid.",
+        )
+        return 0
+    slabs = list(component.slabs.all())
+    rows = []
+    for day, seconds in sorted(days.items(), key=lambda item: _day_key(item[0])):
+        if not seconds:
+            continue
+        parts = slab_hours_breakdown(seconds / 3600, slabs, rate)
+        rows.append(
+            {
+                "date": _day_key(day),
+                "seconds": seconds,
+                "rate": rate,
+                "bands": [
+                    [round(span, 4), multiplier] for span, multiplier, _pay in parts
+                ],
+                "amount": round(sum(pay for _span, _multiplier, pay in parts), 2),
+            }
+        )
+    _record_days(kwargs, component, rows)
+    amount = round(sum(row["amount"] for row in rows), 2)
+    return compute_limit(component, amount, day_dict)
 
 
 def _amount_from_seconds(seconds, component, day_dict):
@@ -1237,10 +1391,8 @@ def calculate_based_on_overtime(*_args, **kwargs):
     component = kwargs["component"]
     day_dict = kwargs["day_dict"]
 
-    regular_ot, _week_off_ot, _holiday_ot = _classify_approved_overtime_seconds(
-        employee, start_date, end_date
-    )
-    return _amount_from_seconds(regular_ot, component, day_dict)
+    days = _approved_overtime_by_day(employee, start_date, end_date)[0]
+    return _overtime_amount(kwargs, days)
 
 
 def calculate_based_on_week_off_overtime(*_args, **kwargs):
@@ -1258,10 +1410,8 @@ def calculate_based_on_week_off_overtime(*_args, **kwargs):
     component = kwargs["component"]
     day_dict = kwargs["day_dict"]
 
-    _regular_ot, week_off_ot, _holiday_ot = _classify_approved_overtime_seconds(
-        employee, start_date, end_date
-    )
-    return _amount_from_seconds(week_off_ot, component, day_dict)
+    days = _approved_overtime_by_day(employee, start_date, end_date)[1]
+    return _overtime_amount(kwargs, days)
 
 
 def calculate_based_on_holiday_overtime(*_args, **kwargs):
@@ -1279,10 +1429,8 @@ def calculate_based_on_holiday_overtime(*_args, **kwargs):
     component = kwargs["component"]
     day_dict = kwargs["day_dict"]
 
-    _regular_ot, _week_off_ot, holiday_ot = _classify_approved_overtime_seconds(
-        employee, start_date, end_date
-    )
-    return _amount_from_seconds(holiday_ot, component, day_dict)
+    days = _approved_overtime_by_day(employee, start_date, end_date)[2]
+    return _overtime_amount(kwargs, days)
 
 
 def calculate_based_on_work_type(*_args, **kwargs):
@@ -1312,12 +1460,9 @@ def calculate_based_on_work_type(*_args, **kwargs):
     day_dict = kwargs["day_dict"]
 
     work_type_id = component.work_type_id.id
-    count = Attendance.objects.filter(
-        employee_id=employee,
-        work_type_id=work_type_id,
-        attendance_date__range=(start_date, end_date),
-        attendance_validated=True,
-    ).count()
+    count = _attendance_units(
+        employee, start_date, end_date, component, work_type_id=work_type_id
+    )
     amount = count * component.work_type_per_attendance_amount
 
     amount = compute_limit(component, amount, day_dict)

@@ -228,6 +228,25 @@ and to_date.
     panel.style.top  = top + 'px';
   }
 
+  // The popover is placed once, at the height it has when it opens. Opening the History
+  // accordion makes it taller, which pushed its bottom off the screen with the scrolling part
+  // out of reach. Re-fit it whenever History is toggled: slide it up just enough to stay in
+  // view, and bring the opened list into sight. "toggle" does not bubble, hence capture.
+  document.addEventListener('toggle', function (e) {
+    var details = e.target;
+    if (!details || !details.matches || !details.matches('.crp-hist')) return;
+    var panel = document.getElementById('cal-resolve-panel');
+    if (!panel || panel.style.display === 'none') return;
+    var rect = panel.getBoundingClientRect();
+    var overflow = rect.bottom - (window.innerHeight - 8);
+    if (overflow > 0) {
+      panel.style.top = Math.max(8, rect.top - overflow) + 'px';
+    }
+    if (details.open && details.scrollIntoView) {
+      details.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, true);
+
   // Closes the popover (single-day or bulk) and, if a multi-selection is
   // active, clears it too — used by every close path (outside click, scroll,
   // the panel's own ✕/Cancel buttons) so none of them can leave the calendar
@@ -396,9 +415,83 @@ and to_date.
       .then(function (html) {
         panel.innerHTML = html;
         if (typeof htmx !== 'undefined') { htmx.process(panel); }
+        if (window.msCalEnhanceSelects) { window.msCalEnhanceSelects(); }
         _positionResolvePanel(panel, anchorCell);
       })
       .catch(function () { panel.innerHTML = '<p style="padding:12px;color:#dc3545;">Failed to load.</p>'; });
+  };
+
+  // The bulk popover's status choice: a split shows its two halves, as the single day does.
+  window.msCalBulkChoiceChange = function () {
+    var choice = document.getElementById('crpb-choice');
+    var box = document.getElementById('crp-split-box');
+    if (!choice) return;
+    if (box) { box.style.display = choice.value === 'split' ? '' : 'none'; }
+    if (window.msCalSplitPreview) { window.msCalSplitPreview(); }
+    if (window.msCalSyncSelects) { window.msCalSyncSelects(); }
+    if (window.msCalBulkUpdateSave) { window.msCalBulkUpdateSave(); }
+  };
+
+  // Save is on once a status is chosen, or once overtime has been approved: it is then what
+  // refreshes the calendar.
+  window.msCalBulkUpdateSave = function () {
+    var choice = document.getElementById('crpb-choice');
+    var save = document.getElementById('crpb-save');
+    if (!save) return;
+    save.disabled = !(choice && choice.value) && save.dataset.approved !== '1';
+  };
+
+  // Approving overtime does not redraw the calendar: it is sent quietly, the button is turned
+  // off, and the calendar is refreshed by Save (or when the calendar is closed).
+  window.msCalBulkApproveOt = function (btn) {
+    var ctx = _getCalData();
+    if (!ctx || !ctx.bulkResolveUrl || !msCalSelection.size || btn.disabled) return;
+    var label = btn.querySelector('span');
+    var csrf = document.cookie.replace(/(?:(?:^|.*;\s*)csrftoken\s*=\s*([^;]*).*$)|^.*$/, '$1');
+    btn.disabled = true;
+    label.textContent = btn.dataset.approving;
+    var body = new URLSearchParams();
+    body.set('employee_id', ctx.empId);
+    body.set('from_date', ctx.fromDate);
+    body.set('to_date', ctx.toDate);
+    body.set('resolution', 'approve_ot');
+    body.set('quiet', '1');
+    msCalSelection.forEach(function (d) { body.append('dates', d); });
+    fetch(ctx.bulkResolveUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'HX-Request': 'true',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRFToken': csrf,
+      },
+      body: body.toString(),
+    }).then(function (r) { if (!r.ok) throw new Error('failed'); return r.json(); })
+      .then(function () {
+        label.textContent = btn.dataset.done;
+        calChanged = true;
+        var save = document.getElementById('crpb-save');
+        if (save) { save.dataset.approved = '1'; window.msCalBulkUpdateSave(); }
+      })
+      .catch(function () {
+        btn.disabled = false;
+        label.textContent = 'Approve Overtime';
+      });
+  };
+
+  window.msCalBulkSave = function () {
+    var choice = document.getElementById('crpb-choice');
+    if (!choice) return;
+    // Nothing chosen: overtime was approved, so this only refreshes the calendar.
+    if (!choice.value) { window.msCalBulkResolvePost(''); return; }
+    if (choice.value === 'split') {
+      var a = document.getElementById('crp-split-a');
+      var b = document.getElementById('crp-split-b');
+      if (!a || !b) return;
+      window.msCalBulkResolvePost('split:' + a.value + '+' + b.value);
+    } else {
+      window.msCalBulkResolvePost(choice.value);
+    }
   };
 
   window.msCalBulkResolvePost = function (resolution) {

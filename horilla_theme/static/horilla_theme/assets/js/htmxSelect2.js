@@ -4013,13 +4013,7 @@ $(document).ready(function () {
 });
 
 
-// Reliable, delegated modal opener.
-// The only other place that opens `oh-modal-toggle` modals is inside an
-// `htmx:afterSettle` handler (further down this file), which is fragile:
-// it re-binds per-swap, only reaches elements whose swap target has an id,
-// and is skipped entirely if an earlier afterSettle handler throws. A single
-// document-level delegated handler guarantees the modal opens for any current
-// or htmx-loaded toggle (e.g. the document-request pipeline edit action).
+// Delegated opener for oh-modal-toggle elements, including htmx-loaded ones.
 $(document).on("click", "[data-toggle='oh-modal-toggle']", function () {
     var modalId = $(this).attr("data-target");
     if (modalId) {
@@ -4028,32 +4022,12 @@ $(document).on("click", "[data-toggle='oh-modal-toggle']", function () {
 });
 
 
-// Bound to afterSwap as well as afterSettle: afterSettle fires ~20ms after
-// the swapped content is already in the DOM (htmx's settleDelay, there so
-// CSS transition classes can apply), and a browser paints in that gap --
-// plain, unstyled <select> elements were visible for a frame before this
-// handler replaced them with their select2 widget, a visible "pop". afterSwap
-// fires synchronously, before the browser has a chance to paint the new
-// content at all, so reinitializing there as well means select2 is already
-// in place by the first paint. Harmless to run twice per swap (afterSettle
-// still fires right after): the destroy-before-reinit below makes this
-// idempotent.
+// Runs on afterSwap as well as afterSettle so selects are styled before first paint.
 function reinitPlainSelects(event) {
     var target = $(event.target);
-    // .filter().add(.find()) rather than just .find(): a swap can target
-    // the <select> itself (hx-target="#some-select"), which .find() alone
-    // (descendants only) would miss, leaving it un-reinitialized.
+    // A swap can target the <select> itself, so check it as well as its descendants.
     target.filter(".oh-select").add(target.find(".oh-select")).each(function () {
-        // Each element wrapped in its own try/catch: multiple
-        // htmx:afterSettle handlers are registered on this same document
-        // (this one, the AJAX-select initializer further down, others
-        // elsewhere) -- they normally all run independently per event,
-        // but an exception thrown partway through THIS handler's own loop
-        // still aborts whatever's left of *this* handler (both the
-        // remaining .oh-select elements here, and this handler's own
-        // select2:select rebinding below). One already-initialized or
-        // mid-swap element failing here must not silently take the rest
-        // down with it.
+        // Per-element try/catch so one failing select doesn't stop the rest.
         try {
             var select = $(this);
             if (select.hasClass("select2-hidden-accessible") && select.data("select2")) {
@@ -4073,41 +4047,15 @@ $(document).on("htmx:afterSwap", reinitPlainSelects);
 $(document).on("htmx:afterSettle", reinitPlainSelects);
 
 
-// Generic AJAX-backed select (HorillaAjaxSelectWidget, horilla_widgets) --
-// unlike .oh-select above, these ship with only the currently selected
-// option (or none) pre-rendered, so search/pagination is delegated to
-// whatever endpoint the field's data-ajax-url points at instead of ever
-// rendering the full option list server-side. Kept generic: any app can
-// opt a ModelChoiceField into this by using HorillaAjaxSelectWidget --
-// no per-app JS wiring needed.
+// AJAX-backed select (HorillaAjaxSelectWidget): options are fetched from data-ajax-url.
 function initOhSelectAjax(scope) {
     var selects = scope.filter(".oh-select-ajax").add(scope.find(".oh-select-ajax"));
     selects.each(function () {
         var select = $(this);
-        // Unlike the plain .oh-select re-init above, never destroy an
-        // already-live instance here: htmx:afterSettle fires constantly
-        // for swaps that have nothing to do with this field (notification
-        // polling, online-status pings, ...), and destroy+recreate mid
-        // search wipes out the open dropdown and the user's in-progress
-        // query. A genuinely NEW .oh-select-ajax node from a real content
-        // swap never has this class yet, so it still gets initialized.
+        // Skip live instances; re-creating one mid-search would close the open dropdown.
         if (select.hasClass("select2-hidden-accessible")) {
             return;
         }
-        // Same per-element isolation as the classic .oh-select handler
-        // above: one element failing to init must not take down the rest
-        // of this loop, or any afterSettle handler registered after this
-        // function's own registration point.
-        //
-        // console.error/warn here (not a silent catch): this init
-        // repeatedly appeared broken for a real user across several
-        // fields, in a way that never reproduced in any of our own
-        // testing -- turned out to be a stale browser-cached copy of
-        // this very file (WhiteNoise doesn't content-hash this URL, see
-        // footer_scripts.html's ?v= cache-busting query string), not an
-        // actual init failure. Left non-silent so any genuine future
-        // failure here is visible instead of requiring that same
-        // dead-end investigation again.
         var ajaxUrl = select.data("ajax-url");
         if (!ajaxUrl) {
             console.error(
@@ -4156,11 +4104,7 @@ function initOhSelectAjax(scope) {
 $(document).ready(function () {
     initOhSelectAjax($(document));
 });
-// Also on afterSwap, same reasoning as reinitPlainSelects above -- and
-// already safe to call twice per swap without the "wipes an in-progress
-// search" risk the comment above this function warns about: the
-// select2-hidden-accessible guard there means whichever of afterSwap/
-// afterSettle runs first initializes the field, and the other just skips it.
+// Also runs on afterSwap; the initialized-check above makes running both safe.
 $(document).on("htmx:afterSwap", function (event) {
     initOhSelectAjax($(event.target));
 });
@@ -4168,17 +4112,7 @@ $(document).on("htmx:afterSettle", function (event) {
     initOhSelectAjax($(event.target));
 });
 
-// Self-healing safety net: on some setups a field can be left un-styled
-// even though nothing threw and the element is present with the right
-// classes/attrs -- e.g. document.ready / afterSettle firing before some
-// other script finishes loading, a swap whose target boundary doesn't
-// actually contain the field, or any other timing gap we haven't pinned
-// down. Rather than rely on catching every possible trigger, periodically
-// re-sweep for any classic .oh-select or ajax .oh-select-ajax select that
-// is STILL not select2-hidden-accessible and try again -- both init
-// functions are idempotent (they skip elements that are already live), so
-// repeated calls are harmless. Runs for a short window after page load and
-// after every htmx settle, since a swap can be exactly when this happens.
+// Initializes any .oh-select / .oh-select-ajax still missing select2; safe to call repeatedly.
 function sweepUninitializedSelects(scope) {
     scope = scope || $(document);
     scope.filter(".oh-select").add(scope.find(".oh-select")).each(function () {
@@ -4194,25 +4128,7 @@ function sweepUninitializedSelects(scope) {
     });
     initOhSelectAjax(scope);
 }
-// Redesigned to not depend on htmx event *timing* at all. The nav (and
-// its filter panel -- Company, Reporting Manager, everything in it) is
-// itself fetched asynchronously (view_employees.html: the nav container
-// is `hx-get`, `hx-trigger="load"`, a real network round trip), not
-// present in the document at $(document).ready() time. Chasing "which
-// event fires when, in what order, relative to which other handler" to
-// catch that arrival (and any later one) turned out to be exactly the
-// kind of thing that can differ by environment/timing in ways neither
-// consistently reproducible nor exhaustively enumerable -- afterSettle
-// ordering, afterSwap vs afterSettle, request latency, etc.
-//
-// A MutationObserver sidesteps all of that: instead of inferring "a new
-// select probably just arrived" from some framework event, it watches
-// the DOM directly and reacts to the actual condition we care about --
-// nodes appearing anywhere in <body> -- regardless of what put them
-// there (htmx swap, plain JS, anything). Debounced, since it can fire
-// often on a busy page; the sweep itself is cheap (a class check per
-// .oh-select/.oh-select-ajax element) and idempotent, so redundant runs
-// are harmless.
+// A debounced MutationObserver triggers the sweep whenever nodes are added, whatever added them.
 var _selectSweepDebounce = null;
 function scheduleSelectSweep() {
     if (_selectSweepDebounce) {
@@ -4271,11 +4187,7 @@ async function loadFromLocalStorage() {
 }
 
 $(document).on("htmx:afterSwap", async function (evt) {
-    // Every swap re-downloads and re-runs the per-app actions.js scripts below,
-    // which re-binds the shift / work type / attendance page handlers. The
-    // Document Requests groups (each one a large list swapped in on demand)
-    // have none of those elements, so skip it there: it was the biggest single
-    // cost of opening a group.
+    // Skip Document Requests groups; they have none of the elements the per-app scripts bind.
     if (evt.target && evt.target.id && evt.target.id.indexOf("docRequest") === 0) {
         return;
     }
@@ -4344,11 +4256,6 @@ $(document).on("htmx:afterSettle", function (e) {
     if (targetId == "") {
         targetId = "someDemoId"
     }
-    // $(`#${targetId} .oh-accordion-header`).on("click", function (e) {
-    //     e.preventDefault();
-    //     $(this).parent().toggleClass("oh-accordion--show");
-    // });
-
     $(`#${targetId} .oh-table__toggle-parent`).on("click", function () {
         $(this)
             .parent()
@@ -4356,20 +4263,12 @@ $(document).on("htmx:afterSettle", function (e) {
             .toggleClass("oh-table__toggle-child--show");
     });
 
-    //   $(`#${targetId} .oh-accordion-meta__header`).on("click", function () {
-    //     $(this).toggleClass("oh-accordion-meta__header--show");
-    //     $(this).next().toggleClass("d-none");
-    //   });
-
     $(`#${targetId} .oh-permission-table--toggle`).on("click", function (e) {
         e.stopPropagation();
         let clickedEl = $(e.target).closest(".oh-permission-table--toggle");
         let parentRow = clickedEl.closest(".oh-permission-table__tr");
-        // let collapsedPanel = parentRow.find(".oh-collapse-panel");
         let count = parentRow.data("count");
         let labelText = parentRow.data("label");
-        // Count number of permissions.
-        // let permissionCount = collapsedPanel.length;
         let cellEl = parentRow
             .find(".oh-collapse-panel")
             .closest(".oh-sticky-table__td");
@@ -4400,11 +4299,7 @@ $(document).on("htmx:afterSettle", function (e) {
     $(`#${targetId} .oh-modal__close, .oh-modal__cancel`).on(
         "click",
         function () {
-            // Close only the nearest shown modal, not every shown modal on
-            // the page - a blanket $(".oh-modal--show") here closed a
-            // modal opened from WITHIN another still-open modal (e.g. the
-            // "Cancel Request" form opened from the leave request Details
-            // modal) along with its parent, instead of just itself.
+            // Close only the nearest shown modal, so a parent modal stays open.
             $(this).closest(".oh-modal--show").removeClass("oh-modal--show");
         }
     );
@@ -4417,6 +4312,58 @@ $(document).on("htmx:afterSettle", function (e) {
     $(`#${targetId} .oh-activity-sidebar__open`).on("click", function () {
         $(".oh-modal--show").removeClass("oh-activity-sidebar__close");
     });
+
+    if (!window.ohActivitySidebarOutsideCloseBound) {
+        window.ohActivitySidebarOutsideCloseBound = true;
+        document.addEventListener(
+            "click",
+            function (e) {
+                let $openSidebars = $(".oh-activity-sidebar--show");
+                if (!$openSidebars.length) return;
+                let insideAllowed = $(e.target).closest(
+                    ".oh-activity-sidebar--show, .select2-container, .select2-dropdown, .flatpickr-calendar, .note-popover, .swal2-container"
+                );
+                if (insideAllowed.length) return;
+                $openSidebars.removeClass("oh-activity-sidebar--show");
+            },
+            true
+        );
+
+        new MutationObserver(function (mutations) {
+            mutations.forEach(function (m) {
+                let el = m.target;
+                if (!el.classList.contains("oh-activity-sidebar")) return;
+                let wasShown = (m.oldValue || "")
+                    .split(/\s+/)
+                    .includes("oh-activity-sidebar--show");
+                let isShown = el.classList.contains("oh-activity-sidebar--show");
+                if (isShown) {
+                    if (el.classList.contains("oh-activity-sidebar--closing")) {
+                        el.classList.remove("oh-activity-sidebar--closing");
+                    }
+                    return;
+                }
+                if (!wasShown || el.classList.contains("oh-activity-sidebar--closing")) {
+                    return;
+                }
+                el.classList.add("oh-activity-sidebar--closing");
+                let onEnd = function (ev) {
+                    if (ev.target === el) finish();
+                };
+                let finish = function () {
+                    el.removeEventListener("animationend", onEnd);
+                    el.classList.remove("oh-activity-sidebar--closing");
+                };
+                el.addEventListener("animationend", onEnd);
+                setTimeout(finish, 400);
+            });
+        }).observe(document.body, {
+            attributes: true,
+            attributeFilter: ["class"],
+            attributeOldValue: true,
+            subtree: true,
+        });
+    }
 
     $(`#${targetId} .oh-accordion-meta__header`).on("click", function () {
         target = $(this).attr("data-target");

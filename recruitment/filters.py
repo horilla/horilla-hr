@@ -328,6 +328,47 @@ class CandidateFilter(HorillaFilterSet):
         )
         return queryset.distinct()
 
+    def search_in(self, queryset, name, value):
+        """
+        Same "search in" dropdown as RecruitmentFilter.search_in, reused here
+        because the Pipeline's per-recruitment candidate columns (GetStages,
+        CandidateCard in recruitment/cbv/pipeline.py) are loaded with the
+        exact same querystring the top search box submitted -- the tab search
+        narrows which recruitment to show, and that same search/search_field
+        then arrives here to narrow which of its candidates show.
+
+        "candidate", "stage" and "recruitment_managers" are RecruitmentFilter
+        field names with no identically-named attribute on Candidate, so the
+        generic HorillaFilterSet.search_in (horilla/filters.py) would resolve
+        each to "" for every row via getattribute()'s not-found fallback,
+        silently matching nothing -- every stage column would render empty,
+        not just the ones without a match. "title"/"job_position_id"/
+        "company_id" are left to the generic method: Candidate has its own
+        job_position_id, so that one already matches correctly, and title/
+        company have no Candidate-side meaning worth narrowing further than
+        "this is the recruitment that already matched" -- the generic method
+        resolving them to "" would otherwise empty every column exactly the
+        same way the broken fields did.
+        """
+        search_field = self.data.get("search_field")
+        search = self.data.get("search", "")
+        if search_field == "candidate":
+            return queryset.filter(name__icontains=search)
+        if search_field == "stage":
+            return queryset.filter(stage_id__stage__icontains=search)
+        if search_field == "recruitment_managers":
+            return queryset.filter(
+                Q(
+                    recruitment_id__recruitment_managers__employee_first_name__icontains=search
+                )
+                | Q(
+                    recruitment_id__recruitment_managers__employee_last_name__icontains=search
+                )
+            ).distinct()
+        if search_field in ("title", "company_id"):
+            return queryset
+        return super().search_in(queryset, name, value)
+
     class Meta:
         """
         Meta class to add the additional info
@@ -698,6 +739,9 @@ class RecruitmentFilter(HorillaFilterSet):
             | queryset.filter(title__icontains=value)
             | queryset.filter(stage_set__stage__icontains=value)
             | queryset.filter(stage_set__candidate__name__icontains=value)
+            # A candidate who has not been moved into a stage yet (stage_id is
+            # null) is missed by the stage_set__candidate lookup above.
+            | queryset.filter(candidate__name__icontains=value)
         )
         if first_name and last_name:
             queryset = queryset.filter(
@@ -715,6 +759,23 @@ class RecruitmentFilter(HorillaFilterSet):
 
         queryset = queryset | job_queryset
         return queryset.distinct()
+
+    def search_in(self, queryset, name, value):
+        """
+        Narrow the quick-search to one field, for the "search in" dropdown.
+        """
+        search_field = self.data.get("search_field")
+        search = self.data.get("search", "")
+        if search_field == "candidate":
+            return queryset.filter(candidate__name__icontains=search).distinct()
+        if search_field == "stage":
+            return queryset.filter(stage_set__stage__icontains=search).distinct()
+        if search_field == "recruitment_managers":
+            return queryset.filter(
+                Q(recruitment_managers__employee_first_name__icontains=search)
+                | Q(recruitment_managers__employee_last_name__icontains=search)
+            ).distinct()
+        return super().search_in(queryset, name, value)
 
     def pipeline_search(self, queryset, _, value):
         """

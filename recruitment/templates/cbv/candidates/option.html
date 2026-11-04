@@ -41,6 +41,15 @@
                     <ion-icon name="analytics-outline"></ion-icon>
                 </a>
             {% endif %}
+            <button type="button"
+                    class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
+                    title="{% trans 'Send Invitation' %}"
+                    hx-post="{% url 'candidate-send-invitation' instance.id %}"
+                    hx-target="#reloadMessages"
+                    hx-swap="innerHTML"
+                    hx-confirm="{% trans 'Email this candidate a new tracking login password? Any earlier password will stop working.' %}">
+                <ion-icon name="key-outline"></ion-icon>
+            </button>
         {% endif %}
         {% if instance.email in emp_list %}
             <button class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"

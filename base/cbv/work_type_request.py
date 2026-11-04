@@ -26,6 +26,7 @@ from base.models import WorkType, WorkTypeRequest
 from base.views import include_employee_instance
 from employee.models import Employee
 from horilla_views.cbv_methods import (
+    EmployeeScopeMixin,
     hx_request_required,
     login_required,
     permission_required,
@@ -378,10 +379,13 @@ class WorkTypesCreateForm(DynamicWorkTypeCreateForm):
 
 
 @method_decorator(login_required, name="dispatch")
-class WorkTypeFormView(HorillaFormView):
+class WorkTypeFormView(EmployeeScopeMixin, HorillaFormView):
     """
     form view for creating work types in app
     """
+
+    scope_perm = "base.add_worktyperequest"
+    scope_include_self = True
 
     model = WorkTypeRequest
     form_class = WorkTypeRequestForm
@@ -453,10 +457,17 @@ class WorkTypeFormView(HorillaFormView):
 
 
 @method_decorator(login_required, name="dispatch")
-class WorkTypeDuplicateForm(HorillaFormView):
+class WorkTypeDuplicateForm(EmployeeScopeMixin, HorillaFormView):
     """
     duplicate form
     """
+
+    scope_perm = "base.add_worktyperequest"
+    scope_include_self = True
+
+    def get_scope_perm(self):
+        # Always creates a new record, although the route carries a pk.
+        return self.scope_perm
 
     model = WorkTypeRequest
     form_class = WorkTypeRequestForm

@@ -97,7 +97,7 @@
           ></a>
           {% if active_view.type == type.type %}
           <script>
-            $("form#filterForm.oh-main__titlebar oh-main__titlebar--right").attr('hx-get','{{type.url}}');
+            $("form#filterForm.oh-main__titlebar oh-main__titlebar--right").attr('hx-get','{{type.url|escapejs}}');
             $(".oh-view-types .oh-view-type[data-type={{type.type}}] a").addClass("oh-btn--view-active")
 
           </script>
