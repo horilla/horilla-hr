@@ -86,7 +86,7 @@
             </div>
         </header>
 
-        {% if messages %}
+        {% if messages and not shortlisted %}
             <div class="oh-alert-container">
                 {% for message in messages %}
                     <div class="oh-alert oh-alert--animated {{message.tags}}">
@@ -124,5 +124,15 @@
                 </a>
             </div>
         </main>
+        {% if shortlisted %}
+            <script>
+                if (window.opener && !window.opener.closed) {
+                    window.opener.postMessage({type: "resume-candidate-created"}, window.location.origin);
+                    window.close();
+                } else {
+                    window.location.replace("{% url 'cbv-pipeline' %}");
+                }
+            </script>
+        {% endif %}
     </body>
 </html>
