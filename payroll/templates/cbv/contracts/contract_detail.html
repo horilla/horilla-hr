@@ -76,15 +76,37 @@ payslip and are completely different when you want to stop one.
 
   /* ---- components ---- */
   .cd__intro { font-size: 12.5px; color: #8b90a0; margin-bottom: 8px; }
-  .cd__table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  /* separate borders, so the header keeps its rule when it sticks: with collapsed borders it
+     slid away with the rows. It sticks to the top of the scrolling tab. */
+  /* Fixed column widths: the name is cut with an ellipsis, so it can no longer stretch the table
+     past the dialog and squeeze the calculation into a narrow strip. */
+  .cd__table { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+  .cd__table th:nth-child(1) { width: 48px; }
+  .cd__table th:nth-child(2) { width: 38%; }
+  .cd__table th:nth-child(3) { width: 112px; }
+  .cd__table th:nth-child(4) { width: 92px; }
   .cd__table th {
     text-align: left; font-size: 10px; font-weight: 700; letter-spacing: .06em;
     text-transform: uppercase; color: #6b7280;
     padding: 8px 10px; border-bottom: 1px solid #e6e7eb; white-space: nowrap;
+    position: sticky; top: 0; z-index: 2; background: #fff;
   }
+  .cd__table td.cd__section {
+    padding: 7px 10px; background: #f6f7f9; border-bottom: 1px solid #eceef1;
+    font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+    color: #4b5563;
+  }
+  .cd__section-count { margin-left: 6px; font-weight: 600; color: #9ca3af; }
   .cd__table td {
-    padding: 9px 10px; border-bottom: 1px solid #f1f2f4; vertical-align: top;
+    padding: 5px 10px; border-bottom: 1px solid #f1f2f4; vertical-align: middle;
   }
+  .cd__namebox { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+  .cd__namebox .cd__title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cd__namebox .cd__code, .cd__namebox .cd__muted { flex: none; }
+  .cd__type { font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .cd__type--allowance { color: #0f7b5f; }
+  .cd__type--deduction { color: var(--primary-600, #e54f38); }
+  .cd__tax { font-size: 12px; color: #4b5563; white-space: nowrap; }
   .cd__table tr:last-child td { border-bottom: 0; }
   .cd__title { font-weight: 600; color: #1f2430; }
   .cd__code {
@@ -94,29 +116,10 @@ payslip and are completely different when you want to stop one.
   .cd__calc {
     font-family: ui-monospace, Menlo, Consolas, monospace;
     font-size: 12px; color: #4b5563;
+    /* One line: a long formula or slab summary ends in an ellipsis, the whole text on hover. */
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .cd__kind {
-    display: inline-block; font-size: 10px; font-weight: 700;
-    letter-spacing: .04em; text-transform: uppercase;
-    border-radius: 4px; padding: 1px 6px; margin-left: 6px; white-space: nowrap;
-  }
-  .cd__kind--allowance { background: #e4f4ed; color: #0f7b5f; }
-  .cd__kind--deduction { background: #fdeeeb; color: var(--primary-600, #e54f38); }
-  .cd__source { font-size: 11.5px; color: #6b7280; white-space: nowrap; }
-  .cd__source--everyone, .cd__source--conditional { color: #9ca3af; }
   .cd__empty { color: #9ca3af; font-size: 13px; padding: 14px 0; }
-  .cd__note {
-    display: flex; align-items: flex-start; gap: 7px;
-    border: 1px solid #e6e7eb; border-left: 3px solid var(--primary-600, #e54f38);
-    border-radius: 8px; background: #fbfbfc; padding: 10px 12px;
-    margin-bottom: 12px; font-size: 12.5px; color: #4b5563;
-  }
-  .cd__note ion-icon { flex: 0 0 auto; font-size: 15px; margin-top: 1px; }
-  .cd__manage {
-    border: 0; border-radius: 8px; background: var(--primary-600, #e54f38);
-    color: #fff; padding: 8px 16px; font-size: 13px; font-weight: 600;
-    cursor: pointer; margin-bottom: 12px;
-  }
 </style>
 
 <div class="cd" data-contract-detail="{{ instance.pk }}">
@@ -172,56 +175,39 @@ payslip and are completely different when you want to stop one.
   </div>
 
   <div class="cd__panel" role="tabpanel" data-cd-panel="components" hidden>
-    {% comment %}
-    Said plainly, because it is the thing nobody can see from a payslip: a
-    component applying to everybody is not something this contract decides,
-    so it cannot be switched off here.
-    {% endcomment %}
-    <div class="cd__note">
-      <ion-icon name="information-circle-outline"></ion-icon>
-      <span>{% blocktrans %}A component reaches this employee through the salary structure, by being added to them directly, by applying to every employee, or by a condition. Only the first two are this contract's to change.{% endblocktrans %}</span>
-    </div>
-
-    {% if perms.payroll.change_contract %}
-      <button type="button" class="cd__manage"
-              hx-get="{% url 'contract-components' instance.pk %}"
-              hx-target="#relatedObjectModalBody"
-              data-toggle="oh-modal-toggle"
-              data-target="#relatedObjectModal">
-        {% trans "Manage components" %}
-      </button>
-    {% endif %}
-
     {% if component_rows %}
       <table class="cd__table">
         <thead>
           <tr>
             <th>{% trans "Seq" %}</th>
             <th>{% trans "Component" %}</th>
+            <th>{% trans "Type" %}</th>
+            <th>{% trans "Tax" %}</th>
             <th>{% trans "Calculation" %}</th>
-            <th>{% trans "How it applies" %}</th>
           </tr>
         </thead>
         <tbody>
-          {% for row in component_rows %}
-            <tr>
-              <td class="cd__muted">{{ row.sequence }}</td>
-              <td>
-                <span class="cd__title">{{ row.title }}</span>
-                <span class="cd__kind cd__kind--{{ row.kind }}">
-                  {% if row.kind == "allowance" %}{% trans "Earning" %}
-                  {% else %}{% trans "Deduction" %}{% endif %}
-                </span>
-                <div class="cd__code">{{ row.code|default:"—" }}</div>
-              </td>
-              <td class="cd__calc">{{ row.calculation }}</td>
-              <td class="cd__source cd__source--{{ row.source }}">
-                {{ row.source_label }}
-                {% if row.generated %}
-                  <div class="cd__muted">{% trans "generated" %}</div>
-                {% endif %}
+          {% for section in component_sections %}
+            <tr data-cd-section="{{ section.key }}">
+              <td class="cd__section" colspan="5">
+                {{ section.label }}<span class="cd__section-count">{{ section.rows|length }}</span>
               </td>
             </tr>
+            {% for row in section.rows %}
+              <tr>
+                <td class="cd__muted">{{ row.sequence }}</td>
+                <td class="cd__name">
+                  <div class="cd__namebox">
+                    <span class="cd__title" title="{{ row.title }}">{{ row.title }}</span>
+                    {% if row.code %}<span class="cd__code">{{ row.code }}</span>{% endif %}
+                    {% if row.generated %}<span class="cd__muted">{% trans "generated" %}</span>{% endif %}
+                  </div>
+                </td>
+                <td class="cd__type cd__type--{{ row.kind }}">{{ row.type_label }}</td>
+                <td class="cd__tax">{{ row.tax_label }}</td>
+                <td class="cd__calc" title="{{ row.calculation }}">{{ row.calculation }}</td>
+              </tr>
+            {% endfor %}
           {% endfor %}
         </tbody>
       </table>
