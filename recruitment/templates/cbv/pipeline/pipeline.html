@@ -78,19 +78,33 @@
                 <h2 class="oh-modal__dialog-title" id="bulkResumeUploadLabel">
                     {% trans "Upload Resumes" %}
                 </h2>
+                <p class="text-sm text-[#64748B] mt-1 mb-0">
+                    {% trans "Review, score and manage the resumes uploaded for this recruitment." %}
+                </p>
                 <button class="oh-modal__close" aria-label="{% trans 'Close' %}">
                     <ion-icon name="close-outline"></ion-icon>
                 </button>
-                <div
-                    class="oh-modal__dialog-body mb-4 p-0 pt-2"
-                    id="bulkResumeUploadBody"
-                >
+            </div>
+            <div class="oh-modal__dialog-body !pt-4" id="bulkResumeUploadBody">
+                <div class="flex flex-col items-center justify-center gap-2 py-10" role="status">
+                    <div class="h-7 w-7 animate-spin rounded-full border-[3px] border-dark-50 border-t-primary-600"></div>
+                    <p class="text-sm text-[#666] mb-0">{% trans "Loading..." %}</p>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
+        window.bulkResumeLoaderHtml = window.bulkResumeLoaderHtml || document.getElementById("bulkResumeUploadBody").innerHTML;
+        document.removeEventListener("htmx:beforeRequest", window.bulkResumeLoaderListener);
+        window.bulkResumeLoaderListener = function (event) {
+        	var body = document.getElementById("bulkResumeUploadBody");
+        	if (body && event.detail.target === body && !body.contains(event.detail.elt)) {
+        		body.innerHTML = window.bulkResumeLoaderHtml;
+        	}
+        };
+        document.addEventListener("htmx:beforeRequest", window.bulkResumeLoaderListener);
+
         function pipelineOpenTab(btn) {
         	const $btn = $(btn);
         	const paneId = $btn.attr("data-target").slice(1);
