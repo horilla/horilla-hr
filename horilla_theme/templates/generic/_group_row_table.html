@@ -39,7 +39,7 @@
                             <td class="text-sm text-left px-1 py-1 text-[#666] h-[30px] max-w-0">
                                 {% if not cell.2 %}
                                     {% with cell_value=instance|getattribute:attribute|selected_format:request.user.employee_get.employee_work_info.company_id %}
-                                        <div class="truncate" title="{{ cell_value|striptags }}">
+                                        <div class="truncate" title="{{ cell_value|cell_tooltip }}">
                                             {{ cell_value|safe }}
                                         </div>
                                     {% endwith %}
@@ -61,7 +61,7 @@
                                                     ></span>
                                                 {% endif %}
                                             </div>
-                                            <span class="truncate flex-1 min-w-0" title="{{ cell_value|striptags }}">{{ cell_value|safe }}</span>
+                                            <span class="truncate flex-1 min-w-0" title="{{ cell_value|cell_tooltip }}">{{ cell_value|safe }}</span>
                                         </div>
                                     {% endwith %}
                                 {% endif %}
