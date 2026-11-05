@@ -13,7 +13,11 @@
                 {{ field.label }}{% if field.field.required %} <span class="text-primary-600">*</span>{% endif %}
             </label>
             {% endif %}
-            {{ field|add_class:"emp-input w-full px-3 py-2 text-xs border border-secondary-200 rounded-md bg-white text-dark-500" }}
+            {% if field.widget_type == "textarea" or field.field.widget.attrs.type == "text_area" %}
+            {{ field|add_class:"oh-input emp-input w-full px-3 py-2 text-xs border border-secondary-200 rounded-md bg-white text-dark-500 resize-y" }}
+            {% else %}
+            {{ field|add_class:"oh-input emp-input w-full h-9 px-3 text-xs border border-secondary-200 rounded-md bg-white text-dark-500" }}
+            {% endif %}
             {% if field.help_text %}<p class="text-xxs text-dark-100 mt-1 mb-0">{{ field.help_text }}</p>{% endif %}
             {{ field.errors }}
         </div>
