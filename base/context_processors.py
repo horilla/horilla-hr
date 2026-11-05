@@ -392,6 +392,24 @@ def check_candidate_self_tracking_rating(request):
     return {"check_candidate_self_tracking_rating": SimpleLazyObject(_resolve)}
 
 
+def get_default_probation_period(request):
+    """
+    This method is used to get the default probation period (in days) used
+    to auto-fill a candidate's probation end date from their joining date
+    """
+
+    def _resolve():
+        default = 90
+        if not apps.is_installed("recruitment"):
+            return default
+        first = check_candidate_recruitment_setting(request)
+        if first and first.default_probation_period is not None:
+            return first.default_probation_period
+        return default
+
+    return {"get_default_probation_period": SimpleLazyObject(_resolve)}
+
+
 def get_initial_prefix(request):
     """
     This method is used to get the initial prefix

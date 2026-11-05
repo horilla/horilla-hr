@@ -2722,7 +2722,7 @@ $(document).on("click", "[data-toggle='oh-modal-toggle']", function () {
         hideForm + " .oh-accordion:has(" + cols + ")>.oh-accordion-body{display:block!important}" +
         // one look for every export modal: same width, three-column picker,
         // Export button bottom right
-        ".oh-modal__dialog:has(.hlv-export-options){max-width:980px!important;width:100%}" +
+        ".oh-modal__dialog:has(.hlv-export-options):not(:has(.oh-modal__dialog .hlv-export-options)){max-width:980px!important;width:100%}" +
         form + " " + picker + "{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 16px;margin:0!important}" +
         form + " " + picker + ">[class*=col-]{width:auto!important;max-width:none!important;flex:none!important;padding:0!important}" +
         form + " .oh-dropdown__filter-footer," + form + " .oh-modal__dialog-footer{display:flex!important;justify-content:flex-end;padding:0!important;margin:16px 0 0!important;border:0!important}" +

@@ -28,6 +28,7 @@ from horilla_views.cbv_methods import (
 from horilla_views.generic.cbv.kanban import HorillaKanbanView
 from horilla_views.generic.cbv.pipeline import Pipeline
 from horilla_views.generic.cbv.views import (
+    HorillaDetailedView,
     HorillaFormView,
     HorillaListView,
     HorillaNavView,
@@ -40,7 +41,6 @@ from onboarding import models as onboarding_models
 from onboarding.cbv_decorators import all_manager_can_enter, stage_manager_can_enter
 from onboarding.templatetags.onboardingfilters import stage_manages
 from recruitment import models as recruitment_models
-from recruitment.cbv.candidates import CandidateDetail
 from recruitment.methods import recruitment_manages
 
 
@@ -479,10 +479,18 @@ def task_fetch(self):
 recruitment_models.Candidate.task_fetch = task_fetch
 
 
-class CandidateOnboardingDetail(CandidateDetail):
+@method_decorator(login_required, name="dispatch")
+@method_decorator(
+    all_manager_can_enter(perm="recruitment.view_recruitment"), name="dispatch"
+)
+class CandidateOnboardingDetail(HorillaDetailedView):
     """
-    Extended candidate detail view
+    Candidate detail view of the onboarding pipeline
     """
+
+    title = _("Candidate Details")
+    model = recruitment_models.Candidate
+    header = {"title": "get_full_name", "subtitle": "get_email", "avatar": "get_avatar"}
 
     body = [
         (_("Gender"), "gender"),
@@ -495,6 +503,43 @@ class CandidateOnboardingDetail(CandidateDetail):
     ]
 
     cols = {"task_fetch": 12}
+    action_method = ""
+
+    actions = [
+        {
+            "action": _("Allocations"),
+            "icon": "clipboard-outline",
+            "attrs": """
+                    class="oh-btn oh-btn--light-bkg"
+                    hx-get = "{onboarding_stage__allocation_path}"
+                    data-toggle="oh-modal-toggle"
+                    data-target="#allocationModal"
+                    hx-target="#allocationModalBody"
+                """,
+        },
+        {
+            "action": _("Send Mail"),
+            "icon": "mail-open-outline",
+            "attrs": """
+                    class="oh-btn oh-btn--light-bkg"
+                    hx-get = "{get_send_mail}"
+                    data-toggle="oh-modal-toggle"
+                    data-target="#objectDetailsModal"
+                    hx-target="#objectDetailsModalTarget"
+                """,
+        },
+        {
+            "action": _("View Note"),
+            "icon": "newspaper-outline",
+            "attrs": """
+                    class="oh-btn oh-btn--light-bkg oh-activity-sidebar__open"
+                    hx-get="{get_view_note_url}"
+                    data-target="#activitySidebar"
+                    hx-target="#activitySidebar"
+                    onclick="$('#activitySidebar').addClass('oh-activity-sidebar--show')"
+                """,
+        },
+    ]
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -597,7 +642,7 @@ class CandidateList(HorillaListView):
         #             hx-get="{candidate_id__get_document_request}"
         #             data-target="#genericModal"
         #             hx-target="#genericModalBody"
-        #             class="oh-btn oh-btn--danger-outline oh-btn--light-bkg w-100"
+        #             class="oh-btn oh-btn--danger-outline oh-btn--light-bkg"
         #             data-toggle="oh-modal-toggle"
         #         """,
         # },

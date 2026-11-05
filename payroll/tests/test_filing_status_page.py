@@ -58,6 +58,28 @@ class Fixture(TestCase):
         return self.client.get(reverse("filing-status-view"))
 
 
+class NavBarTests(Fixture):
+    """Loading a country's rules sits in the Actions menu beside Create, as on every list's nav bar."""
+
+    def _before_the_link(self):
+        html = self.page().content.decode()
+        return html[
+            max(0, html.index("tax-pack-picker") - 1500) : html.index("tax-pack-picker")
+        ]
+
+    def test_loading_a_countrys_rules_is_an_action_in_the_actions_menu(self):
+        before = self._before_the_link()
+        self.assertIn("dropdown-wrapper", before)
+        self.assertRegex(before, r"Actions\s*</button>")
+        # The menu opens between the Actions button and the link.
+        self.assertLess(before.rindex("Actions"), before.rindex("dropdown-content"))
+
+    def test_it_is_not_a_standalone_button_beside_create(self):
+        html = self.page().content.decode()
+        self.assertEqual(html.count("tax-pack-picker"), 1)
+        self.assertRegex(html, r"Load a country(&#x27;|')s rules")
+
+
 class WhatEachStatusDoesTests(Fixture):
     def test_the_slab_count_is_shown_not_just_the_name(self):
         self.status("Single", slabs=[(0, 10000, 5), (10000, None, 20)])

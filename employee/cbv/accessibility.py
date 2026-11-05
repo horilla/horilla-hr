@@ -203,6 +203,40 @@ def history_accessibility(
     return False
 
 
+def onboarding_accessibility(
+    request, instance: object = None, user_perms: PermWrapper = [], *args, **kwargs
+) -> bool:
+    """
+    Onboarding tab on the employee profile. For an employee converted from a
+    candidate it is shown to the employee themselves and to those who can see
+    that candidate's onboarding tab, otherwise only to users who can view
+    onboarding tasks.
+
+    Parameters:
+    request (HttpRequest): The HTTP request object.
+    instance : Employee whose profile is being viewed.
+
+    Returns:
+    bool : True if the tab should be shown.
+    """
+    if not (
+        apps.is_installed("onboarding")
+        and apps.is_installed("recruitment")
+        and instance
+    ):
+        return False
+    from recruitment.cbv.accessibility import (
+        onboarding_accessibility as candidate_onboarding_accessibility,
+    )
+
+    candidate = instance.candidate_get.first()
+    if not candidate:
+        return request.user.has_perm("onboarding.view_onboardingtask")
+    if request.user == instance.employee_user_id:
+        return True
+    return candidate_onboarding_accessibility(request, candidate)
+
+
 def allocation_accessibility(
     request, instance: object = None, user_perms: PermWrapper = [], *args, **kwargs
 ) -> bool:
