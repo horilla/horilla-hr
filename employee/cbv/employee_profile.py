@@ -267,7 +267,7 @@ class EmployeeRelatedDetailView(HorillaDetailedView):
         "avatar": "get_avatar",
     }
     body = [
-        (_("Employee ID"), "badge_id"),
+        (_("Badge ID"), "badge_id"),
         (_("Job Position"), "get_job_position"),
         (_("Department"), "get_department"),
         (_("Company"), "employee_work_info__company_id"),

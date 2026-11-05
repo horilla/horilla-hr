@@ -63,7 +63,7 @@ class Dataset:
         "Only what the sheet fills in is changed. Blank cells leave the current value alone. "
         "A key itself is never changed: to change Badge ID, find people by Email or Phone."
     )
-    hint_create = "Adds people who are not in Horilla yet. Existing badge IDs and emails are skipped."
+    hint_create = "Adds people who are not in Horilla yet. Existing Badge IDs and emails are skipped."
     hint_update = "Finds people by Badge ID, Email or Phone and changes only what the sheet fills in."
     hint_both = "Updates people the sheet finds by Badge ID, Email or Phone, and creates everyone else in the same import."
     fields: list = []

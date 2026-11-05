@@ -4698,7 +4698,7 @@ msgstr "Seçilen şirket için kişisel sayfa başına satır tercihiniz"
 msgid "Badge ID Prefix"
 msgstr "Rozet Kimliği Öneki"
 
-msgid "Prefix added to employee badge IDs e.g. EMP0001"
+msgid "Prefix added to employee Badge IDs e.g. EMP0001"
 msgstr "Çalışan rozet kimliklerine önek eklendi, ör. EMP0001"
 
 msgid "Currency Symbol"
@@ -9679,7 +9679,7 @@ msgstr ""
 msgid "Badge Prefix"
 msgstr "Rozet Ön Eki"
 
-msgid "Set initial badge-id"
+msgid "Set initial Badge ID"
 msgstr "İlk rozet kimliğini ayarla"
 
 msgid "Add notes"
@@ -14419,7 +14419,7 @@ msgstr "Uygulanan Filtreler: "
 msgid "Asset User"
 msgstr "Varlık Kullanıcısı"
 
-msgid "Asset User Badge Id"
+msgid "Asset User Badge ID"
 msgstr "Varlık Kullanıcısı Kart No"
 
 msgid "Equals"
@@ -14555,10 +14555,10 @@ msgstr "Çalışan Hedef Raporları"
 msgid "Feedback Reports"
 msgstr "Geri Bildirim Raporları"
 
-msgid "Manager Badge Id"
+msgid "Manager Badge ID"
 msgstr "Yönetici Kart No"
 
-msgid "Assignee Badge Id"
+msgid "Assignee Badge ID"
 msgstr "Atanan Kart No"
 
 msgid "Assignee Department"
@@ -14573,7 +14573,7 @@ msgstr "Atanan İş Rolü"
 msgid "Feedback Title"
 msgstr "Geri Bildirim Başlığı"
 
-msgid "Employee Badge Id"
+msgid "Employee Badge ID"
 msgstr "Çalışan Kart No"
 
 msgid "Subordinate"
@@ -14636,13 +14636,13 @@ msgstr "Görev"
 msgid "Stage Manager"
 msgstr "Sahne Müdürü"
 
-msgid "Stage Manager Badge Id"
+msgid "Stage Manager Badge ID"
 msgstr "Aşama Yöneticisi Kart No"
 
 msgid "Task Manager"
 msgstr "Görev Yöneticisi"
 
-msgid "Task Manager Badge Id"
+msgid "Task Manager Badge ID"
 msgstr "Görev Yöneticisi Kart No"
 
 msgid "Candidates"
@@ -15083,7 +15083,7 @@ msgstr ""
 "İş ilanlarını doğrudan LinkedIn'e gönderin ve başvuranları Horilla'dan "
 "yönetin."
 
-msgid "Prefix added to every auto-generated employee badge ID (e.g. PEP0001)."
+msgid "Prefix added to every auto-generated employee Badge ID (e.g. PEP0001)."
 msgstr ""
 "Otomatik oluşturulan her çalışan rozet kimliğine eklenen önek (örn. PEP0001)."
 
@@ -16619,7 +16619,7 @@ msgstr "Atanan izin bulunamadı."
 msgid "{} assigned leaves deleted successfully "
 msgstr "{} atanmış yapraklar başarıyla silindi "
 
-msgid "This badge id does not exist."
+msgid "This Badge ID does not exist."
 msgstr "Bu rozet kimliği mevcut değildir."
 
 msgid "This leave type does not exist."

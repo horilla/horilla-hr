@@ -373,10 +373,10 @@
 
     function defaultRowsConfigFor(model) {
         if (model === "feedback") {
-            return ["Title", "Employee Badge Id", "Employee", "Manager", "Answerable Employees", "Answered Employees", "Questions", "Answer"];
+            return ["Title", "Employee Badge ID", "Employee", "Manager", "Answerable Employees", "Answered Employees", "Questions", "Answer"];
         }
         if (model === "employeeobjective") {
-            return ["Employee Badge Id", "Employee", "Objective", "Employee Keyresult", "Keyresult Target Value", "Keyresult Current Value"];
+            return ["Employee Badge ID", "Employee", "Objective", "Employee Keyresult", "Keyresult Target Value", "Keyresult Current Value"];
         }
         return ["Objective", "Key Results", "Manager", "Assignees"];
     }
@@ -1327,9 +1327,9 @@
         var FILTER_FIELDS_BY_MODEL = {
             objective: [
                 { value: "managers", label: "{% trans 'Managers'|escapejs %}", type: "dropdown" },
-                { value: "manager_badge_id", label: "{% trans 'Manager Badge Id'|escapejs %}", type: "dropdown" },
+                { value: "manager_badge_id", label: "{% trans 'Manager Badge ID'|escapejs %}", type: "dropdown" },
                 { value: "assignees", label: "{% trans 'Assignees'|escapejs %}", type: "dropdown" },
-                { value: "assignee_badge_id", label: "{% trans 'Assignee Badge Id'|escapejs %}", type: "dropdown" },
+                { value: "assignee_badge_id", label: "{% trans 'Assignee Badge ID'|escapejs %}", type: "dropdown" },
                 { value: "assignee_department", label: "{% trans 'Assignee Department'|escapejs %}", type: "dropdown" },
                 { value: "assignee_job_position", label: "{% trans 'Assignee Job Position'|escapejs %}", type: "dropdown" },
                 { value: "assignee_job_role", label: "{% trans 'Assignee Job Role'|escapejs %}", type: "dropdown" },
@@ -1341,9 +1341,9 @@
                 { value: "review_cycle", label: "{% trans 'Feedback Title'|escapejs %}", type: "dropdown" },
                 { value: "status", label: "{% trans 'Status'|escapejs %}", type: "dropdown" },
                 { value: "employee", label: "{% trans 'Employee'|escapejs %}", type: "dropdown" },
-                { value: "employee_badge_id", label: "{% trans 'Employee Badge Id'|escapejs %}", type: "dropdown" },
+                { value: "employee_badge_id", label: "{% trans 'Employee Badge ID'|escapejs %}", type: "dropdown" },
                 { value: "manager", label: "{% trans 'Manager'|escapejs %}", type: "dropdown" },
-                { value: "manager_badge_id", label: "{% trans 'Manager Badge Id'|escapejs %}", type: "dropdown" },
+                { value: "manager_badge_id", label: "{% trans 'Manager Badge ID'|escapejs %}", type: "dropdown" },
                 { value: "colleague", label: "{% trans 'Colleague'|escapejs %}", type: "dropdown" },
                 { value: "subordinate", label: "{% trans 'Subordinate'|escapejs %}", type: "dropdown" },
                 { value: "start_date", label: "{% trans 'Start Date'|escapejs %}", type: "date" },
@@ -1351,7 +1351,7 @@
             ],
             employeeobjective: [
                 { value: "employee", label: "{% trans 'Employee'|escapejs %}", type: "dropdown" },
-                { value: "employee_badge_id", label: "{% trans 'Employee Badge Id'|escapejs %}", type: "dropdown" },
+                { value: "employee_badge_id", label: "{% trans 'Employee Badge ID'|escapejs %}", type: "dropdown" },
                 { value: "department", label: "{% trans 'Department'|escapejs %}", type: "dropdown" },
                 { value: "job_position", label: "{% trans 'Job Position'|escapejs %}", type: "dropdown" },
                 { value: "job_role", label: "{% trans 'Job Role'|escapejs %}", type: "dropdown" },

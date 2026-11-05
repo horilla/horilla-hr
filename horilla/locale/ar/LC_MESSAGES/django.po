@@ -4661,7 +4661,7 @@ msgstr "تفضيلك الشخصي لعدد الصفوف في الصفحة للش
 msgid "Badge ID Prefix"
 msgstr "بادئة معرف الشارة"
 
-msgid "Prefix added to employee badge IDs e.g. EMP0001"
+msgid "Prefix added to employee Badge IDs e.g. EMP0001"
 msgstr "تمت إضافة البادئة إلى معرفات شارة الموظف، على سبيل المثال. EMP0001"
 
 msgid "Currency Symbol"
@@ -9574,7 +9574,7 @@ msgstr "حدد المبلغ المستحق لكل وحدة إجازة عند ا�
 msgid "Badge Prefix"
 msgstr "بادئة معرف البطاقة"
 
-msgid "Set initial badge-id"
+msgid "Set initial Badge ID"
 msgstr "تعيين معرف البطاقة الابتدائي"
 
 msgid "Add notes"
@@ -14288,7 +14288,7 @@ msgstr "عوامل التصفية المطبقة: "
 msgid "Asset User"
 msgstr "مستخدم الأصل"
 
-msgid "Asset User Badge Id"
+msgid "Asset User Badge ID"
 msgstr "الرقم الوظيفي لمستخدم الأصل"
 
 msgid "Equals"
@@ -14424,10 +14424,10 @@ msgstr "تقارير أهداف الموظفين"
 msgid "Feedback Reports"
 msgstr "تقارير التقييم"
 
-msgid "Manager Badge Id"
+msgid "Manager Badge ID"
 msgstr "الرقم الوظيفي للمدير"
 
-msgid "Assignee Badge Id"
+msgid "Assignee Badge ID"
 msgstr "الرقم الوظيفي للمسؤول"
 
 msgid "Assignee Department"
@@ -14442,7 +14442,7 @@ msgstr "الدور الوظيفي للمسؤول"
 msgid "Feedback Title"
 msgstr "عنوان التعليق (Feedback)"
 
-msgid "Employee Badge Id"
+msgid "Employee Badge ID"
 msgstr "الرقم الوظيفي للموظف"
 
 msgid "Subordinate"
@@ -14505,13 +14505,13 @@ msgstr "المهمة"
 msgid "Stage Manager"
 msgstr "مدير المرحلة"
 
-msgid "Stage Manager Badge Id"
+msgid "Stage Manager Badge ID"
 msgstr "الرقم الوظيفي لمدير المرحلة"
 
 msgid "Task Manager"
 msgstr "مدير المهمة"
 
-msgid "Task Manager Badge Id"
+msgid "Task Manager Badge ID"
 msgstr "الرقم الوظيفي لمدير المهمة"
 
 msgid "Candidates"
@@ -14950,7 +14950,7 @@ msgid ""
 "Post job openings directly to LinkedIn and manage applicants from Horilla."
 msgstr "انشر الوظائف الشاغرة مباشرة على LinkedIn وأدر المتقدمين من Horilla."
 
-msgid "Prefix added to every auto-generated employee badge ID (e.g. PEP0001)."
+msgid "Prefix added to every auto-generated employee Badge ID (e.g. PEP0001)."
 msgstr "البادئة المضافة إلى كل معرّف شارة موظف يُنشأ تلقائيًا (مثل PEP0001)."
 
 msgid "Add Candidate"
@@ -16485,7 +16485,7 @@ msgstr "الإجازة المعينة غير موجودة."
 msgid "{} assigned leaves deleted successfully "
 msgstr "{} تم حذف الاجازات المعينة بنجاح "
 
-msgid "This badge id does not exist."
+msgid "This Badge ID does not exist."
 msgstr "معرف البطاقة هذا غير موجود."
 
 msgid "This leave type does not exist."

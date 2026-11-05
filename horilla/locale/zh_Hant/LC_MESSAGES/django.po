@@ -4668,7 +4668,7 @@ msgstr "您在所選公司的個人每頁筆數偏好設定"
 msgid "Badge ID Prefix"
 msgstr "徽章 ID 前綴"
 
-msgid "Prefix added to employee badge IDs e.g. EMP0001"
+msgid "Prefix added to employee Badge IDs e.g. EMP0001"
 msgstr "加到員工徽章 ID 的前綴，例如電磁脈衝0001"
 
 msgid "Currency Symbol"
@@ -9556,7 +9556,7 @@ msgstr "設定每單位休假兌現時所入帳的金額。"
 msgid "Badge Prefix"
 msgstr "識別證前綴"
 
-msgid "Set initial badge-id"
+msgid "Set initial Badge ID"
 msgstr "設定初始識別證號碼"
 
 msgid "Add notes"
@@ -14216,7 +14216,7 @@ msgstr "已套用的篩選條件："
 msgid "Asset User"
 msgstr "資產使用者"
 
-msgid "Asset User Badge Id"
+msgid "Asset User Badge ID"
 msgstr "資產使用者工號"
 
 msgid "Equals"
@@ -14350,10 +14350,10 @@ msgstr "員工目標報表"
 msgid "Feedback Reports"
 msgstr "回饋報表"
 
-msgid "Manager Badge Id"
+msgid "Manager Badge ID"
 msgstr "主管識別證編號"
 
-msgid "Assignee Badge Id"
+msgid "Assignee Badge ID"
 msgstr "受指派人工號"
 
 msgid "Assignee Department"
@@ -14368,7 +14368,7 @@ msgstr "受指派人職務角色"
 msgid "Feedback Title"
 msgstr "回饋標題"
 
-msgid "Employee Badge Id"
+msgid "Employee Badge ID"
 msgstr "員工識別證編號"
 
 msgid "Subordinate"
@@ -14431,13 +14431,13 @@ msgstr "任務"
 msgid "Stage Manager"
 msgstr "階段監督"
 
-msgid "Stage Manager Badge Id"
+msgid "Stage Manager Badge ID"
 msgstr "階段主管識別碼"
 
 msgid "Task Manager"
 msgstr "工作管理員"
 
-msgid "Task Manager Badge Id"
+msgid "Task Manager Badge ID"
 msgstr "任務主管識別碼"
 
 msgid "Candidates"
@@ -14869,7 +14869,7 @@ msgid ""
 "Post job openings directly to LinkedIn and manage applicants from Horilla."
 msgstr "直接將職缺發布至 LinkedIn，並在 Horilla 中管理應徵者。"
 
-msgid "Prefix added to every auto-generated employee badge ID (e.g. PEP0001)."
+msgid "Prefix added to every auto-generated employee Badge ID (e.g. PEP0001)."
 msgstr "自動產生的員工工號前綴（例如 PEP0001）。"
 
 msgid "Add Candidate"
@@ -16363,7 +16363,7 @@ msgstr "未找到分配的休假。"
 msgid "{} assigned leaves deleted successfully "
 msgstr "已成功刪除 {} 個已指派的休假 "
 
-msgid "This badge id does not exist."
+msgid "This Badge ID does not exist."
 msgstr "此徽章 ID 不存在。"
 
 msgid "This leave type does not exist."

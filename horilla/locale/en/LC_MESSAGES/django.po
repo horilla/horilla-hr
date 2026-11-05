@@ -5579,7 +5579,7 @@ msgstr "How dates are displayed across the system for the selected company."
 msgid "Badge ID Prefix"
 msgstr ""
 
-msgid "Prefix added to employee badge IDs e.g. EMP0001"
+msgid "Prefix added to employee Badge IDs e.g. EMP0001"
 msgstr ""
 
 #, fuzzy
@@ -11216,7 +11216,7 @@ msgstr ""
 msgid "Badge Prefix"
 msgstr ""
 
-msgid "Set initial badge-id"
+msgid "Set initial Badge ID"
 msgstr ""
 
 #, fuzzy
@@ -16968,7 +16968,7 @@ msgstr "Update"
 msgid "Asset User"
 msgstr "Employee"
 
-msgid "Asset User Badge Id"
+msgid "Asset User Badge ID"
 msgstr ""
 
 msgid "Equals"
@@ -17144,12 +17144,12 @@ msgstr "Answer"
 
 #, fuzzy
 #| msgid "department-update"
-msgid "Manager Badge Id"
+msgid "Manager Badge ID"
 msgstr "Update"
 
 #, fuzzy
 #| msgid "assign-view"
-msgid "Assignee Badge Id"
+msgid "Assignee Badge ID"
 msgstr "Assigned Leaves"
 
 #, fuzzy
@@ -17172,7 +17172,7 @@ msgstr ""
 
 #, fuzzy
 #| msgid "employee"
-msgid "Employee Badge Id"
+msgid "Employee Badge ID"
 msgstr "Employee"
 
 msgid "Subordinate"
@@ -17249,7 +17249,7 @@ msgstr "Update"
 
 #, fuzzy
 #| msgid "department-update"
-msgid "Stage Manager Badge Id"
+msgid "Stage Manager Badge ID"
 msgstr "Update"
 
 msgid "Task Manager"
@@ -17257,7 +17257,7 @@ msgstr ""
 
 #, fuzzy
 #| msgid "department-update"
-msgid "Task Manager Badge Id"
+msgid "Task Manager Badge ID"
 msgstr "Update"
 
 msgid "Candidates"
@@ -17809,7 +17809,7 @@ msgid ""
 "Post job openings directly to LinkedIn and manage applicants from Horilla."
 msgstr ""
 
-msgid "Prefix added to every auto-generated employee badge ID (e.g. PEP0001)."
+msgid "Prefix added to every auto-generated employee Badge ID (e.g. PEP0001)."
 msgstr "Prefix added to every auto-generated employee badge ID (e.g. PEP0001)."
 
 msgid "Add Candidate"
@@ -19599,7 +19599,7 @@ msgstr ""
 msgid "{} assigned leaves deleted successfully "
 msgstr "My Leave Requests"
 
-msgid "This badge id does not exist."
+msgid "This Badge ID does not exist."
 msgstr ""
 
 msgid "This leave type does not exist."

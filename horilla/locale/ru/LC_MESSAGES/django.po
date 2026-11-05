@@ -4233,7 +4233,7 @@ msgstr "Количество строк на странице"
 msgid "Badge ID Prefix"
 msgstr "Префикс табельного номера"
 
-msgid "Prefix added to employee badge IDs e.g. EMP0001"
+msgid "Prefix added to employee Badge IDs e.g. EMP0001"
 msgstr "Префикс, добавляемый к табельным номерам сотрудников, например EMP0001"
 
 #| msgid "currency"
@@ -9095,7 +9095,7 @@ msgstr "Укажите сумму, начисляемую за каждую ед
 msgid "Badge Prefix"
 msgstr "Префикс табельного номера"
 
-msgid "Set initial badge-id"
+msgid "Set initial Badge ID"
 msgstr "Укажите начальный табельный номер"
 
 #| msgid "company"
@@ -13100,7 +13100,7 @@ msgstr "Включить LinkedIn"
 msgid "Enable this to integrate linkedin to Horilla."
 msgstr "Включите, чтобы интегрировать LinkedIn с Horilla."
 
-msgid "Prefix added to every auto-generated employee badge ID (e.g. PEP0001)."
+msgid "Prefix added to every auto-generated employee Badge ID (e.g. PEP0001)."
 msgstr "Префикс, добавляемый к каждому автоматически создаваемому табельному номеру сотрудника (например, PEP0001)."
 
 #| msgid "candidate-update"
@@ -14508,7 +14508,7 @@ msgstr "Назначенный отпуск не найден."
 msgid "{} assigned leaves deleted successfully "
 msgstr "{} назначенных отпусков успешно удалено "
 
-msgid "This badge id does not exist."
+msgid "This Badge ID does not exist."
 msgstr "Такого ID бейджа не существует."
 
 msgid "This leave type does not exist."

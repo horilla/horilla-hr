@@ -691,7 +691,7 @@ class RosterTemplateDownloadView(View):
         center = Alignment(horizontal="center", vertical="center")
         left = Alignment(horizontal="left", vertical="center")
 
-        for col, label in enumerate(["Employee Name", "Employee ID"], start=1):
+        for col, label in enumerate(["Employee", "Record ID"], start=1):
             c = ws.cell(1, col, label)
             c.fill = meta_fill
             c.font = meta_font
@@ -715,7 +715,9 @@ class RosterTemplateDownloadView(View):
             ws.column_dimensions[get_column_letter(col_i)].width = 13
 
         ws.column_dimensions["A"].width = 30
-        ws.column_dimensions["B"].width = 13
+        # The import finds each person by this record id, which isn't their Badge
+        # ID, so it stays out of sight as it does on the day-wise sheet.
+        ws.column_dimensions["B"].hidden = True
         ws.row_dimensions[1].height = 26
 
         dv_formula = '"' + ",".join(opt[:31] for opt in shift_options)[:255] + '"'
@@ -732,7 +734,9 @@ class RosterTemplateDownloadView(View):
         ws.add_data_validation(dv)
 
         for row_i, emp in enumerate(emp_qs, start=2):
-            ws.cell(row_i, 1, emp.get_full_name()).alignment = left
+            ws.cell(row_i, 1, emp.employee_name_with_badge_id().strip()).alignment = (
+                left
+            )
             id_cell = ws.cell(row_i, 2, emp.pk)
             id_cell.alignment = center
             id_cell.font = Font(size=10, color="777777")
@@ -834,12 +838,12 @@ class RosterImportView(View):
                     "employee_work_info__department_id",
                 ).get(pk=int(emp_id_val))
             except (Employee.DoesNotExist, ValueError, TypeError):
-                errors.append(f"Row {row}: Employee ID {emp_id_val!r} not found.")
+                errors.append(f"Row {row}: Employee not found.")
                 continue
             # An employee outside the caller's team reads as "not found", so the
             # message does not confirm that the id is real.
             if not _in_roster_scope(scope, emp.pk):
-                errors.append(f"Row {row}: Employee ID {emp_id_val!r} not found.")
+                errors.append(f"Row {row}: Employee not found.")
                 continue
 
             work_info = getattr(emp, "employee_work_info", None)

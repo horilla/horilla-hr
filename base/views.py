@@ -3711,6 +3711,8 @@ def rotating_shift_assign_import(request):
         data_frame = (
             pd.read_csv(file) if file_extension == "csv" else pd.read_excel(file)
         )
+        # Files made before the heading was spelled "Badge ID" still import.
+        data_frame = data_frame.rename(columns={"Badge Id": "Badge ID"})
         work_info_dicts = data_frame.to_dict("records")
         # manager_can_enter admits any manager of anybody, so refuse the whole
         # import if it names an employee outside the caller's team. This runs
@@ -3718,7 +3720,7 @@ def rotating_shift_assign_import(request):
         # because rows are paired with employees by position, so employees
         # cannot be dropped one by one without misaligning the rest.
         badge_ids = [
-            str(row["Badge Id"]) for row in work_info_dicts if "Badge Id" in row
+            str(row["Badge ID"]) for row in work_info_dicts if "Badge ID" in row
         ]
         named_ids = list(
             Employee.objects.filter(badge_id__in=badge_ids).values_list("id", flat=True)
@@ -3756,7 +3758,7 @@ def rotating_shift_assign_import(request):
             start_date = parser.parse(str(start_date), dayfirst=True).date()
 
         for total_rows, row in enumerate(work_info_dicts, start=1):
-            employee_ids.append(row["Badge Id"])
+            employee_ids.append(row["Badge ID"])
             current_list = list(row.values())[3:]
             current_list = normalize_list(current_list)
             if start_date < datetime.today().date():
@@ -3830,7 +3832,7 @@ def rotating_shift_assign_import(request):
                 else:
                     error_message = f"Rotating Shift with ID {rshift.name} is already assigned to employee {employee}"
                     for row in work_info_dicts:
-                        if row["Badge Id"] == employee.badge_id:
+                        if row["Badge ID"] == employee.badge_id:
                             row["Employee Error"] = error_message
                             error_list.append(row)
                             break
@@ -3847,7 +3849,7 @@ def rotating_shift_assign_import(request):
         unique_error_list = []
 
         for row in error_list:
-            badge_id = row["Badge Id"]
+            badge_id = row["Badge ID"]
             if badge_id not in flg:
                 unique_error_list.append(row)
                 flg.add(badge_id)

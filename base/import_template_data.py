@@ -21,7 +21,7 @@ IMPORT_TEMPLATES = {
     "project": {
         "columns": [
             "Title",
-            "Manager Badge id",
+            "Manager Badge ID",
             "Status",
             "Start Date",
             "End Date",
