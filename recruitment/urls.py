@@ -808,6 +808,11 @@ urlpatterns = [
         name="candidate-self-tracking-rating-option",
     ),
     path(
+        "default-probation-period/",
+        views.default_probation_period,
+        name="default-probation-period",
+    ),
+    path(
         "candidate-self-status-tracking/",
         views.candidate_self_status_tracking,
         name="candidate-self-status-tracking",

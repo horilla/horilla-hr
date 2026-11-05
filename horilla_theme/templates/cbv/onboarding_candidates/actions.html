@@ -21,37 +21,6 @@
 		</button>
 	{% endif %}
 
-	{% if perms.recruitment.change_candidate %}
-		{% if instance.is_offer_rejected %}
-			<button
-				type="button"
-				hx-post="{% url 'undo-rejected-candidate' instance.id %}"
-				hx-target="#messages"
-				hx-swap="innerHTML"
-				hx-confirm="{% trans 'Do you want to undo rejection for this candidate?' %}"
-				hx-on:htmx:after-request="if(event.detail.successful){$('#applyFilter').click();$('#reloadMessagesButton').click();}"
-				class="oh-btn oh-btn--sq-sm"
-				title="{% trans 'Undo Rejected Candidate' %}"
-				style="background: #2f9e44; color: white"
-			>
-				<ion-icon name="thumbs-up-outline"></ion-icon>
-			</button>
-		{% else %}
-			<button
-				type="button"
-				hx-get="{% url 'add-to-rejected-candidates' %}?candidate_id={{instance.id}}"
-				hx-target="#genericModalBody"
-				hx-swap="innerHTML"
-				class="oh-btn oh-btn--light oh-btn--sq-sm"
-				data-toggle="oh-modal-toggle"
-				data-target="#genericModal"
-				title="{% trans 'Add To Rejected Candidates' %}"
-			>
-				<ion-icon name="thumbs-down-outline"></ion-icon>
-			</button>
-		{% endif %}
-	{% endif %}
-
 	{% if not instance.onboarding_stage %}
 		<form
 			hx-post="{% url 'email-send' %}?&no_portal=True"

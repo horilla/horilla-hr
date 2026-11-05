@@ -91,7 +91,9 @@ def get_candidate_entries_by_keys(candidate, keys, sort="-date"):
         )
         selected.extend(e for e in model_entries if e.get("entry_key") in model_keys)
 
-    selected.sort(key=lambda e: e["history_date"] or timezone.now(), reverse=sort != "date")
+    selected.sort(
+        key=lambda e: e["history_date"] or timezone.now(), reverse=sort != "date"
+    )
     return selected
 
 
@@ -109,7 +111,9 @@ def get_candidate_history_search(
             continue
         matched.extend(e for e in model_entries if phrase in entry_search_text(e))
 
-    matched.sort(key=lambda e: e["history_date"] or timezone.now(), reverse=sort != "date")
+    matched.sort(
+        key=lambda e: e["history_date"] or timezone.now(), reverse=sort != "date"
+    )
     return matched
 
 

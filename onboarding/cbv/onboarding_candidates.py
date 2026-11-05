@@ -6,11 +6,13 @@ from typing import Any
 
 from django.db.models import Q
 from django.http import HttpResponse
+from django.shortcuts import render
 from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
 
 from base.models import HorillaMailTemplate
+from employee.cbv.employee_profile import EmployeeProfileView
 from horilla_views.cbv_methods import (
     hx_request_required,
     login_required,
@@ -255,9 +257,6 @@ class OnboardingCandidatesNav(HorillaNavView):
         {
             "action": _("Send Portal"),
             "attrs": """
-
-                    data-target="#addAttachments"
-                    data-toggle="oh-modal-toggle"
                     id="send-port"
                     """,
         }
@@ -302,11 +301,6 @@ class CandidateProfileTasks(HorillaListView):
     columns = [
         (_("Task"), "onboarding_task_id__task_title"),
         (_("Status"), "status_col"),
-        (
-            _("Modified By"),
-            "modified_by__employee_get__get_full_name",
-            "modified_by__employee_get__get_avatar",
-        ),
     ]
 
     sortby_mapping = [
@@ -352,5 +346,43 @@ CandidateProfileView.add_tab(
         "title": _("Onboarding"),
         "view": CandidateProfileTasks.as_view(),
         "accessibility": "recruitment.cbv.accessibility.onboarding_accessibility",
+    },
+)
+
+
+class EmployeeOnboardingTasks(CandidateProfileTasks):
+    """
+    Onboarding tasks tab on the employee profile, resolved through the candidate
+    the employee was converted from.
+    """
+
+    def dispatch(self, request, *args, **kwargs):
+        """
+        Swap the employee pk in the URL for the linked candidate's pk.
+
+        Parameters:
+        request (HttpRequest): The HTTP request object.
+        kwargs : URL kwargs carrying the employee pk.
+
+        Returns:
+        HttpResponse : the candidate tasks list, or an empty page if the employee has no linked candidate.
+        """
+        candidate = Candidate.objects.filter(
+            converted_employee_id__pk=kwargs.get("pk")
+        ).first()
+        if not candidate:
+            return render(request, "onboarding/employee_no_onboarding.html")
+        kwargs["pk"] = candidate.pk
+        self.kwargs["pk"] = candidate.pk
+        if request.user == candidate.converted_employee_id.employee_user_id:
+            return super(CandidateProfileTasks, self).dispatch(request, *args, **kwargs)
+        return super().dispatch(request, *args, **kwargs)
+
+
+EmployeeProfileView.add_tab(
+    {
+        "title": _("Onboarding"),
+        "view": EmployeeOnboardingTasks.as_view(),
+        "accessibility": "employee.cbv.accessibility.onboarding_accessibility",
     },
 )

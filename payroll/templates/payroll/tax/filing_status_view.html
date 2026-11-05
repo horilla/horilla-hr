@@ -196,11 +196,27 @@ one shadowed the other; the page now lives in one place.
     }
     .fs__btn:hover { border-color: var(--pb-accent); color: var(--pb-accent); }
     .fs__empty td { text-align: center; color: var(--pb-muted); padding: 1.25rem; }
+
+    /* Tighter than the shared payroll look: this page is a list to scan, not a report. */
+    .fs-page.oh-wrapper { padding-top: .6rem; padding-bottom: .6rem; }
+    .fs-page .pb__kpis { margin-bottom: .75rem; }
+    .fs-page .pb__kpi { padding: .5rem .85rem; }
+    .fs-page .pb__kpi-label { margin-bottom: .1rem; }
+    .fs-page .pb__kpi-value { font-size: 1.15rem; }
+    .fs-page .pb__kpi-note { margin-top: 0; }
+    .fs-page .pb__alert { margin-bottom: .6rem; }
+    .fs-page .pb__panel-head { padding: .45rem .85rem; }
+    .fs-page .pb__table th { padding: .4rem .6rem; }
+    .fs-page .pb__table td { padding: .35rem .6rem; }
+    .fs-page .fs__actions { gap: 4px; }
+    .fs-page .fs__actions .oh-btn { width: 30px; height: 30px; }
+    .fs-page .fs__more > summary { padding: .3rem .6rem; }
+    .fs-page .fs__working { gap: 1.25rem; padding: .15rem .9rem .7rem 1.5rem; }
   </style>
 
-  <section class="oh-wrapper pb">
+  <section class="oh-wrapper pb fs-page">
 
-    <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+    <div class="d-flex justify-content-between align-items-start mb-2 flex-wrap gap-2">
       <div>
         <h1 class="oh-main__titlebar-title fw-bold mb-0">{% trans "Filing statuses" %}</h1>
         <div style="font-size:.8rem;color:#6b7280;">
@@ -215,13 +231,26 @@ one shadowed the other; the page now lives in one place.
                  aria-label="{% trans 'Search filing statuses' %}">
         </label>
         {% if perms.payroll.add_filingstatus %}
-        <button type="button" class="fs__btn"
-                data-toggle="oh-modal-toggle" data-target="#objectCreateModal"
-                hx-get="{% url 'tax-pack-picker' %}"
-                hx-target="#objectCreateModalTarget">
-          <ion-icon name="cloud-download-outline" class="me-1"></ion-icon>
-          {% trans "Load a country's rules" %}
-        </button>
+        {% comment %}Secondary actions live in the Actions menu, as in every list's nav bar.{% endcomment %}
+        <div class="relative dropdown-wrapper">
+          <button type="button" class="px-5 py-2 h-full bg-[white] rounded-md text-xs flex items-center gap-2 border border-primary-500 hover:border-primary-600 transition duration-300">
+            <img src="{% static 'horilla_theme/assets/img/icons/setting-line.svg' %}"
+                 alt="{% trans 'Actions' %}" width="15" class="mt-[-1px]">
+            {% trans "Actions" %}
+          </button>
+          <div class="dropdown-content absolute z-30 bg-white rounded-lg [box-shadow:0px_0px_20px_0px_rgb(0_0_0_/_8%)] min-w-[150px] py-2 right-0 max-h-[60vh] overflow-y-auto">
+            <ul class="text-sm">
+              <li>
+                <a class="px-4 py-1.5 hover:text-primary-600 transition duration-300 text-xs gap-4 items-center flex w-full cursor-pointer"
+                   data-toggle="oh-modal-toggle" data-target="#objectCreateModal"
+                   hx-get="{% url 'tax-pack-picker' %}"
+                   hx-target="#objectCreateModalTarget">
+                  {% trans "Load a country's rules" %}
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
         <button type="button" class="oh-btn oh-btn--secondary"
                 data-toggle="oh-modal-toggle" data-target="#objectCreateModal"
                 hx-get="{% url 'create-filing-status' %}"

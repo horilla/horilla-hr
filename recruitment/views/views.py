@@ -18,7 +18,7 @@ import json
 import os
 import random
 import re
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from itertools import chain
 from urllib.parse import parse_qs
 
@@ -3278,6 +3278,50 @@ def candidate_self_tracking_rating_option(request):
         message = _("Rating visibility is disabled ")
     settings.save()
     messages.success(request, message)
+    return HttpResponse("<script>$('#reloadMessagesButton').click()</script>")
+
+
+@login_required
+@hx_request_required
+@permission_required("recruitment.add_recruitmentgeneralsetting")
+def default_probation_period(request):
+    """
+    This method is used to update the recruitment general setting's default
+    probation period, used to auto-fill a candidate's probation end date
+    """
+    selected_company = request.session.get("selected_company")
+    company_id = (
+        None if not selected_company or selected_company == "all" else selected_company
+    )
+    settings, created = RecruitmentGeneralSetting.objects.get_or_create(
+        company_id_id=company_id
+    )
+    try:
+        settings.default_probation_period = max(
+            0, int(request.GET.get("default_probation_period"))
+        )
+        settings.save()
+
+        candidates = Candidate.objects.filter(joining_date__isnull=False)
+        if company_id is not None:
+            candidates = candidates.filter(recruitment_id__company_id=company_id)
+        else:
+            companies_with_override = RecruitmentGeneralSetting.objects.exclude(
+                company_id__isnull=True
+            ).values_list("company_id_id", flat=True)
+            candidates = candidates.exclude(
+                recruitment_id__company_id__in=companies_with_override
+            )
+        candidates = list(candidates)
+        for candidate in candidates:
+            candidate.probation_end = candidate.joining_date + timedelta(
+                days=settings.default_probation_period
+            )
+        Candidate.objects.bulk_update(candidates, ["probation_end"])
+
+        messages.success(request, _("Default probation period updated"))
+    except (TypeError, ValueError):
+        messages.error(request, _("Enter a valid number of days"))
     return HttpResponse("<script>$('#reloadMessagesButton').click()</script>")
 
 

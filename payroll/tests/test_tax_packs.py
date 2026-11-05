@@ -170,6 +170,14 @@ class TaxPackViewTests(TestCase):
             # as &amp; — correctly.
             self.assertIn(escape(pack["name"]), body)
 
+    def test_the_picker_uses_the_standard_title_and_stacks_each_summary_under_its_name(
+        self,
+    ):
+        body = self.client.get("/payroll/tax-pack-picker/", **self.hx).content.decode()
+        self.assertIn('class="oh-modal__dialog-title pick__title"', body)
+        self.assertNotIn("text-lg font-semibold", body)
+        self.assertRegex(body, r"\.pick__summary \{[^}]*display: block")
+
     def test_loading_selected_packs_creates_them_with_slabs(self):
         response = self.client.post(
             "/payroll/load-tax-pack/", {"packs": ["in_new", "uk_paye"]}, **self.hx

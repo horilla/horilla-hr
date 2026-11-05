@@ -10,7 +10,7 @@ import json
 import os
 import re
 import secrets
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from urllib.parse import urlencode
 from uuid import uuid4
@@ -28,6 +28,7 @@ from django.db.models import Avg, Min
 from django.templatetags.static import static
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone as tz
+from django.utils.dateparse import parse_date
 from django.utils.functional import cached_property
 from django.utils.html import format_html
 from django.utils.text import slugify
@@ -1438,14 +1439,19 @@ class Candidate(HorillaModel):
         if self.stage_id is not None:
             self.hired = self.stage_id.stage_type == "shortlisted"
 
+        if isinstance(self.joining_date, str):
+            self.joining_date = parse_date(self.joining_date)
+
         should_validate_job_position = not self.pk
+        joining_date_changed = bool(self.joining_date)
         if self.pk:
             previous = (
                 Candidate.objects.filter(pk=self.pk)
-                .values("recruitment_id", "job_position_id", "stage_id")
+                .values("recruitment_id", "job_position_id", "stage_id", "joining_date")
                 .first()
             )
             if previous:
+                joining_date_changed = previous["joining_date"] != self.joining_date
                 should_validate_job_position = (
                     previous["recruitment_id"] != self.recruitment_id_id
                     or previous["job_position_id"] != self.job_position_id_id
@@ -1489,6 +1495,23 @@ class Candidate(HorillaModel):
         if self.converted:
             self.hired = False
             self.canceled = False
+
+        if self.joining_date and joining_date_changed:
+            company_id = self.recruitment_id.company_id_id
+            setting = (
+                RecruitmentGeneralSetting.objects.filter(
+                    company_id_id=company_id
+                ).first()
+                or RecruitmentGeneralSetting.objects.filter(
+                    company_id__isnull=True
+                ).first()
+            )
+            default_period = (
+                setting.default_probation_period
+                if setting and setting.default_probation_period is not None
+                else 90
+            )
+            self.probation_end = self.joining_date + timedelta(days=default_period)
 
         super().save(*args, **kwargs)
 
@@ -2066,6 +2089,15 @@ class RecruitmentGeneralSetting(HorillaModel):
 
     candidate_self_tracking = models.BooleanField(default=False)
     show_overall_rating = models.BooleanField(default=False)
+    default_probation_period = models.IntegerField(
+        default=90,
+        validators=[MinValueValidator(0)],
+        verbose_name=_("Probation Period (Days)"),
+        help_text=_(
+            "Default probation period in days, used to auto-fill a "
+            "candidate's probation end date from their joining date"
+        ),
+    )
     company_id = models.OneToOneField(
         Company, on_delete=models.CASCADE, null=True, blank=True, unique=True
     )
