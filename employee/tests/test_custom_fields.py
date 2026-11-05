@@ -31,6 +31,15 @@ class TestCustomFields(TestCase):
         self.assertIn("Shirt size", html)
         self.assertIn("As printed on the label", html)
 
+    def test_it_is_styled_like_the_fields_around_it(self):
+        form = EmployeeForm()
+        form.fields["shirt_size"] = forms.CharField()
+        form.fields["notes"] = forms.CharField(widget=forms.Textarea)
+        html = render_to_string(TEMPLATE, {"form": form})
+        self.assertRegex(html, r'<input[^>]*class="[^"]*oh-input[^"]*h-9[^"]*"')
+        self.assertRegex(html, r'<textarea[^>]*class="[^"]*oh-input[^"]*resize-y[^"]*"')
+        self.assertNotRegex(html, r'<textarea[^>]*class="[^"]*h-9')
+
     def test_its_errors_are_shown(self):
         form = EmployeeForm(data={"email": "new@custom.test"})
         form.fields["shirt_size"] = forms.CharField(label="Shirt size")
