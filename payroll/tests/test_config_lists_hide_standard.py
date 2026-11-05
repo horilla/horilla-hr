@@ -14,12 +14,18 @@ HX = {"HTTP_HX_REQUEST": "true"}
 class ConfigurationListsTests(TestCase):
     def setUp(self):
         user = make_user("listsadmin", is_superuser=True)
-        make_employee(company=make_company("Lists Co"), email="lists@test.horilla", user=user)
+        make_employee(
+            company=make_company("Lists Co"), email="lists@test.horilla", user=user
+        )
         self.client.force_login(user)
         Allowance.objects.create(title="Plain Allowance Row", is_fixed=True, amount=10)
         Deduction.objects.create(title="Plain Deduction Row", is_fixed=True, amount=10)
-        self.standard_allowance = Allowance.objects.entire().filter(is_system=True).first()
-        self.standard_deduction = Deduction.objects.entire().filter(is_system=True).first()
+        self.standard_allowance = (
+            Allowance.objects.entire().filter(is_system=True).first()
+        )
+        self.standard_deduction = (
+            Deduction.objects.entire().filter(is_system=True).first()
+        )
 
     def _body(self, name):
         return self.client.get(reverse(name), **HX).content.decode()
@@ -59,7 +65,9 @@ class AlwaysAppliedTabTests(TestCase):
 
     def setUp(self):
         user = make_user("aaadmin", is_superuser=True)
-        make_employee(company=make_company("Always Co"), email="always@test.horilla", user=user)
+        make_employee(
+            company=make_company("Always Co"), email="always@test.horilla", user=user
+        )
         self.client.force_login(user)
 
     def _get(self, name):
@@ -122,13 +130,18 @@ class AlwaysAppliedTabTests(TestCase):
 
     def test_an_ordinary_component_is_not_in_the_tab(self):
         Allowance.objects.create(title="Ordinary Pay Row", is_fixed=True, amount=10)
-        Deduction.objects.create(title="Ordinary Deduction Row", is_fixed=True, amount=10)
+        Deduction.objects.create(
+            title="Ordinary Deduction Row", is_fixed=True, amount=10
+        )
         html = self._get("payroll-settings-always-applied-tab")
         self.assertNotIn(">Ordinary Pay Row</span>", html)
         self.assertNotIn(">Ordinary Deduction Row</span>", html)
 
     def test_the_allowances_and_deductions_tabs_no_longer_carry_the_section(self):
-        for name in ("payroll-settings-allowance-tab", "payroll-settings-deduction-tab"):
+        for name in (
+            "payroll-settings-allowance-tab",
+            "payroll-settings-deduction-tab",
+        ):
             self.assertNotIn("data-always-applied", self._get(name), name)
 
     def test_the_tab_bar_has_the_tab_with_the_count_of_its_rows(self):
@@ -145,7 +158,9 @@ class ListColumnTests(TestCase):
 
     def setUp(self):
         user = make_user("colsadmin", is_superuser=True)
-        make_employee(company=make_company("Cols Co"), email="cols@test.horilla", user=user)
+        make_employee(
+            company=make_company("Cols Co"), email="cols@test.horilla", user=user
+        )
         self.client.force_login(user)
 
     def _body(self, name):
@@ -167,14 +182,21 @@ class ListColumnTests(TestCase):
 
     def test_a_calculation_reads_as_one_line(self):
         fixed = Allowance.objects.create(title="Cols Fixed", is_fixed=True, amount=300)
-        percent = Allowance.objects.create(title="Cols Percent", is_fixed=False, based_on="basic_pay", rate=40)
+        percent = Allowance.objects.create(
+            title="Cols Percent", is_fixed=False, based_on="basic_pay", rate=40
+        )
         self.assertEqual(fixed.get_calculation_col(), "300.00")
         self.assertEqual(percent.get_calculation_col(), "40% of BASIC")
 
     def test_applied_to_names_who_it_reaches(self):
         company = make_company("Applied Co")
         adam = make_employee(company=company, email="adam-applied@test.horilla")
-        everyone = Allowance.objects.create(title="Cols Everyone", is_fixed=True, amount=1, include_active_employees=True)
+        everyone = Allowance.objects.create(
+            title="Cols Everyone",
+            is_fixed=True,
+            amount=1,
+            include_active_employees=True,
+        )
         picked = Allowance.objects.create(title="Cols Picked", is_fixed=True, amount=1)
         picked.specific_employees.add(adam)
         nobody = Allowance.objects.create(title="Cols Nobody", is_fixed=True, amount=1)
@@ -188,15 +210,27 @@ class ListColumnTests(TestCase):
         from base.models import Department
 
         sales, _ = Department.objects.get_or_create(department="Cols Sales")
-        rule = Deduction.objects.create(title="Cols Group", is_fixed=True, amount=1, apply_by="department")
+        rule = Deduction.objects.create(
+            title="Cols Group", is_fixed=True, amount=1, apply_by="department"
+        )
         rule.apply_departments.add(sales)
         self.assertEqual(rule.get_applied_to_col(), "Department: Cols Sales")
 
     def test_a_deduction_type_uses_the_global_terms(self):
-        tax = Deduction.objects.create(title="Cols Tax", is_fixed=True, amount=1, is_tax=True)
-        pre = Deduction.objects.create(title="Cols Pre", is_fixed=True, amount=1, is_pretax=True)
-        post = Deduction.objects.create(title="Cols Post", is_fixed=True, amount=1, is_pretax=False)
+        tax = Deduction.objects.create(
+            title="Cols Tax", is_fixed=True, amount=1, is_tax=True
+        )
+        pre = Deduction.objects.create(
+            title="Cols Pre", is_fixed=True, amount=1, is_pretax=True
+        )
+        post = Deduction.objects.create(
+            title="Cols Post", is_fixed=True, amount=1, is_pretax=False
+        )
         self.assertEqual(
-            [str(tax.get_type_col()), str(pre.get_type_col()), str(post.get_type_col())],
+            [
+                str(tax.get_type_col()),
+                str(pre.get_type_col()),
+                str(post.get_type_col()),
+            ],
             ["Tax", "Pre-Tax Deduction", "Deduction"],
         )
