@@ -139,12 +139,20 @@
     </div>
 
     <script>
-        $(document).on("click", "#send-port", function () {
-            ids = [];
-            ids.push($("#selectedInstances").attr("data-ids"));
-            ids = JSON.parse($("#selectedInstances").attr("data-ids"));
+        $(document).on("click", "#send-port", function (e) {
+            e.preventDefault();
+            var ids = JSON.parse($("#selectedInstances").attr("data-ids") || "[]");
+            if (!ids.length) {
+                Swal.fire({
+                    text: i18nMessages.noRowsSelected,
+                    icon: "warning",
+                    confirmButtonText: i18nMessages.close,
+                });
+                return;
+            }
             $("#hired_candidates[name=ids]").val(ids);
             $("select[name=ids]").change();
+            $("#addAttachments").addClass("oh-modal--show");
         });
 
           function dateJoining($element){
@@ -159,6 +167,12 @@
                   csrfmiddlewaretoken: '{{ csrf_token }}'
                 },
                 success: function (response) {
+                  if (response && response.probation_end !== undefined) {
+                    $('input[name="probation_end"][data-candidate-id="' + candId + '"]').val(response.probation_end);
+                  }
+                  $("#reloadMessagesButton").click()
+                },
+                error: function () {
                   $("#reloadMessagesButton").click()
                 }
               });
@@ -176,6 +190,9 @@
                   csrfmiddlewaretoken: '{{ csrf_token }}'
                 },
                 success: function (response) {
+                  $("#reloadMessagesButton").click()
+                },
+                error: function () {
                   $("#reloadMessagesButton").click()
                 }
               });

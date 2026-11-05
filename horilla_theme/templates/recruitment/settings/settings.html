@@ -64,11 +64,44 @@
             </div>
         </div>
     </div>
+    <div class="border border-[#ebebeb] rounded-md overflow-hidden mb-5">
+        <h5 class="text-sm font-semibold bg-[#f3f3f3] px-4 py-3 text-[#333]">
+            {% trans 'Probation Period' %}
+        </h5>
+        <div class="p-4">
+            <p class="text-xs text-gray-500 mb-4">
+                {% trans "Used to auto-fill a candidate's probation end date from their joining date." %}
+            </p>
+            <div class="grid grid-cols-12 gap-4 myform">
+                <div class="col-span-12 lg:col-span-6">
+                    <label class="text-sm font-medium mb-2 block" for="default_probation_period">
+                        {% trans "Default Probation Period (Days)" %}
+                    </label>
+                    <input
+                        type="number"
+                        min="0"
+                        id="default_probation_period"
+                        class="oh-input"
+                        style="max-width: 160px;"
+                        value="{{ get_default_probation_period }}"
+                        onchange="defaultProbationPeriod($(this))"
+                    />
+                </div>
+            </div>
+        </div>
+    </div>
     <button id="selfTrackButton" hx-get="{% url 'candidate-self-tracking' %}" hx-target="#reloadMessages" hidden>
     </button>
     <button
         id="ratingButton"
         hx-get="{% url 'candidate-self-tracking-rating-option' %}"
+        hx-target="#reloadMessages"
+        hidden
+    >
+    </button>
+    <button
+        id="probationPeriodButton"
+        hx-get="{% url 'default-probation-period' %}"
         hx-target="#reloadMessages"
         hidden
     >
@@ -83,6 +116,11 @@
             var value = $(element).is(':checked')
             $('#ratingButton').attr('hx-vals', `{"candidate_self_tracking":${value}}`);
             $('#ratingButton').click()
+        }
+        function defaultProbationPeriod(element){
+            var value = $(element).val()
+            $('#probationPeriodButton').attr('hx-vals', `{"default_probation_period":${value}}`);
+            $('#probationPeriodButton').click()
         }
     </script>
 {% endblock settings %}
