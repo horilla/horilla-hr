@@ -184,6 +184,14 @@ def editable_fields(key):
     return tuple(fields)
 
 
+def tax_field(key):
+    """The tax setting this kind has: ``is_taxable`` for an earning, ``is_pretax`` for a deduction, or None."""
+    for field in editable_fields(key):
+        if field in ("is_taxable", "is_pretax"):
+            return field
+    return None
+
+
 def policy(key):
     """
     The stored template for one kind, or None if it has not been seeded.
@@ -202,13 +210,16 @@ def policy(key):
     return model.objects.entire().filter(system_key=key).first()
 
 
-def policy_fields(key):
+def policy_fields(key, employee=None):
     """
     The tax treatment and proration basis to give a row of this kind.
 
     Returned as kwargs for the model, so a generator writes
     ``Deduction(**policy_fields("loan_repayment"), ...)`` instead of leaving
     those fields to defaults nobody chose.
+
+    With ``employee`` (an Employee or its id), an override stored for that employee wins over the
+    standard component's own setting: a loan can be taxable for one person and not for the rest.
     """
     fields = dict(BY_KEY.get(key, {}).get("defaults", {}))
 
@@ -220,6 +231,16 @@ def policy_fields(key):
         # reverting to the model default it was introduced to override.
         for field in editable_fields(key):
             fields[field] = getattr(stored, field)
+
+    if employee is not None:
+        from payroll.models.models import SystemComponentTaxOverride
+
+        field = tax_field(key)
+        override = SystemComponentTaxOverride.objects.filter(
+            system_key=key, employee_id=employee
+        ).first()
+        if field and override is not None:
+            fields[field] = override.value
     return fields
 
 

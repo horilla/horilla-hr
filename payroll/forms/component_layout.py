@@ -113,6 +113,8 @@ LAYOUT = [
             ("is_basic_pay", 6, ""),
             ("is_pretax", 6, ""),
             ("is_tax", 6, ""),
+            # Only on a standard component's form: who it is taxed differently for.
+            ("tax_exception_employees", 12, ""),
         ],
     ),
     (

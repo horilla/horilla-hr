@@ -2186,22 +2186,34 @@ class HorillaFormView(FormView):
                         # Normal case: `field` is a real field on the
                         # form's model (FK or M2M).
                         field_instance = form.instance._meta.get_field(field)
-                        field_label = (
-                            form.fields[field].label or field_instance.verbose_name
-                        )
-                        is_multi = isinstance(
-                            field_instance, models.models.ManyToManyField
-                        )
-                        if is_multi and form.instance.pk is not None:
-                            value = list(
-                                getattr(form.instance, field).values_list(
-                                    "id", flat=True
+                        if isinstance(field_instance, models.models.ManyToManyRel):
+                            field_label = form.fields[field].label
+                            is_multi = isinstance(
+                                form.fields[field], forms.ModelMultipleChoiceField
+                            )
+                            if is_multi and form.instance.pk is not None:
+                                value = list(
+                                    getattr(form.instance, field).values_list(
+                                        "id", flat=True
+                                    )
                                 )
+                        else:
+                            field_label = (
+                                form.fields[field].label or field_instance.verbose_name
                             )
-                        elif not is_multi:
-                            value = getattr(
-                                getattribute(form.instance, field), "pk", value
+                            is_multi = isinstance(
+                                field_instance, models.models.ManyToManyField
                             )
+                            if is_multi and form.instance.pk is not None:
+                                value = list(
+                                    getattr(form.instance, field).values_list(
+                                        "id", flat=True
+                                    )
+                                )
+                            elif not is_multi:
+                                value = getattr(
+                                    getattribute(form.instance, field), "pk", value
+                                )
                     except FieldDoesNotExist:
                         field_label = form.fields[field].label
                         is_multi = isinstance(

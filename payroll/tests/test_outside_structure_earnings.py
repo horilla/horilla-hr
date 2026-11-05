@@ -5,6 +5,8 @@ package: it does not shrink the balance component, and a full pay month pays its
 
 from datetime import date
 
+from django.test import SimpleTestCase
+
 from payroll.methods.earning_working import earning_workings
 from payroll.methods.proration import MONTH_CALENDAR_DAYS, period_factor
 from payroll.models.models import (
@@ -293,3 +295,157 @@ class CtcBreakDown(OutsideHelpers, StructureTypeFixture):
         )
         self.assertIn("CTC Break Down", html)
         self.assertIn("Outside The CTC", html)
+
+
+class CtcBreakDownLossOfPay(SimpleTestCase):
+    """A payslip whose context lost the basic cut still reconciles, from its stored loss of pay."""
+
+    @staticmethod
+    def _payslip(context, **extra):
+        from types import SimpleNamespace
+
+        data = {
+            "component_context": {"CTC": 30000.0, **context},
+            "allowances": [{"title": "House Rent Allowance", "amount": 17000.0}],
+            "pretax_deductions": [
+                {
+                    "title": "Pension",
+                    "amount": 100.0,
+                    "employer_contribution_amount": 1393.55,
+                }
+            ],
+            **extra,
+        }
+        return SimpleNamespace(pay_head_data=data, basic_pay=11219.35)
+
+    def test_the_stored_loss_of_pay_closes_the_gap_when_the_context_has_no_cut(self):
+        from payroll.methods.ctc_breakdown import ctc_breakdown
+
+        figures = ctc_breakdown(
+            self._payslip({}, loss_of_pay=387.10, lop_reflected_in_basic=True)
+        )
+        self.assertAlmostEqual(figures["lop"], 387.10)
+        self.assertAlmostEqual(figures["package"], 29612.90)
+        self.assertAlmostEqual(figures["difference"], 0.0, places=2)
+
+    def test_the_cut_in_the_context_is_used_when_there_is_one(self):
+        from payroll.methods.ctc_breakdown import ctc_breakdown
+
+        figures = ctc_breakdown(
+            self._payslip(
+                {"_basic_lop": 100.0}, loss_of_pay=387.10, lop_reflected_in_basic=True
+            )
+        )
+        self.assertAlmostEqual(figures["lop"], 100.0)
+
+    def test_a_loss_of_pay_not_taken_off_basic_is_not_counted_against_the_package(self):
+        from payroll.methods.ctc_breakdown import ctc_breakdown
+
+        figures = ctc_breakdown(
+            self._payslip({}, loss_of_pay=387.10, lop_reflected_in_basic=False)
+        )
+        self.assertEqual(figures["lop"], 0)
+
+
+class CtcDifferenceReason(SimpleTestCase):
+    """A gap to the package is explained by what the payslip records, not by a catch-all."""
+
+    @staticmethod
+    def _reason(difference, **data):
+        from payroll.methods.ctc_breakdown import difference_reason
+
+        return str(difference_reason(data, difference))
+
+    def test_basic_changed_by_hand_is_named(self):
+        self.assertIn(
+            "Basic Pay Was Changed By Hand", self._reason(500.0, basic_edited=True)
+        )
+
+    def test_a_line_added_by_hand_is_named(self):
+        reason = self._reason(
+            -200.0, allowances=[{"title": "Extra", "amount": 200, "custom_id": "ab12"}]
+        )
+        self.assertIn("Added To This Payslip By Hand", reason)
+
+    def test_a_structure_without_a_balance_component_leaves_the_rest_unpaid(self):
+        reason = self._reason(1200.0, allowances=[{"title": "Basic", "amount": 100}])
+        self.assertIn("No Balance Component", reason)
+        self.assertIn("1,200.00", reason)
+
+    def test_a_short_balance_says_a_line_was_changed(self):
+        from unittest import mock
+
+        rows = [{"title": "Balance", "amount": 50.0, "allowance_id": 7}]
+        with mock.patch("payroll.methods.ctc_breakdown._balance_ids", return_value={7}):
+            self.assertIn(
+                "Balance Component Is Short By 300.00",
+                self._reason(300.0, allowances=rows),
+            )
+
+    def test_a_zero_balance_over_the_package_says_the_rest_already_exceeds_it(self):
+        from unittest import mock
+
+        rows = [{"title": "Balance", "amount": 0.0, "allowance_id": 7}]
+        with mock.patch("payroll.methods.ctc_breakdown._balance_ids", return_value={7}):
+            reason = self._reason(-80.0, allowances=rows)
+        self.assertIn("Nothing Left To Fill", reason)
+        self.assertIn("80.00", reason)
+
+    def test_the_breakdown_carries_the_reason(self):
+        from types import SimpleNamespace
+
+        from payroll.methods.ctc_breakdown import ctc_breakdown
+
+        data = {
+            "component_context": {"CTC": 30000.0},
+            "allowances": [{"title": "HRA", "amount": 1000.0}],
+        }
+        figures = ctc_breakdown(SimpleNamespace(pay_head_data=data, basic_pay=2000.0))
+        self.assertIn("No Balance Component", str(figures["difference_reason"]))
+
+
+class CtcLossOfPayNote(SimpleTestCase):
+    """The total sits below the monthly CTC by the loss of pay, and the panel says so."""
+
+    def test_the_note_names_the_loss_of_pay_the_days_and_the_package(self):
+        from payroll.methods.ctc_breakdown import lop_note
+
+        note = str(lop_note(30000.0, 387.10, {"UNPAID_DAYS": 1.0}))
+        self.assertIn("387.10 Less Than The Monthly CTC Of 30,000.00", note)
+        self.assertIn("For 1 Unpaid Day Was Taken Off Basic Pay", note)
+        self.assertIn("29,612.90", note)
+
+    def test_several_days_are_plural_and_unknown_days_are_left_out(self):
+        from payroll.methods.ctc_breakdown import lop_note
+
+        self.assertIn(
+            "For 3 Unpaid Days", str(lop_note(30000.0, 900.0, {"UNPAID_DAYS": 3.0}))
+        )
+        self.assertNotIn("Unpaid Day", str(lop_note(30000.0, 900.0, {})))
+
+    def test_no_loss_of_pay_no_note(self):
+        from payroll.methods.ctc_breakdown import lop_note
+
+        self.assertIsNone(lop_note(30000.0, 0.0, {}))
+
+    def test_the_breakdown_carries_it_for_a_payslip_with_loss_of_pay(self):
+        from types import SimpleNamespace
+
+        from payroll.methods.ctc_breakdown import ctc_breakdown
+
+        data = {
+            "component_context": {"CTC": 30000.0, "UNPAID_DAYS": 1.0},
+            "allowances": [{"title": "HRA", "amount": 28219.35 - 11612.90}],
+            "pretax_deductions": [
+                {
+                    "title": "Pension",
+                    "amount": 100.0,
+                    "employer_contribution_amount": 1393.55,
+                }
+            ],
+            "lop_reflected_in_basic": True,
+            "loss_of_pay": 387.10,
+        }
+        figures = ctc_breakdown(SimpleNamespace(pay_head_data=data, basic_pay=11612.90))
+        self.assertIn("387.10 Less Than The Monthly CTC", str(figures["lop_note"]))
+        self.assertAlmostEqual(figures["difference"], 0.0, places=2)

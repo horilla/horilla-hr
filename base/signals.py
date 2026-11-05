@@ -91,7 +91,9 @@ def create_deduction_cutleave_from_penalty(sender, instance, created, **kwargs):
             # penalty a pre-tax deduction.
             from payroll.system_components import policy_fields
 
-            for field, value in policy_fields("penalty").items():
+            for field, value in policy_fields(
+                "penalty", employee=instance.employee_id
+            ).items():
                 setattr(penalty, field, value)
 
             penalty.save()

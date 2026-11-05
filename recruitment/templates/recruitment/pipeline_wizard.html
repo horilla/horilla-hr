@@ -13,6 +13,7 @@
         class="rec-wiz-root"
         data-defaults="{{ form.default_pipeline_json }}"
         data-types="{{ form.stage_types_json }}"
+        {% if form.instance.pk %}data-editing="1"{% endif %}
     >
         <style>
             /* ---- steps: same as the Allowance, Deduction and Leave Type forms ---- */
@@ -82,7 +83,7 @@
             .rec-wiz-badge[data-type="initial"] { background: #f3f4f6; color: #374151; }
             .rec-wiz-badge[data-type="test"] { background: #fef3c7; color: #92400e; }
             .rec-wiz-badge[data-type="interview"] { background: #ede9fe; color: #5b21b6; }
-            .rec-wiz-badge[data-type="hired"] { background: #dcfce7; color: #166534; }
+            .rec-wiz-badge[data-type="shortlisted"] { background: #dcfce7; color: #166534; }
             .rec-wiz-badge[data-type="cancelled"] { background: #fee2e2; color: #991b1b; }
             .rec-wiz-cta { margin-top: 14px; }
             .rec-wiz-link { background: none; border: 0; padding: 0; color: var(--rw-primary); font-size: 13px; cursor: pointer; text-decoration: underline; }
@@ -93,6 +94,14 @@
             .rec-wiz-icon:hover:not(:disabled) { background: #e5e7eb; }
             .rec-wiz-icon:disabled { opacity: .35; cursor: default; }
             .rec-wiz-icon.is-remove:hover:not(:disabled) { background: #fee2e2; color: #991b1b; }
+            .rec-wiz-num[draggable="true"] { cursor: grab; }
+            .rec-wiz-grip { cursor: grab; color: #9ca3af; user-select: none; padding: 0 4px; letter-spacing: -2px; font-size: 16px; line-height: 1; }
+            .rec-wiz-row.is-dragging { opacity: .4; }
+            .rec-wiz-row.drop-before { box-shadow: 0 -2px 0 0 var(--rw-primary); }
+            .rec-wiz-row.drop-after { box-shadow: 0 2px 0 0 var(--rw-primary); }
+            .rec-wiz-row.is-confirming { background: #fef2f2; border-color: #fecaca; }
+            .rec-wiz-confirm { display: flex; align-items: center; gap: 8px; width: 100%; font-size: 13px; color: #991b1b; flex-wrap: wrap; }
+            .rec-wiz-confirm .oh-btn--danger { background: #b00020; border-color: #b00020; color: #fff; }
             .rec-wiz-error { color: #b00020; font-size: 13px; margin-top: 10px; }
             .rec-wiz-error ul { margin: 0; padding: 0; list-style: none; }
         </style>
@@ -109,7 +118,7 @@
                 <span class="oh-steps__num">2</span>
                 <span class="oh-steps__text">
                     <span class="oh-steps__label">{% trans "Pipeline" %}</span>
-                    <span class="oh-steps__hint">{% trans "Default or custom stages." %}</span>
+                    <span class="oh-steps__hint">{% if form.instance.pk %}{% trans "Reorder, rename or remove stages." %}{% else %}{% trans "Default or custom stages." %}{% endif %}</span>
                 </span>
                 <span class="oh-steps__flag" data-step-flag hidden title="{% trans 'Something on this step needs attention' %}">!</span>
             </button>
@@ -117,6 +126,19 @@
     </div>
 {% elif part == "step2" %}
     <div class="oh-step-panel rec-wiz-step2" id="step-pipeline" data-step-panel="pipeline" role="tabpanel" hidden>
+        {% if form.instance.pk %}
+        <p class="rec-wiz-intro">
+            {% trans "Drag the stages to reorder them, rename them, change their type or remove the ones you do not need. Changes are saved with the recruitment." %}
+        </p>
+        <div data-wiz-panel="custom">
+            <div class="rec-wiz-list" data-wiz-rows></div>
+            <div class="rec-wiz-cta">
+                <button type="button" class="oh-btn oh-btn--light" data-wiz-add>
+                    + {% trans "Add stage" %}
+                </button>
+            </div>
+        </div>
+        {% else %}
         <p class="rec-wiz-intro">
             {% trans "Choose the stages candidates move through for this recruitment. You can always add, rename or reorder stages later from the pipeline." %}
         </p>
@@ -158,6 +180,7 @@
             </div>
         </div>
 
+        {% endif %}
         <div class="rec-wiz-error" data-wiz-error>{{ form.pipeline_stages.errors }}</div>
     </div>
 {% elif part == "footer" %}
@@ -187,6 +210,8 @@
             if (!form) return;
             root.dataset.bound = "1";
 
+            // Editing starts from the saved stages and has no default / custom choice.
+            var editing = !!root.dataset.editing;
             var defaults = JSON.parse(root.dataset.defaults);
             var types = JSON.parse(root.dataset.types);
             var modeInput = form.querySelector("[name=pipeline_mode]");
@@ -197,7 +222,7 @@
             var rowsEl = q("[data-wiz-rows]");
             var errorEl = q("[data-wiz-error]");
             var saveBtn = q("[data-step-save]");
-            var mode = modeInput.value === "custom" ? "custom" : "default";
+            var mode = editing || modeInput.value === "custom" ? "custom" : "default";
             var rows = [];
 
             function clone(list) {
@@ -247,16 +272,69 @@
                 return b;
             }
 
+            var dragFrom = null;
+
             function renderRows(focusIndex) {
                 rowsEl.innerHTML = "";
                 rows.forEach(function (row, i) {
                     var el = document.createElement("div");
                     el.className = "rec-wiz-row";
+                    el.dataset.index = i;
 
+                    // Rows are dragged by their handle only, so the name box
+                    // and the type select keep normal text selection.
                     var num = document.createElement("span");
                     num.className = "rec-wiz-num";
                     num.textContent = i + 1;
+                    var grip = document.createElement("span");
+                    grip.className = "rec-wiz-grip";
+                    grip.textContent = "⋮⋮";
+                    grip.title = "{% trans 'Drag to reorder'|escapejs %}";
+
+                    function onDragStart(e) {
+                        dragFrom = i;
+                        e.dataTransfer.effectAllowed = "move";
+                        e.dataTransfer.setData("text/plain", String(i));
+                        try { e.dataTransfer.setDragImage(el, 10, 10); } catch (err) {}
+                        setTimeout(function () { el.classList.add("is-dragging"); }, 0);
+                    }
+                    function onDragEnd() {
+                        dragFrom = null;
+                        renderRows();
+                    }
+                    // The number is a handle too.
+                    [grip, num].forEach(function (handle) {
+                        handle.draggable = true;
+                        handle.style.cursor = "grab";
+                        handle.addEventListener("dragstart", onDragStart);
+                        handle.addEventListener("dragend", onDragEnd);
+                    });
+                    el.appendChild(grip);
                     el.appendChild(num);
+                    el.addEventListener("dragover", function (e) {
+                        if (dragFrom === null) return;
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = "move";
+                        var rect = el.getBoundingClientRect();
+                        var after = e.clientY > rect.top + rect.height / 2;
+                        el.classList.toggle("drop-before", !after);
+                        el.classList.toggle("drop-after", after);
+                    });
+                    el.addEventListener("dragleave", function () {
+                        el.classList.remove("drop-before", "drop-after");
+                    });
+                    el.addEventListener("drop", function (e) {
+                        if (dragFrom === null) return;
+                        e.preventDefault();
+                        var rect = el.getBoundingClientRect();
+                        var to = i + (e.clientY > rect.top + rect.height / 2 ? 1 : 0);
+                        var moved = rows.splice(dragFrom, 1)[0];
+                        if (dragFrom < to) to -= 1;
+                        rows.splice(to, 0, moved);
+                        dragFrom = null;
+                        sync();
+                        renderRows();
+                    });
 
                     var input = document.createElement("input");
                     input.type = "text";
@@ -285,22 +363,54 @@
                     });
                     el.appendChild(select);
 
-                    el.appendChild(iconBtn("{% trans 'Move up'|escapejs %}", "↑", "", i === 0, function () {
-                        rows.splice(i - 1, 0, rows.splice(i, 1)[0]);
-                        sync(); renderRows();
-                    }));
-                    el.appendChild(iconBtn("{% trans 'Move down'|escapejs %}", "↓", "", i === rows.length - 1, function () {
-                        rows.splice(i + 1, 0, rows.splice(i, 1)[0]);
-                        sync(); renderRows();
-                    }));
-                    el.appendChild(iconBtn("{% trans 'Remove stage'|escapejs %}", "×", "is-remove", rows.length === 1, function () {
-                        rows.splice(i, 1);
-                        showError("");
-                        sync(); renderRows();
-                    }));
+                    var lockedTitle = "{% trans 'This stage has candidates. Move them to another stage before deleting it.'|escapejs %}";
+                    var del = iconBtn(
+                        row.locked ? lockedTitle : "{% trans 'Remove stage'|escapejs %}",
+                        "×", "is-remove",
+                        rows.length === 1 || !!row.locked,
+                        function () { askDelete(el, i); }
+                    );
+                    el.appendChild(del);
                     rowsEl.appendChild(el);
                     if (focusIndex === i) input.focus();
                 });
+            }
+
+            // Inline confirmation in place of the row's controls. The stage is
+            // only removed from the list here; it is deleted when the
+            // recruitment is saved.
+            function askDelete(el, i) {
+                var label = (rows[i].name || "").trim() || "{% trans 'this stage'|escapejs %}";
+                var box = document.createElement("div");
+                box.className = "rec-wiz-confirm";
+                var msg = document.createElement("span");
+                msg.textContent = "{% trans 'Delete'|escapejs %} \u201c" + label + "\u201d? " +
+                    ("id" in rows[i] && rows[i].id ? "{% trans 'Its notes and files are removed when you save.'|escapejs %}" : "");
+                box.appendChild(msg);
+                var spacer = document.createElement("span");
+                spacer.style.flex = "1";
+                box.appendChild(spacer);
+                var cancel = document.createElement("button");
+                cancel.type = "button";
+                cancel.className = "oh-btn oh-btn--light";
+                cancel.textContent = "{% trans 'Cancel'|escapejs %}";
+                cancel.addEventListener("click", function () { renderRows(); });
+                var ok = document.createElement("button");
+                ok.type = "button";
+                ok.className = "oh-btn oh-btn--danger";
+                ok.textContent = "{% trans 'Delete'|escapejs %}";
+                ok.addEventListener("click", function () {
+                    rows.splice(i, 1);
+                    showError("");
+                    sync(); renderRows();
+                });
+                box.appendChild(cancel);
+                box.appendChild(ok);
+                el.innerHTML = "";
+                el.draggable = false;
+                el.classList.add("is-confirming");
+                el.appendChild(box);
+                ok.focus();
             }
 
             function setMode(next) {
@@ -308,7 +418,8 @@
                 qa(".rec-wiz-mode[data-wiz-mode]").forEach(function (b) {
                     b.classList.toggle("is-selected", b.dataset.wizMode === mode);
                 });
-                q("[data-wiz-panel=default]").classList.toggle("rec-wiz-hidden", mode !== "default");
+                var defaultPanel = q("[data-wiz-panel=default]");
+                if (defaultPanel) defaultPanel.classList.toggle("rec-wiz-hidden", mode !== "default");
                 q("[data-wiz-panel=custom]").classList.toggle("rec-wiz-hidden", mode !== "custom");
                 showError("");
                 if (mode === "custom") renderRows();
@@ -324,7 +435,8 @@
                 sync();
                 renderRows(rows.length - 1);
             });
-            q("[data-wiz-reset]").addEventListener("click", function () {
+            var resetBtn = q("[data-wiz-reset]");
+            if (resetBtn) resetBtn.addEventListener("click", function () {
                 rows = clone(defaults);
                 showError("");
                 sync();
@@ -418,7 +530,7 @@
                 }
             });
 
-            // Enter must not submit (and so create the recruitment) from step 1.
+            // Enter must not submit (and so save the recruitment) from step 1.
             form.addEventListener("keydown", function (e) {
                 if (e.key !== "Enter") return;
                 var tag = e.target.tagName;

@@ -1,65 +1,37 @@
-{% load i18n static %}
-<div class="oh-activity-sidebar__qa-item">
-    <span class="oh-activity-sidebar__q">
-        <label class="oh-label" for="bulkResumeUploadFile"
-            >{% trans "Resumes" %}</label
-        >
-    </span>
-
-    <div class="mt-2 mb-2">
-        <div class="d-flex flex-wrap">
-            {% for file in resumes|slice:":25" %}
-            <a href="{{ file.file.url }}" rel="noopener noreferrer" target="_blank"
-                ><span
-                    class="oh-file-icon oh-file-icon--pdf"
-                    onmouseover="enlargeImage('{{ file.file.url }}',$(this))"
-                    style="width: 40px; height: 40px"
-                    ><img
-                        src="{% static 'images/ui/minus-icon.png' %}"
-                        style="display: block; width: 50%; height: 50%"
-                        hx-get="{% url 'delete-resume-file' %}?ids={{ file.id }}&rec_id={{rec_id}}"
-                        hx-target="#bulkResumeUploadBody"
-                        onclick="event.stopPropagation();event.preventDefault()"
-                    /> </span
-            ></a>
-            {% endfor %}
-            {% if resumes|length > 25 %} <h5 class="mt-3"> ..... </h5>{% endif %}
-        </div>
-        <form
-            hx-post="{% url 'add-bulk-resume' %}?rec_id={{rec_id}}"
-            class="add-files-form mt-3"
-            hx-encoding="multipart/form-data"
-            data-target="#activitySidebar"
-            hx-swap="innerHTML"
-            hx-target="#bulkResumeUploadBody"
-        >
-            {% csrf_token %}
-            <label for="addFile"
-                ><ion-icon
-                    name="add-outline"
-                    style="font-size: 24px"
-                    role="img"
-                    class="md hydrated"
-                    aria-label="{% trans 'add outline' %}"
-                ></ion-icon
-            ></label>
-            <input
-                type="file"
-                name="files"
-                class="d-none"
-                accept=".pdf"
-                multiple="true"
-                id="addFile"
-                onchange="submitForm(this)"
-            />
-            <input type="submit" class="d-none add_more_submit" value="save" />
-        </form>
-    </div>
-
+{% load i18n %}
+<div class="flex items-center justify-between gap-3 mb-3">
+    <p class="text-sm text-[#666] mb-0">
+        {% blocktrans count counter=resumes|length %}{{ counter }} resume uploaded{% plural %}{{ counter }} resumes uploaded{% endblocktrans %}
+    </p>
+    <form
+        hx-post="{% url 'add-bulk-resume' %}?rec_id={{rec_id}}"
+        class="add-files-form"
+        hx-encoding="multipart/form-data"
+        data-target="#activitySidebar"
+        hx-swap="innerHTML"
+        hx-target="#bulkResumeUploadBody"
+    >
+        {% csrf_token %}
+        <label for="addFile" class="oh-btn oh-btn--secondary oh-btn--inline mb-0">
+            <ion-icon name="cloud-upload-outline"></ion-icon>
+            {% trans "Upload" %}
+        </label>
+        <input
+            type="file"
+            name="files"
+            class="d-none"
+            accept=".pdf"
+            multiple="true"
+            id="addFile"
+            onchange="submitForm(this)"
+        />
+        <input type="submit" class="d-none add_more_submit" value="save" />
+    </form>
 </div>
 
-<h5 class="oh-modal__dialog-title">{% trans "matching Resumes" %}</h5>
-
-<div class="" id="matchingResume" hx-get="{% url 'matching-resumes' rec_id %}" hx-target="#matchingResume" hx-trigger="load">
-
+<div id="matchingResume" hx-get="{% url 'matching-resumes' rec_id %}" hx-target="#matchingResume" hx-trigger="load">
+    <div class="flex flex-col items-center justify-center gap-2 py-10" role="status">
+        <div class="h-7 w-7 animate-spin rounded-full border-[3px] border-dark-50 border-t-primary-600"></div>
+        <p class="text-sm text-[#666] mb-0">{% trans "Reading resumes..." %}</p>
+    </div>
 </div>

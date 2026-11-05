@@ -256,6 +256,11 @@ released a bad version, and carries the features and fixes merged since 2.2.0.
   waits ten minutes before it counts failures
   ([#1326](https://github.com/horilla/horilla-hr/issues/1326)). An existing installation
   that only ever saw the error can run `make prod` again.
+- Helpdesk: the ticket detail page is readable in dark mode again: the description,
+  comment bubbles, chat box and avatars use the theme colours, and the action buttons
+  follow the primary colour
+  ([#1337](https://github.com/horilla/horilla-hr/issues/1337), reported and fixed by
+  **@ft-mammoo** in [#1346](https://github.com/horilla/horilla-hr/pull/1346)).
 
 ### Security
 

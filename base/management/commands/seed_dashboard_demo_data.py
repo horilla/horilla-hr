@@ -497,7 +497,7 @@ class Command(BaseCommand):
         )
         for candidate in unanswered:
             hired = candidate.hired or (
-                candidate.stage_id and candidate.stage_id.stage_type == "hired"
+                candidate.stage_id and candidate.stage_id.stage_type == "shortlisted"
             )
             if candidate.referral_id:
                 key = "employee_referral"
