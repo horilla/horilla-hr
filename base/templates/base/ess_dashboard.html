@@ -987,6 +987,20 @@
                     </div>
                 </div>
 
+                <!-- Interviews assigned to this employee (hidden when none) -->
+                <div class="ess-info-panel" id="essInterviewsPanel" style="display:none;">
+                    <div class="ess-info-panel__header">
+                        <div class="ess-info-panel__heading">
+                            <div class="ess-info-panel__title">
+                                {% trans "My Interviews" %}
+                                <span id="essInterviewsCount" class="ess-count-badge" hidden title="{% trans 'Assigned interviews' %}">0</span>
+                            </div>
+                            <div class="ess-info-panel__sub">{% trans "Assigned to you" %}</div>
+                        </div>
+                    </div>
+                    <div id="essInterviewsList" class="ess-info-panel__body"></div>
+                </div>
+
                 <!-- Birthdays: today and the rest of this month, all employees -->
                 <div class="ess-info-panel">
                     <div class="ess-info-panel__header">
@@ -1291,6 +1305,26 @@
                 .catch(function () {});
             }
 
+            // ── Interviews ────────────────────────────────────────────────────────────────
+            function loadInterviews() {
+                fetch('{% url "ess-interviews" %}')
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    var list = d.interviews || [];
+                    if (!list.length) return;
+                    document.getElementById('essInterviewsPanel').style.display = '';
+                    setCountBadge('essInterviewsCount', list.length);
+                    document.getElementById('essInterviewsList').innerHTML = list.map(function (i) {
+                    return '<div class="ess-bday-row' + (i.is_today ? ' ess-bday-row--today' : '') + '">' +
+                        '<span class="ess-bday-row__name">' + esc(i.candidate) + '</span>' +
+                        '<span class="ess-bday-row__date">' +
+                        (i.is_today ? '{% trans "Today"|escapejs %}' : esc(i.date)) + ', ' + esc(i.time) + '</span>' +
+                        '</div>';
+                    }).join('');
+                })
+                .catch(function () {});
+            }
+
             // ── Upcoming holidays ──────────────────────────────────────────────────────────────────
             function loadUpcoming() {
                 fetchP('/my-dashboard/api/upcoming/')
@@ -1333,6 +1367,7 @@
             loadMonthlySummary();
             loadAnnouncements();
             loadBirthdays();
+            loadInterviews();
             loadUpcoming();
 
         }());
