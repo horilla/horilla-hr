@@ -348,3 +348,253 @@ class StandardComponentsOnTheContractTests(TestCase):
             **self.hx,
         )
         self.assertEqual(template.specific_employees.count(), 0)
+
+
+class ComponentSectionTests(TestCase):
+    """The Components tab groups what reaches an employee by how it applies."""
+
+    def setUp(self):
+        self.company = make_company("Section Co")
+        self.employee = make_employee(
+            company=self.company, email="section@test.horilla"
+        )
+        Contract.objects.filter(employee_id=self.employee).delete()
+        self.contract = make_active_contract(self.employee)
+
+    def _sections(self):
+        return {section["key"]: section for section in self.contract.component_sections}
+
+    def _titles(self, key):
+        return [row["title"] for row in self._sections()[key]["rows"]]
+
+    def test_each_way_of_applying_has_its_own_section(self):
+        structure = SalaryStructure.objects.create(title="Std")
+        structured = Allowance.objects.create(
+            title="Structured", is_fixed=True, amount=100
+        )
+        structure.allowances.add(structured)
+        structured.specific_employees.add(self.employee)
+        self.contract.salary_structure_id = structure
+        self.contract.save()
+        added = Allowance.objects.create(title="Added", is_fixed=True, amount=100)
+        added.specific_employees.add(self.employee)
+        Allowance.objects.create(
+            title="Everyone", is_fixed=True, amount=100, include_active_employees=True
+        )
+
+        self.assertEqual(self._titles("structure"), ["Structured"])
+        self.assertEqual(self._titles("outside"), ["Added"])
+        self.assertIn("Everyone", self._titles("always"))
+
+    def test_the_sections_are_named_by_how_the_component_applies(self):
+        labels = {
+            key: str(section["label"]) for key, section in self._sections().items()
+        }
+        self.assertEqual(labels["always"], "Always Applied")
+        added = Allowance.objects.create(title="Added", is_fixed=True, amount=100)
+        added.specific_employees.add(self.employee)
+        self.assertEqual(
+            str(self._sections()["outside"]["label"]), "Outside The Structure"
+        )
+
+    def test_the_standard_always_on_items_sit_with_what_applies_to_everyone(self):
+        always = self._sections().get("always")
+        self.assertIsNotNone(always)
+        self.assertTrue(any(row["source"] == "standard" for row in always["rows"]))
+
+    def test_a_condition_based_component_is_outside_the_structure(self):
+        Allowance.objects.create(
+            title="Conditional",
+            is_fixed=True,
+            amount=100,
+            is_condition_based=True,
+            field="employee_work_info__department_id__department",
+            condition="equal",
+            value="Nowhere",
+        )
+        self.assertIn("Conditional", self._titles("outside"))
+
+    def test_a_department_component_is_outside_the_structure(self):
+        from base.models import Department
+
+        info = self.employee.employee_work_info
+        info.department_id = Department.objects.create(department="Section Dept")
+        info.save()
+        grouped = Allowance.objects.create(
+            title="Grouped", is_fixed=True, amount=100, apply_by="department"
+        )
+        grouped.apply_departments.add(info.department_id)
+        self.assertIn("Grouped", self._titles("outside"))
+
+    def test_overtime_for_everyone_is_outside_the_structure_not_always_applied(self):
+        for title, based_on in (
+            ("Holiday OT", "holiday_overtime"),
+            ("Week Off OT", "week_off_overtime"),
+            ("Regular OT", "overtime"),
+        ):
+            Allowance.objects.create(
+                title=title,
+                is_fixed=False,
+                based_on=based_on,
+                amount_per_one_hr=10,
+                include_active_employees=True,
+            )
+        Allowance.objects.create(
+            title="Everyone", is_fixed=True, amount=100, include_active_employees=True
+        )
+        self.assertEqual(
+            sorted(self._titles("outside")), ["Holiday OT", "Regular OT", "Week Off OT"]
+        )
+        self.assertNotIn("Holiday OT", self._titles("always"))
+        self.assertIn("Everyone", self._titles("always"))
+
+    def test_empty_sections_are_left_out(self):
+        self.assertNotIn("outside", self._sections())
+
+    def test_the_sections_are_in_a_fixed_order_and_keep_every_row(self):
+        order = [section["key"] for section in self.contract.component_sections]
+        wanted = ["structure", "outside", "always", "other"]
+        self.assertEqual(order, [key for key in wanted if key in order])
+        self.assertEqual(
+            sum(len(section["rows"]) for section in self.contract.component_sections),
+            len(self.contract.component_rows),
+        )
+
+    def test_every_row_is_an_earning_or_a_deduction(self):
+        Allowance.objects.create(
+            title="Pay", is_fixed=True, amount=100, include_active_employees=True
+        )
+        Deduction.objects.create(
+            title="Pre",
+            is_fixed=True,
+            amount=10,
+            is_pretax=True,
+            include_active_employees=True,
+        )
+        Deduction.objects.create(
+            title="Tax",
+            is_fixed=True,
+            amount=10,
+            is_tax=True,
+            include_active_employees=True,
+        )
+        Deduction.objects.create(
+            title="Post",
+            is_fixed=True,
+            amount=10,
+            is_pretax=False,
+            include_active_employees=True,
+        )
+        types = {
+            row["title"]: str(row["type_label"]) for row in self.contract.component_rows
+        }
+        self.assertEqual(types["Pay"], "Earning")
+        for title in ("Pre", "Tax", "Post"):
+            self.assertEqual(types[title], "Deduction", title)
+
+    def _html(self):
+        from django.template.loader import render_to_string
+
+        return render_to_string(
+            "cbv/contracts/contract_detail.html",
+            {
+                "instance": self.contract,
+                "component_rows": self.contract.component_rows,
+                "component_sections": self.contract.component_sections,
+                "terms": [],
+            },
+        )
+
+    def test_the_tab_has_the_new_columns_and_no_how_it_applies_or_manage_block(self):
+        Allowance.objects.create(
+            title="Everyone",
+            code="EVERY",
+            is_fixed=True,
+            amount=100,
+            include_active_employees=True,
+        )
+        html = self._html()
+        self.assertIn("Always Applied", html)
+        self.assertIn('data-cd-section="always"', html)
+        self.assertIn("position: sticky", html)
+        self.assertIn("table-layout: fixed", html)
+        self.assertIn("text-overflow: ellipsis", html)
+        self.assertIn(">Type<", html)
+        self.assertIn(">Tax<", html)
+        self.assertNotIn("How it applies", html)
+        self.assertNotIn("Manage components", html)
+        self.assertNotIn("A component reaches this employee", html)
+
+    def test_every_row_shows_how_it_is_taxed(self):
+        Allowance.objects.create(
+            title="Pay",
+            is_fixed=True,
+            amount=1,
+            is_taxable=True,
+            include_active_employees=True,
+        )
+        Allowance.objects.create(
+            title="Free",
+            is_fixed=True,
+            amount=1,
+            is_taxable=False,
+            include_active_employees=True,
+        )
+        Deduction.objects.create(
+            title="Pre",
+            is_fixed=True,
+            amount=1,
+            is_pretax=True,
+            include_active_employees=True,
+        )
+        Deduction.objects.create(
+            title="Post",
+            is_fixed=True,
+            amount=1,
+            is_pretax=False,
+            include_active_employees=True,
+        )
+        Deduction.objects.create(
+            title="Tax",
+            is_fixed=True,
+            amount=1,
+            is_tax=True,
+            include_active_employees=True,
+        )
+        tax = {
+            row["title"]: str(row["tax_label"]) for row in self.contract.component_rows
+        }
+        self.assertEqual(
+            [tax[t] for t in ("Pay", "Free", "Pre", "Post", "Tax")],
+            ["Taxable", "Not Taxable", "Pre-Tax", "Post-Tax", "—"],
+        )
+
+    def test_a_standard_item_shows_this_employees_own_tax_setting(self):
+        from payroll.models.models import SystemComponentTaxOverride
+
+        SystemComponentTaxOverride.objects.create(
+            system_key="loan_payout", employee_id=self.employee, value=False
+        )
+        rows = {
+            row["title"]: str(row["tax_label"])
+            for row in self.contract.component_rows
+            if row["standard"]
+        }
+        loan = Allowance.objects.entire().get(system_key="loan_payout")
+        self.assertEqual(rows[loan.title], "Not Taxable")
+        other = Allowance.objects.entire().get(system_key="advance_payout")
+        self.assertEqual(rows[other.title], "Taxable")
+
+    def test_the_code_sits_beside_the_component_name(self):
+        Allowance.objects.create(
+            title="Everyone",
+            code="EVERY",
+            is_fixed=True,
+            amount=100,
+            include_active_employees=True,
+        )
+        html = self._html()
+        self.assertRegex(
+            html,
+            r'<span class="cd__title"[^>]*>Everyone</span>\s*<span class="cd__code">EVERY</span>',
+        )

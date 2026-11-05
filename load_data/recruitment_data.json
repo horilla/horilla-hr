@@ -153,8 +153,8 @@
       "modified_by": 1,
       "is_active": true,
       "recruitment_id": 1,
-      "stage": "Hired",
-      "stage_type": "hired",
+      "stage": "Shortlisted",
+      "stage_type": "shortlisted",
       "sequence": 2,
       "stage_managers": [
         12
@@ -187,8 +187,8 @@
       "modified_by": 1,
       "is_active": true,
       "recruitment_id": 2,
-      "stage": "Hired",
-      "stage_type": "hired",
+      "stage": "Shortlisted",
+      "stage_type": "shortlisted",
       "sequence": 1,
       "stage_managers": [
         37

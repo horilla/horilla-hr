@@ -236,7 +236,9 @@ def source_quality(filters: ReportFilters) -> dict:
 
     def _hired_count(subset):
         hired_ids = set(subset.filter(hired=True).values_list("id", flat=True)) | set(
-            subset.filter(stage_id__stage_type="hired").values_list("id", flat=True)
+            subset.filter(stage_id__stage_type="shortlisted").values_list(
+                "id", flat=True
+            )
         )
         return len(hired_ids)
 

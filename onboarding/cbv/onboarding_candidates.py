@@ -45,7 +45,7 @@ class OnboardingCandidatesView(TemplateView):
         hired_candidates = Candidate.objects.filter(
             is_active=True,
             recruitment_id__closed=False,
-        ).filter(Q(hired=True) | Q(stage_id__stage_type="hired"))
+        ).filter(Q(hired=True) | Q(stage_id__stage_type="shortlisted"))
         mail_templates = HorillaMailTemplate.objects.all()
         context["mail_templates"] = mail_templates
         context["hired_candidates"] = hired_candidates
@@ -80,7 +80,7 @@ class OnboardingCandidatesList(HorillaListView):
                     is_active=True,
                     recruitment_id__closed=False,
                 )
-                .filter(Q(hired=True) | Q(stage_id__stage_type="hired"))
+                .filter(Q(hired=True) | Q(stage_id__stage_type="shortlisted"))
                 .distinct()
             ).order_by("-id")
 

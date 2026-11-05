@@ -1,4 +1,11 @@
 {% load i18n static %}
+<style>
+    #{{ view_id }} .survey-template-head .fixed-table th,
+    #{{ view_id }} .survey-template-head .fixed-table td {
+        border: none;
+        border-radius: 0;
+    }
+</style>
 <div id="{{ view_id }}">
     <button
         class="reload-record"
@@ -76,17 +83,8 @@
             </div>
         {% endif %}
 
-        {% comment %}
-        One column header shared by every template's own question table below,
-        instead of each expanded accordion repeating its own -- matches the
-        performance detail page standard (e.g. pms/okr/emp_objective/
-        emp_objective_list.html). The per-group tables drop their own
-        <thead> and share this same colgroup, so columns stay aligned across
-        all of them. px-2 matches the px-2 each group's own table wrapper
-        uses below -- without it the two tables measure at different widths
-        and every column past the first drifts out of alignment.
-        {% endcomment %}
-        <div class="bg-white border border-[#EAE8E3] rounded-lg mb-1.5 overflow-hidden px-2">
+
+        <div class="survey-template-head bg-white border border-[#EAE8E3] rounded-lg mb-1.5 overflow-hidden px-2">
             <table class="fixed-table w-full table-fixed border-separate">
                 <colgroup>
                     <col>
@@ -107,16 +105,7 @@
 
         <div class="accordion-wrapper space-y-1.5">
             {% for instance in queryset %}
-                {% comment %}
-                No overflow-hidden on the card itself -- the Actions dropdown
-                below is absolutely positioned and needs to pop out past the
-                header's own bottom edge while the accordion is still
-                collapsed (just the header's height), which overflow-hidden
-                here would clip. rounded-t-lg on the header gives the same
-                rounded-corner look when collapsed; the table wrapper below
-                gets its own rounded-b-lg overflow-hidden for the bottom
-                corners instead.
-                {% endcomment %}
+
                 <div class="oh-accordion bg-white border border-[#EAE8E3] rounded-lg">
                     <div class="oh-accordion-item">
                         <div class="oh-accordion-header no-after rounded-t-lg w-full flex justify-between items-center px-3.5 py-2 transition-colors">

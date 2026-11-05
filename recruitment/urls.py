@@ -881,11 +881,6 @@ urlpatterns = [
         name="recruitment-settings-skill-tab",
     ),
     path(
-        "recruitment-settings-stage-tab/",
-        settings_tabs.RecruitmentSettingsStageTab.as_view(),
-        name="recruitment-settings-stage-tab",
-    ),
-    path(
         "resume-completion/",
         views.resume_completion,
         name="resume-completion",
@@ -989,6 +984,11 @@ urlpatterns = [
         "matching-resumes/<int:rec_id>/",
         views.matching_resumes,
         name="matching-resumes",
+    ),
+    path(
+        "resume-application-form/",
+        views.resume_application_form,
+        name="resume-application-form",
     ),
     path(
         "matching-resume-completion/",

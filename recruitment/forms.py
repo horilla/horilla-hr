@@ -357,10 +357,9 @@ class StageCreationForm(BaseModelForm):
         """
 
         model = Stage
-        fields = "__all__"
-        exclude = ["sequence", "is_active"]
+        fields = ["recruitment_id", "stage", "stage_managers", "stage_type"]
         labels = {
-            "stage": _("Stage"),
+            "stage": _("Title"),
         }
 
     def __init__(self, *args, **kwargs):
@@ -463,7 +462,7 @@ class CandidateCreationForm(BaseModelForm):
         candidate.hired = False
         candidate.start_onboard = False
         if stage is not None:
-            if stage.stage_type == "hired" and candidate.canceled is False:
+            if stage.stage_type == "shortlisted" and candidate.canceled is False:
                 candidate.hired = True
                 candidate.start_onboard = True
         candidate.recruitment_id = recruitment
@@ -553,7 +552,7 @@ class ApplicationForm(RegistrationForm):
             ),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, shortlisted=False, **kwargs):
         super().__init__(*args, **kwargs)
         request = getattr(_thread_locals, "request", None)
         self.fields["profile"].widget.attrs["accept"] = ".jpg, .jpeg, .png"
@@ -564,7 +563,16 @@ class ApplicationForm(RegistrationForm):
         self.fields["recruitment_id"].queryset = self.active_recruitment
         self.fields["recruitment_id"].widget.attrs = {"data-widget": "ajax-widget"}
         self.fields["job_position_id"].widget.attrs = {"data-widget": "ajax-widget"}
-        self.fields["referral_source"].required = True
+        self.fields["mobile"].required = True
+        self.fields["referral_source"].required = not shortlisted
+        if shortlisted:
+            self.fields["gender"].required = False
+        else:
+            self.fields["referral_source"].choices = [
+                choice
+                for choice in self.fields["referral_source"].choices
+                if choice[0] != "resume_shortlisting"
+            ]
         if request and request.user.has_perm("recruitment.add_candidate"):
             self.fields["profile"].required = False
 
@@ -1144,6 +1152,8 @@ class SkillZoneCandidateForm(ModelForm):
                 queryset=Candidate.objects.all(),
                 widget=forms.Select(attrs={"class": "oh-select oh-select2 w-100"}),
                 label=_("Candidate"),
+                initial=self.instance.candidate_id_id,
+                empty_label=None,
             )
 
     def save(self, commit: bool = True) -> SkillZoneCandidate:
@@ -1431,6 +1441,10 @@ class CandidateDocumentRequestForm(ModelForm):
         model = CandidateDocumentRequest
         fields = "__all__"
         exclude = ["is_active"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["candidate_id"].label = _("Candidates")
 
 
 class CandidateDocumentUpdateForm(ModelForm):

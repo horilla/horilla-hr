@@ -304,6 +304,297 @@ def restrict_to_system_fields(form):
     for name in list(form.fields):
         if name not in keep:
             del form.fields[name]
+    add_tax_override_fields(form)
+
+
+PICK_TEMPLATE = r"""
+<div class="oh-pick" data-pick="__ID__" data-url="__URL__" data-default="__DEFAULT__" data-i18n='__I18N__'>
+  <div data-pick-values hidden></div>
+  <div class="oh-pick__kind">
+    <span class="oh-pick__chip oh-pick__chip--__KIND__">__KINDLABEL__</span>
+    <span class="oh-pick__standard">__STANDARD__</span>
+  </div>
+  <div class="oh-pick__bar">
+    <input type="search" class="oh-pick__search" data-pick-search autocomplete="off">
+    __FILTERS__
+  </div>
+  <div class="oh-pick__scroll" data-pick-scroll>
+    <table class="oh-pick__table">
+      <thead>
+        <tr>
+          <th data-t="code"></th><th data-t="employee"></th><th data-pick-group data-t="department"></th>
+          <th><label class="oh-pick__tax"><input type="checkbox" data-pick-all><span data-t="tax"></span></label></th>
+        </tr>
+      </thead>
+      <tbody data-pick-body></tbody>
+    </table>
+    <div class="oh-pick__more" data-pick-more hidden></div>
+  </div>
+  <div class="oh-pick__count" data-pick-count></div>
+</div>
+<style>
+  .oh-pick { font-size: 13px; }
+  .oh-pick__kind { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .oh-pick__chip { padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; }
+  .oh-pick__chip--earning { background: #e8f7ee; color: #15803d; }
+  .oh-pick__chip--deduction { background: #fdecec; color: #b91c1c; }
+  .oh-pick__standard { font-size: 12px; color: #6b7280; }
+  .oh-pick__bar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .oh-pick__search { flex: 1 1 auto; min-width: 0; height: 34px; padding: 0 10px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; }
+  .oh-pick, .oh-pick * { box-sizing: border-box; }
+  .oh-pick input[type="checkbox"] { margin: 0; vertical-align: middle; }
+  .oh-pick__filter { flex: 0 1 128px; min-width: 0; width: 128px; height: 34px; padding: 0 6px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; background: #fff; }
+  .oh-pick__count { margin-top: 6px; font-size: 12px; color: #6b7280; }
+  .oh-pick__tax { display: flex; align-items: center; gap: 6px; margin: 0; cursor: pointer; }
+  .oh-pick__scroll { max-height: 280px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px; scrollbar-width: thin; }
+  .oh-pick__table { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; }
+  .oh-pick__table th { position: sticky; top: 0; z-index: 1; background: #f9fafb; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: #6b7280; padding: 7px 8px; border-bottom: 1px solid #e5e7eb; }
+  .oh-pick__table th:nth-child(1) { width: 96px; }
+  .oh-pick__table th:nth-child(4), .oh-pick__table td:nth-child(4) { width: 112px; }
+  .oh-pick__table td { padding: 6px 8px; border-bottom: 1px solid #f3f4f6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .oh-pick__table tr.is-on td { background: #fdf3f1; }
+  .oh-pick__more { padding: 8px; text-align: center; font-size: 12px; color: #6b7280; }
+</style>
+<script>
+(function () {
+  var root = document.querySelector('[data-pick="__ID__"]');
+  if (!root || root.dataset.wired) return;
+  root.dataset.wired = "1";
+  var T = JSON.parse(root.dataset.i18n);
+  var url = root.dataset.url, body = root.querySelector("[data-pick-body]");
+  var scroller = root.querySelector("[data-pick-scroll]"), more = root.querySelector("[data-pick-more]");
+  var values = root.querySelector("[data-pick-values]"), count = root.querySelector("[data-pick-count]");
+  var all = root.querySelector("[data-pick-all]"), search = root.querySelector("[data-pick-search]");
+  root.querySelectorAll("[data-t]").forEach(function (el) { el.textContent = T[el.dataset.t]; });
+  search.placeholder = T.search;
+  var picked = new Set(__INITIAL__.map(String)), next = "", query = "", busy = false;
+  // What everyone follows: the standard setting. The posted ids are the ones that differ from it.
+  var standard = root.dataset.default === "1";
+  function want(pk) { return standard !== picked.has(pk); }
+  var filters = root.querySelectorAll("[data-pick-filter]"), groupHead = root.querySelector("[data-pick-group]");
+  function narrow() {
+    var s = "";
+    filters.forEach(function (f) { if (f.value) s += "&" + f.dataset.pickFilter + "=" + encodeURIComponent(f.value); });
+    return s;
+  }
+
+  function sync() {
+    values.innerHTML = "";
+    picked.forEach(function (pk) {
+      var i = document.createElement("input");
+      i.type = "hidden"; i.name = "__NAME__"; i.value = pk;
+      values.appendChild(i);
+    });
+    count.textContent = picked.size + " " + T.chosen;
+    body.querySelectorAll("[data-pick-row]").forEach(function (tr) {
+      var on = want(tr.dataset.pk);
+      tr.querySelector("[data-pick-box]").checked = on;
+      tr.classList.toggle("is-on", on);
+    });
+    var boxes = body.querySelectorAll("[data-pick-box]");
+    var ticked = Array.prototype.filter.call(boxes, function (b) { return b.checked; }).length;
+    all.checked = boxes.length > 0 && ticked === boxes.length;
+    all.indeterminate = ticked > 0 && ticked < boxes.length;
+  }
+  function load(reset) {
+    if (busy || (!reset && !next)) return;
+    busy = true; more.hidden = false; more.textContent = T.loading;
+    fetch(url + "?q=" + encodeURIComponent(query) + narrow() + "&page=" + (reset ? 1 : next), { headers: { "X-Requested-With": "XMLHttpRequest" } })
+      .then(function (r) { var n = r.headers.get("X-Next-Page") || "", c = r.headers.get("X-Column") || "department"; return r.text().then(function (t) { return { t: t, n: n, c: c }; }); })
+      .then(function (res) {
+        groupHead.textContent = T[res.c];
+        if (reset) body.innerHTML = "";
+        body.insertAdjacentHTML("beforeend", res.t);
+        next = res.n; sync();
+      })
+      .finally(function () { busy = false; more.hidden = true; if (next && scroller.scrollHeight <= scroller.clientHeight + 4) load(false); });
+  }
+  scroller.addEventListener("scroll", function () {
+    if (scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 40) load(false);
+  });
+  var timer;
+  search.addEventListener("input", function () {
+    var v = this.value; clearTimeout(timer);
+    timer = setTimeout(function () { query = v; next = ""; load(true); }, 250);
+  });
+  root.addEventListener("change", function (e) {
+    var t = e.target;
+    if (t.matches("[data-pick-filter]")) { next = ""; load(true); return; }
+    if (t === all) {
+      var on = t.checked;
+      fetch(url + "?ids=1&q=" + encodeURIComponent(query) + narrow()).then(function (r) { return r.json(); }).then(function (res) {
+        res.ids.forEach(function (id) { if (on !== standard) picked.add(id); else picked.delete(id); });
+        sync();
+      });
+    } else if (t.matches("[data-pick-box]")) {
+      if (t.checked !== standard) picked.add(t.value); else picked.delete(t.value);
+      sync();
+    }
+  });
+  sync(); load(true);
+})();
+</script>
+"""
+
+
+class EmployeePickWidget(forms.Widget):
+    """
+    A searchable table of employees with the tax setting ticked or not on each. Everyone starts
+    at the component's standard setting; the employees whose tick differs are posted, under the
+    field's name. The rows load a page at a time from ``employee-pick-rows``.
+    """
+
+    def __init__(
+        self,
+        tax_default=False,
+        tax_label="",
+        kind="earning",
+        kind_label="",
+        standard="",
+        attrs=None,
+    ):
+        super().__init__(attrs)
+        self.tax_default = tax_default
+        self.tax_label = tax_label
+        self.kind = kind
+        self.kind_label = kind_label
+        self.standard = standard
+
+    @staticmethod
+    def filter_choices():
+        """(query parameter, first option, [(pk, title)]) for each of the three group filters."""
+        from base.models import Department, JobPosition, JobRole
+
+        return (
+            (
+                "department",
+                _("All Departments"),
+                Department.objects.order_by("department").values_list(
+                    "pk", "department"
+                ),
+            ),
+            (
+                "job_position",
+                _("All Job Positions"),
+                JobPosition.objects.order_by("job_position").values_list(
+                    "pk", "job_position"
+                ),
+            ),
+            (
+                "job_role",
+                _("All Job Roles"),
+                JobRole.objects.order_by("job_role").values_list("pk", "job_role"),
+            ),
+        )
+
+    def value_from_datadict(self, data, files, name):
+        return data.getlist(name) if hasattr(data, "getlist") else data.get(name)
+
+    def render(self, name, value, attrs=None, renderer=None):
+        import json
+
+        from django.urls import reverse
+        from django.utils.html import escape
+        from django.utils.safestring import mark_safe
+
+        field_id = (attrs or {}).get("id", f"id_{name}")
+        labels = {
+            "code": _("Code"),
+            "employee": _("Employee"),
+            "department": _("Department"),
+            "job_position": _("Job Position"),
+            "job_role": _("Job Role"),
+            "search": _("Search By Name, Code Or Department"),
+            "chosen": _("Exceptions"),
+            "tax": self.tax_label or _("Taxable"),
+            "loading": _("Loading..."),
+        }
+        initial = [int(v) for v in (value or []) if str(v).isdigit()]
+        filters = "".join(
+            f'<select class="oh-pick__filter" data-pick-filter="{param}">'
+            f'<option value="">{escape(label)}</option>'
+            + "".join(
+                f'<option value="{pk}">{escape(title)}</option>'
+                for pk, title in choices
+            )
+            + "</select>"
+            for param, label, choices in self.filter_choices()
+        )
+        html = (
+            PICK_TEMPLATE.replace(
+                "__I18N__",
+                escape(json.dumps({k: str(v) for k, v in labels.items()})).replace(
+                    "&quot;", '"'
+                ),
+            )
+            .replace("__KINDLABEL__", escape(str(self.kind_label)))
+            .replace("__KIND__", "deduction" if self.kind == "deduction" else "earning")
+            .replace("__STANDARD__", escape(str(self.standard)))
+            .replace("__FILTERS__", filters)
+            .replace("__ID__", escape(field_id))
+            .replace("__URL__", escape(reverse("employee-pick-rows")))
+            .replace("__NAME__", escape(name))
+            .replace("__DEFAULT__", "1" if self.tax_default else "0")
+            .replace("__INITIAL__", json.dumps(initial))
+        )
+        return mark_safe(html)
+
+
+def add_tax_override_fields(form):
+    """
+    The employees a standard component is taxed the other way for: one table to tick them in.
+    Everyone else follows the setting above it; the ones ticked get its opposite.
+    """
+    from payroll.system_components import tax_field
+
+    instance = form.instance
+    field = tax_field(instance.system_key)
+    if not field:
+        return
+    from employee.models import Employee
+    from payroll.models.models import SystemComponentTaxOverride
+
+    earning = field == "is_taxable"
+    default = bool(getattr(instance, field))
+    # The table is the one way to set it: the standard setting stays as it is and only the
+    # employees who differ from it are stored.
+    form.fields.pop(field, None)
+    standard = (
+        (_("Taxable") if default else _("Not Taxable"))
+        if earning
+        else (_("Pre-Tax") if default else _("Post-Tax"))
+    )
+    form.fields["tax_exception_employees"] = forms.ModelMultipleChoiceField(
+        queryset=Employee.objects.filter(is_active=True),
+        required=False,
+        label=_("Tax Treatment By Employee"),
+        help_text=(
+            _(
+                "Tick The Employees This Is Taxable For. New Employees Follow The Standard: %(standard)s."
+            )
+            if earning
+            else _(
+                "Tick The Employees This Is Taken Pre-Tax For. New Employees Follow The Standard: %(standard)s."
+            )
+        )
+        % {"standard": standard},
+        widget=EmployeePickWidget(
+            tax_default=default,
+            tax_label=_("Taxable") if earning else _("Pre-Tax"),
+            kind="earning" if earning else "deduction",
+            kind_label=(
+                _("Earning")
+                if earning
+                else (_("Pre-Tax Deduction") if default else _("Deduction"))
+            ),
+            standard=_("Standard: %(standard)s") % {"standard": standard},
+        ),
+        initial=list(
+            SystemComponentTaxOverride.objects.filter(
+                system_key=instance.system_key
+            ).values_list("employee_id", flat=True)
+        ),
+    )
 
 
 SLAB_TEMPLATE = r"""
@@ -533,6 +824,8 @@ class AppliesByFormMixin:
 
     def check_apply_by(self, cleaned_data):
         """A group rule needs at least one group, and is never also an everyone rule."""
+        if "apply_by" not in self.fields:
+            return
         by = cleaned_data.get("apply_by") or "employees"
         cleaned_data["apply_by"] = by
         if by == "employees":
@@ -545,6 +838,26 @@ class AppliesByFormMixin:
         if not cleaned_data.get(field):
             self.add_error("apply_by", _("Choose At Least One To Apply It To."))
         cleaned_data["include_active_employees"] = False
+
+    def save_tax_overrides(self):
+        """
+        Store the exceptions: each ticked employee is taxed the opposite way to the setting this
+        form is saving, so they stay exceptions whichever way the setting is later turned.
+        """
+        if "tax_exception_employees" not in self.fields or not self.instance.pk:
+            return
+        from payroll.models.models import SystemComponentTaxOverride
+        from payroll.system_components import tax_field
+
+        key = self.instance.system_key
+        default = bool(getattr(self.instance, tax_field(key)))
+        SystemComponentTaxOverride.objects.filter(system_key=key).delete()
+        SystemComponentTaxOverride.objects.bulk_create(
+            SystemComponentTaxOverride(
+                system_key=key, employee_id=employee, value=not default
+            )
+            for employee in self.cleaned_data.get("tax_exception_employees") or []
+        )
 
 
 class AllowanceForm(AppliesByFormMixin, ModelForm):
@@ -613,6 +926,8 @@ class AllowanceForm(AppliesByFormMixin, ModelForm):
     def clean_slabs(self, cleaned_data):
         """Validates the slab table, which only counts for a slab overtime allowance."""
         self.slab_bands = []
+        if "overtime_calc" not in self.fields:
+            return
         cleaned_data["overtime_calc"] = cleaned_data.get("overtime_calc") or "flat"
         uses_slabs = (
             not cleaned_data.get("is_fixed")
@@ -674,6 +989,9 @@ class AllowanceForm(AppliesByFormMixin, ModelForm):
             )
 
     def save(self, commit: bool = ...) -> Any:
+        # Before the component itself is saved: saving it is what re-aligns the lines it generated,
+        # and they must read the employee settings as they are now.
+        self.save_tax_overrides()
         super().save(commit)
         self.save_slabs()
         other_conditions = self.data.getlist("other_conditions")
@@ -794,6 +1112,7 @@ class DeductionForm(AppliesByFormMixin, ModelForm):
         return table_html
 
     def save(self, commit: bool = ...) -> Any:
+        self.save_tax_overrides()
         super().save(commit)
         other_conditions = self.data.getlist("other_conditions")
         other_fields = self.data.getlist("other_fields")

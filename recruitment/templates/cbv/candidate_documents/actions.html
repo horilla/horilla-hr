@@ -1,4 +1,4 @@
-{% load i18n %}
+{% load i18n static %}
 <div class="flex items-center justify-center gap-1" onclick="event.stopPropagation()">
     {% if not instance.document %}
         <a
@@ -26,17 +26,27 @@
         <a
             hx-get="{% url 'candidate-document-approve' instance.id %}"
             title="{% trans 'Approve' %}"
-            class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
+            class="h-7 w-7 flex items-center justify-center bg-success text-white rounded-md hover:bg-success-dark transition duration-300"
         >
-            <ion-icon name="checkmark-outline"></ion-icon>
+            <img
+                src="{% static 'horilla_theme/assets/img/icons/check.svg' %}"
+                alt="{% trans 'Approve' %}"
+                width="13"
+                class="filter brightness-0 invert"
+            >
         </a>
     {% else %}
         <button
-            class="oh-btn oh-btn--light-bkg oh-btn--sq-sm opacity-50 cursor-not-allowed"
+            class="h-7 w-7 flex items-center justify-center bg-success text-white rounded-md opacity-50 cursor-not-allowed"
             title="{% trans 'Approve' %}"
             disabled
         >
-            <ion-icon name="checkmark-outline"></ion-icon>
+            <img
+                src="{% static 'horilla_theme/assets/img/icons/check.svg' %}"
+                alt="{% trans 'Approve' %}"
+                width="13"
+                class="filter brightness-0 invert"
+            >
         </button>
     {% endif %}
 

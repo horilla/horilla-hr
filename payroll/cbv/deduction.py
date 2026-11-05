@@ -186,13 +186,10 @@ class DeductionListView(HorillaListView):
 
     columns = [
         (_("Deduction"), "title"),
-        (_("Pretax"), "get_is_pretax_display"),
-        (_("Condition Based"), "get_is_condition_based_display"),
-        (_("Condition"), "condition_based_col"),
-        (_("Fixed"), "get_is_fixed_display"),
-        (_("Amount"), "amount"),
-        (_("Based On"), "get_based_on_display"),
-        (_("Rate"), "rate"),
+        (_("Code"), "code"),
+        (_("Type"), "get_type_col"),
+        (_("Calculation"), "get_calculation_col"),
+        (_("Applied To"), "get_applied_to_col"),
     ]
 
     header_attrs = {
@@ -208,7 +205,7 @@ class DeductionListView(HorillaListView):
     def get_queryset(self):
         queryset = super().get_queryset()
         # queryset = queryset.exclude(only_show_under_employee=True)
-        return queryset.exclude(only_show_under_employee=True)
+        return queryset.exclude(only_show_under_employee=True).exclude(is_system=True)
 
 
 @method_decorator(login_required, name="dispatch")
@@ -238,7 +235,10 @@ class DeductionCardView(HorillaCardView):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        queryset = queryset.exclude(only_show_under_employee=True)
+        # Generated lines belong to one employee and the standard pay items are always applied: neither is a component to configure, so neither is listed.
+        queryset = queryset.exclude(only_show_under_employee=True).exclude(
+            is_system=True
+        )
         return queryset
 
     details = {

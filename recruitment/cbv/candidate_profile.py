@@ -64,6 +64,12 @@ class CandidateProfileView(HorillaProfileView):
     def get_status_ribbon(self, instance):
         if instance.canceled:
             return {"label": _("Rejected"), "variant": "danger"}
+        if instance.hired:
+            # "hired" is literally defined (Candidate.save()) as "current
+            # stage's stage_type is 'shortlisted'" -- the same vocabulary the
+            # rest of the app uses (dashboard KPIs, the pipeline's "Resume
+            # Shortlisting" action), not a separate concept.
+            return {"label": _("Shortlisted"), "variant": "success"}
         if not instance.is_active:
             return {"label": _("Archived"), "variant": "secondary"}
 
@@ -151,6 +157,17 @@ class CandidateProfileView(HorillaProfileView):
                 hx-get="{get_add_to_reject}"
                 hx-target="#genericModalBody"
                 hx-swap="innerHTML"
+                class="oh-dropdown__link"
+            """,
+        },
+        {
+            "title": _("Remove Rejection"),
+            "accessibility": "recruitment.cbv.accessibility.remove_reject",
+            "attrs": """
+                hx-post="{get_remove_rejection_url}"
+                hx-swap="none"
+                hx-confirm="Are you sure you want to remove this candidate's rejection?"
+                hx-on::after-request="window.location.reload()"
                 class="oh-dropdown__link"
             """,
         },

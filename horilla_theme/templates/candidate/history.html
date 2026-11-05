@@ -1,2 +1,338 @@
 {% load i18n activity_history %}
-{% activity_history_feed tracking=candidate.tracking feed_id="candidateActivityHistory" %}
+
+<style>
+    #candidateHistoryPanel #candidateActivityHistory {
+        max-width: none;
+    }
+    .oh-input {
+        margin-bottom: 0;
+    }
+    /* Both ids, so these beat the feed template's own single-id rules
+       regardless of which <style> block renders first. */
+    /* Field rows stack label-above-values by default, which doubles the
+       height of every row and leaves the (now uncapped) width empty. */
+    #candidateHistoryPanel #candidateActivityHistory .eah-change-row > div {
+        flex-direction: row;
+        align-items: center;
+        gap: 1rem;
+    }
+    #candidateHistoryPanel #candidateActivityHistory .eah-change-row > div > span:first-child {
+        flex: 0 0 200px;
+    }
+    /* Flow rows into columns so a full-width card isn't mostly empty. */
+    #candidateHistoryPanel #candidateActivityHistory [data-history-changes] {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+        column-gap: 2.5rem;
+        row-gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+    #candidateHistoryPanel #candidateActivityHistory .eah-change-row + .eah-change-row {
+        border-top: 0;
+        margin-top: 0;
+        padding-top: 0;
+    }
+    #candidateHistoryPanel #candidateActivityHistory .eah-card {
+        padding: 0.75rem 1rem;
+    }
+    #candidateHistoryPanel [data-feed-header] {
+        background: #fff;
+        padding: 0.5rem 0.75rem;
+        margin-bottom: 0;
+    }
+    #candidateHistoryPanel [data-feed-header] .eah-search {
+        min-width: 0;
+        width: 260px;
+        max-width: 100%;
+    }
+    #candidateHistoryPanel #candidateActivityHistory {
+        transition: opacity 0.15s;
+    }
+    #candidateHistoryPanel.eh-loading #candidateActivityHistory {
+        opacity: 0.45;
+        pointer-events: none;
+    }
+    #candidateHistoryPanel.eh-loading [data-sticky-top]::after {
+        content: "";
+        display: block;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, var(--color-primary-600, #e54f38), transparent) no-repeat;
+        background-size: 40% 100%;
+        animation: ehLoadingBar 1s linear infinite;
+    }
+    @keyframes ehLoadingBar {
+        from { background-position: -40% 0; }
+        to { background-position: 140% 0; }
+    }
+</style>
+{% if model_options %}
+    <div id="candidateHistoryPanel" data-candidate="{{ candidate.pk }}" data-url="{{ request.path }}">
+        <div data-sticky-top class="sticky top-0 z-10 bg-white">
+        {% if not selected_view %}
+        <form class="flex flex-wrap items-end gap-3 mb-4 px-3 py-2">
+            <input type="hidden" name="search" value="{{ search }}">
+            <div>
+                <label class="text-xs font-medium text-dark-100 block mb-1">{% trans "Model" %}</label>
+                <div class="min-w-[200px]">
+                    <select
+                        name="model"
+                        class="oh-select oh-select-2"
+                        style="min-width:350px;"
+                        hx-get="{{ request.path }}"
+                        hx-target="#candidateHistoryPanel"
+                        hx-swap="outerHTML"
+                        hx-trigger="change"
+                        hx-include="closest form"
+                    >
+                        {% for m in model_options %}
+                            <option value="{{ m.key }}" {% if m.key == selected_model %}selected{% endif %}>{{ m.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label class="text-xs font-medium text-dark-100 block mb-1">{% trans "From" %}</label>
+                <input
+                    type="date"
+                    name="date_from"
+                    value="{{ date_from|date:'Y-m-d' }}"
+                    class="oh-input"
+                    hx-get="{{ request.path }}"
+                    hx-target="#candidateHistoryPanel"
+                    hx-swap="outerHTML"
+                    hx-trigger="change"
+                    hx-include="closest form"
+                >
+            </div>
+            <div>
+                <label class="text-xs font-medium text-dark-100 block mb-1">{% trans "To" %}</label>
+                <input
+                    type="date"
+                    name="date_to"
+                    value="{{ date_to|date:'Y-m-d' }}"
+                    class="oh-input"
+                    hx-get="{{ request.path }}"
+                    hx-target="#candidateHistoryPanel"
+                    hx-swap="outerHTML"
+                    hx-trigger="change"
+                    hx-include="closest form"
+                >
+            </div>
+            <div>
+                <label class="text-xs font-medium text-dark-100 block mb-1">{% trans "Sort" %}</label>
+                <select
+                    name="sort"
+                    class="oh-select oh-select-2"
+                    hx-get="{{ request.path }}"
+                    hx-target="#candidateHistoryPanel"
+                    hx-swap="outerHTML"
+                    hx-trigger="change"
+                    hx-include="closest form"
+                >
+                    <option value="-date" {% if sort == "-date" %}selected{% endif %}>{% trans "Newest first" %}</option>
+                    <option value="date" {% if sort == "date" %}selected{% endif %}>{% trans "Oldest first" %}</option>
+                </select>
+            </div>
+        </form>
+        {% endif %}
+        </div>
+
+        <div
+            class="hidden"
+            data-selection-bar
+            data-label="{% trans 'selected' %}"
+        >
+            <div class="flex items-center gap-3">
+                {% if selected_view %}
+                    <button type="button" class="oh-btn oh-btn--light" data-selection-back>{% trans "Back to history" %}</button>
+                {% else %}
+                    <button type="button" class="oh-btn oh-btn--secondary" data-selection-view>{% trans "View selected" %}</button>
+                {% endif %}
+                <span class="text-sm font-medium text-dark-500" data-selection-count></span>
+                <button type="button" class="text-xs font-semibold text-primary-600 hover:text-primary-800 bg-transparent border-0 p-0" data-selection-clear>{% trans "Clear" %}</button>
+            </div>
+        </div>
+
+        {% if search and not selected_view %}
+            <p class="text-xs text-dark-100 px-3 mb-3">
+                {% trans "Showing matches from all models. Clear the search to go back to the selected model." %}
+            </p>
+        {% endif %}
+
+        {% if tracking_status == "none" %}
+            <div class="oh-wrapper h-full" align="center">
+                <div class="bg-white p-6 rounded-md shadow-card">
+                    <div class="flex flex-col items-center justify-center py-10">
+                        <img
+                            src="/static/horilla_theme/assets/img/no-records.svg"
+                            alt=""
+                            width="220"
+                            class="mb-4"
+                            onerror="this.style.display='none'"
+                        >
+                        <p class="text-[#666] mb-2 font-medium">{% trans "This record type isn't tracked yet." %}</p>
+                        {% if perms.horilla_audit.change_auditmodelconfig %}
+                            <a
+                                href="{% url 'audit-history-view' %}"
+                                class="text-xs font-semibold text-primary-600 hover:text-primary-800"
+                            >
+                                {% trans "Enable tracking in Settings" %}
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            {% if selected_view %}
+                {% activity_history_feed entries=entries feed_id="candidateActivityHistory" title=_("Selected history") subtitle=_("Entries you picked across records and models") empty_message=_("Nothing selected") %}
+            {% else %}
+                {% activity_history_feed entries=entries feed_id="candidateActivityHistory" search=search empty_message=_("No changes recorded yet") %}
+            {% endif %}
+        {% endif %}
+        <script>
+            (function () {
+                var self = document.currentScript;
+                var panel = (self && self.closest("#candidateHistoryPanel")) || document.getElementById("candidateHistoryPanel");
+                if (!panel) return;
+                var storeKey = "candidateHistorySelection:" + panel.dataset.candidate;
+                var queryKey = storeKey + ":query";
+
+                function load() {
+                    try { return JSON.parse(sessionStorage.getItem(storeKey)) || []; } catch (e) { return []; }
+                }
+                function save(keys) {
+                    try { sessionStorage.setItem(storeKey, JSON.stringify(keys)); } catch (e) {}
+                }
+                function go(query) {
+                    htmx.ajax("GET", panel.dataset.url + (query ? "?" + query : ""), {
+                        target: "#candidateHistoryPanel",
+                        swap: "outerHTML",
+                    });
+                }
+                function goBack() {
+                    var query = "";
+                    try { query = sessionStorage.getItem(queryKey) || ""; } catch (e) {}
+                    go(query);
+                }
+                function refresh() {
+                    var keys = load();
+                    panel.querySelectorAll("[data-history-select]").forEach(function (box) {
+                        box.checked = keys.indexOf(box.dataset.entryKey) !== -1;
+                    });
+                    var bar = panel.querySelector("[data-selection-bar]");
+                    if (!bar) return;
+                    bar.classList.toggle("hidden", keys.length === 0);
+                    bar.querySelector("[data-selection-count]").textContent = keys.length + " " + bar.dataset.label;
+                }
+
+                panel.addEventListener("change", function (e) {
+                    var box = e.target.closest("[data-history-select]");
+                    if (!box) return;
+                    var keys = load();
+                    var key = box.dataset.entryKey;
+                    var index = keys.indexOf(key);
+                    if (box.checked && index === -1) keys.push(key);
+                    if (!box.checked && index !== -1) keys.splice(index, 1);
+                    save(keys);
+
+                    if (!box.checked && panel.querySelector("[data-selection-back]")) {
+                        var entry = box.closest("[data-history-entry]");
+                        var group = box.closest("[data-history-group]");
+                        if (entry) entry.classList.add("hidden");
+                        if (group && !group.querySelector("[data-history-entry]:not(.hidden)")) {
+                            group.classList.add("hidden");
+                        }
+                    }
+                    refresh();
+                });
+
+                panel.addEventListener("htmx:beforeRequest", function () {
+                    panel.classList.add("eh-loading");
+                });
+                panel.addEventListener("htmx:afterRequest", function () {
+                    panel.classList.remove("eh-loading");
+                });
+
+                var viewBtn = panel.querySelector("[data-selection-view]");
+                if (viewBtn) {
+                    viewBtn.addEventListener("click", function () {
+                        var form = panel.querySelector("form");
+                        var sortField = form && form.querySelector("[name=sort]");
+                        try {
+                            if (form) sessionStorage.setItem(queryKey, new URLSearchParams(new FormData(form)).toString());
+                        } catch (e) {}
+                        var params = new URLSearchParams();
+                        params.set("view", "selected");
+                        params.set("sort", sortField ? sortField.value : "-date");
+                        load().forEach(function (key) { params.append("selected", key); });
+                        go(params.toString());
+                    });
+                }
+
+                var backBtn = panel.querySelector("[data-selection-back]");
+                if (backBtn) backBtn.addEventListener("click", goBack);
+
+                var clearBtn = panel.querySelector("[data-selection-clear]");
+                if (clearBtn) {
+                    clearBtn.addEventListener("click", function () {
+                        save([]);
+                        if (backBtn) goBack(); else refresh();
+                    });
+                }
+
+                var stickyTop = panel.querySelector("[data-sticky-top]");
+                var feedHeader = panel.querySelector("[data-feed-header]");
+                if (stickyTop && feedHeader) stickyTop.appendChild(feedHeader);
+
+                var searchInput = panel.querySelector("#candidateActivityHistorySearch");
+                var searchForm = panel.querySelector("form");
+                if (searchInput && searchForm) {
+                    var cleanInput = searchInput.cloneNode(true);
+                    searchInput.replaceWith(cleanInput);
+                    searchInput = cleanInput;
+                    panel.querySelectorAll("[data-history-entry].hidden, [data-history-group].hidden").forEach(function (el) {
+                        el.classList.remove("hidden");
+                    });
+                    var feedTimeline = panel.querySelector("#candidateActivityHistoryTimeline");
+                    var feedEmpty = panel.querySelector("#candidateActivityHistoryEmptyFilter");
+                    if (feedTimeline) feedTimeline.classList.remove("hidden");
+                    if (feedEmpty) feedEmpty.classList.add("hidden");
+
+                    var searchTimer;
+                    var sentSearch = null;
+                    if (searchInput.value) {
+                        searchInput.focus();
+                        searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
+                    }
+                    searchInput.addEventListener("input", function () {
+                        panel.classList.add("eh-loading");
+                        clearTimeout(searchTimer);
+                        searchTimer = setTimeout(function () {
+                            sentSearch = searchInput.value.trim();
+                            var params = new URLSearchParams(new FormData(searchForm));
+                            params.set("search", sentSearch);
+                            go(params.toString());
+                        }, 500);
+                    });
+                    panel.addEventListener("htmx:beforeSwap", function (evt) {
+                        if (evt.target === panel && sentSearch !== null && searchInput.value.trim() !== sentSearch) {
+                            evt.detail.shouldSwap = false;
+                        }
+                    });
+                }
+
+                var slot = panel.querySelector("[data-feed-header-center]");
+                var selectionBar = panel.querySelector("[data-selection-bar]");
+                if (slot && selectionBar) slot.appendChild(selectionBar);
+
+
+                refresh();
+            })();
+        </script>
+    </div>
+{% else %}
+    {# Included by a page that passes no history context: plain feed. #}
+    <div id="candidateHistoryPanel">
+        {% activity_history_feed tracking=candidate.tracking feed_id="candidateActivityHistory" %}
+    </div>
+{% endif %}

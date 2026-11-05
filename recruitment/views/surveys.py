@@ -13,7 +13,6 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.core import serializers
 from django.core.files.storage import default_storage
-from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.models import ProtectedError
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
@@ -43,7 +42,6 @@ from recruitment.models import (
     Recruitment,
     RecruitmentSurvey,
     RecruitmentSurveyAnswer,
-    Resume,
     Stage,
     SurveyTemplate,
 )
@@ -543,32 +541,15 @@ def application_form(request):
     """
     recruitment = None
     recruitment_id = request.GET.get("recruitmentId")
-    resume_id = request.GET.get("resumeId")
-    # Scoped to the recruitment being applied to. This page is public and
-    # unauthenticated, and the POST branch below reads this file and attaches
-    # it to the submitted application -- so an unscoped lookup let anyone
-    # harvest any CV in the database, in any company, by walking sequential
-    # ids. Resume has no company_id of its own, so the recruitment is what
-    # scopes it.
-    resume_obj = (
-        Resume.objects.filter(id=resume_id, recruitment_id=recruitment_id).first()
-        if resume_id and recruitment_id
-        else None
-    )
 
     if request.method == "GET" and not recruitment_id:
         messages.error(request, _("Recruitment ID is missing"))
         return redirect("open-recruitments")
 
     try:
-        # Unscoped manager: this page is public/unauthenticated, and
-        # Recruitment.objects is company-scoped to the session's "selected
-        # company", which has no relation to a public visitor's session --
-        # scoping here would 404 valid recruitments from any company other
-        # than whichever one happens to be selected.
         recruitment = Recruitment.default.filter(
             id=recruitment_id, is_published=True
-        ).first()  # Only create applications for published recruitments.
+        ).first()
         if not recruitment:
             messages.error(request, _("Recruitment not found"))
             return redirect("open-recruitments")
@@ -576,45 +557,23 @@ def application_form(request):
         messages.error(request, _("Invalid Recruitment ID"))
         return redirect("open-recruitments")
 
-    if request.POST:
-        if "resume" not in request.FILES and resume_id:
-            if resume_obj and resume_obj.file:
-                file_content = resume_obj.file.read()
-                pdf_file = SimpleUploadedFile(
-                    resume_obj.file.name, file_content, content_type="application/pdf"
-                )
-                request.FILES["resume"] = pdf_file
-
+    if request.method == "POST":
         form = ApplicationForm(request.POST, request.FILES)
         if form.is_valid():
             candidate_obj = form.save(commit=False)
-            # Mirrors the internal "add candidate" form always tagging
-            # itself "software" (recruitment/views/views.py) -- without
-            # this, every public career-page applicant leaves `source`
-            # NULL, which is why "Source of Hire" on the dashboard only
-            # ever had a "Not Specified" slice to show.
             candidate_obj.source = "application"
             recruitment_obj = candidate_obj.recruitment_id
-            stages = recruitment_obj.stage_set.all()
-            if stages.filter(stage_type="applied").exists():
-                candidate_obj.stage_id = stages.filter(stage_type="applied").first()
-            else:
-                candidate_obj.stage_id = stages.order_by("sequence").first()
+            candidate_obj.stage_id = recruitment_obj.get_or_create_applied_stage()
             messages.success(request, _("Application saved."))
-            candidate_obj.save()  # 945
-            request.session["candidate"] = serializers.serialize(
-                "json", [candidate_obj]
-            )
+            candidate_obj.save()
             has_template_survey = RecruitmentSurvey.objects.filter(
                 template_id__in=recruitment.survey_templates.all()
             ).exists()
             if has_template_survey:
+                request.session["candidate"] = serializers.serialize(
+                    "json", [candidate_obj]
+                )
                 return redirect(candidate_survey)
-            candidate_obj.save()
-
-            if resume_obj:
-                resume_obj.is_candidate = True
-                resume_obj.save()
 
             return render(
                 request,
@@ -626,35 +585,20 @@ def application_form(request):
                 for error in field_errors:
                     messages.error(request, error)
             else:
-                field_label = (
-                    form.fields.get(field_name).label
-                    if form.fields.get(field_name)
-                    else field_name
-                )
+                field_label = form.fields[field_name].label
                 for error in field_errors:
                     messages.error(
                         request,
                         _("%(field_label)s: %(error)s")
                         % {"field_label": field_label, "error": error},
                     )
-        recruitment_for_job_position = form.data.get("recruitment_id") or recruitment_id
-        if recruitment_for_job_position:
-            recruitment_for_job_position = Recruitment.default.filter(
-                id=recruitment_for_job_position
-            ).first()
-            if recruitment_for_job_position:
-                form.fields["job_position_id"].queryset = (
-                    recruitment_for_job_position.open_positions.all()
-                )
     else:
-        # 811
-        initial_data = {"resume": resume_obj.file.url} if resume_obj else {}
-        form = ApplicationForm(initial=initial_data)
+        form = ApplicationForm()
 
     return render(
         request,
         "candidate/application_form.html",
-        {"form": form, "recruitment": recruitment, "resume": resume_obj},
+        {"form": form, "recruitment": recruitment},
     )
 
 

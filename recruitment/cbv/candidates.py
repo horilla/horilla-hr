@@ -267,10 +267,10 @@ class ListCandidates(HorillaListView):
         ),
         (
             "hired--dot",
-            _("Hired"),
+            _("Shortlisted"),
             """
             onclick="
-                $('#applyFilter').closest('form').find('[name=stage_id__stage_type]').val('hired');
+                $('#applyFilter').closest('form').find('[name=stage_id__stage_type]').val('shortlisted');
                 $('#applyFilter').click();
             "
             """,
@@ -725,10 +725,10 @@ class CardCandidates(HorillaCardView):
         ),
         (
             "hired--dot",
-            _("Hired"),
+            _("Shortlisted"),
             """
             onclick="
-                $('#applyFilter').closest('form').find('[name=stage_id__stage_type]').val('hired');
+                $('#applyFilter').closest('form').find('[name=stage_id__stage_type]').val('shortlisted');
                 $('#applyFilter').click();
             "
             """,
