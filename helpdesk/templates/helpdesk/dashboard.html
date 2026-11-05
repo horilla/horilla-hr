@@ -180,7 +180,9 @@
             <div class="hd-period-picker">
                 <button class="hd-period-preset" data-preset="today">{% trans "Today" %}</button>
                 <button class="hd-period-preset" data-preset="this_week">{% trans "This Week" %}</button>
+                <button class="hd-period-preset" data-preset="last_week">{% trans "Last Week" %}</button>
                 <button class="hd-period-preset" data-preset="this_month">{% trans "This Month" %}</button>
+                <button class="hd-period-preset" data-preset="last_month">{% trans "Last Month" %}</button>
                 <button class="hd-period-preset" data-preset="this_year">{% trans "This Year" %}</button>
                 <input type="date" id="hd-from-date" title="{% trans 'From' %}">
                 <span class="hd-period-picker__sep">&rarr;</span>
@@ -305,7 +307,13 @@
             const from = new Date(t.getFullYear(), t.getMonth(), t.getDate() - dow);
             return [from, new Date(from.getFullYear(), from.getMonth(), from.getDate() + 6)];
         }
+        if (p === 'last_week') {
+            const dow = (t.getDay() + 6) % 7; // 0 = Monday
+            const from = new Date(t.getFullYear(), t.getMonth(), t.getDate() - dow - 7);
+            return [from, new Date(from.getFullYear(), from.getMonth(), from.getDate() + 6)];
+        }
         if (p === 'this_month') return [new Date(t.getFullYear(), t.getMonth(), 1), new Date(t.getFullYear(), t.getMonth() + 1, 0)];
+        if (p === 'last_month') return [new Date(t.getFullYear(), t.getMonth() - 1, 1), new Date(t.getFullYear(), t.getMonth(), 0)];
         if (p === 'this_year') return [new Date(t.getFullYear(), 0, 1), new Date(t.getFullYear(), 11, 31)];
         return null;
     }
@@ -313,7 +321,9 @@
     const PRESET_LABELS = {
         today: '{% trans "Today"|escapejs %}',
         this_week: '{% trans "This Week"|escapejs %}',
+        last_week: '{% trans "Last Week"|escapejs %}',
         this_month: '{% trans "This Month"|escapejs %}',
+        last_month: '{% trans "Last Month"|escapejs %}',
         this_year: '{% trans "This Year"|escapejs %}',
     };
     function shortDate(d) { return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
@@ -326,7 +336,7 @@
         const from = new Date(fromInput.value + 'T00:00:00');
         const to = new Date(toInput.value + 'T00:00:00');
         let detail;
-        if (preset === 'this_month') detail = from.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        if (preset === 'this_month' || preset === 'last_month') detail = from.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
         else if (preset === 'this_year') detail = String(from.getFullYear());
         else if (preset === 'today') detail = shortDate(from);
         else detail = shortDate(from) + ' – ' + shortDate(to);
