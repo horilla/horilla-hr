@@ -6153,7 +6153,7 @@ msgstr ""
 msgid "Badge ID Prefix"
 msgstr "Préfixe d'identification du badge"
 
-msgid "Prefix added to employee badge IDs e.g. EMP0001"
+msgid "Prefix added to employee Badge IDs e.g. EMP0001"
 msgstr "Préfixe ajouté aux identifiants de badge des employés, par ex. EMP0001"
 
 msgid "Currency Symbol"
@@ -11848,7 +11848,7 @@ msgstr ""
 msgid "Badge Prefix"
 msgstr "Préfixe du badge"
 
-msgid "Set initial badge-id"
+msgid "Set initial Badge ID"
 msgstr "Définir le badge-id initial"
 
 msgid "Add notes"
@@ -17345,7 +17345,7 @@ msgstr "Filtres appliqués : "
 msgid "Asset User"
 msgstr "Utilisateur de l'actif"
 
-msgid "Asset User Badge Id"
+msgid "Asset User Badge ID"
 msgstr "Matricule de l'utilisateur de l'actif"
 
 msgid "Equals"
@@ -17478,10 +17478,10 @@ msgstr "Rapports d'objectifs des employés"
 msgid "Feedback Reports"
 msgstr "Rapports de feedback"
 
-msgid "Manager Badge Id"
+msgid "Manager Badge ID"
 msgstr "Matricule du responsable"
 
-msgid "Assignee Badge Id"
+msgid "Assignee Badge ID"
 msgstr "Matricule de l'assigné"
 
 msgid "Assignee Department"
@@ -17496,7 +17496,7 @@ msgstr "Rôle professionnel de l'assigné"
 msgid "Feedback Title"
 msgstr "Titre du commentaire"
 
-msgid "Employee Badge Id"
+msgid "Employee Badge ID"
 msgstr "Matricule de l'employé"
 
 msgid "Subordinate"
@@ -17547,13 +17547,13 @@ msgstr "Tâche"
 msgid "Stage Manager"
 msgstr "Gestionnaire d'étape"
 
-msgid "Stage Manager Badge Id"
+msgid "Stage Manager Badge ID"
 msgstr "Matricule du responsable d'étape"
 
 msgid "Task Manager"
 msgstr "Gestionnaire de Tâches"
 
-msgid "Task Manager Badge Id"
+msgid "Task Manager Badge ID"
 msgstr "Matricule du responsable de tâche"
 
 msgid "Candidates"
@@ -18098,7 +18098,7 @@ msgstr ""
 "Publiez des offres d'emploi directement sur LinkedIn et gérez les candidats "
 "depuis Horilla."
 
-msgid "Prefix added to every auto-generated employee badge ID (e.g. PEP0001)."
+msgid "Prefix added to every auto-generated employee Badge ID (e.g. PEP0001)."
 msgstr ""
 "Préfixe ajouté à chaque identifiant de badge employé généré automatiquement "
 "(p. ex. PEP0001)."
@@ -20163,7 +20163,7 @@ msgstr ""
 msgid "Employee Badge ID is required."
 msgstr "Matricule de l'employé"
 
-msgid "This badge id does not exist."
+msgid "This Badge ID does not exist."
 msgstr "Cet identifiant de badge n'existe pas."
 
 #, fuzzy

@@ -6126,7 +6126,7 @@ msgstr ""
 msgid "Badge ID Prefix"
 msgstr "Prefixo de ID do selo"
 
-msgid "Prefix added to employee badge IDs e.g. EMP0001"
+msgid "Prefix added to employee Badge IDs e.g. EMP0001"
 msgstr ""
 "Prefixo adicionado aos IDs dos crachás dos funcionários, por exemplo EMP0001"
 
@@ -11782,7 +11782,7 @@ msgstr ""
 msgid "Badge Prefix"
 msgstr "Prefixo do Emblema"
 
-msgid "Set initial badge-id"
+msgid "Set initial Badge ID"
 msgstr "Definir badge-id inicial"
 
 msgid "Add notes"
@@ -17246,7 +17246,7 @@ msgstr "Filtros Aplicados: "
 msgid "Asset User"
 msgstr "Usuário do Ativo"
 
-msgid "Asset User Badge Id"
+msgid "Asset User Badge ID"
 msgstr "ID do Crachá do Usuário do Ativo"
 
 msgid "Equals"
@@ -17379,10 +17379,10 @@ msgstr "Relatórios de Objetivos dos Funcionários"
 msgid "Feedback Reports"
 msgstr "Relatórios de Feedback"
 
-msgid "Manager Badge Id"
+msgid "Manager Badge ID"
 msgstr "ID do Crachá do Gestor"
 
-msgid "Assignee Badge Id"
+msgid "Assignee Badge ID"
 msgstr "ID do Crachá do Responsável"
 
 msgid "Assignee Department"
@@ -17397,7 +17397,7 @@ msgstr "Função do Responsável"
 msgid "Feedback Title"
 msgstr "Título do Feedback"
 
-msgid "Employee Badge Id"
+msgid "Employee Badge ID"
 msgstr "ID do Crachá do Funcionário"
 
 msgid "Subordinate"
@@ -17448,13 +17448,13 @@ msgstr "Tarefas"
 msgid "Stage Manager"
 msgstr "Gerenciador de Estágio"
 
-msgid "Stage Manager Badge Id"
+msgid "Stage Manager Badge ID"
 msgstr "ID do Crachá do Gestor da Etapa"
 
 msgid "Task Manager"
 msgstr "Gerenciador de Tarefas"
 
-msgid "Task Manager Badge Id"
+msgid "Task Manager Badge ID"
 msgstr "ID do Crachá do Gestor da Tarefa"
 
 msgid "Candidates"
@@ -17996,7 +17996,7 @@ msgstr ""
 "Publique vagas diretamente no LinkedIn e gerencie candidatos a partir do "
 "Horilla."
 
-msgid "Prefix added to every auto-generated employee badge ID (e.g. PEP0001)."
+msgid "Prefix added to every auto-generated employee Badge ID (e.g. PEP0001)."
 msgstr ""
 "Prefixo adicionado a cada ID de crachá de funcionário gerado automaticamente "
 "(ex.: PEP0001)."
@@ -20053,7 +20053,7 @@ msgstr ""
 msgid "Employee Badge ID is required."
 msgstr "ID do Crachá do Funcionário"
 
-msgid "This badge id does not exist."
+msgid "This Badge ID does not exist."
 msgstr "Este ID de insígnia não existe."
 
 #, fuzzy

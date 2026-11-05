@@ -6133,7 +6133,7 @@ msgstr ""
 msgid "Badge ID Prefix"
 msgstr "Prefix număr de marcă"
 
-msgid "Prefix added to employee badge IDs e.g. EMP0001"
+msgid "Prefix added to employee Badge IDs e.g. EMP0001"
 msgstr "Prefix adăugat numerelor de marcă ale angajaților, ex. EMP0001"
 
 msgid "Currency Symbol"
@@ -11785,7 +11785,7 @@ msgstr ""
 msgid "Badge Prefix"
 msgstr "Prefix număr de marcă"
 
-msgid "Set initial badge-id"
+msgid "Set initial Badge ID"
 msgstr "Setați numărul de marcă inițial"
 
 msgid "Add notes"
@@ -17249,7 +17249,7 @@ msgstr "Filtre aplicate: "
 msgid "Asset User"
 msgstr "Utilizator bun"
 
-msgid "Asset User Badge Id"
+msgid "Asset User Badge ID"
 msgstr "Numărul de marcă al utilizatorului bunului"
 
 msgid "Equals"
@@ -17382,10 +17382,10 @@ msgstr "Rapoarte de obiective ale angajaților"
 msgid "Feedback Reports"
 msgstr "Rapoarte de feedback"
 
-msgid "Manager Badge Id"
+msgid "Manager Badge ID"
 msgstr "Numărul de marcă al managerului"
 
-msgid "Assignee Badge Id"
+msgid "Assignee Badge ID"
 msgstr "Numărul de marcă al responsabilului"
 
 msgid "Assignee Department"
@@ -17400,7 +17400,7 @@ msgstr "Rolul responsabilului"
 msgid "Feedback Title"
 msgstr "Titlu feedback"
 
-msgid "Employee Badge Id"
+msgid "Employee Badge ID"
 msgstr "Numărul de marcă al angajatului"
 
 msgid "Subordinate"
@@ -17451,13 +17451,13 @@ msgstr "Sarcină"
 msgid "Stage Manager"
 msgstr "Manager de etapă"
 
-msgid "Stage Manager Badge Id"
+msgid "Stage Manager Badge ID"
 msgstr "Numărul de marcă al managerului de etapă"
 
 msgid "Task Manager"
 msgstr "Manager de sarcină"
 
-msgid "Task Manager Badge Id"
+msgid "Task Manager Badge ID"
 msgstr "Numărul de marcă al managerului de sarcină"
 
 msgid "Candidates"
@@ -17998,7 +17998,7 @@ msgstr ""
 "Publicați posturile disponibile direct pe LinkedIn și gestionați candidații "
 "din Horilla."
 
-msgid "Prefix added to every auto-generated employee badge ID (e.g. PEP0001)."
+msgid "Prefix added to every auto-generated employee Badge ID (e.g. PEP0001)."
 msgstr "Prefix adăugat fiecărui număr de marcă generat automat (ex. PEP0001)."
 
 msgid "No Comments have been added for this Shift request"
@@ -20060,7 +20060,7 @@ msgstr ""
 msgid "Employee Badge ID is required."
 msgstr "Numărul de marcă al angajatului"
 
-msgid "This badge id does not exist."
+msgid "This Badge ID does not exist."
 msgstr "Acest număr de marcă nu există."
 
 #, fuzzy
