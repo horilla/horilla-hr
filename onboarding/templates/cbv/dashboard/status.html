@@ -21,44 +21,17 @@
         color: #15803d;
     }
 </style>
-<span class="oh-recuritment_tag  {% if instance.status == 'done' %} done-task {% elif instance.status == 'scheduled' %} scheduled-task{% elif instance.status == 'ongoing' %} ongoing-task{% elif instance.status == 'stuck' %} stuck-task {% elif instance.status == 'todo' %} todo-task{% endif %}">
-    <select  onchange="
-    if ($(this).val() == 'done') {
-        $(this).parent().addClass('done-task')
-    }else{
-        $(this).parent().removeClass('done-task')
-    }
-    if ($(this).val() == 'scheduled') {
-        $(this).parent().addClass('scheduled-task')
-    }else{
-        $(this).parent().removeClass('scheduled-task')
-    }
-    if ($(this).val() == 'ongoing') {
-        $(this).parent().addClass('ongoing-task')
-    }else{
-        $(this).parent().removeClass('ongoing-task')
-    }
-    if ($(this).val() == 'stuck') {
-        $(this).parent().addClass('stuck-task')
-    }else{
-        $(this).parent().removeClass('stuck-task')
-    }
-    if ($(this).val() == 'todo') {
-        $(this).parent().addClass('todo-task')
-    }else{
-        $(this).parent().removeClass('todo-task')
-    }
-    " hx-get="{% url 'change-task-status' %}?task_id={{instance.id}}" hx-swap="afterend"
-    name="status"
-    class=""
-    style="width: 150px;"
-    id="task_status{{instance.id}}">
+<span class="oh-recuritment_tag {% if instance.status %}{{ instance.status }}-task{% endif %}" data-no-tooltip>
+    <select
+        name="status"
+        id="task_status{{ instance.id }}"
+        style="width: 150px;"
+        hx-get="{% url 'change-task-status' %}?task_id={{ instance.id }}"
+        hx-swap="afterend"
+        onchange="this.parentElement.className = 'oh-recuritment_tag ' + this.value + '-task'"
+    >
         {% for status in instance.choice %}
-        <option value="{{status.0}}"
-        {% if status.0 == instance.status %}
-        selected
-        {% endif %}
-        >{{status.1}}</option>
+            <option value="{{ status.0 }}" {% if status.0 == instance.status %}selected{% endif %}>{{ status.1 }}</option>
         {% endfor %}
     </select>
-  </span>
+</span>
