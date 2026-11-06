@@ -1,0 +1,172 @@
+/* Onboarding wizard pages - aligned with the themed Horilla forms */
+body {
+  background-color: #f8fafc;
+  font-family: Inter, sans-serif;
+}
+
+.oh-onboarding-card {
+  background-color: #fff;
+  border: 1px solid #ebebeb;
+  border-radius: 0.75rem;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+  padding: 2rem;
+}
+
+.oh-onboarding-card__header {
+  border-bottom: 1px solid #ebebeb;
+}
+
+.oh-onboarding-card__company-name {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.oh-onboarding-card__section-title,
+.oh-onboarding-card__title {
+  font-weight: 600;
+}
+
+.oh-onboarding-card .oh-input-group {
+  margin-bottom: 1rem;
+}
+
+.oh-onboarding-card .oh-input,
+.oh-onboarding-card .oh-select,
+.oh-onboarding-card select,
+.oh-onboarding-card textarea {
+  width: 100%;
+  font-size: 0.75rem;
+  padding: 0 0.75rem;
+  height: 2.25rem;
+  margin-bottom: 0;
+  color: #1c1c1c;
+  background-color: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.375rem;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.oh-onboarding-card .oh-input:focus,
+.oh-onboarding-card .oh-select:focus,
+.oh-onboarding-card select:focus,
+.oh-onboarding-card textarea:focus {
+  outline: none;
+  border-color: #e54f38 !important;
+  box-shadow: 0 0 0 3px rgba(229, 79, 56, 0.12);
+}
+
+.oh-onboarding-card .oh-password-input-container {
+  position: relative;
+}
+
+.oh-onboarding-card .oh-password-input-container .oh-input {
+  padding-right: 2.75rem;
+}
+
+.oh-onboarding-card .select2-container {
+  width: 100% !important;
+}
+
+.oh-onboarding-card .select2-container--default .select2-selection--single,
+.oh-onboarding-card .select2-container .select2-selection--single {
+  height: 2.25rem !important;
+  display: flex;
+  align-items: center;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 0.375rem !important;
+  background-color: #fff;
+}
+
+.oh-onboarding-card .select2-container--default .select2-selection--single .select2-selection__rendered {
+  font-size: 0.75rem;
+  line-height: normal;
+  padding-left: 0.75rem;
+}
+
+.oh-onboarding-card .select2-container--default .select2-selection--single .select2-selection__arrow {
+  height: 100%;
+}
+
+.oh-onboarding-card .select2-container--default.select2-container--focus .select2-selection--single,
+.oh-onboarding-card .select2-container--default.select2-container--open .select2-selection--single {
+  border-color: #e54f38;
+}
+
+.oh-onboarding-card ul.errorlist {
+  margin: 0.35rem 0 0;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.75rem;
+  color: #b91c1c;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 0.5rem;
+  list-style: none;
+}
+
+.oh-onboarding-card .oh-onboarding-card__button {
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  box-shadow: none;
+  transition: opacity 0.3s ease;
+}
+
+.oh-onboarding-card .oh-onboarding-card__button:hover {
+  opacity: 0.9;
+}
+
+textarea.oh-input,
+.oh-onboarding-card textarea {
+  height: auto;
+  padding: 0.5rem 0.75rem;
+}
+
+.oh-onboarding-card .oh-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600 !important;
+  color: #1c1c1c;
+  margin: 0 0 0.25rem;
+}
+
+.oh-onboarding-card .required-star::after,
+.required-star::after {
+  content: "*";
+  padding-left: 4px;
+  color: #e54f38 !important;
+}
+
+/* Section card: grey header band like the other Horilla forms */
+.oh-onboarding-card__address-group {
+  border: 1px solid #ebebeb;
+  border-radius: 0.375rem;
+  margin-bottom: 1rem;
+}
+
+.oh-onboarding-card__address-group .oh-onboarding-card__section-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #333;
+  background-color: #f3f3f3;
+  padding: 0.75rem;
+  margin: 0;
+  border-radius: 0.375rem 0.375rem 0 0;
+}
+
+.oh-onboarding-card__address-group > .row {
+  padding: 0.75rem 0.75rem 0;
+  margin: 0;
+}
+
+.oh-password-rules {
+  margin-top: 0.5rem;
+  font-size: 0.7rem;
+  color: #64748b;
+}
+
+.oh-password-rules ul {
+  margin: 0;
+  padding-left: 1rem;
+  list-style-type: disc;
+}

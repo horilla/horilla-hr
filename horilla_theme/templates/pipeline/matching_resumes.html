@@ -13,75 +13,121 @@
         width: 300px;
         height: 400px;
     }
-    .diff-cell {
-        background: rgba(255, 166, 0, 0.158);
-    }
     .oh-modal .oh-modal__dialog-title {
         color: #4f4a4a;
         font-weight: 600;
     }
 </style>
 
-<div class="max-h-[400px] overflow-y-auto">
-    <table class="fixed-table w-full border-separate">
-        <thead class="sticky top-0 bg-[white] z-[1]">
-            <tr class="border-b border-[#ececec]">
-                <th class="text-sm font-medium text-left min-w-[150px] px-3 py-1">
-                    {% trans "Resume" %}
-                </th>
-                <th class="text-sm font-medium text-left min-w-[100px] px-3 py-1">
-                    {% trans "Score" %}
-                </th>
-                {% if perms.recruitment.change_recruitment or perms.recruitment.delete_recruitment or perms.recruitment.add_recruitment %}
-                    <th class="text-sm font-medium text-left min-w-[150px] px-3 py-1">
-                        {% trans "Action" %}
-                    </th>
-                {% endif %}
-            </tr>
-        </thead>
-
-        <tbody>
-            {% for resume in matched_resumes %}
-                <tr class="border-b border-[#f3f3f3] cursor-pointer">
-                    <td class="text-sm text-left p-3 text-[#666] h-[45px]">
-                        <a
-                            href="{{ resume.resume.file.url }}"
-                            onmouseover="enlargeImage('{{ resume.resume.file.url }}',$(this))"
-                            rel="noopener noreferrer"
-                            target="_blank"
-                        >
-                            {{ resume.resume }}
-                        </a>
-                    </td>
-                    <td class="text-sm text-left p-3 text-[#666] h-[45px]">
-                        {% if resume.image_pdf %}
-                            <p class="text-danger">{% trans "Need verification" %}</p>
-                        {% else %}
-                            {{ resume.matching_skills_count }}
-                        {% endif %}
-                    </td>
-                    {% if perms.base.change_department or perms.base.delete_department %}
-                        <td class="text-sm text-left p-3 text-[#666] h-[45px]">
-                            {% if resume.resume.is_candidate %}
-                                <a class="oh-btn oh-btn--success" href="#">
-                                    {% trans "Candidate Added" %}
-                                </a>
-                            {% else %}
-                                <a
-                                    class="oh-btn oh-btn--info"
-                                    target="_blank"
-                                    href="{% url 'application-form' %}?recruitmentId={{rec_id}}&resumeId={{resume.resume.pk}}"
-                                >
-                                    {% trans "Create Candidate" %}
-                                </a>
-                            {% endif %}
-                        </td>
-                    {% endif %}
-                </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
+{% if matched_resumes %}
+    <div class="bg-white p-2 rounded-md shadow-card relative">
+        <div class="max-h-[420px] overflow-hidden overflow-y-auto overflow-x-auto">
+            <table class="fixed-table w-full border-separate">
+                <thead class="sticky top-0 bg-[white] z-[1]">
+                    <tr class="border-b border-[#ececec]">
+                        <th class="text-sm font-medium text-left min-w-[85px]">
+                            <div class="flex w-full gap-1.5 px-1.5 py-1.5 items-center">
+                                <div class="flex gap-1.5 items-center">
+                                    <span class="flex w-max">{% trans "File" %}</span>
+                                </div>
+                            </div>
+                        </th>
+                        <th class="text-sm font-medium text-left min-w-[85px]">
+                            <div class="flex w-full gap-1.5 px-1.5 py-1.5 items-center">
+                                <div class="flex gap-1.5 items-center">
+                                    <span class="flex w-max">{% trans "Score" %}</span>
+                                </div>
+                            </div>
+                        </th>
+                        <th class="stickyright action-col-header text-sm font-medium min-w-[85px]">
+                            <div class="p-1.5 flex items-center justify-center gap-1">
+                                <span class="flex-1 text-center">{% trans "Actions" %}</span>
+                            </div>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for resume in matched_resumes %}
+                        <tr data-instance-id="{{ resume.resume.pk }}">
+                            <td class="text-sm text-left px-1 py-1 text-[#666] h-[30px] max-w-0">
+                                <div class="truncate" title="{% trans 'Resume' %} {{ resume.resume.pk }}">
+                                    <a
+                                        href="{{ resume.resume.file.url }}"
+                                        onmouseover="enlargeImage('{{ resume.resume.file.url }}',$(this))"
+                                        rel="noopener noreferrer"
+                                        target="_blank"
+                                        class="hover:text-primary-600 [transition:.2s]"
+                                    >
+                                        <ion-icon name="document-text-outline" class="!text-base align-middle text-primary-600 mr-1"></ion-icon>
+                                        {% if resume.file_name %}{{ resume.file_name }}{% else %}{% trans "Resume" %} {{ resume.resume.pk }}{% endif %}
+                                    </a>
+                                </div>
+                            </td>
+                            <td class="text-sm text-left px-1 py-1 text-[#666] h-[30px]">
+                                {% if resume.image_pdf %}
+                                    <span class="inline-flex items-center gap-1 rounded-full bg-warning-light px-2 py-0.5 text-xs font-medium text-warning-dark whitespace-nowrap">
+                                        <ion-icon name="warning-outline" class="!text-sm"></ion-icon>
+                                        {% trans "Needs verification" %}
+                                    </span>
+                                {% elif resume.matching_skills_count %}
+                                    <span class="inline-flex min-w-6 justify-center rounded-full bg-primary-100 px-2 py-0.5 text-xs font-medium text-primary-700">
+                                        {{ resume.matching_skills_count }}
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex min-w-6 justify-center rounded-full bg-secondary-100 px-2 py-0.5 text-xs font-medium text-dark-100">
+                                        0
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td class="stickyright action-col-cell text-sm text-center px-1 py-1 text-[#666] h-[30px]">
+                                <div class="flex justify-center gap-1">
+                                    {% if resume.resume.is_candidate %}
+                                        <span
+                                            class="oh-btn oh-btn--success oh-btn--sq-sm"
+                                            title="{% trans 'Candidate Added' %}"
+                                            style="cursor: default"
+                                        >
+                                            <ion-icon name="checkmark-outline"></ion-icon>
+                                        </span>
+                                    {% elif perms.base.change_department or perms.base.delete_department %}
+                                        <a
+                                            class="oh-btn oh-btn--secondary oh-btn--sq-sm"
+                                            title="{% trans 'Create Candidate' %}"
+                                            target="_blank"
+                                            onclick="return openResumeCandidateForm(this)"
+                                            href="{% url 'resume-application-form' %}?recruitmentId={{rec_id}}&resumeId={{resume.resume.pk}}"
+                                        >
+                                            <ion-icon name="person-add-outline"></ion-icon>
+                                        </a>
+                                    {% endif %}
+                                    <a
+                                        class="oh-btn oh-btn--danger oh-btn--sq-sm"
+                                        title="{% trans 'Delete' %}"
+                                        hx-get="{% url 'delete-resume-file' %}?ids={{ resume.resume.pk }}&rec_id={{ rec_id }}"
+                                        hx-target="#bulkResumeUploadBody"
+                                        hx-confirm="{% trans 'Are you sure you want to delete this resume?' %}"
+                                    >
+                                        <ion-icon name="trash-outline"></ion-icon>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% else %}
+    <div class="flex flex-col items-center justify-center py-8">
+        <img
+            src="/static/horilla_theme/assets/img/no-records.svg"
+            alt=""
+            width="200"
+            class="mb-3"
+        >
+        <p class="text-[#666] text-sm">{% trans "No resumes uploaded yet." %}</p>
+    </div>
+{% endif %}
 
 <div id="enlargeImageContainer" style="width:400px; height:500px;" class="enlargeImageContainer"></div>
 
@@ -105,6 +151,26 @@
            enlargeImageContainer.empty();
            enlargeImageContainer.hide();
        }
+
+    function openResumeCandidateForm(link) {
+        return !window.open(link.href, "_blank");
+    }
+
+    window.removeEventListener("message", window.resumeCandidateCreatedListener);
+    window.resumeCandidateCreatedListener = function (event) {
+        if (event.origin !== window.location.origin || !event.data || event.data.type !== "resume-candidate-created") {
+            return;
+        }
+        if (document.getElementById("matchingResume")) {
+            htmx.ajax("GET", "{% url 'matching-resumes' rec_id %}", {target: "#matchingResume"});
+        }
+        $("#reloadMessagesButton").click();
+        var filterForm = document.getElementById("filterForm");
+        if (filterForm) {
+            htmx.trigger(filterForm, "submit");
+        }
+    };
+    window.addEventListener("message", window.resumeCandidateCreatedListener);
 
     $(document).on("click", function (event) {
     	if (!$(event.target).closest("#enlargeImageContainer").length) {

@@ -178,6 +178,14 @@ and have nowhere on the form to set them.
   }
 
   .oh-step-panel[hidden] { display: none !important; }
+  .oh-steps--solo, .oh-component-form__section--solo { display: none !important; }
+  /* No rail to line up with: the single field runs edge to edge, level with the Save button. */
+  .oh-step-panel--solo { margin-top: -22px; }
+  .oh-step-panel--solo .oh-component-field {
+    padding-left: 0; padding-right: 0; margin-bottom: 0;
+    /* The form's rows give up their right padding, so reach out to the line above Save. */
+    flex: 0 0 calc(100% + 14px); max-width: calc(100% + 14px);
+  }
 
   .oh-step-nav {
     display: flex; align-items: center; gap: 8px;
@@ -220,7 +228,8 @@ and have nowhere on the form to set them.
         rather than strictly sequential, because editing an existing component
         usually means changing one thing on one step.
         {% endcomment %}
-        <div class="col-12 oh-steps" role="tablist" data-steps>
+        {% comment %}A form with one step (a standard item's) has nothing to step through: the rail and the lone heading stay in the DOM for the script, hidden.{% endcomment %}
+        <div class="col-12 oh-steps{% if component_steps|length < 2 %} oh-steps--solo{% endif %}" role="tablist" data-steps>
           {% for step in component_steps %}
             <button type="button" class="oh-steps__step" role="tab"
                     data-step-tab="{{ step.key }}"
@@ -237,7 +246,7 @@ and have nowhere on the form to set them.
         </div>
 
         {% for step in component_steps %}
-        <div class="col-12 oh-step-panel" id="step-{{ step.key }}"
+        <div class="col-12 oh-step-panel{% if component_steps|length < 2 %} oh-step-panel--solo{% endif %}" id="step-{{ step.key }}"
              data-step-panel="{{ step.key }}" role="tabpanel">
         <div class="row" style="padding-right:0">
 
@@ -249,7 +258,7 @@ and have nowhere on the form to set them.
           lets a heading hide once everything under it is hidden — the
           "Upper limit" rule sat there alone on a fixed amount.
           {% endcomment %}
-          <div class="oh-component-form__section col-12"
+          <div class="oh-component-form__section col-12{% if component_steps|length < 2 and step.sections|length < 2 %} oh-component-form__section--solo{% endif %}"
                data-section="{{ section.key }}">
             <div class="oh-component-form__heading">
               <h3>{{ section.title }}</h3><span class="rule"></span>

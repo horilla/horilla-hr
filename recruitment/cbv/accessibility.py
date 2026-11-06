@@ -107,6 +107,16 @@ def edit_reject(request, instance, user_perm):
                 return True
 
 
+def remove_reject(request, instance, user_perm):
+    """
+    Remove rejection accessibility -- shown only once the candidate actually
+    has a rejection record to remove.
+    """
+    first = RejectedCandidate.objects.filter(candidate_id=instance).first()
+    if first and request.user.has_perm("recruitment.delete_rejectedcandidate"):
+        return True
+
+
 def archive_status(request, instance, user_perm):
     """
     To acces archive in list candidates
@@ -236,6 +246,8 @@ def check_candidate_self_tracking(request, instance, user_perm):
     """
     This method is used to get the candidate self tracking is enabled or not
     """
+    if hasattr(instance, "self_tracking_enabled"):
+        return instance.self_tracking_enabled()
     selected_company = request.session.get("selected_company")
     if selected_company and selected_company != "all":
         setting = RecruitmentGeneralSetting.objects.filter(

@@ -90,7 +90,8 @@ def create_deductions(instance, amount, date):
     # the model defaults happen to be. Those defaults made every repayment
     # pre-tax and calendar-day prorated, which nobody chose and nothing said.
     for field, value in policy_fields(
-        LOAN_REPAYMENT_KEYS.get(instance.type, "loan_repayment")
+        LOAN_REPAYMENT_KEYS.get(instance.type, "loan_repayment"),
+        employee=instance.employee_id,
     ).items():
         setattr(installment, field, value)
 

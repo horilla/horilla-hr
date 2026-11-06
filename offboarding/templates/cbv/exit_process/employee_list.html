@@ -7,6 +7,42 @@
     #{{ view_id|safe }} table.fixed-table input[type="checkbox"] {
         margin-top: 0;
     }
+    #{{ view_id|safe }} th[id$="_task-header"] {
+        width: 1%;
+    }
+    #{{ view_id|safe }} .ob-task-head {
+        flex: 1 1 auto;
+    }
+    #{{ view_id|safe }} .ob-task-head__slot {
+        position: relative;
+        flex-shrink: 0;
+        width: 0;
+        height: 24px;
+        transition: width 0.3s ease 0.1s;
+    }
+    #{{ view_id|safe }} .ob-task-head:hover .ob-task-head__slot,
+    #{{ view_id|safe }} .ob-task-head:focus-within .ob-task-head__slot {
+        width: 56px;
+        transition-delay: 0s;
+    }
+    #{{ view_id|safe }} .ob-task-head__actions {
+        position: absolute;
+        left: 0;
+        top: 0;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateX(-8px);
+        transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+    #{{ view_id|safe }} .ob-task-head:hover .ob-task-head__actions,
+    #{{ view_id|safe }} .ob-task-head:focus-within .ob-task-head__actions {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateX(0);
+    }
 </style>
 <div id="{{ view_id|safe }}" class="hlv-container" data-list-path="{{request.path}}" data-selected-instances-key="{{selected_instances_key_id}}" data-total-count="{{queryset.paginator.count}}">
         <div
@@ -86,7 +122,7 @@
                                             {{cell_attr|safe}}
                                             {% if cell.2 and not cell_attr %}style="min-width:180px;"{% endif %}
                                         >
-                                            <div class="flex gap-1.5 items-center">
+                                            <div class="flex gap-1.5 items-center flex-1 min-w-0">
                                                 {% for sort_map in sortby_mapping %}
                                                     {% if sort_map.0 == cell.0 %}
                                                         <span
@@ -103,7 +139,7 @@
                                                         </span>
                                                     {% endif %}
                                                 {% endfor %}
-                                                <span class="flex w-max"> {{cell.0|safe}} </span>
+                                                <span class="flex flex-1" style="min-width:max-content;"> {{cell.0|safe}} </span>
                                             </div>
                                             {% if forloop.last and show_toggle_form and not options and not option_method and not actions and not action_method %}
                                                 <button

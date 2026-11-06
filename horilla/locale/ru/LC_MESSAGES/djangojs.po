@@ -1,0 +1,192 @@
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Horilla\n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: 2026-08-28 00:00+0000\n"
+"Last-Translator: Claude (Anthropic) — machine-assisted, glossary-checked\n"
+"Language-Team: Russian\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "An unexpected error occurred. Please refresh the page."
+msgstr "Произошла непредвиденная ошибка. Обновите страницу."
+
+msgid "Do you really want to validate all the selected attendances?"
+msgstr "Вы действительно хотите подтвердить все выбранные записи посещаемости?"
+
+msgid "No rows are selected from Validate Attendances."
+msgstr "Не выбрано ни одной строки для подтверждения посещаемости."
+
+msgid "Do you really want to approve OT for all the selected attendances?"
+msgstr "Вы действительно хотите утвердить сверхурочные для всех выбранных записей посещаемости?"
+
+msgid "No rows are selected from OT Attendances."
+msgstr "Не выбрано ни одной строки в разделе сверхурочных."
+
+msgid "Do you really want to reject all the selected attendance requests?"
+msgstr "Вы действительно хотите отклонить все выбранные запросы по посещаемости?"
+
+msgid "Pending Attendance Update Request!"
+msgstr "Есть запрос на изменение посещаемости в ожидании!"
+
+msgid "An attendance request exists for updating this attendance prior to validation."
+msgstr "Для этой записи посещаемости уже существует запрос на изменение, ожидающий подтверждения."
+
+msgid "View Request"
+msgstr "Просмотреть запрос"
+
+msgid "Some selected requests have already been approved."
+msgstr "Некоторые из выбранных запросов уже утверждены."
+
+msgid "Some selected requests have already been rejected."
+msgstr "Некоторые из выбранных запросов уже отклонены."
+
+msgid "Do you wish to create a Leave Report?"
+msgstr "Хотите создать отчёт по отпускам?"
+
+msgid "Do you want to reject the selected leave requests?"
+msgstr "Хотите отклонить выбранные заявки на отпуск?"
+
+msgid "Do you want to send the payslip by mail?"
+msgstr "Хотите отправить расчётный листок по почте?"
+
+msgid "Name of Employees"
+msgstr "ФИО сотрудников"
+
+msgid "Amount"
+msgstr "Сумма"
+
+msgid "Upload Completed!"
+msgstr "Загрузка завершена!"
+
+msgid "Imported Successfully!"
+msgstr "Импорт выполнен успешно!"
+
+msgid "Please upload a file with the .xlsx extension only."
+msgstr "Загружайте файл только с расширением .xlsx."
+
+msgid "visible"
+msgstr "visible"
+
+msgid "bgcolor"
+msgstr "bgcolor"
+
+msgid "bordercolor"
+msgstr "bordercolor"
+
+msgid "borderwidth"
+msgstr "borderwidth"
+
+msgid "thickness"
+msgstr "thickness"
+
+msgid "autorange"
+msgstr "autorange"
+
+msgid "range"
+msgstr "range"
+
+msgid "x"
+msgstr "x"
+
+msgid "y"
+msgstr "y"
+
+msgid "minor"
+msgstr "minor"
+
+msgid "label"
+msgstr "label"
+
+msgid "arrowlen"
+msgstr "arrowlen"
+
+msgid "source"
+msgstr "source"
+
+msgid "target"
+msgstr "target"
+
+msgid "value"
+msgstr "value"
+
+msgid "line.color"
+msgstr "line.color"
+
+msgid "line.width"
+msgstr "line.width"
+
+msgid "hoverinfo"
+msgstr "hoverinfo"
+
+msgid "hovertemplate"
+msgstr "hovertemplate"
+
+msgid "color"
+msgstr "color"
+
+msgid "hovercolor"
+msgstr "hovercolor"
+
+msgid "customdata"
+msgstr "customdata"
+
+msgid "punc"
+msgstr "punc"
+
+msgid "name"
+msgstr "name"
+
+msgid "keyword"
+msgstr "keyword"
+
+msgid "arrow"
+msgstr "arrow"
+
+msgid "operator"
+msgstr "operator"
+
+msgid "close"
+msgstr "close"
+
+msgid "Confirm"
+msgstr "Подтвердить"
+
+msgid "Close"
+msgstr "Закрыть"
+
+msgid "Cancel"
+msgstr "Отмена"
+
+msgid "Selected"
+msgstr "Выбрано"
+
+msgid "Uploading..."
+msgstr "Загрузка..."
+
+msgid "No Records found"
+msgstr "Записи не найдены"
+
+msgid "Do you want to download the excel file?"
+msgstr "Хотите скачать файл Excel?"
+
+msgid "Do you want to download the template?"
+msgstr "Хотите скачать шаблон?"
+
+msgid "No rows are selected from the records."
+msgstr "Не выбрано ни одной строки из записей."
+
+msgid "Do you really want to delete all the selected records?"
+msgstr "Вы действительно хотите удалить все выбранные записи?"
+
+msgid "Do you really want to archive all the selected records?"
+msgstr "Вы действительно хотите архивировать все выбранные записи?"
+
+msgid "Do you really want to approve all the selected requests?"
+msgstr "Вы действительно хотите утвердить все выбранные запросы?"
+
+msgid "Do you really want to unarchive all the selected records?"
+msgstr "Вы действительно хотите разархивировать все выбранные записи?"

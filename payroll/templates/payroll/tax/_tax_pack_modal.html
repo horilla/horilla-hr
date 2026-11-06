@@ -16,9 +16,9 @@ needed.
 {% include "payroll/_picker_modal.html" %}
 
 <div class="oh-modal__dialog-header mb-3">
-  <span class="text-lg font-semibold text-gray-900">
-    <ion-icon name="globe-outline" class="me-1"></ion-icon>
-    {% trans "Load a ready-made tax configuration" %}
+  <span class="oh-modal__dialog-title pick__title">
+    <ion-icon name="globe-outline"></ion-icon>
+    <span>{% trans "Load a ready-made tax configuration" %}</span>
   </span>
   <button class="oh-modal__close--custom" type="button"
           aria-label="{% trans 'Close' %}"

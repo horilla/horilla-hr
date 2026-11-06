@@ -292,7 +292,7 @@ def _reanchor_candidates(today: date) -> int:
     empty even though the underlying recruitments/candidates exist.
 
     Every hired candidate (hired=True, OR currently sitting in a
-    stage_type="hired" stage -- the two aren't kept in sync by the app, see
+    stage_type="shortlisted" stage -- the two aren't kept in sync by the app, see
     recruitment/dashboard.py's Q(hired=True) | Q(stage_id__stage_type=...)
     everywhere it needs "is this candidate hired") gets a joining_date a
     plausible interval after their new created_at, filled in if missing --
@@ -324,7 +324,7 @@ def _reanchor_candidates(today: date) -> int:
                 pass
         fields = {"created_at": created_dt}
         is_hired = candidate.hired or (
-            candidate.stage_id and candidate.stage_id.stage_type == "hired"
+            candidate.stage_id and candidate.stage_id.stage_type == "shortlisted"
         )
         if is_hired:
             fields["joining_date"] = min(created + timedelta(days=14), today)

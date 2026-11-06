@@ -1,18 +1,26 @@
 {% load i18n %}
-<div class="oh-modal__dialog-header pb-0">
-    <button class="oh-modal__close" aria-label="{% trans 'Close' %}">
+<div class="oh-modal__dialog-header">
+    <h2 class="text-md font-semibold" id="createTitle">{% trans "Document" %}</h2>
+    <button
+        type="button"
+        class="oh-modal__close--custom"
+        onclick="$(this).closest('.oh-modal--show').removeClass('oh-modal--show')"
+        aria-label="{% trans 'Close' %}"
+    >
         <ion-icon name="close-outline" role="img" class="md hydrated" aria-label="{% trans 'close outline' %}"></ion-icon>
     </button>
 </div>
-<div class="oh-modal__dialog-body">
-    <form
-        id="add-form"
-        hx-post="{% url 'candidate-document-create' candidate_id.id %}"
-        hx-target="#objectCreateModalTarget"
-        hx-swap="innerHTML"
-        method="post"
-        hx-encoding="multipart/form-data"
-    >
-        {{ form.errors }} {{ form.as_p }}
-    </form>
+<div class="oh-modal__dialog-body oh-modal__dialog-relative">
+    <div class="bg-[white] rounded-md border border-dark-50 w-full" style="padding: 0 4px">
+        <form
+            id="add-form"
+            hx-post="{% url 'candidate-document-create' candidate_id.id %}"
+            hx-target="#objectCreateModalTarget"
+            hx-swap="innerHTML"
+            method="post"
+            hx-encoding="multipart/form-data"
+        >
+            {{ form.errors }} {{ form.as_p }}
+        </form>
+    </div>
 </div>

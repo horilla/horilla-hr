@@ -1132,8 +1132,14 @@
                     <button class="am-period-preset" data-preset="this_week">
                         {% trans "This Week" %}
                     </button>
+                    <button class="am-period-preset" data-preset="last_week">
+                        {% trans "Last Week" %}
+                    </button>
                     <button class="am-period-preset" data-preset="this_month">
                         {% trans "This Month" %}
+                    </button>
+                    <button class="am-period-preset" data-preset="last_month">
+                        {% trans "Last Month" %}
                     </button>
                     <button class="am-period-preset" data-preset="this_year">
                         {% trans "This Year" %}
@@ -1942,12 +1948,20 @@
             function _presetRanges() {
                 const t = new Date();
                 const [wf, wt] = _weekBounds(t);
+                const [lwf, lwt] = _weekBounds(
+                    new Date(t.getFullYear(), t.getMonth(), t.getDate() - 7),
+                );
                 return {
                     today: [_ymd(t), _ymd(t)],
                     this_week: [_ymd(wf), _ymd(wt)],
+                    last_week: [_ymd(lwf), _ymd(lwt)],
                     this_month: [
                         _ymd(_firstOfMonth(t)),
                         _ymd(_lastOfMonth(t)),
+                    ],
+                    last_month: [
+                        _ymd(new Date(t.getFullYear(), t.getMonth() - 1, 1)),
+                        _ymd(new Date(t.getFullYear(), t.getMonth(), 0)),
                     ],
                     this_year: [
                         _ymd(new Date(t.getFullYear(), 0, 1)),

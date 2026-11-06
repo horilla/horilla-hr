@@ -79,6 +79,10 @@ class AssetForm(ModelForm):
             "asset_lot_number_id": _("Batch Number"),
         }
 
+    cols = {
+        "asset_description": 12,
+    }
+
     def __init__(self, *args, **kwargs):
         request = getattr(_thread_locals, "request", None)
         instance = kwargs.get("instance")
@@ -110,6 +114,7 @@ class AssetForm(ModelForm):
                 batch_no_choices.append(("create", _("Create new batch number")))
 
             self.fields["asset_lot_number_id"].choices = batch_no_choices
+        self.fields["asset_description"] = self.fields.pop("asset_description")
 
     def clean(self):
         instance = self.instance

@@ -268,6 +268,11 @@ urlpatterns = [
         name="payroll-settings-deduction-tab",
     ),
     path(
+        "payroll-settings-always-applied-tab/",
+        settings_tabs.PayrollSettingsAlwaysAppliedTab.as_view(),
+        name="payroll-settings-always-applied-tab",
+    ),
+    path(
         "payroll-settings-auto-payslip-tab/",
         settings_tabs.PayrollSettingsAutoPayslipTab.as_view(),
         name="payroll-settings-auto-payslip-tab",

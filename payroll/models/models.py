@@ -630,6 +630,7 @@ class Contract(HorillaModel):
             context={
                 "instance": self,
                 "component_rows": rows,
+                "component_sections": self.component_sections,
                 # Built here rather than as fifteen body entries: the tab lays
                 # them out in two columns, which the generic one-per-row grid
                 # cannot do.
@@ -742,7 +743,12 @@ class Contract(HorillaModel):
                         "title": component.title,
                         "code": component.code,
                         "sequence": component.sequence,
+                        # Only which side of the payslip it is on: how it is taxed has its own column.
+                        "type_label": (
+                            _("Earning") if kind == "allowance" else _("Deduction")
+                        ),
                         "calculation": calculation_summary(component),
+                        "tax_label": self._tax_label(kind, component),
                         "source": source,
                         "source_label": source_label,
                         # Only a directly-targeted or structure component can
@@ -777,7 +783,13 @@ class Contract(HorillaModel):
                         "title": template.title,
                         "code": template.code,
                         "sequence": template.sequence,
+                        "type_label": (
+                            _("Earning") if kind == "allowance" else _("Deduction")
+                        ),
                         "calculation": _("When it happens"),
+                        "tax_label": self._tax_label(
+                            kind, template, self._standard_tax_value(template)
+                        ),
                         "source": "standard",
                         "source_label": _("Standard, always on"),
                         "can_toggle": False,
@@ -795,6 +807,77 @@ class Contract(HorillaModel):
             )
         )
         return rows
+
+    @staticmethod
+    def _tax_label(kind, component, value=None):
+        """
+        How the component is taxed, in the words of its list: taxable or not for an earning,
+        pre-tax or post-tax for a deduction (a statutory tax row has no such setting).
+        ``value`` overrides the component's own setting.
+        """
+        if kind == "allowance":
+            taxable = component.is_taxable if value is None else value
+            return _("Taxable") if taxable else _("Not Taxable")
+        if component.is_tax:
+            return "—"
+        pre_tax = component.is_pretax if value is None else value
+        return _("Pre-Tax") if pre_tax else _("Post-Tax")
+
+    def _standard_tax_value(self, template):
+        """What a standard item's tax setting is for this employee: their exception, if any."""
+        from payroll.system_components import policy_fields, tax_field
+
+        field = tax_field(template.system_key)
+        if not field:
+            return None
+        return policy_fields(template.system_key, employee=self.employee_id).get(field)
+
+    # How a component reaches an employee, in the order the contract's Components tab lists
+    # them. What applies to everybody, and the standard always-on pay items, share a section:
+    # neither is this contract's to switch off.
+    COMPONENT_SECTIONS = (
+        ("structure", _("Via Structure"), ("structure",)),
+        ("outside", _("Outside The Structure"), ("targeted", "conditional", "group")),
+        ("always", _("Always Applied"), ("everyone", "standard")),
+    )
+
+    # Overtime is paid only when the hours were worked, so an overtime component set to apply to
+    # everyone is still not "always applied": it sits with the ones outside the structure.
+    EVENT_DRIVEN_BASED_ON = ("overtime", "week_off_overtime", "holiday_overtime")
+
+    def _component_section_key(self, row):
+        component = row.get("component")
+        if (
+            row["source"] == "everyone"
+            and getattr(component, "based_on", None) in self.EVENT_DRIVEN_BASED_ON
+        ):
+            return "outside"
+        for key, _label, sources in self.COMPONENT_SECTIONS:
+            if row["source"] in sources:
+                return key
+        return "other"
+
+    @property
+    def component_sections(self):
+        """
+        ``component_rows`` grouped by how each component reaches the employee, empty sections
+        left out: ``[{"key", "label", "rows"}]``. Anything with a route not listed above is kept,
+        in a last section, rather than dropped.
+        """
+        rows = self.component_rows
+        grouped = {}
+        for row in rows:
+            grouped.setdefault(self._component_section_key(row), []).append(row)
+        sections = [
+            {"key": key, "label": label, "rows": grouped[key]}
+            for key, label, _sources in self.COMPONENT_SECTIONS
+            if key in grouped
+        ]
+        if "other" in grouped:
+            sections.append(
+                {"key": "other", "label": _("Other"), "rows": grouped["other"]}
+            )
+        return sections
 
     @property
     def assignable_components(self):
@@ -1958,6 +2041,18 @@ class Allowance(HorillaModel):
         """
         return _("Yes") if self.is_taxable else _("No")
 
+    def get_calculation_col(self):
+        """How the amount is worked out, in one line, whichever way it is configured."""
+        from payroll.methods.component_summary import calculation_summary
+
+        return calculation_summary(self)
+
+    def get_applied_to_col(self):
+        """Who it reaches."""
+        from payroll.methods.component_summary import applied_to_summary
+
+        return applied_to_summary(self)
+
     def get_is_condition_based(self):
         """
         method to return is condition based or not
@@ -2630,6 +2725,24 @@ class Deduction(HorillaModel):
     def get_is_pretax_display(self):
         return _("Yes") if self.is_pretax else _("No")
 
+    def get_calculation_col(self):
+        """How the amount is worked out, in one line, whichever way it is configured."""
+        from payroll.methods.component_summary import calculation_summary
+
+        return calculation_summary(self)
+
+    def get_applied_to_col(self):
+        """Who it reaches."""
+        from payroll.methods.component_summary import applied_to_summary
+
+        return applied_to_summary(self)
+
+    def get_type_col(self):
+        """Tax, a pre-tax deduction or a plain one: the global terms the contract tab uses."""
+        if self.is_tax:
+            return _("Tax")
+        return _("Pre-Tax Deduction") if self.is_pretax else _("Deduction")
+
     def get_is_condition_based_display(self):
         return _("Yes") if self.is_condition_based else _("No")
 
@@ -2962,6 +3075,27 @@ class Deduction(HorillaModel):
             )
             return (0, {})
         return super().delete(*args, **kwargs)
+
+
+class SystemComponentTaxOverride(models.Model):
+    """
+    How a standard pay item (Loan, Fine, Reimbursement ...) is taxed for one employee, where that
+    differs from the standard component's own setting: ``value`` is "taxable" for an earning and
+    "pre-tax" for a deduction. Read when the employee's lines are generated, and applied to the ones
+    no payslip carries yet when it changes.
+    """
+
+    system_key = models.CharField(max_length=50, db_index=True)
+    employee_id = models.ForeignKey(
+        Employee, on_delete=models.CASCADE, related_name="system_tax_overrides"
+    )
+    value = models.BooleanField()
+
+    class Meta:
+        unique_together = ("system_key", "employee_id")
+
+    def __str__(self):
+        return f"{self.system_key}: {self.employee_id} = {self.value}"
 
 
 class SalaryStructure(HorillaModel):
@@ -4109,14 +4243,17 @@ class Reimbursement(HorillaModel):
                     # because nothing set it. Each now follows its own
                     # standard component.
                     for field, value in policy_fields(
-                        self.type
-                        if self.type
-                        in {
-                            "reimbursement",
-                            "leave_encashment",
-                            "bonus_encashment",
-                        }
-                        else "reimbursement"
+                        (
+                            self.type
+                            if self.type
+                            in {
+                                "reimbursement",
+                                "leave_encashment",
+                                "bonus_encashment",
+                            }
+                            else "reimbursement"
+                        ),
+                        employee=self.employee_id,
                     ).items():
                         setattr(reimbursement, field, value)
 

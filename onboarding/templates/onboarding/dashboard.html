@@ -104,7 +104,7 @@
     @media (max-width: 640px) { .on-customize-panel { width: 100%; right: -100%; } }
 
     /* Period Picker */
-    .on-period-picker { display: none !important; /* TEMP: hide period picker */ align-items: center; gap: 6px; font-size: 12px; }
+    .on-period-picker { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
     .on-period-picker input[type="date"] { padding: 5px 8px; border-radius: 6px; border: 1px solid rgba(128,128,128,0.2); font-size: 12px; background: transparent; color: inherit; outline: none; transition: border-color 0.15s; }
     .on-period-picker input[type="date"]:focus { border-color: var(--on-indigo); }
     .on-period-picker__sep { opacity: 0.4; font-size: 11px; }
@@ -142,10 +142,13 @@
             <div class="on-refresh"><span class="on-refresh__dot" id="on-refresh-dot"></span><span id="on-refresh-text">{% trans "Just now" %}</span><button class="on-refresh__toggle" id="on-refresh-toggle" title="{% trans 'Toggle auto-refresh' %}">⟳</button></div>
         </div>
         <div style="display:flex;gap:8px;">
-            <div class="on-period-picker" hidden>
+            <div class="on-period-picker">
+                <button class="on-period-preset" data-preset="today">{% trans "Today" %}</button>
+                <button class="on-period-preset" data-preset="this_week">{% trans "This Week" %}</button>
+                <button class="on-period-preset" data-preset="last_week">{% trans "Last Week" %}</button>
                 <button class="on-period-preset" data-preset="this_month">{% trans "This Month" %}</button>
                 <button class="on-period-preset" data-preset="last_month">{% trans "Last Month" %}</button>
-                <button class="on-period-preset" data-preset="this_quarter">{% trans "Quarter" %}</button>
+                <button class="on-period-preset" data-preset="this_year">{% trans "This Year" %}</button>
                 <input type="date" id="on-from-date" title="{% trans 'From' %}">
                 <span class="on-period-picker__sep">&rarr;</span>
                 <input type="date" id="on-to-date" title="{% trans 'To' %}">
@@ -230,36 +233,62 @@
     const PERIOD_KEY = 'on_period_v2';
     const fromInput = document.getElementById('on-from-date');
     const toInput = document.getElementById('on-to-date');
-    function getToday() { return new Date().toISOString().split('T')[0]; }
-    function getFirstOfMonth(d) { const dt = new Date(d || getToday()); dt.setDate(1); return dt.toISOString().split('T')[0]; }
-    function getLastOfMonth(d) { const dt = new Date(d || getToday()); return new Date(dt.getFullYear(), dt.getMonth()+1, 0).toISOString().split('T')[0]; }
+    // Local-time YYYY-MM-DD (toISOString() shifts the day outside UTC).
+    function ymdLocal(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+    function getWeekBounds(today) {
+        const dow = (today.getDay() + 6) % 7; // 0 = Monday
+        const from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - dow);
+        return [from, new Date(from.getFullYear(), from.getMonth(), from.getDate() + 6)];
+    }
+    function presetRange(p) {
+        const t = new Date();
+        if (p === 'today') return [t, t];
+        if (p === 'this_week') return getWeekBounds(t);
+        if (p === 'last_week') return getWeekBounds(new Date(t.getFullYear(), t.getMonth(), t.getDate() - 7));
+        if (p === 'this_month') return [new Date(t.getFullYear(), t.getMonth(), 1), new Date(t.getFullYear(), t.getMonth() + 1, 0)];
+        if (p === 'last_month') return [new Date(t.getFullYear(), t.getMonth() - 1, 1), new Date(t.getFullYear(), t.getMonth(), 0)];
+        if (p === 'this_year') return [new Date(t.getFullYear(), 0, 1), new Date(t.getFullYear(), 11, 31)];
+        return null;
+    }
     function initPeriod() {
         const saved = sessionStorage.getItem(PERIOD_KEY);
         if (saved) { try { const p = JSON.parse(saved); fromInput.value = p.from; toInput.value = p.to; return; } catch {} }
-        fromInput.value = getFirstOfMonth(); toInput.value = getLastOfMonth();
+        const [f, t] = presetRange('this_month');
+        fromInput.value = ymdLocal(f); toInput.value = ymdLocal(t);
     }
     function savePeriod() { sessionStorage.setItem(PERIOD_KEY, JSON.stringify({ from: fromInput.value, to: toInput.value })); }
     function periodParams() { const f = fromInput.value, t = toInput.value; return (f && t) ? ("from_date=" + encodeURIComponent(f) + "&to_date=" + encodeURIComponent(t)) : ""; }
     function urlWithPeriod(u) { return u + (u.includes('?') ? '&' : '?') + periodParams(); }
     function fetchP(url) { return fetch(urlWithPeriod(url)); }
-    function setPreset(p) {
-        const t = new Date(); let f, to;
-        if (p === 'this_month') { f = new Date(t.getFullYear(), t.getMonth(), 1); to = new Date(t.getFullYear(), t.getMonth()+1, 0); }
-        else if (p === 'last_month') { f = new Date(t.getFullYear(), t.getMonth()-1, 1); to = new Date(t.getFullYear(), t.getMonth(), 0); }
-        else if (p === 'this_quarter') { f = new Date(t.getFullYear(), Math.floor(t.getMonth()/3)*3, 1); to = new Date(t.getFullYear(), Math.floor(t.getMonth()/3)*3+3, 0); }
-        fromInput.value = f.toISOString().split('T')[0]; toInput.value = to.toISOString().split('T')[0];
-        savePeriod(); document.querySelectorAll('.on-period-preset').forEach(b => b.classList.toggle('on-period-preset--active', b.dataset.preset === p));
-        location.reload();
+    function syncPresetActive() {
+        document.querySelectorAll('.on-period-preset').forEach(b => {
+            const r = presetRange(b.dataset.preset);
+            b.classList.toggle('on-period-preset--active', !!r && fromInput.value === ymdLocal(r[0]) && toInput.value === ymdLocal(r[1]));
+        });
     }
-    document.querySelectorAll('.on-period-preset').forEach(b => b.addEventListener('click', () => setPreset(b.dataset.preset)));
-    [fromInput, toInput].forEach(i => i.addEventListener('change', () => { savePeriod(); location.reload(); }));
-    initPeriod();
     // Card tags: the period the cards are scoped to.
-    (function () {
+    function applyPeriodLabels() {
         const d = v => new Date(v + 'T00:00:00').toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
         if (!fromInput.value || !toInput.value) return;
         document.querySelectorAll('[data-period-label]').forEach(el => { el.textContent = d(fromInput.value) + ' – ' + d(toInput.value); });
-    })();
+    }
+    // Apply the period in place: remember it, re-mark the preset, then re-run every load.
+    function applyPeriod() {
+        savePeriod();
+        syncPresetActive();
+        applyPeriodLabels();
+        refreshAllData();
+    }
+    function setPreset(p) {
+        const [f, to] = presetRange(p);
+        fromInput.value = ymdLocal(f); toInput.value = ymdLocal(to);
+        applyPeriod();
+    }
+    document.querySelectorAll('.on-period-preset').forEach(b => b.addEventListener('click', () => setPreset(b.dataset.preset)));
+    [fromInput, toInput].forEach(i => i.addEventListener('change', () => { if (fromInput.value && toInput.value) applyPeriod(); }));
+    initPeriod();
+    syncPresetActive();
+    applyPeriodLabels();
 
     // ── Chart Customize ──
     const CUST_KEY = 'on_chart_prefs';

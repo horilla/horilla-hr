@@ -135,20 +135,6 @@ def recruitment_pipeline_actions(request, rec):
             },
         )
 
-    if add_stage_perm or rec_manager_perm or change_perm:
-        actions.append(
-            {
-                "action": _("Manage Stage Order"),
-                "attrs": f"""
-                    data-toggle="oh-modal-toggle"
-                    data-target="#genericModal"
-                    hx-get="{reverse("rec-update-stage-seq", kwargs={"pk": rec.pk})}"
-                    hx-target="#genericModalBody"
-                    style="cursor: pointer;"
-                """,
-            }
-        )
-
     if change_perm or rec_manager_perm:
         if rec.closed:
             actions.append(
@@ -930,7 +916,7 @@ class CandidateCard(HorillaKanbanView):
         stage = self.resolve_kanban_group(self.request.POST.get("groupId"))
         if (
             stage
-            and stage.stage_type == "hired"
+            and stage.stage_type == "shortlisted"
             and stage.recruitment_id.is_vacancy_filled()
         ):
             payload = json.loads(response.content)

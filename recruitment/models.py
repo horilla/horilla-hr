@@ -10,7 +10,7 @@ import json
 import os
 import re
 import secrets
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from urllib.parse import urlencode
 from uuid import uuid4
@@ -23,11 +23,12 @@ from django.contrib.auth.hashers import check_password, make_password
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.core.files.storage import default_storage
 from django.core.validators import MaxValueValidator, MinValueValidator
-from django.db import models
+from django.db import IntegrityError, models, transaction
 from django.db.models import Avg, Min
 from django.templatetags.static import static
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone as tz
+from django.utils.dateparse import parse_date
 from django.utils.functional import cached_property
 from django.utils.html import format_html
 from django.utils.text import slugify
@@ -434,12 +435,47 @@ class Recruitment(HorillaModel):
         This method is used to check wether the vaccancy for the recruitment is completed or not
         """
         hired_stage = Stage.objects.filter(
-            recruitment_id=self, stage_type="hired"
+            recruitment_id=self, stage_type="shortlisted"
         ).first()
         if hired_stage:
             hired_candidate = hired_stage.candidate_set.all().exclude(canceled=True)
             if len(hired_candidate) >= self.vacancy:
                 return True
+
+    def get_or_create_applied_stage(self):
+        """
+        Return this recruitment's Applied stage, creating it if missing.
+
+        The recruitment row is locked while looking up / creating so concurrent
+        submissions serialise instead of each creating a stage; the unique
+        constraint on Stage is the backstop where row locks are unsupported
+        (SQLite). Unscoped managers are used: public applicants have no
+        company session.
+        """
+        stages = Stage._base_manager.filter(recruitment_id=self)
+        with transaction.atomic():
+            Recruitment._base_manager.select_for_update().filter(pk=self.pk).first()
+            stage = stages.filter(stage_type="applied").first()
+            if stage:
+                return stage
+            first = stages.order_by("sequence").values_list("sequence", flat=True)
+            first = first.first()
+            # Applied is the pipeline entry point: put it first without
+            # renumbering existing stages.
+            sequence = 0 if first is None or first > 0 else first - 1
+            name = "Applied"
+            if stages.filter(stage__iexact=name).exists():
+                name = "Applied Candidates"
+            try:
+                with transaction.atomic():
+                    return Stage._base_manager.create(
+                        recruitment_id=self,
+                        stage=name,
+                        stage_type="applied",
+                        sequence=sequence,
+                    )
+            except IntegrityError:
+                return stages.get(stage_type="applied")
 
 
 class Stage(HorillaModel):
@@ -453,7 +489,7 @@ class Stage(HorillaModel):
         ("test", _("Test")),
         ("interview", _("Interview")),
         ("cancelled", _("Rejected")),
-        ("hired", _("Hired")),
+        ("shortlisted", _("Shortlisted")),
     ]
     recruitment_id = models.ForeignKey(
         Recruitment,
@@ -478,6 +514,10 @@ class Stage(HorillaModel):
         ],
     )
 
+    # Stage types allowed once per recruitment: Applied, Hired (shortlisted)
+    # and Rejected (cancelled).
+    UNIQUE_STAGE_TYPES = ("applied", "shortlisted", "cancelled")
+
     class Meta:
         """
         Meta class to add the additional info
@@ -485,12 +525,51 @@ class Stage(HorillaModel):
 
         permissions = (("archive_Stage", "Archive Stage"),)
         unique_together = ["recruitment_id", "stage"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["recruitment_id", "stage_type"],
+                condition=models.Q(
+                    stage_type__in=["applied", "shortlisted", "cancelled"]
+                ),
+                name="unique_special_stage_type_per_recruitment",
+                violation_error_message=_(
+                    "A stage of this type already exists for this recruitment."
+                ),
+            )
+        ]
         ordering = ["sequence"]
         verbose_name = _("Stage")
         verbose_name_plural = _("Stages")
 
     def __str__(self):
         return f"{self.stage} - ({self.recruitment_id.title})"
+
+    def clean(self):
+        super().clean()
+        self.stage_type = (self.stage_type or "").strip().lower()
+        if (
+            self.stage_type in self.UNIQUE_STAGE_TYPES
+            and self.recruitment_id_id
+            and Stage._base_manager.filter(
+                recruitment_id_id=self.recruitment_id_id, stage_type=self.stage_type
+            )
+            .exclude(pk=self.pk)
+            .exists()
+        ):
+            label = dict(self.stage_types).get(self.stage_type, self.stage_type)
+            raise ValidationError(
+                {
+                    "stage_type": _(
+                        "A '%(type)s' stage already exists for this recruitment."
+                    )
+                    % {"type": label}
+                }
+            )
+
+    def save(self, *args, **kwargs):
+        if self.stage_type:
+            self.stage_type = self.stage_type.strip().lower()
+        super().save(*args, **kwargs)
 
     def active_candidates(self):
         """
@@ -583,7 +662,7 @@ class Stage(HorillaModel):
             ("test", _("Test")),
             ("interview", _("Interview")),
             ("cancelled", _("Cancelled")),
-            ("hired", _("Hired")),
+            ("shortlisted", _("Shortlisted")),
         ]
 
         return dict(stage_types).get(self.stage_type)
@@ -650,6 +729,7 @@ class Candidate(HorillaModel):
         ("search_engine", _("Search Engine")),
         ("college_university", _("College or University")),
         ("advertisement_event", _("Advertisement / Event")),
+        ("resume_shortlisting", _("Resume Shortlisting")),
         ("other", _("Other")),
     ]
     name = models.CharField(max_length=100, null=True, verbose_name=_("Name"))
@@ -835,6 +915,23 @@ class Candidate(HorillaModel):
             raw_password, self.portal_password
         )
 
+    @property
+    def has_portal_access(self):
+        """
+        Whether the candidate may use the application tracking page right now.
+        Access is suspended - not removed; the password is kept - while the
+        candidate is archived or its recruitment is archived or closed, and
+        returns on its own once they are unarchived / reopened.
+        """
+        if not self.is_active:
+            return False
+        recruitment = self.recruitment_id
+        if recruitment is not None and (
+            recruitment.closed or not recruitment.is_active
+        ):
+            return False
+        return True
+
     def stage_drop_down(self):
         """
         Stage drop down
@@ -994,6 +1091,13 @@ class Candidate(HorillaModel):
             return _("Archive")
         else:
             return _("Un-Archive")
+
+    def self_tracking_enabled(self):
+        """
+        Application tracking actions (view tracking, send invitation) are
+        offered for every candidate, whatever the company's setting says.
+        """
+        return True
 
     def resume_pdf(self):
         """
@@ -1301,18 +1405,38 @@ class Candidate(HorillaModel):
             context={"instance": self, "interviews": interviews},
         )
 
+    # Read by DynamicBulkUpdateForm.save(): a bulk update otherwise applies each
+    # field with one raw SQL UPDATE, which never calls save(). Moving candidates
+    # to the cancelled/hired stage that way changed `stage_id` only, so the
+    # Rejected ribbon (`canceled`) and `hired` were never set. Naming the method
+    # here routes the stage through it, per selected candidate.
+    bulk_update_setters = {"stage_id": "set_stage"}
+
+    def set_stage(self, stage):
+        """
+        Move the candidate to ``stage``. ``save()`` derives ``canceled`` and
+        ``hired`` from the stage type.
+        """
+        self.stage_id = stage
+        self.save()
+
     def save(self, *args, **kwargs):
         if self.stage_id is not None:
-            self.hired = self.stage_id.stage_type == "hired"
+            self.hired = self.stage_id.stage_type == "shortlisted"
+
+        if isinstance(self.joining_date, str):
+            self.joining_date = parse_date(self.joining_date)
 
         should_validate_job_position = not self.pk
+        joining_date_changed = bool(self.joining_date)
         if self.pk:
             previous = (
                 Candidate.objects.filter(pk=self.pk)
-                .values("recruitment_id", "job_position_id", "stage_id")
+                .values("recruitment_id", "job_position_id", "stage_id", "joining_date")
                 .first()
             )
             if previous:
+                joining_date_changed = previous["joining_date"] != self.joining_date
                 should_validate_job_position = (
                     previous["recruitment_id"] != self.recruitment_id_id
                     or previous["job_position_id"] != self.job_position_id_id
@@ -1357,6 +1481,23 @@ class Candidate(HorillaModel):
             self.hired = False
             self.canceled = False
 
+        if self.joining_date and joining_date_changed:
+            company_id = self.recruitment_id.company_id_id
+            setting = (
+                RecruitmentGeneralSetting.objects.filter(
+                    company_id_id=company_id
+                ).first()
+                or RecruitmentGeneralSetting.objects.filter(
+                    company_id__isnull=True
+                ).first()
+            )
+            default_period = (
+                setting.default_probation_period
+                if setting and setting.default_probation_period is not None
+                else 90
+            )
+            self.probation_end = self.joining_date + timedelta(days=default_period)
+
         super().save(*args, **kwargs)
 
     def move_to_rejected_stage(self):
@@ -1369,13 +1510,43 @@ class Candidate(HorillaModel):
             recruitment_id=self.recruitment_id, stage_type="cancelled"
         ).first()
         if not rejected_stage:
-            rejected_stage = Stage.objects.create(
-                recruitment_id=self.recruitment_id,
-                stage="Rejected Candidates",
-                stage_type="cancelled",
-                sequence=50,
-            )
+            try:
+                with transaction.atomic():
+                    rejected_stage = Stage.objects.create(
+                        recruitment_id=self.recruitment_id,
+                        stage="Rejected Candidates",
+                        stage_type="cancelled",
+                        sequence=50,
+                    )
+            except IntegrityError:
+                rejected_stage = Stage._base_manager.get(
+                    recruitment_id=self.recruitment_id, stage_type="cancelled"
+                )
         self.stage_id = rejected_stage
+
+    def move_to_applied_stage(self):
+        """
+        Assign the recruitment's applied stage, creating it if missing,
+        without saving -- the reverse of move_to_rejected_stage(), used to
+        un-reject a candidate. save() flips `canceled` back to False on its
+        own once stage_id.stage_type is no longer "cancelled" (see the
+        re-open logic in save() above), so nothing else needs to change here.
+        """
+        self.stage_id = self.recruitment_id.get_or_create_applied_stage()
+
+    def get_remove_rejection_url(self):
+        """
+        This method returns the URL to delete this candidate's rejection
+        record (and, via delete_candidate_rejection, move them back to the
+        recruitment's Applied stage), or "" if they are not currently
+        rejected.
+        """
+        rejection = getattr(self, "rejected_candidate", None)
+        if not rejection:
+            return ""
+        return reverse_lazy(
+            "delete-candidate-rejection", kwargs={"rej_id": rejection.pk}
+        )
 
     def last_email(self):
         """
@@ -1903,6 +2074,15 @@ class RecruitmentGeneralSetting(HorillaModel):
 
     candidate_self_tracking = models.BooleanField(default=False)
     show_overall_rating = models.BooleanField(default=False)
+    default_probation_period = models.IntegerField(
+        default=90,
+        validators=[MinValueValidator(0)],
+        verbose_name=_("Probation Period (Days)"),
+        help_text=_(
+            "Default probation period in days, used to auto-fill a "
+            "candidate's probation end date from their joining date"
+        ),
+    )
     company_id = models.OneToOneField(
         Company, on_delete=models.CASCADE, null=True, blank=True, unique=True
     )

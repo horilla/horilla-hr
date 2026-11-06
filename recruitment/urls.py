@@ -808,6 +808,11 @@ urlpatterns = [
         name="candidate-self-tracking-rating-option",
     ),
     path(
+        "default-probation-period/",
+        views.default_probation_period,
+        name="default-probation-period",
+    ),
+    path(
         "candidate-self-status-tracking/",
         views.candidate_self_status_tracking,
         name="candidate-self-status-tracking",
@@ -879,11 +884,6 @@ urlpatterns = [
         "recruitment-settings-skill-tab/",
         settings_tabs.RecruitmentSettingsSkillTab.as_view(),
         name="recruitment-settings-skill-tab",
-    ),
-    path(
-        "recruitment-settings-stage-tab/",
-        settings_tabs.RecruitmentSettingsStageTab.as_view(),
-        name="recruitment-settings-stage-tab",
     ),
     path(
         "resume-completion/",
@@ -989,6 +989,11 @@ urlpatterns = [
         "matching-resumes/<int:rec_id>/",
         views.matching_resumes,
         name="matching-resumes",
+    ),
+    path(
+        "resume-application-form/",
+        views.resume_application_form,
+        name="resume-application-form",
     ),
     path(
         "matching-resume-completion/",

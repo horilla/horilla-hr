@@ -17,6 +17,7 @@ from django.utils.translation import gettext_lazy as _
 
 from base.horilla_company_manager import HorillaCompanyManager
 from employee.models import Employee
+from horilla.horilla_middlewares import _thread_locals
 from horilla.models import HorillaModel
 from horilla_audit.models import HorillaAuditInfo, HorillaAuditLog
 from horilla_views.cbv_methods import render_template
@@ -43,6 +44,37 @@ class OnboardingStage(HorillaModel):
 
     def __str__(self):
         return f"{self.stage_title}"
+
+    def edit_stage_path(self):
+        """
+        Edit stage path
+
+        Returns:
+        str : URL of the stage update form.
+        """
+        return reverse(
+            "stage-update", kwargs={"pk": self.pk, "obj_id": self.recruitment_id.pk}
+        )
+
+    def generic_delete_path(self):
+        """
+        Generic delete path
+
+        Returns:
+        str : URL of the generic delete confirmation for this stage.
+        """
+        return (
+            f"{reverse('generic-delete')}?model=onboarding.OnboardingStage&pk={self.pk}"
+        )
+
+    def bulk_send_mail_path(self):
+        """
+        Bulk send mail path
+
+        Returns:
+        str : URL of the send mail form for the candidates of this stage.
+        """
+        return f"{reverse('send-mail')}?onboarding_stage_id={self.pk}"
 
     class Meta:
         """
@@ -130,6 +162,21 @@ class OnboardingCandidate(Candidate):
         """
         return reverse("onboarding-cand-detail-view", kwargs={"pk": self.pk})
 
+    def task_fetch(self):
+        """
+        Task fetch
+
+        Returns:
+        str : placeholder that loads the candidate's onboarding tasks over htmx.
+        """
+        return f"""
+        <div id="selectedInstanceIds" data-ids="[]"></div>
+        <div
+            hx-get="{reverse('get-cand-task', kwargs={"pk": self.pk})}?field=stage_id"
+            hx-trigger="load"
+        ></div>
+    """
+
     class Meta:
         proxy = True
         verbose_name = _("Onboarding Candidate")
@@ -187,6 +234,49 @@ class CandidateStage(HorillaModel):
             is_required=True,
             candidates=self.candidate_id,
         ).exclude(id__in=completed_task_ids)
+
+    def allocation_path(self):
+        """
+        Allocation path
+
+        Returns:
+        str : URL of the allocation view of the candidate.
+        """
+        return f'{reverse("allocation-view", kwargs={"pk": self.candidate_id.pk})}?model=recruitment.models.Candidate'
+
+    def get_detail_url_pipeline(self):
+        """
+        Get detail url pipeline
+
+        Returns:
+        str : URL of the onboarding candidate detail view.
+        """
+        return reverse(
+            "onboarding-cand-detail-view", kwargs={"pk": self.candidate_id.pk}
+        )
+
+    def stage_drop_down(self):
+        """
+        Stage drop down
+
+        Returns:
+        str : rendered stage selector of the candidate.
+        """
+        request = getattr(_thread_locals, "request", None)
+        recruitment = self.onboarding_stage_id.recruitment_id
+        all_onboarding_stages = getattr(request, "all_onboarding_stages", {})
+        if all_onboarding_stages.get(recruitment.pk) is None:
+            all_onboarding_stages[recruitment.pk] = OnboardingStage.objects.filter(
+                recruitment_id=recruitment
+            )
+            request.all_onboarding_stages = all_onboarding_stages
+        return render_template(
+            path="cbv/pipeline/onboarding/stage_drop_down.html",
+            context={
+                "instance": self,
+                "stages": request.all_onboarding_stages[recruitment.pk],
+            },
+        )
 
     def __getattribute__(self, name):
         if name.startswith("get_") and name.endswith("_task"):

@@ -154,7 +154,7 @@ def backfill_candidate_offer_status(today: date | None = None) -> int:
     other_i = 0
     for candidate in candidates:
         is_hired = candidate.hired or (
-            candidate.stage_id and candidate.stage_id.stage_type == "hired"
+            candidate.stage_id and candidate.stage_id.stage_type == "shortlisted"
         )
         if is_hired:
             status = hired_statuses[hired_i % len(hired_statuses)]

@@ -156,7 +156,7 @@
 
     <!-- Top bar -->
     <header class="bg-white border-b border-secondary-200">
-        <div class="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 py-5 flex items-center gap-3">
+        <div class="{% if resume %}max-w-[1580px]{% else %}max-w-7xl{% endif %} mx-auto px-6 sm:px-10 lg:px-16 py-5 flex items-center gap-3">
             <a
                 href="{% url 'open-recruitments' %}"
                 class="me-1 w-9 h-9 flex items-center justify-center rounded-full text-dark-200 hover:bg-secondary-100 [transition:.2s]"
@@ -192,7 +192,7 @@
         </div>
     {% endif %}
 
-    <main class="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 py-8">
+    <main class="{% if resume %}max-w-[1580px]{% else %}max-w-7xl{% endif %} mx-auto px-6 sm:px-10 lg:px-16 py-8">
         <!-- Page heading -->
         <div class="mb-8">
             <h2 class="text-3xl font-extrabold">{% trans "Application Form" %}</h2>
@@ -211,9 +211,9 @@
             {% endif %}
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div class="grid grid-cols-1 {% if resume %}lg:grid-cols-[repeat(15,minmax(0,1fr))]{% else %}lg:grid-cols-12{% endif %} gap-6 items-start">
             <!-- Left: resume preview or job description -->
-            <div class="lg:col-span-4 lg:sticky lg:top-8 bg-white border border-secondary-200 rounded-2xl p-6">
+            <div class="{% if resume %}lg:col-span-7{% else %}lg:col-span-4{% endif %} lg:sticky lg:top-8 bg-white border border-secondary-200 rounded-2xl p-6">
                 <div>
                     {% if resume %}
                         <div class="sticky">
@@ -274,7 +274,7 @@
                             <div class="relative">
                                 <i class="fa-solid fa-phone absolute left-3 top-0 bottom-0 m-auto flex items-center text-dark-100 text-sm"></i>
                                 <input
-                                    type="text" id="mobile" name="mobile"
+                                    type="text" id="mobile" name="mobile" required
                                     placeholder="{% trans 'e.g. +1 245 999 999' %}"
                                     value="{{ form.mobile.value|default:'' }}"
                                     class="w-full ps-9 pe-4 py-2.5 border border-secondary-200 rounded-lg text-sm placeholder:text-dark-100 focus-visible:outline-0 focus:border-primary-600 [transition:.2s]"
@@ -599,13 +599,27 @@
                 $(".oh-select").select2();
             }, 100);
 
+            function syncRequiredStars() {
+              $("form label.block.text-sm").each(function () {
+                var $control = $(this).parent().find("input:not([type=file]), select, textarea").first();
+                if ($control.length) {
+                  $(this).toggleClass("required-star", $control.prop("required"));
+                }
+              });
+            }
+
+            {% if resume %}
+            $("#address, #id_country, #id_state, #city, #zip").prop("required", false);
+            {% endif %}
+
             function toggleReferralSourceOther() {
-              if ($("[name='referral_source']").val() === "other") {
-                $("#referral_source_other_wrap").removeClass("hidden");
-              } else {
-                $("#referral_source_other_wrap").addClass("hidden");
+              var isOther = $("[name='referral_source']").val() === "other";
+              $("#referral_source_other_wrap").toggleClass("hidden", !isOther);
+              $("[name='referral_source_other']").prop("required", isOther);
+              if (!isOther) {
                 $("[name='referral_source_other']").val("");
               }
+              syncRequiredStars();
             }
             toggleReferralSourceOther();
             $("[name='referral_source']").on("change", toggleReferralSourceOther);

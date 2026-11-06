@@ -70,19 +70,19 @@ STAGE_PLAN = (
     "initial",
     "interview",
     "interview",
-    "hired",
+    "shortlisted",
     "cancelled",
-    "hired",
-    "hired",
+    "shortlisted",
+    "shortlisted",
     "interview",
-    "hired",
+    "shortlisted",
 )
 
 EXTRA_STAGES = (
     # (stage title, stage_type, sequence) -- "Applied"/"Initial" already
     # exist from create_initial_stage()'s own post_save signal.
     ("Interview", "interview", 2),
-    ("Hired", "hired", 3),
+    ("Shortlisted", "shortlisted", 3),
     ("Cancelled", "cancelled", 4),
 )
 
@@ -146,7 +146,7 @@ def backfill_company_recruitment_pipelines(today: date | None = None) -> int:
         for i, (name, gender) in enumerate(candidates):
             stage_type = STAGE_PLAN[i % len(STAGE_PLAN)]
             stage = stage_by_type.get(stage_type) or stage_by_type["applied"]
-            hired = stage_type == "hired"
+            hired = stage_type == "shortlisted"
             email_name = name.lower().replace(" ", ".")
             profile = (
                 "recruitment/profile/profile-pic-girl.jpg"

@@ -558,7 +558,7 @@ def candidate_stage_update(request, cand_id):
     ):
         candidate_obj.stage_id = stage_obj
         candidate_obj.schedule_date = None
-        candidate_obj.hired = stage_obj.stage_type == "hired"
+        candidate_obj.hired = stage_obj.stage_type == "shortlisted"
         candidate_obj.schedule_date = schedule_date
         candidate_obj.start_onboard = False
         candidate_obj.save()

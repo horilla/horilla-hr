@@ -1,14 +1,24 @@
 {% load i18n %}
 
-<div onclick="event.stopPropagation()">
-    <a
-      style="text-decoration: none"
-      class="oh-btn oh-btn--light"
-      href="/media/{{instance.resume}}"
-      target="_blank"
-      title="{% trans 'Resume' %}"
-      rel="noopener noreferrer"
-      >
-      <span class="oh-file-icon oh-file-icon--pdf"></span> &nbsp View
-    </a>
-  </div>
+<div class="flex items-center justify-center" onclick="event.stopPropagation()">
+    {% if instance.resume %}
+        <a
+            style="text-decoration: none"
+            class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
+            href="/media/{{instance.resume}}"
+            target="_blank"
+            title="{% trans 'Resume' %}"
+            rel="noopener noreferrer"
+            onclick="this.blur()"
+        >
+            <span class="oh-file-icon oh-file-icon--pdf"></span>
+        </a>
+    {% else %}
+        <span
+            class="oh-btn oh-btn--light-bkg oh-btn--sq-sm opacity-50 cursor-not-allowed"
+            title="{% trans 'No resume uploaded' %}"
+        >
+            <span class="oh-file-icon oh-file-icon--pdf"></span>
+        </span>
+    {% endif %}
+</div>

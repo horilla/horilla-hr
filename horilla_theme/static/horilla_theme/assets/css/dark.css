@@ -227,6 +227,7 @@ body.dark .select2-container--default .select2-selection--single,
 body.dark .select2-search__field,
 body.dark .oh-accordion-header,
 body.dark input,
+body.dark textarea,
 body.dark .oh-btn-group button:hover,
 body.dark .bg-\[\#e9edf090\],
 body.dark .oh-sticky-table__tr--custom:hover,
@@ -580,4 +581,13 @@ body.dark .bg-\[\#d944bb1a\] {
 body.dark .bg-\[\#f1f1f1\] {
   background-color: #333333 !important;
   color: white;
+}
+
+/* The browser draws the picker icon, and only knows it is on a dark page from this. */
+body.dark input[type="date"],
+body.dark input[type="time"],
+body.dark input[type="datetime-local"],
+body.dark input[type="month"],
+body.dark input[type="week"] {
+  color-scheme: dark;
 }

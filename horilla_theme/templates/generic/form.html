@@ -56,10 +56,10 @@
         id="{{form.container_id}}"
     >
         <div class="oh-profile-section__card">
-            {% if form.wizard_template and not form.instance.pk %}
+            {% if form.wizard_template %}
                 {% include form.wizard_template with part="header" %}
             {% endif %}
-            {% if form.wizard_template and not form.instance.pk %}
+            {% if form.wizard_template %}
                 <div class="row oh-step-panel" id="step-details" data-step-panel="details" role="tabpanel">
             {% else %}
                 <div class="row">
@@ -115,7 +115,7 @@
                 {{ field }}
             {% endfor %}
 
-            {% if form.wizard_template and not form.instance.pk %}
+            {% if form.wizard_template %}
                 {% include form.wizard_template with part="step2" %}
                 {% include form.wizard_template with part="footer" %}
             {% else %}

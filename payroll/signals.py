@@ -121,7 +121,8 @@ def create_installments(sender, instance, created, **kwargs):
         # made a loan taxable income and prorated it by calendar days -- so a
         # mid-month joiner received a fraction of the loan they were granted.
         for field, value in policy_fields(
-            LOAN_PAYOUT_KEYS.get(instance.type, "loan_payout")
+            LOAN_PAYOUT_KEYS.get(instance.type, "loan_payout"),
+            employee=instance.employee_id,
         ).items():
             setattr(loan, field, value)
 
