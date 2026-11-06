@@ -242,7 +242,7 @@ PROJECT_IMPORT_REQUIRED_HEADERS = ["Title", "Status", "Start Date", "Description
 
 PROJECT_IMPORT_ERROR_COLUMNS = [
     "Title",
-    "Manager Badge id",
+    "Manager Badge ID",
     "Status",
     "Start Date",
     "End Date",
@@ -375,7 +375,7 @@ def process_project_records(data_frame, selected_company=None, allowed_ids=None)
             errors["Description Error"] = _("Description is a required field.")
 
         managers = []
-        raw_badges = row.get("Manager Badge id")
+        raw_badges = row.get("Manager Badge ID")
         if raw_badges is not None and not pd.isna(raw_badges):
             badge_ids = [
                 clean_badge_id(b) for b in str(raw_badges).split(",") if b.strip()

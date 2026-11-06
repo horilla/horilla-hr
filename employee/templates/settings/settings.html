@@ -1,6 +1,6 @@
 {% load i18n %}
 <div class="oh-inner-sidebar-content__header mt-4">
-    <h2 class="oh-inner-sidebar-content__title">{% trans 'Badge Prefix' %}</h2>
+    <h2 class="oh-inner-sidebar-content__title">{% trans 'Badge ID Prefix' %}</h2>
 </div>
 <form action="{% url 'initial-prefix' %}" method="post"
   hx-post="{% url 'initial-prefix' %}"
@@ -17,7 +17,7 @@
             <label class="oh-label mb-0" for="{{ prefix_form.badge_id_prefix.id_for_label }}">
               {% trans "Prefix" %}
             </label>
-            <span class="oh-info mt-2" title="{% trans 'Set initial badge-id' %}">
+            <span class="oh-info mt-2" title="{% trans 'Set initial Badge ID' %}">
             </span>
           </div>
           {{ prefix_form.badge_id_prefix }}

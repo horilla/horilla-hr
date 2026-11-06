@@ -41,8 +41,8 @@
         <label class="pb__search pb__titlebar-search">
           <ion-icon name="search-outline"></ion-icon>
           <input type="search" data-row-search
-                 placeholder="{% trans 'Search name or badge ID' %}"
-                 aria-label="{% trans 'Search name or badge ID' %}">
+                 placeholder="{% trans 'Search name or Badge ID' %}"
+                 aria-label="{% trans 'Search name or Badge ID' %}">
         </label>
         <button type="submit" class="oh-btn oh-btn--secondary" {% if not ready_count %}disabled{% endif %}>
           {% blocktrans count n=ready_count %}Generate {{ n }} payslip{% plural %}Generate {{ n }} payslips{% endblocktrans %}

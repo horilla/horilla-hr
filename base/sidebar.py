@@ -201,7 +201,7 @@ class GeneralSettings:
                 },
                 {
                     "text": _("Badge ID Prefix"),
-                    "description": _("Prefix added to employee badge IDs e.g. EMP0001"),
+                    "description": _("Prefix added to employee Badge IDs e.g. EMP0001"),
                     "anchor": "setting-badge-id-prefix",
                 },
                 {

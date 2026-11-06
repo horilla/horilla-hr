@@ -418,6 +418,8 @@ def project_import(request):
                     )
                 },
             )
+        # Files made before the heading was spelled "Manager Badge ID" still import.
+        data_frame = data_frame.rename(columns={"Manager Badge id": "Manager Badge ID"})
         valid, error_message = valid_project_import_headers(data_frame)
         if not valid:
             return render(request, template, {"error_message": error_message})

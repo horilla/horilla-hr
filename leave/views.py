@@ -2377,7 +2377,7 @@ def assign_leave_type_import(request):
             if not badge_id:
                 errors["Badge ID Error"] = _("Employee Badge ID is required.")
             elif not employee:
-                errors["Badge ID Error"] = _("This badge id does not exist.")
+                errors["Badge ID Error"] = _("This Badge ID does not exist.")
             if not type_name:
                 errors["Leave Type Error"] = _("Leave Type is required.")
             elif not leave_type:
@@ -2652,7 +2652,7 @@ def leave_request_import(request):
         if not badge:
             errors["Badge ID Error"] = _("Badge ID is required.")
         elif not employee:
-            errors["Badge ID Error"] = _("This badge id does not exist.")
+            errors["Badge ID Error"] = _("This Badge ID does not exist.")
         if not type_name:
             errors["Leave Type Error"] = _("Leave Type is required.")
         elif not leave_type:

@@ -4721,7 +4721,7 @@ msgstr ""
 msgid "Badge ID Prefix"
 msgstr "Prefijo de ID de credencial"
 
-msgid "Prefix added to employee badge IDs e.g. EMP0001"
+msgid "Prefix added to employee Badge IDs e.g. EMP0001"
 msgstr ""
 "Prefijo agregado a las identificaciones de las credenciales de los "
 "empleados, p. EMP0001"
@@ -9753,7 +9753,7 @@ msgstr ""
 msgid "Badge Prefix"
 msgstr "Prefijo de Insignia"
 
-msgid "Set initial badge-id"
+msgid "Set initial Badge ID"
 msgstr "Establecer id de insignia inicial"
 
 msgid "Add notes"
@@ -14534,7 +14534,7 @@ msgstr "Filtros aplicados: "
 msgid "Asset User"
 msgstr "Usuario del activo"
 
-msgid "Asset User Badge Id"
+msgid "Asset User Badge ID"
 msgstr "ID de credencial del usuario del activo"
 
 msgid "Equals"
@@ -14670,10 +14670,10 @@ msgstr "Informes de objetivos del empleado"
 msgid "Feedback Reports"
 msgstr "Informes de feedback"
 
-msgid "Manager Badge Id"
+msgid "Manager Badge ID"
 msgstr "ID de credencial del responsable"
 
-msgid "Assignee Badge Id"
+msgid "Assignee Badge ID"
 msgstr "ID de credencial del asignado"
 
 msgid "Assignee Department"
@@ -14688,7 +14688,7 @@ msgstr "Función del asignado"
 msgid "Feedback Title"
 msgstr "Título de Comentarios"
 
-msgid "Employee Badge Id"
+msgid "Employee Badge ID"
 msgstr "ID de credencial del empleado"
 
 msgid "Subordinate"
@@ -14751,13 +14751,13 @@ msgstr "Tarea"
 msgid "Stage Manager"
 msgstr "Gestor de etapas"
 
-msgid "Stage Manager Badge Id"
+msgid "Stage Manager Badge ID"
 msgstr "ID de credencial del responsable de etapa"
 
 msgid "Task Manager"
 msgstr "Gestor de tareas"
 
-msgid "Task Manager Badge Id"
+msgid "Task Manager Badge ID"
 msgstr "ID de credencial del responsable de la tarea"
 
 msgid "Candidates"
@@ -15199,7 +15199,7 @@ msgstr ""
 "Publique ofertas de empleo directamente en LinkedIn y gestione a los "
 "candidatos desde Horilla."
 
-msgid "Prefix added to every auto-generated employee badge ID (e.g. PEP0001)."
+msgid "Prefix added to every auto-generated employee Badge ID (e.g. PEP0001)."
 msgstr ""
 "Prefijo añadido a cada ID de identificación de empleado generado "
 "automáticamente (p. ej. PEP0001).Prefijo agregado a las identificaciones de "
@@ -16777,7 +16777,7 @@ msgstr "Salida asignada no encontrada."
 msgid "{} assigned leaves deleted successfully "
 msgstr "{} hojas asignadas eliminadas correctamente "
 
-msgid "This badge id does not exist."
+msgid "This Badge ID does not exist."
 msgstr "Este identificador de insignia no existe."
 
 msgid "This leave type does not exist."

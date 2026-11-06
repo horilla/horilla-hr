@@ -4739,7 +4739,7 @@ msgstr ""
 msgid "Badge ID Prefix"
 msgstr "Abzeichen-ID-Präfix"
 
-msgid "Prefix added to employee badge IDs e.g. EMP0001"
+msgid "Prefix added to employee Badge IDs e.g. EMP0001"
 msgstr "Den Mitarbeiterausweis-IDs wurde ein Präfix hinzugefügt, z. B. EMP0001"
 
 msgid "Currency Symbol"
@@ -9765,7 +9765,7 @@ msgstr ""
 msgid "Badge Prefix"
 msgstr "Badge-Präfix"
 
-msgid "Set initial badge-id"
+msgid "Set initial Badge ID"
 msgstr "Initiale Badge-Id setzen"
 
 msgid "Add notes"
@@ -14569,7 +14569,7 @@ msgstr "Angewendete Filter: "
 msgid "Asset User"
 msgstr "Asset-Benutzer"
 
-msgid "Asset User Badge Id"
+msgid "Asset User Badge ID"
 msgstr "Ausweis-ID des Asset-Benutzers"
 
 msgid "Equals"
@@ -14705,10 +14705,10 @@ msgstr "Berichte zu Mitarbeiterzielen"
 msgid "Feedback Reports"
 msgstr "Feedback-Berichte"
 
-msgid "Manager Badge Id"
+msgid "Manager Badge ID"
 msgstr "Ausweis-ID des Managers"
 
-msgid "Assignee Badge Id"
+msgid "Assignee Badge ID"
 msgstr "Ausweis-ID des Zuständigen"
 
 msgid "Assignee Department"
@@ -14723,7 +14723,7 @@ msgstr "Stellenrolle des Zuständigen"
 msgid "Feedback Title"
 msgstr "Feedback-Titel"
 
-msgid "Employee Badge Id"
+msgid "Employee Badge ID"
 msgstr "Mitarbeiter-Ausweis-ID"
 
 msgid "Subordinate"
@@ -14786,13 +14786,13 @@ msgstr "Aufgabe"
 msgid "Stage Manager"
 msgstr "Stage Manager"
 
-msgid "Stage Manager Badge Id"
+msgid "Stage Manager Badge ID"
 msgstr "Ausweis-ID des Phasenmanagers"
 
 msgid "Task Manager"
 msgstr "Task-Manager"
 
-msgid "Task Manager Badge Id"
+msgid "Task Manager Badge ID"
 msgstr "Ausweis-ID des Aufgabenmanagers"
 
 msgid "Candidates"
@@ -15240,7 +15240,7 @@ msgstr ""
 "Veröffentlichen Sie Stellenangebote direkt auf LinkedIn und verwalten Sie "
 "Bewerber aus Horilla heraus."
 
-msgid "Prefix added to every auto-generated employee badge ID (e.g. PEP0001)."
+msgid "Prefix added to every auto-generated employee Badge ID (e.g. PEP0001)."
 msgstr ""
 "Präfix für automatisch erzeugte Mitarbeiter-Ausweis-IDs (z. B. PEP0001)."
 
@@ -16806,7 +16806,7 @@ msgstr "Zugewiesener Urlaub nicht gefunden."
 msgid "{} assigned leaves deleted successfully "
 msgstr "{} zugewiesene Blätter erfolgreich gelöscht "
 
-msgid "This badge id does not exist."
+msgid "This Badge ID does not exist."
 msgstr "Diese Abzeichen Id existiert nicht."
 
 msgid "This leave type does not exist."
