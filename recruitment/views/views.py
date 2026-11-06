@@ -3377,8 +3377,10 @@ def candidate_login(request):
         backend = CandidateAuthenticationBackend()
         candidate = backend.authenticate(request, username=email, password=password)
 
-        if candidate is not None and not candidate.is_active:
-            # Archived candidates keep their password but lose portal access.
+        if candidate is not None and not candidate.has_portal_access:
+            # Archived candidates, and candidates of an archived or closed
+            # recruitment, keep their password but lose portal access until
+            # they are unarchived / the recruitment is reopened.
             return render(
                 request,
                 "candidate/self_login.html",
@@ -3435,9 +3437,6 @@ def candidate_send_invitation(request, cand_id):
         "<script>$('#reloadMessagesButton').click()</script>"
     )
 
-    if not check_candidate_self_tracking(request)["check_candidate_self_tracking"]:
-        messages.error(request, _("Candidate self tracking is not enabled."))
-        return reload_messages
     candidate = Candidate.objects.filter(id=cand_id).first()
     if candidate is None:
         messages.error(request, _("No Candidate found matching the query."))
@@ -3744,22 +3743,17 @@ def candidate_self_status_tracking(request):
     """
     This method is accessed by the candidates
     """
-    self_tracking_feature = check_candidate_self_tracking(request)[
-        "check_candidate_self_tracking"
-    ]
-    if self_tracking_feature:
-        candidate_id = request.session.get("candidate_id")
+    candidate_id = request.session.get("candidate_id")
 
-        if not candidate_id:
-            return redirect("candidate-login/")
+    if not candidate_id:
+        return redirect("candidate-login/")
 
-        candidate = Candidate.objects.get(pk=candidate_id)
-        return render(
-            request,
-            "candidate/candidate_self_tracking.html",
-            _candidate_tracking_context(candidate),
-        )
-    return render(request, "404.html")
+    candidate = Candidate.objects.get(pk=candidate_id)
+    return render(
+        request,
+        "candidate/candidate_self_tracking.html",
+        _candidate_tracking_context(candidate),
+    )
 
 
 @login_required

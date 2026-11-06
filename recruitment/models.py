@@ -915,6 +915,23 @@ class Candidate(HorillaModel):
             raw_password, self.portal_password
         )
 
+    @property
+    def has_portal_access(self):
+        """
+        Whether the candidate may use the application tracking page right now.
+        Access is suspended - not removed; the password is kept - while the
+        candidate is archived or its recruitment is archived or closed, and
+        returns on its own once they are unarchived / reopened.
+        """
+        if not self.is_active:
+            return False
+        recruitment = self.recruitment_id
+        if recruitment is not None and (
+            recruitment.closed or not recruitment.is_active
+        ):
+            return False
+        return True
+
     def stage_drop_down(self):
         """
         Stage drop down
@@ -1077,42 +1094,10 @@ class Candidate(HorillaModel):
 
     def self_tracking_enabled(self):
         """
-        Whether this candidate's own company has application tracking enabled.
-
-        The company switcher ("All Company" or a single company) must not change
-        which row actions a candidate shows, so the setting is resolved from the
-        candidate's company rather than from the selected one. Falls back to
-        the setting for the selected company when the candidate has no company.
-        Lookups are cached per request, one per distinct company.
+        Application tracking actions (view tracking, send invitation) are
+        offered for every candidate, whatever the company's setting says.
         """
-        request = getattr(_thread_locals, "request", None)
-        cache = None
-        if request is not None:
-            cache = request.__dict__.setdefault("_self_tracking_by_company", {})
-        company_id = (
-            Recruitment.objects.filter(pk=self.recruitment_id_id)
-            .values_list("company_id_id", flat=True)
-            .first()
-            if self.recruitment_id_id
-            else None
-        )
-        if cache is not None and company_id in cache:
-            return cache[company_id]
-        enabled = None
-        if company_id:
-            setting = RecruitmentGeneralSetting.objects.filter(
-                company_id_id=company_id
-            ).first()
-            if setting:
-                enabled = bool(setting.candidate_self_tracking)
-        if enabled is None:
-            from base.context_processors import check_candidate_recruitment_setting
-
-            setting = check_candidate_recruitment_setting(request) if request else None
-            enabled = bool(setting and setting.candidate_self_tracking)
-        if cache is not None:
-            cache[company_id] = enabled
-        return enabled
+        return True
 
     def resume_pdf(self):
         """

@@ -215,9 +215,12 @@ def candidate_login_required(view_func):
         # A candidate who was archived after logging in loses portal access
         # at once. Staff previewing a candidate's page are unaffected.
         if not staff_allowed and "candidate_id" in request.session:
-            if not Candidate.objects.filter(
-                pk=request.session.get("candidate_id"), is_active=True
-            ).exists():
+            session_candidate = (
+                Candidate.objects.select_related("recruitment_id")
+                .filter(pk=request.session.get("candidate_id"))
+                .first()
+            )
+            if session_candidate is None or not session_candidate.has_portal_access:
                 request.session.pop("candidate_id", None)
                 request.session.pop("candidate_email", None)
                 return redirect(reverse("candidate-login") + "?disabled=1")
