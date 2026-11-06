@@ -17,6 +17,7 @@ import logging
 import os
 import random
 import secrets
+from datetime import datetime
 from urllib.parse import parse_qs
 
 from django import template
@@ -793,6 +794,25 @@ def email_send(request):
     candidates = request.POST.getlist("ids")
     other_attachments = request.FILES.getlist("other_attachments")
     template_attachment_ids = request.POST.getlist("template_attachment_ids")
+    joining_date = None
+    probation_end = None
+    try:
+        if request.POST.get("joining_date"):
+            joining_date = datetime.strptime(
+                request.POST["joining_date"], "%Y-%m-%d"
+            ).date()
+        if request.POST.get("probation_end"):
+            probation_end = datetime.strptime(
+                request.POST["probation_end"], "%Y-%m-%d"
+            ).date()
+    except ValueError:
+        messages.error(request, _("Invalid date"))
+        return HorillaRedirect(request)
+    if joining_date and probation_end and probation_end < joining_date:
+        messages.error(
+            request, _("Probation end date cannot be before the date of joining")
+        )
+        return HorillaRedirect(request)
 
     email_backend = ConfiguredEmailBackend()
     display_email_name = email_backend.dynamic_from_email_with_display_name
@@ -926,7 +946,12 @@ def email_send(request):
         # Mark onboarding started without triggering Candidate.save() validation
         # (which can fail with "Choose valid choice" on job_position_id when the
         # candidate's job position has been removed from recruitment.open_positions).
-        Candidate.objects.filter(pk=candidate.pk).update(start_onboard=True)
+        update_fields = {"start_onboard": True}
+        if joining_date:
+            update_fields["joining_date"] = joining_date
+        if probation_end:
+            update_fields["probation_end"] = probation_end
+        Candidate.objects.filter(pk=candidate.pk).update(**update_fields)
         candidate.start_onboard = True
 
         # ✅ SAFE onboarding stage insert

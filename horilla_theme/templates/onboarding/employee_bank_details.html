@@ -29,6 +29,7 @@
             href="{% if white_label_company.icon %}{{white_label_company.icon.url}} {% else %}{% static 'favicons/favicon-16x16.png' %}{% endif %}"
         >
         <link rel="stylesheet" href="{% static 'build/css/style.min.css' %}">
+        <link rel="stylesheet" href="{% static 'horilla_theme/assets/css/onboarding.css' %}">
     </head>
 
     <body>
@@ -137,7 +138,7 @@
                                 </div>
                                 <div class="col-sm-12 col-md-12 col-lg-12">
                                     <div class="oh-input-group">
-                                        <label for="" class="oh-label">{% trans "Country *" %}</label>
+                                        <label for="" class="oh-label">{% trans "Country" %}</label>
                                         <select
                                             name="country"
                                             id="id_country"
@@ -150,7 +151,7 @@
                                 </div>
                                 <div class="col-sm-12 col-md-12 col-lg-12">
                                     <div class="oh-input-group">
-                                        <label for="" class="oh-label">{% trans "State *" %}</label>
+                                        <label for="" class="oh-label">{% trans "State" %}</label>
                                         <select
                                             name="state"
                                             id="id_state"
@@ -187,8 +188,8 @@
 
                         <button
                             href="#"
-                            style="background-color: {{ theme_obj.primary_100 }}; color: {{ theme_obj.primary_800 }}"
-                            class="oh-btn oh-onboarding-card__button mt-4 oh-btn--shadow w-100 mb-4"
+                            style="background-color: {{ theme_obj.primary_600 }}; color: {{ theme_obj.secondary_100 }}"
+                            class="oh-btn oh-onboarding-card__button mt-4 w-100 mb-4"
                             role="button"
                         >
                             {% trans "Finish Onboarding" %}
@@ -209,7 +210,7 @@
                     var label = $(this).closest("div").find("label")
 
                     if (label.length) {
-                        label.append('<span> *</span>');
+                        label.addClass('required-star');
                     }
                 });
             });

@@ -29,6 +29,7 @@
             href="{% if white_label_company.icon %}{{white_label_company.icon.url}} {% else %}{% static 'favicons/favicon-16x16.png' %}{% endif %}"
         >
         <link rel="stylesheet" href="{% static 'build/css/style.min.css' %}">
+        <link rel="stylesheet" href="{% static 'horilla_theme/assets/css/onboarding.css' %}">
         <style>
             ul.errorlist {
                 margin-top: 20px;
@@ -122,7 +123,7 @@
                         <form method="post">
                             {% csrf_token %}
                             <div class="oh-input-group">
-                                <label class="oh-label" for="password">{% trans "Password" %}</label>
+                                <label class="oh-label required-star" for="password">{% trans "Password" %}</label>
                                 <div class="oh-password-input-container">
                                     {{ form.password1 }}
                                     <button class="oh-btn oh-btn--transparent oh-password-input--toggle">
@@ -139,9 +140,12 @@
                                     </button>
                                 </div>
                                 {{ form.password1.errors }}
+                                {% if form.password1.help_text %}
+                                    <div class="oh-password-rules">{{ form.password1.help_text|safe }}</div>
+                                {% endif %}
                             </div>
                             <div class="oh-input-group">
-                                <label class="oh-label" for="confirmPassword">{% trans "Confirm Password" %}</label>
+                                <label class="oh-label required-star" for="confirmPassword">{% trans "Confirm Password" %}</label>
                                 <div class="oh-password-input-container">
                                     {{ form.password2 }}
                                     <button class="oh-btn oh-btn--transparent oh-password-input--toggle">
