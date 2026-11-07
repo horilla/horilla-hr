@@ -62,7 +62,8 @@
                             <div class="border rounded-md border-[#ececec] p-3">
                                 <h5 class="mb-2 text-center bg-primary-300 px-3 py-1.5 rounded-2xl text-sm font-medium text-primary-600 flex items-center gap-2 ps-2">
                                     <span
-                                        class="w-6 h-6 bg-white rounded-full text-primary-600 flex items-center justify-center text-xs"
+                                        class="h-6 bg-white rounded-full text-primary-600 flex items-center justify-center text-xs shrink-0"
+                                        style="min-width: 1.5rem; padding: 0 0.4rem;"
                                     >
                                         {{ protected|length }}
                                     </span>
@@ -86,7 +87,8 @@
                             <div class="border rounded-md border-[#ececec] p-3">
                                 <h5 class="mb-2 text-center bg-primary-300 px-3 py-1.5 rounded-2xl text-sm font-medium text-primary-600 flex items-center gap-2 ps-2">
                                     <span
-                                        class="w-6 h-6 bg-white rounded-full text-primary-600 flex items-center justify-center text-xs"
+                                        class="h-6 bg-white rounded-full text-primary-600 flex items-center justify-center text-xs shrink-0"
+                                        style="min-width: 1.5rem; padding: 0 0.4rem;"
                                     >
                                         {{ model_count_sum }}
                                     </span>
@@ -276,6 +278,13 @@
     }
 
     function restoreState() {
+    	// Opening the dialog (a GET) always starts on the Summary tab. The last visited
+    	// tab / related list is only restored when this fragment is re-rendered by a POST
+    	// from inside the dialog, so the user stays where they were.
+    	{% if request.method == "GET" %}
+    	localStorage.removeItem("deleteConfirmation");
+    	localStorage.removeItem("DeletenavItem");
+    	{% endif %}
     	const savedTab = localStorage.getItem("deleteConfirmation");
     	const savedNav = localStorage.getItem("DeletenavItem");
 
@@ -293,13 +302,24 @@
     		}
     	}
 
-    	if (!$("#deleteConfirmationBody .sidebarItemActive:first").length) {
-    		const firstSidebar = $("#deleteConfirmationBody .sidebarItem")[0];
-    		if (firstSidebar) firstSidebar.click();
+    	if (!$("#deleteConfirmationBody .tab-button.active").length) {
+    		const summaryBtn = $("#deleteConfirmationBody .tab-button[data-target='#summary']")[0];
+    		if (summaryBtn) activateTab($(summaryBtn));
     	}
     }
 
     $(document).ready(function () {
+    // htmx evaluates this script while the previously loaded content is still in the page, so
+    // on a second open every `$("#summary")`, `$("#action")`, `$("#deleteConfirmBtn")`... would
+    // resolve to the OLD (about to be removed) elements: Summary stayed hidden and the Delete
+    // button never enabled. Wait until the swap has replaced the old content.
+    setTimeout(function () {
+    	// This script runs while htmx is still swapping the modal in, i.e. before htmx has
+    	// processed the new hx-get buttons. restoreState() "clicks" those buttons to load the
+    	// related records, and an unprocessed button ignores the click: the sidebar item got
+    	// highlighted but the "Action Required" panel stayed empty. Process the body first.
+    	var modalBody = document.getElementById("deleteConfirmationBody");
+    	if (modalBody && window.htmx) htmx.process(modalBody);
     	initTabs();
     	restoreState();
 
@@ -314,6 +334,7 @@
 
     	$('#action, #revert, #confirm').on('change', updateDeleteBtnState);
     	updateDeleteBtnState();
+    }, 0);
     });
 
     // Prevent HTMX from submitting the delete confirmation form unless all boxes are checked.
@@ -326,6 +347,13 @@
     document.addEventListener('htmx:configRequest', function (evt) {
     	var triggerEl = evt.detail && evt.detail.elt;
     	if (!triggerEl || !triggerEl.closest || !triggerEl.closest('#deleteConfirmationBody')) {
+    		return;
+    	}
+    	// Only the Delete form itself needs the three confirmations. Everything else inside
+    	// the modal (the hidden buttons that load each related-records list, their search and
+    	// pagination) must go through, otherwise the "Action Required" panel stays empty.
+    	var deleteForm = triggerEl.closest('form');
+    	if (!deleteForm || !deleteForm.querySelector('#deleteConfirmBtn')) {
     		return;
     	}
 
