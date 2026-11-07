@@ -789,7 +789,50 @@ class CandidateCard(HorillaKanbanView):
         "position": "{job_position_id__job_position}",
     }
 
-    group_actions = []
+    # Per-stage 3-dot menu on each column header (same as the onboarding board);
+    # mirrors the Actions button of the list view's stage.
+    group_actions = [
+        {
+            "action": _("Add Candidate"),
+            "accessibility": "recruitment.cbv.accessibility.add_candidate_to_stage_accessibility",
+            "attrs": """
+                hx-get="{get_add_candidate_url}"
+                hx-target="#objectCreateModalTarget"
+                data-toggle="oh-modal-toggle"
+                data-target="#objectCreateModal"
+            """,
+        },
+        {
+            "action": _("Edit"),
+            "accessibility": "recruitment.cbv.accessibility.edit_stage_accessibility",
+            "attrs": """
+                hx-get="{get_stage_update_url}"
+                hx-target="#genericModalBody"
+                data-toggle="oh-modal-toggle"
+                data-target="#genericModal"
+            """,
+        },
+        {
+            "action": _("Bulk Mail"),
+            "accessibility": "recruitment.cbv.accessibility.edit_stage_accessibility",
+            "attrs": """
+                hx-get="{get_send_email_url}"
+                hx-target="#objectCreateModalTarget"
+                data-toggle="oh-modal-toggle"
+                data-target="#objectCreateModal"
+            """,
+        },
+        {
+            "action": _("Delete"),
+            "accessibility": "recruitment.cbv.accessibility.delete_stage_accessibility",
+            "attrs": """
+                hx-get="{get_delete_url}&reload_target=%23applyFilter"
+                hx-target="#deleteConfirmationBody"
+                data-toggle="oh-modal-toggle"
+                data-target="#deleteConfirmation"
+            """,
+        },
+    ]
 
     actions = [
         {
