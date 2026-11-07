@@ -1,0 +1,100 @@
+{% extends "surveys/public/base.html" %}
+{% load i18n %}
+{% block title %}{{ survey.title }}{% endblock %}
+{% block content %}
+<div class="sv-card">
+    <h1 class="sv-title">{{ survey.title }}</h1>
+    {% if survey.description %}<p class="sv-desc">{{ survey.description }}</p>{% endif %}
+    <div class="sv-meta">
+        {% if survey.is_anonymous %}
+            <span class="sv-pill sv-pill--ok">&#128274; {% trans "Anonymous: your answers are not linked to you" %}</span>
+        {% else %}
+            <span class="sv-pill">{% blocktrans with name=invitation.employee.get_full_name %}Answering as {{ name }}{% endblocktrans %}</span>
+        {% endif %}
+        {% if survey.closes_at %}<span>{% blocktrans with date=survey.closes_at|date:"d.m.Y H:i" %}Open until {{ date }}{% endblocktrans %}</span>{% endif %}
+    </div>
+</div>
+
+<form method="post" id="surveyForm" hx-post="?autosave=1" hx-trigger="change delay:400ms" hx-swap="none"
+      hx-on::after-request="surveySaved(event)" novalidate>
+    {% csrf_token %}
+    <div class="sv-bar">
+        <span id="progress">{{ answered }} / {{ questions|length }}</span>
+        <span id="savedAt"></span>
+    </div>
+
+    {% if errors %}<div class="sv-alert">{% trans "Some answers need attention - see the marked questions." %}</div>{% endif %}
+
+    {% for item in questions %}
+        {% with q=item.q name=item.name value=item.value %}
+        <div class="sv-card {% if item.error %}sv-card--error{% endif %}" data-question>
+            <div class="sv-q">
+                <label><span class="sv-num">{{ forloop.counter }}.</span>{{ q.question }}</label>
+                {% if q.is_required %}<span class="sv-pill sv-pill--req">{% trans "Required" %}</span>{% endif %}
+            </div>
+
+            {% if q.type == "text" %}
+                <input type="text" class="sv-input" name="{{ name }}" value="{{ value|default_if_none:'' }}" maxlength="500">
+            {% elif q.type == "textarea" %}
+                <textarea class="sv-textarea" name="{{ name }}" rows="4" maxlength="4000">{{ value|default_if_none:'' }}</textarea>
+            {% elif q.type == "choice" or q.type == "yes_no" or q.type == "likert" %}
+                <div class="sv-chips">
+                    {% for v, label in item.choices %}
+                        <label class="sv-chip"><input type="radio" name="{{ name }}" value="{{ v }}" {% if value == v %}checked{% endif %}>{{ label }}</label>
+                    {% endfor %}
+                </div>
+            {% elif q.type == "multiple" %}
+                <div class="sv-chips">
+                    {% for v, label in item.choices %}
+                        <label class="sv-chip"><input type="checkbox" name="{{ name }}" value="{{ v }}" {% if v in value %}checked{% endif %}>{{ label }}</label>
+                    {% endfor %}
+                </div>
+                <p class="sv-hint">{% trans "Select all that apply." %}</p>
+            {% elif q.type == "rating" %}
+                <div class="sv-chips">
+                    {% for v, label in item.choices %}
+                        <label class="sv-chip sv-chip--sq"><input type="radio" name="{{ name }}" value="{{ v }}" {% if value == v %}checked{% endif %}>{{ label }}</label>
+                    {% endfor %}
+                </div>
+            {% elif q.type == "number" %}
+                <input type="number" step="any" class="sv-input sv-input--short" name="{{ name }}" value="{{ value|default_if_none:'' }}">
+            {% elif q.type == "date" %}
+                <input type="date" class="sv-input sv-input--short" name="{{ name }}" value="{{ value|default_if_none:'' }}">
+            {% endif %}
+
+            {% if item.error %}<p class="sv-err">{{ item.error }}</p>{% endif %}
+        </div>
+        {% endwith %}
+    {% endfor %}
+
+    <div class="sv-actions">
+        <button type="submit" class="sv-btn">{% trans "Submit answers" %}</button>
+        <span class="sv-hint" style="margin:0">{% trans "Your answers are saved as you go - you can close this page and come back by the same link." %}</span>
+    </div>
+</form>
+
+<script>
+    function surveySaved(event) {
+        var el = document.getElementById("savedAt");
+        if (event.detail.successful) {
+            try { el.textContent = "{% trans 'Saved' %} " + (JSON.parse(event.detail.xhr.responseText).at || ""); }
+            catch (e) { el.textContent = "{% trans 'Saved' %}"; }
+        } else {
+            el.textContent = "{% trans 'Not saved - check your connection' %}";
+        }
+        var boxes = document.querySelectorAll("[data-question]"), done = 0;
+        boxes.forEach(function (box) {
+            var any = Array.prototype.some.call(box.querySelectorAll("input, textarea"), function (i) {
+                return (i.type === "radio" || i.type === "checkbox") ? i.checked : i.value.trim() !== "";
+            });
+            if (any) done++;
+        });
+        document.getElementById("progress").textContent = done + " / " + boxes.length;
+    }
+    document.getElementById("surveyForm").addEventListener("submit", function (e) {
+        e.preventDefault();
+        this.removeAttribute("hx-post");
+        this.submit();
+    });
+</script>
+{% endblock %}

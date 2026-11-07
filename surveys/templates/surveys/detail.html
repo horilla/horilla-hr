@@ -1,0 +1,83 @@
+{% extends "index.html" %}
+{% load i18n %}
+{% block content %}
+<meta name="csrf-token" content="{{ csrf_token }}">
+<style>
+    .sv-pill { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:999px; font-size:.8rem; font-weight:600; background:rgba(128,128,128,.12); color:inherit; white-space:nowrap; }
+    .sv-tabs { display:flex; gap:4px; border-bottom:1px solid rgba(128,128,128,.18); margin-top:18px; }
+    .sv-tabs a { display:inline-flex; align-items:center; gap:6px; padding:10px 14px; margin-bottom:-1px; border-bottom:2px solid transparent; color:inherit; opacity:.7; text-decoration:none; font-weight:600; font-size:14px; }
+    .sv-tabs a:hover { opacity:1; text-decoration:none; color:inherit; }
+    .sv-tabs a.active { opacity:1; border-bottom-color:var(--primary-600, #e54f38); color:var(--primary-600, #e54f38); }
+    .sv-tabs .n { background:rgba(128,128,128,.14); border-radius:999px; padding:0 7px; font-size:11px; font-weight:700; }
+    .sv-card { border:1px solid rgba(128,128,128,.14); border-radius:12px; background:#fff; padding:20px 22px; }
+    .dark .sv-card { background:#111; }
+</style>
+<main :class="sidebarOpen ? 'oh-main__sidebar-visible' : ''">
+<section class="oh-wrapper oh-main__topbar">
+    <div class="oh-main__titlebar oh-main__titlebar--left">
+        <a href="{% url 'surveys-view' %}" class="oh-btn oh-btn--light-bkg oh-btn--sq-sm me-2" title="{% trans 'Back' %}"><ion-icon name="arrow-back-outline"></ion-icon></a>
+        <h1 class="oh-main__titlebar-title fw-bold mb-0">{{ survey.title }}</h1>
+    </div>
+    <div class="oh-main__titlebar oh-main__titlebar--right">
+        {% if can_manage %}
+        <div class="oh-btn-group ml-2 d-flex gap-2 flex-wrap justify-content-end">
+            <button hx-get="{% url 'survey-edit' survey.pk %}" hx-target="#genericModalBody" data-target="#genericModal" data-toggle="oh-modal-toggle" class="oh-btn oh-btn--light-bkg">
+                <ion-icon name="create-outline" class="me-1"></ion-icon>{% trans "Edit" %}
+            </button>
+            {% if survey.status != "open" %}
+                <form method="post" action="{% url 'survey-open' survey.pk %}" onsubmit="return confirm('{% trans 'Open the survey and send the invitations?' %}')">{% csrf_token %}
+                    <button class="oh-btn oh-btn--secondary"><ion-icon name="paper-plane-outline" class="me-1"></ion-icon>{% if survey.status == "closed" %}{% trans "Reopen" %}{% else %}{% trans "Open and send" %}{% endif %}</button>
+                </form>
+            {% else %}
+                <form method="post" action="{% url 'survey-remind' survey.pk %}" onsubmit="return confirm('{% trans 'Remind everyone who has not answered?' %}')">{% csrf_token %}
+                    <button class="oh-btn oh-btn--light-bkg"><ion-icon name="notifications-outline" class="me-1"></ion-icon>{% trans "Remind" %}</button>
+                </form>
+                <form method="post" action="{% url 'survey-close' survey.pk %}" onsubmit="return confirm('{% trans 'Close the survey? No more answers will be taken.' %}')">{% csrf_token %}
+                    <button class="oh-btn oh-btn--danger"><ion-icon name="lock-closed-outline" class="me-1"></ion-icon>{% trans "Close" %}</button>
+                </form>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</section>
+<div class="oh-wrapper">
+    <div class="sv-card mb-4">
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+            {{ survey.status_badge|safe }}
+            {% if survey.is_anonymous %}<span class="sv-pill"><ion-icon name="eye-off-outline"></ion-icon>{% trans "Anonymous" %}</span>{% endif %}
+            <span class="sv-pill"><ion-icon name="people-outline"></ion-icon>{{ survey.audience_label }}</span>
+            {% if survey.closes_at %}<span class="text-muted small ms-1">{% blocktrans with date=survey.closes_at|date:"d.m.Y H:i" %}closes {{ date }}{% endblocktrans %}</span>{% endif %}
+        </div>
+        {% if survey.description %}<p class="text-muted mb-0" style="white-space:pre-line">{{ survey.description }}</p>{% endif %}
+
+        <div class="sv-tabs" id="surveyTabs">
+            <a href="#" data-target="#tabQuestions" class="{% if tab == 'questions' %}active{% endif %}">{% trans "Questions" %} <span class="n">{{ survey.questions.count }}</span></a>
+            <a href="#" data-target="#tabAudience" class="{% if tab == 'audience' %}active{% endif %}">{% trans "Audience" %} <span class="n">{{ survey.invited_count }}</span></a>
+            {% if can_results %}<a href="#" data-target="#tabResults" class="{% if tab == 'results' %}active{% endif %}">{% trans "Results" %} <span class="n">{{ survey.answered_count }}</span></a>{% endif %}
+        </div>
+        <div class="pt-4 {% if tab != 'questions' %}d-none{% endif %}" id="tabQuestions"
+             hx-get="{% url 'survey-questions-tab' survey.pk %}" hx-trigger="load, reloadQuestions from:body"></div>
+        <div class="pt-4 {% if tab != 'audience' %}d-none{% endif %}" id="tabAudience"
+             hx-get="{% url 'survey-audience-tab' survey.pk %}" hx-trigger="load"></div>
+        {% if can_results %}
+        <div class="pt-4 {% if tab != 'results' %}d-none{% endif %}" id="tabResults"
+             hx-get="{% url 'survey-results-tab' survey.pk %}" hx-trigger="load"></div>
+        {% endif %}
+    </div>
+</div>
+<script>
+    document.querySelectorAll("#surveyTabs a").forEach(function (a) {
+        a.addEventListener("click", function (e) {
+            e.preventDefault();
+            document.querySelectorAll("#surveyTabs a").forEach(function (x) { x.classList.remove("active"); });
+            a.classList.add("active");
+            ["#tabQuestions", "#tabAudience", "#tabResults"].forEach(function (id) {
+                var el = document.querySelector(id); if (el) el.classList.toggle("d-none", id !== a.dataset.target);
+            });
+            history.replaceState(null, "", "?tab=" + a.dataset.target.replace("#tab", "").toLowerCase());
+        });
+    });
+</script>
+<button id="reloadQuestions" hidden onclick="htmx.trigger(document.body, 'reloadQuestions')"></button>
+</main>
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends "index.html" %}
+{% load i18n %}
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@7.8.0/dist/apexcharts.min.js"></script>
+<style>
+    .sv-kpi { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
+    .sv-card { border:1px solid rgba(128,128,128,.12); border-radius:12px; background:#fff; padding:18px; }
+    .dark .sv-card { background:#111; }
+    .sv-card__label { font-size:12px; opacity:.65; }
+    .sv-card__value { font-size:26px; font-weight:700; margin-top:4px; }
+    .sv-grid { display:grid; grid-template-columns:2fr 1fr; gap:14px; }
+    @media (max-width: 1100px) { .sv-kpi { grid-template-columns:repeat(2,1fr);} .sv-grid { grid-template-columns:1fr; } }
+    .sv-row { display:flex; justify-content:space-between; gap:8px; padding:10px 0; border-bottom:1px solid rgba(128,128,128,.12); text-decoration:none; color:inherit; }
+    .sv-row:hover { color:inherit; text-decoration:none; opacity:.85; }
+</style>
+<main :class="sidebarOpen ? 'oh-main__sidebar-visible' : ''">
+<section class="oh-wrapper oh-main__topbar">
+    <div class="oh-main__titlebar oh-main__titlebar--left"><h1 class="oh-main__titlebar-title fw-bold">{% trans "Surveys" %}</h1></div>
+    <div class="oh-main__titlebar oh-main__titlebar--right">
+        <a href="{% url 'surveys-view' %}" class="oh-btn oh-btn--secondary"><ion-icon name="list-outline" class="me-1"></ion-icon>{% trans "All surveys" %}</a>
+    </div>
+</section>
+<div class="oh-wrapper">
+    <div class="sv-kpi">
+        <div class="sv-card"><div class="sv-card__label">{% trans "Open surveys" %}</div><div class="sv-card__value" id="kOpen">–</div></div>
+        <div class="sv-card"><div class="sv-card__label">{% trans "Invited (open surveys)" %}</div><div class="sv-card__value" id="kInvited">–</div></div>
+        <div class="sv-card"><div class="sv-card__label">{% trans "Answered" %}</div><div class="sv-card__value" id="kAnswered">–</div></div>
+        <div class="sv-card"><div class="sv-card__label">{% trans "Response rate" %}</div><div class="sv-card__value" id="kRate">–</div></div>
+    </div>
+    <div class="sv-grid">
+        <div class="sv-card"><div class="fw-semibold mb-2">{% trans "Responses in the last 30 days" %}</div><div id="chartDays" style="min-height:260px"></div></div>
+        <div class="sv-card"><div class="fw-semibold mb-2">{% trans "By department (open surveys)" %}</div><div id="chartDept" style="min-height:260px"></div></div>
+    </div>
+    <div class="sv-card mt-3">
+        <div class="fw-semibold mb-2">{% trans "Recent surveys" %}</div>
+        <div id="recent"></div>
+    </div>
+</div>
+</main>
+<script>
+fetch("{% url 'surveys-dashboard-data' %}").then(function (r) { return r.json(); }).then(function (d) {
+    document.getElementById("kOpen").textContent = d.kpi.open;
+    document.getElementById("kInvited").textContent = d.kpi.invited;
+    document.getElementById("kAnswered").textContent = d.kpi.answered;
+    document.getElementById("kRate").textContent = d.kpi.rate + "%";
+    var dark = document.documentElement.classList.contains("dark") || document.body.classList.contains("dark");
+    var textColor = dark ? "#cbd5e1" : "#334155";
+    new ApexCharts(document.getElementById("chartDays"), {
+        chart: { type: "area", height: 260, toolbar: { show: false }, fontFamily: "inherit" },
+        series: [{ name: "{% trans 'Responses'|escapejs %}", data: d.per_day.map(function (p) { return p.n; }) }],
+        xaxis: { categories: d.per_day.map(function (p) { return p.day.slice(8, 10) + "." + p.day.slice(5, 7); }), tickAmount: 10, labels: { style: { colors: textColor }, rotate: 0 } },
+        yaxis: { min: 0, forceNiceScale: true, labels: { style: { colors: textColor } }, decimalsInFloat: 0 },
+        fill: { type: "gradient", gradient: { opacityFrom: 0.45, opacityTo: 0.05 } },
+        stroke: { curve: "smooth", width: 2 }, colors: ["#e54f38"], dataLabels: { enabled: false },
+        noData: { text: "{% trans 'No responses yet'|escapejs %}" }
+    }).render();
+    new ApexCharts(document.getElementById("chartDept"), {
+        chart: { type: "bar", height: 260, stacked: true, toolbar: { show: false }, fontFamily: "inherit" },
+        series: [
+            { name: "{% trans 'Answered'|escapejs %}", data: d.per_department.map(function (p) { return p.done; }) },
+            { name: "{% trans 'Pending'|escapejs %}", data: d.per_department.map(function (p) { return p.total - p.done; }) }
+        ],
+        xaxis: { categories: d.per_department.map(function (p) { return p.department; }), labels: { style: { colors: textColor } } },
+        yaxis: { labels: { style: { colors: textColor } }, decimalsInFloat: 0 },
+        plotOptions: { bar: { horizontal: true, borderRadius: 4 } }, colors: ["#22c55e", "#f59e0b"],
+        legend: { position: "bottom", labels: { colors: textColor } }, dataLabels: { enabled: false },
+        noData: { text: "{% trans 'No open surveys'|escapejs %}" }
+    }).render();
+    var recent = document.getElementById("recent");
+    if (!d.recent.length) { recent.innerHTML = '<p class="text-muted mb-0">{% trans "No surveys yet."|escapejs %}</p>'; return; }
+    d.recent.forEach(function (s) {
+        var a = document.createElement("a");
+        a.className = "sv-row"; a.href = s.url;
+        a.innerHTML = "<span>" + s.title + " <span class='text-muted small ms-1'>" + s.status + "</span></span>" +
+            "<span class='text-nowrap'>" + s.answered + " / " + s.invited + " <span class='text-muted small'>(" + s.rate + "%)</span></span>";
+        recent.appendChild(a);
+    });
+});
+</script>
+{% endblock %}
