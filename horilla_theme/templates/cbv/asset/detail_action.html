@@ -1,7 +1,21 @@
 {% load static i18n %}
 <div class="flex items-center gap-2 flex-wrap">
 
-    {{ instance.asset_items_action|safe }}
+    {# View Items #}
+    {% if perms.asset.change_asset and instance.quantity > 1 %}
+        <a
+            hx-get="{% url 'asset-item-bulk-edit' asset_id=instance.id %}"
+            hx-target="#relatedObjectModalBody"
+            data-toggle="oh-modal-toggle"
+            data-target="#relatedObjectModal"
+            onclick="event.stopPropagation()"
+            class="oh-btn oh-btn--light-bkg px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
+            title="{% trans 'View Items' %}"
+        >
+            <ion-icon name="list-outline"></ion-icon>
+            {% trans "View Items" %}
+        </a>
+    {% endif %}
 
     {# Duplicate #}
     {% if perms.asset.change_asset %}

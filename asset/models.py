@@ -253,7 +253,7 @@ class Asset(HorillaModel):
 
         if self.quantity > 1:
             label = self.get_asset_status_display()
-            label = f"{label}<span class='inline-block border-2 border-solid rounded font-bold text-[0.8rem] px-2 py-1 text-[hsl(8,77%,56%)] border-[hsl(8,77%,56%)] ms-5' title='{self.available_count} of {self.quantity} Available'>{self.available_count}/{self.quantity}</span>"
+            label = f"<span class='whitespace-nowrap'>{label}<span class='text-[0.8rem] text-gray-500 ms-1' title='{self.available_count} of {self.quantity} Available'>· {self.available_count}/{self.quantity}</span></span>"
             return label
         return self.get_asset_status_display()
 
@@ -352,17 +352,6 @@ class Asset(HorillaModel):
         if new_status != self.asset_status:
             self.asset_status = new_status
             Asset.objects.entire().filter(pk=self.pk).update(asset_status=new_status)
-
-    def asset_items_action(self):
-        """
-        This method for get custom column for viewing this asset's items.
-        """
-        if self.quantity <= 1:
-            return ""
-        return render_template(
-            path="cbv/asset/asset_items_action.html",
-            context={"instance": self},
-        )
 
     def clean(self):
         existing_asset = Asset.objects.filter(
