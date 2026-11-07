@@ -15,7 +15,7 @@ when the viewer may not open it).
     title="{% trans 'You do not have permission to open contracts' %}"
 >
 {% endif %}
-    <span class="min-w-0 truncate text-xs font-medium {% if pay and pay.amount %}text-dark-500{% else %}italic text-dark-100{% endif %}{% if link %} group-hover:text-primary-600{% endif %}">
+    <span class="min-w-0 truncate text-sm font-medium {% if pay and pay.amount %}text-dark-500{% else %}italic text-dark-100{% endif %}{% if link %} group-hover:text-primary-600{% endif %}">
         {% if not pay %}
             {% trans "No active contract" %}
         {% elif pay.amount %}
