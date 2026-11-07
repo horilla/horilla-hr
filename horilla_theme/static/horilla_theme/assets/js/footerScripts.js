@@ -12,6 +12,27 @@ $(function () {
             my: "right top+8",
             at: "right bottom",
             collision: "flipfit"
+        },
+        // jQuery UI also opens a tooltip on focusin, and that one only closes on
+        // focusout. When a dialog (SweetAlert, modal) closes it hands focus back
+        // to the button that opened it, so the tooltip popped up with the mouse
+        // long gone and then stayed - piling up as other buttons were hovered.
+        // Keep focus tooltips for real keyboard focus (:focus-visible) only.
+        open: function (event) {
+            var original = event && event.originalEvent;
+            // event.target is the document here; the focused element is the native event's target.
+            var el = original && original.target;
+            if (
+                original &&
+                original.type === "focusin" &&
+                el &&
+                typeof el.matches === "function" &&
+                !el.matches(":focus-visible")
+            ) {
+                setTimeout(function () {
+                    $(el).trigger("focusout");
+                }, 0);
+            }
         }
     });
     var scrollSettleTimer = null;
