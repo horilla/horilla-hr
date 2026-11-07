@@ -200,9 +200,6 @@
                     <span
                         class="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide {% if level == 0 %}text-primary-600{% else %}text-gray-600{% endif %}"
                     >
-                        {% if not node.children %}
-                            <ion-icon name="list-outline" style="font-size:11px;" title="{% trans 'Shows a table of records' %}"></ion-icon>
-                        {% endif %}
                         {{ field_label.1 }}
                     </span>
                 {% endif %}

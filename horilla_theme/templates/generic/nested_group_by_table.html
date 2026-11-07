@@ -347,7 +347,18 @@
         not floating above it as a separate element) so the two read as
         one toolbar block sitting on top of the tinted group tree below.
     {% endcomment %}
-    <div id="ngbToolbarPanel" class="bg-white rounded-t-md border border-b-0 border-[#EAE8E3] overflow-hidden sticky top-[75px] z-10">
+    {% comment %}
+        rounded-t-md, border-[#EAE8E3] and (critically) top-[75px] are
+        arbitrary-value Tailwind classes missing from the compiled
+        tailwind.css snapshot (it's a periodic build, not live) -- with no
+        compiled `top` rule, the `sticky` class above had nothing non-auto
+        to stick against, so per the CSS sticky-positioning spec this panel
+        never actually stuck at all; it just scrolled away like a normal
+        element despite the "no longer visible" comment above correctly
+        describing what top:0 alone would have looked like. Literal inline
+        style for all three instead of trusting those classes.
+    {% endcomment %}
+    <div id="ngbToolbarPanel" class="bg-white border border-b-0 overflow-hidden sticky z-10" style="border-color: #EAE8E3; border-top-left-radius: 0.375rem; border-top-right-radius: 0.375rem; top: 75px;">
         <div class="flex justify-between items-center flex-wrap gap-2 px-3 py-2 border-b border-[#EAE8E3]">
             <div
                 class="flex items-center gap-1.5 flex-wrap"

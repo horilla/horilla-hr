@@ -40,9 +40,21 @@
         style="display: none"
     ></div>
 
+    {% comment %}
+        No overflow-y-auto/overflow-hidden here: either one still counts as
+        position:sticky's nearest scrolling ancestor per the CSS spec even
+        with no height cap to make it actually scroll (it just grows to fit
+        all its content) -- the sticky grouped-list header
+        (#ngbToolbarPanel in generic/nested_group_by_table.html) stuck
+        relative to a box that itself never moved, i.e. not at all, while
+        the real scrolling happened one level further out on the page.
+        Employee's own equivalent list container has no overflow property
+        at all for the same reason -- matching that here lets the sticky
+        header resolve against the real page-level scroll instead.
+    {% endcomment %}
     <div
         id="assetCategoryList"
-        class="bg-white p-3 rounded-md shadow-card overflow-hidden overflow-y-auto"
+        class="bg-white p-3 rounded-md shadow-card"
     >
     </div>
 
