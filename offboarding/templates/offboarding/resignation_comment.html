@@ -1,0 +1,161 @@
+{% load static i18n %}
+
+{% if messages %}
+	<script>
+		reloadMessage();
+	</script>
+{% endif %}
+
+<div class="bg-white rounded-md lg:mb-0" id="commentContainer">
+
+	<div class="oh-activity-sidebar__header">
+		<a
+			style="cursor: pointer;"
+			onclick="$('.oh-activity-sidebar--show').removeClass('oh-activity-sidebar--show');"
+		>
+			<ion-icon
+				name="chevron-forward-outline"
+				class="oh-activity-sidebar__header-icon me-2 oh-activity-sidebar__close"
+				data-target="#activitySidebar"
+			></ion-icon>
+		</a>
+		<span class="oh-activity-sidebar__title fw-bold">{% trans "Comments" %}</span>
+	</div>
+
+	{# The views only render this for the employee, their reporting manager and HR, so the form is always shown. #}
+	<form
+		hx-target="#activitySidebar"
+		hx-post="{% url 'resignation-request-add-comment' request_id %}"
+		id="commentForm"
+	>
+		{% csrf_token %}
+		<input
+			type="text"
+			name="comment"
+			id="commentInput"
+			class="oh-input w-full mt-2"
+			placeholder="{% trans 'Add Comments' %}"
+			hx-on:keyup="toggleCommentButton(this);"
+		/>
+		<button
+			type="submit"
+			id="commentButton"
+			class="oh-btn oh-btn--secondary mt-2"
+			style="display: none"
+		>
+			<i class="fa-regular fa-square-plus"></i>
+			{% trans "Add" %}
+		</button>
+	</form>
+
+	<div class="overflow-hidden overflow-y-auto mt-4 pb-4 max-h-[75vh]">
+		{% for comment in comments %}
+			<div
+				class="border border-dark-50 p-3 rounded-md mb-2 relative commentItems"
+				id="requestCommentItem{{comment.id}}"
+			>
+				<div class="flex justify-between">
+					<h3 class="font-semibold text-sm">{{ comment.comment }}</h3>
+
+					{% if request.user.employee_get == comment.employee_id or perms.offboarding.change_resignationletter %}
+						<form
+							method="POST"
+							hx-post="{% url 'resignation-request-delete-comment' comment.id %}"
+							hx-confirm="{% trans 'Are you sure you want to delete this comment?' %}"
+							hx-target="#activitySidebar"
+							hx-swap="innerHTML"
+							class="inline-block"
+						>
+							{% csrf_token %}
+							<button
+								type="submit"
+								class="cursor-pointer bg-transparent border-0 p-0"
+								title="{% trans 'Delete' %}"
+							>
+								<ion-icon name="trash-outline" class="text-danger"></ion-icon>
+							</button>
+						</form>
+					{% endif %}
+				</div>
+
+				<div class="flex flex-wrap items-center gap-2 mt-2 mb-2">
+					{% for file in comment.files.all %}
+						<a
+							href="{{ file.file.url }}"
+							target="_blank"
+							rel="noopener noreferrer"
+							id="commentFileItem{{file.id}}"
+						>
+							<span
+								class="oh-file-icon oh-file-icon--pdf"
+								id="commentFile{{file.id}}"
+								style="width: 40px; height: 40px"
+							>
+								<img
+									src="{% static 'images/ui/minus-icon.png' %}"
+									style="display: block; width: 50%; height: 50%"
+									hx-get="{% url 'delete-resignation-comment-file' %}?ids={{ file.id }}"
+									hx-target="#commentFileItem{{file.id}}"
+									hx-swap="delete"
+									onclick="event.stopPropagation();event.preventDefault()"
+								/>
+							</span>
+						</a>
+					{% endfor %}
+
+					<form
+						hx-post="{% url 'resignation-request-view-comment' comment.request_id.id %}?comment_id={{ comment.id }}"
+						class="add-files-form"
+						hx-encoding="multipart/form-data"
+						hx-swap="innerHTML"
+						hx-target="#activitySidebar"
+					>
+						{% csrf_token %}
+						<label for="addFile_{{comment.id}}" title="{% trans 'Add Files' %}">
+							<ion-icon
+								name="add-outline"
+								style="font-size: 12px; border: 1px solid #818791; border-radius: 5px;"
+								class="text-gray-700"
+							></ion-icon>
+						</label>
+						<input
+							type="file"
+							name="files"
+							class="d-none"
+							multiple
+							accept=".jpg, .jpeg, .png, .pdf"
+							id="addFile_{{comment.id}}"
+							onchange="$(this).siblings('.add_more_submit').click();"
+						/>
+						<input type="submit" class="d-none add_more_submit" value="save" />
+					</form>
+				</div>
+
+				<p class="text-xs text-[#565E6C] mt-1">
+					{% trans "By" %}
+					<span class="text-primary-600"> <b>{{ comment.employee_id.get_full_name }}</b></span>
+					{% trans "on" %} <b>{{ comment.request_id.employee_id.get_full_name }}</b>{% trans "'s resignation letter" %}
+					<br />
+					{% trans "on" %} <span class="dateformat_changer">{{ comment.created_at.date }}</span>
+					{% trans "at" %} <span class="timeformat_changer">{{ comment.created_at|time:"h:i A" }}</span>
+				</p>
+			</div>
+		{% empty %}
+			<div class="oh-wrapper h-full" align="center">
+				<div class="xl:col-span-4 md:col-span-6 col-span-12 bg-white p-6 rounded-md shadow-card h-[70%]">
+					<div class="flex flex-col items-center justify-center h-full">
+						<img
+							src="/static/horilla_theme/assets/img/no-records.svg"
+							alt=""
+							width="300"
+							class="mb-4"
+						/>
+						<p class="text-[#666] mb-5">
+							{% trans "No comments have been added for this resignation letter" %}
+						</p>
+					</div>
+				</div>
+			</div>
+		{% endfor %}
+	</div>
+</div>

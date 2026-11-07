@@ -1,0 +1,15 @@
+{% load i18n %}
+{# Comment column: opens the activity sidebar (#activitySidebar on the page). The view  #}
+{# itself limits it to the employee, their reporting manager and HR.                     #}
+<button
+    type="button"
+    hx-get="{% url 'resignation-request-view-comment' instance.id %}"
+    hx-target="#commentContainer"
+    data-target="#activitySidebar"
+    title="{% trans 'Add / View Comment' %}"
+    class="oh-btn oh-btn--light oh-activity-sidebar__open w-100"
+    style="flex: 1 0 auto; width:20px; height: 30px; padding: 0;"
+    onclick="event.stopPropagation()"
+>
+    <ion-icon name="newspaper-outline" role="img" class="md hydrated" aria-label="{% trans 'newspaper outline' %}"></ion-icon>
+</button>
