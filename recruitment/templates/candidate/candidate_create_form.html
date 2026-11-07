@@ -27,11 +27,10 @@
         data-select2-id="select2-data-48-0df8"
       >
         <div class="w-100 d-flex justify-content-end mb-3">
-          <div class="bg-white rounded-md shadow-card px-3 py-2 d-inline-flex align-items-center">
             <button
               type="button"
               title="{% trans 'Back' %}"
-              class="px-3 py-1 text-xs bg-white border border-dark-50 text-dark-200 rounded-full transition duration-300 flex items-center gap-2"
+              class="inline-flex items-center gap-1.5 rounded-xl border border-secondary-200 bg-white px-3.5 py-2 text-sm font-medium text-color-600 shadow-sm transition-all hover:border-primary-500 hover:text-primary-600"
               onclick="
                 if (document.referrer && document.referrer.indexOf(window.location.host) !== -1) {
                   window.history.back();
@@ -43,7 +42,6 @@
               <i class="fa-solid fa-arrow-left"></i>
               {% trans "Back" %}
             </button>
-          </div>
         </div>
         <div id="personalMessage">
           {% if messages %}
