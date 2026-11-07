@@ -148,11 +148,12 @@
         const candidates = $('#candidates').val();
         const subject = $('#subject').val().trim();
         const body = getWriteFieldHtml().trim();
-        const cand = "{{cand|default:'false'|safe}}";
+        // Only presence matters here. Never print the candidate itself into the script.
+        const hasCandidate = {% if cand %}true{% else %}false{% endif %};
         let message = '';
         let valid = true;
 
-        if (!candidates.length && cand === "false") {
+        if (!candidates.length && !hasCandidate) {
             message = "This field is required";
             valid = false;
         } else if (!subject) {

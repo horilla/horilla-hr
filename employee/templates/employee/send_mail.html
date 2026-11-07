@@ -152,7 +152,7 @@
     // ---------- FORM SUBMIT ----------
     function handleFormSubmit(event, empId) {
         event.preventDefault();
-        const hasEmployee = "{{employee|default:'false'|safe}}" !== "false";
+        const hasEmployee = {% if employee %}true{% else %}false{% endif %};
         if (!validateForm(empId, hasEmployee)) return false;
 
         Swal.fire({
