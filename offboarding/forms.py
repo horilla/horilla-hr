@@ -5,6 +5,7 @@ This module is used to register forms for offboarding app
 """
 
 import contextlib
+from datetime import date
 from typing import Any
 
 from django import forms
@@ -26,6 +27,7 @@ from offboarding.models import (
     OffboardingStage,
     OffboardingStageMultipleFile,
     OffboardingTask,
+    ResignationComment,
     ResignationLetter,
 )
 
@@ -247,8 +249,6 @@ class ResignationLetterForm(ModelForm):
         "employee_id": 12,
         "title": 12,
         "description": 12,
-        "planned_to_leave_on": 12,
-        "status": 12,
     }
 
     description = forms.CharField(
@@ -260,7 +260,11 @@ class ResignationLetterForm(ModelForm):
     class Meta:
         model = ResignationLetter
         fields = "__all__"
-        exclude = ["is_active"]
+        # planned_to_leave_on is no longer asked for: the notice period start/end
+        # are chosen when the request is approved (see __init__ for the default).
+        # status isn't either: new letters start as "requested" (model default) and
+        # move to approved/rejected only through the Approve/Reject actions.
+        exclude = ["is_active", "planned_to_leave_on", "status"]
 
     def as_p(self):
         """
@@ -272,9 +276,10 @@ class ResignationLetterForm(ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["planned_to_leave_on"].widget = forms.DateInput(
-            attrs={"type": "date", "class": "oh-input w-100"}
-        )
+        # The column is required, so a new letter starts the notice period today;
+        # existing letters keep whatever date they already have.
+        if not self.instance.planned_to_leave_on:
+            self.instance.planned_to_leave_on = date.today()
         exclude = []
         if self.instance.pk:
             exclude.append("employee_id")
@@ -284,12 +289,11 @@ class ResignationLetterForm(ModelForm):
 
         request = getattr(horilla_middlewares._thread_locals, "request", None)
         if request and not request.user.has_perm("offboarding.add_resignationletter"):
-            exclude = exclude + ["status"]
-            self.fields["employee_id"].queryset = Employee.objects.filter(
-                employee_user_id=request.user
-            )
-            self.fields["employee_id"].initial = request.user.employee_get
-            self.instance.employee_id = request.user.employee_get
+            # A regular employee can only resign for themselves, so there is
+            # nothing to choose: drop the field and bind the letter to them.
+            exclude = exclude + ["status", "employee_id"]
+            if not self.instance.pk:
+                self.instance.employee_id = request.user.employee_get
         if request and request.user.has_perm("offboarding.add_resignationletter"):
             if request.GET.get("emp_id"):
                 emp_id = request.GET.get("emp_id")
@@ -297,7 +301,7 @@ class ResignationLetterForm(ModelForm):
                 self.fields["employee_id"].initial = emp_id
         exclude = list(set(exclude))
         for field in exclude:
-            del self.fields[field]
+            self.fields.pop(field, None)
 
     def save(self, commit: bool = ...) -> Any:
         request = getattr(horilla_middlewares._thread_locals, "request", None)
@@ -330,3 +334,32 @@ class ResignationLetterForm(ModelForm):
                     icon="information",
                 )
         return instance
+
+
+class ResignationCancelForm(forms.Form):
+    """
+    Reason an employee gives when cancelling a resignation request.
+    """
+
+    cancel_reason = forms.CharField(
+        label=_("Reason for Cancellation"),
+        max_length=255,
+        widget=forms.Textarea(
+            attrs={
+                "rows": 4,
+                "maxlength": 255,
+                "class": "p-4 oh-input w-100",
+                "placeholder": _("Reason for Cancellation"),
+            }
+        ),
+    )
+
+
+class ResignationCommentForm(ModelForm):
+    """
+    Resignation letter comment form
+    """
+
+    class Meta:
+        model = ResignationComment
+        fields = ("comment",)

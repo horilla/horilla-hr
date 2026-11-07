@@ -74,7 +74,9 @@ def offboarding_kpi_data(request):
     # the selected period but still awaiting review should still count, so
     # (unlike total_offboarding above) this ignores the period.
     pending_resignations = ResignationLetter.objects.filter(status="requested").count()
-    approved_resignations = period_resignations.filter(status="approved").count()
+    approved_resignations = period_resignations.filter(
+        status__in=["approved", "cancellation_requested"]
+    ).count()
 
     # Task completion (current state across all offboardings)
     total_tasks = EmployeeTask.objects.all().count()
@@ -201,6 +203,16 @@ def offboarding_resignation_status(request):
             "status": "rejected",
             "label": _("Rejected"),
             "count": base.filter(status="rejected").count(),
+        },
+        {
+            "status": "cancellation_requested",
+            "label": _("Cancellation Requested"),
+            "count": base.filter(status="cancellation_requested").count(),
+        },
+        {
+            "status": "cancelled",
+            "label": _("Cancelled"),
+            "count": base.filter(status="cancelled").count(),
         },
     ]
 
@@ -423,7 +435,7 @@ def offboarding_joining_vs_exiting(request):
         exiting = ResignationLetter.objects.filter(
             planned_to_leave_on__gte=month_start,
             planned_to_leave_on__lte=month_end,
-            status__in=["approved", "requested"],
+            status__in=ResignationLetter.ACTIVE_STATUSES,
         ).count()
 
         months.append(

@@ -1,0 +1,41 @@
+{% load i18n %}
+<style>
+    .resignation-cancel-box {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 1px solid hsl(0, 0%, 85%);
+        border-left: 4px solid hsl(38, 92%, 50%);
+        border-radius: 0.375rem;
+        background-color: hsl(0, 0%, 97.5%);
+        color: hsl(0, 0%, 20%);
+    }
+    .resignation-cancel-box__title {
+        display: block;
+        margin-bottom: 0.25rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        color: hsl(0, 0%, 35%);
+    }
+    .resignation-cancel-box__text {
+        font-size: 0.875rem;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+    }
+    :root[data-theme="dark"] .resignation-cancel-box,
+    .dark .resignation-cancel-box {
+        border-color: hsl(0, 0%, 30%);
+        background-color: hsl(0, 0%, 15%);
+        color: hsl(0, 0%, 90%);
+    }
+    :root[data-theme="dark"] .resignation-cancel-box__title,
+    .dark .resignation-cancel-box__title {
+        color: hsl(0, 0%, 72%);
+    }
+</style>
+<div class="resignation-cancel-box">
+    <span class="resignation-cancel-box__title">{% trans "Reason for Cancellation" %}</span>
+    <div class="resignation-cancel-box__text">{{ instance.cancel_reason }}</div>
+</div>

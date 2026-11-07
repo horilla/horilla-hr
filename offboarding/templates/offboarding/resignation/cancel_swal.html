@@ -1,0 +1,34 @@
+{% load i18n %}
+<script>
+    // SweetAlert confirmation before a manager approves/rejects a cancellation.
+    function resignationCancelSwal(btn) {
+        var kind = btn.dataset.swalKind;
+        var cfg = {
+            "decision-approve": {
+                title: "{% trans 'Approve Cancellation'|escapejs %}",
+                text: "{% trans 'Do you really want to approve this cancellation request?'|escapejs %}",
+                confirm: "{% trans 'Approve'|escapejs %}", color: "#008000",
+            },
+            "decision-reject": {
+                title: "{% trans 'Reject Cancellation'|escapejs %}",
+                text: "{% trans 'Do you really want to reject this cancellation request?'|escapejs %}",
+                confirm: "{% trans 'Reject'|escapejs %}", color: "#e54f38",
+            },
+        }[kind];
+        if (!cfg) return;
+        var options = {
+            title: cfg.title,
+            text: cfg.text,
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: cfg.color,
+            cancelButtonColor: "#6c757d",
+            confirmButtonText: cfg.confirm,
+            cancelButtonText: "{% trans 'Close'|escapejs %}",
+        };
+        Swal.fire(options).then(function (result) {
+            if (!result.isConfirmed) return;
+            htmx.ajax("POST", btn.dataset.swalUrl, { swap: "none" });
+        });
+    }
+</script>

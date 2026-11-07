@@ -22,7 +22,7 @@
             </button>
         {% endif %}
 
-        {% if instance.status == "approved" %}
+        {% if instance.status == "approved" or instance.status == "cancellation_requested" %}
             <button
                 title="{% trans 'Edit' %}"
                 class="oh-btn oh-btn--light oh-btn--disabled flex-fill"
@@ -90,7 +90,30 @@
         {% endif %}
     </div>
 
-    {% if perms.offboarding.change_resignationletter %}
+    {% if perms.offboarding.change_resignationletter and instance.status == "cancellation_requested" %}
+        <div class="oh-btn-group">
+            <button
+                type="button"
+                data-swal-url="{% url 'resignation-cancellation-decision' instance.id 'approve' %}" data-swal-kind="decision-approve" onclick="event.stopPropagation();resignationCancelSwal(this)"
+                title="{% trans 'Approve Cancellation' %}"
+                class="oh-btn oh-btn--success oh-btn--block w-100"
+            >
+                <ion-icon name="checkmark" class="mr-1 md hydrated" role="img" aria-label="{% trans 'checkmark' %}"></ion-icon>
+                <span class="txt">{% trans "Approve Cancellation" %}</span>
+            </button>
+            <button
+                type="button"
+                data-swal-url="{% url 'resignation-cancellation-decision' instance.id 'reject' %}" data-swal-kind="decision-reject" onclick="event.stopPropagation();resignationCancelSwal(this)"
+                title="{% trans 'Reject Cancellation' %}"
+                class="oh-btn oh-btn--danger oh-btn--block w-100"
+            >
+                <ion-icon name="close-circle-outline" class="mr-1 md hydrated" role="img" aria-label="{% trans 'Close' %}"></ion-icon>
+                <span class="txt">{% trans "Reject Cancellation" %}</span>
+            </button>
+        </div>
+    {% endif %}
+
+    {% if perms.offboarding.change_resignationletter and instance.status != "cancellation_requested" %}
         <form
             hx-get="{% url 'update-letter-status' %}"
             hx-target="#listContainer"
@@ -104,7 +127,7 @@
             <div class="oh-btn-group">
                 {% if instance.status == "requested" %}
                     <button
-                        title="{% trans 'By approving the request employee will added to the offboarding pipeline' %}"
+                        title="{% trans 'Approve' %}"
                         type="button"
                         onclick="event.stopPropagation();$(this).closest('form').find('input[name=status]').val('approved');resignLetterConfirmation('{% trans 'Do You really want to approve the request'|escapejs %}?',$(this).closest('form').find('[type=submit]'),true)"
                         class="oh-btn oh-btn--success w-100 oh-btn--block w-100"
