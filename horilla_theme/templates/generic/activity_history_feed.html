@@ -184,7 +184,7 @@
                                                         </span>
                                                         <div class="flex flex-wrap items-center gap-1.5 min-w-0">
                                                             <span class="eah-old inline-flex max-w-full items-center rounded-md px-2 py-0.5 text-xs bg-primary-50 text-dark-100 border border-dark-50">
-                                                                <span class="truncate">
+                                                                <span class="min-w-0 whitespace-normal break-words">
                                                                     {% if change.is_fk and history.pair %}
                                                                         {{ history.pair.1|fk_history:change }}
                                                                     {% else %}
@@ -198,7 +198,7 @@
                                                                 class="w-3 h-3 shrink-0 opacity-60"
                                                             >
                                                             <span class="inline-flex max-w-full items-center rounded-md px-2 py-0.5 text-xs font-medium bg-green-50 text-green-700 border border-green-200">
-                                                                <span class="truncate">
+                                                                <span class="min-w-0 whitespace-normal break-words">
                                                                     {% if change.is_fk and history.pair %}
                                                                         {{ history.pair.0|fk_history:change }}
                                                                     {% else %}
