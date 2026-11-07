@@ -32,6 +32,7 @@ class ResignationTabView(ResignationListView):
         self.search_url = reverse("individual-resignation-tab-list", kwargs={"pk": pk})
 
     template_name = "cbv/resignation/resignation_tab.html"
+    option_method = "tab_option_column"
 
     @method_decorator(login_required, name="dispatch")
     @method_decorator(
