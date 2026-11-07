@@ -3,21 +3,37 @@
 {% if perms.asset.change_assetassignment or perms.asset.delete_assetassignment %}
     <div class="flex items-center justify-center gap-1">
         {% if perms.asset.change_assetassignment %}
-            <a
-                class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
-                title="{% trans 'Edit' %}"
-                data-toggle="oh-modal-toggle"
-                data-target="#genericModal"
-                hx-put="{% url 'asset-allocate-update' instance.id %}"
-                hx-target="#genericModalBody"
-            >
-                <ion-icon
-                    name="create-outline"
-                    role="img"
-                    class="md hydrated"
-                    aria-label="create outline"
-                ></ion-icon>
-            </a>
+            {% if not instance.return_status %}
+                <a
+                    class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
+                    title="{% trans 'Edit' %}"
+                    data-toggle="oh-modal-toggle"
+                    data-target="#genericModal"
+                    hx-put="{% url 'asset-allocate-update' instance.id %}"
+                    hx-target="#genericModalBody"
+                >
+                    <ion-icon
+                        name="create-outline"
+                        role="img"
+                        class="md hydrated"
+                        aria-label="create outline"
+                    ></ion-icon>
+                </a>
+            {% else %}
+                <button
+                    type="button"
+                    class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
+                    title="{% trans 'Edit' %}"
+                    disabled
+                >
+                    <ion-icon
+                        name="create-outline"
+                        role="img"
+                        class="md hydrated"
+                        aria-label="create outline"
+                    ></ion-icon>
+                </button>
+            {% endif %}
         {% endif %}
     </div>
 {% endif %}
