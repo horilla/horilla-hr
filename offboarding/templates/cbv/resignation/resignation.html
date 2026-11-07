@@ -9,6 +9,20 @@
         .approved--dot {
             background-color: yellowgreen;
         }
+        .cancelled--dot {
+            background-color: #6b7280;
+        }
+        .cancellation-requested--dot {
+            background-color: #f59e0b;
+        }
+        .status-cancelled {
+            border-left: 3.4px solid #6b7280 !important;
+            border-radius: 4px 0 0 4px;
+        }
+        .status-cancellation_requested {
+            border-left: 3.4px solid #f59e0b !important;
+            border-radius: 4px 0 0 4px;
+        }
         .requested--dot {
             background-color: rgba(128, 128, 128, 0.482);
         }
@@ -61,6 +75,12 @@
         </div>
     </div>
 
+    {% include "offboarding/resignation/reject_modal.html" %}
+
+    <div class="oh-activity-sidebar" id="activitySidebar" style="z-index: 1000">
+        <div class="oh-activity-sidebar__body" id="commentContainer"></div>
+    </div>
+
     <script>
         // toggle columns //
           toggleColumns("resignation-column-table", "resignationCells");
@@ -72,13 +92,29 @@
           }
           $("[type=checkbox]").change();
 
+          function computeNoticeEnd(startDateStr) {
+            if (!startDateStr) return '';
+            var d = new Date(startDateStr + 'T00:00:00');
+            if (isNaN(d.getTime())) return '';
+            d.setDate(d.getDate() + {{ get_initial_notice_period|default:30 }});
+            var pad = function (n) { return n < 10 ? '0' + n : n; };
+            return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+          }
+
           function resignLetterConfirmation(params, target, approve = false) {
+            if (!approve && target.closest("form").find("input[name=status]").val() === "rejected") {
+              openResignationReject(target);
+              return;
+            }
             // Define the select box options
             var selectOptions = ``;
           var dateFields = '<label style="display:block;" for="notice_period_starts">{% trans "Start Date:"|escapejs %}</label>' +
             `<input style="display:block;" onchange="$('#${target.siblings("input[name=notice_period_starts]").first().attr("id")}').val(this.value)" class="oh-input" type="date" id="notice_period_starts" name="notice_period_starts">` +
             '<label style="display:block;" for="notice_period_ends">{% trans "End Date:"|escapejs %}</label>' +
             `<input style="display:block;" onchange="$('#${target.siblings("input[name=notice_period_ends]").first().attr("id")}').val(this.value)" class="oh-input" type="date" id="notice_period_ends" name="notice_period_ends">`;
+
+          var plannedToLeaveOn = '{% now "Y-m-d" %}';
+          var initialNoticeEnd = computeNoticeEnd(plannedToLeaveOn);
 
           html = '<p>' + params + '</p>'
           if (approve) { html = html + "<div >" + selectOptions + `
@@ -95,18 +131,21 @@
         </div>
         <div class="col-6 col-md-6">
           <div class="oh-label__info" for="notice_period_starts">
-            <label class="oh-label" style="font-weight:bold;" for="notice_period_starts"><b>{% trans "Planned to leave on"|escapejs %}</b></label>
+            <label class="oh-label" style="font-weight:bold;" for="notice_period_starts"><b>{% trans "Notice period start"|escapejs %}</b></label>
           </div>
-            <input type="date" onchange="$('#${target.siblings("input[name=notice_period_starts]").first().attr("id")}').val(this.value);" name="notice_period_starts" value="{% now "Y-m-d" %}"  class="oh-input w-100 form-control" required id="notice_period_starts">
+            <input type="date" onchange="$('#${target.siblings("input[name=notice_period_starts]").first().attr("id")}').val(this.value); var __end = computeNoticeEnd(this.value); document.getElementById('notice_period_ends').value = __end; $('#${target.siblings("input[name=notice_period_ends]").first().attr("id")}').val(__end);" name="notice_period_starts" value="${plannedToLeaveOn}"  class="oh-input w-100 form-control" required id="notice_period_starts">
         </div>
         <div class="col-6 col-md-6">
           <div class="oh-label__info" for="notice_period_ends">
             <label class="oh-label" style="font-weight:bold;" for="notice_period_ends"><b>{% trans "Notice period end"|escapejs %}</b></label>
           </div>
-            <input type="date" onchange="$('#${target.siblings("input[name=notice_period_ends]").first().attr("id")}').val(this.value);" name="notice_period_ends"  class="oh-input w-100 form-control" required id="notice_period_ends">
+            <input type="date" onchange="$('#${target.siblings("input[name=notice_period_ends]").first().attr("id")}').val(this.value);" name="notice_period_ends" value="${initialNoticeEnd}" class="oh-input w-100 form-control" required id="notice_period_ends">
         </div>
       </div>
       ` + "</div>" }
+      if (approve) {
+        target.siblings("input[name=notice_period_ends]").val(initialNoticeEnd);
+      }
     Swal.fire({
       html: html,
       icon: 'question',
@@ -114,7 +153,7 @@
       confirmButtonColor: '#008000',
       cancelButtonColor: '#6c757d',
       confirmButtonText: i18nMessages.confirm,
-      cancelButtonText: "{% trans 'Close'|escapejs %}"
+      cancelButtonText: "{% trans 'Close'|escapejs %}",
     }).then((result) => {
       if (result.isConfirmed) {
         if (approve) {
@@ -148,4 +187,5 @@
           if (mbtn) mbtn.click();
         });
     </script>
+    {% include "offboarding/resignation/cancel_swal.html" %}
 {% endblock %}

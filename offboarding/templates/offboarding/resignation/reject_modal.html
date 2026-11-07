@@ -1,0 +1,39 @@
+{% load i18n %}
+<div class="oh-modal" id="resignationRejectModal" role="dialog" aria-hidden="true">
+    <div class="oh-modal__dialog">
+        <div class="oh-modal__dialog-header">
+            <h2 class="oh-modal__dialog-title font-semibold">{% trans "Rejection Reason" %}</h2>
+            <button type="button" class="oh-modal__close--custom" onclick="$('#resignationRejectModal').removeClass('oh-modal--show')" aria-label="{% trans 'Close' %}">
+                <ion-icon name="close-outline" role="img" class="md hydrated" aria-label="close outline"></ion-icon>
+            </button>
+        </div>
+        <div class="oh-modal__dialog-body">
+            <form
+                id="resignationRejectForm"
+                hx-get="{% url 'update-letter-status' %}"
+                hx-target="#listContainer"
+                hx-swap="innerHTML"
+                hx-on::after-request="if(event.detail.successful){$('#resignationRejectModal').removeClass('oh-modal--show');}"
+            >
+                <input type="hidden" name="status" value="rejected">
+                <input type="hidden" name="letter_ids" id="resignationRejectLetterId">
+                <div class="oh-general__tab-target oh-profile-section">
+                    <div class="col-sm-12 col-md-12 col-lg-12">
+                        <textarea name="reject_reason" rows="4" maxlength="255" class="p-4 oh-input w-100" required spellcheck="false" id="resignationRejectReason"></textarea>
+                    </div>
+                    <div class="d-flex flex-row-reverse">
+                        <button type="submit" class="oh-btn oh-btn--secondary oh-btn--shadow mt-3">{% trans "Save" %}</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+    // Reject needs a reason: open the modal instead of the plain confirmation.
+    function openResignationReject(target) {
+        $("#resignationRejectLetterId").val(target.closest("form").find("input[name=letter_ids]").val());
+        $("#resignationRejectReason").val("");
+        $("#resignationRejectModal").addClass("oh-modal--show");
+    }
+</script>
