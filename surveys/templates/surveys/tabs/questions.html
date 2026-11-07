@@ -1,0 +1,50 @@
+{% load i18n %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <p class="text-muted mb-0">{% trans "Drag the handle to reorder. Employees see the questions in this order." %}</p>
+    {% if can_manage %}
+    <button hx-get="{% url 'survey-question-add' %}?survey={{ survey.pk }}" hx-target="#genericModalBody" data-target="#genericModal" data-toggle="oh-modal-toggle" class="oh-btn oh-btn--secondary">
+        <ion-icon name="add-outline" class="me-1"></ion-icon>{% trans "Add question" %}
+    </button>
+    {% endif %}
+</div>
+{% if not survey.questions.exists %}
+    <div class="oh-empty"><p class="text-muted">{% trans "No questions yet. Add the first one." %}</p></div>
+{% endif %}
+<ul class="p-0 m-0" id="questionList" style="list-style:none">
+    {% for q in survey.questions.all %}
+    <li class="border rounded p-3 mb-2 d-flex align-items-start gap-3 bg-white" data-id="{{ q.pk }}">
+        {% if can_manage %}<span class="text-secondary fs-5 js-handle" style="cursor:grab" title="{% trans 'Drag to reorder' %}">≡</span>{% endif %}
+        <span class="fw-bold text-primary">{{ forloop.counter }}.</span>
+        <div class="flex-grow-1">
+            <div class="fw-semibold">{{ q.question }}</div>
+            <div class="text-muted small mt-1">
+                {{ q.get_type_display }}
+                {% if q.is_required %}· <span class="text-danger">{% trans "required" %}</span>{% endif %}
+                {% if q.options %}· {{ q.options|join:" / " }}{% endif %}
+            </div>
+        </div>
+        {% if can_manage %}
+        <div class="d-flex gap-1">
+            <button hx-get="{% url 'survey-question-edit' q.pk %}" hx-target="#genericModalBody" data-target="#genericModal" data-toggle="oh-modal-toggle" class="oh-btn oh-btn--light-bkg oh-btn--sq-sm" title="{% trans 'Edit' %}"><ion-icon name="create-outline"></ion-icon></button>
+            <form method="post" action="{% url 'survey-question-delete' q.pk %}" onsubmit="return confirm('{% trans 'Delete this question?' %}')">{% csrf_token %}
+                <button class="oh-btn oh-btn--danger-bkg oh-btn--sq-sm" title="{% trans 'Delete' %}"><ion-icon name="trash-outline"></ion-icon></button>
+            </form>
+        </div>
+        {% endif %}
+    </li>
+    {% endfor %}
+</ul>
+{% if can_manage %}
+<script>
+    $(function () {
+        $("#questionList").sortable({
+            handle: ".js-handle",
+            update: function () {
+                var order = $("#questionList li").map(function () { return $(this).data("id"); }).get();
+                $.post("{% url 'survey-reorder' survey.pk %}", {order: JSON.stringify(order), csrfmiddlewaretoken: "{{ csrf_token }}"},
+                    function () { $("#questionList li").each(function (i) { $(this).find(".text-primary").first().text((i + 1) + "."); }); });
+            }
+        });
+    });
+</script>
+{% endif %}

@@ -1,0 +1,88 @@
+{% load i18n %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+        <span class="fw-bold fs-5">{{ total }}</span> <span class="text-muted">{% trans "responses" %}</span>
+        <span class="text-muted ms-2">· {% trans "response rate" %} <b>{{ survey.response_rate }}%</b></span>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+        {% if departments %}
+        <select class="oh-select oh-select--sm" style="min-width:180px"
+                hx-get="{% url 'survey-results-tab' survey.pk %}" hx-target="#tabResults" name="department" hx-trigger="change">
+            <option value="">{% trans "All departments" %}</option>
+            {% for d in departments %}<option value="{{ d.pk }}" {% if department == d.pk|stringformat:"s" %}selected{% endif %}>{{ d }}</option>{% endfor %}
+        </select>
+        {% endif %}
+        <a href="{% url 'survey-export' survey.pk %}" class="oh-btn oh-btn--light-bkg"><ion-icon name="download-outline" class="me-1"></ion-icon>CSV</a>
+    </div>
+</div>
+{% if survey.is_anonymous %}<p class="text-muted small">{% trans "Anonymous survey: results cannot be filtered by employee or department." %}</p>{% endif %}
+{% if not total %}
+    <div class="oh-empty"><p class="text-muted">{% trans "No responses yet." %}</p></div>
+{% endif %}
+<div class="row">
+{% for r in results %}
+    <div class="col-12 {% if r.series %}col-xl-6{% endif %} mb-3">
+        <div class="border rounded p-3 h-100 bg-white">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="fw-semibold">{{ forloop.counter }}. {{ r.question.question }}</div>
+                <span class="text-muted small text-nowrap ms-2">{{ r.answered }} {% trans "answered" %}</span>
+            </div>
+            {% if r.average %}<div class="text-muted small mt-1">{% trans "Average" %}: <b>{{ r.average }}</b>{% if r.minimum != None %} · {% trans "min" %} {{ r.minimum }} · {% trans "max" %} {{ r.maximum }}{% endif %}</div>{% endif %}
+            {% if r.series %}
+                <div id="chart-{{ r.question.pk }}" class="mt-2" style="min-height:220px"></div>
+            {% elif r.texts %}
+                <ul class="mt-2 mb-0 ps-3" style="max-height:260px;overflow:auto">
+                    {% for t in r.texts %}<li class="small mb-1">{{ t }}</li>{% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+    </div>
+{% endfor %}
+</div>
+<script>
+(function () {
+    // The tab is swapped in by htmx: an external <script> inserted that way loads
+    // asynchronously, so wait for ApexCharts before drawing.
+    function whenApex(fn) {
+        if (window.ApexCharts) return fn();
+        var s = document.getElementById("apexcharts-lib");
+        if (!s) {
+            s = document.createElement("script");
+            s.id = "apexcharts-lib";
+            s.src = "https://cdn.jsdelivr.net/npm/apexcharts@7.8.0/dist/apexcharts.min.js";
+            document.head.appendChild(s);
+        }
+        s.addEventListener("load", fn);
+    }
+    whenApex(function () {
+    var data = {{ chart_data|safe }};
+    var dark = document.documentElement.classList.contains("dark") || document.body.classList.contains("dark");
+    var textColor = dark ? "#cbd5e1" : "#334155";
+    data.forEach(function (q) {
+        var el = document.getElementById("chart-" + q.id);
+        if (!el) return;
+        var total = q.series.reduce(function (a, b) { return a + b; }, 0);
+        var donut = (q.type === "choice" || q.type === "yes_no") && q.labels.length <= 6;
+        var options = donut ? {
+            chart: { type: "donut", height: 240, fontFamily: "inherit" },
+            series: q.series, labels: q.labels,
+            legend: { position: "bottom", labels: { colors: textColor }, fontSize: "11px" },
+            plotOptions: { pie: { donut: { size: "62%", labels: { show: true, total: { show: true, label: "{% trans 'Total'|escapejs %}", color: textColor, formatter: function () { return total; } } } } } },
+            dataLabels: { formatter: function (v) { return Math.round(v) + "%"; } },
+            noData: { text: "{% trans 'No answers'|escapejs %}" }
+        } : {
+            chart: { type: "bar", height: 240, toolbar: { show: false }, fontFamily: "inherit" },
+            series: [{ name: "{% trans 'Answers'|escapejs %}", data: q.series }],
+            xaxis: { categories: q.labels, labels: { style: { colors: textColor } } },
+            yaxis: { labels: { style: { colors: textColor } }, forceNiceScale: true, decimalsInFloat: 0 },
+            plotOptions: { bar: { borderRadius: 6, columnWidth: "55%", distributed: true, dataLabels: { position: "top" } } },
+            legend: { show: false },
+            dataLabels: { enabled: true, formatter: function (v) { return total ? v + " (" + Math.round(100 * v / total) + "%)" : v; }, style: { colors: [textColor], fontWeight: 500 }, offsetY: -20 },
+            colors: ["#e54f38", "#f59e0b", "#3b82f6", "#22c55e", "#a855f7", "#14b8a6"],
+            noData: { text: "{% trans 'No answers'|escapejs %}" }
+        };
+        new ApexCharts(el, options).render();
+    });
+    });
+})();
+</script>

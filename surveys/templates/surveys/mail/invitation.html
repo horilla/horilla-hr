@@ -1,0 +1,22 @@
+{% load i18n %}<!doctype html>
+<html><body style="margin:0;padding:0;background:#f4f5f7;font-family:Arial,Helvetica,sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f7;padding:24px 0"><tr><td align="center">
+<table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden">
+    <tr><td style="padding:32px 40px 8px">
+        <h1 style="margin:0 0 12px;font-size:22px;color:#111827">{% blocktrans with name=employee.get_full_name %}Hello, {{ name }}!{% endblocktrans %}</h1>
+        <p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:#4b5563">
+            {% if reminder %}{% trans "The survey is still waiting for your answers:" %}{% else %}{% trans "You are invited to a short survey:" %}{% endif %}
+            <b>{{ survey.title }}</b>
+        </p>
+        {% if survey.description %}<p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#6b7280;white-space:pre-line">{{ survey.description }}</p>{% endif %}
+    </td></tr>
+    <tr><td align="center" style="padding:8px 40px 24px">
+        <a href="{{ url }}" style="display:inline-block;background:#e54f38;color:#fff;text-decoration:none;font-weight:600;padding:12px 28px;border-radius:8px;font-size:15px">{% trans "Take the survey" %}</a>
+    </td></tr>
+    <tr><td style="padding:0 40px 28px;font-size:13px;line-height:1.6;color:#6b7280">
+        {% if survey.is_anonymous %}{% trans "The survey is anonymous: your answers are stored without your name." %}<br>{% endif %}
+        {% trans "Your answers are saved as you go - you can come back to the same link any time." %}
+        {% if survey.closes_at %}<br>{% blocktrans with date=survey.closes_at|date:"d.m.Y H:i" %}Open until {{ date }}.{% endblocktrans %}{% endif %}
+    </td></tr>
+</table></td></tr></table>
+</body></html>
