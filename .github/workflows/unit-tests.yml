@@ -52,13 +52,21 @@ jobs:
             libcairo2 libpango-1.0-0 libpangocairo-1.0-0 \
             libgdk-pixbuf-2.0-0 libffi8 shared-mime-info
 
+      - name: Cache spaCy model wheel
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/horilla-ci
+          key: spacy-model-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            spacy-model-
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           # Retry on a transient network failure. The spaCy model is fetched from
           # a GitHub release URL, and a single 504 there used to fail the whole run.
           for attempt in 1 2 3; do
-            pip install -r requirements.txt && break
+            bash .github/scripts/install-requirements.sh && break
             [ "$attempt" -eq 3 ] && exit 1
             echo "pip install failed (attempt $attempt of 3), retrying in 20s"
             sleep 20

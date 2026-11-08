@@ -32,13 +32,21 @@ jobs:
             libcairo2 libpango-1.0-0 libpangocairo-1.0-0 \
             libgdk-pixbuf-2.0-0 libffi8 shared-mime-info
 
+      - name: Cache spaCy model wheel
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/horilla-ci
+          key: spacy-model-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            spacy-model-
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           # Retry on a transient network failure. The spaCy model is fetched from
           # a GitHub release URL, and a single 504 there used to fail the whole run.
           for attempt in 1 2 3; do
-            pip install -r requirements.txt && break
+            bash .github/scripts/install-requirements.sh && break
             [ "$attempt" -eq 3 ] && exit 1
             echo "pip install failed (attempt $attempt of 3), retrying in 20s"
             sleep 20
@@ -100,9 +108,12 @@ jobs:
         # by ID rather than by disabling the gate, so a NEW vulnerable pin still
         # fails the build -- and if pdfkit ever ships a fix, dropping this line
         # is the reminder to take it.
-        run: >-
-          pip-audit --requirement requirements.txt --desc
-          --ignore-vuln PYSEC-2026-2860
+        # The spaCy model is a GitHub release asset, not a PyPI package, so it
+        # is left out of the audited list (pip-audit would have to download it).
+        run: |
+          bash .github/scripts/install-requirements.sh --filter-only
+          pip-audit --requirement "$RUNNER_TEMP/requirements-no-model.txt" --desc \
+            --ignore-vuln PYSEC-2026-2860
 
   secret-scan:
     # AWS and WhatsApp credentials have reached this repo's git history before,
@@ -174,13 +185,21 @@ jobs:
           python-version: "3.12"
           cache: pip
 
+      - name: Cache spaCy model wheel
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/horilla-ci
+          key: spacy-model-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            spacy-model-
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           # Retry on a transient network failure. The spaCy model is fetched from
           # a GitHub release URL, and a single 504 there used to fail the whole run.
           for attempt in 1 2 3; do
-            pip install -r requirements.txt && break
+            bash .github/scripts/install-requirements.sh && break
             [ "$attempt" -eq 3 ] && exit 1
             echo "pip install failed (attempt $attempt of 3), retrying in 20s"
             sleep 20
