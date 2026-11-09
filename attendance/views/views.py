@@ -1472,6 +1472,18 @@ def validate_this_attendance(request, obj_id):
             if attendance.employee_id.id == request.user.employee_get.id:
                 messages.error(request, _("You cannot validate your own attendance."))
                 return attendance_view_redirect(request)
+            # manager_can_enter admits anyone who manages *any* employee, so
+            # scope it here: without the permission the caller must be the
+            # reporting manager of this record's employee.
+            if not request.user.has_perm("attendance.change_attendance"):
+                work_info = getattr(attendance.employee_id, "employee_work_info", None)
+                manager_id = getattr(work_info, "reporting_manager_id_id", None)
+                if manager_id != request.user.employee_get.id:
+                    messages.error(
+                        request,
+                        _("You don't have permission to validate this attendance."),
+                    )
+                    return attendance_view_redirect(request)
         attendance.attendance_validated = True
         # Recalculate worked hours from attendance activities before validation
         # to ensure Hours Account reflects actual worked time.
