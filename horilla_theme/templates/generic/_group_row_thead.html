@@ -18,6 +18,7 @@
                         value=""
                         class="bulk-list-table-row custom-checkbox w-4 h-4 bg-[#E9EDF7] rounded-sm text-primary-600 cursor-pointer"
                         title="{% trans 'Select All' %}"
+                        {% if select_all_scope %}data-select-all-scope="{{ select_all_scope }}"{% endif %}
                         onchange="var isChecked = $(this).is(':checked');
                             $(this)
                                 .closest('{{ select_all_scope|default:".fixed-table" }}')
@@ -100,7 +101,7 @@
         {% endfor %}
         {% if options or option_method %}
             <th class="option-col-header text-sm font-medium{% if not use_shared_colgroup %} min-w-[85px]{% endif %}" {{header_attrs.option|safe}}>
-                <div class="p-1.5 flex items-center{% if not actions and not action_method %} justify-between{% else %} justify-center{% endif %}" {{header_attrs.option|safe}}>
+                <div class="p-1.5 flex items-center justify-center gap-1">
                     <span class="flex-1 text-center">{% trans "Options" %}</span>
                     {% if show_toggle_form and not actions and not action_method %}
                         <button
@@ -130,7 +131,7 @@
                 class="stickyright action-col-header text-sm font-medium{% if not use_shared_colgroup %} min-w-[85px]{% endif %}"
                 {{header_attrs.action|safe}}
             >
-                <div class="p-1.5 flex items-center{% if show_toggle_form %} justify-between{% else %} justify-center{% endif %}" {{header_attrs.action|safe}}>
+                <div class="p-1.5 flex items-center justify-center gap-1">
                     <span class="flex-1 text-center">{% trans "Actions" %}</span>
                     {% if show_toggle_form %}
                         <button
