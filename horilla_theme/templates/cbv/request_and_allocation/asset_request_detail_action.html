@@ -46,25 +46,6 @@
                 {% trans "Reject" %}
             </button>
         {% endif %}
-    {% else %}
-        <button
-            type="button"
-            class="oh-btn oh-btn--success px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
-            title="{% trans 'Approve' %}"
-            disabled
-        >
-            <ion-icon name="checkmark-outline"></ion-icon>
-            {% trans "Approve" %}
-        </button>
-        <button
-            type="button"
-            class="oh-btn oh-btn--danger px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
-            title="{% trans 'Reject' %}"
-            disabled
-        >
-            <ion-icon name="close-outline"></ion-icon>
-            {% trans "Reject" %}
-        </button>
     {% endif %}
 
     {# Edit #}
@@ -127,15 +108,5 @@
                 {% trans "Delete" %}
             </a>
         {% endif %}
-    {% else %}
-        <button
-            type="button"
-            class="oh-btn oh-btn--danger px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
-            title="{% trans 'Delete' %}"
-            disabled
-        >
-            <ion-icon name="trash-outline"></ion-icon>
-            {% trans "Delete" %}
-        </button>
     {% endif %}
 </div>
