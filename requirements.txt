@@ -106,7 +106,7 @@ pillow>=13.0.0,<14
 # leave some open (PYSEC-2026-3552 needs 50.0.0).
 cryptography>=50.0.0,<51
 # Brute-force protection on login (lockout by username+IP).
-django-axes[ipware]==8.3.1
+django-axes[ipware]==9.0.0
 # Error tracking. Inert unless SENTRY_DSN is set.
 sentry-sdk[django]==2.69.1
 
