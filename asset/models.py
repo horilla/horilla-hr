@@ -225,6 +225,16 @@ class Asset(HorillaModel):
 
     @property
     def available_count(self):
+        """
+        Number of this asset's items that are available.
+
+        Returns:
+            int: The queryset's `annotated_available_count` when present,
+            otherwise a count taken from the asset's items.
+        """
+        annotated = getattr(self, "annotated_available_count", None)
+        if annotated is not None:
+            return annotated
         return self.asset_items.filter(status="Available").count()
 
     class Meta:
