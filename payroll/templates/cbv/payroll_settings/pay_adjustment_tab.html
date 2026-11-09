@@ -1,0 +1,93 @@
+{% load i18n %}
+<style>
+    /* Tighter than the default list: one slim line per entry. The Status dropdown and the pills are
+       what made the rows tall, so they are made compact along with the cells around them. */
+    #payAdjustmentListContainer table td { padding-top: 2px; padding-bottom: 2px; height: 32px; line-height: 1.2; }
+    #payAdjustmentListContainer table th { padding-top: 2px; padding-bottom: 2px; line-height: 1.2; }
+    #payAdjustmentListContainer table th > div,
+    #payAdjustmentListContainer table th > span { padding-top: 4px; padding-bottom: 4px; }
+    #payAdjustmentListContainer table td select.oh-select,
+    #payAdjustmentListContainer table td .select2-container .select2-selection--single {
+        height: 26px !important; min-height: 0; margin: 0; padding-top: 0; padding-bottom: 0; font-size: 0.8rem;
+    }
+    #payAdjustmentListContainer table td .select2-container .select2-selection__rendered { line-height: 24px !important; }
+    #payAdjustmentListContainer table td .select2-container .select2-selection__arrow { height: 24px !important; }
+    #payAdjustmentListContainer table td img { max-height: 22px; max-width: 22px; }
+</style>
+<div class="oh-inner-sidebar-content border border-[#ebebeb] rounded-md mb-5" id="payAdjustmentRoot">
+    <div hx-get="{% url 'pay-adjustment-nav' %}" hx-trigger="load"></div>
+
+    <p class="text-xs text-gray-500 mt-1 ml-2">
+        {% trans "Arrears Owed To An Employee, And Excess Pay To Take Back. An Entry Reaches A Payslip Only Once It Is Approved." %}
+    </p>
+
+    {% comment %}Where the list keeps the ids of the rows ticked, for its Select and Update buttons.{% endcomment %}
+    <div class="oh-checkpoint-badge mb-2" id="selectedInstances" data-ids="[]" data-clicked="" style="display: none"></div>
+
+    {% comment %}Saving the form or an action reloads the list through the nav's hidden apply button.{% endcomment %}
+    <div class="oh-wrapper" id="payAdjustmentListContainer"></div>
+</div>
+<script>
+    // The Status dropdown: confirm with the shared dialog, then post the chosen status. A cancel puts the
+    // dropdown back; the list reloads itself from the response. The chosen value is read before the dialog
+    // opens, and a second change event while it is open is ignored: the dropdown can fire change twice, and
+    // the second dialog would close the first, whose cancel resets the dropdown, so Confirm posted the old value.
+    function payAdjustmentSetStatus(select) {
+        if (select.getAttribute("data-asking")) return;
+        var chosen = select.value;
+        var previous = select.getAttribute("data-current");
+        if (chosen === previous) return;
+        select.setAttribute("data-asking", "1");
+        Swal.fire({
+            text: select.getAttribute("data-confirm"),
+            icon: "question",
+            showCancelButton: true,
+            confirmButtonColor: "#008000",
+            cancelButtonColor: "#6c757d",
+            confirmButtonText: i18nMessages.confirm,
+            cancelButtonText: i18nMessages.cancel,
+        }).then(function (result) {
+            select.removeAttribute("data-asking");
+            if (!result.isConfirmed) {
+                select.value = previous;
+                return;
+            }
+            htmx.ajax("POST", select.getAttribute("data-url"), { values: { status: chosen }, swap: "none" });
+        });
+    }
+    // Actions > Delete: the shared confirm, then the shared progress and summary dialogs
+    // (index.js wraps the pay-adjustment-bulk-delete call).
+    function payAdjustmentBulkDelete() {
+        var ids = JSON.parse($("#selectedInstances").attr("data-ids") || "[]");
+        if (!ids.length) {
+            Swal.fire({ text: i18nMessages.noRowsSelected, icon: "warning", confirmButtonText: i18nMessages.close });
+            return;
+        }
+        Swal.fire({
+            text: i18nMessages.confirmBulkDelete,
+            icon: "error",
+            showCancelButton: true,
+            confirmButtonColor: "#d33",
+            cancelButtonColor: "#6c757d",
+            confirmButtonText: i18nMessages.confirm,
+            cancelButtonText: i18nMessages.cancel,
+        }).then(function (result) {
+            if (!result.isConfirmed) return;
+            $.ajax({
+                type: "POST",
+                url: "{% url 'pay-adjustment-bulk-delete' %}",
+                data: { csrfmiddlewaretoken: getCookie("csrftoken"), ids: JSON.stringify(ids) },
+                success: function () { hlvReloadListInPlace(); },
+                error: function () { reloadmessage(); },
+            });
+        });
+    }
+    $(document).off("reloadPayAdjustments").on("reloadPayAdjustments", function () {
+        $("#applyFilter").click();
+        $("#reloadMessagesButton").click();
+    });
+    document.body.addEventListener("reloadPayAdjustments", function () {
+        $("#applyFilter").click();
+        $("#reloadMessagesButton").click();
+    });
+</script>

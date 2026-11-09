@@ -1,0 +1,16 @@
+{% load i18n %}
+{% comment %}
+The list's Status cell: Draft or Confirmed, changed in place. Confirmed makes the pay lines; Draft
+takes them away again (refused once a payslip carries one, and the list then shows the real status).
+{% endcomment %}
+<div onclick="event.stopPropagation()">
+  <select name="status" class="oh-select oh-select--sm"
+          {% if not perms.payroll.change_payadjustment or instance.is_paid %}disabled{% endif %}
+          {% if instance.is_paid %}title="{% trans 'It Is On A Payslip, So Its Status Is Locked.' %}"{% endif %}
+          data-url="{% url 'set-pay-adjustment-status' instance.pk %}" data-current="{{ instance.status }}"
+          data-confirm="{% trans 'Change The Status? Confirming Creates The Pay Lines; Going Back To Draft Removes Them.' %}"
+          onchange="payAdjustmentSetStatus(this)">
+    <option value="draft" {% if instance.status == "draft" %}selected{% endif %}>{% trans "Draft" %}</option>
+    <option value="approved" {% if instance.status == "approved" %}selected{% endif %}>{% trans "Confirmed" %}</option>
+  </select>
+</div>

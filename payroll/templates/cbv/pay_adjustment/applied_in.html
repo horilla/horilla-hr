@@ -1,0 +1,26 @@
+{% load i18n %}
+{% comment %}
+Where an entry has reached, as a pill: grey "Not Applied" for a draft (it affects nothing), amber
+"Pending" for a confirmed entry no payslip carries yet, and green "Applied", with a tick, once one
+does. The Applied pill is a link: hovering gives the payslip's period and the run's reference, and
+clicking opens that payslip.
+{% endcomment %}
+<div onclick="event.stopPropagation()">
+  {% if payslip %}
+    <a href="{% url 'view-created-payslip' payslip.pk %}"
+       title="{{ payslip.start_date|date:'d M Y' }} – {{ payslip.end_date|date:'d M Y' }}{% if payslip.reference %} · {{ payslip.reference }}{% endif %}"
+       aria-label="{% trans 'Open The Payslip' %}"
+       class="text-xs font-medium rounded-full whitespace-nowrap"
+       style="display: inline-flex; align-items: center; gap: 4px; padding: 1px 9px; background: #dcfce7; color: #166534; cursor: pointer;">
+      <ion-icon name="checkmark-circle" style="font-size: 15px; flex: none;"></ion-icon>{% trans "Applied" %}
+    </a>
+  {% elif instance.status == "approved" %}
+    <span class="text-xs font-medium rounded-full whitespace-nowrap"
+          style="padding: 1px 9px; background: #fef3c7; color: #92400e;"
+          title="{% trans 'Waiting For The Next Pay Run' %}">{% trans "Pending" %}</span>
+  {% else %}
+    <span class="text-xs font-medium rounded-full whitespace-nowrap"
+          style="padding: 1px 9px; background: #f3f4f6; color: #6b7280;"
+          title="{% trans 'Draft: Not In Any Payslip' %}">{% trans "Not Applied" %}</span>
+  {% endif %}
+</div>

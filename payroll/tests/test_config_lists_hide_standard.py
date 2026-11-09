@@ -110,7 +110,9 @@ class AlwaysAppliedTabTests(TestCase):
         self.assertNotIn("Actions", html)
         self.assertNotIn("create-outline", html)
         rows = re.findall(r"<tr data-always-applied-kind=.*?>", html, flags=re.S)
-        self.assertEqual(len(rows), 9)
+        from payroll.system_components import SYSTEM_COMPONENTS
+
+        self.assertEqual(len(rows), len(SYSTEM_COMPONENTS))
         for row in rows:
             self.assertIn("hx-get=", row)
             self.assertIn('data-target="#objectCreateModal"', row)

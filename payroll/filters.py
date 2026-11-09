@@ -24,7 +24,7 @@ from base.models import (
     JobRole,
     WorkType,
 )
-from employee.models import Employee
+from employee.models import Employee, EmployeeTag
 from horilla.filters import HorillaFilterSet, filter_by_name, filter_name_or_badge_terms
 from payroll.models.models import (
     Allowance,
@@ -32,6 +32,7 @@ from payroll.models.models import (
     Deduction,
     FilingStatus,
     LoanAccount,
+    PayAdjustment,
     Payslip,
     PayslipAutoGenerate,
     Reimbursement,
@@ -1095,3 +1096,203 @@ class PayrollBatchFilter(HorillaFilterSet):
 
     def filter_search(self, queryset, name, value):
         return queryset.filter(batch_name__icontains=value)
+
+
+class PayAdjustmentFilter(HorillaFilterSet):
+    """
+    The arrears and recovery list: search, and filter by type, status, where it was applied, pay date
+    and the employee, who is found the way the Employee list finds one (name or badge ID, and the
+    work info pickers).
+    """
+
+    search = django_filters.CharFilter(method="filter_by_search")
+    name_or_badge = django_filters.CharFilter(
+        method="filter_name_or_badge", label=_("Name or Badge ID")
+    )
+    email = django_filters.CharFilter(
+        field_name="employee_id__email", lookup_expr="icontains", label=_("Email")
+    )
+    applied = django_filters.ChoiceFilter(
+        choices=[
+            ("applied", _("Applied")),
+            ("pending", _("Pending")),
+            ("not_applied", _("Not Applied")),
+        ],
+        method="filter_by_applied",
+        label=_("Applied In"),
+    )
+    tax = django_filters.ChoiceFilter(
+        choices=[
+            ("yes", _("Yes")),
+            ("no", _("No")),
+            ("standard", _("Follows Standard")),
+        ],
+        method="filter_by_tax",
+        label=_("Taxable / Pre-Tax"),
+    )
+    # The pickers load their options as you type instead of rendering every one, as on the
+    # Employee list; each is a field of the employee's work info.
+    ajax_fields = {
+        "approved_by": {
+            "key": "pay-adjustment-confirmed-by",
+            "queryset_fn": lambda request: Employee.objects.filter(is_active=True),
+            "display_fn": lambda obj: obj.get_full_name(),
+            "search_fields": ["employee_first_name", "employee_last_name", "badge_id"],
+            "placeholder": _("Search employee..."),
+        },
+        "employee_id__employee_work_info__company_id": {
+            "key": "pay-adjustment-company",
+            "queryset_fn": lambda request: Company.objects.all(),
+            "display_fn": lambda obj: obj.company,
+            "search_fields": ["company"],
+            "placeholder": _("Select company..."),
+        },
+        "employee_id__employee_work_info__reporting_manager_id": {
+            "key": "pay-adjustment-reporting-manager",
+            "queryset_fn": lambda request: Employee.objects.filter(is_active=True),
+            "display_fn": lambda obj: obj.get_full_name(),
+            "search_fields": ["employee_first_name", "employee_last_name", "badge_id"],
+            "placeholder": _("Search employee..."),
+        },
+        "employee_id__employee_work_info__department_id": {
+            "key": "pay-adjustment-department",
+            "queryset_fn": lambda request: Department.objects.all(),
+            "display_fn": lambda obj: obj.department,
+            "search_fields": ["department"],
+            "placeholder": _("Select department..."),
+        },
+        "employee_id__employee_work_info__job_position_id": {
+            "key": "pay-adjustment-job-position",
+            "queryset_fn": lambda request: JobPosition.objects.select_related(
+                "department_id"
+            ).all(),
+            "display_fn": lambda obj: str(obj),
+            "search_fields": ["job_position", "department_id__department"],
+            "placeholder": _("Select job position..."),
+        },
+        "employee_id__employee_work_info__shift_id": {
+            "key": "pay-adjustment-shift",
+            "queryset_fn": lambda request: EmployeeShift.objects.all(),
+            "display_fn": lambda obj: obj.employee_shift,
+            "search_fields": ["employee_shift"],
+            "placeholder": _("Select shift..."),
+        },
+        "employee_id__employee_work_info__tags": {
+            "key": "pay-adjustment-employee-tag",
+            "queryset_fn": lambda request: EmployeeTag.objects.all(),
+            "display_fn": lambda obj: obj.title,
+            "search_fields": ["title"],
+            "placeholder": _("Select employee tag..."),
+        },
+    }
+
+    class Meta:
+        model = PayAdjustment
+        fields = [
+            "kind",
+            "status",
+            "approved_by",
+            "employee_id__employee_work_info__company_id",
+            "employee_id__employee_work_info__reporting_manager_id",
+            "employee_id__employee_work_info__department_id",
+            "employee_id__employee_work_info__job_position_id",
+            "employee_id__employee_work_info__shift_id",
+            "employee_id__employee_work_info__tags",
+        ]
+
+    def __init__(self, data=None, queryset=None, *, request=None, prefix=None):
+        super().__init__(data=data, queryset=queryset, request=request, prefix=prefix)
+        self.form.fields["approved_by"].label = _("Confirmed By")
+        self.form.fields["name_or_badge"].widget.attrs["placeholder"] = _(
+            "e.g. John, PEP01, PEP02"
+        )
+        self.form.fields["email"].widget.attrs["placeholder"] = _("Email")
+
+    def _build_custom_filter_fields(self):
+        """The Advanced section's "+ Add filter" builder: pick a field, how to compare it, and a value."""
+        fields = [
+            {
+                "key": "amount",
+                "field": "amount",
+                "label": str(_("Amount")),
+                "type": "number",
+            },
+            {
+                "key": "pay_date",
+                "field": "pay_date",
+                "label": str(_("Pay Date")),
+                "type": "date_range",
+            },
+            {
+                "key": "confirmed_on",
+                "field": "approved_on__date",
+                "label": str(_("Confirmed On")),
+                "type": "date_range",
+            },
+            {
+                "key": "title",
+                "field": "title",
+                "label": str(_("Title")),
+                "type": "text",
+            },
+            {
+                "key": "reason",
+                "field": "reason",
+                "label": str(_("Reason")),
+                "type": "text",
+            },
+        ]
+        for entry in fields:
+            entry["lookups"] = [
+                [lk, str(label)]
+                for lk, label in self.CUSTOM_FILTER_LOOKUPS[entry["type"]]
+            ]
+        return fields
+
+    def filter_queryset(self, queryset):
+        """Apply the Advanced builder rows after the regular filters."""
+        return self._apply_custom_filters(super().filter_queryset(queryset))
+
+    def filter_by_search(self, queryset, _name, value):
+        for term in (value or "").split():
+            queryset = queryset.filter(
+                Q(title__icontains=term)
+                | Q(employee_id__employee_first_name__icontains=term)
+                | Q(employee_id__employee_last_name__icontains=term)
+                | Q(employee_id__badge_id__icontains=term)
+            )
+        return queryset
+
+    def filter_by_tax(self, queryset, _name, value):
+        """The entry's own tax setting: Yes, No, or none (it follows the standard setting)."""
+        if value == "standard":
+            return queryset.filter(tax_treatment__isnull=True)
+        if value in ("yes", "no"):
+            return queryset.filter(tax_treatment=(value == "yes"))
+        return queryset
+
+    def filter_name_or_badge(self, queryset, _name, value):
+        """Comma-separated names or badge IDs: an entry matches if any one is found on its employee."""
+        return filter_name_or_badge_terms(
+            queryset,
+            value,
+            "employee_id__employee_first_name",
+            "employee_id__employee_last_name",
+            "employee_id__badge_id",
+        )
+
+    def filter_by_applied(self, queryset, _name, value):
+        """
+        Applied: a payslip carries its pay line. Pending: confirmed, and none does yet. Not Applied:
+        a draft, which has no pay line to carry. Worked out entry by entry, as a payslip is found
+        through the entry's own pay line.
+        """
+        if value == "not_applied":
+            return queryset.filter(status="draft")
+        confirmed = queryset.filter(status="approved")
+        applied = [entry.pk for entry in confirmed if entry.payslip() is not None]
+        if value == "applied":
+            return confirmed.filter(pk__in=applied)
+        if value == "pending":
+            return confirmed.exclude(pk__in=applied)
+        return queryset

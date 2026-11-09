@@ -2153,3 +2153,245 @@ class PayslipAutoGenerateForm(ModelForm):
         context = {"form": self}
         table_html = render_to_string("common_form.html", context)
         return table_html
+
+
+class PayAdjustmentForm(ModelForm):
+    """Arrears owed to an employee, or an excess payment to take back: one amount on one date."""
+
+    verbose_name = _("Arrears & Recovery")
+    cols = {"reason": 12}
+
+    # Saving as Confirmed makes the pay line; saving a confirmed entry as Draft takes it away.
+    status = forms.ChoiceField(
+        required=False,
+        label=_("Status"),
+        choices=payroll.models.models.PayAdjustment.STATUS_CHOICES,
+    )
+    # Taxable for arrears, pre-tax for a recovery (the page relabels it with the type). Always
+    # Yes or No: it starts at the standard setting, or the employee's own exception to it.
+    tax_treatment = forms.TypedChoiceField(
+        choices=[("true", _("Yes")), ("false", _("No"))],
+        coerce=lambda value: value == "true",
+        label=_("Taxable"),
+    )
+    field_order = [
+        "employee_id",
+        "kind",
+        "title",
+        "pay_date",
+        "amount",
+        "tax_treatment",
+        "status",
+        "reason",
+    ]
+
+    class Meta:
+        model = payroll.models.models.PayAdjustment
+        fields = [
+            "employee_id",
+            "kind",
+            "title",
+            "pay_date",
+            "amount",
+            "tax_treatment",
+            "reason",
+        ]
+        widgets = {
+            "pay_date": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+            "reason": forms.Textarea(attrs={"rows": 2}),
+        }
+
+    def render_structured(self):
+        """
+        The modal's body: the generic form plus a Delete button for a draft. Put in place of
+        ``structured`` by the form view, because the base view resets that on every request.
+        """
+        request = getattr(horilla_middlewares._thread_locals, "request", None)
+        # With the request, so the template has the user's permissions (the Delete button needs them).
+        return render_to_string(
+            "payroll/pay_adjustment/form.html", {"form": self}, request=request
+        )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["employee_id"].queryset = Employee.objects.filter(is_active=True)
+        self.initial["tax_treatment"] = self._tax_initial()
+        if not self.instance.pk:
+            self.initial["pay_date"] = str(datetime.date.today())
+        else:
+            self.verbose_name = self.instance.title
+            # Choosing Draft on a confirmed entry unlocks it in the same save: the page enables the
+            # fields as soon as Draft is picked, so what is posted with it has to be accepted.
+            unlocking = (
+                self.is_bound
+                and self.instance.status == "approved"
+                and self.data.get("status") == "draft"
+            )
+            if not self.instance.is_editable and not unlocking:
+                # A confirmed entry has already made its pay line, so only its status can still
+                # change (back to Draft, which takes the line away).
+                for name, field in self.fields.items():
+                    if name == "status":
+                        continue
+                    field.disabled = True
+                    if isinstance(field.widget, forms.Select):
+                        # A disabled select shows as bare text in this theme; this class keeps it
+                        # looking like the other locked fields, a grey box.
+                        attrs = field.widget.attrs
+                        attrs["class"] = (
+                            attrs.get("class", "") + " oh-select--boxed-locked"
+                        ).strip()
+        self.initial["status"] = self.instance.status if self.instance.pk else "draft"
+
+    def _tax_initial(self):
+        """Yes or No to start at: the entry's own, else the standard for its type and employee."""
+        from payroll.system_components import policy_fields, tax_field
+
+        entry = self.instance
+        if entry.pk and entry.tax_treatment is not None:
+            return "true" if entry.tax_treatment else "false"
+        key = entry.kind if entry.pk else "arrears"
+        employee = entry.employee_id_id if entry.pk else None
+        return (
+            "true"
+            if policy_fields(key, employee=employee).get(tax_field(key))
+            else "false"
+        )
+
+    def tax_defaults(self):
+        """
+        What the tax setting should start at, as JSON for the page: for each type, the standard
+        setting and each employee's exception to it. The page picks from it as the type and
+        employee change, until the setting is chosen by hand.
+        """
+        import json
+
+        from payroll.models.models import SystemComponentTaxOverride
+        from payroll.system_components import policy_fields, tax_field
+
+        defaults = {}
+        for key in ("arrears", "recovery"):
+            exceptions = SystemComponentTaxOverride.objects.filter(system_key=key)
+            defaults[key] = {
+                "standard": bool(policy_fields(key).get(tax_field(key))),
+                "employees": {
+                    str(employee): bool(value)
+                    for employee, value in exceptions.values_list(
+                        "employee_id_id", "value"
+                    )
+                },
+            }
+        return json.dumps(defaults)
+
+    def clean_status(self):
+        current = self.instance.status if self.instance.pk else "draft"
+        return self.cleaned_data.get("status") or current
+
+    def clean(self):
+        cleaned = super().clean()
+        if (
+            self.instance.pk
+            and self.instance.status == "approved"
+            and cleaned.get("status") == "draft"
+            and self.instance.is_paid()
+        ):
+            raise ValidationError(
+                _("It Is Already On A Payslip, So This Cannot Go Back To Draft.")
+            )
+        if (
+            self.instance.pk
+            and self.instance.status == "approved"
+            and cleaned.get("status") == "draft"
+        ):
+            # It becomes a draft with whatever was edited, so the new date has to be open too.
+            day, employee = cleaned.get("pay_date"), cleaned.get("employee_id")
+            if (
+                day
+                and employee
+                and payroll.models.models.PayAdjustment._month_has_payslip(
+                    employee, day
+                )
+            ):
+                self.add_error(
+                    "pay_date",
+                    _("A Payslip Already Exists For %(month)s, So It Cannot Take This.")
+                    % {"month": day.strftime("%B %Y")},
+                )
+        return cleaned
+
+    def save(self, commit=True):
+        """Save the entry, then confirm it or send it back to Draft when the status was changed."""
+        instance = super().save(commit=commit)
+        target = self.cleaned_data.get("status") or "draft"
+        if commit and target != instance.status:
+            if target == "approved":
+                request = getattr(horilla_middlewares._thread_locals, "request", None)
+                user = getattr(request, "user", None)
+                instance.approve(approved_by=getattr(user, "employee_get", None))
+            elif target == "draft" and instance.status == "approved":
+                instance.revert()
+        return instance
+
+
+class PayAdjustmentBulkForm(forms.Form):
+    """What the list's Update changes on the selected entries: anything left blank is left alone."""
+
+    verbose_name = _("Bulk Update")
+    # The modal's template shows "Save And Add Another" for a form with no saved record; an update
+    # of existing records has none to add, so it is told it has one.
+    instance = type("Existing", (), {"pk": "bulk"})()
+
+    status = forms.ChoiceField(
+        required=False,
+        label=_("Status"),
+        choices=[("", "---------")]
+        + list(payroll.models.models.PayAdjustment.STATUS_CHOICES),
+        widget=forms.Select(attrs={"class": "oh-select oh-select-2 w-100"}),
+        help_text=_(
+            "Confirmed Makes The Pay Lines; Draft Takes Them Away, Unless A Payslip Carries Them."
+        ),
+    )
+    taxable = forms.ChoiceField(
+        required=False,
+        label=_("Taxable (Arrears Only)"),
+        choices=[("", "---------"), ("true", _("Yes")), ("false", _("No"))],
+        widget=forms.Select(attrs={"class": "oh-select oh-select-2 w-100"}),
+        help_text=_(
+            "Changes The Selected Arrears Entries; Recovery Entries Are Left As They Are. Drafts Only."
+        ),
+    )
+    pre_tax = forms.ChoiceField(
+        required=False,
+        label=_("Pre-Tax (Recovery Only)"),
+        choices=[("", "---------"), ("true", _("Yes")), ("false", _("No"))],
+        widget=forms.Select(attrs={"class": "oh-select oh-select-2 w-100"}),
+        help_text=_(
+            "Changes The Selected Recovery Entries; Arrears Entries Are Left As They Are. Drafts Only."
+        ),
+    )
+    pay_date = forms.DateField(
+        required=False,
+        label=_("Pay Date"),
+        widget=forms.DateInput(attrs={"type": "date", "class": "oh-input w-100"}),
+        help_text=_("Drafts Only. For A Month That Has No Payslip For The Employee."),
+    )
+
+    def changes(self):
+        """The cleaned values as ``bulk_change`` takes them: ``None`` for what was left blank."""
+        data = self.cleaned_data
+
+        def yes_no(name):
+            return None if not data.get(name) else data[name] == "true"
+
+        return {
+            "status": data.get("status") or None,
+            "taxable": yes_no("taxable"),
+            "pre_tax": yes_no("pre_tax"),
+            "pay_date": data.get("pay_date"),
+        }
+
+    def clean(self):
+        cleaned = super().clean()
+        if not any(value not in (None, "") for value in cleaned.values()):
+            raise ValidationError(_("Choose Something To Change."))
+        return cleaned

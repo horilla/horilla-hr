@@ -1,0 +1,120 @@
+{% load widget_tweaks i18n %}
+{% comment %}
+The arrears and recovery form: the generic modal form (header, fields, buttons) with a Delete button
+for a draft. One amount on one date for either type, so there is nothing else to configure.
+{% endcomment %}
+{% if form.verbose_name %}
+    <div class="oh-modal__dialog-header">
+        <h2 class="text-md font-semibold" id="createTitle">{{ form.verbose_name }}</h2>
+        <button type="button" class="oh-modal__close--custom"
+                onclick="$(this).closest('.oh-modal--show').removeClass('oh-modal--show')"
+                aria-label="{% trans 'Close' %}">
+            <ion-icon name="close-outline" role="img" class="md hydrated" aria-label="{% trans 'close outline' %}"></ion-icon>
+        </button>
+    </div>
+{% endif %}
+
+<div class="oh-modal__dialog-body oh-modal__dialog-relative">
+    <div class="oh-general__tab-target oh-profile-section bg-[white] rounded-md border border-dark-50 p-[20px] w-full"
+         id="payAdjustmentFormRoot"
+         data-taxable-label="{% trans 'Taxable' %}" data-pretax-label="{% trans 'Pre-Tax' %}"
+         data-saved="{% if form.instance.pk %}1{% endif %}" data-tax-defaults="{{ form.tax_defaults }}"
+         data-locked="{% if form.instance.pk and not form.instance.is_editable %}1{% endif %}">
+        <div class="oh-profile-section__card">
+            <div class="row">
+                <div class="col-12 js-non-field-errors" style="padding-right: 0">{{ form.non_field_errors }}</div>
+                {% for field in form.visible_fields %}
+                    <div class="col-12 {% if field.name == 'reason' %}col-md-12{% else %}col-md-6{% endif %}" id="id_{{ field.name }}_parent_div">
+                        <div class="flex oh-label" for="id_{{ field.name }}">
+                            <label class="{% if field.field.required %}required-star{% endif %}" for="id_{{ field.name }}">{% trans field.label %}</label>
+                            {% if field.help_text != '' %}
+                                <span class="oh-info mr-2" title="{{ field.help_text }}"></span>
+                            {% endif %}
+                        </div>
+                        <div id="dynamic_field_{{ field.name }}">{{ field|add_class:'form-control' }} {{ field.errors }}</div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+
+            <div class="d-flex flex gap-1 justify-end pt-3 mt-3">
+                {% if form.instance.pk and form.instance.is_editable and perms.payroll.delete_payadjustment %}
+                    <button type="button" class="oh-btn oh-btn--danger mt-2 mr-auto pl-4 pr-4"
+                            hx-post="{% url 'delete-pay-adjustment' form.instance.pk %}" hx-swap="none"
+                            hx-confirm="{% trans 'Delete This Entry?' %}"
+                            hx-on::after-request="if (event.detail.successful) { $(this).closest('.oh-modal--show').removeClass('oh-modal--show'); }">
+                        <ion-icon name="trash-outline" class="mr-1"></ion-icon>{% trans 'Delete' %}
+                    </button>
+                {% endif %}
+                {% if not form.instance.pk %}
+                    <button type="submit" name="save_and_add_another" value="true"
+                            class="oh-btn oh-btn--add-another mt-2 mr-0 pl-4 pr-5 oh-btn--w-100-resp"
+                            hx-swap="none"
+                            hx-on:htmx:after-request="
+                                if (event.detail.successful) {
+                                    const form = this.form;
+                                    if (form) { form.reset(); $(form).find('select').val(null).trigger('change'); }
+                                    $('#reloadMessagesButton').click();
+                                    $('.reload-record').click();
+                                    $('.reload-field').click();
+                                }
+                            "
+                            {{ form.submit_button_attrs|safe }}>{% trans 'Save And Add Another' %}</button>
+                {% endif %}
+                <button type="submit" class="oh-btn oh-btn--secondary mt-2 mr-0 pl-4 pr-5 oh-btn--w-100-resp"
+                        {{ form.submit_button_attrs|safe }}>{% trans 'Save' %}</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    (function () {
+        // The tax setting is "Taxable" for arrears and "Pre-Tax" for a recovery, and a new entry
+        // starts it at the standard (or the employee's exception) until it is chosen by hand.
+        var root = document.getElementById("payAdjustmentFormRoot");
+        if (!root) return;
+        var kind = root.querySelector("#id_kind"), employee = root.querySelector("#id_employee_id"),
+            tax = root.querySelector("#id_tax_treatment"),
+            label = root.querySelector("#id_tax_treatment_parent_div label");
+        if (!kind || !label || !tax) return;
+        var defaults = JSON.parse(root.dataset.taxDefaults || "{}"), touched = !!root.dataset.saved;
+        function relabel() {
+            label.textContent = kind.value === "recovery" ? root.dataset.pretaxLabel : root.dataset.taxableLabel;
+        }
+        function suggest() {
+            var set = defaults[kind.value];
+            if (touched || !set) return;
+            var own = employee && employee.value ? set.employees[employee.value] : undefined;
+            var value = own === undefined ? set.standard : own;
+            $(tax).val(value ? "true" : "false").trigger("change.select2");
+        }
+        $(tax).on("change", function () { touched = true; });
+        $(kind).on("change", function () { relabel(); suggest(); });
+        if (employee) { $(employee).on("change", suggest); }
+        relabel();
+    })();
+    (function () {
+        // A confirmed entry opens locked; picking Draft unlocks its fields at once, picking
+        // Confirmed locks them again. Saving as Draft then keeps what was edited.
+        var root = document.getElementById("payAdjustmentFormRoot");
+        if (!root || !root.dataset.locked) return;
+        var status = root.querySelector("#id_status");
+        if (!status) return;
+        var fields = Array.prototype.filter.call(root.querySelectorAll("input, select, textarea"), function (el) {
+            return el !== status && el.type !== "hidden" && !el.closest(".select2-container");
+        });
+        function apply() {
+            var editable = status.value === "draft";
+            fields.forEach(function (el) { $(el).prop("disabled", !editable); });
+        }
+        $(status).on("change", apply);
+        apply();
+    })();
+    $(document)
+        .off("input.clearFieldErrors change.clearFieldErrors", "input, select, textarea")
+        .on("input.clearFieldErrors change.clearFieldErrors", "input, select, textarea", function () {
+            $(this).closest('[id$="_parent_div"]').find(".errorlist").remove();
+            $(this).closest("form").find(".js-non-field-errors .errorlist").remove();
+        });
+</script>
