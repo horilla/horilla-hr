@@ -320,8 +320,12 @@ def node_ids_json(node):
             for child in n["children"]:
                 collect(child)
         elif n.get("list") is not None:
-            for obj in n["list"].paginator.object_list:
-                ids.append(obj.pk)
+            all_pks = getattr(n["list"], "all_pks", None)
+            if all_pks is not None:
+                ids.extend(all_pks)
+            else:
+                for obj in n["list"].paginator.object_list:
+                    ids.append(obj.pk)
 
     try:
         collect(node)
