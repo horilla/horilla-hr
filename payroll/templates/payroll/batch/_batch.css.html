@@ -308,6 +308,34 @@ apart the moment they were written twice.
   .pb__problem--blocking { color: #b91c1c; }
   .pb__problem--warning { color: #92400e; }
 
+  /* Problems on a review row: an icon, with the messages in a popover on hover or focus. The popover is
+     fixed-positioned by the page script so the table's scroll area does not clip it. */
+  .pb__alert { position: relative; display: inline-flex; vertical-align: middle; margin-left: 4px; color: #92400e; cursor: help; outline: none; }
+  .pb__alert--blocking { color: #b91c1c; }
+  .pb__alert > ion-icon { font-size: 1.15rem; }
+  .pb__alert-name { display: flex; align-items: center; gap: 2px; flex-wrap: nowrap; line-height: 1.2; }
+  .pb__alert { line-height: 1; align-self: center; }
+  .pb__alert > ion-icon { display: block; }
+  /* A tighter review table: the theme's roomy cell height and padding are what spread the rows. */
+  #pb-review-table th > div { padding-top: 3px; padding-bottom: 3px; }
+  #pb-review-table tbody tr { height: 30px; }
+  #pb-review-table td { height: 30px !important; min-height: 0 !important; max-height: 30px; overflow: visible; padding-top: 0 !important; padding-bottom: 0 !important; line-height: 1.3; }
+  #pb-review-table td .oh-btn { padding: 0 6px; min-height: 0; height: 24px; }
+  #pb-review-table td .oh-btn ion-icon { font-size: 15px; }
+  .pb__alert-src { display: none; }
+  /* The white popover of the payslip's figures; built on <body> so no sticky column paints over it. */
+  .pb__alert-pop {
+    position: fixed; z-index: 2147483000; width: 300px; max-width: calc(100vw - 24px); padding: 12px 14px;
+    background: #fff; color: #1f2430; border: 1px solid #e6e7eb; border-top: 3px solid #e54f38; border-radius: 10px;
+    box-shadow: 0 10px 28px rgba(17, 24, 39, .16); font-size: 12px; font-weight: 400; line-height: 1.5;
+    text-align: left; text-transform: none; letter-spacing: normal; pointer-events: none;
+  }
+  .pb__alert-title { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #e54f38; margin-bottom: 6px; }
+  .pb__alert-item { display: block; }
+  .pb__alert-item + .pb__alert-item { margin-top: 6px; padding-top: 6px; border-top: 1px solid #f1f2f4; }
+  .pb__alert-item--blocking { color: #b91c1c; }
+  .pb__alert-item--warning { color: #92400e; }
+
   /* ---- progress ---- */
   .pb__bar {
     height: 10px;

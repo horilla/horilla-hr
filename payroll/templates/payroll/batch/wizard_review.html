@@ -44,8 +44,8 @@
                  placeholder="{% trans 'Search name or badge ID' %}"
                  aria-label="{% trans 'Search name or badge ID' %}">
         </label>
-        <button type="submit" class="oh-btn oh-btn--secondary" {% if not ready_count %}disabled{% endif %}>
-          {% blocktrans count n=ready_count %}Generate {{ n }} payslip{% plural %}Generate {{ n }} payslips{% endblocktrans %}
+        <button type="submit" id="pb-generate-btn" class="oh-btn oh-btn--secondary" {% if not ready_count %}disabled{% endif %}>
+          {% blocktrans count n=ready_count %}Generate {{ n }} Payslip{% plural %}Generate {{ n }} Payslips{% endblocktrans %}
           <ion-icon name="arrow-forward-outline" class="ms-1"></ion-icon>
         </button>
       </form>
@@ -53,6 +53,8 @@
 
     {% include "payroll/batch/_steps.html" with step=step %}
 
+    {% comment %}Everything below that a resolved conflict changes. Fixing one refreshes this block alone (see pbRefresh), not the page.{% endcomment %}
+    <div id="pb-review-live">
     <div class="pb__kpis">
       <div class="pb__kpi">
         <div class="pb__kpi-label">{% trans "Will be paid" %}</div>
@@ -161,6 +163,14 @@
                   <span class="flex w-max">{% trans "Employee" %}</span>
                 </div>
               </th>
+              <th class="text-sm font-medium text-left min-w-[110px]" data-sort-key="pbbadge" data-sort-type="text">
+                <div class="flex gap-1.5 px-1.5 py-1.5 items-center cursor-pointer">
+                  <span class="text-xs flex items-center text-primary-600" data-sort-icons>
+                    <i class="fa-solid fa-arrow-up"></i><i class="fa-solid fa-arrow-down"></i>
+                  </span>
+                  <span class="flex w-max">{% trans "Badge ID" %}</span>
+                </div>
+              </th>
               <th class="text-sm font-medium text-left min-w-[85px]" data-sort-key="present" data-col="present">
                 <div class="flex gap-1.5 px-1.5 py-1.5 items-center cursor-pointer">
                   <span class="text-xs flex items-center text-primary-600" data-sort-icons>
@@ -264,6 +274,7 @@
             <tr class="{% if row.blocked %}pb__row--blocked{% endif %}"
                 data-row
                 data-pbname="{{ row.employee }}"
+                data-pbbadge="{{ row.employee.badge_id|default:'' }}"
                 data-blocked="{% if row.blocked %}1{% else %}0{% endif %}"
                 data-present="{{ row.present }}"
                 data-paidleave="{{ row.paid_leave }}"
@@ -275,14 +286,22 @@
                 data-paiddays="{{ row.paid_days }}"
                 data-overtime="{{ row.overtime_seconds }}">
               <td class="stickyleft text-sm text-left px-1 py-1 text-[#666]">
-                <div style="font-weight:600;">{{ row.employee }}</div>
-                {% for level, message in row.problems %}
-                  <span class="pb__problem pb__problem--{{ level }}">
-                    <ion-icon name="{% if level == blocking %}alert-circle{% else %}information-circle{% endif %}-outline"></ion-icon>
-                    {{ message }}
-                  </span>
-                {% endfor %}
+                <div class="pb__alert-name" style="font-weight:600;display:flex;align-items:center;gap:6px;line-height:1.2;">
+                  <span>{{ row.employee.get_full_name }}</span>
+                  {% if row.problems %}
+                    <span class="pb__alert{% if row.blocked %} pb__alert--blocking{% endif %}" tabindex="0" data-alert style="display:inline-flex;align-items:center;line-height:1;margin:0;"
+                          aria-label="{% trans 'Problems With This Employee' %}">
+                      <ion-icon name="{% if row.blocked %}alert-circle{% else %}information-circle{% endif %}-outline"></ion-icon>
+                      <span class="pb__alert-src" data-title="{% trans 'Problems' %}">
+                        {% for level, message in row.problems %}
+                          <span class="pb__alert-item pb__alert-item--{{ level }}">{{ message }}</span>
+                        {% endfor %}
+                      </span>
+                    </span>
+                  {% endif %}
+                </div>
               </td>
+              <td class="text-sm text-left px-1 py-1 text-[#666]">{{ row.employee.badge_id|default:"—" }}</td>
               <td data-col="present" class="text-sm text-left px-1 py-1 text-[#666]">{{ row.present }}</td>
               <td data-col="paidleave" class="text-sm text-left px-1 py-1 text-[#666]">{{ row.paid_leave }}</td>
               <td data-col="unpaidleave" class="text-sm text-left px-1 py-1 text-[#666]">{{ row.unpaid_leave }}</td>
@@ -318,7 +337,7 @@
             </tr>
             {% endfor %}
             <tr data-no-match class="pb__row--hidden">
-              <td colspan="11" class="pb__empty">
+              <td colspan="12" class="pb__empty">
                 {% trans "Nobody here matches that search." %}
               </td>
             </tr>
@@ -412,6 +431,7 @@
     })();
     </script>
     {% endif %}
+    </div>{# /#pb-review-live #}
 
   </section>
 </main>
@@ -443,161 +463,271 @@ read. Sorting a column overrides that, so there is a way back to it.
 </style>
 <script>
 (function () {
-  var table = document.getElementById("pb-review-table");
-  if (!table) return;
+  // Sort state outlives a refresh of the table, so a resolved conflict does not undo the person's sorting.
+  var state = { sortKey: null, ascending: true };
+  var searchBound = false;
+  var currentFilter = function () {};
 
-  var body = table.querySelector("tbody");
-  var rows = Array.prototype.slice.call(body.querySelectorAll("[data-row]"));
-  var noMatch = body.querySelector("[data-no-match]");
+  function init() {
+    var table = document.getElementById("pb-review-table");
+    if (!table) return;
 
-  // Scoped to this panel, not the document. The page chrome and any filter
-  // panel reuse plenty of attribute names, and a document-wide lookup ends up
-  // reading somebody else's element.
-  var panel = table.closest(".pb__panel") || document;
-  var search = document.querySelector("[data-row-search]");
-  var counter = panel.querySelector("[data-row-count]");
-  var reset = panel.querySelector("[data-sort-reset]");
+    var body = table.querySelector("tbody");
+    var rows = Array.prototype.slice.call(body.querySelectorAll("[data-row]"));
+    var noMatch = body.querySelector("[data-no-match]");
 
-  // The order the server sent, kept so "Blocked first" can restore it rather
-  // than re-deriving a rule that lives in Python.
-  var original = rows.slice();
-  var sortKey = null;
-  var ascending = true;
+    // Scoped to this panel, not the document. The page chrome and any filter
+    // panel reuse plenty of attribute names, and a document-wide lookup ends up
+    // reading somebody else's element.
+    var panel = table.closest(".pb__panel") || document;
+    var search = document.querySelector("[data-row-search]");
+    var counter = panel.querySelector("[data-row-count]");
+    var reset = panel.querySelector("[data-sort-reset]");
 
-  function value(row, key, type) {
-    var raw = row.dataset[key];
-    if (type === "text") return (raw || "").toLowerCase();
-    var num = parseFloat(raw);
-    return isNaN(num) ? 0 : num;
-  }
+    // The order the server sent, kept so "Blocked first" can restore it rather
+    // than re-deriving a rule that lives in Python.
+    var original = rows.slice();
 
-  function applyOrder(ordered) {
-    ordered.forEach(function (row) { body.insertBefore(row, noMatch); });
-  }
-
-  function sortBy(key, type) {
-    var ordered = rows.slice().sort(function (a, b) {
-      var left = value(a, key, type);
-      var right = value(b, key, type);
-      if (left < right) return ascending ? -1 : 1;
-      if (left > right) return ascending ? 1 : -1;
-      // Ties fall back to the name, so a column of equal numbers is still in
-      // a stable, readable order rather than whatever the sort happened to do.
-      var an = value(a, "pbname", "text");
-      var bn = value(b, "pbname", "text");
-      return an < bn ? -1 : an > bn ? 1 : 0;
-    });
-    applyOrder(ordered);
-  }
-
-  function markHeaders() {
-    table.querySelectorAll("[data-sort-key]").forEach(function (th) {
-      var active = th.dataset.sortKey === sortKey;
-      var icons = th.querySelectorAll("[data-sort-icons] i");
-      // Ascending shows the down arrow, descending the up arrow, as the
-      // theme's list headers do; unsorted shows both.
-      if (icons.length === 2) {
-        icons[0].style.display = active && ascending ? "none" : "";
-        icons[1].style.display = active && !ascending ? "none" : "";
-      }
-      th.setAttribute(
-        "aria-sort",
-        active ? (ascending ? "ascending" : "descending") : "none"
-      );
-    });
-    if (reset) reset.hidden = sortKey === null;
-  }
-
-  function filter() {
-    var term = (search && search.value || "").trim().toLowerCase();
-    var shown = 0;
-    rows.forEach(function (row) {
-      var hit = !term || (row.dataset.pbname || "").toLowerCase().indexOf(term) !== -1;
-      row.classList.toggle("pb__row--hidden", !hit);
-      if (hit) shown += 1;
-    });
-    if (noMatch) noMatch.classList.toggle("pb__row--hidden", shown !== 0);
-    if (counter) {
-      counter.textContent = term
-        ? shown + " / " + rows.length
-        : rows.length + " " + (counter.dataset.labelShown || "");
+    function value(row, key, type) {
+      var raw = row.dataset[key];
+      if (type === "text") return (raw || "").toLowerCase();
+      var num = parseFloat(raw);
+      return isNaN(num) ? 0 : num;
     }
-  }
 
-  table.querySelectorAll("[data-sort-key]").forEach(function (th) {
-    th.addEventListener("click", function () {
-      var key = th.dataset.sortKey;
-      // Same column again reverses it; a new column starts ascending.
-      ascending = key === sortKey ? !ascending : true;
-      sortKey = key;
-      sortBy(key, th.dataset.sortType || "number");
-      markHeaders();
+    function applyOrder(ordered) {
+      ordered.forEach(function (row) { body.insertBefore(row, noMatch); });
+    }
+
+    function sortBy(key, type) {
+      var ordered = rows.slice().sort(function (a, b) {
+        var left = value(a, key, type);
+        var right = value(b, key, type);
+        if (left < right) return state.ascending ? -1 : 1;
+        if (left > right) return state.ascending ? 1 : -1;
+        // Ties fall back to the name, so a column of equal numbers is still in
+        // a stable, readable order rather than whatever the sort happened to do.
+        var an = value(a, "pbname", "text");
+        var bn = value(b, "pbname", "text");
+        return an < bn ? -1 : an > bn ? 1 : 0;
+      });
+      applyOrder(ordered);
+    }
+
+    function markHeaders() {
+      table.querySelectorAll("[data-sort-key]").forEach(function (th) {
+        var active = th.dataset.sortKey === state.sortKey;
+        var icons = th.querySelectorAll("[data-sort-icons] i");
+        // Ascending shows the down arrow, descending the up arrow, as the
+        // theme's list headers do; unsorted shows both.
+        if (icons.length === 2) {
+          icons[0].style.display = active && state.ascending ? "none" : "";
+          icons[1].style.display = active && !state.ascending ? "none" : "";
+        }
+        th.setAttribute(
+          "aria-sort",
+          active ? (state.ascending ? "ascending" : "descending") : "none"
+        );
+      });
+      if (reset) reset.hidden = state.sortKey === null;
+    }
+
+    function filter() {
+      var term = (search && search.value || "").trim().toLowerCase();
+      var shown = 0;
+      rows.forEach(function (row) {
+        var hit = !term || (row.dataset.pbname || "").toLowerCase().indexOf(term) !== -1;
+        row.classList.toggle("pb__row--hidden", !hit);
+        if (hit) shown += 1;
+      });
+      if (noMatch) noMatch.classList.toggle("pb__row--hidden", shown !== 0);
+      if (counter) {
+        counter.textContent = term
+          ? shown + " / " + rows.length
+          : rows.length + " " + (counter.dataset.labelShown || "");
+      }
+    }
+    currentFilter = filter;
+
+    table.querySelectorAll("[data-sort-key]").forEach(function (th) {
+      th.addEventListener("click", function () {
+        var key = th.dataset.sortKey;
+        // Same column again reverses it; a new column starts ascending.
+        state.ascending = key === state.sortKey ? !state.ascending : true;
+        state.sortKey = key;
+        sortBy(key, th.dataset.sortType || "number");
+        markHeaders();
+      });
     });
-  });
 
-  if (reset) {
-    reset.addEventListener("click", function () {
-      sortKey = null;
-      ascending = true;
-      applyOrder(original);
-      markHeaders();
-    });
-  }
+    if (reset) {
+      reset.addEventListener("click", function () {
+        state.sortKey = null;
+        state.ascending = true;
+        applyOrder(original);
+        markHeaders();
+      });
+    }
 
-  if (search) {
-    search.addEventListener("input", filter);
-    // Escape clears, which is what a search box is expected to do.
-    search.addEventListener("keydown", function (e) {
-      if (e.key === "Escape") { search.value = ""; filter(); }
-      // Enter must not submit the form the box sits in -- that generates payslips.
-      if (e.key === "Enter") { e.preventDefault(); }
-    });
-  }
+    // The search box sits outside the refreshed block, so it is bound once and always filters the current table.
+    if (search && !searchBound) {
+      searchBound = true;
+      search.addEventListener("input", function () { currentFilter(); });
+      // Escape clears, which is what a search box is expected to do.
+      search.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") { search.value = ""; currentFilter(); }
+        // Enter must not submit the form the box sits in -- that generates payslips.
+        if (e.key === "Enter") { e.preventDefault(); }
+      });
+    }
 
-  // Column chooser: hide or show a column in the header and every row. The
-  // choice is remembered in the browser, and the pinned columns are not in it.
-  var COLS_KEY = "pbReviewColumns";
-  var hidden = [];
-  try { hidden = JSON.parse(localStorage.getItem(COLS_KEY) || "[]"); } catch (e) {}
+    // Column chooser: hide or show a column in the header and every row. The
+    // choice is remembered in the browser, and the pinned columns are not in it.
+    var COLS_KEY = "pbReviewColumns";
+    var hidden = [];
+    try { hidden = JSON.parse(localStorage.getItem(COLS_KEY) || "[]"); } catch (e) {}
 
-  function applyColumns() {
-    table.querySelectorAll("[data-col]").forEach(function (cell) {
-      cell.style.display = hidden.indexOf(cell.dataset.col) !== -1 ? "none" : "";
-    });
+    function applyColumns() {
+      table.querySelectorAll("[data-col]").forEach(function (cell) {
+        cell.style.display = hidden.indexOf(cell.dataset.col) !== -1 ? "none" : "";
+      });
+      document.querySelectorAll("[data-col-toggle]").forEach(function (box) {
+        box.checked = hidden.indexOf(box.dataset.colToggle) === -1;
+      });
+    }
+
     document.querySelectorAll("[data-col-toggle]").forEach(function (box) {
-      box.checked = hidden.indexOf(box.dataset.colToggle) === -1;
+      box.addEventListener("change", function () {
+        var key = box.dataset.colToggle;
+        hidden = hidden.filter(function (k) { return k !== key; });
+        if (!box.checked) hidden.push(key);
+        try { localStorage.setItem(COLS_KEY, JSON.stringify(hidden)); } catch (e) {}
+        applyColumns();
+      });
     });
+
+    applyColumns();
+    if (state.sortKey) {
+      var activeHeader = table.querySelector('[data-sort-key="' + state.sortKey + '"]');
+      sortBy(state.sortKey, activeHeader && activeHeader.dataset.sortType || "number");
+    }
+    filter();
+    markHeaders();
   }
 
-  document.querySelectorAll("[data-col-toggle]").forEach(function (box) {
-    box.addEventListener("change", function () {
-      var key = box.dataset.colToggle;
-      hidden = hidden.filter(function (k) { return k !== key; });
-      if (!box.checked) hidden.push(key);
-      try { localStorage.setItem(COLS_KEY, JSON.stringify(hidden)); } catch (e) {}
-      applyColumns();
-    });
-  });
-
-  applyColumns();
-  filter();
-  markHeaders();
+  window.pbReviewInit = init;
+  init();
 })();
 </script>
 <script>
   {% comment %}
-  Saving the contract form from "Edit contract" answers with an empty 200 and
-  HX-Trigger: reloadPayrollContracts. Nothing on this page listened, so the
-  modal's backdrop stayed over the screen and the figures went on showing the
-  old wage. What this page reports comes from the contract, so reloading it is
-  the honest response: it closes everything and re-runs the review.
+  A resolved conflict, or a saved contract, changes what the review reports. The page is fetched again in the
+  background and only the block that changed is swapped in -- the search, the sorting, the column choice and the
+  scroll position all stay where they were. If anything about that fails, the page reloads as it used to.
   {% endcomment %}
-  document.body.addEventListener("reloadPayrollContracts", function () {
-    window.location.reload();
-  });
-  // The attendance calendar announces a saved resolution when it is closed.
-  document.addEventListener("attendance-calendar-saved", function () {
-    window.location.reload();
-  });
+  (function () {
+    var refreshing = false;
+    var queued = false;
+
+    function scrollerOf() {
+      var table = document.getElementById("pb-review-table");
+      return table ? table.closest(".heightContainer") : null;
+    }
+
+    function runScripts(container) {
+      container.querySelectorAll("script").forEach(function (old) {
+        var fresh = document.createElement("script");
+        fresh.textContent = old.textContent;
+        old.parentNode.replaceChild(fresh, old);
+      });
+    }
+
+    function pbRefresh() {
+      if (refreshing) { queued = true; return; }
+      refreshing = true;
+      var live = document.getElementById("pb-review-live");
+      var before = scrollerOf();
+      var scrollTop = before ? before.scrollTop : 0;
+      fetch(window.location.href, { credentials: "same-origin", headers: { "X-Requested-With": "XMLHttpRequest" } })
+        .then(function (response) { return response.text(); })
+        .then(function (html) {
+          var doc = new DOMParser().parseFromString(html, "text/html");
+          var fresh = doc.getElementById("pb-review-live");
+          if (!live || !fresh) { window.location.reload(); return; }
+          live.innerHTML = fresh.innerHTML;
+          var button = document.getElementById("pb-generate-btn");
+          var newButton = doc.getElementById("pb-generate-btn");
+          if (button && newButton) { button.outerHTML = newButton.outerHTML; }
+          runScripts(live);
+          if (window.htmx) { htmx.process(live); }
+          if (window.pbReviewInit) { window.pbReviewInit(); }
+          var after = scrollerOf();
+          if (after) { after.scrollTop = scrollTop; }
+        })
+        .catch(function () { window.location.reload(); })
+        .then(function () {
+          refreshing = false;
+          if (queued) { queued = false; pbRefresh(); }
+        });
+    }
+
+    // Saving the contract form from "Edit contract" answers with an empty 200 and HX-Trigger:
+    // reloadPayrollContracts, which leaves its modal open: close it, then refresh the figures.
+    document.body.addEventListener("reloadPayrollContracts", function () {
+      var modal = document.getElementById("relatedObjectModal");
+      if (modal) { modal.classList.remove("oh-modal--show"); }
+      pbRefresh();
+    });
+    // The attendance calendar announces a saved resolution when it is closed.
+    document.addEventListener("attendance-calendar-saved", pbRefresh);
+  })();
+</script>
+<script>
+  // The problem popovers: shown beside the icon on hover or focus, placed with fixed coordinates.
+  (function () {
+    var POP_ID = "pb-alert-pop";
+    function hide() {
+      var old = document.getElementById(POP_ID);
+      if (old) old.remove();
+    }
+    function show(tip) {
+      var src = tip.querySelector(".pb__alert-src");
+      if (!src) return;
+      hide();
+      var body = document.createElement("div");
+      body.id = POP_ID;
+      body.className = "pb__alert-pop";
+      body.setAttribute("role", "tooltip");
+      body.innerHTML = '<div class="pb__alert-title"></div>' + src.innerHTML;
+      body.firstChild.textContent = src.getAttribute("data-title") || "";
+      document.body.appendChild(body);
+      var box = tip.getBoundingClientRect();
+      var left = Math.min(box.left, window.innerWidth - body.offsetWidth - 12);
+      var top = box.bottom + 8;
+      if (top + body.offsetHeight > window.innerHeight - 8) top = Math.max(8, box.top - body.offsetHeight - 8);
+      body.style.left = Math.max(8, left) + "px";
+      body.style.top = top + "px";
+    }
+    document.addEventListener("mouseover", function (e) {
+      var tip = e.target.closest && e.target.closest("[data-alert]");
+      if (tip) show(tip);
+    });
+    document.addEventListener("mouseout", function (e) {
+      var tip = e.target.closest && e.target.closest("[data-alert]");
+      if (tip && !tip.contains(e.relatedTarget)) hide(tip);
+    });
+    document.addEventListener("focusin", function (e) {
+      var tip = e.target.closest && e.target.closest("[data-alert]");
+      if (tip) show(tip);
+    });
+    document.addEventListener("focusout", function (e) {
+      var tip = e.target.closest && e.target.closest("[data-alert]");
+      if (tip) hide(tip);
+    });
+    // A scroll would leave a fixed popover behind.
+    window.addEventListener("scroll", function () {
+      hide();
+    }, true);
+  })();
 </script>
 {% endblock content %}
