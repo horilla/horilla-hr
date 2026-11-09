@@ -301,14 +301,11 @@ class AssetRequestList(HorillaListView):
 
 
 @method_decorator(login_required, name="dispatch")
-@method_decorator(
-    permission_required(perm="asset.change_assetassignment"), name="dispatch"
-)
 class AssetServiceRequestList(HorillaListView):
     """
-    Service Request Tab -- manager review/triage list of every service
-    request raised across the company (same audience as the Asset
-    Allocation tab: whoever can process a return can review these).
+    Service Request Tab -- every service request for managers with
+    asset.change_assetassignment, otherwise only the user's own and their
+    subordinates' requests.
     """
 
     def __init__(self, **kwargs: Any) -> None:
@@ -318,6 +315,18 @@ class AssetServiceRequestList(HorillaListView):
 
     model = AssetServiceRequest
     filter_class = AssetServiceRequestFilter
+
+    def get_queryset(self):
+        """
+        Returns the service requests visible to the current user.
+        """
+        queryset = super().get_queryset()
+        return filtersubordinates(
+            request=self.request,
+            perm="asset.change_assetassignment",
+            queryset=queryset,
+            field="requested_employee_id",
+        )
 
     header_attrs = {"action": """ style = "width:120px !important" """}
 
@@ -518,7 +527,13 @@ class RequestAndAllocationTab(HorillaTabView):
         ).qs.count()
 
         service_request_count = AssetServiceRequestFilter(
-            self.request.GET, queryset=AssetServiceRequest.objects.all()
+            self.request.GET,
+            queryset=filtersubordinates(
+                request=self.request,
+                perm="asset.change_assetassignment",
+                queryset=AssetServiceRequest.objects.all(),
+                field="requested_employee_id",
+            ),
         ).qs.count()
 
         # Each tab's shell hands its query string on to its own nav and list. Without
@@ -545,7 +560,7 @@ class RequestAndAllocationTab(HorillaTabView):
 
         self.tabs = [
             {
-                "title": _("Asset"),
+                "title": _("My Assets"),
                 "url": tab_url("req-alloc-asset-tab-shell", AssetAllocationFilter),
                 "badge": asset_count,
                 "query_scoped": True,
@@ -554,6 +569,14 @@ class RequestAndAllocationTab(HorillaTabView):
                 "title": _("Asset Request"),
                 "url": tab_url("req-alloc-asset-request-tab-shell", AssetRequestFilter),
                 "badge": request_count,
+                "query_scoped": True,
+            },
+            {
+                "title": _("Service Request"),
+                "url": tab_url(
+                    "req-alloc-service-request-tab-shell", AssetServiceRequestFilter
+                ),
+                "badge": service_request_count,
                 "query_scoped": True,
             },
         ]
@@ -568,17 +591,6 @@ class RequestAndAllocationTab(HorillaTabView):
                     "query_scoped": True,
                 },
             )
-        if self.request.user.has_perm("asset.change_assetassignment"):
-            self.tabs.append(
-                {
-                    "title": _("Service Request"),
-                    "url": tab_url(
-                        "req-alloc-service-request-tab-shell", AssetServiceRequestFilter
-                    ),
-                    "badge": service_request_count,
-                    "query_scoped": True,
-                },
-            )
 
 
 @method_decorator(login_required, name="dispatch")
@@ -588,7 +600,7 @@ class AssetNav(HorillaNavView):
     just lists the logged-in employee's own allocations).
     """
 
-    nav_title = _("Asset")
+    nav_title = _("My Assets")
     filter_instance = CustomAssetFilter()
     filter_form_context_name = "form"
     filter_body_template = "cbv/request_and_allocation/asset_filter.html"
@@ -644,14 +656,10 @@ class AssetRequestNav(HorillaNavView):
 
 
 @method_decorator(login_required, name="dispatch")
-@method_decorator(
-    permission_required(perm="asset.change_assetassignment"), name="dispatch"
-)
 class AssetServiceRequestNav(HorillaNavView):
     """
     Independent Nav for the Service Request tab. No create flow of its
-    own -- employees file a service request from their own My Assets tab,
-    this is the manager's review list.
+    own -- employees file a service request from their own My Assets tab.
     """
 
     nav_title = _("Service Request")
@@ -672,6 +680,13 @@ class AssetServiceRequestNav(HorillaNavView):
         super().__init__(**kwargs)
         self.search_url = reverse("list-asset-service-request")
         self.search_swap_target = "#assetServiceRequestListContainer"
+        if self.request.user.has_perm("asset.change_assetassignment"):
+            self.create_attrs = f"""
+                                data-toggle="oh-modal-toggle"
+                                data-target="#genericModal"
+                                hx-get="{reverse('asset-service-request-creation')}"
+                                hx-target="#genericModalBody"
+                                """
 
 
 @method_decorator(login_required, name="dispatch")

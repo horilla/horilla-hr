@@ -1,11 +1,21 @@
 {% load i18n %}
-<div class="d-flex align-items-center">
-    <span
-        class="oh-dot oh-dot--small me-1 oh-dot--color {% if instance.status == 'Completed' %} oh-dot--success {% elif instance.status == 'Rejected' %} oh-dot--danger {% elif instance.status == 'In Progress' %} oh-dot--warning {% elif instance.status == 'Requested' %} oh-dot--info {% else %} oh-dot--secondary {% endif %}"
-    >
-    </span>
-    <span
-        class="{% if instance.status == 'Completed' %} link-success {% elif instance.status == 'Rejected' %} link-danger {% elif instance.status == 'In Progress' %} link-warning {% elif instance.status == 'Requested' %} link-info {% else %} link-secondary {% endif %}"
-    >{% trans instance.status %}
-    </span>
-</div>
+{% if perms.asset.change_assetassignment %}
+    <div onclick="event.stopPropagation();">
+        <select
+            name="status"
+            hx-post="{{ instance.detail_view_url }}"
+            hx-trigger="change"
+            hx-swap="none"
+            hx-on::after-request="$('#reloadMessagesButton').click(); $('#applyFilter').click();"
+            class="oh-table__editable-input w-100"
+        >
+            {% for value, label in instance.STATUS %}
+                <option value="{{ value }}" {% if value == instance.status %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+{% else %}
+    <div class="flex items-center gap-1.5">
+        {% trans instance.status %}
+    </div>
+{% endif %}
