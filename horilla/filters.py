@@ -509,13 +509,54 @@ class HorillaFilterSet(FilterSet):
                 queryset = queryset.filter(**{f'{config["field"]}__{lookup}': value})
         return queryset
 
+    @staticmethod
+    def _is_safe_search_path(model, path):
+        """
+        True when ``path`` ("a__b__c") walks model fields/relations only, with
+        an optional plain (non-callable) property as the last segment, and no
+        segment is a credential or a financial field the user can't view.
+        """
+        from horilla_views.views import _export_part_allowed
+
+        request = getattr(_thread_locals, "request", None)
+        user = getattr(request, "user", None)
+        if user is None or not user.is_authenticated:
+            return False
+
+        parts = path.split("__")
+        current = model
+        for i, part in enumerate(parts):
+            if not part or not _export_part_allowed(user, part):
+                return False
+            try:
+                field = current._meta.get_field(part)
+            except Exception:
+                # Only the final segment may be a non-field attribute, and
+                # only a property -- never a method, which getattribute()
+                # would call.
+                attr = getattr(current, part, None)
+                return i == len(parts) - 1 and isinstance(attr, property)
+            if i < len(parts) - 1:
+                current = getattr(field, "related_model", None)
+                if current is None:
+                    return False
+        return True
+
     def search_in(self, queryset, name, value):
         """
         Search in generic method for filter field
         """
         search = self.data.get("search", "")
         search_field = self.data.get("search_field")
-        if not search_field:
+        # `search_field` is client-supplied. Only honour it when it is a
+        # plain field/relation path on this model that doesn't touch
+        # credentials or financial data; otherwise use the filter's own
+        # default field. Without this, the match count is a blind oracle
+        # for any attribute reachable from the model (password hashes,
+        # bank details, is_superuser, ...).
+        if not search_field or not self._is_safe_search_path(
+            queryset.model, search_field
+        ):
             search_field = self.filters[name].field_name
 
         def _icontains(instance):
