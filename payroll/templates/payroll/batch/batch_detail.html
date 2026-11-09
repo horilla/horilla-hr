@@ -30,7 +30,7 @@
       <div>
         <div class="pb__title-row">
           <h1 class="oh-main__titlebar-title fw-bold">{{ batch.batch_name }}</h1>
-          <span class="pb__pill pb__pill--lg pb__pill--{{ batch.status }}">{{ batch.get_status_display }}</span>
+          <span id="pb-status-pill" class="pb__pill pb__pill--lg pb__pill--{{ batch.status }}">{{ batch.get_status_display }}</span>
         </div>
         <div class="pb__meta">
           <span class="pb__chip">
@@ -57,6 +57,8 @@
 
       <div class="pb__head-actions" style="flex:1 1 520px;justify-content:flex-end;align-items:flex-start;">
         <div style="flex:1 1 auto;min-width:0;" hx-get="{% url 'payslip-run-navbar' batch.pk %}" hx-trigger="load"></div>
+        {% comment %}Swapped in place when the status changes (see the script at the foot of the page).{% endcomment %}
+        <div id="pb-run-controls" style="display:contents">
         {% if batch.status == "draft" and perms.payroll.add_payslip and perms.payroll.delete_payslip %}
         <form method="post" action="{% url 'payroll-batch-reopen' batch.pk %}"
               onsubmit="return confirm('{% trans "Go back to Review & Regularize? The draft payslips of this batch are discarded and made again when you generate."|escapejs %}');">
@@ -64,14 +66,14 @@
           <button type="submit" class="pb__btn"
                   title="{% trans 'Fix attendance or contracts, then generate again' %}">
             <ion-icon name="arrow-undo-outline"></ion-icon>
-            {% trans "Back to inputs" %}
+            {% trans "Back To Inputs" %}
           </button>
         </form>
         {% endif %}
         {% if perms.payroll.change_payslip and next_statuses %}
         <div class="oh-dropdown" x-data="{open:false}">
           <button type="button" class="pb__btn" @click="open = !open">
-            {% trans "Change status" %}
+            {% trans "Change Status" %}
             <ion-icon name="chevron-down-outline"></ion-icon>
           </button>
           <div class="oh-dropdown__menu" x-show="open" x-cloak @click.outside="open = false"
@@ -80,17 +82,21 @@
               {% for option in next_statuses %}
               <li class="oh-dropdown__item">
                 {% if option.allowed %}
-                <form method="post" action="{% url 'payroll-batch-set-status' batch.pk %}">
+                {% comment %}Posted with htmx and answered with a trigger, so the page updates itself instead of reloading.{% endcomment %}
+                <form method="post" action="{% url 'payroll-batch-set-status' batch.pk %}"
+                      hx-post="{% url 'payroll-batch-set-status' batch.pk %}"
+                      hx-vals='{"status": "{{ option.value }}"}' hx-swap="none"
+                      {% if batch.status == "paid" %}hx-confirm="{% trans 'Undo the payment? The payslips go back to confirmed.' %}"{% endif %}>
                   {% csrf_token %}
                   <input type="hidden" name="status" value="{{ option.value }}">
                   <button type="submit" class="oh-dropdown__link"
                           style="background:none;border:0;width:100%;text-align:left;">
-                    {% trans "Mark as" %} {{ option.label }}
+                    {% trans "Mark As" %} {{ option.label }}
                   </button>
                 </form>
                 {% else %}
                 <span class="oh-dropdown__link" style="opacity:.55;cursor:not-allowed;display:block;">
-                  {% trans "Mark as" %} {{ option.label }}
+                  {% trans "Mark As" %} {{ option.label }}
                   <span class="pb__problem">{{ option.reason }}</span>
                 </span>
                 {% endif %}
@@ -110,6 +116,7 @@
           </button>
         </form>
         {% endif %}
+        </div>{# /#pb-run-controls #}
       </div>
     </div>
 
@@ -216,6 +223,43 @@
         </div>
     </div>
     <script src="{% static 'cbv/payslip.js' %}"></script>
+    <script>
+      {% comment %}
+      Deleting a payslip from this list answers with HX-Trigger: reloadPayrollPayslips, which only the Payslips
+      page listened for -- here the row stayed until the page was reloaded. Refresh the list the way a search
+      does (keeping its filters), and swap in the totals above it, which the delete changed too.
+      {% endcomment %}
+      (function () {
+        if (window._pbBatchReloadBound) return;
+        window._pbBatchReloadBound = true;
+        function swapFrom(doc, selector) {
+          var fresh = doc.querySelector(selector);
+          var current = document.querySelector(selector);
+          if (fresh && current) { current.innerHTML = fresh.innerHTML; }
+          return current;
+        }
+        function refreshBatch() {
+          if (typeof hlvReloadListInPlace === "function") { hlvReloadListInPlace(); }
+          var message = document.getElementById("reloadMessagesButton");
+          if (message) { message.click(); }
+          fetch(window.location.href, { credentials: "same-origin" })
+            .then(function (response) { return response.text(); })
+            .then(function (html) {
+              var doc = new DOMParser().parseFromString(html, "text/html");
+              swapFrom(doc, ".pb__kpis");
+              // The status shown beside the title, and the controls it decides (change status, back to inputs, delete).
+              var pill = doc.getElementById("pb-status-pill");
+              var currentPill = document.getElementById("pb-status-pill");
+              if (pill && currentPill) { currentPill.className = pill.className; currentPill.textContent = pill.textContent; }
+              var controls = swapFrom(doc, "#pb-run-controls");
+              if (controls && window.htmx) { htmx.process(controls); }
+            })
+            .catch(function () {});
+        }
+        // A payslip deleted from the list, or a status changed from the menu.
+        document.addEventListener("reloadPayrollPayslips", refreshBatch);
+      })();
+    </script>
 
   </section>
 </main>
