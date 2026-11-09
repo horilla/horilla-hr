@@ -19,12 +19,12 @@
             </select>
         {% else %}
             <button
-                class="oh-checkpoint-badge text-info"
+                style="background-color: var(--primary-100, hsl(0, 75%, 97%)); color: var(--primary-600, hsl(1, 100%, 61%)); border: 0; padding: 0.375rem 0.75rem; border-radius: 0.375rem; font-size: 0.75rem; font-weight: 500; line-height: 1rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.25rem"
                 data-toggle="oh-modal-toggle"
                 hx-get="{% url 'assign-task-pipeline' task_id instance.candidate_id.pk %}"
                 hx-target="#taskContainer{{ task_id }}{{ instance.pk }}"
             >
-                {% trans 'Assign' %}
+                <ion-icon name="add-outline"></ion-icon> {% trans 'Assign' %}
             </button>
         {% endif %}
     </div>
