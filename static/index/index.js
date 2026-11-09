@@ -436,11 +436,20 @@ function syncBulkSelectAllCheckbox(viewId) {
     // instead of treating every group's rows as one combined set, otherwise a
     // fully-selected group gets marked indeterminate just because some other
     // group in the same view has a partial selection.
-    $(`${viewId} .fixed-table, ${viewId} .oh-sticky-table`).each(function () {
-        var $table = $(this);
-        var rows = $table.find(".list-table-row");
-        var bulkCheckbox = $table.find(".bulk-list-table-row");
-        if (!rows.length || !bulkCheckbox.length) return;
+    //
+    // nested_group_by_table.html's shared header is the exception: its own
+    // <table> only ever holds a <thead> (every leaf group's rows live in
+    // separate tables further down the tree), so its "select all" checkbox
+    // carries a data-select-all-scope (the same scope its own onchange
+    // handler already selects/deselects against) naming the real container
+    // to count rows in instead of its own, permanently row-less table.
+    $(`${viewId} .bulk-list-table-row`).each(function () {
+        var bulkCheckbox = $(this);
+        var scope = bulkCheckbox.attr("data-select-all-scope");
+        var rows = scope
+            ? $(scope).find(".list-table-row")
+            : bulkCheckbox.closest(".fixed-table, .oh-sticky-table").find(".list-table-row");
+        if (!rows.length) return;
         var checkedCount = rows.filter(":checked").length;
         bulkCheckbox.prop("checked", checkedCount > 0 && checkedCount === rows.length);
         bulkCheckbox.prop(
@@ -1928,6 +1937,7 @@ var HLV_BULK_DELETE_MODELS = {
     "candidate-bulk-delete": "recruitment.candidate",
     "payslip-bulk-delete": "payroll.payslip",
     "contract-bulk-delete": "payroll.contract",
+    "pay-adjustment-bulk-delete": "payroll.payadjustment",
     "objective-bulk-delete": "pms.employeeobjective",
     "feedback-bulk-delete": "pms.feedback",
     "project-bulk-delete": "project.project",
@@ -2598,9 +2608,23 @@ function hlvBuildExportSplit(form) {
     hlvRenderExportList(form);
 }
 
+// "Select All" mirrors the boxes (ticked only when every field is), and the
+// Export button is disabled while nothing is selected.
+function hlvSyncExportState(form) {
+    var $form = $(form);
+    var $fields = $form.find("input[name=selected_fields]");
+    if (!$fields.length) return;
+    var checked = $fields.filter(":checked").length;
+    $form.find("input[id^=select-all]").prop("checked", checked === $fields.length);
+    $form.find("button, input[type=submit]").filter(function () { return this.type === "submit"; })
+        .prop("disabled", checked === 0)
+        .css({ opacity: checked === 0 ? 0.5 : "", cursor: checked === 0 ? "not-allowed" : "" });
+}
+
 function hlvRenderExportList(form) {
     var $row = hlvColumnPickerRow(form);
     if (!$row) return;
+    hlvSyncExportState(form);
     var $list = $(form).find(".hlv-export-list");
     if (!$list.length) return;
     $list.empty();
@@ -2660,12 +2684,19 @@ $(document).on("change", "input[name=selected_fields]", function () {
             else $row.prepend($item);
         }
     }
+    hlvSyncExportState(form);
     // select-all fires one change per box; render once afterwards.
     var $form = $(form);
     clearTimeout($form.data("hlvRenderTimer"));
     $form.data("hlvRenderTimer", setTimeout(function () {
         hlvRenderExportList(form);
     }, 0));
+});
+
+// Backstop for Enter-key / scripted submits: never export with no field picked.
+$(document).on("submit", "form", function (e) {
+    var $f = $(this).find("input[name=selected_fields]");
+    if ($f.length && !$f.filter(":checked").length) e.preventDefault();
 });
 
 $(document).on("click", ".hlv-export-remove", function () {
@@ -2885,7 +2916,17 @@ function hlvExportDialog(info) {
         $(document).on("keydown.hlvQuick", function (e) { if (e.key === "Escape") finish(null); });
         $modal.find("#select-all-" + id).on("change", function () {
             $modal.find(".hlv-quick-col").prop("checked", this.checked);
+            syncQuick();
         });
+        var syncQuick = function () {
+            var $cols = $modal.find(".hlv-quick-col");
+            var n = $cols.filter(":checked").length;
+            $modal.find("#select-all-" + id).prop("checked", n === $cols.length);
+            $modal.find("button[type=submit]").prop("disabled", n === 0)
+                .css({ opacity: n === 0 ? 0.5 : "", cursor: n === 0 ? "not-allowed" : "" });
+        };
+        $modal.find(".hlv-quick-col").on("change", syncQuick);
+        syncQuick();
         $modal.find("[name=hlv_export_name]").val(info.filename || "");
         $modal.find("form").on("submit", function (e) {
             e.preventDefault();

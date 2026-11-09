@@ -23,8 +23,10 @@
                                     onchange="var element = $(this);
                                     highlightRow(element);
 
-                                    if (!element.is(':checked')) {
-                                        removeId(element);
+                                    if (element.is(':checked')) {
+                                        addId(element, '{{selected_instances_key_id}}');
+                                    } else {
+                                        removeId(element, '{{selected_instances_key_id}}');
                                     }
 
                                     reloadSelectedCount($('#count_{{view_id|safe}}'),'{{selected_instances_key_id}}');
