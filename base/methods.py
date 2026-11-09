@@ -1648,10 +1648,12 @@ def get_holiday_dates(range_start: date, range_end: date, employee=None) -> list
     """
     :return: this functions returns a list of all holiday dates.
     """
-    pay_range_dates = get_date_range(start_date=range_start, end_date=range_end)
-    query = Q()
-    for check_date in pay_range_dates:
-        query |= Q(start_date__lte=check_date, end_date__gte=check_date)
+    # A holiday counts when any of its days falls in the range, i.e. when the two ranges overlap. That
+    # is one pair of comparisons, not one OR clause per day of the range (365 for a year).
+    if range_start <= range_end:
+        query = Q(start_date__lte=range_end, end_date__gte=range_start)
+    else:
+        query = Q()
     holidays = Holidays.objects.filter(query)
     if employee is not None:
         holidays = holidays.filter(Q(is_specific=False) | Q(employees=employee))
@@ -1715,6 +1717,20 @@ def get_working_days(start_date, end_date, employee=None):
         employee: Optional Employee instance to scope specific holidays.
     """
 
+    # One employee's payslip asks this for the same period several times; the answer is kept on
+    # the employee instance, so it lives only as long as the run that holds that instance.
+    cache = (
+        employee.__dict__.setdefault("_working_days_cache", {})
+        if employee is not None
+        else None
+    )
+    if cache is not None and (start_date, end_date) in cache:
+        found = cache[(start_date, end_date)]
+        return {
+            key: list(value) if isinstance(value, list) else value
+            for key, value in found.items()
+        }
+
     holiday_dates = get_holiday_dates(start_date, end_date, employee)
 
     # appending company/holiday leaves
@@ -1722,8 +1738,11 @@ def get_working_days(start_date, end_date, employee=None):
     company_leave_dates = (
         list(
             set(
-                get_company_leave_dates(start_date.year)
-                + get_company_leave_dates(end_date.year)
+                [
+                    day
+                    for year in {start_date.year, end_date.year}
+                    for day in get_company_leave_dates(year)
+                ]
             )
         )
         + holiday_dates
@@ -1742,7 +1761,7 @@ def get_working_days(start_date, end_date, employee=None):
     working_days_between_ranges = list(set(date_range) - set(company_leave_dates))
     total_working_days = len(working_days_between_ranges)
 
-    return {
+    result = {
         # Total working days on that period
         "total_working_days": total_working_days,
         # All the working dates between the start and end date
@@ -1750,6 +1769,12 @@ def get_working_days(start_date, end_date, employee=None):
         # All the company/holiday leave dates between the range
         "company_leave_dates": company_leave_dates,
     }
+    if cache is not None:
+        cache[(start_date, end_date)] = {
+            key: list(value) if isinstance(value, list) else value
+            for key, value in result.items()
+        }
+    return result
 
 
 def get_next_month_same_date(date_obj):

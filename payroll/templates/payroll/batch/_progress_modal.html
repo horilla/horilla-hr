@@ -12,6 +12,28 @@
 <div style="padding:1rem 1.25rem;">
   {% include "payroll/batch/_progress.html" %}
 </div>
+{% if extra_workers and not batch.is_finished %}
+{% comment %}
+The bar's own loop asks for one slice at a time. A big run is much faster with a few slices side by side, so
+extra loops run quietly next to it: they only ask for slices (the server hands each its own people, so nobody
+is paid twice) and stop when a response says the run is over. The bar still draws from the main loop.
+{% endcomment %}
+<script>
+(function () {
+  var url = "{% url 'payroll-batch-generate' batch.pk %}";
+  var EXTRA = {{ extra_workers }};
+  function loop() {
+    fetch(url, { credentials: "same-origin", headers: { "HX-Request": "true" } })
+      .then(function (response) { return response.text(); })
+      .then(function (html) {
+        if (html.indexOf('hx-trigger="load') !== -1) { loop(); }
+      })
+      .catch(function () {});
+  }
+  for (var i = 0; i < EXTRA; i++) { setTimeout(loop, 150 * (i + 1)); }
+})();
+</script>
+{% endif %}
 <div class="pb__problem" style="padding:0 1.25rem 1rem;">
   {% trans "Payslips are written as they are generated. If this is closed, reopen the batch from the list and it carries on from where it stopped; nobody is paid twice." %}
 </div>
