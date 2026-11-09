@@ -263,6 +263,26 @@ class RecruitmentCreationFormExtended(RecruitmentCreationForm):
     extended form view for create
     """
 
+    # Texts of the shared pipeline wizard (recruitment/pipeline_wizard.html).
+    wizard_details_label = _("Recruitment")
+    wizard_details_hint = _("Title, job position, dates and managers.")
+    wizard_intro_edit = _(
+        "Drag the stages to reorder them, rename them, change their type or remove "
+        "the ones you do not need. Changes are saved with the recruitment."
+    )
+    wizard_intro_create = _(
+        "Choose the stages candidates move through for this recruitment. You can "
+        "always add, rename or reorder stages later from the pipeline."
+    )
+    wizard_required_type = "applied"
+    wizard_name_max = 50
+    wizard_required_message = _(
+        "The pipeline needs at least one stage of type Applied."
+    )
+    wizard_locked_message = _(
+        "This stage has candidates. Move them to another stage before deleting it."
+    )
+
     cols = {
         "title": 12,
         "description": 12,

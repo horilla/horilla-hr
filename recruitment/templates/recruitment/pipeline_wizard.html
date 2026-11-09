@@ -13,6 +13,10 @@
         class="rec-wiz-root"
         data-defaults="{{ form.default_pipeline_json }}"
         data-types="{{ form.stage_types_json }}"
+        data-required-type="{{ form.wizard_required_type }}"
+        data-required-message="{{ form.wizard_required_message }}"
+        data-locked-title="{{ form.wizard_locked_message }}"
+        data-name-max="{{ form.wizard_name_max }}"
         {% if form.instance.pk %}data-editing="1"{% endif %}
     >
         <style>
@@ -85,6 +89,11 @@
             .rec-wiz-badge[data-type="interview"] { background: #ede9fe; color: #5b21b6; }
             .rec-wiz-badge[data-type="shortlisted"] { background: #dcfce7; color: #166534; }
             .rec-wiz-badge[data-type="cancelled"] { background: #fee2e2; color: #991b1b; }
+            .rec-wiz-badge[data-type="notice_period"] { background: #e0ecff; color: #1d4ed8; }
+            .rec-wiz-badge[data-type="handover"] { background: #fef3c7; color: #92400e; }
+            .rec-wiz-badge[data-type="fnf"] { background: #dcfce7; color: #166534; }
+            .rec-wiz-badge[data-type="other"] { background: #f3f4f6; color: #374151; }
+            .rec-wiz-badge[data-type="archived"] { background: #fee2e2; color: #991b1b; }
             .rec-wiz-cta { margin-top: 14px; }
             .rec-wiz-link { background: none; border: 0; padding: 0; color: var(--rw-primary); font-size: 13px; cursor: pointer; text-decoration: underline; }
             .rec-wiz-row { display: flex; align-items: center; gap: 8px; border: 1px solid #e6e7eb; border-radius: 10px; padding: 6px 8px; background: #fff; }
@@ -109,8 +118,8 @@
             <button type="button" class="oh-steps__step" role="tab" data-step-tab="details" aria-controls="step-details">
                 <span class="oh-steps__num">1</span>
                 <span class="oh-steps__text">
-                    <span class="oh-steps__label">{% trans "Recruitment" %}</span>
-                    <span class="oh-steps__hint">{% trans "Title, job position, dates and managers." %}</span>
+                    <span class="oh-steps__label">{{ form.wizard_details_label }}</span>
+                    <span class="oh-steps__hint">{{ form.wizard_details_hint }}</span>
                 </span>
                 <span class="oh-steps__flag" data-step-flag hidden title="{% trans 'Something on this step needs attention' %}">!</span>
             </button>
@@ -128,7 +137,7 @@
     <div class="oh-step-panel rec-wiz-step2" id="step-pipeline" data-step-panel="pipeline" role="tabpanel" hidden>
         {% if form.instance.pk %}
         <p class="rec-wiz-intro">
-            {% trans "Drag the stages to reorder them, rename them, change their type or remove the ones you do not need. Changes are saved with the recruitment." %}
+            {{ form.wizard_intro_edit }}
         </p>
         <div data-wiz-panel="custom">
             <div class="rec-wiz-list" data-wiz-rows></div>
@@ -140,7 +149,7 @@
         </div>
         {% else %}
         <p class="rec-wiz-intro">
-            {% trans "Choose the stages candidates move through for this recruitment. You can always add, rename or reorder stages later from the pipeline." %}
+            {{ form.wizard_intro_create }}
         </p>
         <div class="rec-wiz-modes">
             <button type="button" class="rec-wiz-mode" data-wiz-mode="default">
@@ -254,8 +263,9 @@
                     if (seen[name.toLowerCase()]) return "{% trans 'Stage names must be unique.'|escapejs %}";
                     seen[name.toLowerCase()] = true;
                 }
-                if (!rows.some(function (r) { return r.type === "applied"; })) {
-                    return "{% trans 'The pipeline needs at least one stage of type Applied.'|escapejs %}";
+                var requiredType = root.dataset.requiredType;
+                if (requiredType && !rows.some(function (r) { return r.type === requiredType; })) {
+                    return root.dataset.requiredMessage;
                 }
                 return "";
             }
@@ -338,7 +348,7 @@
 
                     var input = document.createElement("input");
                     input.type = "text";
-                    input.maxLength = 50;
+                    input.maxLength = parseInt(root.dataset.nameMax, 10) || 50;
                     input.value = row.name;
                     input.placeholder = "{% trans 'Stage name'|escapejs %}";
                     input.addEventListener("input", function () {
@@ -363,7 +373,7 @@
                     });
                     el.appendChild(select);
 
-                    var lockedTitle = "{% trans 'This stage has candidates. Move them to another stage before deleting it.'|escapejs %}";
+                    var lockedTitle = root.dataset.lockedTitle;
                     var del = iconBtn(
                         row.locked ? lockedTitle : "{% trans 'Remove stage'|escapejs %}",
                         "×", "is-remove",
