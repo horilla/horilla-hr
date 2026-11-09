@@ -11,6 +11,37 @@ import datetime
 import pandas as pd
 
 IMPORT_TEMPLATES = {
+    "pay_adjustment": {
+        "columns": [
+            "Badge ID",
+            "Type",
+            "Title",
+            "Amount",
+            "Pay Date",
+            "Taxable / Pre-Tax",
+            "Reason",
+        ],
+        "rows": [
+            [
+                "EMP001",
+                "Arrears",
+                "Salary Revision Back Pay",
+                12000,
+                datetime.date(2026, 12, 5),
+                "Yes",
+                "Revised from 1 July",
+            ],
+            [
+                "EMP002",
+                "Recovery",
+                "Excess Salary Paid",
+                5000,
+                datetime.date(2026, 12, 5),
+                "Yes",
+                "Overpaid in October",
+            ],
+        ],
+    },
     "employee": {
         "columns": ["employee_full_name", "email", "phone"],
         "rows": [

@@ -1,0 +1,15 @@
+{% load i18n %}
+{% comment %}The Arrears & Recovery import: a modal that goes upload, then preview, then result, all in its body.{% endcomment %}
+<div class="rounded-lg bg-white w-full p-5">
+  <div class="flex justify-between items-center mb-2">
+    <h2 class="text-md font-semibold">{% trans "Import Arrears & Recovery" %}</h2>
+    <button type="button" class="text-gray-500 hover:text-red-500 text-xl"
+            onclick="$(this).closest('.oh-modal--show').removeClass('oh-modal--show')"
+            aria-label="{% trans 'Close' %}">
+      <ion-icon name="close-outline" role="img"></ion-icon>
+    </button>
+  </div>
+  <div id="payAdjustmentImportBody">
+    {% include "payroll/pay_adjustment/import_upload.html" %}
+  </div>
+</div>
