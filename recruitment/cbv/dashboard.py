@@ -124,7 +124,7 @@ class CurrentHiringList(HorillaListView):
                 "candidate", filter=Q(candidate__stage_id__stage_type="interview")
             ),
             hired_count=Count(
-                "candidate", filter=Q(candidate__stage_id__stage_type="hired")
+                "candidate", filter=Q(candidate__stage_id__stage_type="shortlisted")
             ),
             cancelled_count=Count(
                 "candidate", filter=Q(candidate__stage_id__stage_type="cancelled")

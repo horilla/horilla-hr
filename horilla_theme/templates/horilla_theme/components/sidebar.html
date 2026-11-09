@@ -900,7 +900,29 @@
           btn.classList.add("sidebox-active");
         }
 
+        // Remember that the flyout was open when a submenu link was picked so it can
+        // be re-opened (with the picked link highlighted) after a full page reload.
+        // The flag lives until the flyout actually closes (pointer leaves / other nav).
+        var FLYOUT_KEEP_KEY = "sidebarFlyoutKeep";
+        function rememberFlyoutOpen(btn) {
+          try { if (btn && btn.dataset.menu) sessionStorage.setItem(FLYOUT_KEEP_KEY, btn.dataset.menu); } catch (_) {}
+        }
+        function forgetFlyoutOpen() {
+          try { sessionStorage.removeItem(FLYOUT_KEEP_KEY); } catch (_) {}
+        }
+        function restoreFlyoutAfterReload() {
+          var menu = null;
+          try { menu = sessionStorage.getItem(FLYOUT_KEEP_KEY); } catch (_) {}
+          if (!menu) return;
+          var btn = document.querySelector('.sideboxmain[data-menu="' + menu.replace(/"/g, '\\"') + '"]');
+          var item = btn && btn.closest(".sidebar-item");
+          // Only restore when we are still inside that module (e.g. not after going to Dashboard)
+          if (!item || !btn.classList.contains("sidebox-current")) { forgetFlyoutOpen(); return; }
+          showFlyout(item, btn);
+        }
+
         function hideFlyout() {
+          forgetFlyoutOpen();
           if (flyoutEl) flyoutEl.classList.remove("is-visible");
           if (currentFlyoutBtn) { currentFlyoutBtn.classList.remove("sidebox-active"); currentFlyoutBtn = null; }
         }
@@ -956,9 +978,11 @@
             e.preventDefault();
             e.stopPropagation();
             var href = link.getAttribute("href") || link.getAttribute("hx-get") || "/";
-            // Capture the owning module button BEFORE hideFlyout() nulls currentFlyoutBtn
             var activeModuleBtn = currentFlyoutBtn;
-            hideFlyout();
+            // Keep the flyout open after a pick; it closes only when the pointer
+            // leaves the sidebar/flyout (mouseleave -> scheduleFlyoutClose).
+            cancelFlyoutClose();
+            rememberFlyoutOpen(activeModuleBtn);
             if (isStandaloneUrl(href)) { window.location.href = href; return; }
             var target = document.getElementById("ohMainContent");
             if (!target || !window.htmx) { window.location.href = href; return; }
@@ -1056,6 +1080,9 @@
         // Apply saved state immediately (no animation) to avoid layout flash
         applySidebarPin(sidebarPinned, false);
 
+        // Re-open the submenu flyout after a full reload if it was open when a link was picked
+        requestAnimationFrame(function () { requestAnimationFrame(restoreFlyoutAfterReload); });
+
         var pinBtn = document.getElementById("sidebarPinBtn");
         if (pinBtn) {
           pinBtn.addEventListener("click", function (e) {
@@ -1102,6 +1129,37 @@
         document.addEventListener("htmx:pushUrl", syncSidebarToUrl);
         document.addEventListener("htmx:afterSettle", syncSidebarToUrl);
         window.addEventListener("popstate", syncSidebarToUrl);
+
+        // Re-sync submenu entries with the server after a setting that controls
+        // their visibility changes (e.g. Offboarding > Allow Resignation Request
+        // shows/hides "Resignation Letters"). The sidebar is rendered once per
+        // full page load, so without this the menu is stale until a reload.
+        // Only each module's .sidebar-subnav is swapped (the flyout reads from
+        // it on hover); click handling is delegated, so nothing is rebound.
+        window.refreshSidebarMenus = function () {
+          fetch(window.location.href, { credentials: "same-origin" })
+            .then(function (r) { return r.text(); })
+            .then(function (html) {
+              var doc = new DOMParser().parseFromString(html, "text/html");
+              var current = {};
+              document.querySelectorAll("#sidebar .sideboxmain").forEach(function (b) {
+                current[b.dataset.menu] = b.closest(".sidebar-item");
+              });
+              doc.querySelectorAll("#sidebar .sidebar-item").forEach(function (newItem) {
+                var btn = newItem.querySelector(".sideboxmain");
+                var item = btn && current[btn.dataset.menu];
+                if (!item) return;
+                var oldSub = item.querySelector(".sidebar-subnav");
+                var newSub = newItem.querySelector(".sidebar-subnav");
+                if (oldSub && newSub && oldSub.innerHTML.trim() !== newSub.innerHTML.trim()) {
+                  oldSub.innerHTML = newSub.innerHTML;
+                  if (window.htmx) htmx.process(oldSub);
+                }
+              });
+              syncSidebarToUrl();
+            })
+            .catch(function () {});
+        };
 
         // ── Navigation click handlers ────────────────────────────────────────
 

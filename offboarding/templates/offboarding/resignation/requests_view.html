@@ -37,6 +37,8 @@
         </div>
     {% endif %}
 
+    {% include "offboarding/resignation/reject_modal.html" %}
+
     <script>
         // toggle columns //
         toggleColumns("resignation-column-table", "resignationCells");
@@ -49,6 +51,10 @@
         $("[type=checkbox]").change();
 
         function resignLetterConfirmation(params, target, approve = false) {
+            if (!approve && target.closest("form").find("input[name=status]").val() === "rejected") {
+                openResignationReject(target);
+                return;
+            }
             let html = '<p>' + params + '</p>'
             let notice_starts = $(`#${target
                 .siblings("input[name=notice_period_starts]")
@@ -69,7 +75,7 @@
                     <div class='row' style='overflow-x:hidden;'>
                         <div class="col-12">
                             <div class="oh-label__info">
-                                <label class="oh-label" for="offboardingSelect">{% trans "Add to"|escapejs %}</label>
+                                <label class="oh-label" style="font-weight:bold;" for="offboardingSelect"><b>{% trans "Add to"|escapejs %}</b></label>
                             </div>
                             <select id="offboardingSelect" class="oh-select oh-select2 w-100" name="reason" title="{% trans 'Add to offboarding'|escapejs %}">
                                 {% for offboarding in offboardings %}
@@ -79,7 +85,7 @@
                         </div>
                         <div class="col-6 col-md-6">
                             <div class="oh-label__info">
-                                <label class="oh-label" for="notice_period_starts">{% trans "Planned to leave on"|escapejs %}</label>
+                                <label class="oh-label" style="font-weight:bold;" for="notice_period_starts"><b>{% trans "Notice period start"|escapejs %}</b></label>
                             </div>
                             <input type="date" name="notice_period_starts"
                                 class="oh-input w-100 form-control"
@@ -93,7 +99,7 @@
                         </div>
                         <div class="col-6 col-md-6">
                             <div class="oh-label__info">
-                                <label class="oh-label" for="notice_period_ends">{% trans "Notice period end"|escapejs %}</label>
+                                <label class="oh-label" style="font-weight:bold;" for="notice_period_ends"><b>{% trans "Notice period end"|escapejs %}</b></label>
                             </div>
                             <input type="date"
                                 name="notice_period_ends"

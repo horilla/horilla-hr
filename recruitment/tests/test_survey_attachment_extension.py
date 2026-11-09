@@ -19,7 +19,7 @@ from django.test import Client, TestCase
 from django.urls import reverse
 
 from base.models import Company, Department
-from recruitment.models import Candidate, JobPosition, Recruitment, Stage
+from recruitment.models import Candidate, JobPosition, Recruitment
 
 
 class SurveyAttachmentExtensionTests(TestCase):
@@ -40,11 +40,9 @@ class SurveyAttachmentExtensionTests(TestCase):
         self.recruitment = Recruitment.objects.create(
             title="Survey Recruitment", job_position_id=job_position, is_published=True
         )
-        self.stage = Stage.objects.create(
-            recruitment_id=self.recruitment,
-            stage=f"Applied-{self.recruitment.pk}",
-            stage_type="applied",
-        )
+        # A recruitment now owns exactly one Applied stage (unique constraint),
+        # created on demand; use it rather than inserting a second one.
+        self.stage = self.recruitment.get_or_create_applied_stage()
         self.candidate = Candidate.objects.create(
             name="Uploader",
             email="uploader@example.test",

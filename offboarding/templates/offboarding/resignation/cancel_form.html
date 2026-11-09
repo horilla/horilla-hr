@@ -1,0 +1,30 @@
+{% load i18n %}
+<div class="oh-modal__dialog-header">
+    <h2 class="oh-modal__dialog-title">{{ title }}</h2>
+    <button class="oh-modal__close" aria-label="{% trans 'Close' %}">
+        <ion-icon name="close-outline"></ion-icon>
+    </button>
+</div>
+<div class="oh-modal__dialog-body">
+    <form
+        hx-post="{% url 'cancel-resignation-request' letter.id %}"
+        hx-target="#genericModalBody"
+        hx-encoding="multipart/form-data"
+    >
+        {% csrf_token %}
+        <div class="oh-general__tab-target oh-profile-section">
+            <div class="col-sm-12 col-md-12 col-lg-12">
+                <div>{{ form.cancel_reason }}</div>
+                {{ form.errors }}
+            </div>
+            <div class="d-flex flex-row-reverse">
+                <button
+                    type="submit"
+                    class="oh-btn oh-btn--secondary oh-btn--shadow mt-3"
+                >
+                    {% trans "Submit" %}
+                </button>
+            </div>
+        </div>
+    </form>
+</div>

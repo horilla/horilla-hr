@@ -130,6 +130,7 @@ class AssetFilter(CustomFilterSet):
     """
 
     search = django_filters.CharFilter(method="search_method")
+    search_field = django_filters.CharFilter(method="search_in")
     category = django_filters.CharFilter(field_name="asset_category_id")
     expired = django_filters.BooleanFilter(method="filter_expired")
     # Purchase date range is also reachable through the Advanced "+ Add

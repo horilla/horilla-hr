@@ -1,0 +1,151 @@
+{% load i18n %}
+{# Detail popup actions: labelled buttons, same layout as the other detail views    #}
+{# (e.g. compensatory leave). Same rules as the list's Actions column.             #}
+<div class="flex items-center gap-2 flex-wrap" onclick="event.stopPropagation()">
+    {% if perms.offboarding.change_resignationletter %}
+        {# display:contents keeps the form's buttons in the same flex row as Edit/Delete #}
+        <form
+            hx-get="{% url 'update-letter-status' %}"
+            hx-target="#listContainer"
+            hx-swap="innerHTML"
+            class="contents"
+        >
+            {% if instance.status == "cancellation_requested" %}
+                <button
+                    type="button"
+                    data-swal-url="{% url 'resignation-cancellation-decision' instance.id 'approve' %}"
+                    data-swal-kind="decision-approve"
+                    onclick="event.stopPropagation();resignationCancelSwal(this)"
+                    title="{% trans 'Approve Cancellation' %}"
+                    class="oh-btn oh-btn--success flex-1 px-3 py-2 rounded-md flex items-center justify-center gap-2 transition duration-300"
+                    style="height:36px;min-width:max-content;font-size:13px;line-height:1;white-space:nowrap;"
+                >
+                    <ion-icon name="checkmark-outline"></ion-icon>
+                    {% trans "Approve Cancellation" %}
+                </button>
+                <button
+                    type="button"
+                    data-swal-url="{% url 'resignation-cancellation-decision' instance.id 'reject' %}"
+                    data-swal-kind="decision-reject"
+                    onclick="event.stopPropagation();resignationCancelSwal(this)"
+                    title="{% trans 'Reject Cancellation' %}"
+                    class="oh-btn oh-btn--danger flex-1 px-3 py-2 rounded-md flex items-center justify-center gap-2 transition duration-300"
+                    style="height:36px;min-width:max-content;font-size:13px;line-height:1;white-space:nowrap;"
+                >
+                    <ion-icon name="close-circle-outline"></ion-icon>
+                    {% trans "Reject Cancellation" %}
+                </button>
+            {% elif instance.status == "requested" %}
+                <button
+                    type="button"
+                    title="{% trans 'Approve' %}"
+                    onclick="$(this).closest('form').find('input[name=status]').val('approved');resignLetterConfirmation('{% trans "Do You really want to approve the request"|escapejs %}?',$(this).closest('form').find('[type=submit]'),true)"
+                    class="oh-btn oh-btn--success flex-1 px-3 py-2 rounded-md flex items-center justify-center gap-2 transition duration-300"
+                    style="height:36px;min-width:max-content;font-size:13px;line-height:1;white-space:nowrap;"
+                >
+                    <ion-icon name="checkmark-outline"></ion-icon>
+                    {% trans "Approve" %}
+                </button>
+            {% else %}
+                <button
+                    type="button"
+                    title="{% trans 'Approve' %}"
+                    class="oh-btn oh-btn--success opacity-50 cursor-not-allowed flex-1 px-3 py-2 rounded-md flex items-center justify-center gap-2 transition duration-300"
+                    style="height:36px;min-width:max-content;font-size:13px;line-height:1;white-space:nowrap;"
+                    disabled
+                >
+                    <ion-icon name="checkmark-outline"></ion-icon>
+                    {% trans "Approve" %}
+                </button>
+            {% endif %}
+            {% if instance.status == "cancellation_requested" %}
+            {% elif instance.status == "rejected" %}
+                <button
+                    type="button"
+                    title="{% trans 'Reject' %}"
+                    class="oh-btn oh-btn--danger opacity-50 cursor-not-allowed flex-1 px-3 py-2 rounded-md flex items-center justify-center gap-2 transition duration-300"
+                    style="height:36px;min-width:max-content;font-size:13px;line-height:1;white-space:nowrap;"
+                    disabled
+                >
+                    <ion-icon name="close-circle-outline"></ion-icon>
+                    {% trans "Reject" %}
+                </button>
+            {% else %}
+                <button
+                    type="button"
+                    title="{% trans 'Reject' %}"
+                    onclick="$(this).closest('form').find('input[name=status]').val('rejected');resignLetterConfirmation('{% trans "Do You really want to reject the request?"|escapejs %}',$(this).closest('form').find('[type=submit]'))"
+                    class="oh-btn oh-btn--danger flex-1 px-3 py-2 rounded-md flex items-center justify-center gap-2 transition duration-300"
+                    style="height:36px;min-width:max-content;font-size:13px;line-height:1;white-space:nowrap;"
+                >
+                    <ion-icon name="close-circle-outline"></ion-icon>
+                    {% trans "Reject" %}
+                </button>
+            {% endif %}
+            <input type="hidden" name="status">
+            <input type="hidden" name="letter_ids" value="{{instance.id}}">
+            <input type="hidden" name="offboarding_id">
+            <input type="hidden" name="notice_period_starts" value="{% now 'Y-m-d' %}" id="notice_period_starts{{instance.id}}">
+            <input type="hidden" name="notice_period_ends" id="notice_period_ends{{instance.id}}">
+            <button type="submit" hidden></button>
+        </form>
+    {% endif %}
+
+    {% if perms.offboarding.change_resignationletter or request.user == instance.employee_id.employee_user_id %}
+        {% if instance.status == "requested" %}
+            <button
+                type="button"
+                title="{% trans 'Edit' %}"
+                class="oh-btn oh-btn--light-bkg flex-1 px-3 py-2 rounded-md flex items-center justify-center gap-2 transition duration-300"
+                    style="height:36px;min-width:max-content;font-size:13px;line-height:1;white-space:nowrap;"
+                data-toggle="oh-modal-toggle"
+                data-target="#genericModal"
+                hx-get="{% url 'resignation-request-update' instance.id %}"
+                hx-target="#genericModalBody"
+            >
+                <ion-icon name="create-outline"></ion-icon>
+                {% trans "Edit" %}
+            </button>
+        {% else %}
+            <button
+                type="button"
+                title="{% trans 'Edit' %}"
+                class="oh-btn oh-btn--light-bkg opacity-50 cursor-not-allowed flex-1 px-3 py-2 rounded-md flex items-center justify-center gap-2 transition duration-300"
+                    style="height:36px;min-width:max-content;font-size:13px;line-height:1;white-space:nowrap;"
+                disabled
+            >
+                <ion-icon name="create-outline"></ion-icon>
+                {% trans "Edit" %}
+            </button>
+        {% endif %}
+    {% endif %}
+
+    {% if perms.offboarding.delete_resignationletter %}
+        {% if instance.status != "approved" and instance.status != "cancellation_requested" %}
+            <button
+                type="button"
+                title="{% trans 'Delete' %}"
+                class="oh-btn oh-btn--danger flex-1 px-3 py-2 rounded-md flex items-center justify-center gap-2 transition duration-300"
+                    style="height:36px;min-width:max-content;font-size:13px;line-height:1;white-space:nowrap;"
+                hx-get="{% url 'delete-resignation-request' %}?letter_ids={{instance.id}}"
+                hx-target="#listContainer"
+                hx-swap="innerHTML"
+                hx-confirm="{% trans 'Do you want to delete this record' %}?"
+            >
+                <ion-icon name="trash-outline"></ion-icon>
+                {% trans "Delete" %}
+            </button>
+        {% else %}
+            <button
+                type="button"
+                title="{% trans 'Delete' %}"
+                class="oh-btn oh-btn--danger opacity-50 cursor-not-allowed flex-1 px-3 py-2 rounded-md flex items-center justify-center gap-2 transition duration-300"
+                    style="height:36px;min-width:max-content;font-size:13px;line-height:1;white-space:nowrap;"
+                disabled
+            >
+                <ion-icon name="trash-outline"></ion-icon>
+                {% trans "Delete" %}
+            </button>
+        {% endif %}
+    {% endif %}
+</div>

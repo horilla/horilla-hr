@@ -270,6 +270,36 @@ urlpatterns = [
     ),
     path("update-letter-status/", views.update_status, name="update-letter-status"),
     path(
+        "cancel-resignation-request/<int:id>/",
+        views.cancel_resignation_request,
+        name="cancel-resignation-request",
+    ),
+    path(
+        "resignation-cancellation-decision/<int:id>/<str:action>/",
+        views.decide_resignation_cancellation_request,
+        name="resignation-cancellation-decision",
+    ),
+    path(
+        "resignation-request-view-comment/<int:letter_id>/",
+        views.view_resignation_comment,
+        name="resignation-request-view-comment",
+    ),
+    path(
+        "resignation-request-add-comment/<int:letter_id>/",
+        views.create_resignation_comment,
+        name="resignation-request-add-comment",
+    ),
+    path(
+        "resignation-request-delete-comment/<int:comment_id>/",
+        views.delete_resignation_comment,
+        name="resignation-request-delete-comment",
+    ),
+    path(
+        "delete-resignation-comment-file/",
+        views.delete_resignation_comment_file,
+        name="delete-resignation-comment-file",
+    ),
+    path(
         "enable-resignation-request/",
         views.enable_resignation_request,
         name="enable-resignation-request",

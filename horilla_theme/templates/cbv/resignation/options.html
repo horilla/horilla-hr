@@ -14,7 +14,7 @@
         </button>
     {% endif %}
 
-    {% if instance.status == "approved" %}
+    {% if instance.status == "approved" or instance.status == "cancellation_requested" %}
         {% if perms.offboarding.change_resignationletter or request.user == instance.employee_id.employee_user_id %}
             <button
                 type="button"
@@ -35,17 +35,28 @@
         {% endif %}
     {% else %}
         {% if perms.offboarding.change_resignationletter or request.user == instance.employee_id.employee_user_id %}
-            <button
-                type="button"
-                hx-get="{% url 'resignation-request-update' instance.id %}"
-                title="{% trans 'Edit' %}"
-                class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
-                data-toggle="oh-modal-toggle"
-                hx-target="#genericModalBody"
-                data-target="#genericModal"
-            >
-                <ion-icon name="create-outline"></ion-icon>
-            </button>
+            {% if instance.status == "requested" %}
+                <button
+                    type="button"
+                    hx-get="{% url 'resignation-request-update' instance.id %}"
+                    title="{% trans 'Edit' %}"
+                    class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
+                    data-toggle="oh-modal-toggle"
+                    hx-target="#genericModalBody"
+                    data-target="#genericModal"
+                >
+                    <ion-icon name="create-outline"></ion-icon>
+                </button>
+            {% else %}
+                <button
+                    type="button"
+                    class="oh-btn oh-btn--light-bkg oh-btn--sq-sm oh-btn--disabled"
+                    title="{% trans 'This request can no longer be edited' %}"
+                    disabled
+                >
+                    <ion-icon name="create-outline"></ion-icon>
+                </button>
+            {% endif %}
         {% endif %}
         {% if perms.offboarding.delete_resignationletter %}
             <button
@@ -58,6 +69,31 @@
                 hx-confirm="{% trans 'Do you want to delete this record' %}?"
             >
                 <ion-icon name="trash-outline"></ion-icon>
+            </button>
+        {% endif %}
+    {% endif %}
+
+    {% if show_cancel and request.user == instance.employee_id.employee_user_id %}
+        {% if instance.status == "requested" or instance.status == "approved" %}
+            <button
+                type="button"
+                hx-get="{% url 'cancel-resignation-request' instance.id %}"
+                hx-target="#genericModalBody"
+                data-toggle="oh-modal-toggle"
+                data-target="#genericModal"
+                title="{% if instance.status == 'requested' %}{% trans 'Cancel Request' %}{% else %}{% trans 'Request Cancellation' %}{% endif %}"
+                class="oh-btn oh-btn--danger oh-btn--sq-sm"
+            >
+                <ion-icon name="close-circle-outline"></ion-icon>
+            </button>
+        {% else %}
+            <button
+                type="button"
+                class="oh-btn oh-btn--danger oh-btn--sq-sm oh-btn--disabled"
+                title="{% if instance.status == 'cancellation_requested' %}{% trans 'Cancellation already requested' %}{% else %}{% trans 'This request can no longer be cancelled' %}{% endif %}"
+                disabled
+            >
+                <ion-icon name="close-circle-outline"></ion-icon>
             </button>
         {% endif %}
     {% endif %}

@@ -129,6 +129,10 @@
                         <label class="oh-label">{% trans 'Scheduled From' %}</label>
                         {{ pipeline_candidate_filter.form.scheduled_from }}
                     </div>
+                    <div class="oh-input-group">
+                        <label class="oh-label">{% trans 'Scheduled Till' %}</label>
+                        {{ pipeline_candidate_filter.form.scheduled_till }}
+                    </div>
                 </div>
                 <div class="col-sm-12 col-md-12 col-lg-6">
                     <div class="oh-input-group">
@@ -146,10 +150,6 @@
                     <div class="oh-input-group">
                         <label class="oh-label">{% trans 'Probation End Till' %}</label>
                         {{ pipeline_candidate_filter.form.probation_end_till }}
-                    </div>
-                    <div class="oh-input-group">
-                        <label class="oh-label">{% trans 'Scheduled Till' %}</label>
-                        {{ pipeline_candidate_filter.form.scheduled_till }}
                     </div>
                 </div>
             </div>

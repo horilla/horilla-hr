@@ -109,13 +109,17 @@ class AssetInformationView(HorillaDetailedView):
     header = False
     action_method = "detail_view_action"
     body = [
-        "asset_name_display",
+        "asset_tracking_id",
         "asset_purchase_date",
         "asset_purchase_cost",
         (_("Status"), "asset_status_col"),
         "asset_lot_number_id",
         "asset_category_id",
+        "asset_description",
     ]
+    cols = {
+        "asset_description": 12,
+    }
 
     def get_context_data(self, **kwargs: Any):
         """
@@ -128,7 +132,7 @@ class AssetInformationView(HorillaDetailedView):
         context = super().get_context_data(**kwargs)
         if not self.instance:
             return context
-        context["title"] = context["asset"].asset_tracking_id
+        context["title"] = context["asset"].asset_name
 
         body = list(self.body)
         if self.instance.asset_status == "In use":

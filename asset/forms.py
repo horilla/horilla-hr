@@ -79,6 +79,10 @@ class AssetForm(ModelForm):
             "asset_lot_number_id": _("Batch Number"),
         }
 
+    cols = {
+        "asset_description": 12,
+    }
+
     def __init__(self, *args, **kwargs):
         request = getattr(_thread_locals, "request", None)
         instance = kwargs.get("instance")
@@ -110,6 +114,7 @@ class AssetForm(ModelForm):
                 batch_no_choices.append(("create", _("Create new batch number")))
 
             self.fields["asset_lot_number_id"].choices = batch_no_choices
+        self.fields["asset_description"] = self.fields.pop("asset_description")
 
     def clean(self):
         instance = self.instance
@@ -377,7 +382,6 @@ class AssetAllocationForm(ModelForm):
         self.fields["assign_images"] = MultipleFileField(
             label=_("Assign Condition Images")
         )
-        self.fields["assign_images"].required = True
 
         asset = None
         submitted_asset_id = self.data.get("asset_id") if self.data else None
@@ -401,11 +405,25 @@ class AssetAllocationForm(ModelForm):
             }
         )
 
+        if self.instance.pk:
+            self.fields["asset_id"].queryset = Asset.objects.filter(
+                pk=self.instance.asset_id_id
+            )
+            self.fields["asset_item_id"].queryset = AssetItem.objects.filter(
+                pk=self.instance.asset_item_id_id
+            )
+            for field_name in ("asset_id", "asset_item_id"):
+                self.fields[field_name].disabled = True
+            if not self.instance.asset_item_id_id:
+                self.fields["asset_item_id"].widget = forms.HiddenInput()
+            for attr in ("hx-target", "hx-include", "hx-trigger", "hx-swap", "hx-get"):
+                self.fields["asset_id"].widget.attrs.pop(attr, None)
+
     def clean(self):
         cleaned_data = super().clean()
         asset = cleaned_data.get("asset_id")
         asset_item = cleaned_data.get("asset_item_id")
-        if asset:
+        if asset and not self.instance.pk:
             if not asset_item:
                 available_items = asset.asset_items.filter(status="Available")
                 if available_items.count() == 1:
@@ -441,6 +459,8 @@ class AssetAllocationForm(ModelForm):
         exclude = [
             "return_date",
             "return_condition",
+            "return_status",
+            "return_request",
             "assigned_date",
             "return_images",
             "assign_images",

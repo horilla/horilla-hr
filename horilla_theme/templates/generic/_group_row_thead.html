@@ -1,5 +1,14 @@
 {% load static i18n generic_template_filters %}
-<thead class="sticky top-0 bg-[white] z-[1]">
+{% comment %}
+    bg-[white] and z-[1] are arbitrary-value Tailwind classes that aren't
+    present in the compiled tailwind.css snapshot (it's a periodic build,
+    not live), so they silently didn't render -- the header was correctly
+    `position: sticky; top: 0` but, with no opaque background and no
+    stacking above the body, scrolling rows showed straight through it,
+    looking exactly like a non-sticky header. Literal inline style instead
+    of trusting those classes.
+{% endcomment %}
+<thead class="sticky top-0" style="background: #fff; z-index: 1;">
     <tr class="border-b border-[#ececec]">
         {% if bulk_select_option %}
             <th class="text-sm font-medium text-left p-1.5 w-[30px]">

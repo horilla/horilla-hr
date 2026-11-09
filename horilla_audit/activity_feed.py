@@ -2,9 +2,12 @@
 Normalize simple-history / auditlog diffs into one activity-feed context.
 """
 
+import html
+import re
 from datetime import timedelta
 
 from django.utils import timezone
+from django.utils.html import strip_tags
 from django.utils.translation import gettext as _
 
 
@@ -69,6 +72,21 @@ def _actor_avatar(updated_by):
     return "https://ui-avatars.com/api/?name=Horilla+Bot&background=random"
 
 
+_HTML_TAG_RE = re.compile(r"<\s*/?\s*[a-zA-Z][^>]*>")
+
+
+def _plain_text(value):
+    """
+    Rich-text fields (summernote descriptions) are stored as HTML; the feed
+    prints values as plain text, so show the text instead of the markup.
+    """
+    if not isinstance(value, str) or not _HTML_TAG_RE.search(value):
+        return value
+    text = html.unescape(strip_tags(value))
+    text = re.sub(r"\s+", " ", text.replace("\xa0", " ")).strip()
+    return text or "—"
+
+
 def _normalize_tracking_change(change):
     """Ensure change dict has labels/display values used by the feed template."""
     normalized = dict(change)
@@ -85,6 +103,8 @@ def _normalize_tracking_change(change):
     if "new_value" not in normalized:
         new = normalized.get("new")
         normalized["new_value"] = "—" if new in (None, "") else str(new)
+    normalized["old_value"] = _plain_text(normalized["old_value"])
+    normalized["new_value"] = _plain_text(normalized["new_value"])
     return normalized
 
 
@@ -191,8 +211,8 @@ def normalize_log_entries(log_entries):
         for field, values in display.items():
             if not values or values[0] == "type":
                 continue
-            old_val = values[0] if len(values) > 0 else "—"
-            new_val = values[1] if len(values) > 1 else "—"
+            old_val = _plain_text(values[0]) if len(values) > 0 else "—"
+            new_val = _plain_text(values[1]) if len(values) > 1 else "—"
             changes.append(
                 {
                     "field": field,

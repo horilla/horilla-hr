@@ -107,6 +107,16 @@ def edit_reject(request, instance, user_perm):
                 return True
 
 
+def remove_reject(request, instance, user_perm):
+    """
+    Remove rejection accessibility -- shown only once the candidate actually
+    has a rejection record to remove.
+    """
+    first = RejectedCandidate.objects.filter(candidate_id=instance).first()
+    if first and request.user.has_perm("recruitment.delete_rejectedcandidate"):
+        return True
+
+
 def archive_status(request, instance, user_perm):
     """
     To acces archive in list candidates
@@ -236,6 +246,8 @@ def check_candidate_self_tracking(request, instance, user_perm):
     """
     This method is used to get the candidate self tracking is enabled or not
     """
+    if hasattr(instance, "self_tracking_enabled"):
+        return instance.self_tracking_enabled()
     selected_company = request.session.get("selected_company")
     if selected_company and selected_company != "all":
         setting = RecruitmentGeneralSetting.objects.filter(
@@ -246,3 +258,48 @@ def check_candidate_self_tracking(request, instance, user_perm):
             company_id__isnull=True
         ).first()
     return setting.candidate_self_tracking if setting else False
+
+
+def _manages_stage(request, stage):
+    """
+    True if the user is a stage manager or a manager of the stage's recruitment.
+    """
+    try:
+        employee = request.user.employee_get
+    except Exception:
+        return False
+    return (
+        stage.stage_managers.filter(id=employee.id).exists()
+        or stage.recruitment_id.recruitment_managers.filter(id=employee.id).exists()
+    )
+
+
+def add_candidate_to_stage_accessibility(
+    request, instance=None, user_perms=[], *args, **kwargs
+) -> bool:
+    """
+    Pipeline kanban stage "Add Candidate" accessibility
+    """
+    return request.user.has_perm("recruitment.add_candidate") or _manages_stage(
+        request, instance
+    )
+
+
+def edit_stage_accessibility(
+    request, instance=None, user_perms=[], *args, **kwargs
+) -> bool:
+    """
+    Pipeline kanban stage "Edit" / "Bulk Mail" accessibility
+    """
+    return request.user.has_perm("recruitment.change_stage") or _manages_stage(
+        request, instance
+    )
+
+
+def delete_stage_accessibility(
+    request, instance=None, user_perms=[], *args, **kwargs
+) -> bool:
+    """
+    Pipeline kanban stage "Delete" accessibility
+    """
+    return request.user.has_perm("recruitment.delete_stage")

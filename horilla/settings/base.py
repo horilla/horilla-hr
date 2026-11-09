@@ -352,6 +352,7 @@ TEMPLATES = [
                 "base.context_processors.intial_notice_period",
                 "base.context_processors.check_candidate_self_tracking",
                 "base.context_processors.check_candidate_self_tracking_rating",
+                "base.context_processors.get_default_probation_period",
                 "base.context_processors.get_initial_prefix",
                 "base.context_processors.biometric_app_exists",
                 "base.context_processors.enable_late_come_early_out_tracking",
@@ -394,6 +395,7 @@ LANGUAGES = (
     ("tr", "Turkish"),
     ("uk", "Українська"),
     ("ro", "Română"),
+    ("ru", "Русский"),
 )
 
 LOCALE_PATHS = [join(BASE_DIR, "horilla", "locale")]

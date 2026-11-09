@@ -1,0 +1,109 @@
+{% load i18n static %}
+{% comment %}
+The "Always Applied" tab: the standard pay items, earnings and deductions in one table, laid out
+as every Horilla list is (the theme's list table: sticky header, truncated cells, action column).
+They apply to everybody whenever the event happens (a loan granted, a fine raised), so they are
+not rows of the Allowances and Deductions lists. Clicking a row is how their tax treatment is still
+reached. It opens in the standard modal; saving it clicks #applyFilter, which here reloads this whole tab.
+{% endcomment %}
+<div class="oh-inner-sidebar-content border border-[#ebebeb] rounded-md mb-5" id="alwaysAppliedRoot">
+    <button type="button" id="applyFilter" hidden
+            hx-get="{% url 'payroll-settings-always-applied-tab' %}"
+            hx-target="#alwaysAppliedRoot" hx-swap="outerHTML"></button>
+
+    {% comment %}The same grey title bar as the other tabs' nav, search only: nine fixed rows, so it filters them in the page.{% endcomment %}
+    <div class="text-sm font-semibold bg-[#f3f3f3] px-3 py-3 text-[#333] flex items-center justify-between gap-2 flex-wrap">
+        <span>{% trans "Always Applied" %}</span>
+        <div class="flex flex-wrap items-center gap-1">
+            <div class="relative">
+                <input type="text" id="alwaysAppliedSearch" autocomplete="off"
+                       class="text-color-600 ps-8 p-1.5 pb-2 placeholder:text-xs w-full border border-primary-500 rounded-md focus-visible:outline-0 placeholder:text-dark-100 text-sm [transition:.3s] focus:border-primary-600"
+                       aria-label="{% trans 'Search Input' %}" placeholder="{% trans 'Search' %}">
+                <i class="fas fa-search absolute left-3 top-[1px] bottom-0 m-auto flex items-center opacity-50 text-xs"></i>
+            </div>
+        </div>
+    </div>
+
+    <p class="text-xs text-gray-500 mt-1 ml-2">
+        {% trans "Applied To Everyone Whenever It Happens, So They Are Not Added Or Removed. You Can Change How They Are Taxed." %}
+    </p>
+
+    <div class="oh-wrapper" id="alwaysAppliedContainer">
+        <div class="bg-white p-2 rounded-md shadow-card relative" data-always-applied="all">
+            <div class="max-h-[calc(100vh_-_260px)] overflow-hidden overflow-y-auto overflow-x-auto heightContainer">
+                <table class="fixed-table w-full border-separate" data-bulk-select-option="false">
+                    <colgroup>
+                        <col style="width:30%">
+                        <col style="width:150px">
+                        <col style="width:110px">
+                        <col>
+                    </colgroup>
+                    <thead class="sticky top-0 bg-[white] z-[1]">
+                        <tr class="border-b border-[#ececec]">
+                            {% for heading in headings %}
+                            <th class="text-sm font-medium text-left min-w-[85px]">
+                                <div class="flex w-full gap-1.5 px-1.5 py-1.5 items-center">
+                                    <div class="flex gap-1.5 items-center">
+                                        <span class="flex w-max">{{ heading }}</span>
+                                    </div>
+                                </div>
+                            </th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in rows %}
+                        <tr data-always-applied-kind="{{ row.kind }}"
+                            {% if row.kind == "allowance" and perms.payroll.change_allowance %}
+                            hx-get="{% url 'update-allowance' row.pk %}"
+                            {% elif row.kind == "deduction" and perms.payroll.change_deduction %}
+                            hx-get="{% url 'update-deduction' row.pk %}"
+                            {% endif %}
+                            {% if row.kind == "allowance" and perms.payroll.change_allowance or row.kind == "deduction" and perms.payroll.change_deduction %}
+                            hx-target="#objectCreateModalTarget" hx-swap="innerHTML"
+                            data-toggle="oh-modal-toggle" data-target="#objectCreateModal"
+                            class="cursor-pointer hover:bg-[#fafafa]"
+                            {% endif %}>
+                            <td class="text-sm text-left px-1 py-1 text-[#666] h-[30px] max-w-0">
+                                <div class="truncate" title="{{ row.title }}"><span>{{ row.title }}</span>{% if row.code %} <span class="text-xs text-[#9ca3af] font-mono ml-1">{{ row.code }}</span>{% endif %}</div>
+                            </td>
+                            <td class="text-sm text-left px-1 py-1 text-[#666] h-[30px] max-w-0">
+                                <div class="truncate" title="{{ row.type_label }}">{{ row.type_label }}</div>
+                            </td>
+                            <td class="text-sm text-left px-1 py-1 text-[#666] h-[30px] max-w-0">
+                                <div class="truncate" title="{{ row.treatment }}">{{ row.treatment }}</div>
+                            </td>
+                            <td class="text-sm text-left px-1 py-1 text-[#666] h-[30px] max-w-0">
+                                <div class="truncate" title="{{ row.summary }}">{{ row.summary|default:"—" }}</div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-sm text-left px-1 py-3 text-[#666]">{% trans "Nothing Is Applied Always Yet." %}</td>
+                        </tr>
+                        {% endfor %}
+                        <tr data-always-applied-none hidden>
+                            <td colspan="4" class="text-sm text-left px-1 py-3 text-[#666]">{% trans "No Matches." %}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <script>
+        (function () {
+            var input = document.getElementById("alwaysAppliedSearch");
+            if (!input) return;
+            var root = document.getElementById("alwaysAppliedRoot");
+            input.addEventListener("input", function () {
+                var needle = input.value.trim().toLowerCase(), shown = 0;
+                root.querySelectorAll("tr[data-always-applied-kind]").forEach(function (row) {
+                    var match = !needle || row.textContent.toLowerCase().indexOf(needle) !== -1;
+                    row.hidden = !match;
+                    if (match) shown++;
+                });
+                root.querySelector("[data-always-applied-none]").hidden = shown !== 0;
+            });
+        })();
+    </script>
+</div>

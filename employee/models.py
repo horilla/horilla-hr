@@ -886,7 +886,8 @@ class EmployeeTag(HorillaModel):
         to return color into correct format
         """
         return (
-            '<span style="height: 25px; width: 25px; '
+            '<span style="height: 25px; width:'
+            " 25px; "
             'background-color: {}; border-radius: 50%; display: inline-block;"></span>'
         ).format(self.color)
 

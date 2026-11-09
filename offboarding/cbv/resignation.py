@@ -70,12 +70,34 @@ class ResignationListView(HorillaListView):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.search_url = reverse("list-resignation-request")
-        if self.request.user.has_perm("offboarding.change_resignationletter"):
-            self.action_method = "actions_column"
+        # approve/reject and mail/edit/delete share one "Actions" column
+        # (like the compensatory leave list); the permission checks for each
+        # button live in the templates.
+        self.action_method = "list_actions_column"
 
-    option_method = "option_column"
+    option_method = None
 
     row_status_indications = [
+        (
+            "cancelled--dot",
+            _("Cancelled"),
+            """
+            onclick="
+            $('#applyFilter').closest('form').find('[name=status]').val('cancelled');
+            $('#applyFilter').click();
+            "
+            """,
+        ),
+        (
+            "cancellation-requested--dot",
+            _("Cancellation Requested"),
+            """
+            onclick="
+            $('#applyFilter').closest('form').find('[name=status]').val('cancellation_requested');
+            $('#applyFilter').click();
+            "
+            """,
+        ),
         (
             "rejected--dot",
             _("Rejected"),
@@ -119,9 +141,12 @@ class ResignationListView(HorillaListView):
     columns = [
         (_("Employee"), "employee_id", "employee_id__get_avatar"),
         (_("Title"), "title"),
-        (_("Planned To Leave"), "planned_to_leave_on"),
+        (_("Requested Date"), "requested_date_col"),
+        (_("Notice Period Start"), "notice_period_start_col"),
+        (_("Notice Period End"), "notice_period_end_col"),
         (_("Status"), "get_status"),
         (_("Description"), "description_col"),
+        (_("Comment"), "comment_column"),
     ]
 
     header_attrs = {
@@ -132,7 +157,8 @@ class ResignationListView(HorillaListView):
 
     sortby_mapping = [
         (_("Employee"), "employee_id", "employee_id__get_avatar"),
-        (_("Planned To Leave"), "planned_to_leave_on"),
+        (_("Requested Date"), "created_at"),
+        (_("Notice Period Start"), "planned_to_leave_on"),
         (_("Status"), "get_status"),
     ]
 
@@ -141,7 +167,7 @@ class ResignationListView(HorillaListView):
     # EmployeesList/EmployeeNav for the same split).
     nested_group_by_fields = [
         ("employee_id", _("Employee")),
-        ("planned_to_leave_on", _("Planned to leave date")),
+        ("planned_to_leave_on", _("Notice period start")),
         ("status", _("Status")),
         ("employee_id__employee_work_info__department_id", _("Department")),
         ("employee_id__employee_work_info__job_position_id", _("Job Position")),
@@ -210,7 +236,7 @@ class ResinationLettersNav(HorillaNavView):
 
     group_by_fields = [
         ("employee_id", _("Employee")),
-        ("planned_to_leave_on", _("Planned to leave date")),
+        ("planned_to_leave_on", _("Notice period start")),
         ("status", _("Status")),
         ("employee_id__employee_work_info__department_id", _("Department")),
         ("employee_id__employee_work_info__job_position_id", _("Job Position")),
@@ -310,17 +336,29 @@ class ResignationLetterDetailView(HorillaDetailedView):
         title = context["resignationletter"].title
         context["title"] = title
         context["letter"] = letter
+        body = list(self.body)
+        if letter.status == "rejected" and letter.reject_reason:
+            body.append((_("Reason for Rejection"), "reject_reason_col", True))
+            self.cols["reject_reason_col"] = 12
+        if letter.status in ("cancellation_requested", "cancelled") and (
+            letter.cancel_reason
+        ):
+            body.append((_("Cancellation Reason"), "cancel_reason_col", True))
+            self.cols["cancel_reason_col"] = 12
+        context["body"] = body
         return context
 
     body = [
-        (_("Planned To Leave"), "planned_to_leave_on"),
-        (_("Status"), "get_status_badge"),
+        (_("Requested Date"), "requested_date_col"),
+        (_("Notice Period Start"), "notice_period_start_col"),
+        (_("Notice Period End"), "notice_period_end_col"),
+        (_("Status"), "get_status"),
         (_("Description"), "detail_description_col"),
     ]
 
     cols = {"detail_description_col": 12}
 
-    action_method = "actions_column"
+    action_method = "detail_actions_column"
 
     model = ResignationLetter
     # title = _("Details")

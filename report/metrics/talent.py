@@ -43,7 +43,7 @@ def recruitment_funnel(filters: ReportFilters) -> dict:
     period_cands = _candidates_in_period(filters)
     total = period_cands.count()
     hired = (
-        period_cands.filter(Q(hired=True) | Q(stage_id__stage_type="hired"))
+        period_cands.filter(Q(hired=True) | Q(stage_id__stage_type="shortlisted"))
         .distinct()
         .count()
     )
@@ -167,7 +167,7 @@ def time_to_hire(filters: ReportFilters) -> dict:
     for rec in recruitments:
         hired = (
             period_candidates.filter(recruitment_id=rec)
-            .filter(Q(hired=True) | Q(stage_id__stage_type="hired"))
+            .filter(Q(hired=True) | Q(stage_id__stage_type="shortlisted"))
             .distinct()
         )
         if not hired.exists():
@@ -640,7 +640,7 @@ def quality_of_hire(filters: ReportFilters) -> dict:
 
     period_candidates = _candidates_in_period(filters)
     hired = (
-        period_candidates.filter(Q(hired=True) | Q(stage_id__stage_type="hired"))
+        period_candidates.filter(Q(hired=True) | Q(stage_id__stage_type="shortlisted"))
         .filter(joining_date__gte=filters.from_date, joining_date__lte=filters.to_date)
         .distinct()
     )

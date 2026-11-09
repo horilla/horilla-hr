@@ -1,6 +1,6 @@
 {% load static i18n generic_template_filters %}
 <div class="relative"{% if show_toggle_form %} x-data="{ open: false }"{% endif %}>
-<div class="max-h-[400px] overflow-hidden overflow-y-auto overflow-x-auto{% if use_shared_colgroup %} ngb-hscroll{% endif %}">
+<div class="overflow-hidden overflow-y-auto overflow-x-auto{% if use_shared_colgroup %} ngb-hscroll{% endif %}" style="max-height: 400px;">
     <table class="fixed-table w-full border-separate{% if use_shared_colgroup %} table-fixed{% endif %}" data-bulk-select-option = "{{bulk_select_option|yesno:'true,false'}}">
         {% if use_shared_colgroup %}{% include "generic/_group_row_colgroup.html" %}{% endif %}
         {% if show_header != False %}{% include "generic/_group_row_thead.html" %}{% endif %}
@@ -39,7 +39,7 @@
                             <td class="text-sm text-left px-1 py-1 text-[#666] h-[30px] max-w-0">
                                 {% if not cell.2 %}
                                     {% with cell_value=instance|getattribute:attribute|selected_format:request.user.employee_get.employee_work_info.company_id %}
-                                        <div class="truncate" title="{{ cell_value|striptags }}">
+                                        <div class="truncate" title="{{ cell_value|cell_tooltip }}">
                                             {{ cell_value|safe }}
                                         </div>
                                     {% endwith %}
@@ -61,7 +61,7 @@
                                                     ></span>
                                                 {% endif %}
                                             </div>
-                                            <span class="truncate flex-1 min-w-0" title="{{ cell_value|striptags }}">{{ cell_value|safe }}</span>
+                                            <span class="truncate flex-1 min-w-0" title="{{ cell_value|cell_tooltip }}">{{ cell_value|safe }}</span>
                                         </div>
                                     {% endwith %}
                                 {% endif %}

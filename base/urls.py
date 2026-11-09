@@ -194,6 +194,11 @@ urlpatterns = [
         "my-dashboard/api/birthdays/", ess_dashboard.ess_birthdays, name="ess-birthdays"
     ),
     path(
+        "my-dashboard/api/interviews/",
+        ess_dashboard.ess_interviews,
+        name="ess-interviews",
+    ),
+    path(
         "employee/work-type-request-view/",
         work_type_request.WorkRequestView.as_view(),
         name="work-type-request-view",

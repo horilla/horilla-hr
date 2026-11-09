@@ -114,6 +114,29 @@ class QuestionDuplicateFormView(HorillaFormView):
 
 @method_decorator(login_required, name="dispatch")
 @method_decorator(
+    permission_required("recruitment.add_recruitmentsurvey"), name="dispatch"
+)
+class SurveyTemplateQuestionCreateFormView(HorillaFormView):
+    """
+    Nested "Create question" form opened from the Questions field on the
+    Survey Template.
+    """
+
+    model = RecruitmentSurvey
+    form_class = QuestionForm
+    new_display_title = _("Survey Questions")
+    is_dynamic_create_view = True
+
+    def form_valid(self, form: QuestionForm) -> HttpResponse:
+        if form.is_valid():
+            form.save()
+            messages.success(self.request, _("New survey question created."))
+            return self.HttpResponse()
+        return super().form_valid(form)
+
+
+@method_decorator(login_required, name="dispatch")
+@method_decorator(
     permission_required("recruitment.add_surveytemplate"), name="dispatch"
 )
 class SurveyTemplateFormView(HorillaFormView):
@@ -123,16 +146,11 @@ class SurveyTemplateFormView(HorillaFormView):
 
     form_class = TemplateForm
     model = SurveyTemplate
+    dynamic_create_fields = [("questions", SurveyTemplateQuestionCreateFormView)]
 
-    def get_form(self, form_class=None):
+    def get_queryset(self):
         title = self.request.GET.get("title")
-        instance = SurveyTemplate.objects.filter(title=title).first()
-
-        if not self.request.POST:
-            self.form = self.form_class(instance=instance)
-        else:
-            self.form = self.form_class(self.request.POST, instance=instance)
-        return self.form
+        return SurveyTemplate.objects.filter(title=title).first()
 
     def form_invalid(self, form: Any) -> HttpResponse:
         if not form.is_valid():

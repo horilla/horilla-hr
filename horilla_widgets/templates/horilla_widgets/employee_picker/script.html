@@ -5,7 +5,10 @@
     // re-rendered (e.g. after a validation error) this script can run while the
     // previous copy of the form, with the same field id, is still in the page,
     // and select2 would be set up on that stale select instead of the new one.
-    var select = root.querySelector("#{{ self.attrs.id }}");
+    // An attribute selector, not "#id": several forms give the field a uuid id,
+    // which can start with a digit -- an invalid "#id" selector that threw here
+    // and left the whole picker (Filter, selection) dead.
+    var select = root.querySelector('[id="{{ self.attrs.id }}"]');
     var modal = document.getElementById("filterChoose{{ section_id }}");
     var $select = $(select);
     var idsUrl = root.dataset.idsUrl;

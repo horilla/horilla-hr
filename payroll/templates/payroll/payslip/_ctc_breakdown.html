@@ -83,8 +83,15 @@ Each group is an accordion strip, like the tax working above it; the total and i
       <span>{{ c.total|floatformat:2|currency_symbol_position }}</span>
     </div>
     <p class="cbk__note"><b>{% trans "CTC = Gross Pay + Employer Contributions" %}</b><br>{{ c.inside_total|floatformat:2 }} + {{ c.employer_total|floatformat:2 }} = {{ c.total|floatformat:2 }}{% if c.outside %}<br>{% trans "Gross Pay Here Leaves Out The Earnings Paid Outside The CTC." %}{% endif %}</p>
+    {% if c.lop_note %}
+      <p class="cbk__note"><b>{% trans "Why This Is Below The Monthly CTC" %}</b><br>{{ c.lop_note }}</p>
+    {% endif %}
     {% if c.difference > 0.05 or c.difference < -0.05 %}
-      <div class="cbk__warn">{% blocktrans with gap=c.difference|floatformat:2 %}This Is {{ gap }} Away From The Package: The Payslip Was Changed By Hand, Or A Component Could Not Fill The Balance.{% endblocktrans %}</div>
+      <div class="cbk__warn">
+        <b>{% blocktrans with gap=c.difference|floatformat:2 %}{{ gap }} Off The Package{% endblocktrans %}</b><br>
+        {{ c.package|floatformat:2 }} − {{ c.total|floatformat:2 }} = {{ c.difference|floatformat:2 }}<br>
+        {{ c.difference_reason }}
+      </div>
     {% endif %}
   </div>
 

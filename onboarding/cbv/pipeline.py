@@ -18,7 +18,6 @@ from django.views import View
 from django.views.generic import TemplateView
 
 from base.methods import eval_validate
-from horilla.horilla_middlewares import _thread_locals
 from horilla.http.response import HorillaRedirect
 from horilla_views.cbv_methods import (
     hx_request_required,
@@ -28,6 +27,7 @@ from horilla_views.cbv_methods import (
 from horilla_views.generic.cbv.kanban import HorillaKanbanView
 from horilla_views.generic.cbv.pipeline import Pipeline
 from horilla_views.generic.cbv.views import (
+    HorillaDetailedView,
     HorillaFormView,
     HorillaListView,
     HorillaNavView,
@@ -40,7 +40,6 @@ from onboarding import models as onboarding_models
 from onboarding.cbv_decorators import all_manager_can_enter, stage_manager_can_enter
 from onboarding.templatetags.onboardingfilters import stage_manages
 from recruitment import models as recruitment_models
-from recruitment.cbv.candidates import CandidateDetail
 from recruitment.methods import recruitment_manages
 
 
@@ -146,7 +145,7 @@ class PipelineNav(HorillaNavView):
 
 def recruitment_pipeline_actions_onboarding(request, rec):
     """
-    Recruitment-level actions (Add Stage/Manage Stage Order/Edit/Delete)
+    Recruitment-level actions (Add Stage/Manage Stage Order)
     for the given recruitment's onboarding pipeline - shared between
     RecruitmentTabView (which used to put these in the tab bar's kebab)
     and RecruitmentPipelineContentShell (which renders them inline in the
@@ -176,32 +175,6 @@ def recruitment_pipeline_actions_onboarding(request, rec):
                     data-target="#genericModal"
                     hx-get="{reverse("onboarding-stage-sequence-update", kwargs={"pk": rec.pk})}"
                     hx-target="#genericModalBody"
-                    style="cursor: pointer;"
-                """,
-            }
-        )
-    if request.user.has_perm("recruitment.change_recruitment"):
-        actions.append(
-            {
-                "action": _("Edit"),
-                "attrs": f"""
-                    data-toggle="oh-modal-toggle"
-                    data-target="#genericModal"
-                    hx-get="{reverse("recruitment-update-pipeline", kwargs={"pk": rec.pk})}"
-                    hx-target="#genericModalBody"
-                    style="cursor: pointer;"
-                """,
-            }
-        )
-    if request.user.has_perm("recruitment.delete_recruitment"):
-        actions.append(
-            {
-                "action": _("Delete"),
-                "attrs": f"""
-                    data-toggle="oh-modal-toggle"
-                    data-target="#deleteConfirmation"
-                    hx-get="{reverse('generic-delete')}?model=recruitment.Recruitment&pk={rec.pk}&reload_target=%23applyFilter"
-                    hx-target="#deleteConfirmationBody"
                     style="cursor: pointer;"
                 """,
             }
@@ -307,43 +280,6 @@ class RecruitmentPipelineContentShell(TemplateView):
         return context
 
 
-def edit_stage_path(self):
-    """
-    Edit stage path
-    """
-    return reverse(
-        "stage-update", kwargs={"pk": self.pk, "obj_id": self.recruitment_id.pk}
-    )
-
-
-def generic_delete_path(self):
-    """
-    Generic delete
-    """
-    return f"{reverse('generic-delete')}?model=onboarding.OnboardingStage&pk={self.pk}"
-
-
-def bulk_send_mail_path(self):
-    """
-    bulk_send_mail
-    """
-    return f"{reverse_lazy('send-mail')}?onboarding_stage_id={self.pk}"
-
-
-def allocation_path(self):
-    """
-    allocate path
-    """
-    return f'{reverse("allocation-view",kwargs={"pk":self.candidate_id.pk})}?model=recruitment.models.Candidate'
-
-
-onboarding_models.CandidateStage.allocation_path = allocation_path
-
-onboarding_models.OnboardingStage.edit_stage_path = edit_stage_path
-onboarding_models.OnboardingStage.generic_delete_path = generic_delete_path
-onboarding_models.OnboardingStage.bulk_send_mail_path = bulk_send_mail_path
-
-
 @method_decorator(login_required, name="dispatch")
 @method_decorator(hx_request_required, name="dispatch")
 @method_decorator(
@@ -427,62 +363,18 @@ class CandidatePipeline(Pipeline):
         return self.queryset
 
 
-def stage_drop_down(self):
+@method_decorator(login_required, name="dispatch")
+@method_decorator(
+    all_manager_can_enter(perm="recruitment.view_recruitment"), name="dispatch"
+)
+class CandidateOnboardingDetail(HorillaDetailedView):
     """
-    Stage drop down
-    """
-    request = getattr(_thread_locals, "request", None)
-    all_onboarding_stages = getattr(request, "all_onboarding_stages", {})
-    if all_onboarding_stages.get(self.onboarding_stage_id.recruitment_id.pk) is None:
-        stages = onboarding_models.OnboardingStage.objects.filter(
-            recruitment_id=self.onboarding_stage_id.recruitment_id
-        )
-        all_onboarding_stages[self.onboarding_stage_id.recruitment_id.pk] = stages
-        request.all_onboarding_stages = all_onboarding_stages
-    return render_template(
-        path="cbv/pipeline/onboarding/stage_drop_down.html",
-        context={
-            "instance": self,
-            "stages": request.all_onboarding_stages[
-                self.onboarding_stage_id.recruitment_id.pk
-            ],
-        },
-    )
-
-
-onboarding_models.CandidateStage.stage_drop_down = stage_drop_down
-
-
-def get_detail_url_pipeline(self):
-    """
-    Get detail url pipeline
-    """
-    return reverse("onboarding-cand-detail-view", kwargs={"pk": self.candidate_id.pk})
-
-
-onboarding_models.CandidateStage.get_detail_url_pipeline = get_detail_url_pipeline
-
-
-def task_fetch(self):
-    """
-    task fetch
-    """
-    return f"""
-        <div id="selectedInstanceIds" data-ids="[]"></div>
-        <div
-            hx-get="{reverse('get-cand-task',kwargs={"pk":self.pk})}?field=stage_id"
-            hx-trigger="load"
-        ></div>
+    Candidate detail view of the onboarding pipeline
     """
 
-
-recruitment_models.Candidate.task_fetch = task_fetch
-
-
-class CandidateOnboardingDetail(CandidateDetail):
-    """
-    Extended candidate detail view
-    """
+    title = _("Candidate Details")
+    model = onboarding_models.OnboardingCandidate
+    header = {"title": "get_full_name", "subtitle": "get_email", "avatar": "get_avatar"}
 
     body = [
         (_("Gender"), "gender"),
@@ -495,14 +387,57 @@ class CandidateOnboardingDetail(CandidateDetail):
     ]
 
     cols = {"task_fetch": 12}
+    action_method = ""
+
+    actions = [
+        {
+            "action": _("Allocations"),
+            "icon": "clipboard-outline",
+            "attrs": """
+                    class="oh-btn oh-btn--light-bkg"
+                    hx-get = "{onboarding_stage__allocation_path}"
+                    data-toggle="oh-modal-toggle"
+                    data-target="#allocationModal"
+                    hx-target="#allocationModalBody"
+                """,
+        },
+        {
+            "action": _("Send Mail"),
+            "icon": "mail-open-outline",
+            "attrs": """
+                    class="oh-btn oh-btn--light-bkg"
+                    hx-get = "{get_send_mail}"
+                    data-toggle="oh-modal-toggle"
+                    data-target="#objectDetailsModal"
+                    hx-target="#objectDetailsModalTarget"
+                """,
+        },
+        {
+            "action": _("View Note"),
+            "icon": "newspaper-outline",
+            "attrs": """
+                    class="oh-btn oh-btn--light-bkg oh-activity-sidebar__open"
+                    hx-get="{get_view_note_url}"
+                    data-target="#activitySidebar"
+                    hx-target="#activitySidebar"
+                    onclick="$('#activitySidebar').addClass('oh-activity-sidebar--show')"
+                """,
+        },
+    ]
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.ordered_ids_key = (
+            f"ordered_ids_{recruitment_models.Candidate.__name__.lower()}"
+        )
 
     def get(self, request, *args, **kwargs):
         instance = self.get_object()
         if instance and instance.onboarding_stage:
-            self.ordered_ids_key = f"ordered_ids_{self.model.__name__.lower()}{instance.onboarding_stage.onboarding_stage_id.pk}"
+            self.ordered_ids_key = (
+                f"ordered_ids_{recruitment_models.Candidate.__name__.lower()}"
+                f"{instance.onboarding_stage.onboarding_stage_id.pk}"
+            )
         response = super().get(request, *args, **kwargs)
         return response
 
@@ -597,7 +532,7 @@ class CandidateList(HorillaListView):
         #             hx-get="{candidate_id__get_document_request}"
         #             data-target="#genericModal"
         #             hx-target="#genericModalBody"
-        #             class="oh-btn oh-btn--danger-outline oh-btn--light-bkg w-100"
+        #             class="oh-btn oh-btn--danger-outline oh-btn--light-bkg"
         #             data-toggle="oh-modal-toggle"
         #         """,
         # },

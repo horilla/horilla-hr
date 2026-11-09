@@ -1864,7 +1864,9 @@
                 <div class="md-period-picker">
                     <button class="md-period-preset" data-preset="today">{% trans "Today" %}</button>
                     <button class="md-period-preset" data-preset="this_week">{% trans "This Week" %}</button>
+                    <button class="md-period-preset" data-preset="last_week">{% trans "Last Week" %}</button>
                     <button class="md-period-preset" data-preset="this_month">{% trans "This Month" %}</button>
+                    <button class="md-period-preset" data-preset="last_month">{% trans "Last Month" %}</button>
                     <button class="md-period-preset" data-preset="this_year">{% trans "This Year" %}</button>
                     <input type="date" id="md-from-date" title="{% trans 'Custom range start' %}">
                     <span class="md-period-picker__sep">→</span>
@@ -2445,9 +2447,14 @@
                     to = today;
                 } else if (preset === 'this_week') {
                     [from, to] = getWeekBounds(today);
+                } else if (preset === 'last_week') {
+                    [from, to] = getWeekBounds(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7));
                 } else if (preset === 'this_month') {
                     from = new Date(today.getFullYear(), today.getMonth(), 1);
                     to = new Date(today.getFullYear(), today.getMonth()+1, 0);
+                } else if (preset === 'last_month') {
+                    from = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                    to = new Date(today.getFullYear(), today.getMonth(), 0);
                 } else if (preset === 'this_year') {
                     from = new Date(today.getFullYear(), 0, 1);
                     to = new Date(today.getFullYear(), 11, 31);
@@ -2468,12 +2475,18 @@
             function detectPreset() {
                 const today = new Date();
                 const [weekFrom, weekTo] = getWeekBounds(today);
+                const [lastWeekFrom, lastWeekTo] = getWeekBounds(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7));
                 const ranges = {
                     today: [ymdLocal(today), ymdLocal(today)],
                     this_week: [ymdLocal(weekFrom), ymdLocal(weekTo)],
+                    last_week: [ymdLocal(lastWeekFrom), ymdLocal(lastWeekTo)],
                     this_month: [
                         ymdLocal(new Date(today.getFullYear(), today.getMonth(), 1)),
                         ymdLocal(new Date(today.getFullYear(), today.getMonth() + 1, 0)),
+                    ],
+                    last_month: [
+                        ymdLocal(new Date(today.getFullYear(), today.getMonth() - 1, 1)),
+                        ymdLocal(new Date(today.getFullYear(), today.getMonth(), 0)),
                     ],
                     this_year: [
                         ymdLocal(new Date(today.getFullYear(), 0, 1)),
@@ -2490,7 +2503,9 @@
             const PRESET_LABELS = {
                 today: '{% trans "Today"|escapejs %}',
                 this_week: '{% trans "This Week"|escapejs %}',
+                last_week: '{% trans "Last Week"|escapejs %}',
                 this_month: '{% trans "This Month"|escapejs %}',
+                last_month: '{% trans "Last Month"|escapejs %}',
                 this_year: '{% trans "This Year"|escapejs %}',
             };
             function shortDate(d) {
@@ -2501,7 +2516,7 @@
                 const from = new Date(fromInput.value + 'T00:00:00');
                 const to = new Date(toInput.value + 'T00:00:00');
                 let detail;
-                if (preset === 'this_month') {
+                if (preset === 'this_month' || preset === 'last_month') {
                     detail = from.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
                 } else if (preset === 'this_year') {
                     detail = String(from.getFullYear());

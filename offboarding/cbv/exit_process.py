@@ -1023,6 +1023,7 @@ class OffboardingEmployeeList(HorillaListView):
     header_attrs = {
         "action": """ style="width:180px !important;" """,
         "add_task_action": """ style="width:110px !important;" """,
+        "get_stage_col": """ style="width:160px !important;" """,
     }
 
     row_attrs = """
@@ -1096,37 +1097,39 @@ class OffboardingEmployeeList(HorillaListView):
         header_attrs = dict(context.get("header_attrs") or {})
         for task in tasks:
             col_key = f"get_{task.pk}_task"
-            col_width = max(150, len(task.title) * 7 + 130)
-            header_attrs[col_key] = f'style="width:{col_width}px !important;"'
+            col_width = 100
+            header_attrs[col_key] = f'style="min-width:{col_width}px !important;"'
             context["columns"].append(
                 (
                     f"""
-                        <div class="group w-full flex items-center justify-between transition duration-300">
-                          <span class="px-2 py-1 text-xs">
+                        <div class="ob-task-head flex items-center">
+                          <span class="px-2 py-1 text-xs truncate" style="max-width:120px;" title="{task.title}">
                             {task.title}
                           </span>
-                          <div class="flex items-center transition duration-300 gap-1 p-1 rounded z-10 bg-white"
-                               onclick="event.stopPropagation()">
-                            <button
-                              hx-get="{reverse("offboarding-update-task",kwargs={"pk":task.pk})}"
-                              hx-target="#genericModalBody"
-                              data-toggle="oh-modal-toggle"
-                              data-target="#genericModal"
-                              class="oh-hover-btn__small"
-                              title="{_('Edit')}"
-                            >
-                              <ion-icon name="create-outline"></ion-icon>
-                            </button>
-                            <a
-                              hx-get="{reverse("generic-delete")}?model=offboarding.OffboardingTask&pk={task.id}"
-                              hx-target="#deleteConfirmationBody"
-                              data-target="#deleteConfirmation"
-                              data-toggle="oh-modal-toggle"
-                              class="oh-hover-btn__small"
-                              title="{_('Delete')}"
-                            >
-                              <ion-icon name="trash-outline"></ion-icon>
-                            </a>
+                          <div class="ob-task-head__slot">
+                            <div class="ob-task-head__actions"
+                                 onclick="event.stopPropagation()">
+                              <button
+                                hx-get="{reverse("offboarding-update-task",kwargs={"pk":task.pk})}"
+                                hx-target="#genericModalBody"
+                                data-toggle="oh-modal-toggle"
+                                data-target="#genericModal"
+                                class="oh-hover-btn__small"
+                                title="{_('Edit')}"
+                              >
+                                <ion-icon name="create-outline"></ion-icon>
+                              </button>
+                              <a
+                                hx-get="{reverse("generic-delete")}?model=offboarding.OffboardingTask&pk={task.id}"
+                                hx-target="#deleteConfirmationBody"
+                                data-target="#deleteConfirmation"
+                                data-toggle="oh-modal-toggle"
+                                class="oh-hover-btn__small"
+                                title="{_('Delete')}"
+                              >
+                                <ion-icon name="trash-outline"></ion-icon>
+                              </a>
+                            </div>
                           </div>
                         </div>
                     """,

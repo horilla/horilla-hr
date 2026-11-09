@@ -55,7 +55,8 @@
 
         /* Period picker — mirrors onboarding/recruitment style */
         .ess-period-picker {
-            display: none !important; /* TEMP: hide period picker */
+            display: flex;
+            flex-wrap: wrap;
             align-items: center;
             gap: 6px;
             font-size: 12px;
@@ -914,15 +915,24 @@
                         {% trans "Admin Dashboard" %}
                     </a>
                 {% endif %}
-                <div class="ess-period-picker" hidden>
+                <div class="ess-period-picker">
+                    <button class="ess-period-preset" data-preset="today">
+                        {% trans "Today" %}
+                    </button>
+                    <button class="ess-period-preset" data-preset="this_week">
+                        {% trans "This Week" %}
+                    </button>
+                    <button class="ess-period-preset" data-preset="last_week">
+                        {% trans "Last Week" %}
+                    </button>
                     <button class="ess-period-preset" data-preset="this_month">
                         {% trans "This Month" %}
                     </button>
                     <button class="ess-period-preset" data-preset="last_month">
                         {% trans "Last Month" %}
                     </button>
-                    <button class="ess-period-preset" data-preset="this_quarter">
-                        {% trans "Quarter" %}
+                    <button class="ess-period-preset" data-preset="this_year">
+                        {% trans "This Year" %}
                     </button>
                     <input
                         type="date"
@@ -985,6 +995,20 @@
                     <div id="essAnnouncementsList" class="ess-info-panel__body">
                         <div class="ess-empty-sm">{% trans "Loading..." %}</div>
                     </div>
+                </div>
+
+                <!-- Interviews assigned to this employee (hidden when none) -->
+                <div class="ess-info-panel" id="essInterviewsPanel" style="display:none;">
+                    <div class="ess-info-panel__header">
+                        <div class="ess-info-panel__heading">
+                            <div class="ess-info-panel__title">
+                                {% trans "My Interviews" %}
+                                <span id="essInterviewsCount" class="ess-count-badge" hidden title="{% trans 'Assigned interviews' %}">0</span>
+                            </div>
+                            <div class="ess-info-panel__sub">{% trans "Assigned to you" %}</div>
+                        </div>
+                    </div>
+                    <div id="essInterviewsList" class="ess-info-panel__body"></div>
                 </div>
 
                 <!-- Birthdays: today and the rest of this month, all employees -->
@@ -1097,26 +1121,33 @@
                 loadUpcoming();
             }
 
-            function setPreset(p) {
-                var t = new Date(); var f, to;
-                if (p === 'this_month') {
-                f  = new Date(t.getFullYear(), t.getMonth(), 1);
-                to = new Date(t.getFullYear(), t.getMonth() + 1, 0);
-                } else if (p === 'last_month') {
-                f  = new Date(t.getFullYear(), t.getMonth() - 1, 1);
-                to = new Date(t.getFullYear(), t.getMonth(), 0);
-                } else if (p === 'this_quarter') {
-                var qStart = Math.floor(t.getMonth() / 3) * 3;
-                f  = new Date(t.getFullYear(), qStart, 1);
-                to = new Date(t.getFullYear(), qStart + 3, 0);
-                } else {
-                return;
-                }
-                fromInput.value = ymd(f); toInput.value = ymd(to);
-                savePeriod();
+            function weekBounds(d) {
+                var from = new Date(d.getFullYear(), d.getMonth(), d.getDate() - (d.getDay() + 6) % 7); // Monday
+                return [from, new Date(from.getFullYear(), from.getMonth(), from.getDate() + 6)];
+            }
+            function presetRange(p) {
+                var t = new Date();
+                if (p === 'today') return [t, t];
+                if (p === 'this_week') return weekBounds(t);
+                if (p === 'last_week') return weekBounds(new Date(t.getFullYear(), t.getMonth(), t.getDate() - 7));
+                if (p === 'this_month') return [firstOfMonth(t), lastOfMonth(t)];
+                if (p === 'last_month') return [new Date(t.getFullYear(), t.getMonth() - 1, 1), new Date(t.getFullYear(), t.getMonth(), 0)];
+                if (p === 'this_year') return [new Date(t.getFullYear(), 0, 1), new Date(t.getFullYear(), 11, 31)];
+                return null;
+            }
+            function syncPresetActive() {
                 document.querySelectorAll('.ess-period-preset').forEach(function (b) {
-                b.classList.toggle('ess-period-preset--active', b.dataset.preset === p);
+                var r = presetRange(b.dataset.preset);
+                b.classList.toggle('ess-period-preset--active', !!r && fromInput.value === ymd(r[0]) && toInput.value === ymd(r[1]));
                 });
+            }
+
+            function setPreset(p) {
+                var r = presetRange(p);
+                if (!r) return;
+                fromInput.value = ymd(r[0]); toInput.value = ymd(r[1]);
+                savePeriod();
+                syncPresetActive();
                 reloadAll();
             }
 
@@ -1129,14 +1160,13 @@
                     toInput.value = fromInput.value;
                 }
                 savePeriod();
-                document.querySelectorAll('.ess-period-preset').forEach(function (b) {
-                    b.classList.remove('ess-period-preset--active');
-                });
+                syncPresetActive();
                 reloadAll();
                 });
             });
 
             initPeriod();
+            syncPresetActive();
             syncMonthLabels();
 
             // ── KPI Cards ────────────────────────────────────────────────────────────────
@@ -1151,7 +1181,7 @@
                     var iconPay     = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>';
                     document.getElementById('essKpiGrid').innerHTML =
                     {% if request|is_check_in_enabled %}
-                    kpiCard('green',  iconPresent, '{% trans "Present This Month"|escapejs %}',
+                    kpiCard('green',  iconPresent, '{% trans "Present"|escapejs %}',
                             d.present_this_month,
                             '<span class="ess-badge ess-badge--blue">' + d.late_this_month + ' ' + '{% trans "late"|escapejs %}' + '</span>',
                             '{% url "view-my-attendance" %}?attendance_date__gte=' + fromInput.value +
@@ -1291,6 +1321,26 @@
                 .catch(function () {});
             }
 
+            // ── Interviews ────────────────────────────────────────────────────────────────
+            function loadInterviews() {
+                fetch('{% url "ess-interviews" %}')
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    var list = d.interviews || [];
+                    if (!list.length) return;
+                    document.getElementById('essInterviewsPanel').style.display = '';
+                    setCountBadge('essInterviewsCount', list.length);
+                    document.getElementById('essInterviewsList').innerHTML = list.map(function (i) {
+                    return '<div class="ess-bday-row' + (i.is_today ? ' ess-bday-row--today' : '') + '">' +
+                        '<span class="ess-bday-row__name">' + esc(i.candidate) + '</span>' +
+                        '<span class="ess-bday-row__date">' +
+                        (i.is_today ? '{% trans "Today"|escapejs %}' : esc(i.date)) + ', ' + esc(i.time) + '</span>' +
+                        '</div>';
+                    }).join('');
+                })
+                .catch(function () {});
+            }
+
             // ── Upcoming holidays ──────────────────────────────────────────────────────────────────
             function loadUpcoming() {
                 fetchP('/my-dashboard/api/upcoming/')
@@ -1333,6 +1383,7 @@
             loadMonthlySummary();
             loadAnnouncements();
             loadBirthdays();
+            loadInterviews();
             loadUpcoming();
 
         }());

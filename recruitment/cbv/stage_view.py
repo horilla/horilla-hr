@@ -92,10 +92,10 @@ class StageList(HorillaListView):
     row_status_indications = [
         (
             "hired--dot",
-            _("Hired"),
+            _("Shortlisted"),
             """
             onclick="
-                $('#applyFilter').closest('form').find('[name=stage_type]').val('hired');
+                $('#applyFilter').closest('form').find('[name=stage_type]').val('shortlisted');
                 $('#applyFilter').click();
             "
             """,

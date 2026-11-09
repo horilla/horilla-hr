@@ -94,7 +94,7 @@ def recruitment_kpi_data(request):
     total_candidates = candidates.count()
 
     hired_candidates = candidates.filter(
-        Q(hired=True) | Q(stage_id__stage_type="hired")
+        Q(hired=True) | Q(stage_id__stage_type="shortlisted")
     ).distinct()
     total_hired = hired_candidates.count()
 
@@ -222,7 +222,7 @@ def recruitment_source_quality(request):
         if total == 0:
             continue
         hired = (
-            rec_cands.filter(Q(hired=True) | Q(stage_id__stage_type="hired"))
+            rec_cands.filter(Q(hired=True) | Q(stage_id__stage_type="shortlisted"))
             .distinct()
             .count()
         )
@@ -254,7 +254,7 @@ def recruitment_vacancy_vs_hired(request):
     for rec in Recruitment.objects.filter(closed=False):
         rec_cands = Candidate.objects.filter(recruitment_id=rec, is_active=True)
         hired = (
-            rec_cands.filter(Q(hired=True) | Q(stage_id__stage_type="hired"))
+            rec_cands.filter(Q(hired=True) | Q(stage_id__stage_type="shortlisted"))
             .distinct()
             .count()
         )
@@ -306,7 +306,7 @@ def recruitment_time_to_hire(request):
     for rec in recruitments:
         hired = (
             period_candidates.filter(recruitment_id=rec)
-            .filter(Q(hired=True) | Q(stage_id__stage_type="hired"))
+            .filter(Q(hired=True) | Q(stage_id__stage_type="shortlisted"))
             .distinct()
         )
         if not hired.exists():
@@ -514,7 +514,8 @@ def recruitment_open_by_department(request):
             vacancy = rec.vacancy or 0
             filled = (
                 rec.candidate.filter(
-                    Q(hired=True) | Q(stage_id__stage_type="hired"), is_active=True
+                    Q(hired=True) | Q(stage_id__stage_type="shortlisted"),
+                    is_active=True,
                 )
                 .distinct()
                 .count()
@@ -638,7 +639,7 @@ def recruitment_source_conversion(request):
         total=Count("id", distinct=True),
         hired=Count(
             "id",
-            filter=Q(hired=True) | Q(stage_id__stage_type="hired"),
+            filter=Q(hired=True) | Q(stage_id__stage_type="shortlisted"),
             distinct=True,
         ),
     ):
@@ -698,7 +699,7 @@ def recruitment_joinings_monthly(request):
             cursor = date(cursor.year, cursor.month + 1, 1)
 
     qs = Candidate.objects.filter(
-        Q(hired=True) | Q(stage_id__stage_type="hired"),
+        Q(hired=True) | Q(stage_id__stage_type="shortlisted"),
         is_active=True,
         joining_date__gte=from_date,
         joining_date__lte=to_date,

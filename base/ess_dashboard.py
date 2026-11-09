@@ -825,3 +825,40 @@ def ess_upcoming(request):
     return JsonResponse(
         {"holidays": holiday_list, "birthday": birthday, "anniversary": anniversary}
     )
+
+
+@login_required
+def ess_interviews(request):
+    """GET /my-dashboard/api/interviews/ — pending interviews (today onwards) where the
+    logged-in employee is an interviewer."""
+    from recruitment.models import InterviewSchedule
+
+    employee = _get_employee(request)
+    if not employee:
+        return JsonResponse({"error": "no employee"}, status=403)
+
+    results = []
+    try:
+        qs = (
+            InterviewSchedule.objects.filter(
+                employee_id=employee,
+                completed=False,
+                interview_date__gte=date.today(),
+            )
+            .select_related("candidate_id")
+            .distinct()
+            .order_by("interview_date", "interview_time")[:10]
+        )
+        for iv in qs:
+            results.append(
+                {
+                    "id": iv.pk,
+                    "candidate": str(iv.candidate_id),
+                    "date": iv.interview_date.strftime("%b %d"),
+                    "time": iv.interview_time.strftime("%I:%M %p"),
+                    "is_today": iv.interview_date == date.today(),
+                }
+            )
+    except Exception:
+        pass
+    return JsonResponse({"interviews": results})

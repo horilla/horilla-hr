@@ -4318,6 +4318,11 @@ $(document).on("htmx:afterSettle", function (e) {
         document.addEventListener(
             "click",
             function (e) {
+                // Only real user clicks count as "outside" clicks. Script-made
+                // clicks (e.g. reloadMessage() clicking #reloadMessagesButton to
+                // show a toast after adding/deleting a comment) are outside the
+                // sidebar by definition and used to slam it shut.
+                if (e.isTrusted === false) return;
                 let $openSidebars = $(".oh-activity-sidebar--show");
                 if (!$openSidebars.length) return;
                 let insideAllowed = $(e.target).closest(

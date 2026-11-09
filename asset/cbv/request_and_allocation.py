@@ -32,6 +32,7 @@ from asset.forms import (
 from asset.models import (
     Asset,
     AssetAssignment,
+    AssetItem,
     AssetRequest,
     AssetServiceRequest,
     ReturnImages,
@@ -188,7 +189,8 @@ class AssetAllocationList(AllocationList):
             "assigned_to_employee_id",
             "assigned_to_employee_id__get_avatar",
         ),
-        (_("Asset"), "asset_id"),
+        (_("Asset"), "asset_id__asset_name"),
+        (_("Asset Item"), "asset_item_id__tracking_id"),
         (_("Assigned Date"), "assigned_date"),
         (_("Return Date"), "return_status_col"),
         (_("Return Status"), "return_status"),
@@ -197,6 +199,7 @@ class AssetAllocationList(AllocationList):
     sortby_mapping = [
         (_("Allocated User"), "assigned_to_employee_id__get_full_name"),
         (_("Asset"), "asset_id__asset_name"),
+        (_("Asset Item"), "asset_item_id__tracking_id"),
         (_("Assigned Date"), "assigned_date"),
         (_("Return Date"), "return_status_col"),
         (_("Return Status"), "return_status"),
@@ -412,7 +415,12 @@ class AssetAllocationDelete(DeleteView):
 
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
+        asset_item = self.object.asset_item_id
+        was_active = not self.object.return_date
         self.object.delete()
+        if was_active and asset_item:
+            asset_item.status = "Available"
+            asset_item.save()
         messages.success(request, _("Allocation deleted successfully"))
 
         return HorillaFormView.HttpResponse()
@@ -830,7 +838,8 @@ class AssetAllocationDetailView(HorillaDetailedView):
             (_("Allocated User"), "assigned_by_employee_id"),
             (_("Allocated Date"), "assigned_date"),
             (_("Return Date"), "return_date"),
-            (_("Asset"), "asset_id"),
+            (_("Asset"), "asset_id__asset_name"),
+            (_("Asset Item"), "asset_item_id__tracking_id"),
             (_("Status"), "detail_status"),
             (_("Return Description"), "return_condition"),
         ]
@@ -1065,7 +1074,6 @@ class AssetAllocationFormView(HorillaFormView):
 
     model = AssetAssignment
     form_class = AssetAllocationForm
-    template_name = "cbv/request_and_allocation/forms/allo_form.html"
     new_display_title = _("Asset Allocation")
 
     def dispatch(self, request, *args, **kwargs):
@@ -1088,8 +1096,14 @@ class AssetAllocationFormView(HorillaFormView):
         """
         if form.is_valid():
             message = _("Asset allocated Successfully")
+            previous_item_id = form.initial.get("asset_item_id")
             instance = form.save()
             asset = instance.asset_id
+            if previous_item_id and previous_item_id != instance.asset_item_id_id:
+                previous_item = AssetItem.objects.filter(pk=previous_item_id).first()
+                if previous_item:
+                    previous_item.status = "Available"
+                    previous_item.save()
             if instance.asset_item_id_id:
                 asset_item = instance.asset_item_id
                 asset_item.status = "In use"

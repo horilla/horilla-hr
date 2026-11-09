@@ -109,13 +109,10 @@ class AllowanceListView(HorillaListView):
 
     columns = [
         (_("Allowance"), "title"),
+        (_("Code"), "code"),
         (_("Taxable"), "get_is_taxable_display"),
-        (_("Condition Based"), "get_is_condition_based"),
-        (_("Condition"), "condition_based_display"),
-        (_("Fixed"), "get_is_fixed"),
-        (_("Amount"), "amount"),
-        (_("Based On"), "get_based_on_display"),
-        (_("Rate"), "rate"),
+        (_("Calculation"), "get_calculation_col"),
+        (_("Applied To"), "get_applied_to_col"),
     ]
 
     sortby_mapping = [
@@ -200,7 +197,10 @@ class AllowanceListView(HorillaListView):
         """
 
         queryset = super().get_queryset()
-        queryset = queryset.exclude(only_show_under_employee=True)
+        # Generated lines belong to one employee and the standard pay items are always applied: neither is a component to configure, so neither is listed.
+        queryset = queryset.exclude(only_show_under_employee=True).exclude(
+            is_system=True
+        )
 
         return queryset
 
@@ -307,7 +307,10 @@ class AllowancesCardView(HorillaCardView):
         """
 
         queryset = super().get_queryset()
-        queryset = queryset.exclude(only_show_under_employee=True)
+        # Generated lines belong to one employee and the standard pay items are always applied: neither is a component to configure, so neither is listed.
+        queryset = queryset.exclude(only_show_under_employee=True).exclude(
+            is_system=True
+        )
 
         return queryset
 

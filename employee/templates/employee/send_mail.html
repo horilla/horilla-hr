@@ -60,7 +60,7 @@
         <div class="form-group mt-2">
             <label for="body"><h6>{% trans "Message Body" %}</h6></label>
             <div class="oh-input__group">
-                <div class="oh-tabs__view-buttons mt-2 d-flex gap-1">
+                <div class="oh-tabs__view-buttons mt-2 mb-2 d-flex gap-1">
                     <button type="button" class="oh-btn oh-btn--secondary oh-btn--small px-3 tab-btn" data-tab="write" id="writeTabBtn">
                         <ion-icon name="create-outline" class="me-1"></ion-icon>
                         {% trans "Write" %}
@@ -152,7 +152,7 @@
     // ---------- FORM SUBMIT ----------
     function handleFormSubmit(event, empId) {
         event.preventDefault();
-        const hasEmployee = "{{employee|default:'false'|safe}}" !== "false";
+        const hasEmployee = {% if employee %}true{% else %}false{% endif %};
         if (!validateForm(empId, hasEmployee)) return false;
 
         Swal.fire({

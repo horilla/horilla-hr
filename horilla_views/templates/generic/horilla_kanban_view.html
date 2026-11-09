@@ -108,8 +108,10 @@
 
                     <div class="flex items-center gap-4 oh-kanban__button-contaner">
                         {% if view.group_actions %}
-                            <div class="inline-block dropdown-wrapper ml-3" role="button" title="{% trans 'Actions' %}" >
-                                <button class="cursor-pointer dropdown-toggle w-[10px]">
+                            {# No title= on this wrapper: it also contains the dropdown menu, so #}
+                            {# the "Actions" tooltip popped up over the menu items on hover.    #}
+                            <div class="inline-block dropdown-wrapper ml-3" role="button" >
+                                <button class="cursor-pointer dropdown-toggle w-[10px]" type="button" aria-label="{% trans 'Actions' %}">
                                     <i
                                         class="fa-solid fa-ellipsis-vertical text-black"
                                     ></i>
@@ -222,9 +224,34 @@
     badge.attr("title", title);
     {% endif %}
 
-	var toggleFold = (el) => {
-		el.closest(".kanban-block").toggleClass("folded");
+	// Column fold state is remembered per browser (model + page) so a reload
+	// keeps collapsed columns collapsed. Only columns the user toggled are stored,
+	// so server-side `folded_groups` still applies to the rest.
+	var kanbanFoldKey = (root) => {
+		var model = $(root).closest("[data-model]").attr("data-model") || "{{ model_name }}";
+		return "kanbanFolded:" + model + ":" + window.location.pathname;
 	};
+	var kanbanFoldRead = (key) => {
+		try { return JSON.parse(localStorage.getItem(key)) || {}; } catch (_) { return {}; }
+	};
+	var toggleFold = (el) => {
+		var block = el.closest(".kanban-block");
+		block.toggleClass("folded");
+		var key = kanbanFoldKey(block);
+		var state = kanbanFoldRead(key);
+		state[block.attr("data-group-id")] = block.hasClass("folded");
+		try { localStorage.setItem(key, JSON.stringify(state)); } catch (_) {}
+	};
+	(function restoreKanbanFold() {
+		var root = $("#{{ view_id|safe }}");
+		var state = kanbanFoldRead(kanbanFoldKey(root));
+		root.find(".kanban-block").each(function () {
+			var id = $(this).attr("data-group-id");
+			if (Object.prototype.hasOwnProperty.call(state, id)) {
+				$(this).toggleClass("folded", !!state[id]);
+			}
+		});
+	})();
 
     {% if not view.show_kanban_confirmation %}
         sessionStorage.setItem(

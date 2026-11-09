@@ -277,6 +277,16 @@ class AssetCategoryListView(HorillaListView):
         ("asset_status", _("Status")),
         ("asset_lot_number_id", _("Batch Number")),
     ]
+    # No UI control on this page ever sets a plain "field=" param (only
+    # the nested "Grouped by" breadcrumb, which uses "nested_fields="), but
+    # a stray/cached "field=" value (an old bookmark, a stale saved filter)
+    # would otherwise fall back to group_by_table.html's per-group
+    # accordions -- each with its own short, independently-scrolling
+    # header -- instead of nested_group_by_table.html's one shared sticky
+    # header spanning every group, same as every other list in the app
+    # (e.g. Employee's). Pinning this explicitly guarantees that behavior
+    # regardless of what's in the request.
+    group_by_template_name = "generic/nested_group_by_table.html"
     header_attrs = {
         "asset_name": "style='width:200px !important;'",
         "action": "style='width:130px !important;'",
@@ -378,6 +388,10 @@ class AssetCategoryNav(HorillaNavView):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.search_url = reverse("asset-category-list")
+        self.search_in = [
+            ("asset_name", _("Name")),
+            ("asset_category_id", _("Category")),
+        ]
         # Opened with a filter already in the address (the dashboard's KPI cards and charts
         # link here that way): show just the filtered assets. The default grouping is for
         # opening the page on its own.

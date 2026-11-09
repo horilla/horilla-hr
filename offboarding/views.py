@@ -1,3 +1,4 @@
+import contextlib
 import json
 import logging
 from datetime import datetime, timedelta
@@ -14,6 +15,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import gettext_noop
+from django.views.decorators.http import require_http_methods
 
 from base.context_processors import intial_notice_period
 from base.methods import closest_numbers, eval_validate, paginator_qry, sortby
@@ -52,9 +54,16 @@ from offboarding.forms import (
     OffboardingEmployeeForm,
     OffboardingForm,
     OffboardingStageForm,
+    ResignationCancelForm,
     ResignationLetterForm,
     StageSelectForm,
     TaskForm,
+)
+from offboarding.methods import (
+    cancel_resignation,
+    decide_resignation_cancellation,
+    has_offboarding_record,
+    request_resignation_cancellation,
 )
 from offboarding.models import (
     EmployeeTask,
@@ -65,6 +74,8 @@ from offboarding.models import (
     OffboardingStage,
     OffboardingStageMultipleFile,
     OffboardingTask,
+    ResignationComment,
+    ResignationFile,
     ResignationLetter,
 )
 
@@ -1218,6 +1229,13 @@ def update_status(request):
         if not notice_period_starts:
             notice_period_starts = today
 
+    reject_reason = (request.GET.get("reject_reason") or "").strip()
+    if status == "rejected" and not reject_reason:
+        messages.error(request, _("Please provide a reason for rejecting the request"))
+        if request.headers.get("HX-Request"):
+            return resignation_list_swap_response(request)
+        return redirect(reverse("resignation-request-view"))
+
     letters = ResignationLetter.objects.filter(id__in=ids)
     # if use update method instead of save then save method will not trigger
     if status in ["approved", "rejected"]:
@@ -1231,7 +1249,21 @@ def update_status(request):
                     % {"name": letter.employee_id.get_full_name()},
                 )
                 continue
+            if letter.status in ("cancelled", "cancellation_requested"):
+                messages.error(
+                    request,
+                    _(
+                        "%(name)s's resignation letter is %(status)s and cannot be approved or rejected here."
+                    )
+                    % {
+                        "name": letter.employee_id.get_full_name(),
+                        "status": letter.get_status_display(),
+                    },
+                )
+                continue
             letter.status = status
+            if status == "rejected":
+                letter.reject_reason = reject_reason
             letter.save()
             if status == "approved":
                 letter.to_offboarding_employee(
@@ -1255,6 +1287,150 @@ def update_status(request):
     if request.headers.get("HX-Request"):
         return resignation_list_swap_response(request)
     return redirect(reverse("resignation-request-view"))
+
+
+def _resignation_manager_recipient(letter):
+    """User to notify about a cancellation request: the reporting manager."""
+    manager = letter.employee_id.get_reporting_manager()
+    return manager.employee_user_id if manager else None
+
+
+def _resignation_cancel_denied(request, letter):
+    """Message refusing this user a cancel/request-cancel action, or None."""
+    if letter is None:
+        return _("Resignation request not found.")
+    if letter.employee_id.employee_user_id_id != request.user.id:
+        return _("You can only cancel your own resignation request.")
+    if letter.status == "cancellation_requested":
+        return _("A cancellation request is already pending for this resignation.")
+    if letter.status not in ("requested", "approved"):
+        return _("You can't cancel a %(status)s resignation request.") % {
+            "status": letter.get_status_display()
+        }
+    return None
+
+
+@login_required
+@hx_request_required
+@check_feature_enabled("resignation_request")
+@require_http_methods(["GET", "POST"])
+def cancel_resignation_request(request, id):
+    """
+    Employee-initiated cancellation of their own resignation.
+
+    "Requested": cancelled right away. "Approved": moves to "Cancellation
+    Requested" and waits for a manager. GET renders the reason modal,
+    POST (with a required reason) performs the action.
+    """
+    letter = ResignationLetter.objects.filter(id=id).first()
+    denied = _resignation_cancel_denied(request, letter)
+    if denied:
+        messages.error(request, denied)
+        return HorillaRedirect(request)
+    direct = letter.status == "requested"
+    form = ResignationCancelForm(request.POST or None)
+    if request.method == "GET" or not form.is_valid():
+        return render(
+            request,
+            "offboarding/resignation/cancel_form.html",
+            {
+                "form": form,
+                "letter": letter,
+                "title": _("Cancel Request") if direct else _("Request Cancellation"),
+            },
+        )
+    reason = form.cleaned_data["cancel_reason"].strip()
+    if direct:
+        letter, error = cancel_resignation(id, reason)
+    else:
+        letter, error = request_resignation_cancellation(id, reason)
+    if error:
+        messages.error(request, error)
+        return HorillaRedirect(request)
+    if direct:
+        messages.success(request, _("Resignation request cancelled"))
+    else:
+        messages.success(request, _("Resignation cancellation requested"))
+        recipient = _resignation_manager_recipient(letter)
+        if recipient:
+            with contextlib.suppress(Exception):
+                notify.send(
+                    request.user.employee_get,
+                    recipient=recipient,
+                    verb=gettext_noop(
+                        "%(employee)s has requested to cancel an approved resignation."
+                    ),
+                    verb_params={"employee": str(letter.employee_id)},
+                    icon="information",
+                    redirect=reverse("resignation-request-view")
+                    + "?status=cancellation_requested",
+                )
+    return HorillaRedirect(request)
+
+
+@login_required
+@hx_request_required
+@check_feature_enabled("resignation_request")
+@permission_required("offboarding.change_resignationletter")
+@require_http_methods(["POST"])
+def decide_resignation_cancellation_request(request, id, action):
+    """
+    Manager approves or rejects a pending cancellation request (POST only,
+    after the SweetAlert confirmation).
+    """
+    if action not in ("approve", "reject"):
+        return HttpResponse(status=404)
+    approve = action == "approve"
+    letter = ResignationLetter.objects.filter(id=id).first()
+    if letter is None:
+        messages.error(request, _("Resignation request not found."))
+        return HorillaRedirect(request)
+    if (
+        not request.user.is_superuser
+        and letter.employee_id.employee_user_id_id == request.user.id
+    ):
+        messages.error(
+            request,
+            _("You cannot decide on the cancellation of your own resignation."),
+        )
+        return HorillaRedirect(request)
+    if letter.status != "cancellation_requested":
+        messages.error(
+            request, _("This resignation request has no pending cancellation request.")
+        )
+        return HorillaRedirect(request)
+    letter, error = decide_resignation_cancellation(id, approve)
+    if error:
+        messages.error(request, error)
+        return HorillaRedirect(request)
+    if approve:
+        messages.success(request, _("Resignation cancellation approved"))
+        if has_offboarding_record(letter):
+            messages.warning(
+                request,
+                _(
+                    "%(name)s is already in the offboarding pipeline; that record "
+                    "was left untouched and can be removed from the pipeline if needed."
+                )
+                % {"name": letter.employee_id.get_full_name()},
+            )
+    else:
+        messages.success(request, _("Resignation cancellation rejected"))
+    with contextlib.suppress(Exception):
+        notify.send(
+            request.user.employee_get,
+            recipient=letter.employee_id.employee_user_id,
+            verb=(
+                gettext_noop("Your resignation cancellation request has been approved.")
+                if approve
+                else gettext_noop(
+                    "Your resignation cancellation request has been rejected."
+                )
+            ),
+            icon="information",
+            redirect="#",
+        )
+    return HorillaRedirect(request)
 
 
 @login_required
@@ -1299,6 +1475,10 @@ def enable_resignation_request(request):
                             hx-select="#offboardingGenericNav"
                             hx-target="#offboardingGenericNav">
                             </span>
+                            <script>
+                                // "Resignation Letters" in the sidebar depends on this setting
+                                if (window.refreshSidebarMenus) window.refreshSidebarMenus();
+                            </script>
                             """
         )
     return redirect(general_settings)
@@ -1541,3 +1721,167 @@ def department_job_postion_chart(request):
         )
 
     return JsonResponse({"labels": labels, "datasets": datasets})
+
+
+def _can_access_resignation_comments(request, letter):
+    """
+    Who may read/write comments on a resignation letter: the employee who
+    filed it, their reporting manager, or HR with change permission.
+    """
+    if request.user.has_perm("offboarding.change_resignationletter"):
+        return True
+    try:
+        employee = request.user.employee_get
+    except Exception:
+        return False
+    if letter.employee_id_id == employee.id:
+        return True
+    work_info = getattr(letter.employee_id, "employee_work_info", None)
+    return bool(work_info and work_info.reporting_manager_id_id == employee.id)
+
+
+@login_required
+@hx_request_required
+def view_resignation_comment(request, letter_id):
+    """
+    Show the comments of a resignation letter in the activity sidebar
+    (also receives attachments added to an existing comment).
+    """
+    letter = ResignationLetter.objects.filter(id=letter_id).first()
+    if not letter or not _can_access_resignation_comments(request, letter):
+        return HttpResponse()
+    if request.FILES:
+        comment = ResignationComment.objects.filter(
+            id=request.GET.get("comment_id"), request_id=letter
+        ).first()
+        if comment:
+            comment.files.add(
+                *[
+                    ResignationFile.objects.create(file=file)
+                    for file in request.FILES.getlist("files")
+                ]
+            )
+    comments = ResignationComment.objects.filter(request_id=letter).order_by(
+        "-created_at"
+    )
+    return render(
+        request,
+        "offboarding/resignation_comment.html",
+        {"comments": comments, "request_id": letter_id, "req": letter},
+    )
+
+
+@login_required
+@hx_request_required
+def create_resignation_comment(request, letter_id):
+    """
+    Add a comment to a resignation letter and notify the other party
+    """
+    from offboarding.forms import ResignationCommentForm
+
+    letter = ResignationLetter.objects.filter(id=letter_id).first()
+    if not letter or not _can_access_resignation_comments(request, letter):
+        return HttpResponse()
+    emp = request.user.employee_get
+    form = ResignationCommentForm()
+    if request.method == "POST":
+        form = ResignationCommentForm(request.POST)
+        if form.is_valid():
+            form.instance.employee_id = emp
+            form.instance.request_id = letter
+            form.save()
+            messages.success(request, _("Comment added successfully!"))
+
+            owner = letter.employee_id
+            work_info = getattr(owner, "employee_work_info", None)
+            manager = work_info.reporting_manager_id if work_info else None
+            recipients = []
+            if emp.id == owner.id:
+                if manager:
+                    recipients = [manager.employee_user_id]
+            elif manager and emp.id == manager.id:
+                recipients = [owner.employee_user_id]
+            else:
+                recipients = [owner.employee_user_id]
+                if manager:
+                    recipients.append(manager.employee_user_id)
+            for rec in recipients:
+                if rec is None:
+                    continue
+                if rec == owner.employee_user_id and emp.id != owner.id:
+                    verb = gettext_noop(
+                        "Your resignation letter has received a comment."
+                    )
+                    verb_params = {}
+                else:
+                    verb = gettext_noop(
+                        "%(employee)s's resignation letter has received a comment."
+                    )
+                    verb_params = {"employee": str(owner)}
+                notify.send(
+                    emp,
+                    recipient=rec,
+                    verb=verb,
+                    verb_params=verb_params,
+                    redirect=reverse("resignation-request-view"),
+                    icon="chatbox-ellipses",
+                )
+            comments = ResignationComment.objects.filter(request_id=letter).order_by(
+                "-created_at"
+            )
+            return render(
+                request,
+                "offboarding/resignation_comment.html",
+                {"comments": comments, "request_id": letter_id, "req": letter},
+            )
+    return render(
+        request,
+        "offboarding/resignation_comment.html",
+        {"form": form, "request_id": letter_id, "req": letter},
+    )
+
+
+@login_required
+@hx_request_required
+def delete_resignation_comment(request, comment_id):
+    """
+    Delete a resignation letter comment (its author, or HR with change permission).
+    Re-renders the comments sidebar in place so it stays open (a redirect would
+    reload the page and close it).
+    """
+    comment = ResignationComment.objects.filter(id=comment_id).first()
+    if not comment:
+        return HttpResponse()
+    letter = comment.request_id
+    if not _can_access_resignation_comments(request, letter):
+        return HttpResponse()
+    if comment.employee_id != request.user.employee_get and not request.user.has_perm(
+        "offboarding.change_resignationletter"
+    ):
+        messages.error(request, _("You don't have permission to delete this comment."))
+    else:
+        comment.delete()
+        messages.success(request, _("Comment deleted successfully!"))
+    comments = ResignationComment.objects.filter(request_id=letter).order_by(
+        "-created_at"
+    )
+    return render(
+        request,
+        "offboarding/resignation_comment.html",
+        {"comments": comments, "request_id": letter.id, "req": letter},
+    )
+
+
+@login_required
+def delete_resignation_comment_file(request):
+    """
+    Delete an attachment of a resignation letter comment. Returns an empty 200 so
+    the caller can drop just that attachment (hx-swap="delete") and the comments
+    sidebar stays open.
+    """
+    ids = request.GET.getlist("ids")
+    files = ResignationFile.objects.filter(id__in=ids)
+    if not request.user.has_perm("offboarding.change_resignationletter"):
+        files = files.filter(resignationcomment__employee_id=request.user.employee_get)
+    files.delete()
+    return HttpResponse()

@@ -359,21 +359,23 @@ class EmployeeCreationForm(ModelForm):
     employee_first_name = forms.CharField(required=True, label=_("First Name"))
     employee_last_name = forms.CharField(required=False, label=_("Last Name"))
     phone = forms.CharField(required=True, label=_("Phone"))
-    address = forms.CharField(required=True, label=_("Address"))
-    country = forms.CharField(required=True, label=_("Country"))
-    state = forms.CharField(required=True, label=_("State"))
-    zip = forms.CharField(required=True, label=_("Zip"))
-    qualification = forms.CharField(required=True, label=_("Qualification"))
-    experience = forms.IntegerField(required=True, label=_("Experience"))
-    children = forms.IntegerField(required=True, label=_("Children"))
+    address = forms.CharField(
+        required=False, label=_("Address"), widget=forms.Textarea(attrs={"rows": 3})
+    )
+    country = forms.CharField(required=False, label=_("Country"))
+    state = forms.CharField(required=False, label=_("State"))
+    zip = forms.CharField(required=False, label=_("Zip"))
+    qualification = forms.CharField(required=False, label=_("Qualification"))
+    experience = forms.IntegerField(required=False, label=_("Experience"))
+    children = forms.IntegerField(required=False, label=_("Children"))
     emergency_contact = forms.CharField(
-        required=True, label=_("Emergency Contact Number")
+        required=False, label=_("Emergency Contact Number")
     )
     emergency_contact_name = forms.CharField(
-        required=True, label=_("Emergency Contact Name")
+        required=False, label=_("Emergency Contact Name")
     )
     emergency_contact_relation = forms.CharField(
-        required=True, label=_("Emergency Contact Relation")
+        required=False, label=_("Emergency Contact Relation")
     )
 
     class Meta:
@@ -418,10 +420,12 @@ class BankDetailsCreationForm(ModelForm):
     bank_name = forms.CharField(required=True, label="Bank Name")
     account_number = forms.CharField(required=True, label="Account Number")
     branch = forms.CharField(required=True, label="Branch")
-    address = forms.Textarea()
-    country = forms.CharField(required=True, label="Country")
-    state = forms.CharField(required=True, label="State")
-    city = forms.CharField(required=True, label="City")
+    address = forms.CharField(
+        required=True, label="Address", widget=forms.Textarea(attrs={"rows": 3})
+    )
+    country = forms.CharField(required=False, label="Country")
+    state = forms.CharField(required=False, label="State")
+    city = forms.CharField(required=False, label="City")
     any_other_code1 = forms.CharField(required=True, label="Code #1")
     any_other_code2 = forms.CharField(required=False, label="Code #2")
 

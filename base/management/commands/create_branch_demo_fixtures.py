@@ -611,7 +611,7 @@ RECRUITMENT_PLANS_BY_COMPANY = {
 RECRUITMENT_EXTRA_STAGES = [
     ("Technical Test", "test", 2),
     ("Interview", "interview", 3),
-    ("Hired", "hired", 4),
+    ("Shortlisted", "shortlisted", 4),
     ("Rejected Candidates", "cancelled", 50),
 ]
 # Candidates per stage for each recruitment, so the dashboard's Recruitment
@@ -634,7 +634,7 @@ RECRUITMENT_STAGE_ORDER = [
     "initial",
     "test",
     "interview",
-    "hired",
+    "shortlisted",
     "cancelled",
 ]
 
@@ -2089,7 +2089,9 @@ class ExtrasMixin:
 
         for t, (title, fmt, description) in enumerate(CANDIDATE_DOCUMENT_REQUESTS):
             interviewing = [
-                c for c in candidates if c.stage_id.stage_type in ("interview", "hired")
+                c
+                for c in candidates
+                if c.stage_id.stage_type in ("interview", "shortlisted")
             ][:10]
             request = CandidateDocumentRequest.objects.create(
                 title=title,
@@ -4523,7 +4525,7 @@ class Command(ExtrasMixin, BaseCommand):
                 referral_source = RECRUITMENT_REFERRAL_SOURCES[
                     (i * 3 + r) % len(RECRUITMENT_REFERRAL_SOURCES)
                 ]
-                if stage_type == "hired":
+                if stage_type == "shortlisted":
                     offer_status = ["accepted", "joined", "accepted"][hired_total % 3]
                 elif stage_type == "interview":
                     offer_status = "sent" if i % 2 else "not_sent"
@@ -4566,7 +4568,7 @@ class Command(ExtrasMixin, BaseCommand):
                         datetime.datetime.combine(applied_on, datetime.time(10, 0))
                     )
                 }
-                if stage_type == "hired":
+                if stage_type == "shortlisted":
                     hired_on = min(
                         applied_on + datetime.timedelta(days=8 + (i + r) % 9), today
                     )
@@ -4842,7 +4844,7 @@ class Command(ExtrasMixin, BaseCommand):
         hired_candidates = list(
             Candidate._base_manager.filter(
                 recruitment_id__company_id=company,
-                stage_id__stage_type="hired",
+                stage_id__stage_type="shortlisted",
             ).order_by("id")
         )
         if not hired_candidates:

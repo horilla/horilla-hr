@@ -32,6 +32,100 @@ date and open a fresh Unreleased above it.
 ### Security      — vulnerabilities fixed; link the advisory and credit the reporter
 -->
 
+## [2.3.1] — 2026-11-08
+
+Security release. It fixes one privately reported vulnerability (a stored cross-site
+scripting flaw in the send-mail dialogs) and carries the recruitment, onboarding,
+offboarding, asset and payroll work and the interface polish merged since 2.3.0.
+
+**Upgrading from 2.3.0:** run `python manage.py migrate` (new migrations in
+`offboarding`, `payroll` and `recruitment`), then read *Upgrading* below.
+
+### Added
+
+- Offboarding: comments on a resignation, notice period columns, a rejection reason when
+  a resignation is rejected, and edit and cancel buttons that follow the request status.
+  The Actions column is merged and the detail view is restyled.
+- Payroll: an Always Applied tab, with a per-employee tax treatment for the standard pay
+  items.
+- Recruitment: a stage actions menu on the pipeline card view, drag-and-drop and editing
+  of stages in the pipeline wizard, and a default probation period in the recruitment
+  general settings.
+- Onboarding: an Onboarding tab on the employee profile, and date inputs with validation
+  on the onboarding confirmation.
+- Asset: item tracking and conditional editing on asset allocation, and a description
+  field on assets.
+- Base: an interviews panel and an API for pending interviews.
+- Dashboards: the same period presets (Today, This Week, Last Week, This Month, Last
+  Month, This Year) on every dashboard that has a period picker
+  ([#1353](https://github.com/horilla/horilla-hr/pull/1353), by **@adamsthws**).
+- Russian (`ru`) translation
+  ([#1183](https://github.com/horilla/horilla-hr/pull/1183), by **@Its-My-Work**).
+
+### Changed
+
+- Recruitment: the stage type formerly called "hired" is now "shortlisted" across
+  various modules.
+- Recruitment: the candidate portal is switched off for closed or archived recruitments.
+  The application form and the resume application form for shortlisted candidates are
+  now separate, the "Manage Stage Order" action and the Stage section in configuration
+  are removed, and the candidate History and Note tabs match the employee ones.
+  Candidate lists, documents, the talent pool, question templates and the matching
+  resumes display were reworked.
+- Base: the export dialog has separate panes for selecting and rearranging columns.
+- Payroll: the standard pay items are hidden from the configuration lists, a contract's
+  components are grouped by how they apply with a Type column, and loading a country's
+  rules moved into the Actions menu of the Filing Status page.
+- Onboarding: the pipeline actions and filters, the probation period section and the
+  candidate detail view were reworked. The reject section and the Modified By column on
+  candidate profile tasks are removed.
+- Asset and employee lists, tabs and detail views were restyled.
+
+### Fixed
+
+- Leave: the employee picker works again and the buttons on the leave detail stay on one
+  row.
+- Payroll: a CTC Down payslip that sits below the CTC now explains why and names the
+  cause of any gap.
+- Dark mode: text areas keep the same background as the inputs beside them, and date and
+  time inputs show a light picker icon
+  ([#1359](https://github.com/horilla/horilla-hr/pull/1359), by **@adamsthws**).
+- Activity history: rich-text values are shown as plain text and long values wrap.
+- Interface: the delete confirmation dialog is fixed and loads much faster, the sidebar
+  no longer closes on synthetic clicks, stuck tooltips are cleared, collapsed columns
+  stay collapsed after a reload, and the Actions tooltip no longer overlaps its menu.
+- Recruitment: the hired filter returns the right candidates.
+- CI: the dependency install no longer fails when GitHub returns a temporary 504 while
+  downloading the spaCy model. It now retries and keeps the wheel in the CI cache.
+  `requirements.txt` is unchanged, so installs of the app are not affected.
+
+### Security
+
+One report from outside the team, reported privately, is fixed in this release. With
+thanks to **@Cbdlll** for reporting it responsibly.
+
+- **Stored cross-site scripting in the send-mail dialogs** — [GHSA-fp49-5rww-88pv](https://github.com/horilla/horilla-hr/security/advisories/GHSA-fp49-5rww-88pv)
+  (High). A candidate name entered on a public application form could run script in the
+  browser of a recruiter who opened the send-mail dialog for that candidate. The dialog
+  no longer prints the name into a script. The employee send-mail dialog used the same
+  pattern and is fixed too. Affects 1.2.0 through 2.3.0. Reported by **@Cbdlll**.
+
+### Upgrading
+
+- Run `python manage.py migrate` (new migrations in `offboarding`, `payroll` and
+  `recruitment`).
+- Dependencies are unchanged, so source installs do not need `pip install -r
+  requirements.txt` again.
+- Installations whose own settings replace the template context processors should add
+  `base.context_processors.get_default_probation_period`.
+- The recruitment stage type formerly called "hired" is now "shortlisted". Saved filters
+  or reports that refer to it may need updating.
+- API clients: no API version change (`API_VERSION` unchanged).
+
+```bash
+docker pull horilla/horilla-hr:2.3.1
+```
+
 ## [2.3.0] — 2026-11-03
 
 Security release. It fixes four privately reported vulnerabilities (the tax formula
@@ -256,6 +350,11 @@ released a bad version, and carries the features and fixes merged since 2.2.0.
   waits ten minutes before it counts failures
   ([#1326](https://github.com/horilla/horilla-hr/issues/1326)). An existing installation
   that only ever saw the error can run `make prod` again.
+- Helpdesk: the ticket detail page is readable in dark mode again: the description,
+  comment bubbles, chat box and avatars use the theme colours, and the action buttons
+  follow the primary colour
+  ([#1337](https://github.com/horilla/horilla-hr/issues/1337), reported and fixed by
+  **@ft-mammoo** in [#1346](https://github.com/horilla/horilla-hr/pull/1346)).
 
 ### Security
 
@@ -935,7 +1034,8 @@ Secret — message delivery stops until it is set.
 docker pull horilla/horilla-hr:2.1.1
 ```
 
-[Unreleased]: https://github.com/horilla/horilla-hr/compare/2.3.0...HEAD
+[Unreleased]: https://github.com/horilla/horilla-hr/compare/2.3.1...HEAD
+[2.3.1]: https://github.com/horilla/horilla-hr/compare/2.3.0...2.3.1
 [2.3.0]: https://github.com/horilla/horilla-hr/compare/2.2.0...2.3.0
 [2.2.0]: https://github.com/horilla/horilla-hr/compare/2.1.8...2.2.0
 [2.1.8]: https://github.com/horilla/horilla-hr/compare/2.1.7...2.1.8

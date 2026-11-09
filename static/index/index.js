@@ -2513,14 +2513,10 @@ function hlvColumnPickerRow(form) {
 }
 
 // Fields that are selected by default (department, email, ...) belong at the
-// top of the list, ahead of the ones the user would have to opt into, so the
-// export order (and the picker itself) reads as "what's included" first. Only
-// worth doing before any drag handle exists: once the row has been through
-// the enhancer, its order is either that default or something the user
-// dragged, and either way a later pass must leave it alone.
-function hlvSortExportFieldsBySelected(form) {
-    var $row = hlvColumnPickerRow(form);
-    if (!$row || $row.find(".hlv-export-drag-handle").length) return;
+// top of the list, ahead of the ones the user would have to opt into. The DOM
+// order of the checked boxes is what gets submitted (and so the column order
+// of the export); the left-hand list keeps its own look through CSS `order`.
+function hlvSortExportFieldsBySelected($row) {
     var checked = [];
     var unchecked = [];
     $row.children().each(function () {
@@ -2535,89 +2531,165 @@ function hlvSortExportFieldsBySelected(form) {
     }
 }
 
-function hlvAddExportDragHandles(form) {
-    var $row = hlvColumnPickerRow(form);
-    if (!$row) return;
-    hlvSortExportFieldsBySelected(form);
-    $row.children().each(function () {
-        var $item = $(this);
-        if (!$item.find("input[name=selected_fields]").length) return;
-        if ($item.find(".hlv-export-drag-handle").length) return;
-        var $target = $item.find(".oh-input-group").first();
-        if (!$target.length) $target = $item;
-        $target.prepend(
-            '<span class="hlv-export-drag-handle" title="' +
-            hlvExportText("Drag to reorder", "Drag to reorder") +
-            '"><ion-icon name="reorder-two-outline"></ion-icon></span>'
-        );
-    });
-    hlvUpdateExportOrder(form);
+function hlvExportItemLabel($input) {
+    return $input.attr("data-label") || $.trim($input.closest("label").text());
 }
 
-// Numbers each checked field with its position in the export (1, 2, 3, ...),
-// in the current drag order, so dragging doesn't leave the user guessing
-// where a field landed relative to the others. Unchecked fields -- not part
-// of the export -- get no number.
-function hlvUpdateExportOrder(form) {
+// Two panes: the left one picks the fields (checkboxes, original order, with a
+// search box), the right one shows the picked fields in export order and is
+// where they are dragged around. The checkboxes stay the single source of
+// truth: the right list is rebuilt from them, and dragging reorders their DOM
+// order, which is the order the form submits them in.
+function hlvBuildExportSplit(form) {
     var $row = hlvColumnPickerRow(form);
     if (!$row) return;
-    var n = 0;
-    $row.children().each(function () {
-        var $item = $(this);
-        var $checkbox = $item.find("input[name=selected_fields]");
-        if (!$checkbox.length) return;
-        var $group = $item.find(".oh-input-group").first();
-        if (!$group.length) $group = $item;
-        var $badge = $group.find(".hlv-export-order-badge");
-        if (!$badge.length) {
-            $badge = $('<span class="hlv-export-order-badge"></span>');
-            var $handle = $group.find(".hlv-export-drag-handle").first();
-            if ($handle.length) $badge.insertAfter($handle);
-            else $group.prepend($badge);
-        }
-        if ($checkbox.is(":checked")) {
-            n += 1;
-            $badge.text(n).css("display", "");
-        } else {
-            $badge.css("display", "none");
-        }
+    // Already built. Do not touch the DOM again: the MutationObserver below
+    // re-runs this on every change, so re-rendering here would loop forever.
+    if ($row.closest(".hlv-export-split").length) return;
+    var $form = $(form);
+    $row.children().each(function (i) {
+        if ($(this).find("input[name=selected_fields]").length) $(this).css("order", i);
     });
-}
+    hlvSortExportFieldsBySelected($row);
 
-function hlvInitExportSortable(form) {
-    var $row = hlvColumnPickerRow(form);
-    if (!$row || !$row.is(":visible") || !$.fn.sortable) return;
-    if ($row.data("ui-sortable")) {
-        $row.sortable("refresh");
-        return;
-    }
-    $row.sortable({
+    var $anchor = $form.find("input[id^=select-all]").first().closest(".row");
+    if ($anchor.is($row) || $anchor.find($row).length) $anchor = $();
+    var t = hlvExportText;
+    var $split = $(
+        '<div class="hlv-export-split">' +
+            '<div class="hlv-export-pane hlv-export-pane--left">' +
+                '<div class="hlv-export-pane-head">' +
+                    '<span class="hlv-export-pane-title">' + t("Available fields", "Available fields") + "</span>" +
+                    '<input type="search" class="hlv-export-search" autocomplete="off" placeholder="' +
+                        t("Search fields", "Search fields") + '">' +
+                "</div>" +
+                '<div class="hlv-export-pane-body"></div>' +
+            "</div>" +
+            '<div class="hlv-export-pane hlv-export-pane--right">' +
+                '<div class="hlv-export-pane-head">' +
+                    '<span class="hlv-export-pane-title">' + t("Export order", "Export order") +
+                        ' <span class="hlv-export-count"></span></span>' +
+                    '<button type="button" class="hlv-export-clear">' + t("Clear", "Clear") + "</button>" +
+                "</div>" +
+                '<p class="hlv-export-hint"><ion-icon name="reorder-two-outline"></ion-icon><span>' +
+                    t("Drag the fields to rearrange the column order before exporting", "Drag the fields to rearrange the column order before exporting") +
+                "</span></p>" +
+                '<ul class="hlv-export-list"></ul>' +
+            "</div>" +
+        "</div>"
+    );
+    $split.insertBefore($anchor.length ? $anchor : $row);
+    var $body = $split.find(".hlv-export-pane-body");
+    if ($anchor.length) $body.append($anchor);
+    $body.append($row);
+
+    $split.find(".hlv-export-list").sortable({
         handle: ".hlv-export-drag-handle",
-        items: "> div:has(input[name=selected_fields])",
         placeholder: "hlv-export-drag-placeholder",
         tolerance: "pointer",
         update: function () {
-            hlvUpdateExportOrder(form);
+            var items = $(this).children().map(function () {
+                return $(this).data("item");
+            }).get();
+            $row.prepend(items);
+            hlvRenderExportList(form);
         },
-    }).disableSelection();
+    });
+    hlvRenderExportList(form);
 }
 
+function hlvRenderExportList(form) {
+    var $row = hlvColumnPickerRow(form);
+    if (!$row) return;
+    var $list = $(form).find(".hlv-export-list");
+    if (!$list.length) return;
+    $list.empty();
+    var n = 0;
+    $row.children().each(function () {
+        var $item = $(this);
+        var $input = $item.find("input[name=selected_fields]");
+        if (!$input.length || !$input.is(":checked")) return;
+        n += 1;
+        var $li = $(
+            '<li class="hlv-export-list-item">' +
+                '<span class="hlv-export-drag-handle" title="' + hlvExportText("Drag to reorder", "Drag to reorder") +
+                    '"><ion-icon name="reorder-two-outline"></ion-icon></span>' +
+                '<span class="hlv-export-order-badge"></span>' +
+                '<span class="hlv-export-list-label"></span>' +
+                '<button type="button" class="hlv-export-remove" aria-label="' +
+                    hlvExportText("Remove", "Remove") + '"><ion-icon name="close-outline"></ion-icon></button>' +
+            "</li>"
+        );
+        $li.find(".hlv-export-order-badge").text(n);
+        $li.find(".hlv-export-list-label").text(hlvExportItemLabel($input));
+        $li.data("item", this).data("input", $input);
+        $list.append($li);
+    });
+    if (!n) {
+        $list.append(
+            '<li class="hlv-export-empty">' +
+            hlvExportText("No fields selected", "No fields selected") + "</li>"
+        );
+    }
+    $(form).find(".hlv-export-count").text("(" + n + ")");
+}
+
+// Kept so the existing call sites keep working; both are covered by the split.
+function hlvAddExportDragHandles(form) {
+    hlvBuildExportSplit(form);
+}
+function hlvUpdateExportOrder(form) {
+    if (form) hlvRenderExportList(form);
+}
+function hlvInitExportSortable() {}
+function hlvAddExportHint() {}
+
+// A field ticked on the left joins the end of the export order; unticking it
+// (here or with the x on the right) drops it from the list.
 $(document).on("change", "input[name=selected_fields]", function () {
-    hlvUpdateExportOrder(this.form);
+    var form = this.form;
+    if (!form) return;
+    var $row = hlvColumnPickerRow(form);
+    if ($row && this.checked) {
+        var $item = $row.children().has(this).first();
+        var $last = $row.children().not($item).filter(function () {
+            return $(this).find("input[name=selected_fields]:checked").length > 0;
+        }).last();
+        if ($item.length) {
+            if ($last.length) $item.insertAfter($last);
+            else $row.prepend($item);
+        }
+    }
+    // select-all fires one change per box; render once afterwards.
+    var $form = $(form);
+    clearTimeout($form.data("hlvRenderTimer"));
+    $form.data("hlvRenderTimer", setTimeout(function () {
+        hlvRenderExportList(form);
+    }, 0));
 });
 
-function hlvAddExportHint(form) {
-    var $form = $(form);
-    if ($form.find(".hlv-export-hint").length) return;
-    if (!hlvColumnPickerRow(form)) return;
-    var $anchor = $form.find("input[id^=select-all]").first().closest(".row");
-    if (!$anchor.length) $anchor = hlvColumnPickerRow(form);
-    $anchor.before(
-        '<p class="hlv-export-hint"><ion-icon name="reorder-two-outline"></ion-icon><span>' +
-        hlvExportText("Drag the fields to rearrange the column order before exporting", "Drag the fields to rearrange the column order before exporting") +
-        "</span></p>"
-    );
-}
+$(document).on("click", ".hlv-export-remove", function () {
+    var $input = $(this).closest("li").data("input");
+    if ($input) $input.prop("checked", false).trigger("change");
+});
+
+$(document).on("click", ".hlv-export-clear", function () {
+    var $form = $(this).closest("form");
+    $form.find("input[id^=select-all]").prop("checked", false);
+    $form.find("input[name=selected_fields]:checked").prop("checked", false).trigger("change");
+});
+
+$(document).on("input", ".hlv-export-search", function () {
+    var q = $.trim(this.value).toLowerCase();
+    var $row = hlvColumnPickerRow($(this).closest("form"));
+    if (!$row) return;
+    $row.children().each(function () {
+        var $input = $(this).find("input[name=selected_fields]");
+        if (!$input.length) return;
+        var show = !q || hlvExportItemLabel($input).toLowerCase().indexOf(q) !== -1;
+        $(this).css("display", show ? "" : "none");
+    });
+});
 
 
 $(document).on("click", "[data-toggle='oh-modal-toggle']", function () {
@@ -2650,7 +2722,7 @@ $(document).on("click", "[data-toggle='oh-modal-toggle']", function () {
         hideForm + " .oh-accordion:has(" + cols + ")>.oh-accordion-body{display:block!important}" +
         // one look for every export modal: same width, three-column picker,
         // Export button bottom right
-        ".oh-modal__dialog:has(.hlv-export-options){max-width:880px!important;width:100%}" +
+        ".oh-modal__dialog:has(.hlv-export-options):not(:has(.oh-modal__dialog .hlv-export-options)){max-width:980px!important;width:100%}" +
         form + " " + picker + "{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 16px;margin:0!important}" +
         form + " " + picker + ">[class*=col-]{width:auto!important;max-width:none!important;flex:none!important;padding:0!important}" +
         form + " .oh-dropdown__filter-footer," + form + " .oh-modal__dialog-footer{display:flex!important;justify-content:flex-end;padding:0!important;margin:16px 0 0!important;border:0!important}" +
@@ -2659,13 +2731,33 @@ $(document).on("click", "[data-toggle='oh-modal-toggle']", function () {
         "@media (max-width:640px){" + form + " " + picker + "{grid-template-columns:minmax(0,1fr)}" +
         ".hlv-export-options{grid-template-columns:minmax(0,1fr)!important}}" +
 
-        form + " " + picker + ">div .oh-input-group{display:flex!important;align-items:center;gap:6px}" +
-        ".hlv-export-drag-handle{cursor:grab;color:#9ca3af;display:inline-flex;flex-shrink:0}" +
-        ".hlv-export-order-badge{flex-shrink:0;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#e5e7eb;color:#4b5563;font-size:11px;line-height:18px;text-align:center;font-weight:600}" +
-        ".hlv-export-hint{display:flex;align-items:center;gap:6px;margin:0 0 8px;font-size:12px;color:#9ca3af}" +
+        form + " " + picker + ">div .oh-input-group{display:flex!important;align-items:center;gap:6px;margin:0!important;padding:5px 0}" +
+        // two panes: pick on the left, order on the right
+        ".hlv-export-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;margin:0 0 4px}" +
+        ".hlv-export-pane{border:1px solid #e5e7eb;border-radius:8px;background:#fff;display:flex;flex-direction:column;min-width:0;height:380px;overflow:hidden}" +
+        ".hlv-export-pane--right{background:#fafafa}" +
+        ".hlv-export-pane-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-bottom:1px solid #e5e7eb;background:#f9fafb}" +
+        ".hlv-export-pane-title{font-size:13px;font-weight:600;color:#374151;white-space:nowrap}" +
+        ".hlv-export-count{font-weight:500;color:#9ca3af}" +
+        ".hlv-export-search{flex:1;min-width:0;max-width:200px;height:30px;border:1px solid #e5e7eb;border-radius:6px;padding:0 10px;font-size:13px;background:#fff;color:#374151;outline:none}" +
+        ".hlv-export-clear{border:0;background:none;color:#e54f39;font-size:12px;font-weight:600;cursor:pointer;padding:2px 6px}" +
+        ".hlv-export-pane-body{flex:1;overflow-y:auto;padding:4px 12px 8px}" +
+        ".hlv-export-pane-body>.row{margin:0!important}" +
+        form + " .hlv-export-pane--left " + picker + "{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:0 12px!important}" +
+        ".hlv-export-pane-body>.row:has(input[id^=select-all]){border-bottom:1px solid #f3f4f6;margin-bottom:4px!important}" +
+        ".hlv-export-hint{display:flex;align-items:center;gap:6px;margin:0;padding:8px 12px 0;font-size:12px;color:#9ca3af}" +
         ".hlv-export-hint ion-icon{font-size:14px;flex-shrink:0}" +
-        ".hlv-export-drag-placeholder{border:1px dashed #d1d5db;border-radius:6px;visibility:visible!important}" +
-        picker + ">div.ui-sortable-helper{background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.12);border-radius:6px}";
+        ".hlv-export-list{list-style:none;margin:0;padding:8px 12px 10px;overflow-y:auto;flex:1}" +
+        ".hlv-export-list-item{display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:6px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;font-size:13px;color:#374151}" +
+        ".hlv-export-list-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
+        ".hlv-export-drag-handle{cursor:grab;color:#9ca3af;display:inline-flex;flex-shrink:0}" +
+        ".hlv-export-order-badge{flex-shrink:0;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#fdeceb;color:#e54f39;font-size:11px;line-height:20px;text-align:center;font-weight:600}" +
+        ".hlv-export-remove{border:0;background:none;color:#9ca3af;cursor:pointer;display:inline-flex;font-size:16px;padding:0}" +
+        ".hlv-export-remove:hover{color:#e54f39}" +
+        ".hlv-export-empty{padding:24px 8px;text-align:center;font-size:13px;color:#9ca3af}" +
+        ".hlv-export-drag-placeholder{height:34px;margin-bottom:6px;border:1px dashed #d1d5db;border-radius:6px;visibility:visible!important}" +
+        ".hlv-export-list-item.ui-sortable-helper{box-shadow:0 2px 8px rgba(0,0,0,.12)}" +
+        "@media (max-width:760px){.hlv-export-split{grid-template-columns:minmax(0,1fr)}.hlv-export-pane{height:300px}}";
     document.head.appendChild(style);
 })();
 

@@ -6,10 +6,27 @@
         hx-swap="innerHTML"
         class="flex items-center gap-1"
     >
-        {% if perms.offboarding.change_resignationletter %}
+        {% if perms.offboarding.change_resignationletter and instance.status == "cancellation_requested" %}
+            <button
+                type="button"
+                data-swal-url="{% url 'resignation-cancellation-decision' instance.id 'approve' %}" data-swal-kind="decision-approve" onclick="event.stopPropagation();resignationCancelSwal(this)"
+                title="{% trans 'Approve Cancellation' %}"
+                class="oh-btn oh-btn--success oh-btn--sq-sm"
+            >
+                <ion-icon name="checkmark"></ion-icon>
+            </button>
+            <button
+                type="button"
+                data-swal-url="{% url 'resignation-cancellation-decision' instance.id 'reject' %}" data-swal-kind="decision-reject" onclick="event.stopPropagation();resignationCancelSwal(this)"
+                title="{% trans 'Reject Cancellation' %}"
+                class="oh-btn oh-btn--danger oh-btn--sq-sm"
+            >
+                <ion-icon name="close-circle-outline"></ion-icon>
+            </button>
+        {% elif perms.offboarding.change_resignationletter %}
             {% if instance.status == "requested" %}
                 <button
-                    title="{% trans 'By approving the request employee will added to the offboarding pipeline' %}"
+                    title="{% trans 'Approve' %}"
                     type="button"
                     onclick="$(this).closest('form').find('input[name=status]').val('approved');resignLetterConfirmation('{% trans "Do You really want to approve the request"|escapejs %}?',$(this).closest('form').find('[type=submit]'),true)"
                     class="oh-btn oh-btn--success oh-btn--sq-sm"

@@ -32,7 +32,7 @@ class CandidateStageProgressionTests(TestCase):
         self.hired, _ = Stage.objects.get_or_create(
             recruitment_id=self.rec,
             stage="Hired",
-            defaults={"stage_type": "hired", "sequence": 10},
+            defaults={"stage_type": "shortlisted", "sequence": 10},
         )
 
     def _pdf(self, name="resume.pdf"):

@@ -434,22 +434,28 @@ class HorillaDeleteConfirmationView(View):
                 MODEL_RELATED_PROTECTED_FIELD_MAP[instance._meta.model] = []
 
             def find_related_field(obj, related_instance):
+                related_model = related_instance._meta.concrete_model
                 for field in obj._meta.get_fields():
                     # Check if the field is a foreign key (or related model)
                     if isinstance(
                         field, (models.models.ForeignKey, models.models.OneToOneField)
                     ):
-                        # Get the field value
-                        field_value = getattr(obj, field.name)
-                        # If the field value matches the related instance, return the field name
-                        if field_value == related_instance:
-                            if "PROTECT" in field.remote_field.on_delete.__name__:
-                                MODEL_RELATED_PROTECTED_FIELD_MAP[
-                                    instance._meta.model
-                                ].append((field.name, field.verbose_name))
-                            MODEL_RELATED_FIELD_MAP[instance._meta.model].append(
-                                field.name
-                            )
+                        # Compare the stored id instead of getattr(obj, field.name):
+                        # that loads the related object, i.e. one query per foreign key
+                        # per related record, which made this dialog take many seconds
+                        # for records with thousands of related rows.
+                        if (
+                            field.related_model._meta.concrete_model
+                            is not related_model
+                            or getattr(obj, field.attname) != related_instance.pk
+                        ):
+                            continue
+                        # The field points at the record being deleted
+                        if "PROTECT" in field.remote_field.on_delete.__name__:
+                            MODEL_RELATED_PROTECTED_FIELD_MAP[
+                                instance._meta.model
+                            ].append((field.name, field.verbose_name))
+                        MODEL_RELATED_FIELD_MAP[instance._meta.model].append(field.name)
 
             find_related_field(instance, delete_object)
             app_label = instance._meta.app_label

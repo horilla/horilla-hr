@@ -383,14 +383,24 @@ class ResignationLetter(HorillaModel):
         ("requested", _("Requested")),
         ("approved", _("Approved")),
         ("rejected", _("Rejected")),
+        ("cancellation_requested", _("Cancellation Requested")),
+        ("cancelled", _("Cancelled")),
     ]
+    # Statuses in which the resignation is still an open / in-force request
+    ACTIVE_STATUSES = ["requested", "approved", "cancellation_requested"]
     employee_id = models.ForeignKey(
         Employee, on_delete=models.CASCADE, verbose_name="Employee"
     )
     title = models.CharField(max_length=100, null=True)
     description = models.TextField(null=True, max_length=255)
     planned_to_leave_on = models.DateField(verbose_name=_("Planned To Leave On"))
-    status = models.CharField(max_length=10, choices=statuses, default="requested")
+    status = models.CharField(max_length=25, choices=statuses, default="requested")
+    reject_reason = models.TextField(
+        null=True, blank=True, editable=False, verbose_name=_("Reject Reason")
+    )
+    cancel_reason = models.TextField(
+        null=True, blank=True, editable=False, verbose_name=_("Cancellation Reason")
+    )
     offboarding_employee_id = models.ForeignKey(
         OffboardingEmployee, on_delete=models.CASCADE, editable=False, null=True
     )
@@ -418,6 +428,8 @@ class ResignationLetter(HorillaModel):
             "requested": "#808080",
             "approved": "#8db600",
             "rejected": "#ff0000",
+            "cancellation_requested": "#f59e0b",
+            "cancelled": "#6b7280",
         }
         label = dict(self.statuses).get(self.status, self.status)
         color = badge_colors.get(self.status, "#808080")
@@ -425,6 +437,24 @@ class ResignationLetter(HorillaModel):
             f'<span style="background-color:{color}; color:#fff; '
             f'padding:3px 10px; border-radius:4px; font-size:0.8rem;">'
             f"{label}</span>"
+        )
+
+    def reject_reason_col(self):
+        """
+        Reason for rejection box for the detail view.
+        """
+        return render_template(
+            path="cbv/resignation/reject_reason.html",
+            context={"instance": self},
+        )
+
+    def cancel_reason_col(self):
+        """
+        Cancellation reason box for the detail view.
+        """
+        return render_template(
+            path="cbv/resignation/cancel_reason.html",
+            context={"instance": self},
         )
 
     def option_column(self):
@@ -437,6 +467,17 @@ class ResignationLetter(HorillaModel):
             context={"instance": self},
         )
 
+    def tab_option_column(self):
+        """
+        Option column for the employee's Resignation tab, which also carries
+        the employee's cancel / request-cancellation action.
+        """
+
+        return render_template(
+            path="cbv/resignation/options.html",
+            context={"instance": self, "show_cancel": True},
+        )
+
     def actions_column(self):
         """
         This method for get custome coloumn .
@@ -444,6 +485,86 @@ class ResignationLetter(HorillaModel):
 
         return render_template(
             path="cbv/resignation/actions.html",
+            context={"instance": self},
+        )
+
+    @staticmethod
+    def _format_list_date(value):
+        """
+        DD/MM/YYYY (day/month/year) for the resignation list columns.
+        """
+        return value.strftime("%d/%m/%Y") if value else ""
+
+    def requested_date_col(self):
+        """
+        Date the resignation letter was requested (created).
+        """
+        return self._format_list_date(self.created_at)
+
+    def _notice_period_dates(self):
+        """
+        (start, end) of the notice period.
+
+        Once approved, the real dates saved on the employee's offboarding record
+        win. Before that, the start is the date the employee asked for and the
+        end is that start plus the default notice period (what the approve
+        dialog pre-fills), so the column is never empty for pending requests.
+        """
+        start, end = self.planned_to_leave_on, None
+        if self.status == "approved":
+            offboarding_employee = OffboardingEmployee.objects.filter(
+                employee_id=self.employee_id
+            ).first()
+            if offboarding_employee and offboarding_employee.notice_period_starts:
+                start = offboarding_employee.notice_period_starts
+                end = offboarding_employee.notice_period_ends
+        if start and not end and apps.is_installed("payroll"):
+            setting = get_horilla_model_class(
+                app_label="payroll", model="payrollgeneralsetting"
+            ).objects.first()
+            if setting and setting.notice_period:
+                end = start + timedelta(days=setting.notice_period)
+        return start, end
+
+    def notice_period_start_col(self):
+        """
+        Notice period start date.
+        """
+        return self._format_list_date(self._notice_period_dates()[0])
+
+    def notice_period_end_col(self):
+        """
+        Notice period end date.
+        """
+        return self._format_list_date(self._notice_period_dates()[1])
+
+    def detail_actions_column(self):
+        """
+        Labelled action buttons of the detail popup.
+        """
+
+        return render_template(
+            path="cbv/resignation/detail_actions.html",
+            context={"instance": self},
+        )
+
+    def list_actions_column(self):
+        """
+        Single "Actions" column of the list: approve/reject + mail/edit/delete.
+        """
+
+        return render_template(
+            path="cbv/resignation/list_actions.html",
+            context={"instance": self},
+        )
+
+    def comment_column(self):
+        """
+        Comment column: opens the comments sidebar.
+        """
+
+        return render_template(
+            path="cbv/resignation/comment_col.html",
             context={"instance": self},
         )
 
@@ -502,10 +623,14 @@ class ResignationLetter(HorillaModel):
                 raise ValidationError(
                     _("A rejected resignation letter cannot be modified.")
                 )
+            if original == "cancelled":
+                raise ValidationError(
+                    _("A cancelled resignation letter cannot be modified.")
+                )
         if self.employee_id_id:
             existing = ResignationLetter.objects.filter(
                 employee_id=self.employee_id_id,
-                status__in=["requested", "approved"],
+                status__in=self.ACTIVE_STATUSES,
             )
             if self.pk:
                 existing = existing.exclude(pk=self.pk)
@@ -513,7 +638,7 @@ class ResignationLetter(HorillaModel):
                 raise ValidationError(
                     _(
                         "A resignation letter for this employee is already in "
-                        "'Requested' or 'Approved' status."
+                        "'Requested', 'Approved' or 'Cancellation Requested' status."
                     )
                 )
 
@@ -702,3 +827,33 @@ class OffboardingGeneralSetting(HorillaModel):
     resignation_request = models.BooleanField(default=False)
     company_id = models.ForeignKey(Company, on_delete=models.CASCADE, null=True)
     objects = HorillaCompanyManager("company_id")
+
+
+class ResignationFile(models.Model):
+    """
+    Attachment on a resignation letter comment
+    """
+
+    file = models.FileField(upload_to=upload_path)
+    objects = models.Manager()
+
+
+class ResignationComment(HorillaModel):
+    """
+    Comment on a resignation letter (same pattern as the other request comments)
+    """
+
+    request_id = models.ForeignKey(
+        ResignationLetter, on_delete=models.CASCADE, related_name="comments"
+    )
+    employee_id = models.ForeignKey(Employee, on_delete=models.CASCADE)
+    comment = models.TextField(null=True, verbose_name=_("Comment"), max_length=255)
+    files = models.ManyToManyField(ResignationFile, blank=True)
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_("Created At"),
+        null=True,
+    )
+
+    def __str__(self) -> str:
+        return f"{self.comment}"
