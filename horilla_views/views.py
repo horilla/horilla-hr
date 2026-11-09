@@ -808,8 +808,40 @@ _EXPORT_FORBIDDEN_PARTS = frozenset(
         "api_key",
         "api_secret",
         "otp",
+        "zk_password",
+        "bio_password",
+        "api_token",
     }
 )
+
+# Financial / payroll attributes. Unlike the credential names above these are
+# legitimately exportable, but only by users who may view the underlying data:
+# name -> permission required to read it through a generic export.
+_EXPORT_SENSITIVE_PARTS = {
+    # bank details (and the relation that reaches them from Employee)
+    "employee_bank_details": "employee.view_employeebankdetails",
+    "bank_name": "employee.view_employeebankdetails",
+    "account_number": "employee.view_employeebankdetails",
+    "branch": "employee.view_employeebankdetails",
+    "any_other_code1": "employee.view_employeebankdetails",
+    "any_other_code2": "employee.view_employeebankdetails",
+    # payroll
+    "net_pay": "payroll.view_payslip",
+    "gross_pay": "payroll.view_payslip",
+    "basic_pay": "payroll.view_payslip",
+    "contract_wage": "payroll.view_payslip",
+    "pay_head_data": "payroll.view_payslip",
+}
+
+
+def _export_part_allowed(user, part):
+    """Single choke point for every client-supplied export path segment."""
+    if part.startswith("_") or part in _EXPORT_FORBIDDEN_PARTS:
+        return False
+    perm = _EXPORT_SENSITIVE_PARTS.get(part)
+    if perm and not user.is_superuser and not user.has_perm(perm):
+        return False
+    return True
 
 
 @func_login_required
@@ -884,6 +916,14 @@ def export_data(request, *args, **kwargs):
 
         parts = field.split("__")
 
+        # Check every segment up front so plain model columns (which are
+        # selected straight from SQL and never reach the traversal loop)
+        # are covered by the same rules as related paths.
+        if not all(_export_part_allowed(request.user, p) for p in parts):
+            select_sql.append("''")
+            select_index += 1
+            continue
+
         if len(parts) == 1:
             try:
                 f = model._meta.get_field(parts[0])
@@ -948,7 +988,7 @@ def export_data(request, *args, **kwargs):
                 # The path is client-supplied. Refuse private attributes and
                 # the handful of names that would turn a quick export into a
                 # credential dump (employee_user_id__password, tokens, OTPs).
-                if part.startswith("_") or part in _EXPORT_FORBIDDEN_PARTS:
+                if not _export_part_allowed(request.user, part):
                     value = None
                     break
                 value = getattr(value, part, None)
