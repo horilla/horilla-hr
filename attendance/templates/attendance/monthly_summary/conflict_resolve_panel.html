@@ -178,7 +178,7 @@
         <span style="font-weight:700;font-size:.88rem;color:#065f46;">{% trans "Overridden" %} — {{ date|date:"d M Y" }}</span>
       {% else %}
         <ion-icon name="calendar-outline" style="color:#6366f1;font-size:1.1rem;flex-shrink:0;"></ion-icon>
-        <span style="font-weight:700;font-size:.88rem;color:#1e1b4b;">{{ date|date:"d M Y" }}</span>
+        <span class="crp-head-title">{{ date|date:"d M Y" }}</span>
       {% endif %}
     </div>
     <button onclick="msCalClosePanel()"
@@ -189,10 +189,10 @@
 
   <!-- ── What the day is, when half of it is leave ──────────────────────── -->
   {% if natural_split and not existing_resolution %}
-  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:9px 12px;margin-bottom:12px;">
+  <div class="crp-split-info-box">
     <span style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6c757d;">{% trans "Day status" %}</span>
     <span class="crp-pill" style="background:{{ natural_status_bg }};color:{{ natural_status_fg }};">{{ natural_status_label }}</span>
-    <span style="font-size:.68rem;color:#9ca3af;">{% trans "from the half-day leave and attendance" %}</span>
+    <span class="crp-split-info-text">{% trans "from the half-day leave and attendance" %}</span>
   </div>
   {% endif %}
 
@@ -234,7 +234,7 @@
   {% endif %}
 
   <!-- ── Mark as: one choice, and the two halves when it is a split ─────── -->
-  <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6c757d;margin-bottom:7px;">
+  <div class="crp-section-label">
     {% trans "Mark this day as" %}
   </div>
   <div class="crp-pick">
@@ -293,11 +293,8 @@
 
 <div style="height:12px;"></div>
   <!-- ── Hours for this day: always editable, saved with the Save button ────── -->
-  <div style="margin-bottom:10px;border-radius:8px;padding:8px 14px;
-              background:#f8fafc;border:1px solid #e5e7eb;">
-    <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;
-                letter-spacing:.4px;color:#6c757d;margin-bottom:8px;
-                display:flex;align-items:center;gap:6px;">
+  <div class="crp-hours-box">
+    <div class="crp-section-label crp-hours-head">
       <ion-icon name="time-outline" style="font-size:.9rem;color:#6366f1;"></ion-icon>
       {% trans "Hours" %}
       <span class="crp-tip" tabindex="0" aria-label="{% trans 'How the minimum hours count' %}">

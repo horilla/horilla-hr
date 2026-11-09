@@ -52,4 +52,27 @@
 }
 .crp-split-plus { text-align: center; font-weight: 700; color: #9ca3af; padding-bottom: 8px; }
 .crp-split-bar { grid-column: 1 / -1; height: 8px; border-radius: 999px; border: 1px solid #e5e7eb; }
+
+/* New classes to replace hardcoded inline styles (Shared by Conflict & Bulk panels) */
+.crp-head-title { font-weight: 700; font-size: .88rem; color: #1e1b4b; }
+.crp-split-info-box { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 9px 12px; margin-bottom: 12px; }
+.crp-split-info-text { font-size: .68rem; color: #9ca3af; }
+.crp-section-label { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #6c757d; margin-bottom: 7px; }
+.crp-hours-box { margin-bottom: 10px; border-radius: 8px; padding: 8px 14px; background: #f8fafc; border: 1px solid #e5e7eb; }
+.crp-hours-head { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+
+/* Dark Mode Overrides */
+.dark .crp-head, .dark .crp-foot, .dark #cal-resolve-panel { background: #1c1c1f !important; border-color: #3f3f46 !important; }
+.dark .crp-ctx, .dark .crp-split-info-box, .dark .crp-hours-box,
+.dark .crp-dd-btn, .dark .crp-dd-list, .dark .crp-split select,
+.dark .crp-hours-input, .dark .crp-shiftrow input, .dark .crp-hours-calc input {
+  background: #2a2a2a; border-color: #3f3f46; color: #d4d4d8;
+}
+.dark .crp-head-title, .dark .crp-change-title, .dark .crp-hist-line,
+.dark .crp-ctx-name, .dark .crp-dd-item { color: #d4d4d8; }
+.dark .crp-section-label, .dark .crp-split-info-text, .dark .crp-shiftrow label,
+.dark .crp-hours-calc label, .dark .crp-hours-unit, .dark .crp-split-hint { color: #cbd5e1; }
+.dark .crp-hist-icon { background: #1c1c1f; }
+.dark .crp-hist-item { border-left-color: #3f3f46; }
+.dark .crp-dd-item:hover { background: #3f3f46; }
 </style>

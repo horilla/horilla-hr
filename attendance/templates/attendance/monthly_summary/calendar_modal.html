@@ -274,6 +274,21 @@
 .cal-stat-weekoff  { color: #7c3aed; }
 .cal-stat-holiday  { color: #0d9488; }
 
+/* New structural classes for summary items to replace inline styles */
+.cal-summary-item--conflict { background: #fff4ed; }
+.cal-lbl-conflict { color: #92400e; }
+.cal-summary-item--total { background: #f8f9fa; border-left: 2px solid #dee2e6; }
+.cal-stat-total { color: #374151; }
+.cal-stat-upcoming { color: #6b7280; }
+
+/* Additional Dark Mode Overrides for Calendar Modal */
+.dark .cal-summary-item--conflict { background: #3a2218; }
+.dark .cal-lbl-conflict { color: #fb923c; }
+.dark .cal-summary-item--total { background: #2a2a2a; border-left-color: #3f3f46; }
+.dark .cal-stat-total, .dark .cal-emp-name { color: #d4d4d8; }
+.dark .cal-stat-upcoming { color: #9ca3af; }
+.dark .cal-out-of-range { background: #1c1c1f; color: #4b5563; }
+
 /* Dark theme: same banding, on dark surfaces. */
 .dark .cal-header, .dark .cal-summary, .dark .cal-hours-strip, .dark .cal-legend { border-color: #3f3f46; }
 .dark .cal-summary { background: #1c1c1f; }
@@ -385,19 +400,19 @@
   </div>
   {% if cal_summary.upcoming %}
   <div class="cal-summary-item">
-    <span class="cal-summary-val" style="color:#6b7280;">{{ cal_summary.upcoming }}</span>
+    <span class="cal-summary-val cal-stat-upcoming">{{ cal_summary.upcoming }}</span>
     <span class="cal-summary-lbl">{% trans "Upcoming" %}</span>
   </div>
   {% endif %}
   {% if cal_summary.conflict %}
-  <div class="cal-summary-item" data-group="conflict" style="background:#fff4ed;">
+  <div class="cal-summary-item cal-summary-item--conflict" data-group="conflict">
     <span class="cal-summary-val" style="color:#e85d04;">{{ cal_summary.conflict }}</span>
-    <span class="cal-summary-lbl" style="color:#92400e;">{% trans "Conflicts" %}</span>
+    <span class="cal-summary-lbl cal-lbl-conflict">{% trans "Conflicts" %}</span>
   </div>
   {% endif %}
-  <div class="cal-summary-item" style="background:#f8f9fa;border-left:2px solid #dee2e6;">
-    <span class="cal-summary-val" style="color:#374151;">{{ total_days }}</span>
-    <span class="cal-summary-lbl" style="color:#374151;">{% trans "Total Days" %}</span>
+  <div class="cal-summary-item cal-summary-item--total">
+    <span class="cal-summary-val cal-stat-total">{{ total_days }}</span>
+    <span class="cal-summary-lbl cal-stat-total">{% trans "Total Days" %}</span>
   </div>
 </div>
 
