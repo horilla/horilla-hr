@@ -16,9 +16,6 @@
       <a class="mi__btn" href="{% url 'master-import-map' job.pk %}">
         <ion-icon name="arrow-back-outline"></ion-icon>{% trans "Back to Matching" %}
       </a>
-      <button type="button" class="mi__btn" id="mi-save" style="display:none;">
-        <ion-icon name="save-outline"></ion-icon><span>{% trans "Save Changes & Recheck" %}</span>
-      </button>
       <button type="button" class="mi__btn mi__btn--primary" id="mi-import" style="display:none;"></button>
     </div>
   </div>
@@ -57,7 +54,6 @@
   var stageEl = document.getElementById("mi-stage");
   var progress = document.getElementById("mi-progress");
   var body = document.getElementById("mi-body");
-  var saveBtn = document.getElementById("mi-save");
   var importBtn = document.getElementById("mi-import");
   var confirmBox = document.getElementById("mi-confirm");
   var csrf = root.querySelector("[name=csrfmiddlewaretoken]").value;
@@ -91,8 +87,11 @@
   }
   function syncButtons() {
     var n = pendingCount();
-    saveBtn.style.display = n ? "" : "none";
-    saveBtn.querySelector("span").textContent = "{% trans 'Save Changes & Recheck'|escapejs %} (" + n + ")";
+    var saveBtn = body.querySelector("#mi-save");
+    if (saveBtn) {
+      saveBtn.style.display = n ? "" : "none";
+      saveBtn.querySelector("span").textContent = "{% trans 'Save Changes & Recheck'|escapejs %} (" + n + ")";
+    }
     // What was checked is what gets imported, so unsaved changes wait for a recheck:
     // the button stays visible, shows what it would import now, and is disabled until then.
     if (!last) { importBtn.style.display = "none"; return; }
@@ -117,7 +116,6 @@
     progress.style.display = "";
     body.style.display = "none";
     importBtn.style.display = "none";
-    saveBtn.style.display = "none";
     setProgress(0);
 
     timer = setInterval(function () {
@@ -211,7 +209,9 @@
     syncButtons();
   });
 
-  saveBtn.addEventListener("click", function () {
+  body.addEventListener("click", function (e) {
+    var saveBtn = e.target.closest("#mi-save");
+    if (!saveBtn) return;
     saveBtn.disabled = true;
     fetch(root.dataset.edits, {
       method: "POST",
@@ -219,8 +219,7 @@
       body: JSON.stringify({ edits: edits, skip: skips })
     })
       .then(function (r) { if (!r.ok) throw new Error("save failed"); return runCheck(); })
-      .catch(function (e) { alert(e.message); })
-      .then(function () { saveBtn.disabled = false; });
+      .catch(function (e) { alert(e.message); saveBtn.disabled = false; });
   });
 
   importBtn.addEventListener("click", function () {

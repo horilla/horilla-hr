@@ -3107,7 +3107,12 @@ ul.errorlist ul.errorlist {
 
 .oh-dropdown__import-label.oh-import-has-file {
   border-style: solid;
-  border-color: var(--primary-600, #e54f38);
+  border-color: #16a34a;
+  background: #f0fdf4;
+}
+
+.oh-dropdown__import-label.oh-import-has-file .oh-dropdown__import-form-icon {
+  color: #16a34a;
 }
 
 .oh-dropdown__import-form-icon {
