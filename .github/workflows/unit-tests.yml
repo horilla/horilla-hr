@@ -53,7 +53,7 @@ jobs:
             libgdk-pixbuf-2.0-0 libffi8 shared-mime-info
 
       - name: Cache spaCy model wheel
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/horilla-ci
           key: spacy-model-${{ hashFiles('requirements.txt') }}
