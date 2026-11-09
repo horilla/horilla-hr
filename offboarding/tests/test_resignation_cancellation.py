@@ -30,7 +30,10 @@ class ResignationCancellationTests(TestCase):
 
         self.user = make_user("emp_user")
         self.employee = make_employee(
-            company=self.company, email="emp@test.horilla", first_name="Eve", user=self.user
+            company=self.company,
+            email="emp@test.horilla",
+            first_name="Eve",
+            user=self.user,
         )
         self.other_user = make_user("other_user")
         self.other = make_employee(
@@ -163,7 +166,9 @@ class ResignationCancellationTests(TestCase):
                     "request": type("R", (), {"user": self.user})(),
                 },
             )
-            self.assertEqual(f"/cancel-resignation-request/{letter.pk}/" in html, shown, status)
+            self.assertEqual(
+                f"/cancel-resignation-request/{letter.pk}/" in html, shown, status
+            )
             self.assertIn("disabled", html if not shown else "disabled")
             if not shown:
                 self.assertIn("can no longer be cancelled", html)
@@ -191,7 +196,7 @@ class ResignationCancellationTests(TestCase):
         self._decide(letter, "approve")
         self.assertEqual(self._status(letter), "approved")
 
-    def test_approving_cancellation_keeps_offboarding_record(self):
+    def test_approving_cancellation_removes_offboarding_record(self):
         off = Offboarding.objects.create(
             title="Exits", description="d", company_id=self.company
         )
@@ -202,6 +207,21 @@ class ResignationCancellationTests(TestCase):
         letter = self._letter("cancellation_requested")
         self._decide(letter, "approve")
         self.assertEqual(self._status(letter), "cancelled")
+        self.assertFalse(
+            OffboardingEmployee.objects.filter(employee_id=self.employee).exists()
+        )
+
+    def test_rejecting_cancellation_keeps_offboarding_record(self):
+        off = Offboarding.objects.create(
+            title="Exits", description="d", company_id=self.company
+        )
+        stage = OffboardingStage.objects.create(
+            title="Notice", type="notice_period", offboarding_id=off
+        )
+        OffboardingEmployee.objects.create(employee_id=self.employee, stage_id=stage)
+        letter = self._letter("cancellation_requested")
+        self._decide(letter, "reject")
+        self.assertEqual(self._status(letter), "approved")
         self.assertTrue(
             OffboardingEmployee.objects.filter(employee_id=self.employee).exists()
         )
@@ -217,8 +237,12 @@ class ResignationCancellationTests(TestCase):
         approve = self._letter("requested")
         self.client.get(
             reverse("update-letter-status"),
-            {"letter_ids": [approve.pk], "status": "approved", "offboarding_id": off.pk,
-             "notice_period_starts": date.today().isoformat()},
+            {
+                "letter_ids": [approve.pk],
+                "status": "approved",
+                "offboarding_id": off.pk,
+                "notice_period_starts": date.today().isoformat(),
+            },
             HTTP_HX_REQUEST="true",
         )
         self.assertEqual(self._status(approve), "approved")
@@ -250,7 +274,9 @@ class ResignationCancellationTests(TestCase):
         letter = self._letter("requested")
         ctx = {"instance": letter, "request": type("R", (), {"user": self.user})()}
         page = render_to_string("cbv/resignation/options.html", ctx)
-        tab = render_to_string("cbv/resignation/options.html", {**ctx, "show_cancel": True})
+        tab = render_to_string(
+            "cbv/resignation/options.html", {**ctx, "show_cancel": True}
+        )
         url = f"/cancel-resignation-request/{letter.pk}/"
         self.assertNotIn(url, page)
         self.assertIn(url, tab)

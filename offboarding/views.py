@@ -62,7 +62,6 @@ from offboarding.forms import (
 from offboarding.methods import (
     cancel_resignation,
     decide_resignation_cancellation,
-    has_offboarding_record,
     request_resignation_cancellation,
 )
 from offboarding.models import (
@@ -1404,16 +1403,13 @@ def decide_resignation_cancellation_request(request, id, action):
         messages.error(request, error)
         return HorillaRedirect(request)
     if approve:
-        messages.success(request, _("Resignation cancellation approved"))
-        if has_offboarding_record(letter):
-            messages.warning(
-                request,
-                _(
-                    "%(name)s is already in the offboarding pipeline; that record "
-                    "was left untouched and can be removed from the pipeline if needed."
-                )
-                % {"name": letter.employee_id.get_full_name()},
+        messages.success(
+            request,
+            _(
+                "Resignation cancellation approved. %(name)s was removed from offboarding."
             )
+            % {"name": letter.employee_id.get_full_name()},
+        )
     else:
         messages.success(request, _("Resignation cancellation rejected"))
     with contextlib.suppress(Exception):

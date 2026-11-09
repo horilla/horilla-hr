@@ -14,9 +14,7 @@ from offboarding.models import OffboardingEmployee, ResignationLetter
 
 def _locked_letter(letter_id):
     return (
-        ResignationLetter._base_manager.select_for_update()
-        .filter(id=letter_id)
-        .first()
+        ResignationLetter._base_manager.select_for_update().filter(id=letter_id).first()
     )
 
 
@@ -64,10 +62,8 @@ def decide_resignation_cancellation(letter_id, approve):
     Manager approves ("cancelled") or rejects (back to "approved") a pending
     cancellation request.
 
-    The offboarding pipeline record created when the resignation was approved
-    is left untouched: it carries stages, tasks and exit reasons, and removing
-    it would lose data. Callers can check ``has_offboarding_record`` to warn
-    the manager.
+    Approving also removes the employee from the offboarding pipeline (their
+    stage, tasks and notes go with the record); rejecting leaves it as it is.
     """
     with transaction.atomic():
         letter = _locked_letter(letter_id)
@@ -81,9 +77,6 @@ def decide_resignation_cancellation(letter_id, approve):
         if not approve:
             letter.cancel_reason = None
         letter.save()
+        if approve:
+            OffboardingEmployee.objects.filter(employee_id=letter.employee_id).delete()
     return letter, None
-
-
-def has_offboarding_record(letter):
-    """True when the employee is already in the offboarding pipeline."""
-    return OffboardingEmployee.objects.filter(employee_id=letter.employee_id).exists()
