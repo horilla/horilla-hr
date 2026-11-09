@@ -10,7 +10,7 @@ Rendered in the page beside the payslip card, and again out-of-band whenever the
 payslip body is swapped (a status change, an edit), so it never lags behind the
 figures it explains.
 {% endcomment %}
-{% with tax=payslip|income_tax_explanation base=payslip|taxable_gross_working %}
+{% with tax=payslip|income_tax_explanation base=payslip|taxable_gross_working ctc=payslip|ctc_breakdown %}
 {% if tax %}{# without a filing status on the contract there is no income tax to explain #}
 <div class="tsp">
   <style>
@@ -19,6 +19,18 @@ figures it explains.
     .tsp__title { font-size: 14px; font-weight: 700; color: #111827; margin: 0; }
     .tsp__lead { color: #6b7280; font-size: 11px; margin: 2px 0 0; }
     .tsp__chip { display: inline-block; margin-top: 8px; padding: 2px 10px; border-radius: 999px; background: #eef2ff; color: #4338ca; font-size: 11px; font-weight: 600; }
+    /* Across the page the two steps sit side by side; in a narrow column they stack as before. */
+    .tsp__cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); align-items: start; }
+    .tsp__cols > .tsp__sec:not(:last-child) { border-right: 1px solid #e5e7eb; }
+    /* Side by side the two steps are as tall as the taller one, and each ends on its result: the figure
+       sits at the foot of its column, level with the other, with whatever follows it kept underneath. */
+    .tsp__cols { align-items: stretch; }
+    .tsp__cols > .tsp__sec { display: flex; flex-direction: column; }
+    .tsp__cols > .tsp__sec.is-open .tsp__panel { flex: 1 1 auto; }
+    .tsp__cols .tsp__inner, .tsp__cols .tsp__body, .tsp__cols .tx { display: flex; flex-direction: column; }
+    .tsp__cols .tsp__body, .tsp__cols .tx { flex: 1 1 auto; }
+    .tsp__cols .tsp__body > .tsp__result, .tsp__cols .tx > .tx__total { margin-top: auto; }
+    .tsp__cols .tsp__body > :has(+ .tsp__result), .tsp__cols .tx > :has(+ .tx__rule) { margin-bottom: 10px; }
     .tsp__sec { border-bottom: 1px solid #e5e7eb; }
     .tsp__sec:last-child { border-bottom: 0; }
     .tsp__strip { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 16px; background: #f9fafb; border: 0; border-bottom: 1px solid #f0f1f3; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #6b7280; cursor: pointer; text-align: left; user-select: none; transition: background .15s; }
@@ -71,10 +83,11 @@ figures it explains.
     <span class="tsp__chip">{{ tax.filing_status }}</span>
   </div>
 
+  <div class="tsp__cols">
   {# ───────────── step 1: what the tax is charged on ───────────── #}
   {% if tax.based_on == "basic_pay" %}
   {% with b=payslip|basic_pay_working %}
-  <section class="tsp__sec" data-tsp-key="gross">
+  <section class="tsp__sec{% if ctc %} is-open{% endif %}" data-tsp-key="gross"{% if ctc %} data-tsp-pinned{% endif %}>
     <button type="button" class="tsp__strip" data-tsp-toggle aria-expanded="false"><span>{% trans "Basic Pay" %}</span><span class="tsp__sumval">{{ b.basic|floatformat:2 }}</span><span class="tsp__chev"></span></button>
     <div class="tsp__panel"><div class="tsp__inner">
     <div class="tsp__body">
@@ -97,7 +110,7 @@ figures it explains.
   {% endwith %}
 
   {% elif base and tax.based_on == "gross_pay" %}
-  <section class="tsp__sec" data-tsp-key="gross">
+  <section class="tsp__sec{% if ctc %} is-open{% endif %}" data-tsp-key="gross"{% if ctc %} data-tsp-pinned{% endif %}>
     <button type="button" class="tsp__strip" data-tsp-toggle aria-expanded="false"><span>{% trans "Gross Pay" %}</span><span class="tsp__sumval">{{ base.gross|floatformat:2 }}</span><span class="tsp__chev"></span></button>
     <div class="tsp__panel"><div class="tsp__inner">
     <div class="tsp__body">
@@ -112,7 +125,7 @@ figures it explains.
   </section>
 
   {% elif base %}
-  <section class="tsp__sec" data-tsp-key="gross">
+  <section class="tsp__sec{% if ctc %} is-open{% endif %}" data-tsp-key="gross"{% if ctc %} data-tsp-pinned{% endif %}>
     <button type="button" class="tsp__strip" data-tsp-toggle aria-expanded="false"><span>{% trans "Taxable Gross" %}</span><span class="tsp__sumval">{{ base.computed|floatformat:2 }}</span><span class="tsp__chev"></span></button>
     <div class="tsp__panel"><div class="tsp__inner">
     <div class="tsp__body">
@@ -175,6 +188,7 @@ figures it explains.
     </div>
     </div></div>
   </section>
+  </div>{# /.tsp__cols #}
   <script>
   (function () {
     var KEY = "taxPanelOpen:";
@@ -188,6 +202,8 @@ figures it explains.
     }
     // The panel is drawn again after an edit; open what was open before.
     document.querySelectorAll(".tsp .tsp__sec").forEach(function (section) {
+      // On a CTC payslip the taxable gross is the working people come here for: always open on load.
+      if (section.hasAttribute("data-tsp-pinned")) { paint(section, true); return; }
       var saved = null;
       try { saved = sessionStorage.getItem(KEY + section.dataset.tspKey); } catch (e) {}
       paint(section, saved === null ? section.classList.contains("is-open") : saved === "1");

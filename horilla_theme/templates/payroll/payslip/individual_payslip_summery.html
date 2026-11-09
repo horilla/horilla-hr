@@ -259,7 +259,7 @@ the pay was worked out from. Everything below is the caveats.
     </div>
     <div>
       <div class="ps__fact-label">{% trans "Name" %}</div>
-      <div class="ps__fact-value">{{ employee }}</div>
+      <div class="ps__fact-value">{{ employee.get_full_name }}</div>
     </div>
     <div>
       <div class="ps__fact-label">{% trans "Department" %}</div>
@@ -661,7 +661,7 @@ the pay was worked out from. Everything below is the caveats.
 </div>
 
 {% if request.META.HTTP_HX_REQUEST and payslip|income_tax_explanation or request.META.HTTP_HX_REQUEST and payslip|ctc_breakdown %}
-  <aside id="payslipTaxPanel" hx-swap-oob="true" style="flex:0 0 360px;width:360px;max-width:100%;">
+  <aside id="payslipTaxPanel" hx-swap-oob="true" style="display:contents;">
     {% include "payroll/payslip/_tax_side_panel.html" %}
     {% include "payroll/payslip/_ctc_breakdown.html" %}
   </aside>

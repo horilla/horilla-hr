@@ -34,6 +34,10 @@ Each group is an accordion strip, like the tax working above it; the total and i
     .cbk__result { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-top: 10px; padding: 9px 12px; border-radius: 6px; background: #fdf1ef; color: #b53a27; font-weight: 700; }
     .cbk__result span:last-child { font-size: 14px; font-variant-numeric: tabular-nums; }
     .cbk__note { margin: 8px 0 0; color: #6b7280; font-size: 11px; }
+    /* Across the page the groups sit side by side; in a narrow column they stack as before. */
+    .cbk__cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); align-items: start; }
+    .cbk__cols > .cbk__sec { border-right: 1px solid #e5e7eb; }
+    .cbk__cols > .cbk__sec:last-child { border-right: 0; }
     .cbk__warn { margin-top: 8px; padding: 6px 10px; border-radius: 6px; background: #fff7e6; color: #92400e; font-size: 11px; }
   </style>
 
@@ -42,6 +46,7 @@ Each group is an accordion strip, like the tax working above it; the total and i
     <p class="cbk__lead">{% trans "How This Payslip Adds Up To The CTC." %}</p>
   </div>
 
+  <div class="cbk__cols">
   <section class="cbk__sec" data-cbk-key="package">
     <button type="button" class="cbk__strip" data-cbk-toggle aria-expanded="false"><span>{% trans "Package For This Period" %}</span><span class="cbk__sumval">{{ c.package|floatformat:2 }}</span><span class="cbk__chev"></span></button>
     <div class="cbk__panel"><div class="cbk__inner"><div class="cbk__body">
@@ -76,6 +81,7 @@ Each group is an accordion strip, like the tax working above it; the total and i
       {% endif %}
     </div></div></div>
   </section>
+  </div>
 
   <div class="cbk__sum">
     <div class="cbk__result">
@@ -95,6 +101,7 @@ Each group is an accordion strip, like the tax working above it; the total and i
     {% endif %}
   </div>
 
+  <div class="cbk__cols">
   {% if c.outside %}
     <section class="cbk__sec" data-cbk-key="outside">
       <button type="button" class="cbk__strip" data-cbk-toggle aria-expanded="false"><span>{% trans "Outside The CTC" %}</span><span class="cbk__sumval">{{ c.outside_total|floatformat:2 }}</span><span class="cbk__chev"></span></button>
@@ -120,6 +127,7 @@ Each group is an accordion strip, like the tax working above it; the total and i
       </div></div></div>
     </section>
   {% endif %}
+  </div>
 
   <script>
   (function () {
