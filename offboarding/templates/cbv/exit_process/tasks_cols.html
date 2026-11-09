@@ -13,11 +13,7 @@
                 hx-on-htmx-after-request="$('#reloadMessagesButton').click();$(`#offboardingStageContainer{{instance.stage_id.pk}}`).find('.reload-record').click()"
                 name="status"
                 class="w-100"
-                style="
-                    border: 1px solid hsl(213deg, 22%, 84%);
-                    padding: 0.3rem 0.8rem 0.3rem 0.3rem;
-                    border-radius: 0rem;
-                "
+                style="background-color: var(--primary-100, hsl(0, 75%, 97%)); color: var(--primary-600, hsl(1, 100%, 61%)); padding: 0.4rem 0.6rem; border-radius: 0.2rem; margin-right: 0.2rem; font-size: 0.8rem"
             >
                 {% for choice in task.statuses %}
                     {% if choice.0 == task.status %}
@@ -29,12 +25,13 @@
             </select>
         {% else %}
             <button
-                class="px-4 py-2 bg-brand-600 text-white rounded-lg text-xs hover:bg-brand-800"
+                style="background-color: var(--primary-100, hsl(0, 75%, 97%)); color: var(--primary-600, hsl(1, 100%, 61%)); border: 0; padding: 0.375rem 0.75rem; border-radius: 0.375rem; font-size: 0.75rem; font-weight: 500; line-height: 1rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.25rem"
                 data-toggle="oh-modal-toggle"
                 hx-get="{% url 'offboarding-assign-task' %}?employee_ids={{instance.id}}&task_id={{task_id}}"
                 hx-swap="none"
                 hx-on-htmx-after-request="$(`#offboardingStageContainer{{instance.stage_id.pk}}`).find('.reload-record').click();"
             >
+                <ion-icon name="add-outline"></ion-icon>
                 {% trans 'Assign' %}
             </button>
         {% endif %}

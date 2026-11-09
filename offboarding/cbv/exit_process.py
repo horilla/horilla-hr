@@ -10,7 +10,8 @@ from urllib.parse import urlencode, urlparse
 from django import forms
 from django.apps import apps
 from django.contrib import messages
-from django.db.models import Count, Q
+from django.db import transaction
+from django.db.models import Count, ProtectedError, Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
@@ -54,10 +55,13 @@ from offboarding.filters import (
     PipelineStageFilter,
 )
 from offboarding.forms import (
+    PIPELINE_STEP_OK,
     OffboardingEmployeeForm,
     OffboardingForm,
     OffboardingStageForm,
     TaskForm,
+    create_pipeline,
+    update_pipeline,
 )
 from offboarding.models import (
     EmployeeTask,
@@ -283,11 +287,25 @@ class OffboardingCreateFormView(HorillaFormView):
 
     def form_valid(self, form: OffboardingForm) -> HttpResponse:
         if form.is_valid():
-            if form.instance.pk:
-                message = _("Offboarding Updated")
-            else:
-                message = _("Offboarding saved")
-            form.save()
+            if self.request.POST.get("validate_step") == "1":
+                # "Next" on the first step of the wizard: the details are
+                # valid, nothing is saved until the pipeline step is submitted.
+                return HttpResponse(PIPELINE_STEP_OK)
+            is_create = not form.instance.pk
+            try:
+                with transaction.atomic():
+                    offboarding = form.save()
+                    if is_create:
+                        create_pipeline(offboarding, form.pipeline_stage_list)
+                    elif form.pipeline_stage_list is not None:
+                        update_pipeline(offboarding, form.pipeline_stage_list)
+            except ProtectedError:
+                form.add_error(
+                    "pipeline_stages",
+                    _("A stage that is still in use cannot be deleted."),
+                )
+                return self.form_invalid(form)
+            message = _("Offboarding saved") if is_create else _("Offboarding Updated")
 
             messages.success(self.request, message)
             return offboarding_pipeline_modal_success_response(
@@ -295,6 +313,9 @@ class OffboardingCreateFormView(HorillaFormView):
             )
 
         return super().form_valid(form)
+
+    def form_invalid(self, form):
+        return self.render_to_response(self.get_context_data(form=form))
 
 
 @method_decorator(login_required, name="dispatch")
@@ -1097,40 +1118,39 @@ class OffboardingEmployeeList(HorillaListView):
         header_attrs = dict(context.get("header_attrs") or {})
         for task in tasks:
             col_key = f"get_{task.pk}_task"
-            col_width = 100
-            header_attrs[col_key] = f'style="min-width:{col_width}px !important;"'
+            col_width = max(150, len(task.title) * 7 + 130)
+            header_attrs[col_key] = f'style="width:{col_width}px !important;"'
             context["columns"].append(
                 (
                     f"""
-                        <div class="ob-task-head flex items-center">
-                          <span class="px-2 py-1 text-xs truncate" style="max-width:120px;" title="{task.title}">
-                            {task.title}
-                          </span>
-                          <div class="ob-task-head__slot">
-                            <div class="ob-task-head__actions"
-                                 onclick="event.stopPropagation()">
-                              <button
-                                hx-get="{reverse("offboarding-update-task",kwargs={"pk":task.pk})}"
-                                hx-target="#genericModalBody"
-                                data-toggle="oh-modal-toggle"
-                                data-target="#genericModal"
-                                class="oh-hover-btn__small"
-                                title="{_('Edit')}"
-                              >
-                                <ion-icon name="create-outline"></ion-icon>
-                              </button>
-                              <a
-                                hx-get="{reverse("generic-delete")}?model=offboarding.OffboardingTask&pk={task.id}"
-                                hx-target="#deleteConfirmationBody"
-                                data-target="#deleteConfirmation"
-                                data-toggle="oh-modal-toggle"
-                                class="oh-hover-btn__small"
-                                title="{_('Delete')}"
-                              >
-                                <ion-icon name="trash-outline"></ion-icon>
-                              </a>
+                        <div class="group w-full flex items-center justify-between transition duration-300">
+                            <span class="px-2 py-1 text-xs">
+                                {task.title}
+                            </span>
+                            <div class="flex items-center transition duration-300 gap-1 p-1 rounded z-10 bg-white"
+                                onclick="event.stopPropagation()"
+                            >
+                                <button
+                                    hx-get="{reverse("offboarding-update-task",kwargs={"pk":task.pk})}"
+                                    hx-target="#genericModalBody"
+                                    data-toggle="oh-modal-toggle"
+                                    data-target="#genericModal"
+                                    class="oh-hover-btn__small"
+                                    title="{_('Edit')}"
+                                >
+                                    <ion-icon name="create-outline"></ion-icon>
+                                </button>
+                                <a
+                                    hx-get="{reverse("generic-delete")}?model=offboarding.OffboardingTask&pk={task.id}"
+                                    hx-target="#deleteConfirmationBody"
+                                    data-target="#deleteConfirmation"
+                                    data-toggle="oh-modal-toggle"
+                                    class="oh-hover-btn__small"
+                                    title="{_('Delete')}"
+                                >
+                                    <ion-icon name="trash-outline"></ion-icon>
+                                </a>
                             </div>
-                          </div>
                         </div>
                     """,
                     col_key,
