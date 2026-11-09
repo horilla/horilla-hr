@@ -402,8 +402,13 @@ def calculate_allowance(**kwargs):
     # same phase, only the seeded period figures. Recording as we go is what
     # makes "50% of DA" work at all.
     computed = []
-    in_structure = set(
-        structure_components(Allowance, employee).values_list("pk", flat=True)
+    from payroll.methods.component_catalog import active as active_catalog
+
+    catalog = active_catalog()
+    in_structure = (
+        catalog.structure_pks(Allowance, employee)
+        if catalog is not None
+        else set(structure_components(Allowance, employee).values_list("pk", flat=True))
     )
     for allowance in employee_allowances:
         if allowance.is_fixed:
@@ -476,6 +481,29 @@ def calculate_allowance(**kwargs):
     return {"allowances": serialized_allowances}
 
 
+def _catalog_deductions(employee, start_date, end_date, **rules):
+    """
+    ``(deductions, installments)`` from the run's component catalog, or None outside a run slice.
+
+    ``rules`` are the pass: which of pre-tax / tax it is, and whether condition-based deductions join.
+    """
+    from payroll.methods.component_catalog import active as active_catalog
+
+    catalog = active_catalog()
+    if catalog is None:
+        return None
+    deductions = catalog.eligible(
+        models.Deduction, employee, start_date, end_date, **rules
+    )
+    ids = [deduction.pk for deduction in deductions if deduction.is_installment]
+    installments = (
+        models.Deduction.objects.filter(pk__in=ids)
+        if ids
+        else models.Deduction.objects.none()
+    )
+    return deductions, installments
+
+
 def calculate_tax_deduction(*_args, **kwargs):
     """
     Calculates the tax deductions for the specified employee within the given date range.
@@ -495,38 +523,45 @@ def calculate_tax_deduction(*_args, **kwargs):
     employee = kwargs["employee"]
     start_date = kwargs["start_date"]
     end_date = kwargs["end_date"]
-    specific_deductions = own_structure_only(
-        models.Deduction.objects.filter(
-            specific_employees=employee, is_pretax=False, is_tax=True
-        ),
-        models.Deduction,
-        employee,
+    from_catalog = _catalog_deductions(
+        employee, start_date, end_date, conditional=False, pretax=False, tax=True
     )
-    active_employee_deduction = models.Deduction.objects.filter(
-        include_active_employees=True, is_pretax=False, is_tax=True
-    ).exclude(exclude_employees=employee)
-    deductions = (
-        specific_deductions
-        | active_employee_deduction
-        | group_targeted(employee, models.Deduction).filter(
-            is_pretax=False, is_tax=True
+    if from_catalog is not None:
+        deductions = from_catalog[0]
+    else:
+        specific_deductions = own_structure_only(
+            models.Deduction.objects.filter(
+                specific_employees=employee, is_pretax=False, is_tax=True
+            ),
+            models.Deduction,
+            employee,
         )
-        | structure_components(models.Deduction, employee).filter(
-            is_pretax=False, is_tax=True
+        active_employee_deduction = models.Deduction.objects.filter(
+            include_active_employees=True, is_pretax=False, is_tax=True
+        ).exclude(exclude_employees=employee)
+        deductions = (
+            specific_deductions
+            | active_employee_deduction
+            | group_targeted(employee, models.Deduction).filter(
+                is_pretax=False, is_tax=True
+            )
+            | structure_components(models.Deduction, employee).filter(
+                is_pretax=False, is_tax=True
+            )
+        ).distinct()
+        deductions = (
+            deductions.exclude(one_time_date__lt=start_date)
+            .exclude(one_time_date__gt=end_date)
+            .exclude(update_compensation__isnull=False)
+            # Templates say how their kind behaves; they are never deducted. See
+            # payroll/system_components.py.
+            .exclude(is_system=True)
+            # (sequence, pk), as for allowances (component_engine): without it the
+            # order was whatever the database returned for the union, which
+            # changed between runs.
+            .order_by("sequence", "pk")
+            .prefetch_related("apply_conditions")
         )
-    ).distinct()
-    deductions = (
-        deductions.exclude(one_time_date__lt=start_date)
-        .exclude(one_time_date__gt=end_date)
-        .exclude(update_compensation__isnull=False)
-        # Templates say how their kind behaves; they are never deducted. See
-        # payroll/system_components.py.
-        .exclude(is_system=True)
-        # (sequence, pk), as for allowances (component_engine): without it the
-        # order was whatever the database returned for the union, which
-        # changed between runs.
-        .order_by("sequence", "pk")
-    )
     deductions_amt = []
     serialized_deductions = []
     for deduction in deductions:
@@ -588,45 +623,62 @@ def calculate_pre_tax_deduction(*_args, **kwargs):
     start_date = kwargs["start_date"]
     end_date = kwargs["end_date"]
 
-    specific_deductions = own_structure_only(
-        models.Deduction.objects.filter(
-            specific_employees=employee, is_pretax=True, is_tax=False
-        ),
-        models.Deduction,
-        employee,
-    )
-    conditional_deduction = models.Deduction.objects.filter(
-        is_condition_based=True, is_pretax=True, is_tax=False
-    ).exclude(exclude_employees=employee)
-    active_employee_deduction = models.Deduction.objects.filter(
-        include_active_employees=True, is_pretax=True, is_tax=False
-    ).exclude(exclude_employees=employee)
+    # The same set is asked for several times in one payslip (gross, taxable gross, the deduction pass):
+    # it is built once per employee, contract and period, and kept on the employee instance.
+    from payroll.methods.contract_periods import forced_contract
 
-    deductions = (
-        specific_deductions
-        | conditional_deduction
-        | active_employee_deduction
-        | group_targeted(employee, models.Deduction).filter(
-            is_pretax=True, is_tax=False
+    contract = forced_contract(employee)
+    cache = employee.__dict__.setdefault("_pretax_cache", {})
+    key = (start_date, end_date, getattr(contract, "pk", None))
+    if key not in cache:
+        from_catalog = _catalog_deductions(
+            employee, start_date, end_date, pretax=True, tax=False
         )
-        | structure_components(models.Deduction, employee).filter(
-            is_pretax=True, is_tax=False
-        )
-    ).distinct()
-    deductions = (
-        deductions.exclude(one_time_date__lt=start_date)
-        .exclude(one_time_date__gt=end_date)
-        .exclude(update_compensation__isnull=False)
-        # Templates say how their kind behaves; they are never deducted. See
-        # payroll/system_components.py.
-        .exclude(is_system=True)
-        # (sequence, pk), as for allowances (component_engine): without it the
-        # order was whatever the database returned for the union, which
-        # changed between runs.
-        .order_by("sequence", "pk")
-    )
-    # Installment deductions
-    installments = deductions.filter(is_installment=True)
+        if from_catalog is not None:
+            deductions, installments = from_catalog
+        else:
+            specific_deductions = own_structure_only(
+                models.Deduction.objects.filter(
+                    specific_employees=employee, is_pretax=True, is_tax=False
+                ),
+                models.Deduction,
+                employee,
+            )
+            conditional_deduction = models.Deduction.objects.filter(
+                is_condition_based=True, is_pretax=True, is_tax=False
+            ).exclude(exclude_employees=employee)
+            active_employee_deduction = models.Deduction.objects.filter(
+                include_active_employees=True, is_pretax=True, is_tax=False
+            ).exclude(exclude_employees=employee)
+
+            deductions = (
+                specific_deductions
+                | conditional_deduction
+                | active_employee_deduction
+                | group_targeted(employee, models.Deduction).filter(
+                    is_pretax=True, is_tax=False
+                )
+                | structure_components(models.Deduction, employee).filter(
+                    is_pretax=True, is_tax=False
+                )
+            ).distinct()
+            deductions = (
+                deductions.exclude(one_time_date__lt=start_date)
+                .exclude(one_time_date__gt=end_date)
+                .exclude(update_compensation__isnull=False)
+                # Templates say how their kind behaves; they are never deducted. See
+                # payroll/system_components.py.
+                .exclude(is_system=True)
+                # (sequence, pk), as for allowances (component_engine): without it the
+                # order was whatever the database returned for the union, which
+                # changed between runs.
+                .order_by("sequence", "pk")
+                .prefetch_related("apply_conditions")
+            )
+            # Installment deductions
+            installments = deductions.filter(is_installment=True)
+        cache[key] = (deductions, installments)
+    deductions, installments = cache[key]
 
     pre_tax_deductions = []
     pre_tax_deductions_amt = []
@@ -695,45 +747,52 @@ def calculate_post_tax_deduction(*_args, **kwargs):
     total_allowance = kwargs["total_allowance"]
     basic_pay = kwargs["basic_pay"]
     day_dict = kwargs["day_dict"]
-    specific_deductions = own_structure_only(
-        models.Deduction.objects.filter(
-            specific_employees=employee, is_pretax=False, is_tax=False
-        ),
-        models.Deduction,
-        employee,
+    from_catalog = _catalog_deductions(
+        employee, start_date, end_date, pretax=False, tax=False
     )
-    conditional_deduction = models.Deduction.objects.filter(
-        is_condition_based=True, is_pretax=False, is_tax=False
-    ).exclude(exclude_employees=employee)
-    active_employee_deduction = models.Deduction.objects.filter(
-        include_active_employees=True, is_pretax=False, is_tax=False
-    ).exclude(exclude_employees=employee)
-    # .distinct(): see calculate_pre_tax_deduction's identical fan-out note.
-    deductions = (
-        specific_deductions
-        | conditional_deduction
-        | active_employee_deduction
-        | group_targeted(employee, models.Deduction).filter(
-            is_pretax=False, is_tax=False
+    if from_catalog is not None:
+        deductions, installments = from_catalog
+    else:
+        specific_deductions = own_structure_only(
+            models.Deduction.objects.filter(
+                specific_employees=employee, is_pretax=False, is_tax=False
+            ),
+            models.Deduction,
+            employee,
         )
-        | structure_components(models.Deduction, employee).filter(
-            is_pretax=False, is_tax=False
+        conditional_deduction = models.Deduction.objects.filter(
+            is_condition_based=True, is_pretax=False, is_tax=False
+        ).exclude(exclude_employees=employee)
+        active_employee_deduction = models.Deduction.objects.filter(
+            include_active_employees=True, is_pretax=False, is_tax=False
+        ).exclude(exclude_employees=employee)
+        # .distinct(): see calculate_pre_tax_deduction's identical fan-out note.
+        deductions = (
+            specific_deductions
+            | conditional_deduction
+            | active_employee_deduction
+            | group_targeted(employee, models.Deduction).filter(
+                is_pretax=False, is_tax=False
+            )
+            | structure_components(models.Deduction, employee).filter(
+                is_pretax=False, is_tax=False
+            )
+        ).distinct()
+        deductions = (
+            deductions.exclude(one_time_date__lt=start_date)
+            .exclude(one_time_date__gt=end_date)
+            .exclude(update_compensation__isnull=False)
+            # Templates say how their kind behaves; they are never deducted. See
+            # payroll/system_components.py.
+            .exclude(is_system=True)
+            # (sequence, pk), as for allowances (component_engine): without it the
+            # order was whatever the database returned for the union, which
+            # changed between runs.
+            .order_by("sequence", "pk")
+            .prefetch_related("apply_conditions")
         )
-    ).distinct()
-    deductions = (
-        deductions.exclude(one_time_date__lt=start_date)
-        .exclude(one_time_date__gt=end_date)
-        .exclude(update_compensation__isnull=False)
-        # Templates say how their kind behaves; they are never deducted. See
-        # payroll/system_components.py.
-        .exclude(is_system=True)
-        # (sequence, pk), as for allowances (component_engine): without it the
-        # order was whatever the database returned for the union, which
-        # changed between runs.
-        .order_by("sequence", "pk")
-    )
-    # Installment deductions
-    installments = deductions.filter(is_installment=True)
+        # Installment deductions
+        installments = deductions.filter(is_installment=True)
 
     post_tax_deductions = []
     post_tax_deductions_amt = []

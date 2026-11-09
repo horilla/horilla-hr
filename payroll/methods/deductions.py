@@ -17,21 +17,37 @@ def update_compensation_deduction(
     Args:
         compensation_amount (_type_): Gross pay or Basic pay or employee
     """
-    deduction_heads = (
-        own_structure_only(
-            Deduction.objects.filter(
-                update_compensation=compensation_type, specific_employees=employee
-            ),
-            Deduction,
-            employee,
+    from payroll.methods.contract_periods import forced_contract
+
+    # The same heads are asked for several times in one payslip (basic, gross, ...): read once per
+    # employee, contract, kind and period, and kept on the employee instance.
+    contract = forced_contract(employee)
+    cache = employee.__dict__.setdefault("_compensation_heads", {})
+    key = (compensation_type, start_date, end_date, getattr(contract, "pk", None))
+    from payroll.methods.component_catalog import active as active_catalog
+
+    catalog = active_catalog()
+    if key not in cache and catalog is not None:
+        cache[key] = catalog.compensation_heads(
+            employee, compensation_type, start_date, end_date
         )
-        .exclude(one_time_date__lt=start_date)
-        .exclude(one_time_date__gt=end_date)
-        # .exclude(exclude_employees=employee)
-        # Each rate is taken from what the earlier ones left, so the order
-        # changes the amounts: (sequence, pk), as the payslip gatherers do.
-        .order_by("sequence", "pk")
-    )
+    if key not in cache:
+        cache[key] = list(
+            own_structure_only(
+                Deduction.objects.filter(
+                    update_compensation=compensation_type, specific_employees=employee
+                ),
+                Deduction,
+                employee,
+            )
+            .exclude(one_time_date__lt=start_date)
+            .exclude(one_time_date__gt=end_date)
+            # .exclude(exclude_employees=employee)
+            # Each rate is taken from what the earlier ones left, so the order
+            # changes the amounts: (sequence, pk), as the payslip gatherers do.
+            .order_by("sequence", "pk")
+        )
+    deduction_heads = cache[key]
     deductions = []
     temp = compensation_amount
     for deduction in deduction_heads:
