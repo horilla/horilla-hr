@@ -41,7 +41,7 @@ class ScimProvider(models.Model):
         verbose_name=_("When the identity provider deletes a user"),
     )
     match_existing_by_email = models.BooleanField(
-        default=True,
+        default=False,
         verbose_name=_("Link existing employees by e-mail"),
         help_text=_(
             "When the identity provider creates a user whose e-mail already "

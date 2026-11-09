@@ -507,7 +507,7 @@ class UsersView(UserMixin, ScimView):
             work_info is not None
             and work_info.company_id_id == self.provider.company_id
         )
-        if not (self.provider.match_existing_by_email and same_company):
+        if not same_company:
             raise ScimError(
                 409, "uniqueness", "An employee with this e-mail already exists."
             )
@@ -523,6 +523,15 @@ class UsersView(UserMixin, ScimView):
         ).first()
         if identity is not None and identity.unlinked_at is None:
             raise ScimError(409, "uniqueness", "This user is already provisioned.")
+        # The setting guards first-time links only. An unlinked identity means
+        # this provider already managed the user and removed them.
+        if identity is None and not self.provider.match_existing_by_email:
+            raise ScimError(
+                409,
+                "uniqueness",
+                "An employee with this e-mail already exists. Turn on 'Link "
+                "existing employees by e-mail' to link them.",
+            )
         if identity is None:
             identity = ExternalIdentity(
                 source=ExternalIdentity.SOURCE_SCIM,

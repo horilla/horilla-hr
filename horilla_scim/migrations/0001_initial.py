@@ -20,7 +20,7 @@ class Migration(migrations.Migration):
                 ('name', models.CharField(max_length=100, verbose_name='Name')),
                 ('is_enabled', models.BooleanField(default=True, verbose_name='Enabled')),
                 ('delete_mode', models.CharField(choices=[('soft', 'Archive the employee and disable login'), ('hard', 'Permanently delete the employee')], default='soft', max_length=10, verbose_name='When the identity provider deletes a user')),
-                ('match_existing_by_email', models.BooleanField(default=True, help_text='When the identity provider creates a user whose e-mail already belongs to an employee of this company, link to that employee instead of rejecting the request.', verbose_name='Link existing employees by e-mail')),
+                ('match_existing_by_email', models.BooleanField(default=False, help_text='When the identity provider creates a user whose e-mail already belongs to an employee of this company, link to that employee instead of rejecting the request.', verbose_name='Link existing employees by e-mail')),
                 ('reactivate_archived_employees', models.BooleanField(default=False, help_text='When on, a user the identity provider marks active is reactivated even if HR archived them in Horilla. When off, only employees the identity provider itself deactivated are reactivated.', verbose_name='Allow the identity provider to reactivate archived employees')),
                 ('send_invitation_email', models.BooleanField(default=False, help_text='Leave off when employees sign in through single sign-on and never need a Horilla password.', verbose_name='Send invitation e-mail to new employees')),
                 ('created_at', models.DateTimeField(auto_now_add=True)),

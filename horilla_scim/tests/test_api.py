@@ -9,6 +9,7 @@ from unittest import mock
 from urllib.parse import quote
 
 from django.contrib.auth.models import Permission
+from django.contrib.sessions.models import Session
 from django.db import IntegrityError
 from django.test import Client, TestCase
 from django.utils import timezone
@@ -67,6 +68,10 @@ class ScimTestCase(TestCase):
         self.assertEqual(response.status_code, 201, response.content)
         return response.json()
 
+    def allow_email_linking(self):
+        self.provider.match_existing_by_email = True
+        self.provider.save()
+
     def employee(self, email="ann@acme.test"):
         return (
             Employee.objects.entire()
@@ -83,6 +88,22 @@ class AuthTests(ScimTestCase):
     def test_wrong_token_is_401(self):
         response = self.call("get", "/Users", token="hscim_nope")
         self.assertEqual(response.status_code, 401)
+
+    def test_requests_leave_session_table_empty(self):
+        # A token client has no cookie, so nothing may write to a session here.
+        created = self.create_user()
+        path = f"/Users/{created['id']}"
+        self.call("get", "/ServiceProviderConfig")
+        self.call("get", "/Users")
+        self.call("get", path)
+        self.call(
+            "patch",
+            path,
+            patch_doc({"op": "replace", "path": "active", "value": False}),
+        )
+        self.call("delete", path)
+        self.call("get", "/Users", token="hscim_nope")
+        self.assertEqual(Session.objects.count(), 0)
 
     def test_reset_invalidates_old_token(self):
         old_raw = self.raw_token
@@ -193,6 +214,7 @@ class CreateTests(ScimTestCase):
         self.assertEqual(response.json()["scimType"], "uniqueness")
 
     def test_existing_employee_of_same_company_is_adopted(self):
+        self.allow_email_linking()
         existing = make_employee(company=self.company, email="ann@acme.test")
         body = self.create_user()
         self.assertEqual(
@@ -203,17 +225,18 @@ class CreateTests(ScimTestCase):
         self.assertEqual(self.employee().employee_user_id.username, "ann@acme.test")
 
     def test_existing_employee_of_other_company_is_409(self):
+        self.allow_email_linking()
         make_employee(company=make_company("Globex"), email="ann@acme.test")
         response = self.call("post", "/Users", user_doc())
         self.assertEqual(response.status_code, 409)
 
-    def test_adoption_can_be_switched_off(self):
-        self.provider.match_existing_by_email = False
-        self.provider.save()
+    def test_adoption_is_off_by_default(self):
+        self.assertFalse(self.provider.match_existing_by_email)
         make_employee(company=self.company, email="ann@acme.test")
         self.assertEqual(self.call("post", "/Users", user_doc()).status_code, 409)
 
     def test_superuser_cannot_be_adopted(self):
+        self.allow_email_linking()
         admin = make_user("root", email="root@acme.test", is_superuser=True)
         make_employee(company=self.company, email="root@acme.test", user=admin)
         response = self.call("post", "/Users", user_doc("root@acme.test"))
@@ -666,6 +689,7 @@ class ReactivationTests(ScimTestCase):
         self.assertFalse(self.employee().is_active)
 
     def test_adopting_archived_employee_keeps_them_archived(self):
+        self.allow_email_linking()
         employee = make_employee(company=self.company, email="ann@acme.test")
         self.archive_in_horilla(employee)
         self.create_user()

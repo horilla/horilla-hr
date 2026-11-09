@@ -17,6 +17,9 @@ update, deactivate and remove employees.
 A company has one SCIM connection. Employees created through it are placed in
 that company, and the token can only see employees of that company.
 
+> **Security:** a SCIM token has the power of employee administration for its
+> company (except over superusers), so store it like an admin password.
+
 > **Note:** the Okta and Entra steps below follow each vendor's SCIM
 > documentation, and the test suite replays the requests Okta and Entra send.
 > They have not yet been verified against a live Okta or Entra tenant.
@@ -113,6 +116,12 @@ to keep the provisioning logs clean.
   up to 512 characters.
 - **Uniqueness:** e-mail and `userName` are unique across the installation, so
   `POST` answers `409 uniqueness` when they belong to another company.
+- **Existing employees** are not linked by default: `POST` answers
+  `409 uniqueness` for an e-mail that already belongs to an employee. A company
+  that already has employees can turn on *Link existing employees by e-mail*
+  for the first sync. A linked employee can then be rewritten by the provider,
+  including someone with HR permissions. A provider re-creating a user it
+  removed earlier doesn't need this setting.
 - **Superusers** are never changed by a provider.
 - **Not supported:** Groups, bulk operations, sorting, ETags and password
   changes.
