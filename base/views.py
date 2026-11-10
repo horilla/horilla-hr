@@ -6368,6 +6368,12 @@ def save_time_format(request):
         # Taking the selected Time Format
         selected_format = request.POST.get("selected_format")
 
+        if selected_format not in settings.HORILLA_TIME_FORMATS:
+            messages.error(request, _("Invalid time format."))
+            return JsonResponse(
+                {"success": False, "error": "Invalid time format."}, status=400
+            )
+
         if not len(selected_format):
             messages.error(request, _("Please select a valid time format."))
         else:
