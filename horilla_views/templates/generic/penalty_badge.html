@@ -8,7 +8,7 @@
         <a
             role="button"
             href="{{ redirect_url }}"
-            class="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-danger/30 bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger-dark cursor-pointer transition hover:bg-danger/20"
+            class="penalty-badge--danger inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-danger/30 bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger-dark cursor-pointer transition hover:bg-danger/20"
             title="{% trans 'View penalties' %}"
             onclick="event.stopPropagation()"
         >
@@ -18,7 +18,7 @@
     {% else %}
         <span
             role="button"
-            class="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-danger/30 bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger-dark cursor-pointer transition hover:bg-danger/20"
+            class="penalty-badge--danger inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-danger/30 bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger-dark cursor-pointer transition hover:bg-danger/20"
             title="{% trans 'View penalties' %}"
             data-target="#penaltyViewModal"
             data-toggle="oh-modal-toggle"
@@ -31,7 +31,7 @@
         </span>
     {% endif %}
 {% else %}
-    <span class="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-success/30 bg-success/10 px-2 py-0.5 text-xs font-medium text-success-dark">
+    <span class="penalty-badge--success inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-success/30 bg-success/10 px-2 py-0.5 text-xs font-medium text-success-dark">
         <ion-icon name="checkmark-circle-outline"></ion-icon>
         {% trans "No Penalties" %}
     </span>

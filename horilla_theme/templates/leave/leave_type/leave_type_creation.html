@@ -179,6 +179,11 @@
         }
         .oh-steps__step.is-current .oh-steps__num { background: var(--primary-600, #e54f38); color: #fff; }
         .oh-steps__step.is-done .oh-steps__num { background: #d6e9e1; color: #0f7b5f; }
+        body.dark .oh-steps__step { background: #242424; border-color: #444444; }
+        body.dark .oh-steps__step:hover { border-color: #666666; }
+        body.dark .oh-steps__step.is-current { border-color: var(--primary-600, #e54f38); }
+        body.dark .oh-steps__num { background: #333333; color: #bbbbbb; }
+        body.dark .oh-steps__label { color: #f1f1f1; }
         .oh-steps__flag {
             position: absolute; top: 6px; right: 8px;
             width: 16px; height: 16px; border-radius: 50%;

@@ -7,6 +7,12 @@
         #skill_zone_container .oh-tabs__movable-header:hover {
             background-color: #FAE2DB !important;
         }
+        body.dark #skill_zone_container .oh-tabs__movable-header {
+            background-color: #2a2a2a !important;
+        }
+        body.dark #skill_zone_container .oh-tabs__movable-header:hover {
+            background-color: #333333 !important;
+        }
         #skill_zone_container .talent-pool-head .fixed-table th,
         #skill_zone_container .talent-pool-head .fixed-table td {
             border: none;
@@ -75,7 +81,7 @@
                         >
                             {{ skill_zone.list|length }}
                         </span>
-                        <span class="oh-tabs__movable-title !text-[13.5px] !font-semibold !text-gray-700">{{ skill_zone.grouper.title|title }}</span>
+                        <span class="oh-tabs__movable-title text-[13.5px] font-semibold text-gray-700">{{ skill_zone.grouper.title|title }}</span>
                     </div>
 
                     {% if perms.recruitment.add_skillzonecandidate or perms.recruitment.change_skillzone or perms.recruitment.delete_skillzone %}
