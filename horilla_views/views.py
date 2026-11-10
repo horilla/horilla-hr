@@ -196,7 +196,11 @@ class ReloadField(View):
         return render(
             request,
             "generic/reload_select_field.html",
-            {"field": field, "dynamic_id": dynamic_id},
+            {
+                "field": field,
+                "dynamic_id": dynamic_id,
+                "view_id": request.GET.get("view_id", ""),
+            },
         )
 
 
