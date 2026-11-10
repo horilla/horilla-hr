@@ -376,6 +376,12 @@ body.dark .sr-only.peer + .relative::after,
 body.dark .oh-switch .oh-switch__checkbox {
   background: #3a3a3a;
 }
+body.dark .oh-switch .oh-switch__checkbox:checked {
+  background-color: var(--primary-600, #e54f38) !important;
+}
+body.dark .oh-switch .oh-switch__checkbox:checked:hover {
+  background-color: var(--primary-800, #ac3b2a) !important;
+}
 body.dark .oh-btn img,
 body.dark .sideboxmain svg,
 body.dark .target,
@@ -551,6 +557,79 @@ body.dark .bg-gray-100 {
 }
 body.dark .hover\:bg-gray-200:hover {
   background-color: #3a3a3a !important;
+}
+body.dark .sidebarModal {
+  background-color: rgba(36, 36, 36, 0.98);
+  border: 1px solid #444444;
+  color: #eeeeee;
+}
+body.dark .sidebarModal h3 {
+  color: #ffffff;
+}
+body.dark .text-gray-800,
+body.dark .text-gray-900,
+body.dark .text-black {
+  color: #f1f1f1;
+}
+body.dark .text-gray-500 {
+  color: #a3a3a3;
+}
+body.dark .bg-gray-50,
+body.dark .bg-gray-50\/50,
+body.dark .bg-gray-50\/70,
+body.dark .bg-gray-200 {
+  background-color: #2a2a2a !important;
+}
+body.dark .hover\:bg-gray-50:hover,
+body.dark .hover\:bg-gray-50\/50:hover,
+body.dark .hover\:bg-gray-100:hover {
+  background-color: #333333 !important;
+}
+body.dark .border-gray-100,
+body.dark .border-gray-200,
+body.dark .border-gray-300 {
+  border-color: #444444 !important;
+}
+body.dark thead.sticky.top-0 {
+  background-color: #1b1b1b !important;
+}
+body.dark .apexcharts-legend-text {
+  color: #bbbbbb !important;
+}
+body.dark .apexcharts-text,
+body.dark .apexcharts-xaxis-label,
+body.dark .apexcharts-yaxis-label {
+  fill: #bbbbbb !important;
+}
+body.dark .pm-pill__name {
+  color: #cbd5e1;
+}
+body.dark .filter-pill:not(.active) {
+  background: #1f1f1f;
+  border-color: #444444;
+  color: #bbbbbb;
+}
+body.dark .bg-\[\#eef0f4\] {
+  background-color: #333333 !important;
+  color: #dddddd;
+}
+body.dark .oh-filter-panel__clear {
+  color: #ff7a6b;
+}
+body.dark .penalty-badge--danger {
+  color: #f87171;
+}
+body.dark .penalty-badge--success {
+  color: #4ade80;
+}
+body.dark #jobFilterBtn:hover {
+  background-color: #333333 !important;
+}
+body.dark .text-primary-800 {
+  color: var(--primary-300, #fcedeb);
+}
+body.dark .bg-secondary-100 {
+  background-color: #333333;
 }
 
 body.dark .select2-container--default .select2-results__option {
