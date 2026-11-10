@@ -1230,7 +1230,7 @@
 
                     <!-- Attendance Overview -->
                     <div
-                        class="am-chart-card am-chart-card--wide"
+                        class="am-chart-card"
                         data-chart-id="attendance_overview"
                         data-chart-section="attendance"
                         data-chart-label="{% trans 'Attendance Daily Overview' %}"
@@ -1375,7 +1375,7 @@
 
                     <!-- Avg Working Hours -->
                     <div
-                        class="am-chart-card"
+                        class="am-chart-card am-chart-card--wide"
                         data-chart-id="avg_hours"
                         data-chart-section="hours"
                         data-chart-label="{% trans 'Avg Working Hours' %}"
@@ -1941,7 +1941,7 @@
             }
 
             function _weekBounds(t) {
-                const dow = (t.getDay() + 6) % 7; // 0 = Monday
+                const dow = (t.getDay() - {{ first_day_of_week|default:1 }} + 7) % 7; // days since the configured first day of the week
                 const f = new Date(t.getFullYear(), t.getMonth(), t.getDate() - dow);
                 return [f, new Date(f.getFullYear(), f.getMonth(), f.getDate() + 6)];
             }
@@ -2179,7 +2179,7 @@
                                         columnWidth: "58%",
                                     },
                                 },
-                                xaxis: { ...XAXIS_STYLE, categories: allDepts },
+                                xaxis: { ...XAXIS_STYLE, categories: allDepts, labels: { show: false } },
                                 yaxis: { ...YAXIS_STYLE },
                                 grid: GRID,
                                 dataLabels: {
@@ -2411,33 +2411,11 @@
                                 ],
                                 chart: {
                                     type: "bar",
-                                    // Taller by whatever the tilted names need beyond two wrapped lines.
-                                    height: 300 + Math.max(0, fit.band - 48),
+                                    height: 300,
                                     toolbar: { show: false },
                                     background: "transparent",
                                     fontFamily: "inherit",
                                     animations: ANIM,
-                                    events: {
-                                        dataPointSelection: (e, ctx, config) => {
-                                            const dept =
-                                                data.departments[
-                                                    config.dataPointIndex
-                                                ]?.department;
-                                            if (!dept) return;
-                                            // This chart counts the Hour
-                                            // Account balance (AttendanceOverTime),
-                                            // not Attendance rows -- a different
-                                            // page/filter set than every other
-                                            // chart on this dashboard.
-                                            navigate(
-                                                "{% url 'attendance-overtime-view' %}",
-                                                {
-                                                    department_name: dept,
-                                                    pending_hours__gte: "00:00:01",
-                                                },
-                                            );
-                                        },
-                                    },
                                 },
                                 colors: ["#f59e0b"],
                                 fill: {
@@ -2458,20 +2436,8 @@
                                 },
                                 xaxis: {
                                     ...XAXIS_STYLE,
-                                    // Few departments: names wrap onto lines. Many: full names
-                                    // tilted, so they never run into each other or the chips.
-                                    categories: data.departments.map((d) =>
-                                        fit.mode === "wrap" ? d.department.split(" ") : d.department,
-                                    ),
-                                    labels: {
-                                        ...XAXIS_STYLE.labels,
-                                        rotate: fit.rotate,
-                                        rotateAlways: fit.mode !== "wrap",
-                                        hideOverlappingLabels: false,
-                                        trim: false,
-                                        maxHeight: fit.band,
-                                        ...(fit.mode === "wrap" ? {} : { formatter: (v) => fit.truncate(String(v)) }),
-                                    },
+                                    categories: data.departments.map((d) => d.department),
+                                    labels: { show: false },
                                 },
                                 yaxis: {
                                     ...YAXIS_STYLE,
@@ -2780,8 +2746,7 @@
                     series: [{ name: cfg.seriesName, data: items.map((d) => d.rate) }],
                     chart: {
                         type: "bar",
-                        // Taller by whatever the names need beyond two wrapped lines.
-                        height: 250 + Math.max(0, fit.band - 48),
+                        height: 250,
                         toolbar: { show: false },
                         background: "transparent",
                         fontFamily: "inherit",
@@ -2813,18 +2778,8 @@
                     },
                     xaxis: {
                         ...XAXIS_STYLE,
-                        categories: items.map((d) =>
-                            fit.mode === "wrap" ? String(d[cfg.labelKey]).split(" ") : String(d[cfg.labelKey]),
-                        ),
-                        labels: {
-                            rotate: fit.rotate,
-                            rotateAlways: fit.mode !== "wrap",
-                            trim: false,
-                            hideOverlappingLabels: fit.thin,
-                            maxHeight: fit.band,
-                            style: { colors: items.map(() => textColor), fontSize: "11px", fontWeight: 500 },
-                            ...(fit.mode === "wrap" ? {} : { formatter: (v) => fit.truncate(String(v)) }),
-                        },
+                        categories: items.map((d) => String(d[cfg.labelKey])),
+                        labels: { show: false },
                     },
                     yaxis: {
                         min: 0,
@@ -3072,8 +3027,7 @@
                                 ],
                                 chart: {
                                     type: "bar",
-                                    // Taller by whatever the tilted names need beyond two wrapped lines.
-                                    height: 300 + Math.max(0, fit.band - 48),
+                                    height: 300,
                                     toolbar: { show: false },
                                     background: "transparent",
                                     fontFamily: "inherit",
@@ -3126,20 +3080,8 @@
                                 },
                                 xaxis: {
                                     ...XAXIS_STYLE,
-                                    // Few departments: names wrap onto lines. Many: full names
-                                    // tilted, so they never run into each other or the chips.
-                                    categories: data.departments.map((d) =>
-                                        fit.mode === "wrap" ? d.department.split(" ") : d.department,
-                                    ),
-                                    labels: {
-                                        ...XAXIS_STYLE.labels,
-                                        rotate: fit.rotate,
-                                        rotateAlways: fit.mode !== "wrap",
-                                        hideOverlappingLabels: false,
-                                        trim: false,
-                                        maxHeight: fit.band,
-                                        ...(fit.mode === "wrap" ? {} : { formatter: (v) => fit.truncate(String(v)) }),
-                                    },
+                                    categories: data.departments.map((d) => d.department),
+                                    labels: { show: false },
                                 },
                                 yaxis: {
                                     ...YAXIS_STYLE,
@@ -3270,8 +3212,8 @@
                     colors,
                     fill: { type: "gradient", gradient: { type: "vertical", shadeIntensity: 0.25, opacityFrom: 1, opacityTo: 0.85 } },
                     plotOptions: { bar: { borderRadius: 6, borderRadiusApplication: "end", columnWidth: "58%" } },
-                    xaxis: { ...XAXIS_STYLE, categories: data.dataSet.map((d) => d.label.split(" ")),
-                        labels: { ...XAXIS_STYLE.labels, rotate: 0, rotateAlways: false, hideOverlappingLabels: false, trim: false, maxHeight: 48, style: { ...XAXIS_STYLE.labels.style, fontSize: "11px" } } },
+                    xaxis: { ...XAXIS_STYLE, categories: data.dataSet.map((d) => d.label),
+                        labels: { show: false } },
                     yaxis: { min: 0, max: 100, tickAmount: 4, labels: { style: { colors: textColor, fontSize: "11px" }, formatter: (v) => Math.round(v) + "%" } },
                     grid: GRID,
                     dataLabels: { enabled: false },

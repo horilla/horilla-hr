@@ -424,29 +424,6 @@ function pendingHourChart(year, month) {
                     plugins: {
                         ...themedOptions.plugins,
                     },
-                    onClick: (e, activeEls) => {
-                        if (!activeEls || activeEls.length === 0) return;
-                        let datasetIndex = activeEls[0].datasetIndex;
-                        let dataIndex = activeEls[0].index;
-                        let datasetLabel = e.chart.data.datasets[datasetIndex].label;
-                        let label = e.chart.data.labels[dataIndex];
-
-                        let parms =
-                            "?year=" +
-                            year +
-                            "&month=" +
-                            month +
-                            "&department_name=" +
-                            label +
-                            "&";
-                        if (datasetLabel.toLowerCase() == "worked hours") {
-                            parms = parms + "worked_hours__gte=1&";
-                        } else {
-                            parms = parms + "pending_hours__gte=1&";
-                        }
-                        window.location.href =
-                            "/attendance/attendance-overtime-view" + parms;
-                    },
                 },
                 plugins: [
                     {
