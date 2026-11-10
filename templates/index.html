@@ -15,7 +15,8 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <script>
         window.CURRENT_LANGUAGE = "{{ LANGUAGE_CODE }}";
-        var at_work_seconds = {{ request.user.employee_get.get_forecasted_at_work.forecasted_at_work_seconds }}
+        // Empty for a user with no employee record or when attendance is not installed.
+        var at_work_seconds = Number("{{ request.user.employee_get.get_forecasted_at_work.forecasted_at_work_seconds|default:0 }}") || 0;
         var run = 0
     </script>
     <title class="time-runner stop-runner">{{white_label_company_name}}</title>
@@ -279,6 +280,8 @@
         <script>
             // time-runner
             function secondsToDuration(seconds) {
+                seconds = Number(seconds);
+                if (!isFinite(seconds) || seconds < 0) seconds = 0;
                 var hours = Math.floor(seconds / 3600);
                 var minutes = Math.floor((seconds % 3600) / 60);
                 var remainingSeconds = Math.floor(seconds % 60);

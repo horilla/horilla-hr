@@ -1,10 +1,13 @@
-var at_work_seconds = $(".at_work_seconds").data("at-work-seconds");
+// The element is missing (or its value empty) for a user with no employee
+// record or attendance history; treat that as zero worked seconds, not NaN.
+var at_work_seconds = parseInt($(".at_work_seconds").data("at-work-seconds"), 10) || 0;
 var run = $(".at_work_seconds").data("run");
 var whiteLabelCompany = $("#whiteLabelCompany").data("company");
 
 // time-runner
 function secondsToDuration(seconds) {
-    if (seconds < 0){
+    seconds = Number(seconds);
+    if (!isFinite(seconds) || seconds < 0){
         seconds = 0
     }
     var hours = Math.floor(seconds / 3600);
