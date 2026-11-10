@@ -3999,16 +3999,120 @@
 });
 staticUrl = $("#statiUrl").attr("data-url");
 
+// A select is unclearable when required: the `required` attribute, a
+// required-star label (forms that disable the native attribute), or an explicit
+// data-allow-clear="false".
+function ohSelectIsRequired(select) {
+    var id = select.attr("id");
+    return !!(select.prop("required") ||
+        select.attr("aria-required") === "true" ||
+        select.attr("data-allow-clear") === "false" ||
+        (id && $('label[for="' + id + '"]').hasClass("required-star")));
+}
+
+// Shared select2 options for plain selects. Optional selects get a clear (x)
+// button: single selects need an empty <option value=""> to clear back to, multi
+// selects can always be emptied.
+function ohSelect2Options(select) {
+    var opts = { width: '100%' };
+    var placeholder = select.data("placeholder");
+    var isMultiple = !!select.prop("multiple");
+    var emptyOption = select.children("option").filter(function () {
+        return this.value === "";
+    }).first();
+    if (placeholder) {
+        opts.placeholder = placeholder;
+    }
+    if (!ohSelectIsRequired(select) && (isMultiple || emptyOption.length)) {
+        opts.allowClear = true;
+        // allowClear needs a placeholder; reuse the empty option's label when none is set.
+        if (!opts.placeholder) {
+            opts.placeholder = isMultiple ? "" : ($.trim(emptyOption.text()) || " ");
+        }
+    }
+    return opts;
+}
+
+// Page-level scripts call .select2() directly with their own options. Wrapped once
+// so those inits also get the clear button on optional selects, unless the caller
+// sets allowClear itself (the caller's options always win).
+(function ($) {
+    var originalSelect2 = $.fn.select2;
+    if (!originalSelect2 || originalSelect2._ohClearWrapped) {
+        return;
+    }
+    var wrapped = function (options) {
+        if (options !== undefined && (options === null || typeof options !== "object")) {
+            return originalSelect2.apply(this, arguments);
+        }
+        var rest = Array.prototype.slice.call(arguments, 1);
+        return this.each(function () {
+            var $el = $(this);
+            var merged = options;
+            if ($el.is("select") && !(options && "allowClear" in options)) {
+                // Keep the caller's own sizing; only the clear-related options are added.
+                var defaults = ohSelect2Options($el);
+                delete defaults.width;
+                merged = $.extend({}, defaults, options);
+            }
+            originalSelect2.apply($el, [merged].concat(rest));
+        });
+    };
+    $.extend(wrapped, originalSelect2);
+    wrapped._ohClearWrapped = true;
+    $.fn.select2 = wrapped;
+})(jQuery);
+
+// select2's change on clear/unselect is a jQuery event, which native listeners
+// (htmx hx-trigger="change", dependent-dropdown handlers) never see. Delegated so
+// it is bound once and also covers htmx-swapped selects.
+$(document).on("select2:select select2:unselect select2:clear", "select", function (e) {
+    this.dispatchEvent(new Event("change"));
+});
+
+// The "Create ..." entry opens a modal and the page script resets the value with a
+// plain .val(""), which leaves the dropdown open over the modal and the "Create ..."
+// label shown in the field. Close the dropdown and redraw from the reset value.
+// Scheduled from "selecting", which fires before the page's own change handlers, so
+// an error in one of those cannot skip it.
+$(document).on("select2:selecting", "select", function (e) {
+    var data = e.params && e.params.args && e.params.args.data;
+    if (!data || data.id !== "dynamic_create") {
+        return;
+    }
+    var select = $(this);
+    setTimeout(function () {
+        if (select.data("select2")) {
+            // Safety net: if the select's own change handler did not open the
+            // creation modal (e.g. a field re-rendered after a create), the value is
+            // still "Create ..." here. Open the modal and reset the value so the
+            // option can be chosen again.
+            var current = select.val();
+            var stuck = Array.isArray(current)
+                ? current.indexOf("dynamic_create") !== -1
+                : current === "dynamic_create";
+            var button = document.getElementById("modalButton" + select.attr("name"));
+            if (stuck && button) {
+                select.val(
+                    Array.isArray(current)
+                        ? current.filter(function (v) { return v !== "dynamic_create"; })
+                        : ""
+                );
+                button.click();
+            }
+            select.select2("close");
+            select.trigger("change.select2");
+        }
+    }, 50);
+});
+
+
 $(document).ready(function () {
     $(".oh-select").each(function () {
         if ($(this).hasClass("select2-hidden-accessible") && $(this).data("select2")) {
             $(this).select2("destroy");
         }
-        $(this).select2({ width: '100%', placeholder: $(this).data("placeholder") || undefined });
-    });
-
-    $("select").on("select2:select", function (e) {
-        $(this)[0].dispatchEvent(new Event("change"));
+        $(this).select2(ohSelect2Options($(this)));
     });
 });
 
@@ -4033,14 +4137,10 @@ function reinitPlainSelects(event) {
             if (select.hasClass("select2-hidden-accessible") && select.data("select2")) {
                 select.select2("destroy");
             }
-            select.select2({ width: '100%', placeholder: select.data("placeholder") || undefined });
+            select.select2(ohSelect2Options(select));
         } catch (e) {
             /* leave this one element as-is; continue with the rest */
         }
-    });
-
-    target.find("select").off("select2:select").on("select2:select", function (e) {
-        this.dispatchEvent(new Event("change"));
     });
 }
 $(document).on("htmx:afterSwap", reinitPlainSelects);
@@ -4065,10 +4165,15 @@ function initOhSelectAjax(scope) {
             return;
         }
         try {
+            var clearable = !ohSelectIsRequired(select);
+            // A single select needs an empty option to clear back to.
+            if (clearable && !select.prop("multiple") && !select.children('option[value=""]').length) {
+                select.prepend('<option value=""></option>');
+            }
             select.select2({
                 width: '100%',
                 placeholder: select.data("placeholder") || "",
-                allowClear: true,
+                allowClear: clearable,
                 minimumInputLength: 0,
                 ajax: {
                     url: ajaxUrl,
@@ -4121,7 +4226,7 @@ function sweepUninitializedSelects(scope) {
             return;
         }
         try {
-            select.select2({ width: '100%', placeholder: select.data("placeholder") || undefined });
+            select.select2(ohSelect2Options(select));
         } catch (e) {
             /* try again on the next sweep */
         }

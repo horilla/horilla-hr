@@ -743,6 +743,37 @@
   top: 4px;
 }
 
+/* Select2 clear (x) button: sits at the right, beside the arrow, not after the text */
+.select2-container--default .select2-selection--single .select2-selection__clear,
+.select2-container--default .select2-selection--multiple .select2-selection__clear {
+  position: absolute;
+  top: 50%;
+  right: 28px;
+  transform: translateY(-50%);
+  margin: 0;
+  width: 18px;
+  height: 18px;
+  line-height: 18px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 400;
+  color: #9ca3af;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__clear:hover,
+.select2-container--default .select2-selection--multiple .select2-selection__clear:hover {
+  background-color: #fee2e2;
+  color: #e54f38;
+}
+
+/* Keep long selected text from running under the button */
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+  padding-right: 48px;
+}
+
 .select2-dropdown {
   box-shadow: 0 5px 7px 1px #00000014;
 }
