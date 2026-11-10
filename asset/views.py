@@ -84,6 +84,7 @@ from horilla.decorators import (
 from horilla.group_by import group_by_queryset
 from horilla.http.response import HorillaRedirect
 from horilla.methods import horilla_users_with_perms
+from horilla_views.generic.cbv.views import HorillaFormView
 from notifications.signals import notify
 
 
@@ -359,7 +360,7 @@ def asset_delete(request, asset_id):
         asset = Asset.objects.get(id=asset_id)
     except Asset.DoesNotExist:
         messages.error(request, _("Asset not found"))
-        return HorillaRedirect(request)
+        return HorillaFormView.HttpResponse()
     asset_cat_id = asset.asset_category_id.id
     is_hx_request = bool(request.headers.get("HX-Request"))
     asset_list_filter = request.GET.get("asset_list")
@@ -389,14 +390,14 @@ def asset_delete(request, asset_id):
             messages.error(request, _("Asset is used in allocation!."))
         else:
             asset_del(request, asset)
-        return HorillaRedirect(request)
+        return HorillaFormView.HttpResponse()
 
     instances_ids = request.GET.get("requests_ids", "[]")
     instances_list = eval_validate(instances_ids)
 
     # For category-row HTMX deletes, refresh the same accordion container instead of
     # redirecting to detail pages. This keeps the table in sync immediately.
-    if is_hx_request:
+    if is_hx_request and request.META.get("HTTP_HX_TARGET") != "genericModalBody":
         if active_assignments:
             messages.info(request, _("Asset is in use"))
             return asset_list(request, asset_cat_id)
@@ -423,6 +424,8 @@ def asset_delete(request, asset_id):
             instances_list = json.loads(instances_ids)
             if asset_id in instances_list:
                 instances_list.remove(asset_id)
+            if not instances_list:
+                return HorillaFormView.HttpResponse()
             previous_instance, next_instance = closest_numbers(
                 json.loads(instances_ids), asset_id
             )
@@ -431,7 +434,7 @@ def asset_delete(request, asset_id):
             )
 
         if len(eval_validate(instances_ids)) <= 1:
-            return HorillaRedirect(request)
+            return HorillaFormView.HttpResponse()
 
         if Asset.find(asset.id):
             return redirect(
