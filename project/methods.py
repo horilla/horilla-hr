@@ -85,27 +85,24 @@ def employees_for_project(project):
 
 
 def any_project_manager(user):
-    employee = user.employee_get
-    if employee.project_managers.all().exists():
-        return True
-    else:
+    employee = getattr(user, "employee_get", None)
+    if not employee:
         return False
+    return employee.project_managers.all().exists()
 
 
 def any_task_manager(user):
-    employee = user.employee_get
-    if employee.task_set.all().exists():
-        return True
-    else:
+    employee = getattr(user, "employee_get", None)
+    if not employee:
         return False
+    return employee.task_set.all().exists()
 
 
 def any_task_member(user):
-    employee = user.employee_get
-    if employee.tasks.all().exists():
-        return True
-    else:
+    employee = getattr(user, "employee_get", None)
+    if not employee:
         return False
+    return employee.tasks.all().exists()
 
 
 @decorator_with_arguments
