@@ -124,9 +124,9 @@
         </div>
     </form>
 </div>
-
-
-
+{% if onboarding_stage_id %}
+    {{ onboarding_candidate_map|json_script:"onboardingCandidateMap" }}
+{% endif %}
 
 <script>
     $(document).ready(function () {
@@ -137,6 +137,15 @@
                     return this.id;
                 }).get();
             $("#candidates").val(idsArray).change();
+        {% elif onboarding_stage_id %}
+            // Rows hold CandidateStage ids; map them to Candidate ids. Only the
+            // selected rows are pre-filled; with none selected the field stays empty.
+            var candidateMap = JSON.parse($("#onboardingCandidateMap").text());
+            var store = $("#selectedCandidateRecords{{ onboarding_stage_id }}");
+            var rowIds = JSON.parse((store.attr("data-ids")) || "[]").map(String);
+            var mapped = rowIds.filter(function (id) { return id in candidateMap; })
+                .map(function (id) { return String(candidateMap[id]); });
+            $("#candidates").val(mapped).change();
         {% else %}
             var selectedIds = JSON.parse($("#selectedInstances").attr("data-ids"));
             $("#candidates[name=candidates]select[multiple]").val(selectedIds).change();

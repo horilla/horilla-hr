@@ -2266,6 +2266,24 @@ def form_send_mail(request, cand_id=None):
     else:
         stage_id = None
 
+    # Onboarding "Bulk Mail": the list rows are CandidateStage records, whose pks
+    # are not Candidate ids, so hand the modal the stage's candidates plus a
+    # CandidateStage pk -> Candidate pk map to translate the row selection.
+    onboarding_stage_id = None
+    onboarding_candidate_map = {}
+    raw_onboarding_stage_id = request.GET.get("onboarding_stage_id", "")
+    if raw_onboarding_stage_id.isdigit():
+        onboarding_stage_id = int(raw_onboarding_stage_id)
+        candidates = candidates.filter(
+            onboarding_stage__onboarding_stage_id__id=onboarding_stage_id
+        )
+        onboarding_candidate_map = {
+            str(stage_pk): candidate_pk
+            for stage_pk, candidate_pk in candidates.values_list(
+                "onboarding_stage__pk", "pk"
+            )
+        }
+
     HorillaMailTemplate.objects.get_or_create(
         title="Candidate Portal Login",
         defaults={
@@ -2306,6 +2324,8 @@ def form_send_mail(request, cand_id=None):
             "templates": templates,
             "candidates": candidates,
             "stage_id": stage_id,
+            "onboarding_stage_id": onboarding_stage_id,
+            "onboarding_candidate_map": onboarding_candidate_map,
             "searchWords": MailTemplateForm().get_template_language(),
         },
     )
