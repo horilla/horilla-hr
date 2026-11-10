@@ -119,6 +119,7 @@ from base.forms import (
     find_reset_user,
 )
 from base.import_template_data import import_template_frame, write_import_xlsx
+from base.media_access import user_can_access_media
 from base.methods import (
     check_chart_permission,
     check_manager,
@@ -8897,6 +8898,14 @@ def protected_media(request, path):
                 "You must be logged in or provide a valid token to access this file.",
             )
             return redirect("login")
+
+        # Signed in is not enough: the file must belong to something the
+        # requester may see (their own record, their report's, a record they
+        # take part in, or a view permission). 404 rather than 403 so a denied
+        # request does not confirm that the file exists. See GHSA / issue #3516.
+        requester = request.user if request.user.is_authenticated else jwt_user
+        if not user_can_access_media(requester, path):
+            raise Http404("File not found")
 
     # Determine the content type from the extension and decide whether the
     # browser may render it inline. User-uploaded content that browsers treat
