@@ -186,16 +186,16 @@
                     {% for key in model_map.keys %}
                         <div class="tab-pane hidden" id="{{key}}">
                             <div class="grid grid-cols-12 gap-3">
-                                <div class="col-span-12 md:col-span-3 border rounded-md border-[#ececec] p-3 min-h-[20vh] sidebarItems">
+                                <div class="col-span-12 md:col-span-3 min-w-0 border rounded-md border-[#ececec] p-3 min-h-[20vh] sidebarItems">
                                     {% with models_dict=model_map|get_item:key %}
                                         {% for item in models_dict.items %}
                                             <div
-                                                class="sidebarItem mb-[5px] hover:bg-primary-100 hover:text-primary-600 cursor-pointer font-medium rounded-md w-full flex justify-between items-center px-4 py-2 bg-[#0000000c] text-[13px] transition-all"
+                                                class="sidebarItem mb-[5px] hover:bg-primary-100 hover:text-primary-600 cursor-pointer font-medium rounded-md w-full flex justify-between items-center gap-2 px-4 py-2 bg-[#0000000c] text-[13px] transition-all"
                                                 id="{{item.0.verbose_name|lower}}item"
                                                 data-key="#{{key}}"
                                                 onclick="handleSidebarItemClick(this)"
                                             >
-                                                <div id="{{item.0.verbose_name|lower}}_id">
+                                                <div id="{{item.0.verbose_name|lower}}_id" style="min-width: 0; overflow-wrap: anywhere;">
                                                     {{ item.0.verbose_name }}
                                                 </div>
 
@@ -212,7 +212,7 @@
                                     {% endwith %}
                                 </div>
 
-                                <div class="col-span-12 md:col-span-9 border rounded-md border-[#ececec] p-3 min-h-[20vh]">
+                                <div class="col-span-12 md:col-span-9 min-w-0 overflow-x-auto border rounded-md border-[#ececec] p-3 min-h-[20vh]">
                                     <span class="text-base font-medium text-[#666]">{% trans "Action Required" %}
                                         ⚠️</span>
                                     <div class="col-sm-12 col-md-12 col-lg-12" id="dynamicRelatedLists{{key}}"></div>
@@ -334,36 +334,20 @@
 
     	$('#action, #revert, #confirm').on('change', updateDeleteBtnState);
     	updateDeleteBtnState();
+
+    	// Don't submit the delete form unless all three boxes are checked. The guard lives on
+    	// the form element itself (not on `document`): a document listener is re-added on every
+    	// open and survives for the life of the page, so an old copy of it kept cancelling the
+    	// related-record loaders in tabs that had been open across a template change.
+    	var deleteForm = $deleteConfirmBtn.closest('form')[0];
+    	if (deleteForm) {
+    		deleteForm.addEventListener('htmx:configRequest', function (evt) {
+    			if (evt.target !== deleteForm) return;
+    			if (!$('#action').is(':checked') || !$('#revert').is(':checked') || !$('#confirm').is(':checked')) {
+    				evt.preventDefault();
+    			}
+    		});
+    	}
     }, 0);
-    });
-
-    // Prevent HTMX from submitting the delete confirmation form unless all boxes are checked.
-    // Scoped to requests triggered from inside this modal's own body: this listener is bound
-    // on `document` and re-registered every time this fragment is (re)loaded via htmx, so
-    // without the scope check it would permanently intercept and silently cancel every other
-    // htmx request on the page (Create buttons, search, nav, etc) the moment this modal is
-    // opened once and closed without checking all three boxes — since closing only hides the
-    // modal, it doesn't remove these checkboxes (still unchecked) or this listener from the DOM.
-    document.addEventListener('htmx:configRequest', function (evt) {
-    	var triggerEl = evt.detail && evt.detail.elt;
-    	if (!triggerEl || !triggerEl.closest || !triggerEl.closest('#deleteConfirmationBody')) {
-    		return;
-    	}
-    	// Only the Delete form itself needs the three confirmations. Everything else inside
-    	// the modal (the hidden buttons that load each related-records list, their search and
-    	// pagination) must go through, otherwise the "Action Required" panel stays empty.
-    	var deleteForm = triggerEl.closest('form');
-    	if (!deleteForm || !deleteForm.querySelector('#deleteConfirmBtn')) {
-    		return;
-    	}
-
-    	var actionEl = document.getElementById('action');
-    	var revertEl = document.getElementById('revert');
-    	var confirmEl = document.getElementById('confirm');
-    	if (actionEl && revertEl && confirmEl) {
-    		if (!actionEl.checked || !revertEl.checked || !confirmEl.checked) {
-    			evt.preventDefault();
-    		}
-    	}
     });
 </script>
