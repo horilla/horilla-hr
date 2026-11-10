@@ -60,6 +60,10 @@ class TimeSheetTabView(HorillaTabView):
             },
         ]
         user = self.request.user
+        # Built before dispatch() runs the login check; an anonymous user has
+        # no employee, and dispatch() redirects them to the login page anyway.
+        if not (user and user.is_authenticated):
+            return
         if (
             user.has_perm("project.view_timesheet")
             or any_project_manager(user)
