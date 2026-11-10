@@ -16,6 +16,7 @@ from django.utils.translation import gettext as _
 from base.decorators import manager_can_enter
 from base.models import Department, EmployeeShift, WorkType
 from horilla.decorators import login_required
+from horilla.week import week_start as _calendar_week_start
 
 logger = logging.getLogger(__name__)
 
@@ -535,7 +536,10 @@ def attendance_hours_distribution(request):
             )
             .filter(period_q)
             .order_by()
-            .values("employee_id__employee_work_info__department_id__department")
+            .values(
+                "employee_id__employee_work_info__department_id",
+                "employee_id__employee_work_info__department_id__department",
+            )
             .annotate(
                 pending_employees=Count("employee_id", distinct=True),
                 pending_total=Sum("hour_pending_second"),
@@ -547,6 +551,9 @@ def attendance_hours_distribution(request):
             if dept:
                 departments.append(
                     {
+                        "department_id": row[
+                            "employee_id__employee_work_info__department_id"
+                        ],
                         "department": dept,
                         "pending_employees": row["pending_employees"],
                         "pending_hours": round((row["pending_total"] or 0) / 3600, 1),
@@ -908,7 +915,7 @@ def attendance_calendar_heatmap(request):
                 d += timedelta(days=1)
         else:
             aggregate = "weekly"
-            week_start = from_date - timedelta(days=from_date.weekday())  # Monday
+            week_start = _calendar_week_start(from_date)
             while week_start <= to_date:
                 week_end = week_start + timedelta(days=6)
                 actual_start = max(week_start, from_date)
