@@ -233,6 +233,38 @@
         },
     };
 </script>
+{% comment %}
+  The in-browser Tailwind compiler (tailwind.js and tailwindcdn.js) stores the
+  page's new class names in self["/template.html"] and reads them back after an
+  await. When two builds overlap, the second overwrites the first's list before
+  it is read, and the first batch never gets CSS. Its classes are already marked
+  as done, so they are never retried. Firefox 159 hits this when a list view
+  loads over HTMX: the list's Quick filter dropdown loses z-20 and opens hidden
+  under the table's sticky header.
+
+  This makes that global keep every class it is given, so whichever build reads
+  it compiles all of them. Tailwind caches the classes it has already compiled,
+  so the longer list costs little.
+{% endcomment %}
+<script>
+    (function () {
+        var key = "/template.html";
+        var seen = new Set();
+        var add = function (value) {
+            String(value || "").split(" ").forEach(function (name) {
+                if (name) seen.add(name);
+            });
+        };
+        add(self[key]);
+        Object.defineProperty(self, key, {
+            configurable: true,
+            get: function () {
+                return Array.from(seen).join(" ");
+            },
+            set: add,
+        });
+    })();
+</script>
 <script src="{% static '/jquery/ajax.js' %}"></script>
 <script src="{% static '/jquery/jquery.min.js' %}"></script>
 <script src="{% static '/jquery/jqueryui.js' %}"></script>
