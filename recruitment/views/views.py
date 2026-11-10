@@ -2722,7 +2722,7 @@ def create_candidate_rating(request, cand_id):
     else:
         messages.error(request, _("No Candidate found matching the query"))
 
-    return redirect(recruitment_pipeline)
+    return redirect("cbv-pipeline")
 
 
 # ///////////////////////////////////////////////
@@ -3183,7 +3183,7 @@ def update_candidate_rating(request, cand_id):
     else:
         messages.error(request, _("No Candidate found matching the query"))
 
-    return redirect(recruitment_pipeline)
+    return redirect("cbv-pipeline")
 
 
 def open_recruitments(request):
