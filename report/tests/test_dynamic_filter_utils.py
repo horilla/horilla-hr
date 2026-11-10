@@ -5,7 +5,7 @@ from datetime import date
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, override_settings
 
 from report.dynamic_filter_utils import (
     RELATIVE_DATE_OPERATORS,
@@ -23,6 +23,8 @@ class _FrozenDate(date):
         return FIXED_TODAY
 
 
+# Monday unless a test says otherwise, whatever a local .env sets.
+@override_settings(HORILLA_FIRST_DAY_OF_WEEK=1)
 class ResolveRelativeDateRangeTests(SimpleTestCase):
     def setUp(self):
         # The helper reads ``datetime.date.today()``. Pin it so the result does
@@ -49,6 +51,19 @@ class ResolveRelativeDateRangeTests(SimpleTestCase):
         for operator, window in expected.items():
             with self.subTest(operator=operator):
                 self.assertEqual(resolve_relative_date_range(operator), window)
+
+    @override_settings(HORILLA_FIRST_DAY_OF_WEEK=6)
+    def test_weeks_follow_the_configured_first_day(self):
+        # FIXED_TODAY is a Wednesday; with Saturday first the week began on
+        # Saturday the 7th.
+        self.assertEqual(
+            resolve_relative_date_range("this_week"),
+            (date(2026, 3, 7), date(2026, 3, 13)),
+        )
+        self.assertEqual(
+            resolve_relative_date_range("last_week"),
+            (date(2026, 2, 28), date(2026, 3, 6)),
+        )
 
     def test_unknown_returns_none(self):
         self.assertIsNone(resolve_relative_date_range("not_an_op"))

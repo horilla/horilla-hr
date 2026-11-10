@@ -66,6 +66,7 @@ from horilla.methods import (
     handle_no_permission,
     remove_dynamic_url,
 )
+from horilla.week import week_start
 from leave.decorators import *
 from leave.filters import *
 from leave.forms import *
@@ -1325,8 +1326,6 @@ def leave_request_approve(request, id, emp_id=None):
     return HorillaRedirect(request)
 
 
-@login_required
-@manager_can_enter("leave.change_leaverequest")
 def _posted_ids(request):
     """
     Ids posted either as repeated "ids" params or as one JSON list.
@@ -1346,6 +1345,8 @@ def _posted_ids(request):
     return ids
 
 
+@login_required
+@manager_can_enter("leave.change_leaverequest")
 def leave_request_bulk_approve(request):
     """
     Approve a bulk of leave requests. Reports how many ended up approved
@@ -3994,7 +3995,7 @@ def leave_over_period(request):
                 for i in range((end_of_month - start_of_month).days + 1)
             ]
         else:
-            start_of_week = today - timedelta(days=today.weekday())
+            start_of_week = week_start(today)
             period_dates = [start_of_week + timedelta(days=i) for i in range(6)]
     leave_request = LeaveRequest.objects.filter(
         status__in=["approved", "cancel_requested"],
@@ -4030,7 +4031,7 @@ def leave_over_period(request):
     # Group the days into buckets (a bucket is clipped to the requested range).
     def bucket_key(day):
         if bucket == "week":
-            return day - timedelta(days=day.weekday())
+            return week_start(day)
         if bucket == "month":
             return day.replace(day=1)
         return day
@@ -5393,6 +5394,11 @@ def create_allocationrequest_comment(request, leave_id):
         return HorillaRedirect(
             request, message=_("Leave allocation request not found.")
         )
+
+    emp = request.user.employee_get
+    form = LeaveallocationrequestcommentForm(
+        initial={"employee_id": emp.id, "request_id": leave_id}
+    )
     # Same rule as viewing these comments: the owner, their manager, an
     # approver named for the request, or a holder of the permission.
     if not _may_act_on_leave_request(
@@ -5403,11 +5409,6 @@ def create_allocationrequest_comment(request, leave_id):
     ):
         messages.warning(request, _("You don't have permission"))
         return render(request, "decorator_404.html")
-
-    emp = request.user.employee_get
-    form = LeaveallocationrequestcommentForm(
-        initial={"employee_id": emp.id, "request_id": leave_id}
-    )
 
     if request.method == "POST":
         form = LeaveallocationrequestcommentForm(request.POST)

@@ -1192,12 +1192,12 @@
                 const t = new Date();
                 if (p === 'today') return [t, t];
                 if (p === 'this_week') {
-                    const dow = (t.getDay() + 6) % 7; // 0 = Monday
+                    const dow = (t.getDay() - {{ first_day_of_week|default:1 }} + 7) % 7; // days since the configured first day of the week
                     const from = new Date(t.getFullYear(), t.getMonth(), t.getDate() - dow);
                     return [from, new Date(from.getFullYear(), from.getMonth(), from.getDate() + 6)];
                 }
                 if (p === 'last_week') {
-                    const dow = (t.getDay() + 6) % 7; // 0 = Monday
+                    const dow = (t.getDay() - {{ first_day_of_week|default:1 }} + 7) % 7; // days since the configured first day of the week
                     const from = new Date(t.getFullYear(), t.getMonth(), t.getDate() - dow - 7);
                     return [from, new Date(from.getFullYear(), from.getMonth(), from.getDate() + 6)];
                 }

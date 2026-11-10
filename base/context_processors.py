@@ -23,6 +23,7 @@ from horilla.__version__ import __version__
 from horilla.decorators import hx_request_required, login_required
 from horilla.http.response import HorillaRedirect
 from horilla.methods import get_horilla_model_class
+from horilla.week import first_day_of_week as _first_day_of_week
 
 
 def company_icon_url(company):
@@ -521,3 +522,12 @@ def horilla_version(request):
     exact set of advisories that apply.
     """
     return {"horilla_version": __version__}
+
+
+def first_day_of_week(request):
+    """
+    Exposes settings.HORILLA_FIRST_DAY_OF_WEEK (0 = Sunday ... 6 = Saturday,
+    Monday when unset or invalid) so the dashboards' "This Week" presets
+    start the week on the same day as the server-side filters.
+    """
+    return {"first_day_of_week": _first_day_of_week()}

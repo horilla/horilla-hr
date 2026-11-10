@@ -30,6 +30,7 @@ from base.models import CompanyLeaves, EmployeeShift, Holidays, Roster, RosterPu
 from employee.models import Employee
 from horilla.decorators import hx_request_required
 from horilla.methods import handle_no_permission
+from horilla.week import week_start
 from horilla_views.cbv_methods import login_required, paginator_qry
 from horilla_views.generic.cbv.views import HorillaCardView, HorillaNavView
 
@@ -47,7 +48,7 @@ def _parse_date(value, fallback):
 
 def _week_start():
     today = date.today()
-    return today - timedelta(days=today.weekday())
+    return week_start(today)
 
 
 # ---------------------------------------------------------------------------

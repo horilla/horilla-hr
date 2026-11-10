@@ -11,6 +11,8 @@ import json
 
 from dateutil.relativedelta import relativedelta
 
+from horilla.week import week_start
+
 # Operators that resolve to a self-contained date range computed from
 # "today" -- unlike "between"/"equals"/etc., these take no user-supplied
 # value at all.
@@ -40,11 +42,11 @@ def resolve_relative_date_range(operator):
         yesterday = today - datetime.timedelta(days=1)
         return yesterday, yesterday
     if operator == "this_week":
-        start = today - datetime.timedelta(days=today.weekday())
+        start = week_start(today)
         end = start + datetime.timedelta(days=6)
         return start, end
     if operator == "last_week":
-        start = today - datetime.timedelta(days=today.weekday() + 7)
+        start = week_start(today) - datetime.timedelta(days=7)
         end = start + datetime.timedelta(days=6)
         return start, end
     if operator == "this_month":

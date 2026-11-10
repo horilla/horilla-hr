@@ -379,8 +379,8 @@ function pdInit() {
     function presetRange(p) {
         const t = new Date(), y = t.getFullYear(), m = t.getMonth();
         if (p === 'today') return [t, t];
-        if (p === 'this_week') { const s = new Date(y, m, t.getDate() - ((t.getDay() + 6) % 7)); return [s, new Date(s.getFullYear(), s.getMonth(), s.getDate() + 6)]; }
-        if (p === 'last_week') { const s = new Date(y, m, t.getDate() - ((t.getDay() + 6) % 7) - 7); return [s, new Date(s.getFullYear(), s.getMonth(), s.getDate() + 6)]; }
+        if (p === 'this_week') { const s = new Date(y, m, t.getDate() - ((t.getDay() - {{ first_day_of_week|default:1 }} + 7) % 7)); return [s, new Date(s.getFullYear(), s.getMonth(), s.getDate() + 6)]; }
+        if (p === 'last_week') { const s = new Date(y, m, t.getDate() - ((t.getDay() - {{ first_day_of_week|default:1 }} + 7) % 7) - 7); return [s, new Date(s.getFullYear(), s.getMonth(), s.getDate() + 6)]; }
         if (p === 'this_month') return [new Date(y, m, 1), new Date(y, m + 1, 0)];
         if (p === 'last_month') return [new Date(y, m - 1, 1), new Date(y, m, 0)];
         if (p === 'this_year') return [new Date(y, 0, 1), new Date(y, 11, 31)];

@@ -1122,7 +1122,7 @@
             }
 
             function weekBounds(d) {
-                var from = new Date(d.getFullYear(), d.getMonth(), d.getDate() - (d.getDay() + 6) % 7); // Monday
+                var from = new Date(d.getFullYear(), d.getMonth(), d.getDate() - (d.getDay() - {{ first_day_of_week|default:1 }} + 7) % 7); // configured first day of the week
                 return [from, new Date(from.getFullYear(), from.getMonth(), from.getDate() + 6)];
             }
             function presetRange(p) {
