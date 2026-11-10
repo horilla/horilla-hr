@@ -63,6 +63,8 @@
   #cal-resolve-panel.panel-conflict { border-color: #e85d04; }
   #cal-resolve-panel.panel-resolved { border-color: #10b981; }
   #cal-resolve-panel.panel-ot { border-color: #0f766e; }
+  body.dark #cal-resolve-panel { background: #242424; box-shadow: 0 14px 36px rgba(0,0,0,.6); }
+  body.dark #cal-resolve-panel:not(.panel-conflict):not(.panel-resolved):not(.panel-ot) { border-color: #444444; }
   /* A half-day leave still ahead: the leave half in its colour, the rest in the upcoming colour.
      After the status colours above, so it is not overridden by them. */
   .dv-split.dv-ahead { background: linear-gradient(to bottom right, var(--h1) 50%, var(--h2) 50%); color: #0f2a5c; }

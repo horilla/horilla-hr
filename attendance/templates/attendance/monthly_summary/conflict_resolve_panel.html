@@ -150,6 +150,45 @@
   line-height: 1.5;
   white-space: nowrap;
 }
+
+.crp-title { font-weight: 700; font-size: .88rem; }
+.crp-title--ok { color: #065f46; }
+.crp-title--warn { color: #92400e; }
+.crp-title--hol { color: #134e4a; }
+.crp-title--woff { color: #4c1d95; }
+.crp-title--plain { color: #1e1b4b; }
+.crp-title-sub { font-size: .72rem; font-weight: 400; color: #92400e; margin-left: 6px; }
+.crp-label { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #6c757d; }
+.crp-label--block { margin-bottom: 7px; }
+.crp-label--hours { margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.crp-box { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; }
+.crp-daystatus { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 9px 12px; margin-bottom: 12px; }
+.crp-daystatus .crp-label { font-size: .68rem; }
+.crp-hoursbox { margin-bottom: 10px; padding: 8px 14px; }
+
+body.dark .crp-head { background: #242424; border-bottom-color: #444444; }
+body.dark .crp-box, body.dark .crp-ctx { background: #1a1a1a; border-color: #444444; }
+body.dark .crp-label { color: #bbbbbb; }
+body.dark .crp-title--ok { color: #34d399; }
+body.dark .crp-title--warn, body.dark .crp-title-sub { color: #fdba74; }
+body.dark .crp-title--hol { color: #5eead4; }
+body.dark .crp-title--woff { color: #c4b5fd; }
+body.dark .crp-title--plain { color: #dfdfdf; }
+body.dark .crp-ctx-name { color: #dfdfdf; }
+body.dark .crp-ctx-note, body.dark .crp-clash { color: #fdba74 !important; }
+body.dark .crp-ctx-note[style] { color: #34d399 !important; }
+body.dark .crp-shiftrow input, body.dark .crp-hours-calc input { background: #2a2a2a; border-color: #444444; color: #dfdfdf; }
+body.dark .crp-shiftrow label, body.dark .crp-hours-calc label, body.dark .crp-group { color: #9ca3af; }
+body.dark .crp-hours-input { background: #1a1a1a; border-color: #444444; color: #dfdfdf; }
+body.dark .crp-hours-input.is-invalid { border-color: #ef4444; }
+body.dark .crp-hours-error { color: #f87171; }
+body.dark .crp-hours-note { color: #bbbbbb; }
+body.dark .crp-hist { border-top-color: #444444; }
+body.dark .crp-hist-count { background: #333333; color: #bbbbbb; }
+body.dark .crp-hist-item { border-left-color: #444444; }
+body.dark .crp-hist-icon { background: #242424; }
+body.dark .crp-hist-line, body.dark .crp-change { color: #dfdfdf; }
+body.dark .crp-hist-meta strong { color: #bbbbbb; }
 </style>
 
 <div class="crp-shell">
@@ -160,25 +199,25 @@
     <div style="display:flex;align-items:center;gap:8px;">
       {% if existing_resolution and conflict_type == "paid_leave" or existing_resolution and conflict_type == "unpaid_leave" %}
         <ion-icon name="checkmark-circle-outline" style="color:#10b981;font-size:1.1rem;flex-shrink:0;"></ion-icon>
-        <span style="font-weight:700;font-size:.88rem;color:#065f46;">{% trans "Overridden" %} — {{ date|date:"d M Y" }}</span>
+        <span class="crp-title crp-title--ok">{% trans "Overridden" %} — {{ date|date:"d M Y" }}</span>
       {% elif conflict_type == "paid_leave" or conflict_type == "unpaid_leave" %}
         <ion-icon name="warning-outline" style="color:#e85d04;font-size:1.1rem;flex-shrink:0;"></ion-icon>
-        <span style="font-weight:700;font-size:.88rem;color:#92400e;">
+        <span class="crp-title crp-title--warn">
           {% trans "Conflict" %} — {{ date|date:"d M Y" }}
-          <span style="font-size:.72rem;font-weight:400;color:#92400e;margin-left:6px;">{% trans "attendance overlaps approved leave" %}</span>
+          <span class="crp-title-sub">{% trans "attendance overlaps approved leave" %}</span>
         </span>
       {% elif conflict_type == "holiday_ot" %}
         <ion-icon name="sunny-outline" style="color:#0f766e;font-size:1.1rem;flex-shrink:0;"></ion-icon>
-        <span style="font-weight:700;font-size:.88rem;color:#134e4a;">{% trans "Holiday OT" %} — {{ date|date:"d M Y" }}</span>
+        <span class="crp-title crp-title--hol">{% trans "Holiday OT" %} — {{ date|date:"d M Y" }}</span>
       {% elif conflict_type == "week_off_ot" %}
         <ion-icon name="moon-outline" style="color:#7c3aed;font-size:1.1rem;flex-shrink:0;"></ion-icon>
-        <span style="font-weight:700;font-size:.88rem;color:#4c1d95;">{% trans "Week Off OT" %} — {{ date|date:"d M Y" }}</span>
+        <span class="crp-title crp-title--woff">{% trans "Week Off OT" %} — {{ date|date:"d M Y" }}</span>
       {% elif existing_resolution %}
         <ion-icon name="checkmark-circle-outline" style="color:#10b981;font-size:1.1rem;flex-shrink:0;"></ion-icon>
-        <span style="font-weight:700;font-size:.88rem;color:#065f46;">{% trans "Overridden" %} — {{ date|date:"d M Y" }}</span>
+        <span class="crp-title crp-title--ok">{% trans "Overridden" %} — {{ date|date:"d M Y" }}</span>
       {% else %}
         <ion-icon name="calendar-outline" style="color:#6366f1;font-size:1.1rem;flex-shrink:0;"></ion-icon>
-        <span style="font-weight:700;font-size:.88rem;color:#1e1b4b;">{{ date|date:"d M Y" }}</span>
+        <span class="crp-title crp-title--plain">{{ date|date:"d M Y" }}</span>
       {% endif %}
     </div>
     <button onclick="msCalClosePanel()"
@@ -189,8 +228,8 @@
 
   <!-- ── What the day is, when half of it is leave ──────────────────────── -->
   {% if natural_split and not existing_resolution %}
-  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:9px 12px;margin-bottom:12px;">
-    <span style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6c757d;">{% trans "Day status" %}</span>
+  <div class="crp-box crp-daystatus">
+    <span class="crp-label">{% trans "Day status" %}</span>
     <span class="crp-pill" style="background:{{ natural_status_bg }};color:{{ natural_status_fg }};">{{ natural_status_label }}</span>
     <span style="font-size:.68rem;color:#9ca3af;">{% trans "from the half-day leave and attendance" %}</span>
   </div>
@@ -234,7 +273,7 @@
   {% endif %}
 
   <!-- ── Mark as: one choice, and the two halves when it is a split ─────── -->
-  <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6c757d;margin-bottom:7px;">
+  <div class="crp-label crp-label--block">
     {% trans "Mark this day as" %}
   </div>
   <div class="crp-pick">
@@ -293,11 +332,8 @@
 
 <div style="height:12px;"></div>
   <!-- ── Hours for this day: always editable, saved with the Save button ────── -->
-  <div style="margin-bottom:10px;border-radius:8px;padding:8px 14px;
-              background:#f8fafc;border:1px solid #e5e7eb;">
-    <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;
-                letter-spacing:.4px;color:#6c757d;margin-bottom:8px;
-                display:flex;align-items:center;gap:6px;">
+  <div class="crp-box crp-hoursbox">
+    <div class="crp-label crp-label--hours">
       <ion-icon name="time-outline" style="font-size:.9rem;color:#6366f1;"></ion-icon>
       {% trans "Hours" %}
       <span class="crp-tip" tabindex="0" aria-label="{% trans 'How the minimum hours count' %}">

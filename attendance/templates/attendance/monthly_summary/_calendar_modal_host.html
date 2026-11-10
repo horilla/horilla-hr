@@ -22,6 +22,12 @@ and to_date.
 {% endcomment %}
 <style>
 @keyframes ms-spin { to { transform: rotate(360deg); } }
+#cal-modal-inner { background: #fff; }
+#cal-modal-close { color: #6c757d; }
+#cal-modal-close:hover { background: #f1f5f9; color: #374151; }
+body.dark #cal-modal-inner { background: #1a1a1a; color: #dfdfdf; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+body.dark #cal-modal-close { color: #bbbbbb; }
+body.dark #cal-modal-close:hover { background: #2e2e2e; color: #ffffff; }
 </style>
 
 <!-- â"€â"€ Calendar modal overlay â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ -->
@@ -29,17 +35,15 @@ and to_date.
      style="display:none;position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.45);
             align-items:center;justify-content:center;">
   <div id="cal-modal-inner"
-       style="background:#fff;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.25);
+       style="border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.25);
               width:min(96vw,1240px);max-height:94vh;overflow:hidden;display:flex;
               flex-direction:column;position:relative;">
     <button id="cal-modal-close"
             onclick="document.getElementById('cal-modal-overlay').style.display='none'"
             style="position:absolute;top:10px;right:12px;background:none;border:none;
-                   color:#6c757d;cursor:pointer;z-index:1;padding:4px;border-radius:6px;
+                   cursor:pointer;z-index:1;padding:4px;border-radius:6px;
                    display:flex;align-items:center;justify-content:center;
-                   transition:background .15s,color .15s;"
-            onmouseenter="this.style.background='#f1f5f9';this.style.color='#374151';"
-            onmouseleave="this.style.background='none';this.style.color='#6c757d';">
+                   transition:background .15s,color .15s;">
       <ion-icon name="close-outline" style="font-size:1.4rem;pointer-events:none;"></ion-icon>
     </button>
     <div id="cal-modal-content" style="display:flex;flex-direction:column;overflow:hidden;flex:1;min-height:0;"></div>

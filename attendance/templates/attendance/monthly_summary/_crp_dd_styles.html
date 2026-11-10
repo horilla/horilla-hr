@@ -52,4 +52,24 @@
 }
 .crp-split-plus { text-align: center; font-weight: 700; color: #9ca3af; padding-bottom: 8px; }
 .crp-split-bar { grid-column: 1 / -1; height: 8px; border-radius: 999px; border: 1px solid #e5e7eb; }
+
+body.dark .crp-dd-btn {
+  border-color: #444444; background-color: #1a1a1a; color: #dfdfdf;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23bbbbbb' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+body.dark .crp-dd-btn:hover { border-color: #5a5a5a; }
+body.dark .crp-dd.open .crp-dd-btn, body.dark .crp-dd-btn:focus { border-color: #e54f38; }
+body.dark .crp-dd-dot { border-color: rgba(255,255,255,.2); }
+body.dark .crp-dd-list { background: #242424; border-color: #444444; box-shadow: 0 8px 24px rgba(0,0,0,.5); }
+body.dark .crp-dd-group { color: #9ca3af; }
+body.dark .crp-dd-item { color: #dfdfdf; }
+body.dark .crp-dd-item:hover { background: #2e2e2e; }
+body.dark .crp-dd-item.sel { background: rgba(229,79,56,.18); }
+body.dark .crp-scroll, body.dark .crp-dd-list { scrollbar-color: #555555 transparent; }
+body.dark .crp-scroll::-webkit-scrollbar-thumb, body.dark .crp-dd-list::-webkit-scrollbar-thumb { background: #555555; }
+body.dark .crp-scroll::-webkit-scrollbar-thumb:hover, body.dark .crp-dd-list::-webkit-scrollbar-thumb:hover { background: #777777; }
+body.dark .crp-foot { background: #242424; border-top-color: #444444; }
+body.dark .crp-foot-note { color: #bbbbbb; }
+body.dark .crp-split select { background: #1a1a1a; border-color: #444444; color: #dfdfdf; }
+body.dark .crp-split-bar { border-color: #444444; }
 </style>
