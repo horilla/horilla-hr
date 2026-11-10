@@ -732,9 +732,10 @@ class OffboardingPipelineTabNav(HorillaNavView):
         if offboarding:
             self.nav_title = offboarding.title
 
-        if self.request.user.has_perm(
-            "offboarding.add_offboardingemployee"
-        ) or is_offboarding_manager(self.request.user.employee_get):
+        employee = getattr(self.request.user, "employee_get", None)
+        if self.request.user.has_perm("offboarding.add_offboardingemployee") or (
+            employee and is_offboarding_manager(employee)
+        ):
             first_stage = (
                 OffboardingStage.objects.filter(
                     offboarding_id=offboarding_id, is_active=True
