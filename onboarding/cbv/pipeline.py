@@ -9,7 +9,7 @@ from typing import Any
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Count, Q
-from django.http import HttpResponse, JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
@@ -263,6 +263,14 @@ class RecruitmentPipelineContentShell(TemplateView):
     """
 
     template_name = "cbv/pipeline/onboarding/recruitment_pipeline_shell.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        try:
+            return super().dispatch(request, *args, **kwargs)
+        except Http404:
+            return HorillaRedirect(
+                request, message=_("Requested object does not exist")
+            )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
