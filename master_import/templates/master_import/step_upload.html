@@ -107,7 +107,7 @@
   function show() {
     var has = input.files && input.files.length;
     title.textContent = has ? input.files[0].name : origTitle;
-    sub.textContent = has ? "{% trans 'Click or drop another file to replace' %}" : origSub;
+    sub.textContent = has ? "{% trans 'Click or drop another file to replace' as replace_msg %}{{ replace_msg|escapejs }}" : origSub;
     drop.classList.toggle("mi__drop--has", !!has);
     go.disabled = !has;
   }
