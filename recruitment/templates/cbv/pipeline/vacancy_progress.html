@@ -1,0 +1,266 @@
+{% load i18n %}
+{% comment %}
+Beside a recruitment's title on its pipeline tab: how many of its places are filled, with a popover that gives the
+figures per job position.
+
+The popover shown to the person is a copy placed on the page itself (see the script at the foot), not the one in
+here: the stage list loads in below this bar after the page, and anything drawn inside the bar can end up under it.
+It follows the pointer's position (not hover events, which are unreliable while the lists load) and goes when the pointer or focus leaves.
+{% endcomment %}
+{% if vacancy.rows %}
+<div class="vp" tabindex="0" role="group"{% if vacancy.rec_id %} data-refresh-url="{% url 'recruitment-pipeline-vacancy' vacancy.rec_id %}"{% endif %}
+     aria-label="{% blocktrans with selected=vacancy.selected total=vacancy.total %}{{ selected }} Of {{ total }} Places Filled{% endblocktrans %}{% if vacancy.over %}, {{ vacancy.over }} {% trans 'Over Selected' %}{% endif %}">
+  <style>
+    .vp { position: relative; display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; outline: none; font-weight: 500; }
+    .vp__pill { display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 10px 0 8px; border: 1px solid #e0e2e7; border-radius: 9999px; background: #fff; color: #374151; font-size: 12px; cursor: default; white-space: nowrap; }
+    .vp:hover .vp__pill, .vp:focus-visible .vp__pill, .vp:focus-within .vp__pill { border-color: #c9ccd3; box-shadow: 0 1px 3px rgba(17, 24, 39, .08); }
+    .vp__pill ion-icon { font-size: 14px; color: #6b7280; }
+    .vp__count { font-weight: 700; color: #111827; font-variant-numeric: tabular-nums; }
+    .vp__bar { width: 38px; height: 5px; border-radius: 9999px; background: #e5e7eb; overflow: hidden; }
+    .vp__bar > i { display: block; height: 100%; border-radius: 9999px; background: #9ca3af; }
+    .vp--partial .vp__bar > i { background: #f59e0b; }
+    .vp--full .vp__bar > i { background: #10b981; }
+    .vp--full .vp__count { color: #0f7b5f; }
+    .vp--over .vp__bar > i { background: #dc2626; }
+    .vp--over .vp__count { color: #b91c1c; }
+    .vp__over { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 9px; border: 1px solid #fbc0c0; border-radius: 9999px; background: #fee2e2; color: #b91c1c; font-size: 11px; font-weight: 700; white-space: nowrap; }
+    .vp__over ion-icon { font-size: 13px; color: #b91c1c; }
+    .vp__overpos { display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 7px; border-radius: 9999px; background: #fff; color: #b91c1c; font-weight: 600; }
+    .vp__overname { max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+    .vp__pop { display: none; width: 440px; max-width: 90vw; padding: 0; border: 1px solid #e6e7eb; border-radius: 12px; background: #fff; box-shadow: 0 16px 40px rgba(17, 24, 39, .18), 0 2px 6px rgba(17, 24, 39, .06); color: #1f2430; font-size: 12px; font-weight: 400; line-height: 1.45; text-align: left; cursor: default; overflow: hidden; }
+    .vp__pop--float { display: block; position: fixed; z-index: 2147483000; }
+    .vp__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; border-bottom: 1px solid #eef0f2; background: #fafafb; }
+    .vp__title { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; color: #1f2430; }
+    .vp__title ion-icon { font-size: 16px; color: #e54f38; }
+    .vp__state { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border: 1px solid #dcdfe4; border-radius: 9999px; background: #eef0f2; color: #4b5563; font-size: 10.5px; font-weight: 700; white-space: nowrap; }
+    .vp__state--partial { border-color: #fcd9a0; background: #fef3c7; color: #92400e; }
+    .vp__state--full { border-color: #a7e8cb; background: #d1fae5; color: #065f46; }
+    .vp__state--over { border-color: #fbc0c0; background: #fee2e2; color: #b91c1c; }
+    .vp__stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 12px 14px 4px; }
+    .vp__stat { padding: 8px 10px; border: 1px solid #eef0f2; border-radius: 8px; background: #fff; }
+    .vp__stat b { display: block; font-size: 16px; line-height: 1.2; color: #111827; font-variant-numeric: tabular-nums; }
+    .vp__stat span { display: block; margin-top: 1px; color: #6b7280; font-size: 10.5px; font-weight: 600; letter-spacing: .02em; }
+    .vp__stat--over b { color: #b91c1c; }
+    .vp__body { padding: 8px 14px 12px; }
+    .vp__table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .vp__table th { padding: 6px 6px; border-bottom: 1px solid #e6e7eb; color: #6b7280; font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; text-align: right; white-space: nowrap; }
+    .vp__table th:first-child, .vp__table td:first-child { text-align: left; padding-left: 0; }
+    .vp__table th:last-child, .vp__table td:last-child { padding-right: 0; }
+    .vp__table td { padding: 7px 6px; border-bottom: 1px solid #f1f2f4; text-align: right; font-variant-numeric: tabular-nums; vertical-align: middle; }
+    .vp__table tbody tr:last-child td { border-bottom: 0; }
+    .vp__table tfoot td { border-top: 1px solid #e6e7eb; border-bottom: 0; font-weight: 700; background: #fafafb; }
+    .vp__name { display: block; font-weight: 600; color: #1f2430; }
+    .vp__dept { display: block; color: #6b7280; font-size: 11px; }
+    .vp__muted { color: #9ca3af; }
+    .vp__sel { display: inline-flex; align-items: center; gap: 6px; }
+    .vp__sel .vp__bar { width: 34px; }
+    .vp__tag { display: inline-block; padding: 1px 8px; border-radius: 9999px; background: #d1fae5; color: #065f46; font-size: 10px; font-weight: 700; }
+    .vp__tag.vp__tag--over { background: #fee2e2; color: #b91c1c; }
+    .vp__row--over .vp__bar > i { background: #dc2626; }
+    .vp__row--full .vp__bar > i { background: #10b981; }
+    .vp__row--partial .vp__bar > i { background: #f59e0b; }
+  </style>
+  <span class="vp__pill vp--{{ vacancy.state }}">
+    <ion-icon name="people-outline"></ion-icon>
+    {% if vacancy.total %}
+      <span><span class="vp__count">{{ vacancy.selected }} / {{ vacancy.total }}</span> {% trans "Filled" %}</span>
+      <span class="vp__bar"><i style="width: {{ vacancy.percent }}%"></i></span>
+    {% else %}
+      <span>{% trans "Vacancy Not Specified" %}</span>
+    {% endif %}
+  </span>
+  {% if vacancy.over %}
+  <span class="vp__over">
+    <ion-icon name="warning-outline"></ion-icon>
+    {% trans "Over Selected" %}
+    {% for row in vacancy.rows %}{% if row.over and forloop.counter0 < 6 %}
+      <span class="vp__overpos"><span class="vp__overname">{{ row.position }}</span> +{{ row.over }}</span>
+    {% endif %}{% endfor %}
+  </span>
+  {% endif %}
+  <div class="vp__pop">
+    <div class="vp__head">
+      <div class="vp__title"><ion-icon name="people-outline"></ion-icon>{% trans "Vacancy Details" %}</div>
+      <span class="vp__state vp__state--{{ vacancy.state }}">
+        {% if vacancy.over %}{% blocktrans count n=vacancy.over %}{{ n }} Over Selected{% plural %}{{ n }} Over Selected{% endblocktrans %}
+        {% elif vacancy.state == "full" %}{% trans "All Places Filled" %}
+        {% elif vacancy.total %}{% blocktrans count left=vacancy.remaining %}{{ left }} Place Left{% plural %}{{ left }} Places Left{% endblocktrans %}
+        {% else %}{% trans "Vacancy Not Specified" %}{% endif %}
+      </span>
+    </div>
+    <div class="vp__stats">
+      <div class="vp__stat{% if vacancy.over %} vp__stat--over{% endif %}"><b>{{ vacancy.selected }} / {{ vacancy.total }}</b><span>{% trans "Selected" %}</span></div>
+      <div class="vp__stat"><b>{{ vacancy.positions_filled }} / {{ vacancy.positions }}</b><span>{% trans "Positions Filled" %}</span></div>
+      <div class="vp__stat"><b>{{ vacancy.remaining }}</b><span>{% trans "Places Left" %}</span></div>
+    </div>
+    <div class="vp__body">
+      <table class="vp__table">
+        <thead>
+          <tr>
+            <th>{% trans "Job Position" %}</th>
+            <th>{% trans "Vacancy" %}</th>
+            <th>{% trans "Applied" %}</th>
+            <th>{% trans "Selected" %}</th>
+            <th>{% trans "Left" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in vacancy.rows %}
+          <tr class="vp__row--{% if row.over %}over{% elif row.is_filled %}full{% elif row.selected %}partial{% else %}empty{% endif %}">
+            <td>
+              <span class="vp__name">{{ row.position }}</span>
+              <span class="vp__dept">{{ row.department }}</span>
+            </td>
+            {% if row.vacancy is None %}
+              <td class="vp__muted">{% trans "Not Specified" %}</td>
+            {% else %}
+              <td>{{ row.vacancy }}</td>
+            {% endif %}
+            <td>{{ row.applied }}</td>
+            <td>
+              <span class="vp__sel">
+                {% if row.vacancy %}<span class="vp__bar"><i style="width: {% widthratio row.selected row.vacancy 100 %}%; max-width: 100%"></i></span>{% endif %}
+                <b>{{ row.selected }}</b>
+              </span>
+            </td>
+            <td>
+              {% if row.over %}<span class="vp__tag vp__tag--over">{% blocktrans with n=row.over %}{{ n }} Over{% endblocktrans %}</span>
+              {% elif row.is_filled %}<span class="vp__tag">{% trans "Filled" %}</span>
+              {% elif row.remaining is None %}<span class="vp__muted">&mdash;</span>
+              {% else %}{{ row.remaining }}{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        {% if vacancy.rows|length > 1 %}
+        <tfoot>
+          <tr>
+            <td>{% trans "Total" %}</td>
+            <td>{{ vacancy.total }}</td>
+            <td>{{ vacancy.applied }}</td>
+            <td>{{ vacancy.selected }}</td>
+            <td>{{ vacancy.remaining }}</td>
+          </tr>
+        </tfoot>
+        {% endif %}
+      </table>
+    </div>
+  </div>
+</div>
+<script>
+  (function () {
+    // This bar is loaded again whenever the tab is, and the page itself stays open. A copy of this script left by
+    // an earlier load (or an older version of it) is switched off first, so there is only ever one set of listeners.
+    if (typeof window.__vacancyPopoverOff === "function") window.__vacancyPopoverOff();
+    var floating = null, owner = null, focused = null, leftAt = 0, pointer = null, frame = null;
+
+    function close() {
+      if (floating) floating.remove();
+      floating = null;
+      owner = null;
+    }
+    // Under the badge, kept on screen.
+    function place() {
+      if (!floating || !owner) return;
+      var box = owner.getBoundingClientRect();
+      // The page hides anything with a tooltip role whenever a list is swapped in, so this has none; reset all the same.
+      floating.style.display = "";
+      var left = Math.min(box.left, window.innerWidth - floating.offsetWidth - 12);
+      floating.style.left = Math.max(8, left) + "px";
+      floating.style.top = (box.bottom + 6) + "px";
+    }
+    function open(badge) {
+      close();
+      var source = badge.querySelector(".vp__pop");
+      if (!source) return;
+      floating = source.cloneNode(true);
+      floating.classList.add("vp__pop--float");
+      document.body.appendChild(floating);
+      owner = badge;
+      place();
+    }
+    function inside(box, p, pad) {
+      return p && p.x >= box.left - pad && p.x <= box.right + pad && p.y >= box.top - pad && p.y <= box.bottom + pad;
+    }
+    // One check decides everything from where the pointer is and what has focus, not from enter and leave events:
+    // while the stage lists load, the page under the pointer is redrawn and scrolled, and those events get lost or
+    // fire for elements that are already gone. The position of the pointer does not.
+    function sync() {
+      var badges = document.querySelectorAll(".vp");
+      if (owner && !owner.isConnected) close();
+      // What is actually under the pointer: a dialog or menu drawn over the badge must not open the popover.
+      var top = pointer ? document.elementFromPoint(pointer.x, pointer.y) : null;
+      var target = null;
+      for (var i = 0; i < badges.length && !target; i++) {
+        if (badges[i] === focused || (top && badges[i].contains(top) && inside(badges[i].getBoundingClientRect(), pointer, 1))) target = badges[i];
+      }
+      if (!target && floating && top && floating.contains(top)) target = owner;
+      if (target) {
+        leftAt = 0;
+        if (target !== owner || !floating) open(target); else place();
+      } else if (floating) {
+        // A short grace, so the pointer can cross the gap between the badge and the popover.
+        var now = Date.now();
+        if (!leftAt) leftAt = now;
+        if (now - leftAt > 200) close(); else place();
+      }
+    }
+    function soon() {
+      if (frame !== null) return;
+      frame = requestAnimationFrame(function () { frame = null; sync(); });
+    }
+    function onMove(e) { pointer = { x: e.clientX, y: e.clientY }; soon(); }
+    function onGone() { pointer = null; soon(); }
+    function onFocusIn(e) { var b = e.target.closest ? e.target.closest(".vp") : null; if (b) { focused = b; soon(); } }
+    function onFocusOut(e) { if (e.target.closest && e.target.closest(".vp")) { focused = null; soon(); } }
+
+    // Capture phase on the window: heard before anything lower on the page can stop the event.
+    window.addEventListener("mousemove", onMove, true);
+    window.addEventListener("pointermove", onMove, true);
+    window.addEventListener("mouseover", onMove, true);
+    window.addEventListener("pointerdown", onMove, true);
+    document.documentElement.addEventListener("mouseleave", onGone);
+    window.addEventListener("blur", onGone);
+    window.addEventListener("focusin", onFocusIn, true);
+    window.addEventListener("focusout", onFocusOut, true);
+    window.addEventListener("scroll", soon, true);
+    window.addEventListener("resize", soon);
+    // A steady check as well, for a page that moves under a pointer that is still.
+    var ticker = setInterval(sync, 150);
+
+    // Selecting, moving or updating candidates changes the figures, so the bar is loaded again once such a change
+    // has gone through.
+    var refreshTimer = null;
+    function onChanged(e) {
+      var d = e.detail || {};
+      var verb = d.requestConfig && d.requestConfig.verb;
+      if (!d.successful || !verb || verb === "get") return;
+      clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(function () {
+        var badge = document.querySelector(".vp[data-refresh-url]");
+        if (!badge || !window.htmx) return;
+        window.htmx.ajax("GET", badge.getAttribute("data-refresh-url"), { target: badge, swap: "outerHTML" });
+      }, 600);
+    }
+    document.body.addEventListener("htmx:afterRequest", onChanged);
+
+    window.__vacancyPopoverOff = function () {
+      close();
+      clearInterval(ticker);
+      clearTimeout(refreshTimer);
+      document.body.removeEventListener("htmx:afterRequest", onChanged);
+      if (frame !== null) cancelAnimationFrame(frame);
+      window.removeEventListener("mousemove", onMove, true);
+      window.removeEventListener("pointermove", onMove, true);
+      window.removeEventListener("mouseover", onMove, true);
+      window.removeEventListener("pointerdown", onMove, true);
+      document.documentElement.removeEventListener("mouseleave", onGone);
+      window.removeEventListener("blur", onGone);
+      window.removeEventListener("focusin", onFocusIn, true);
+      window.removeEventListener("focusout", onFocusOut, true);
+      window.removeEventListener("scroll", soon, true);
+      window.removeEventListener("resize", soon);
+    };
+  })();
+</script>
+{% endif %}
