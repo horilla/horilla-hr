@@ -1974,6 +1974,7 @@ def get_department_employees(request):
         "employee/employees_select.html",
         {"employees": employees},
     )
+    employee_html = '<option value="">---------</option>' + employee_html
 
     return HttpResponse(employee_html)
 

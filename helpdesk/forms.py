@@ -26,7 +26,7 @@ from typing import Any
 
 from django import forms
 from django.template.loader import render_to_string
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.utils.translation import gettext_lazy as _
 
 from base.forms import ModelForm
@@ -330,22 +330,28 @@ class DepartmentManagerCreateForm(ModelForm):
     class Meta:
         model = DepartmentManager
         fields = ["department", "manager"]
-        widgets = {
-            "department": forms.Select(
-                attrs={
-                    "hx-get": reverse_lazy("get-department-employee"),
-                    "hx-trigger": "change",
-                    "hx-target": "#id_manager",
-                    "hx-vals": 'js:{"dep_id": event.target.value}',
-                }
-            ),
-        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # Plain jQuery instead of htmx: select2 fires a native change on every
+        # pick, and the options are replaced and select2 refreshed explicitly.
+        self.fields["department"].widget.attrs["onchange"] = (
+            "var m=$('#id_manager');"
+            "$.ajax({url:'%s',data:{dep_id:this.value},"
+            "headers:{'HX-Request':'true'},"
+            "success:function(h){m.html(h).val('').trigger('change');}});"
+            % reverse("get-department-employee")
+        )
         if self.instance.pk:
             if "instance" in kwargs:
-                department = kwargs["instance"].department
+                # Follow the department being submitted so a changed
+                # department's employees pass validation.
+                department = self.instance.department
+                dep_id = self.data.get("department") if self.is_bound else None
+                if dep_id:
+                    department = (
+                        Department.objects.filter(pk=dep_id).first() or department
+                    )
                 # Get the employees related to this department
                 employees = department.employeeworkinformation_set.values_list(
                     "employee_id", flat=True
