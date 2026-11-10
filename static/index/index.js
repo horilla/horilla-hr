@@ -3168,3 +3168,46 @@ document.addEventListener("htmx:afterRequest", function (e) {
     var job = e.detail.xhr && e.detail.xhr.__hlvBulkDelete;
     if (job) hlvBulkDeleteFinish(job.model, job.ids);
 });
+
+function hlvCountFieldControls(container) {
+    var seen = new Set();
+    container
+        .querySelectorAll("input:not([type=hidden]):not(.select2-search__field), select, textarea")
+        .forEach(function (control) {
+            seen.add(control.name || control);
+        });
+    return seen.size;
+}
+
+function hlvFindFieldErrorLists(control) {
+    var form = control.closest("form");
+    var node = control;
+    while (node && node !== form && node !== document.body) {
+        var next = node.nextElementSibling;
+        if (next && next.classList.contains("errorlist")) {
+            return [next];
+        }
+        var parent = node.parentElement;
+        if (parent && parent !== form) {
+            var lists = Array.prototype.filter.call(parent.children, function (child) {
+                return child.classList.contains("errorlist");
+            });
+            if (lists.length && hlvCountFieldControls(parent) === 1) {
+                return lists;
+            }
+        }
+        node = parent;
+    }
+    return [];
+}
+
+$(document).on(
+    "input.hlvClearFieldErrors change.hlvClearFieldErrors",
+    "form input:not(.select2-search__field), form select, form textarea",
+    function () {
+        hlvFindFieldErrorLists(this).forEach(function (list) {
+            list.remove();
+        });
+        $(this).closest("form").find(".js-non-field-errors .errorlist").remove();
+    }
+);

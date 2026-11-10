@@ -111,10 +111,4 @@ for a draft. One amount on one date for either type, so there is nothing else to
         $(status).on("change", apply);
         apply();
     })();
-    $(document)
-        .off("input.clearFieldErrors change.clearFieldErrors", "input, select, textarea")
-        .on("input.clearFieldErrors change.clearFieldErrors", "input, select, textarea", function () {
-            $(this).closest('[id$="_parent_div"]').find(".errorlist").remove();
-            $(this).closest("form").find(".js-non-field-errors .errorlist").remove();
-        });
 </script>
