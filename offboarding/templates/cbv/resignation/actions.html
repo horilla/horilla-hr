@@ -116,7 +116,7 @@
     {% if perms.offboarding.change_resignationletter and instance.status != "cancellation_requested" %}
         <form
             hx-get="{% url 'update-letter-status' %}"
-            hx-target="#listContainer"
+            hx-target="#resignationActionTarget"
             hx-swap="innerHTML"
         >
             <style>

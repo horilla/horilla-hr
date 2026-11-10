@@ -11,7 +11,7 @@
             <form
                 id="resignationRejectForm"
                 hx-get="{% url 'update-letter-status' %}"
-                hx-target="#listContainer"
+                hx-target="#resignationActionTarget"
                 hx-swap="innerHTML"
                 hx-on::after-request="if(event.detail.successful){$('#resignationRejectModal').removeClass('oh-modal--show');}"
             >
