@@ -1573,6 +1573,18 @@
         .md-pending-card--purple {
             background: #faf5ff;
         }
+        .md-pending-card--teal {
+            background: #f0fdfa;
+        }
+        .md-pending-card--indigo {
+            background: #eef2ff;
+        }
+        .dark .md-pending-card--teal {
+            background: rgba(20, 184, 166, 0.1);
+        }
+        .dark .md-pending-card--indigo {
+            background: rgba(99, 102, 241, 0.1);
+        }
         .dark .md-pending-card--amber {
             background: rgba(245, 158, 11, 0.1);
         }
@@ -3822,11 +3834,11 @@
                         <div class="md-pending-card__count">${p.asset_requests}</div>
                         <div class="md-pending-card__label">{% trans "Assets"|escapejs %}</div>
                     </a>
-                    <a href="{% url 'shift-request-view' %}?open_tab=1&status=requested&filter_applied=1" class="md-pending-card" style="background:#f0fdfa;">
+                    <a href="{% url 'shift-request-view' %}?open_tab=1&status=requested&filter_applied=1" class="md-pending-card md-pending-card--teal">
                         <div class="md-pending-card__count" style="color:#0d9488;">${p.shift_requests}</div>
                         <div class="md-pending-card__label">{% trans "Shift"|escapejs %}</div>
                     </a>
-                    <a href="{% url 'work-type-request-view' %}?status=requested&filter_applied=1" class="md-pending-card" style="background:#eef2ff;">
+                    <a href="{% url 'work-type-request-view' %}?status=requested&filter_applied=1" class="md-pending-card md-pending-card--indigo">
                         <div class="md-pending-card__count" style="color:#4f46e5;">${p.work_type_requests}</div>
                         <div class="md-pending-card__label">{% trans "Work Type"|escapejs %}</div>
                     </a>
