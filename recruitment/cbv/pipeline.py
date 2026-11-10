@@ -204,6 +204,11 @@ class RecruitmentTabView(HorillaTabView):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        # The view is built before dispatch() runs the login check, so an
+        # anonymous request (no user, no session key) reaches this code. There
+        # is nothing to prepare for them; dispatch() redirects to the login page.
+        if not (self.request.user and self.request.user.is_authenticated):
+            return
         recruitments = self.filter_class(self.request.GET).qs.filter(is_active=True)
         if self.request.GET.get("closed") in (None, "", "unknown"):
             recruitments = recruitments.filter(closed=False)
@@ -355,6 +360,9 @@ class RecruitmentCandidateNav(HorillaNavView):
         rec = models.Recruitment.objects.filter(pk=rec_id).first()
         if rec:
             self.nav_title = str(rec)
+            # Next to the title: how many of the places are filled, and the detail per job position.
+            self.nav_info_template = "cbv/pipeline/vacancy_progress.html"
+            self.nav_info_context = {"vacancy": rec.vacancy_progress()}
         if rec and (
             self.request.user.has_perm("recruitment.add_candidate")
             or self.request.user.has_perm("recruitment.change_recruitment")
@@ -370,6 +378,26 @@ class RecruitmentCandidateNav(HorillaNavView):
 
         if rec:
             self.actions = recruitment_pipeline_actions(self.request, rec)
+
+
+@method_decorator(login_required, name="dispatch")
+@method_decorator(hx_request_required, name="dispatch")
+@method_decorator(
+    manager_can_enter(perm="recruitment.view_recruitment"), name="dispatch"
+)
+class RecruitmentVacancyProgress(TemplateView):
+    """
+    The vacancy indicator of a recruitment's pipeline tab on its own, loaded again after candidates are
+    selected or moved so its figures stay current.
+    """
+
+    template_name = "cbv/pipeline/vacancy_progress.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        rec = models.Recruitment.objects.filter(pk=self.kwargs["rec_id"]).first()
+        context["vacancy"] = rec.vacancy_progress() if rec else {}
+        return context
 
 
 @method_decorator(login_required, name="dispatch")
