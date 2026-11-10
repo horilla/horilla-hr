@@ -17,6 +17,10 @@
         data-required-message="{{ form.wizard_required_message }}"
         data-locked-title="{{ form.wizard_locked_message }}"
         data-name-max="{{ form.wizard_name_max }}"
+        data-vacancy-url="{% url 'recruitment-position-vacancy' %}"
+        {% if form.wizard_vacancy %}data-position-options="{{ form.position_options_json }}"{% endif %}
+        data-recruitment="{{ form.instance.pk|default:'' }}"
+        data-vacancy-text="{% trans 'Headcount' %} %h% &middot; {% trans 'In Position' %} %f% &middot; {% trans 'Already Open' %} %o% &rarr; {% trans 'Free' %} %a%"
         {% if form.instance.pk %}data-editing="1"{% endif %}
     >
         <style>
@@ -103,16 +107,76 @@
             .rec-wiz-icon:hover:not(:disabled) { background: #e5e7eb; }
             .rec-wiz-icon:disabled { opacity: .35; cursor: default; }
             .rec-wiz-icon.is-remove:hover:not(:disabled) { background: #fee2e2; color: #991b1b; }
-            .rec-wiz-num[draggable="true"] { cursor: grab; }
-            .rec-wiz-grip { cursor: grab; color: #9ca3af; user-select: none; padding: 0 4px; letter-spacing: -2px; font-size: 16px; line-height: 1; }
-            .rec-wiz-row.is-dragging { opacity: .4; }
-            .rec-wiz-row.drop-before { box-shadow: 0 -2px 0 0 var(--rw-primary); }
-            .rec-wiz-row.drop-after { box-shadow: 0 2px 0 0 var(--rw-primary); }
+            .rec-wiz-list { position: relative; }
+            /* ---- reordering stages: pick a row up by its handle, see where it will land, drop it ---- */
+            .rec-wiz-grip { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 28px; flex: 0 0 22px; border-radius: 6px; color: #9ca3af; cursor: grab; touch-action: none; user-select: none; outline: none; }
+            .rec-wiz-grip::before { content: ""; width: 10px; height: 16px; background: radial-gradient(circle, currentColor 1.4px, transparent 1.6px) 0 0 / 5px 5.33px; }
+            .rec-wiz-grip:hover { background: #f3f4f6; color: #6b7280; }
+            .rec-wiz-grip:focus-visible { background: #f3f4f6; box-shadow: 0 0 0 2px var(--rw-primary-soft), 0 0 0 3px var(--rw-primary); color: #374151; }
+            .rec-wiz-num { cursor: grab; touch-action: none; user-select: none; }
+            .rec-wiz-list.is-sorting .rec-wiz-row:not(.is-lifted) { transition: none; }
+            .rec-wiz-row { transition: box-shadow .15s ease, border-color .15s ease; }
+            /* The row being moved stays solid, lifts off the list and follows the pointer. */
+            .rec-wiz-row.is-lifted { position: absolute; z-index: 20; box-sizing: border-box; background: #fff; border-color: var(--rw-primary); box-shadow: 0 14px 30px rgba(17, 24, 39, .18), 0 2px 6px rgba(17, 24, 39, .08); cursor: grabbing; }
+            .rec-wiz-row.is-lifted .rec-wiz-grip, .rec-wiz-row.is-lifted .rec-wiz-num { cursor: grabbing; }
+            .rec-wiz-row.is-settling { transition: top .16s ease, box-shadow .16s ease, border-color .16s ease; box-shadow: 0 1px 2px rgba(17, 24, 39, .06); }
+            /* Where it will land. */
+            .rec-wiz-placeholder { box-sizing: border-box; border: 2px dashed var(--rw-primary); border-radius: 10px; background: var(--rw-primary-soft); opacity: .55; }
+            body.rec-wiz-grabbing, body.rec-wiz-grabbing * { cursor: grabbing !important; user-select: none !important; }
+            .rec-wiz-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
             .rec-wiz-row.is-confirming { background: #fef2f2; border-color: #fecaca; }
             .rec-wiz-confirm { display: flex; align-items: center; gap: 8px; width: 100%; font-size: 13px; color: #991b1b; flex-wrap: wrap; }
             .rec-wiz-confirm .oh-btn--danger { background: #b00020; border-color: #b00020; color: #fff; }
             .rec-wiz-error { color: #b00020; font-size: 13px; margin-top: 10px; }
             .rec-wiz-error ul { margin: 0; padding: 0; list-style: none; }
+            /* ---- vacancy step: one table, a slim total bar on top and a thin line per job position ---- */
+            .rec-wiz-step2 .rec-wiz-intro.rec-vac-help { font-size: 11px; line-height: 1.4; margin-bottom: 8px; }
+            .rec-vac-wrap { border: 1px solid #e6e7eb; border-radius: 8px; background: #fff; overflow: hidden; }
+            .rec-vac-total { display: flex; align-items: center; justify-content: flex-end; padding: 4px 10px; background: #f9fafb; border-bottom: 1px solid #e6e7eb; }
+            .rec-vac-pill { display: inline-flex; align-items: center; gap: 6px; padding: 2px 4px 2px 10px; border: 1px solid #e6e7eb; border-radius: 9999px; background: #fff; user-select: none; }
+            .rec-vac-total__label { font-size: 10px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: .03em; }
+            .rec-vac-total__value { min-width: 20px; padding: 1px 7px; border-radius: 9999px; background: var(--rw-primary); color: #fff; font-size: 11px; font-weight: 700; line-height: 1.4; text-align: center; font-variant-numeric: tabular-nums; }
+            .rec-vac-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12px; color: #1f2430; }
+            .rec-vac-table th { padding: 4px 8px; border-bottom: 1px solid #e6e7eb; font-size: 10px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; color: #6b7280; text-align: left; line-height: 1.15; white-space: normal; }
+            .rec-vac-table td { padding: 3px 8px; border-bottom: 1px solid #f0f1f3; vertical-align: middle; line-height: 1.2; }
+            .rec-vac-table th:nth-child(2) { text-align: center; }
+            .rec-vac-table th:nth-child(1) { width: 6%; }
+            .rec-vac-table th:nth-child(2) { width: 41%; }
+            .rec-vac-table th:nth-child(3) { width: 16%; }
+            .rec-vac-table th:nth-child(4) { width: 13%; }
+            .rec-vac-table th:nth-child(5) { width: 17%; }
+            .rec-vac-table th:nth-child(6) { width: 7%; }
+            .rec-vac-table th.rec-vac-sn, .rec-vac-table td.rec-vac-sn { text-align: center; padding-left: 8px; padding-right: 4px; color: #6b7280; font-variant-numeric: tabular-nums; }
+            .rec-vac-table tbody tr:last-child td { border-bottom: 0; }
+            .rec-vac-table tbody tr:hover td { background: #fafafb; }
+            .rec-vac-table .rec-vac-num { text-align: right; font-variant-numeric: tabular-nums; }
+            .rec-vac-table .is-muted { color: #9ca3af; }
+            /* The theme gives every <select> padding: 5px 10px !important and its own font size, which left this box's
+               text sitting low and clipped. Set here with the same weight so the text is centred in the box. */
+            .rec-vac-table .rec-vac-select {
+                -webkit-appearance: none; appearance: none; display: block; width: 100%; height: 26px; min-height: 0; margin: 0;
+                padding: 0 22px 0 8px !important; border: 1px solid #d9dce3; border-radius: 5px;
+                font-size: 12px !important; line-height: 24px; color: #1f2430; box-sizing: border-box; text-overflow: ellipsis;
+                background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236b7280' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 8px center;
+            }
+            .rec-vac-table .rec-vac-select:focus { outline: none; border-color: var(--rw-primary); box-shadow: 0 0 0 2px var(--rw-primary-soft); }
+            .rec-vac-table th.rec-vac-field, .rec-vac-table td.rec-vac-field { text-align: right; }
+            .rec-vac-input { width: 100%; max-width: 92px; height: 24px; border: 1px solid #d9dce3; border-radius: 5px; padding: 0 5px; font-size: 12px; font-weight: 600; color: #1f2430; background: #fff; text-align: right; box-sizing: border-box; }
+            .rec-vac-input::placeholder { color: #9ca3af; font-size: 10px; font-weight: 400; text-align: right; }
+            .rec-vac-input:focus { outline: none; border-color: var(--rw-primary); box-shadow: 0 0 0 2px var(--rw-primary-soft); }
+            .rec-vac-input.is-over { border-color: #b91c1c; color: #b91c1c; background: #fef2f2; }
+            .rec-vac-input:disabled { background: #f3f4f6; }
+            .rec-vac-table td.rec-vac-act, .rec-vac-table th.rec-vac-act { padding-left: 0; padding-right: 6px; text-align: center; }
+            .rec-vac-del { width: 20px; height: 20px; border: 0; border-radius: 5px; background: transparent; color: #9ca3af; font-size: 16px; line-height: 1; cursor: pointer; }
+            .rec-vac-del:hover:not(:disabled) { background: #fee2e2; color: #991b1b; }
+            .rec-vac-del:disabled { opacity: .3; cursor: not-allowed; }
+            .rec-vac-foot { padding: 5px 10px; border-top: 1px solid #f0f1f3; background: #fcfcfd; }
+            .rec-vac-add { display: inline-flex; align-items: center; gap: 3px; height: 24px; padding: 0 10px 0 6px; border: 1px solid var(--rw-primary); border-radius: 5px; background: #fff; color: var(--rw-primary); font-size: 12px; font-weight: 600; cursor: pointer; transition: background .15s; }
+            .rec-vac-add:hover { background: var(--rw-primary-soft); }
+            .rec-vac-add ion-icon { font-size: 14px; }
+            .rec-vac-add[hidden] { display: none; }
+            .rec-vac-foot:has(.rec-vac-add[hidden]) { display: none; }
+            .rec-vac-empty { padding: 10px; text-align: center; color: #6b7280; font-size: 12px; }
         </style>
         <div class="oh-steps" role="tablist" data-steps>
             <button type="button" class="oh-steps__step" role="tab" data-step-tab="details" aria-controls="step-details">
@@ -123,8 +187,18 @@
                 </span>
                 <span class="oh-steps__flag" data-step-flag hidden title="{% trans 'Something on this step needs attention' %}">!</span>
             </button>
-            <button type="button" class="oh-steps__step" role="tab" data-step-tab="pipeline" aria-controls="step-pipeline">
+            {% if form.wizard_vacancy %}
+            <button type="button" class="oh-steps__step" role="tab" data-step-tab="vacancy" aria-controls="step-vacancy">
                 <span class="oh-steps__num">2</span>
+                <span class="oh-steps__text">
+                    <span class="oh-steps__label">{% trans "Vacancy" %}</span>
+                    <span class="oh-steps__hint">{% trans "Places to fill in each job position." %}</span>
+                </span>
+                <span class="oh-steps__flag" data-step-flag hidden title="{% trans 'Something on this step needs attention' %}">!</span>
+            </button>
+            {% endif %}
+            <button type="button" class="oh-steps__step" role="tab" data-step-tab="pipeline" aria-controls="step-pipeline">
+                <span class="oh-steps__num">{% if form.wizard_vacancy %}3{% else %}2{% endif %}</span>
                 <span class="oh-steps__text">
                     <span class="oh-steps__label">{% trans "Pipeline" %}</span>
                     <span class="oh-steps__hint">{% if form.instance.pk %}{% trans "Reorder, rename or remove stages." %}{% else %}{% trans "Default or custom stages." %}{% endif %}</span>
@@ -134,6 +208,39 @@
         </div>
     </div>
 {% elif part == "step2" %}
+    {% if form.wizard_vacancy %}
+    <div class="oh-step-panel rec-wiz-step2" id="step-vacancy" data-step-panel="vacancy" role="tabpanel" hidden>
+        <p class="rec-wiz-intro rec-vac-help">{% trans "Add One Line For Each Job Position With The Number Of People To Hire. A Position With A Headcount Cannot Go Over Its Free Places." %}</p>
+        <div class="rec-vac-wrap">
+            <div class="rec-vac-total">
+                <span class="rec-vac-pill">
+                    <span class="rec-vac-total__label">{% trans "Total Vacancy" %}</span>
+                    <span class="rec-vac-total__value" data-vac-total>{{ form.instance.vacancy|default:0 }}</span>
+                </span>
+            </div>
+            <table class="rec-vac-table">
+                <thead>
+                    <tr>
+                        <th class="rec-vac-sn">{% trans "SN" %}</th>
+                        <th>{% trans "Job Position" %}</th>
+                        <th class="rec-vac-num">{% trans "Total Applied" %}</th>
+                        <th class="rec-vac-num">{% trans "Selected" %}</th>
+                        <th class="rec-vac-field">{% trans "Vacancy" %}</th>
+                        <th class="rec-vac-act"></th>
+                    </tr>
+                </thead>
+                <tbody data-vac-rows></tbody>
+            </table>
+            <div class="rec-vac-foot">
+                <button type="button" class="rec-vac-add" data-vac-add>
+                    <ion-icon name="add-outline"></ion-icon>{% trans "Add Line" %}
+                </button>
+            </div>
+        </div>
+        <div data-pos-inputs hidden></div>
+        <div class="rec-wiz-error" data-vac-error>{{ form.vacancy_lines.errors }}</div>
+    </div>
+    {% endif %}
     <div class="oh-step-panel rec-wiz-step2" id="step-pipeline" data-step-panel="pipeline" role="tabpanel" hidden>
         {% if form.instance.pk %}
         <p class="rec-wiz-intro">
@@ -221,6 +328,245 @@
 
             // Editing starts from the saved stages and has no default / custom choice.
             var editing = !!root.dataset.editing;
+
+            // The Vacancy step: a line per job position. Each line picks its position and says how many places
+            // there are in it; "Add Line" adds one. The lines travel in a hidden field, their positions are what
+            // the recruitment is open for (kept as hidden inputs), and their total is the vacancy. A position
+            // with a headcount can not go over the places still free in it.
+            var vacancyLines = form.querySelector("[name=vacancy_lines]");
+            var vacancyTotal = form.querySelector("[name=vacancy]");
+            var vacancyPanel = form.querySelector("[data-step-panel=vacancy]");
+            var vacancyRows = form.querySelector("[data-vac-rows]");
+            var vacancySum = form.querySelector("[data-vac-total]");
+            var vacancyError = form.querySelector("[data-vac-error]");
+            var addLineBtn = form.querySelector("[data-vac-add]");
+            var posBox = form.querySelector("[data-pos-inputs]");
+            var vacancyApi = null;
+            if (vacancyLines && vacancyRows && posBox) {
+                vacancyApi = (function () {
+                    var options = [];
+                    try { options = JSON.parse(root.dataset.positionOptions || "[]"); } catch (e) {}
+                    var label = {};
+                    options.forEach(function (o) { label[String(o.id)] = o.label; });
+                    var facts = {};       // position id -> what the server said about it
+                    var asked = {};       // position id -> a request is out or done
+                    var lines = [];       // { position: "12" | "", vacancy: number | null, touched: bool }
+
+                    // The server draws the hidden inputs of the saved positions; the lines own them from here on.
+                    form.querySelectorAll("[name=open_positions]").forEach(function (el) {
+                        if (!posBox.contains(el)) el.remove();
+                    });
+                    try {
+                        JSON.parse(vacancyLines.value || "[]").forEach(function (row) {
+                            lines.push({
+                                position: String(row.position),
+                                vacancy: row.vacancy === null || row.vacancy === undefined || row.vacancy === ""
+                                    ? null : (parseInt(row.vacancy, 10) || 0),
+                                touched: true,
+                            });
+                        });
+                    } catch (e) {}
+                    // A line always has a job position: a new recruitment starts on the first one.
+                    if (!lines.length) lines.push({ position: options.length ? String(options[0].id) : "", vacancy: null, touched: false });
+
+                    function chosen() {
+                        return lines.filter(function (l) { return l.position; });
+                    }
+
+                    function total() {
+                        return chosen().reduce(function (sum, l) { return sum + (l.vacancy || 0); }, 0);  // not specified adds nothing
+                    }
+
+                    function write() {
+                        var list = chosen();
+                        vacancyLines.value = JSON.stringify(list.map(function (l) {
+                            return { position: parseInt(l.position, 10), vacancy: l.vacancy };
+                        }));
+                        posBox.innerHTML = "";
+                        list.forEach(function (l) {
+                            var input = document.createElement("input");
+                            input.type = "hidden";
+                            input.name = "open_positions";
+                            input.value = l.position;
+                            posBox.appendChild(input);
+                        });
+                        var sum = total();
+                        if (vacancyTotal) vacancyTotal.value = sum;
+                        if (vacancySum) vacancySum.textContent = sum;
+                    }
+
+                    // What the headcount says about a position, for the tooltip.
+                    function limitNote(fact) {
+                        if (!fact || !fact.headcount) return "{% trans 'No Headcount Set: No Limit'|escapejs %}";
+                        return root.dataset.vacancyText
+                            .replace("%h%", fact.headcount).replace("%f%", fact.filled)
+                            .replace("%o%", fact.open).replace("%a%", fact.available);
+                    }
+
+                    function cell(text, cls) {
+                        var td = document.createElement("td");
+                        if (cls) td.className = cls;
+                        td.textContent = text;
+                        return td;
+                    }
+
+                    function taken(except) {
+                        var used = {};
+                        lines.forEach(function (l) { if (l !== except && l.position) used[l.position] = true; });
+                        return used;
+                    }
+
+                    function render(focusLine) {
+                        vacancyRows.innerHTML = "";
+                        if (!lines.length) {
+                            var emptyRow = document.createElement("tr");
+                            var emptyCell = cell("{% trans 'No Job Position Added. Use Add Line.'|escapejs %}", "rec-vac-empty");
+                            emptyCell.colSpan = 6;
+                            emptyRow.appendChild(emptyCell);
+                            vacancyRows.appendChild(emptyRow);
+                        }
+                        lines.forEach(function (line, index) {
+                            var fact = line.position ? facts[line.position] : null;
+                            var limited = !!(fact && fact.headcount);
+                            var tr = document.createElement("tr");
+
+                            tr.appendChild(cell(index + 1, "rec-vac-sn"));
+
+                            var who = document.createElement("td");
+                            who.className = "rec-vac-who";
+                            var select = document.createElement("select");
+                            select.className = "rec-vac-select";
+                            select.setAttribute("aria-label", "{% trans 'Job Position'|escapejs %}");
+                            var used = taken(line);
+                            options.forEach(function (o) {
+                                if (used[String(o.id)]) return;
+                                var opt = document.createElement("option");
+                                opt.value = o.id;
+                                opt.textContent = o.label;
+                                if (String(o.id) === line.position) opt.selected = true;
+                                select.appendChild(opt);
+                            });
+                            select.addEventListener("change", function () {
+                                line.position = select.value;
+                                line.vacancy = null;
+                                line.touched = false;
+                                if (vacancyError) vacancyError.textContent = "";
+                                load(line.position);
+                                render();
+                                write();
+                            });
+                            who.appendChild(select);
+                            tr.appendChild(who);
+
+                            var waiting = line.position && !fact;
+                            tr.appendChild(cell(fact ? fact.applied : (waiting ? "…" : "—"), "rec-vac-num" + (fact ? "" : " is-muted")));
+                            tr.appendChild(cell(fact ? fact.selected : (waiting ? "…" : "—"), "rec-vac-num" + (fact ? "" : " is-muted")));
+
+                            var field = document.createElement("td");
+                            field.className = "rec-vac-field";
+                            var input = document.createElement("input");
+                            input.type = "number";
+                            input.min = 0;
+                            input.className = "rec-vac-input";
+                            input.disabled = !line.position;
+                            input.value = line.vacancy === null ? "" : line.vacancy;
+                            input.placeholder = "{% trans 'Not Specified'|escapejs %}";
+                            input.title = limitNote(fact);
+                            input.setAttribute("aria-label", (label[line.position] || "") + " – {% trans 'Vacancy'|escapejs %}");
+                            if (limited) input.max = fact.available;
+                            function mark() {
+                                // Over what the position has room for: the headcount rule, shown before the server says it.
+                                input.classList.toggle("is-over", !!(limited && line.vacancy !== null && line.vacancy > fact.available));
+                            }
+                            input.addEventListener("input", function () {
+                                // Emptied again: back to not specified.
+                                line.vacancy = input.value === "" ? null : Math.max(parseInt(input.value, 10) || 0, 0);
+                                line.touched = true;
+                                if (vacancyError) vacancyError.textContent = "";
+                                mark();
+                                write();
+                            });
+                            mark();
+                            field.appendChild(input);
+                            tr.appendChild(field);
+
+                            var act = document.createElement("td");
+                            act.className = "rec-vac-act";
+                            var del = document.createElement("button");
+                            del.type = "button";
+                            del.className = "rec-vac-del";
+                            del.title = "{% trans 'Remove Line'|escapejs %}";
+                            del.setAttribute("aria-label", "{% trans 'Remove Line'|escapejs %}");
+                            del.textContent = "×";
+                            // The first line stays: a recruitment is always open for at least one job position.
+                            del.disabled = index === 0;
+                            if (index === 0) del.title = "{% trans 'The First Line Cannot Be Removed'|escapejs %}";
+                            del.addEventListener("click", function () {
+                                lines.splice(lines.indexOf(line), 1);
+                                if (vacancyError) vacancyError.textContent = "";
+                                render();
+                                write();
+                            });
+                            act.appendChild(del);
+                            tr.appendChild(act);
+
+                            vacancyRows.appendChild(tr);
+                            if (focusLine === line) select.focus();
+                        });
+                        if (addLineBtn) {
+                            // Nothing left to add once every job position has a line.
+                            addLineBtn.hidden = options.length && chosen().length >= options.length;
+                        }
+                    }
+
+                    // Ask the server about a position (applied, selected, headcount) once, then give an untouched
+                    // line its starting number: the places free in a limited position, nothing otherwise.
+                    function load(id) {
+                        if (!id || asked[id] || !root.dataset.vacancyUrl) return;
+                        asked[id] = true;
+                        var params = new URLSearchParams();
+                        params.append("open_positions", id);
+                        if (root.dataset.recruitment) params.set("recruitment", root.dataset.recruitment);
+                        fetch(root.dataset.vacancyUrl + "?" + params.toString(), { credentials: "same-origin" })
+                            .then(function (r) { return r.json(); })
+                            .then(function (data) {
+                                (data.positions || []).forEach(function (fact) {
+                                    facts[String(fact.id)] = fact;
+                                    lines.forEach(function (line) {
+                                        if (line.position === String(fact.id) && !line.touched && fact.headcount) {
+                                            line.vacancy = fact.available || 0;
+                                        }
+                                    });
+                                });
+                                render();
+                                write();
+                            })
+                            .catch(function () { asked[id] = false; });
+                    }
+
+                    if (addLineBtn) {
+                        addLineBtn.addEventListener("click", function () {
+                            // A new line starts on the first job position not used yet, never empty.
+                            var used = taken(null);
+                            var free = options.filter(function (o) { return !used[String(o.id)]; })[0];
+                            var line = { position: free ? String(free.id) : "", vacancy: null, touched: false };
+                            lines.push(line);
+                            load(line.position);
+                            if (vacancyError) vacancyError.textContent = "";
+                            render(line);
+                            write();
+                        });
+                    }
+
+                    lines.forEach(function (line) { load(line.position); });
+                    render();
+                    write();
+                    return {
+                        total: total,
+                        count: function () { return chosen().length; },
+                    };
+                })();
+            }
             var defaults = JSON.parse(root.dataset.defaults);
             var types = JSON.parse(root.dataset.types);
             var modeInput = form.querySelector("[name=pipeline_mode]");
@@ -282,9 +628,175 @@
                 return b;
             }
 
-            var dragFrom = null;
+            // Spoken to screen readers after a row is moved.
+            var liveRegion = document.createElement("span");
+            liveRegion.className = "rec-wiz-sr";
+            liveRegion.setAttribute("aria-live", "polite");
+            if (rowsEl.parentNode) rowsEl.parentNode.insertBefore(liveRegion, rowsEl.nextSibling);
+            function announce(text) { liveRegion.textContent = ""; liveRegion.textContent = text; }
 
-            function renderRows(focusIndex) {
+            function scrollParentOf(el) {
+                for (var node = el.parentElement; node && node !== document.body; node = node.parentElement) {
+                    var overflow = getComputedStyle(node).overflowY;
+                    if ((overflow === "auto" || overflow === "scroll") && node.scrollHeight > node.clientHeight) return node;
+                }
+                return document.scrollingElement || document.documentElement;
+            }
+
+            // Moving a row: it is lifted by its handle (grip or number), a dashed placeholder marks where it will land,
+            // the rows in between slide out of the way, and letting go drops it there. Escape puts it back.
+            function startDrag(down, rowEl, fromIndex) {
+                if (down.button !== undefined && down.button !== 0) return;
+                var handle = down.currentTarget;
+                var startX = down.clientX, startY = down.clientY;
+                var begun = false, placeholder = null, offsetY = 0, height = 0, lastY = startY, frame = null;
+                var scroller = scrollParentOf(rowsEl);
+                try { handle.setPointerCapture(down.pointerId); } catch (err) {}
+
+                function others() {
+                    return Array.prototype.filter.call(rowsEl.children, function (c) {
+                        return c !== rowEl && c !== placeholder && c.classList.contains("rec-wiz-row");
+                    });
+                }
+
+                function begin() {
+                    begun = true;
+                    var rect = rowEl.getBoundingClientRect();
+                    var list = rowsEl.getBoundingClientRect();
+                    height = rect.height;
+                    offsetY = startY - rect.top;
+                    placeholder = document.createElement("div");
+                    placeholder.className = "rec-wiz-placeholder";
+                    placeholder.style.height = height + "px";
+                    rowsEl.insertBefore(placeholder, rowEl);
+                    rowsEl.classList.add("is-sorting");
+                    rowEl.style.width = rect.width + "px";
+                    rowEl.style.left = (rect.left - list.left) + "px";
+                    rowEl.style.top = (rect.top - list.top) + "px";
+                    rowEl.classList.add("is-lifted");
+                    document.body.classList.add("rec-wiz-grabbing");
+                    frame = requestAnimationFrame(tick);
+                }
+
+                // Keep the rows that move to make room sliding rather than jumping.
+                function flip(change) {
+                    var movers = others();
+                    var before = movers.map(function (r) { return r.getBoundingClientRect().top; });
+                    change();
+                    movers.forEach(function (r, i) {
+                        var delta = before[i] - r.getBoundingClientRect().top;
+                        if (!delta) return;
+                        r.style.transition = "none";
+                        r.style.transform = "translateY(" + delta + "px)";
+                        r.getBoundingClientRect();
+                        r.style.transition = "transform .16s ease";
+                        r.style.transform = "";
+                    });
+                }
+
+                function place(clientY) {
+                    var list = rowsEl.getBoundingClientRect();
+                    var top = clientY - offsetY - list.top;
+                    top = Math.max(0, Math.min(top, rowsEl.offsetHeight - height));
+                    rowEl.style.top = top + "px";
+                    var centre = top + height / 2;
+                    var target = null;
+                    others().some(function (r) {
+                        var box = r.getBoundingClientRect();
+                        if (centre < box.top - list.top + box.height / 2) { target = r; return true; }
+                        return false;
+                    });
+                    var current = placeholder.nextElementSibling;
+                    while (current === rowEl) current = current.nextElementSibling;
+                    if (target !== current) {
+                        flip(function () { rowsEl.insertBefore(placeholder, target); });
+                    }
+                }
+
+                // Near the edge of the scrolling area the list scrolls on its own, so a long list can be reordered.
+                function tick() {
+                    if (!begun) return;
+                    var box = scroller === document.scrollingElement || scroller === document.documentElement
+                        ? { top: 0, bottom: window.innerHeight } : scroller.getBoundingClientRect();
+                    var zone = 48, speed = 0;
+                    if (lastY < box.top + zone) speed = -Math.ceil((box.top + zone - lastY) / 6);
+                    else if (lastY > box.bottom - zone) speed = Math.ceil((lastY - (box.bottom - zone)) / 6);
+                    if (speed) { scroller.scrollTop += speed; place(lastY); }
+                    frame = requestAnimationFrame(tick);
+                }
+
+                function move(e) {
+                    lastY = e.clientY;
+                    if (!begun) {
+                        if (Math.abs(e.clientX - startX) < 4 && Math.abs(e.clientY - startY) < 4) return;
+                        begin();
+                    }
+                    place(e.clientY);
+                }
+
+                function cleanup() {
+                    handle.removeEventListener("pointermove", move);
+                    handle.removeEventListener("pointerup", up);
+                    handle.removeEventListener("pointercancel", cancel);
+                    document.removeEventListener("keydown", key, true);
+                    try { handle.releasePointerCapture(down.pointerId); } catch (err) {}
+                    if (frame) cancelAnimationFrame(frame);
+                    document.body.classList.remove("rec-wiz-grabbing");
+                    rowsEl.classList.remove("is-sorting");
+                }
+
+                function up() {
+                    cleanup();
+                    if (!begun) return;
+                    // Settle into the placeholder, then apply the new order.
+                    var toIndex = 0;
+                    Array.prototype.some.call(rowsEl.children, function (c) {
+                        if (c === placeholder) return true;
+                        if (c !== rowEl && c.classList.contains("rec-wiz-row")) toIndex += 1;
+                        return false;
+                    });
+                    rowEl.classList.add("is-settling");
+                    rowEl.style.top = placeholder.offsetTop + "px";
+                    setTimeout(function () {
+                        if (toIndex !== fromIndex) {
+                            var moved = rows.splice(fromIndex, 1)[0];
+                            rows.splice(toIndex, 0, moved);
+                            showError("");
+                            sync();
+                            announce("{% trans 'Moved to position'|escapejs %} " + (toIndex + 1) + " {% trans 'of'|escapejs %} " + rows.length);
+                        }
+                        renderRows();
+                    }, 170);
+                }
+
+                function cancel() {
+                    cleanup();
+                    if (begun) renderRows();
+                }
+
+                function key(e) {
+                    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); cancel(); }
+                }
+
+                handle.addEventListener("pointermove", move);
+                handle.addEventListener("pointerup", up);
+                handle.addEventListener("pointercancel", cancel);
+                document.addEventListener("keydown", key, true);
+            }
+
+            // The same move from the keyboard: Arrow Up / Down on the handle.
+            function nudge(index, delta) {
+                var to = index + delta;
+                if (to < 0 || to >= rows.length) return;
+                var moved = rows.splice(index, 1)[0];
+                rows.splice(to, 0, moved);
+                showError("");
+                sync();
+                renderRows(to, "grip");
+                announce("{% trans 'Moved to position'|escapejs %} " + (to + 1) + " {% trans 'of'|escapejs %} " + rows.length);
+            }
+
+            function renderRows(focusIndex, focusKind) {
                 rowsEl.innerHTML = "";
                 rows.forEach(function (row, i) {
                     var el = document.createElement("div");
@@ -298,53 +810,25 @@
                     num.textContent = i + 1;
                     var grip = document.createElement("span");
                     grip.className = "rec-wiz-grip";
-                    grip.textContent = "⋮⋮";
-                    grip.title = "{% trans 'Drag to reorder'|escapejs %}";
-
-                    function onDragStart(e) {
-                        dragFrom = i;
-                        e.dataTransfer.effectAllowed = "move";
-                        e.dataTransfer.setData("text/plain", String(i));
-                        try { e.dataTransfer.setDragImage(el, 10, 10); } catch (err) {}
-                        setTimeout(function () { el.classList.add("is-dragging"); }, 0);
-                    }
-                    function onDragEnd() {
-                        dragFrom = null;
-                        renderRows();
-                    }
+                    grip.setAttribute("role", "button");
+                    grip.tabIndex = 0;
+                    grip.setAttribute("aria-label", "{% trans 'Reorder stage'|escapejs %} " + (i + 1) + ". {% trans 'Use the up and down arrow keys, or drag.'|escapejs %}");
+                    grip.addEventListener("keydown", function (e) {
+                        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                            e.preventDefault();
+                            nudge(i, e.key === "ArrowUp" ? -1 : 1);
+                        }
+                    });
                     // The number is a handle too.
                     [grip, num].forEach(function (handle) {
-                        handle.draggable = true;
-                        handle.style.cursor = "grab";
-                        handle.addEventListener("dragstart", onDragStart);
-                        handle.addEventListener("dragend", onDragEnd);
+                        handle.addEventListener("pointerdown", function (e) {
+                            if (e.pointerType === "mouse" && e.button !== 0) return;
+                            e.preventDefault();
+                            startDrag(e, el, i);
+                        });
                     });
                     el.appendChild(grip);
                     el.appendChild(num);
-                    el.addEventListener("dragover", function (e) {
-                        if (dragFrom === null) return;
-                        e.preventDefault();
-                        e.dataTransfer.dropEffect = "move";
-                        var rect = el.getBoundingClientRect();
-                        var after = e.clientY > rect.top + rect.height / 2;
-                        el.classList.toggle("drop-before", !after);
-                        el.classList.toggle("drop-after", after);
-                    });
-                    el.addEventListener("dragleave", function () {
-                        el.classList.remove("drop-before", "drop-after");
-                    });
-                    el.addEventListener("drop", function (e) {
-                        if (dragFrom === null) return;
-                        e.preventDefault();
-                        var rect = el.getBoundingClientRect();
-                        var to = i + (e.clientY > rect.top + rect.height / 2 ? 1 : 0);
-                        var moved = rows.splice(dragFrom, 1)[0];
-                        if (dragFrom < to) to -= 1;
-                        rows.splice(to, 0, moved);
-                        dragFrom = null;
-                        sync();
-                        renderRows();
-                    });
 
                     var input = document.createElement("input");
                     input.type = "text";
@@ -382,7 +866,7 @@
                     );
                     el.appendChild(del);
                     rowsEl.appendChild(el);
-                    if (focusIndex === i) input.focus();
+                    if (focusIndex === i) (focusKind === "grip" ? grip : input).focus();
                 });
             }
 
@@ -468,6 +952,13 @@
             // re-rendered with its errors if they are not valid. Capture phase,
             // so componentForm.js only moves on once the check has passed.
             var pending = null;
+            function stepKeys() {
+                return Array.prototype.map.call(qa("[data-step-panel]"), function (p) { return p.dataset.stepPanel; });
+            }
+            function currentKey() {
+                var open = q("[data-step-panel]:not([hidden])");
+                return open ? open.dataset.stepPanel : "details";
+            }
             function gate(e) {
                 if (!form.isConnected) {
                     document.removeEventListener("click", gate, true);
@@ -476,8 +967,22 @@
                 if (!form.contains(e.target)) return;
                 var next = e.target.closest("[data-step-next]");
                 var tab = e.target.closest("[data-step-tab]");
-                if (!next && !(tab && tab.dataset.stepTab === "pipeline")) return;
-                if (!pipelinePanel.hidden) return;
+                if (!next && !tab) return;
+                var keys = stepKeys();
+                var here = currentKey();
+                var target = next ? keys[keys.indexOf(here) + 1] : tab.dataset.stepTab;
+                // Backwards, to the same step, or off the last step: nothing to check.
+                if (!target || keys.indexOf(target) <= keys.indexOf(here) || here === "pipeline") return;
+                if (here === "vacancy" && vacancyApi && (vacancyApi.count() < 1 || vacancyApi.total() <= 0)) {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    if (vacancyError) {
+                        vacancyError.textContent = vacancyApi.count() < 1
+                            ? "{% trans 'Add At Least One Job Position.'|escapejs %}"
+                            : "{% trans 'Add At Least One Vacancy.'|escapejs %}";
+                    }
+                    return;
+                }
                 if (form.dataset.verified === "1") {
                     form.dataset.verified = "";
                     return;
@@ -488,7 +993,7 @@
                 var flag = document.createElement("input");
                 flag.type = "hidden";
                 flag.name = "validate_step";
-                flag.value = "1";
+                flag.value = here === "details" ? "1" : "2";
                 form.appendChild(flag);
                 pending = next || tab;
                 pending.disabled = true;

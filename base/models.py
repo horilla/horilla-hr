@@ -316,6 +316,15 @@ class JobPosition(HorillaModel):
         verbose_name=_("Department"),
     )
     company_id = models.ManyToManyField(Company, blank=True, verbose_name=_("Company"))
+    headcount = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_("Headcount"),
+        help_text=_(
+            "How Many People This Position Is Planned To Have. "
+            "Recruitments For It Can Only Open As Many Vacancies As Are Still Free. "
+            "0 Means No Limit."
+        ),
+    )
 
     objects = HorillaCompanyManager("department_id__company_id")
 
@@ -326,6 +335,49 @@ class JobPosition(HorillaModel):
 
         verbose_name = _("Job Position")
         verbose_name_plural = _("Job Positions")
+
+    def filled_count(self):
+        """Active employees currently in this position."""
+        from employee.models import EmployeeWorkInformation
+
+        return (
+            EmployeeWorkInformation.objects.entire()
+            .filter(job_position_id=self, employee_id__is_active=True)
+            .count()
+        )
+
+    def open_vacancy_count(self, exclude_recruitment=None):
+        """
+        Vacancies already being recruited for in this position: what each open recruitment still has to fill
+        (its vacancy less the people it has hired, who are counted as employees once they join).
+        """
+        from django.db.models import Q
+
+        from recruitment.models import Recruitment
+
+        recruitments = (
+            Recruitment.objects.entire()
+            .filter(closed=False, is_active=True)
+            .filter(Q(open_positions=self) | Q(job_position_id=self))
+            .distinct()
+        )
+        if exclude_recruitment is not None and getattr(exclude_recruitment, "pk", None):
+            recruitments = recruitments.exclude(pk=exclude_recruitment.pk)
+        return sum(recruitment.unfilled_for(self) for recruitment in recruitments)
+
+    def available_vacancies(self, exclude_recruitment=None):
+        """
+        How many more vacancies a recruitment may open for this position: the headcount less the people in it
+        and the vacancies already open. ``None`` when the position has no headcount set (no limit).
+        """
+        if not self.headcount:
+            return None
+        return max(
+            self.headcount
+            - self.filled_count()
+            - self.open_vacancy_count(exclude_recruitment),
+            0,
+        )
 
     def __str__(self):
         return str(self.job_position + " - (" + self.department_id.department) + ")"

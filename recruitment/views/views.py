@@ -241,6 +241,57 @@ def pipeline_grouper(request, recruitments):
 
 
 @login_required
+def position_vacancy(request):
+    """
+    How many vacancies a recruitment can still open for the chosen job position(s), for the recruitment form.
+
+    ``available`` is None when none of them has a headcount (no limit).
+    """
+    from base.models import JobPosition
+
+    if not (
+        request.user.has_perm("recruitment.add_recruitment")
+        or request.user.has_perm("recruitment.change_recruitment")
+    ):
+        return JsonResponse({"error": "forbidden"}, status=403)
+    ids = [pk for pk in request.GET.getlist("open_positions") if str(pk).isdigit()]
+    recruitment = (
+        Recruitment.objects.entire().filter(pk=request.GET.get("recruitment")).first()
+    )
+    rows = []
+    for position in JobPosition.objects.filter(pk__in=ids):
+        candidates = (
+            Candidate.objects.entire().filter(
+                recruitment_id=recruitment, job_position_id=position, is_active=True
+            )
+            if recruitment is not None
+            else Candidate.objects.none()
+        )
+        rows.append(
+            {
+                "id": position.pk,
+                "department": position.department_id.department,
+                "applied": candidates.count(),
+                "selected": candidates.filter(hired=True).count(),
+                "name": position.job_position,
+                "headcount": position.headcount,
+                "filled": position.filled_count(),
+                "open": position.open_vacancy_count(exclude_recruitment=recruitment),
+                "available": position.available_vacancies(
+                    exclude_recruitment=recruitment
+                ),
+            }
+        )
+    limited = bool(rows) and all(row["headcount"] for row in rows)
+    return JsonResponse(
+        {
+            "positions": rows,
+            "available": sum(row["available"] for row in rows) if limited else None,
+        }
+    )
+
+
+@login_required
 @hx_request_required
 @permission_required(perm="recruitment.add_recruitment")
 def recruitment(request):

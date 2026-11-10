@@ -833,7 +833,7 @@ class JobPositionForm(ModelForm):
         ),
     )
 
-    cols = {"job_position": 12, "department_id": 12}
+    cols = {"job_position": 12, "department_id": 12, "headcount": 12}
 
     class Meta:
         """
