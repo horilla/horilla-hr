@@ -17,6 +17,7 @@ import uuid
 from base.import_template_data import import_template_frame, write_import_xlsx
 from horilla.http.response import HorillaRedirect, with_bulk_result
 from horilla.methods import remove_dynamic_url
+from horilla.posted_ids import posted_ids
 
 logger = logging.getLogger(__name__)
 
@@ -553,7 +554,12 @@ def attendance_bulk_delete(request):
     """
     success_count = 0
     error_messages = []
-    ids = request.POST.getlist("ids", "[]")
+    # Repeated params or one JSON string; anything else is "nothing selected"
+    # rather than a ValueError from id__in.
+    ids = posted_ids(request.POST)
+    if not ids:
+        messages.error(request, _("No attendances selected."))
+        return JsonResponse({"message": "No attendances selected."}, status=400)
     attendances = Attendance.objects.filter(id__in=ids)
     employee_ids = attendances.values_list("employee_id", flat=True)
     overtimes = AttendanceOverTime.objects.filter(
@@ -3616,8 +3622,12 @@ def edit_allowed_ips(request):
                     messages.success(request, _("IP address updated successfully"))
                 return HorillaRedirect(request)
 
-    except (ValueError, IndexError):
+    except (TypeError, ValueError, IndexError):
+        # A missing id (int(None) is a TypeError), a non-number or one outside
+        # the list. There is no form to show, so go back to the list like
+        # delete_allowed_ips does.
         messages.error(request, _("Invalid ID provided."))
+        return redirect("allowed-ips")
 
     return render(
         request,

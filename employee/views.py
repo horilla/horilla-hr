@@ -130,6 +130,8 @@ from horilla.filters import HorillaPaginator
 from horilla.group_by import group_by_queryset
 from horilla.http.response import HorillaRedirect, with_bulk_result
 from horilla.methods import dynamic_attr, get_horilla_model_class, handle_no_permission
+from horilla.posted_ids import parse_posted_id_list
+from horilla.week import week_start
 from horilla_audit.models import AccountBlockUnblock, HistoryTrackingFields
 from horilla_auth.methods import generate_random_password
 from horilla_auth.models import HorillaUser
@@ -1556,26 +1558,23 @@ def view_employee_bulk_update(request):
 def save_employee_bulk_update(request):
     if request.method == "POST":
         update_fields_str = request.POST.get("update_fields", "")
-        update_fields = json.loads(update_fields_str) if update_fields_str else []
+        try:
+            update_fields = json.loads(update_fields_str) if update_fields_str else []
+        except ValueError:
+            update_fields = []
         dict_value = request.__dict__["_post"]
-        bulk_employee_ids_str = request.POST.get("bulk_employee_ids", "")
-        bulk_employee_ids = (
-            json.loads(bulk_employee_ids_str) if bulk_employee_ids_str else []
+        requested_ids = parse_posted_id_list(request.POST.get("bulk_employee_ids", ""))
+        # Only ids that exist; an unknown id is skipped, not a server error.
+        existing_ids = set(
+            Employee.objects.filter(id__in=requested_ids).values_list("id", flat=True)
         )
-        employee_list = ast.literal_eval(bulk_employee_ids)
-        for id in employee_list:
-            try:
-                employee_instance = Employee.objects.get(id=int(id))
-                employee_work_info, created = (
-                    EmployeeWorkInformation.objects.get_or_create(
-                        employee_id=employee_instance
-                    )
-                )
-                employee_bank, created = EmployeeBankDetails.objects.get_or_create(
-                    employee_id=employee_instance
-                )
-            except (ValueError, OverflowError):
-                employee_list.remove(id)
+        employee_list = [i for i in requested_ids if i in existing_ids]
+        if not employee_list:
+            messages.error(request, _("No employees selected."))
+            return redirect("/employee/employee-view/?view=list")
+        for employee_instance in Employee.objects.filter(id__in=employee_list):
+            EmployeeWorkInformation.objects.get_or_create(employee_id=employee_instance)
+            EmployeeBankDetails.objects.get_or_create(employee_id=employee_instance)
 
         for field in update_fields:
             parts = str(field).split("__")
@@ -3506,8 +3505,8 @@ def joining_week_count(request):
         Candidate = get_horilla_model_class(app_label="recruitment", model="candidate")
         newbies_week = Candidate.objects.filter(
             joining_date__range=[
-                date.today() - timedelta(days=date.today().weekday()),
-                date.today() + timedelta(days=6 - date.today().weekday()),
+                week_start(date.today()),
+                week_start(date.today()) + timedelta(days=6),
             ],
             is_active=True,
             hired=True,
