@@ -1375,6 +1375,23 @@ def validation_condition_delete(request, obj_id):
     return redirect("/attendance/validation-condition-view")
 
 
+def _may_act_on_attendance(request, attendance):
+    """
+    True when the caller may validate or approve this attendance record.
+
+    ``manager_can_enter`` admits anyone who manages *any* employee, so a route
+    that acts on a client-named record must also check that the caller is the
+    reporting manager of that record's employee, unless they hold the
+    ``attendance.change_attendance`` permission.
+    """
+    user = request.user
+    return (
+        user.is_superuser
+        or user.has_perm("attendance.change_attendance")
+        or is_reportingmanger(request, attendance)
+    )
+
+
 @login_required
 @require_http_methods(["POST"])
 @manager_can_enter("attendance.change_attendance")
@@ -1391,7 +1408,9 @@ def validate_bulk_attendance(request):
     for obj_id in ids:
         try:
             attendance = Attendance.objects.get(id=obj_id)
-            if attendance.employee_id.id != request.user.employee_get.id:
+            if attendance.employee_id.id != request.user.employee_get.id and (
+                _may_act_on_attendance(request, attendance)
+            ):
                 filtered_ids.append(obj_id)
         except Attendance.DoesNotExist:
             error_messages.append(_("Attendance not found"))
@@ -1582,6 +1601,12 @@ def approve_overtime(request, obj_id):
             if attendance.employee_id.id == request.user.employee_get.id:
                 messages.error(request, _("You cannot approve your own overtime."))
                 return attendance_view_redirect(request)
+            if not _may_act_on_attendance(request, attendance):
+                messages.error(
+                    request,
+                    _("You don't have permission to approve this overtime."),
+                )
+                return attendance_view_redirect(request)
         attendance.attendance_overtime_approve = True
         attendance.save()
         urlencode = request.GET.urlencode()
@@ -1641,6 +1666,8 @@ def approve_bulk_overtime(request):
             not request.user.is_superuser
             and attendance.employee_id.employee_user_id == request.user
         ):
+            continue
+        if not _may_act_on_attendance(request, attendance):
             continue
         candidates.append(attendance)
 
