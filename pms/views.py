@@ -2245,7 +2245,10 @@ def get_feedback_overview(request, obj_id):
     overview of feedback
     """
     feedback = Feedback.objects.filter(id=obj_id).first() if obj_id else None
-    if feedback and not check_permission_feedback_detailed_view(
+    if not feedback:
+        messages.info(request, _("Feedback not found."))
+        return HorillaRedirect(request)
+    if not check_permission_feedback_detailed_view(
         request, feedback, perm="pms.view_feedback"
     ):
         messages.info(request, _("You don't have permission."))
