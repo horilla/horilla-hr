@@ -2381,6 +2381,9 @@ class HorillaNavView(TemplateView):
     empty_inputs: list = []
     view_types: list = []
     create_attrs: str = """"""
+    # A template shown beside the title (an indicator, a count) and the context it needs; nothing by default.
+    nav_info_template: str = ""
+    nav_info_context: dict = {}
     create_label: str = ""
     # An ion-icon name shown on the create button in place of the "+" glyph.
     create_icon: str = ""
@@ -2511,6 +2514,8 @@ class HorillaNavView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["nav_title"] = self.nav_title
+        context["nav_info_template"] = self.nav_info_template
+        context.update(self.nav_info_context)
         context["search_url"] = self.search_url
         context["search_swap_target"] = self.search_swap_target
         context["search_input_attrs"] = self.search_input_attrs
