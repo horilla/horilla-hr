@@ -1,0 +1,81 @@
+{% extends "index.html" %}
+{% load i18n %}
+{% block content %}
+<meta name="csrf-token" content="{{ csrf_token }}">
+<style>
+    .sv-library { display:grid; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); gap:14px; align-items:start; }
+    .sv-card { border:1px solid rgba(128,128,128,.14); border-radius:12px; background:#fff; padding:18px 20px; }
+    .dark .sv-card { background:#111; }
+    .sv-pill { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:999px; font-size:.8rem; font-weight:600; background:rgba(128,128,128,.12); color:inherit; white-space:nowrap; }
+    .sv-card__title { font-size:16px; font-weight:700; line-height:1.3; }
+    .sv-card summary { cursor:pointer; font-weight:600; font-size:13px; opacity:.8; }
+    .sv-card ol { margin:10px 0 0; padding-left:22px; list-style:decimal; }
+    .sv-card ol li { margin-bottom:8px; font-size:13px; }
+</style>
+<main :class="sidebarOpen ? 'oh-main__sidebar-visible' : ''">
+<section class="oh-wrapper oh-main__topbar">
+    <div class="oh-main__titlebar oh-main__titlebar--left">
+        <h1 class="oh-main__titlebar-title fw-bold mb-0">{% trans "Survey library" %}</h1>
+    </div>
+    <div class="oh-main__titlebar oh-main__titlebar--right">
+        <div class="oh-btn-group ml-2 d-flex gap-2 flex-wrap justify-content-end">
+            {% if perms.surveys.add_questionnaire %}
+            <form method="post" action="{% url 'surveys-library-load-standard' %}">{% csrf_token %}
+                <button class="oh-btn oh-btn--light-bkg"><ion-icon name="download-outline" class="me-1"></ion-icon>{% trans "Load standard questionnaires" %}</button>
+            </form>
+            {% endif %}
+            {% if perms.surveys.add_survey %}
+            <button hx-get="{% url 'survey-create' %}" hx-target="#genericModalBody" data-target="#genericModal" data-toggle="oh-modal-toggle" class="oh-btn oh-btn--secondary">
+                <ion-icon name="add-outline" class="me-1"></ion-icon>{% trans "Blank survey" %}
+            </button>
+            {% endif %}
+        </div>
+    </div>
+</section>
+<div class="oh-wrapper">
+    <p class="text-muted">{% trans "Ready-made questionnaires. A survey started from one gets a copy of its questions, which you can change, remove or add to before opening it. To keep your own questionnaire here, use Save to library on a survey's page." %}</p>
+    {% if not questionnaires %}
+        <div class="oh-empty"><p class="text-muted">{% trans "The library is empty. Load the standard questionnaires or save one of your surveys here." %}</p></div>
+    {% endif %}
+    <div class="sv-library">
+    {% for item in questionnaires %}
+        <div class="sv-card">
+            <div class="d-flex justify-content-between align-items-start gap-2">
+                <div class="sv-card__title">{{ item.title }}</div>
+                <div class="d-flex gap-1">
+                    {% if perms.surveys.change_questionnaire %}
+                    <button hx-get="{% url 'questionnaire-edit' item.pk %}" hx-target="#genericModalBody" data-target="#genericModal" data-toggle="oh-modal-toggle" class="oh-btn oh-btn--light-bkg oh-btn--sq-sm" title="{% trans 'Edit' %}"><ion-icon name="create-outline"></ion-icon></button>
+                    {% endif %}
+                    {% if perms.surveys.delete_questionnaire %}
+                    <form method="post" action="{% url 'questionnaire-delete' item.pk %}" onsubmit="return confirm('{% trans 'Delete this questionnaire from the library?' %}')">{% csrf_token %}
+                        <button class="oh-btn oh-btn--danger-bkg oh-btn--sq-sm" title="{% trans 'Delete' %}"><ion-icon name="trash-outline"></ion-icon></button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="d-flex flex-wrap gap-2 mt-2">
+                <span class="sv-pill"><ion-icon name="help-circle-outline"></ion-icon>{% blocktrans count n=item.question_count %}{{ n }} question{% plural %}{{ n }} questions{% endblocktrans %}</span>
+                {% if item.is_anonymous %}<span class="sv-pill"><ion-icon name="eye-off-outline"></ion-icon>{% trans "Anonymous" %}</span>{% endif %}
+            </div>
+            {% if item.description %}<p class="text-muted small mt-2 mb-2" style="white-space:pre-line">{{ item.description }}</p>{% endif %}
+            <details class="mt-2">
+                <summary>{% trans "Questions" %}</summary>
+                <ol>
+                    {% for q in item.question_rows %}
+                    <li>{{ q.question }}
+                        <div class="text-muted small">{{ q.type }}{% if q.is_required %} · <span class="text-danger">{% trans "required" %}</span>{% endif %}{% if q.options %} · {{ q.options|join:" / " }}{% endif %}</div>
+                    </li>
+                    {% endfor %}
+                </ol>
+            </details>
+            {% if perms.surveys.add_survey %}
+            <button hx-get="{% url 'survey-create' %}?questionnaire={{ item.pk }}" hx-target="#genericModalBody" data-target="#genericModal" data-toggle="oh-modal-toggle" class="oh-btn oh-btn--secondary w-100 mt-3">
+                <ion-icon name="copy-outline" class="me-1"></ion-icon>{% trans "Use" %}
+            </button>
+            {% endif %}
+        </div>
+    {% endfor %}
+    </div>
+</div>
+</main>
+{% endblock %}

@@ -24,6 +24,11 @@
             <button hx-get="{% url 'survey-edit' survey.pk %}" hx-target="#genericModalBody" data-target="#genericModal" data-toggle="oh-modal-toggle" class="oh-btn oh-btn--light-bkg">
                 <ion-icon name="create-outline" class="me-1"></ion-icon>{% trans "Edit" %}
             </button>
+            {% if can_save_to_library %}
+            <button hx-get="{% url 'survey-save-to-library' survey.pk %}" hx-target="#genericModalBody" data-target="#genericModal" data-toggle="oh-modal-toggle" class="oh-btn oh-btn--light-bkg">
+                <ion-icon name="library-outline" class="me-1"></ion-icon>{% trans "Save to library" %}
+            </button>
+            {% endif %}
             {% if survey.status != "open" %}
                 <form method="post" action="{% url 'survey-open' survey.pk %}" onsubmit="return confirm('{% trans 'Open the survey and send the invitations?' %}')">{% csrf_token %}
                     <button class="oh-btn oh-btn--secondary"><ion-icon name="paper-plane-outline" class="me-1"></ion-icon>{% if survey.status == "closed" %}{% trans "Reopen" %}{% else %}{% trans "Open and send" %}{% endif %}</button>

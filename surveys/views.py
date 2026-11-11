@@ -1,4 +1,4 @@
-"""The survey page (constructor, audience, results), its actions, the dashboard."""
+"""The survey page (constructor, audience, results), its actions, the library, the dashboard."""
 
 import csv
 import json
@@ -25,7 +25,9 @@ from horilla.http.response import HorillaRedirect
 from notifications.signals import notify
 from surveys import answers as answer_rules
 from surveys.access import can_manage, can_view_results
+from surveys.library import load_standard
 from surveys.models import (
+    Questionnaire,
     Survey,
     SurveyAnswer,
     SurveyInvitation,
@@ -59,6 +61,7 @@ def survey_detail(request, pk):
             "survey": survey,
             "can_manage": can_manage(request.user, survey),
             "can_results": can_view_results(request.user, survey),
+            "can_save_to_library": request.user.has_perm("surveys.add_questionnaire"),
             "tab": request.GET.get("tab", "questions"),
         },
     )
@@ -156,11 +159,13 @@ def _send_invitations(request, survey, invitations, *, reminder=False):
             notify.send(
                 sender,
                 recipient=user,
-                verb=gettext_noop(
-                    "Reminder: survey '%(title)s' is waiting for your answers"
-                )
-                if reminder
-                else gettext_noop("You are invited to the survey '%(title)s'"),
+                verb=(
+                    gettext_noop(
+                        "Reminder: survey '%(title)s' is waiting for your answers"
+                    )
+                    if reminder
+                    else gettext_noop("You are invited to the survey '%(title)s'")
+                ),
                 verb_params={"title": survey.title},
                 icon="clipboard",
                 redirect=url,
@@ -276,6 +281,7 @@ def _results(survey, department=None):
             question.TYPE_LIKERT,
             question.TYPE_YES_NO,
             question.TYPE_RATING,
+            question.TYPE_NPS,
         ):
             counts = Counter()
             for value in values:
@@ -284,8 +290,14 @@ def _results(survey, department=None):
             labels = [(v, str(label)) for v, label in question.choices()]
             item["labels"] = [label for _v, label in labels]
             item["series"] = [counts.get(v, 0) for v, _label in labels]
-            if question.type in (question.TYPE_RATING, question.TYPE_LIKERT) and values:
+            if (
+                question.type
+                in (question.TYPE_RATING, question.TYPE_LIKERT, question.TYPE_NPS)
+                and values
+            ):
                 item["average"] = round(sum(int(v) for v in values) / len(values), 2)
+            if question.type == question.TYPE_NPS and values:
+                item["nps"] = _nps(question, [int(v) for v in values])
         elif question.type == question.TYPE_NUMBER:
             numbers = [float(v) for v in values]
             if numbers:
@@ -299,6 +311,18 @@ def _results(survey, department=None):
             item["texts"] = [str(v) for v in values]
         results.append(item)
     return responses.count(), results
+
+
+def _nps(question, scores):
+    """Net Promoter Score of the answers: % of promoters minus % of detractors."""
+    promoters = sum(score >= question.NPS_PROMOTER_FROM for score in scores)
+    detractors = sum(score <= question.NPS_DETRACTOR_TILL for score in scores)
+    return {
+        "score": round(100 * (promoters - detractors) / len(scores)),
+        "promoters": promoters,
+        "passives": len(scores) - promoters - detractors,
+        "detractors": detractors,
+    }
 
 
 @login_required
@@ -358,9 +382,11 @@ def export_results(request, pk):
         values = row.answers_by_question()
         line = [
             index,
-            timezone.localtime(row.submitted_at).strftime("%Y-%m-%d %H:%M")
-            if row.submitted_at
-            else "",
+            (
+                timezone.localtime(row.submitted_at).strftime("%Y-%m-%d %H:%M")
+                if row.submitted_at
+                else ""
+            ),
         ]
         if not survey.is_anonymous:
             employee = row.invitation.employee if row.invitation else None
@@ -372,6 +398,42 @@ def export_results(request, pk):
             line + [answer_rules.label(q, values.get(q.pk)) for q in questions]
         )
     return response
+
+
+# --- library ---------------------------------------------------------------
+
+
+@login_required
+@permission_required("surveys.view_survey")
+def library(request):
+    return render(
+        request,
+        "surveys/library.html",
+        {"questionnaires": Questionnaire.objects.all()},
+    )
+
+
+@login_required
+@require_POST
+@permission_required("surveys.add_questionnaire")
+def load_standard_questionnaires(request):
+    added = load_standard()
+    if added:
+        messages.success(
+            request, _("%(n)s standard questionnaire(s) added.") % {"n": len(added)}
+        )
+    else:
+        messages.info(request, _("The standard questionnaires are already there."))
+    return HorillaRedirect(request)
+
+
+@login_required
+@require_POST
+@permission_required("surveys.delete_questionnaire")
+def delete_questionnaire(request, pk):
+    get_object_or_404(Questionnaire, pk=pk).delete()
+    messages.success(request, _("Questionnaire deleted."))
+    return HorillaRedirect(request)
 
 
 # --- dashboard -------------------------------------------------------------

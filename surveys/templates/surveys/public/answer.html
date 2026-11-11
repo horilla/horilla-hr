@@ -50,7 +50,7 @@
                     {% endfor %}
                 </div>
                 <p class="sv-hint">{% trans "Select all that apply." %}</p>
-            {% elif q.type == "rating" %}
+            {% elif q.type == "rating" or q.type == "nps" %}
                 <div class="sv-chips">
                     {% for v, label in item.choices %}
                         <label class="sv-chip sv-chip--sq"><input type="radio" name="{{ name }}" value="{{ v }}" {% if value == v %}checked{% endif %}>{{ label }}</label>

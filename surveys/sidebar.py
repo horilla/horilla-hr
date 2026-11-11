@@ -14,6 +14,7 @@ SUBMENUS = [
         "redirect": reverse("surveys-view"),
         "match_prefixes": ["/surveys/"],
     },
+    {"menu": _("Library"), "redirect": reverse("surveys-library")},
 ]
 
 

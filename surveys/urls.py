@@ -26,6 +26,28 @@ urlpatterns = [
     path("<int:pk>/remind/", views.remind, name="survey-remind"),
     path("<int:pk>/export/", views.export_results, name="survey-export"),
     path(
+        "<int:survey_pk>/save-to-library/",
+        cbv.SaveToLibraryView.as_view(),
+        name="survey-save-to-library",
+    ),
+    # the library of questionnaires
+    path("library/", views.library, name="surveys-library"),
+    path(
+        "library/load-standard/",
+        views.load_standard_questionnaires,
+        name="surveys-library-load-standard",
+    ),
+    path(
+        "library/<int:pk>/edit/",
+        cbv.QuestionnaireFormView.as_view(),
+        name="questionnaire-edit",
+    ),
+    path(
+        "library/<int:pk>/delete/",
+        views.delete_questionnaire,
+        name="questionnaire-delete",
+    ),
+    path(
         "question/add/",
         cbv.SurveyQuestionFormView.as_view(),
         name="survey-question-add",

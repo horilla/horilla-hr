@@ -49,7 +49,13 @@ def validate(question, value):
         if bad:
             raise AnswerError(_("Choose from the given options."))
         return value
-    if question.type in (Q.TYPE_CHOICE, Q.TYPE_LIKERT, Q.TYPE_YES_NO, Q.TYPE_RATING):
+    if question.type in (
+        Q.TYPE_CHOICE,
+        Q.TYPE_LIKERT,
+        Q.TYPE_YES_NO,
+        Q.TYPE_RATING,
+        Q.TYPE_NPS,
+    ):
         if str(value) not in allowed:
             raise AnswerError(_("Choose from the given options."))
         return str(value)
@@ -89,9 +95,9 @@ def collect(questions, data, *, strict):
             # A wrong value is not stored, neither in a draft nor in a submission.
             continue
         if strict or value is not None:
-            values[
-                question
-            ] = value  # a draft does not write "nothing" over an earlier answer
+            values[question] = (
+                value  # a draft does not write "nothing" over an earlier answer
+            )
     return values, errors
 
 

@@ -1,4 +1,4 @@
-"""The Surveys page: nav, list, create/edit forms."""
+"""The Surveys page: nav, list, create/edit forms; the library's forms."""
 
 from typing import Any
 
@@ -17,8 +17,18 @@ from horilla_views.generic.cbv.views import (
 )
 from surveys.access import can_manage
 from surveys.filters import SurveyFilter
-from surveys.forms import SurveyForm, SurveyQuestionForm
-from surveys.models import Survey, SurveyQuestion
+from surveys.forms import (
+    QuestionnaireForm,
+    SaveToLibraryForm,
+    SurveyForm,
+    SurveyQuestionForm,
+)
+from surveys.models import Questionnaire, Survey, SurveyQuestion
+
+CLOSE_MODAL = (
+    "<script>$('.oh-modal--show').removeClass('oh-modal--show');"
+    "$('#reloadMessagesButton').click();</script>"
+)
 
 
 def _status_filter_attr(status):
@@ -125,6 +135,21 @@ class SurveyFormView(HorillaFormView):
             )
         return super().dispatch(request, *args, **kwargs)
 
+    def get_initial(self):
+        """ "Use" in the library opens this form filled in from the questionnaire."""
+        initial = super().get_initial()
+        questionnaire = Questionnaire.objects.filter(
+            pk=self.request.GET.get("questionnaire") or None
+        ).first()
+        if questionnaire and not self.kwargs.get("pk"):
+            initial.update(
+                questionnaire=str(questionnaire.pk),
+                title=questionnaire.title,
+                description=questionnaire.description,
+                is_anonymous=questionnaire.is_anonymous,
+            )
+        return initial
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         if self.form.instance.pk:
@@ -134,14 +159,22 @@ class SurveyFormView(HorillaFormView):
     def form_valid(self, form: SurveyForm) -> HttpResponse:
         if form.is_valid():
             new = not form.instance.pk
+            questionnaire = form.cleaned_data.get("questionnaire") if new else None
             survey = form.save(commit=False)
             if new:
                 survey.company_id = self.request.user.employee_get.get_company()
             survey.save()
             form.save_m2m()
+            if questionnaire:
+                questionnaire.copy_questions_to(survey)
             if new:
                 messages.success(
-                    self.request, _("Survey created - now add its questions.")
+                    self.request,
+                    (
+                        _("Survey created from the library - check its questions.")
+                        if questionnaire
+                        else _("Survey created - now add its questions.")
+                    ),
                 )
                 return self.HttpResponse(
                     f'<script>window.location.href="{survey.get_detail_url()}"</script>'
@@ -193,4 +226,77 @@ class SurveyQuestionFormView(HorillaFormView):
             question.save()
             messages.success(self.request, _("Question saved."))
             return self.HttpResponse(targets_to_reload=["#reloadQuestions"])
+        return super().form_valid(form)
+
+
+@method_decorator(login_required, name="dispatch")
+@method_decorator(permission_required("surveys.change_questionnaire"), name="dispatch")
+class QuestionnaireFormView(HorillaFormView):
+    """Rename a questionnaire of the library or change its description."""
+
+    model = Questionnaire
+    form_class = QuestionnaireForm
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        self.form_class.verbose_name = _("Edit questionnaire")
+        return context
+
+    def form_valid(self, form: QuestionnaireForm) -> HttpResponse:
+        if form.is_valid():
+            form.save()
+            messages.success(self.request, _("Questionnaire updated."))
+            return self.HttpResponse("<script>window.location.reload()</script>")
+        return super().form_valid(form)
+
+
+@method_decorator(login_required, name="dispatch")
+class SaveToLibraryView(HorillaFormView):
+    """Keep a survey's questions in the library (survey pk in the URL)."""
+
+    model = Questionnaire
+    form_class = SaveToLibraryForm
+    new_display_title = _("Save to library")
+
+    def dispatch(self, request, *args, **kwargs):
+        self.survey = Survey.objects.filter(pk=kwargs.get("survey_pk")).first()
+        allowed = (
+            self.survey is not None
+            and request.user.has_perm("surveys.add_questionnaire")
+            and (
+                request.user.has_perm("surveys.view_survey")
+                or can_manage(request.user, self.survey)
+            )
+        )
+        if not allowed:
+            messages.error(request, _("You do not have permission for this."))
+            return HttpResponse(CLOSE_MODAL)
+        if not self.survey.questions.exists():
+            messages.error(request, _("The survey has no questions to save."))
+            return HttpResponse(CLOSE_MODAL)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        return None  # always a new form; "replace" picks the one to overwrite
+
+    def get_initial(self):
+        initial = super().get_initial()
+        initial.update(
+            title=self.survey.title,
+            description=self.survey.description,
+            is_anonymous=self.survey.is_anonymous,
+        )
+        return initial
+
+    def form_valid(self, form: SaveToLibraryForm) -> HttpResponse:
+        if form.is_valid():
+            questionnaire = form.cleaned_data.get("replace") or Questionnaire(
+                company_id=self.survey.company_id
+            )
+            for field in ("title", "description", "is_anonymous"):
+                setattr(questionnaire, field, form.cleaned_data[field])
+            questionnaire.questions = Questionnaire.questions_of(self.survey)
+            questionnaire.save()
+            messages.success(self.request, _("Saved to the library."))
+            return self.HttpResponse()
         return super().form_valid(form)

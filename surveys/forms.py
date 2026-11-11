@@ -4,12 +4,26 @@ from django import forms
 from django.utils.translation import gettext_lazy as _
 
 from base.forms import ModelForm
-from surveys.models import Survey, SurveyQuestion
+from surveys.models import Questionnaire, Survey, SurveyQuestion
 
 
 class SurveyForm(ModelForm):
     verbose_name = _("Survey")
+    # A new survey starts blank or from a questionnaire of the library. "Blank"
+    # is a value of its own: Horilla's selects disable the empty option
+    BLANK = "blank"
+    questionnaire = forms.ChoiceField(
+        required=False,
+        initial=BLANK,
+        label=_("Start from"),
+        help_text=_(
+            "A questionnaire of the library gives the survey its questions; "
+            "they can be changed afterwards."
+        ),
+    )
+    field_order = ["questionnaire"]
     cols = {
+        "questionnaire": 12,
         "title": 12,
         "description": 12,
         "is_anonymous": 6,
@@ -45,6 +59,22 @@ class SurveyForm(ModelForm):
                 attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"
             ),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        library = [(str(q.pk), q.title) for q in Questionnaire.objects.all()]
+        if self.instance.pk or not library:
+            del self.fields["questionnaire"]
+        else:
+            self.fields["questionnaire"].choices = [
+                (self.BLANK, _("Blank survey"))
+            ] + library
+
+    def clean_questionnaire(self):
+        value = self.cleaned_data.get("questionnaire")
+        if not value or value == self.BLANK:
+            return None
+        return Questionnaire.objects.filter(pk=value).first()
 
     def clean(self):
         cleaned = super().clean()
@@ -109,3 +139,51 @@ class SurveyQuestionForm(ModelForm):
         if self.errors:
             return
         super()._post_clean()
+
+
+class QuestionnaireForm(ModelForm):
+    """A questionnaire of the library: what it is called and starts a survey with."""
+
+    verbose_name = _("Questionnaire")
+    cols = {"title": 12, "description": 12, "is_anonymous": 12}
+
+    class Meta:
+        model = Questionnaire
+        fields = ["title", "description", "is_anonymous"]
+        widgets = {"description": forms.Textarea(attrs={"rows": 3})}
+
+
+class SaveToLibraryForm(QuestionnaireForm):
+    """A survey's questions kept as a questionnaire: a new one or in place of one."""
+
+    NEW = "new"
+    replace = forms.ChoiceField(
+        required=False,
+        initial=NEW,
+        label=_("Save as"),
+        help_text=_(
+            "A new questionnaire, or one of the library to put this survey's "
+            "questions in place of."
+        ),
+    )
+    field_order = ["replace"]
+    cols = {"replace": 12, "title": 12, "description": 12, "is_anonymous": 12}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        library = [
+            (str(q.pk), _("Replace: %(title)s") % {"title": q.title})
+            for q in Questionnaire.objects.all()
+        ]
+        if library:
+            self.fields["replace"].choices = [
+                (self.NEW, _("A new questionnaire"))
+            ] + library
+        else:
+            del self.fields["replace"]
+
+    def clean_replace(self):
+        value = self.cleaned_data.get("replace")
+        if not value or value == self.NEW:
+            return None
+        return Questionnaire.objects.filter(pk=value).first()

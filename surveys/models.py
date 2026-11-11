@@ -15,6 +15,10 @@ Two things shape the models:
 
 * **Drafts.** Answers are saved as they are typed; a half-finished response is
   a SurveyResponse with is_draft=True, reopened by the same link.
+
+A survey starts blank or from the library: a Questionnaire is one
+kept for reuse, and a survey made from it gets a copy of its questions, which
+are then changed like any others.
 """
 
 import secrets
@@ -256,12 +260,14 @@ class SurveyQuestion(HorillaModel):
         "number",
         "date",
     )
+    TYPE_NPS = "nps"
     TYPES = [
         (TYPE_TEXT, _("Short text")),
         (TYPE_TEXTAREA, _("Long text")),
         (TYPE_CHOICE, _("Single choice")),
         (TYPE_MULTIPLE, _("Multiple choice")),
         (TYPE_RATING, _("Rating 1–5")),
+        (TYPE_NPS, _("Scale 0–10 (NPS)")),
         (TYPE_LIKERT, _("Agreement scale")),
         (TYPE_YES_NO, _("Yes / No")),
         (TYPE_NUMBER, _("Number")),
@@ -276,6 +282,9 @@ class SurveyQuestion(HorillaModel):
         ("5", _("Strongly agree")),
     ]
     RATING_MAX = 5
+    NPS_MAX = 10
+    # Net Promoter Score: 9-10 promote, 0-6 detract
+    NPS_PROMOTER_FROM, NPS_DETRACTOR_TILL = 9, 6
 
     survey = models.ForeignKey(
         Survey, on_delete=models.CASCADE, related_name="questions"
@@ -319,11 +328,110 @@ class SurveyQuestion(HorillaModel):
             return [("yes", _("Yes")), ("no", _("No"))]
         if self.type == self.TYPE_RATING:
             return [(str(i), str(i)) for i in range(1, self.RATING_MAX + 1)]
+        if self.type == self.TYPE_NPS:
+            return [(str(i), str(i)) for i in range(0, self.NPS_MAX + 1)]
         return []
 
     def charted(self):
         """Whether the answers are counted into a chart (vs. listed)."""
         return self.type not in (self.TYPE_TEXT, self.TYPE_TEXTAREA, self.TYPE_DATE)
+
+
+class Questionnaire(HorillaModel):
+    """A questionnaire of the library; a survey made from it copies the questions."""
+
+    title = models.CharField(max_length=150, verbose_name=_("Title"))
+    description = models.TextField(blank=True, verbose_name=_("Description"))
+    is_anonymous = models.BooleanField(
+        default=True,
+        verbose_name=_("Anonymous"),
+        help_text=_("What a survey made from this questionnaire starts with."),
+    )
+    # [{"type", "question", "options", "is_required"}], in the order asked
+    questions = models.JSONField(default=list, blank=True, verbose_name=_("Questions"))
+    # Set on the standard questionnaires, so loading them again adds no copies
+    code = models.CharField(max_length=50, blank=True, editable=False)
+    company_id = models.ForeignKey(
+        Company,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        verbose_name=_("Company"),
+    )
+
+    objects = HorillaCompanyManager("company_id")
+
+    class Meta:
+        verbose_name = _("Questionnaire")
+        verbose_name_plural = _("Questionnaires")
+        ordering = ["title"]
+
+    def __str__(self):
+        return self.title
+
+    @staticmethod
+    def questions_of(survey):
+        """The questions of a survey as a questionnaire keeps them."""
+        return [
+            {
+                "type": q.type,
+                "question": q.question,
+                "options": list(q.options or []),
+                "is_required": q.is_required,
+            }
+            for q in survey.questions.all()
+        ]
+
+    def build_questions(self):
+        """Unsaved SurveyQuestions of this questionnaire, checked, in order."""
+        built = []
+        for sequence, item in enumerate(self.questions or [], start=1):
+            question = SurveyQuestion(
+                sequence=sequence,
+                type=item.get("type"),
+                question=item.get("question", ""),
+                options=list(item.get("options") or []),
+                is_required=bool(item.get("is_required")),
+            )
+            question.clean_fields(exclude=["survey"])
+            question.clean()
+            built.append(question)
+        return built
+
+    def clean(self):
+        super().clean()
+        try:
+            self.build_questions()
+        except ValidationError as error:
+            raise ValidationError({"questions": error.messages}) from None
+
+    def copy_questions_to(self, survey):
+        """Give `survey` this questionnaire's questions, after any it has."""
+        last = (
+            survey.questions.order_by("-sequence")
+            .values_list("sequence", flat=True)
+            .first()
+        ) or 0
+        questions = self.build_questions()
+        for question in questions:
+            question.survey = survey
+            question.sequence += last
+        return SurveyQuestion.objects.bulk_create(questions)
+
+    def question_rows(self):
+        """For the library page: each question with its type as a person reads it."""
+        return [
+            {
+                "question": q.question,
+                "type": q.get_type_display(),
+                "options": q.options,
+                "is_required": q.is_required,
+            }
+            for q in self.build_questions()
+        ]
+
+    def question_count(self):
+        return len(self.questions or [])
 
 
 class SurveyInvitation(HorillaModel):

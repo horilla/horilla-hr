@@ -27,6 +27,7 @@
                 <div class="fw-semibold">{{ forloop.counter }}. {{ r.question.question }}</div>
                 <span class="text-muted small text-nowrap ms-2">{{ r.answered }} {% trans "answered" %}</span>
             </div>
+            {% if r.nps %}<div class="mt-1">NPS: <b class="fs-5">{% if r.nps.score > 0 %}+{% endif %}{{ r.nps.score }}</b> <span class="text-muted small">· {% trans "promoters" %} {{ r.nps.promoters }} · {% trans "passives" %} {{ r.nps.passives }} · {% trans "detractors" %} {{ r.nps.detractors }}</span></div>{% endif %}
             {% if r.average %}<div class="text-muted small mt-1">{% trans "Average" %}: <b>{{ r.average }}</b>{% if r.minimum != None %} · {% trans "min" %} {{ r.minimum }} · {% trans "max" %} {{ r.maximum }}{% endif %}</div>{% endif %}
             {% if r.series %}
                 <div id="chart-{{ r.question.pk }}" class="mt-2" style="min-height:220px"></div>
@@ -78,7 +79,9 @@
             plotOptions: { bar: { borderRadius: 6, columnWidth: "55%", distributed: true, dataLabels: { position: "top" } } },
             legend: { show: false },
             dataLabels: { enabled: true, formatter: function (v) { return total ? v + " (" + Math.round(100 * v / total) + "%)" : v; }, style: { colors: [textColor], fontWeight: 500 }, offsetY: -20 },
-            colors: ["#e54f38", "#f59e0b", "#3b82f6", "#22c55e", "#a855f7", "#14b8a6"],
+            // NPS: detractors 0-6, passives 7-8, promoters 9-10
+            colors: q.type === "nps" ? q.labels.map(function (l) { return l <= 6 ? "#ef4444" : l <= 8 ? "#f59e0b" : "#22c55e"; })
+                : ["#e54f38", "#f59e0b", "#3b82f6", "#22c55e", "#a855f7", "#14b8a6"],
             noData: { text: "{% trans 'No answers'|escapejs %}" }
         };
         new ApexCharts(el, options).render();
