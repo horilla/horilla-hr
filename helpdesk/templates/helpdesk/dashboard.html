@@ -439,12 +439,21 @@
     // charts on top of each other. Every chart goes through here so
     // a refresh destroys the previous instance first.
     const chartInstances = {};
-    function renderChart(key, el, options) {
-        if (!el) return null;
+    function destroyChart(key) {
         if (chartInstances[key]) {
             chartInstances[key].destroy();
             chartInstances[key] = null;
         }
+    }
+    function showEmpty(key, el, msg) {
+        if (!el) return;
+        destroyChart(key);
+        el.innerHTML = emptyHtml(msg);
+    }
+    function renderChart(key, el, options) {
+        if (!el) return null;
+        destroyChart(key);
+        el.innerHTML = '';
         const chart = new ApexCharts(el, options);
         chartInstances[key] = chart;
         chart.render();
@@ -537,7 +546,7 @@
         .then(r => r.json())
         .then(data => {
             const total = data.statuses.reduce((a, s) => a + s.count, 0);
-            if (!total) { document.querySelector("#chart-hd-status").innerHTML = emptyHtml('{% trans "No tickets"|escapejs %}'); return; }
+            if (!total) { showEmpty('hd-status', document.querySelector("#chart-hd-status"), '{% trans "No tickets"|escapejs %}'); return; }
             let initialising = false;
             renderChart('hd-status', document.querySelector("#chart-hd-status"), {
                 series: data.statuses.map(s => s.count),
@@ -569,7 +578,7 @@
         .then(r => r.json())
         .then(data => {
             const total = data.priorities.reduce((a, p) => a + p.count, 0);
-            if (!total) { document.querySelector("#chart-hd-priority").innerHTML = emptyHtml('{% trans "No tickets"|escapejs %}'); return; }
+            if (!total) { showEmpty('hd-priority', document.querySelector("#chart-hd-priority"), '{% trans "No tickets"|escapejs %}'); return; }
             renderChart('hd-priority', document.querySelector("#chart-hd-priority"), {
                 series: [{ name: '{% trans "Tickets"|escapejs %}', data: data.priorities.map(p => p.count) }],
                 chart: { type: 'bar', height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
@@ -679,7 +688,7 @@
     fetchP("{% url 'helpdesk-dashboard-type' %}")
         .then(r => r.json())
         .then(data => {
-            if (!data.types.length) { document.querySelector("#chart-hd-type").innerHTML = emptyHtml('{% trans "No tickets"|escapejs %}'); typeLegend.clear(); return; }
+            if (!data.types.length) { showEmpty('hd-type', document.querySelector("#chart-hd-type"), '{% trans "No tickets"|escapejs %}'); typeLegend.clear(); return; }
             const typeColor = (i) => COLORS[i % COLORS.length];
             typeLegend.set(data.types.map((t, i) => ({ key: String(t.id), name: t.type, value: t.count, color: typeColor(i) })));
             renderChart('hd-type', document.querySelector("#chart-hd-type"), {
@@ -708,7 +717,7 @@
     fetchP("{% url 'helpdesk-dashboard-dept' %}")
         .then(r => r.json())
         .then(data => {
-            if (!data.departments.length) { document.querySelector("#chart-hd-dept").innerHTML = emptyHtml('{% trans "No data"|escapejs %}'); return; }
+            if (!data.departments.length) { showEmpty('hd-dept', document.querySelector("#chart-hd-dept"), '{% trans "No data"|escapejs %}'); return; }
             renderChart('hd-dept', document.querySelector("#chart-hd-dept"), {
                 series: [{ name: '{% trans "Tickets"|escapejs %}', data: data.departments.map(d => d.count) }],
                 chart: { type: 'bar', height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
@@ -737,7 +746,7 @@
     fetchP("{% url 'helpdesk-dashboard-trend' %}")
         .then(r => r.json())
         .then(data => {
-            if (!data.months.length) { document.querySelector("#chart-hd-trend").innerHTML = emptyHtml('{% trans "No data"|escapejs %}'); return; }
+            if (!data.months.length) { showEmpty('hd-trend', document.querySelector("#chart-hd-trend"), '{% trans "No data"|escapejs %}'); return; }
             renderChart('hd-trend', document.querySelector("#chart-hd-trend"), {
                 series: data.series.map(s => ({ name: s.label, data: s.data })),
                 chart: { type: 'line', height: 280, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit',
