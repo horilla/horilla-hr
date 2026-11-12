@@ -1,21 +1,6 @@
 {% load static i18n helpdeskfilters %}
 {% if tab != 'my_tickets' %}
-    {% if perms.helpdesk.change_ticket or perms.helpdesk.change_claimrequest or request.user.employee_get|is_department_manager:ticket %}
-        <li>
-            <p
-                class="w-full text-left px-3 py-1 hover:text-primary-600 font-semibold"
-            >
-                <a
-                    hx-get = "{% url "view-ticket-claim-request" ticket.id %}"
-                    hx-target="#objectDetailsModalTarget"
-                    data-toggle="oh-modal-toggle"
-                    data-target="#objectDetailsModal"
-                >
-                    {% trans "Claim Requests" %}
-                </a>
-            </p>
-        </li>
-    {% elif not ticket.assigned_to.all %}
+    {% if not ticket.assigned_to.all %}
         <li>
             <p
                 class="w-full text-left px-3 py-1 hover:text-primary-600 font-semibold"
