@@ -94,6 +94,44 @@ class HrSurveyTests(TestCase):
         self.assertContains(response, "Choose at least one")
         self.assertFalse(Survey.objects.filter(title="x").exists())
 
+    def test_the_form_shows_only_the_field_of_the_chosen_audience(self):
+        form = self.client.get(reverse("survey-create"), HTTP_HX_REQUEST="true")
+        self.assertContains(form, "showAudienceField")
+        for field in ("departments", "job_positions", "employees"):
+            self.assertContains(form, f'id="id_{field}_parent_div"')
+
+    def test_a_hidden_audience_field_keeps_nothing(self):
+        from base.models import Department
+
+        department = Department.objects.create(department="Crewing")
+        self.client.post(
+            reverse("survey-create"),
+            {
+                "title": "Everyone",
+                "audience": "all",
+                "departments": [department.pk],
+                "employees": [self.alice.pk],
+            },
+            HTTP_HX_REQUEST="true",
+        )
+        survey = Survey.objects.get(title="Everyone")
+        self.assertFalse(survey.departments.exists())
+        self.assertFalse(survey.employees.exists())
+
+        self.client.post(
+            reverse("survey-create"),
+            {
+                "title": "Crewing only",
+                "audience": "departments",
+                "departments": [department.pk],
+                "employees": [self.alice.pk],
+            },
+            HTTP_HX_REQUEST="true",
+        )
+        survey = Survey.objects.get(title="Crewing only")
+        self.assertEqual(list(survey.departments.all()), [department])
+        self.assertFalse(survey.employees.exists())
+
     def test_adding_and_ordering_questions(self):
         survey = Survey.objects.create(title="Pulse", company_id=self.company)
         self.client.post(

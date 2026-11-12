@@ -84,15 +84,20 @@ class SurveyForm(ModelForm):
             Survey.AUDIENCE_POSITIONS: cleaned.get("job_positions"),
             Survey.AUDIENCE_EMPLOYEES: cleaned.get("employees"),
         }
+        fields = {
+            Survey.AUDIENCE_DEPARTMENTS: "departments",
+            Survey.AUDIENCE_POSITIONS: "job_positions",
+            Survey.AUDIENCE_EMPLOYEES: "employees",
+        }
         if audience in chosen and not chosen[audience]:
             self.add_error(
-                {
-                    Survey.AUDIENCE_DEPARTMENTS: "departments",
-                    Survey.AUDIENCE_POSITIONS: "job_positions",
-                    Survey.AUDIENCE_EMPLOYEES: "employees",
-                }[audience],
-                _("Choose at least one for this audience."),
+                fields[audience], _("Choose at least one for this audience.")
             )
+        # The form shows only the field of the chosen audience: what is left in
+        # the hidden ones from an earlier choice is not kept
+        for key, field in fields.items():
+            if key != audience and field in cleaned:
+                cleaned[field] = cleaned[field].none()
         return cleaned
 
 

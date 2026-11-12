@@ -1,8 +1,14 @@
 {% load i18n static %}
 <!doctype html>
-<html lang="{{ LANGUAGE_CODE|default:'en' }}">
+{% comment %}
+    Light unless the employee switched Horilla to dark (the session theme the
+    rest of Horilla reads, see index.html) - not the OS setting, which Horilla
+    itself ignores.
+{% endcomment %}
+<html lang="{{ LANGUAGE_CODE|default:'en' }}" class="{% if request.session.theme == 'dark' %}dark{% endif %}">
 <head>
     <meta charset="UTF-8">
+    <meta name="color-scheme" content="{% if request.session.theme == 'dark' %}dark{% else %}light{% endif %}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex">
     <title>{% block title %}{% trans "Survey" %}{% endblock %}</title>
@@ -44,12 +50,10 @@
         .sv-btn:hover { filter: brightness(.95); }
         .sv-big { font-size: 42px; margin-bottom: 10px; }
         .sv-big--ok { color: var(--sv-ok); } .sv-big--muted { color: var(--sv-muted); }
-        @media (prefers-color-scheme: dark) {
-            :root { --sv-text: #e5e7eb; --sv-muted: #9ca3af; --sv-line: #374151; --sv-bg: #0b0f19; }
-            .sv-card, .sv-input, .sv-textarea { background: #111827; }
-            .sv-pill { background: #1f2937; color: var(--sv-text); }
-            .sv-bar { background: rgba(11,15,25,.92); }
-        }
+        .dark { --sv-text: #e5e7eb; --sv-muted: #9ca3af; --sv-line: #374151; --sv-bg: #0b0f19; }
+        .dark .sv-card, .dark .sv-input, .dark .sv-textarea { background: #111827; }
+        .dark .sv-pill { background: #1f2937; color: var(--sv-text); }
+        .dark .sv-bar { background: rgba(11,15,25,.92); }
     </style>
 </head>
 <body>

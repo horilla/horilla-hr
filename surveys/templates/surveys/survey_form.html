@@ -1,0 +1,17 @@
+{% include "generic/horilla_form.html" %}
+<script>
+    // Only the field the chosen audience needs is shown: departments, job
+    // positions or employees; "All employees" needs none of them
+    (function () {
+        var form = $("#{{ view_id }}Form");
+        var fields = {departments: "departments", positions: "job_positions", employees: "employees"};
+        function showAudienceField() {
+            var audience = form.find("[name=audience]").val();
+            $.each(fields, function (choice, field) {
+                form.find("#id_" + field + "_parent_div").toggle(audience === choice);
+            });
+        }
+        form.find("[name=audience]").on("change", showAudienceField);
+        showAudienceField();
+    })();
+</script>

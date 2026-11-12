@@ -74,6 +74,19 @@ class PublicAnswerTests(TestCase):
         self.assertContains(response, "Mood?")
         self.assertContains(response, "Anonymous")
 
+    def test_light_unless_the_employee_chose_dark_in_horilla(self):
+        page = self.client.get(self.url()).content.decode()
+        self.assertNotIn('class="dark"', page)
+        self.assertIn('<meta name="color-scheme" content="light">', page)
+        self.assertNotIn("prefers-color-scheme", page)
+
+        session = self.client.session
+        session["theme"] = "dark"
+        session.save()
+        page = self.client.get(self.url()).content.decode()
+        self.assertIn('class="dark"', page)
+        self.assertIn('<meta name="color-scheme" content="dark">', page)
+
     def test_a_wrong_token_is_404_and_throttled_after_too_many(self):
         for _ in range(TOKEN_PROBE_LIMIT):
             self.assertEqual(self.client.get(self.url("x" * 43)).status_code, 404)

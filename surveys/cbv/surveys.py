@@ -125,6 +125,7 @@ class SurveyFormView(HorillaFormView):
     model = Survey
     form_class = SurveyForm
     new_display_title = _("Create survey")
+    template_name = "surveys/survey_form.html"
 
     def dispatch(self, request, *args, **kwargs):
         perm = "surveys.change_survey" if kwargs.get("pk") else "surveys.add_survey"
