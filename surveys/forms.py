@@ -108,7 +108,9 @@ class SurveyQuestionForm(ModelForm):
     options_text = forms.CharField(
         required=False,
         label=_("Options"),
-        help_text=_("One option per line - for single and multiple choice."),
+        help_text=_(
+            "One option per line, at least two - for single and multiple choice."
+        ),
         widget=forms.Textarea(attrs={"rows": 4, "class": "oh-input w-100"}),
     )
     cols = {"question": 12, "type": 6, "is_required": 6, "options_text": 12}
@@ -120,6 +122,10 @@ class SurveyQuestionForm(ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # The help text sits behind an icon; the field itself says what to type
+        self.fields["options_text"].widget.attrs["placeholder"] = _(
+            "One option per line, at least two"
+        )
         if self.instance.pk and self.instance.options:
             self.fields["options_text"].initial = "\n".join(self.instance.options)
 

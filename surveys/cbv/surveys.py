@@ -356,6 +356,7 @@ class SurveyQuestionFormView(HorillaFormView):
     model = SurveyQuestion
     form_class = SurveyQuestionForm
     new_display_title = _("Add question")
+    template_name = "surveys/question_form.html"
 
     def dispatch(self, request, *args, **kwargs):
         survey_pk = request.GET.get("survey")
@@ -536,7 +537,7 @@ class QuestionnaireFormView(HorillaFormView):
         if form.is_valid():
             form.save()
             messages.success(self.request, _("Questionnaire updated."))
-            return self.HttpResponse(targets_to_reload=["#applyFilter"])
+            return self.HttpResponse()
         return super().form_valid(form)
 
 

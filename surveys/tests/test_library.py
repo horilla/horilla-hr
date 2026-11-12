@@ -111,7 +111,7 @@ class LibraryTests(TestCase):
             reverse("surveys-library-load-standard"), HTTP_HX_REQUEST="true"
         )
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "#applyFilter")
+        self.assertContains(response, ".reload-record")
         self.assertEqual(Questionnaire.objects.count(), 3)
 
     def test_a_broken_question_is_refused(self):

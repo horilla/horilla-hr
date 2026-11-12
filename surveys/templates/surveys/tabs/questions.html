@@ -1,6 +1,13 @@
 {% load i18n %}
-{# reloads itself after the question form saves (the #reloadQuestions button) #}
-<div hx-get="{% url 'survey-questions-tab' survey.pk %}" hx-trigger="reloadQuestions from:body" hx-swap="outerHTML">
+<div id="surveyQuestions">
+{% comment %}
+The tab reloads after the question form saves (the #reloadQuestions button).
+The trigger is an element of its own with nothing inside: htmx hands hx-swap
+down to the children, and an outerHTML on the wrapper made "Add question"
+replace the modal's body instead of filling it.
+{% endcomment %}
+<span hidden hx-get="{% url 'survey-questions-tab' survey.pk %}" hx-trigger="reloadQuestions from:body"
+      hx-target="#surveyQuestions" hx-swap="outerHTML"></span>
 <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
     <p class="text-xs text-[#666] mb-0">{% trans "Drag the handle to reorder. Employees see the questions in this order." %}</p>
     {% if can_manage %}

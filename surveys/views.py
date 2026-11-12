@@ -413,8 +413,9 @@ def load_standard_questionnaires(request):
     else:
         messages.info(request, _("The standard questionnaires are already there."))
     if request.headers.get("HX-Request"):
-        # the Actions menu of the library: show the messages, reload the cards
-        return HorillaFormView.HttpResponse(targets_to_reload=["#applyFilter"])
+        # the Actions menu of the library: show the messages; the cards and the
+        # list reload themselves (their .reload-record button)
+        return HorillaFormView.HttpResponse()
     return HorillaRedirect(request)
 
 

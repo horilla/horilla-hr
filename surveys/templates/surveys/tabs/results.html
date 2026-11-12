@@ -4,13 +4,16 @@
         <span class="text-xl font-bold">{{ total }}</span> {% trans "responses" %}
         <span class="text-[#666]">· {% trans "response rate" %} <b>{{ survey.response_rate }}%</b></span>
     </p>
-    <div class="flex flex-wrap items-center gap-1">
+    <div class="flex flex-wrap items-center gap-2">
         {% if departments %}
-        <select class="oh-select oh-select--sm" style="min-width:180px" name="department"
-                hx-get="{% url 'survey-results-tab' survey.pk %}" hx-target="closest .oh-tabs__content" hx-trigger="change">
-            <option value="">{% trans "All departments" %}</option>
-            {% for d in departments %}<option value="{{ d.pk }}" {% if department == d.pk|stringformat:"s" %}selected{% endif %}>{{ d }}</option>{% endfor %}
-        </select>
+        {# a width of its own: the styled select otherwise fills the row and pushes Export below #}
+        <div style="width:220px">
+            <select class="oh-select oh-select--sm w-100" name="department"
+                    hx-get="{% url 'survey-results-tab' survey.pk %}" hx-target="closest .oh-tabs__content" hx-trigger="change">
+                <option value="">{% trans "All departments" %}</option>
+                {% for d in departments %}<option value="{{ d.pk }}" {% if department == d.pk|stringformat:"s" %}selected{% endif %}>{{ d }}</option>{% endfor %}
+            </select>
+        </div>
         {% endif %}
         <a href="{% url 'survey-export' survey.pk %}"
            class="px-4 py-2 bg-white rounded-md text-xs flex items-center gap-2 border border-primary-500 hover:border-primary-600 transition duration-300">

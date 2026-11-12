@@ -227,7 +227,7 @@ class HrSurveyTests(TestCase):
             {"question": "One?", "type": "choice", "options_text": "Only"},
             HTTP_HX_REQUEST="true",
         )
-        self.assertContains(bad, "at least two options")
+        self.assertContains(bad, "needs at least two options")
 
         self.client.post(
             reverse("survey-reorder", args=[survey.pk]),
@@ -237,6 +237,40 @@ class HrSurveyTests(TestCase):
             list(survey.questions.values_list("question", flat=True)),
             ["Why?", "Colour?"],
         )
+
+    def test_the_question_buttons_fill_the_modal_not_replace_it(self):
+        """htmx hands hx-swap down to the children: an outerHTML on the tab's
+        wrapper made "Add question" replace the modal's body, so the form lost
+        its dialog and its errors went nowhere."""
+        survey = Survey.objects.create(title="Pulse", company_id=self.company)
+        SurveyQuestion.objects.create(survey=survey, type="text", question="Why?")
+        html = self.client.get(
+            reverse("survey-questions-tab", args=[survey.pk])
+        ).content.decode()
+        self.assertEqual(html.count("hx-swap"), 1)
+        # the one swap is on the reload trigger, which has nothing inside
+        self.assertRegex(html, r'<span hidden[^>]*hx-swap="outerHTML"></span>')
+        self.assertIn('hx-target="#genericModalBody"', html)
+
+    def test_a_choice_question_without_options_says_what_is_missing(self):
+        survey = Survey.objects.create(title="Pulse", company_id=self.company)
+        for type_ in ("choice", "multiple"):
+            response = self.client.post(
+                reverse("survey-question-add") + f"?survey={survey.pk}",
+                {"question": "New", "type": type_, "options_text": ""},
+                HTTP_HX_REQUEST="true",
+            )
+            # the form comes back with the error under the options
+            self.assertContains(response, "needs at least two options")
+            self.assertContains(response, 'id="id_options_text_error"')
+        self.assertFalse(survey.questions.exists())
+        # the other types need no options, and the form hides the field for them
+        response = self.client.get(
+            reverse("survey-question-add") + f"?survey={survey.pk}",
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertContains(response, "id_options_text_parent_div")
+        self.assertContains(response, "One option per line, at least two")
 
     def test_opening_invites_the_audience_and_mails_the_link(self):
         survey = self.make_survey()

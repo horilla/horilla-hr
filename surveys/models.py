@@ -49,12 +49,16 @@ def _pill(text, colour):
 
 
 def _moment(value):
-    """A date and time of the audience list, in the local zone."""
+    """A date and time of the audience list, in the local zone.
+
+    Written the way the survey page writes "closes ...": the locale's short
+    format ("11/12/2026 11:35 a.m.") does not fit the column.
+    """
     from django.utils import formats
 
     if not value:
         return "—"
-    return formats.date_format(timezone.localtime(value), "SHORT_DATETIME_FORMAT")
+    return formats.date_format(timezone.localtime(value), "d.m.Y H:i")
 
 
 class Survey(HorillaModel):
@@ -242,7 +246,7 @@ class Survey(HorillaModel):
         from django.utils import formats
 
         return (
-            formats.date_format(timezone.localtime(self.closes_at), "SHORT_DATE_FORMAT")
+            formats.date_format(timezone.localtime(self.closes_at), "d.m.Y")
             if self.closes_at
             else "—"
         )
@@ -333,7 +337,14 @@ class SurveyQuestion(HorillaModel):
         if self.type in self.CHOICE_TYPES:
             options = [str(o).strip() for o in (self.options or []) if str(o).strip()]
             if len(options) < 2:
-                raise ValidationError({"options": _("Give at least two options.")})
+                raise ValidationError(
+                    {
+                        "options": _(
+                            "A choice question needs at least two options, "
+                            "one per line."
+                        )
+                    }
+                )
             if len(set(options)) != len(options):
                 raise ValidationError({"options": _("Options must differ.")})
             self.options = options
