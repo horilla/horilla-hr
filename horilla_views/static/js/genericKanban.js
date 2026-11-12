@@ -70,8 +70,28 @@ function groupSequenceGet(groupHead) {
 	});
 }
 
+// Objects whose move request is still in flight, so a second drop of the
+// same card cannot send a duplicate request.
+var pendingKanbanMoves = {};
+
+// Reload the recruitment vacancy indicator (present on the recruitment
+// pipeline only) once a move has changed who is selected.
+function refreshVacancyBadge() {
+	var badge = document.querySelector(".vp[data-refresh-url]");
+	if (badge && window.htmx) {
+		window.htmx.ajax("GET", badge.getAttribute("data-refresh-url"), {
+			target: badge,
+			swap: "outerHTML",
+		});
+	}
+}
+
 function handleValidDrop(groupId, objectId, row) {
 	if (!groupId || !objectId) {
+		return;
+	}
+	if (pendingKanbanMoves[objectId]) {
+		revertItemPosition({ item: row });
 		return;
 	}
 	if (groupId != window.candidateCurrentStage) {
@@ -91,40 +111,64 @@ function handleValidDrop(groupId, objectId, row) {
 		}
 
 		var config = getBoardConfig(row);
+		pendingKanbanMoves[objectId] = true;
 
-		$.ajax({
-			type: "POST",
-			url: config.kanbanUrl,
-			headers: { "HX-Request": "true" },
-			traditional: true,
-			data: {
+		function sendMove(confirmed) {
+			var data = {
 				csrfmiddlewaretoken: config.csrfToken,
 				kanban_action: "move-item",
 				groupId: groupId,
 				order: JSON.stringify(values),
-			},
-			success: function (response) {
-				row.find(`[name="group_id"]`).val(groupId);
-				adjustGroupCount(originalGroupId, -1);
-				adjustGroupCount(groupId, 1);
+			};
+			if (confirmed) {
+				data.confirm = 1;
+			}
+			$.ajax({
+				type: "POST",
+				url: config.kanbanUrl,
+				headers: { "HX-Request": "true" },
+				traditional: true,
+				data: data,
+				success: function () {
+					row.find(`[name="group_id"]`).val(groupId);
+					adjustGroupCount(originalGroupId, -1);
+					adjustGroupCount(groupId, 1);
 
-				$("#reloadMessagesButton").click();
-
-				if (response.message) {
-					Swal.fire({
-						title: response.message,
-						text: typeof interpolate !== "undefined" && typeof i18nMessages !== "undefined"
-							? interpolate(i18nMessages.totalVacancy, { vacancy: response.vacancy }, true)
-							: `Total vacancy is ${response.vacancy}.`,
-						icon: "info",
-						confirmButtonText: typeof i18nMessages !== "undefined" ? i18nMessages.ok : "Ok",
-					});
-				}
-			},
-			error: function () {
-				$("#reloadMessagesButton").click();
-			},
-		});
+					$("#reloadMessagesButton").click();
+					refreshVacancyBadge();
+					delete pendingKanbanMoves[objectId];
+				},
+				error: function (xhr) {
+					var body = xhr.responseJSON || {};
+					if (body.needs_confirmation) {
+						// Nothing was saved. Ask first; Cancel puts the card back.
+						Swal.fire({
+							title: typeof gettext !== "undefined" ? gettext("Vacancy Filled") : "Vacancy Filled",
+							text: body.message,
+							icon: "warning",
+							showCancelButton: true,
+							confirmButtonColor: "#008000",
+							cancelButtonColor: "#6c757d",
+							confirmButtonText: typeof i18nMessages !== "undefined" ? i18nMessages.ok : "Ok",
+							cancelButtonText: typeof i18nMessages !== "undefined" ? i18nMessages.cancel : "Cancel",
+						}).then(function (result) {
+							if (result.isConfirmed) {
+								sendMove(true);
+							} else {
+								revertItemPosition({ item: row });
+								delete pendingKanbanMoves[objectId];
+							}
+						});
+						return;
+					}
+					// Nothing was saved: put the card back.
+					revertItemPosition({ item: row });
+					$("#reloadMessagesButton").click();
+					delete pendingKanbanMoves[objectId];
+				},
+			});
+		}
+		sendMove(false);
 	}
 }
 
@@ -174,6 +218,7 @@ function initializeSortable() {
 	$(".groupContainer")
 		.sortable({
 			handle: ".oh-kanban__section-head",
+			cursor: "grabbing",
 			connectWith: ".pipeline_item",
 			placeholder: "group-placeholder",
 
@@ -254,16 +299,18 @@ function initializeKanbanSortable(sectionSelector, stageSelector) {
 		connectWith: sectionSelector,
 		items: "> :not(.htmx-indicator)",
 		ghostClass: "blue-background-class",
+		cursor: "grabbing",
 		placeholder: "sortable-placeholder",
 		forcePlaceholderSize: true,
 		appendTo: "body",
 		zIndex: 9999,
 		helper: function (event, ui) {
 			var helper = ui.clone();
+			var width = ui.outerWidth() + "px";
 			helper.css({
-				width: "360px",
-				"max-width": "360px",
-				"min-width": "360px",
+				width: width,
+				"max-width": width,
+				"min-width": width,
 				"box-sizing": "border-box"
 			});
 			return helper;
