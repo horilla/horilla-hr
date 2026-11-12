@@ -54,15 +54,14 @@ def get_meta_url(id, service):
 
 
 def get_meta_details_from_number(number):
-    emp_company = Employee.objects.filter(phone=number).first().get_company()
+    employee = Employee.objects.filter(phone=number).first()
+    emp_company = employee.get_company() if employee else None
     company = emp_company if emp_company else Company.objects.filter(hq=True).first()
 
     credentials = WhatsappCredientials.objects.filter(company_id=company)
-    credentials = (
-        credentials.get(is_primary=True)
-        if credentials.get(is_primary=True)
-        else credentials.first()
-    )
+    credentials = credentials.filter(is_primary=True).first() or credentials.first()
+    if not credentials:
+        raise Exception("No WhatsApp credentials configured for the company")
     url = get_meta_url(credentials.meta_phone_number_id, "messages")
     data = {
         "token": credentials.meta_token,
