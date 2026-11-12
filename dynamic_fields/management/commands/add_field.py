@@ -3,7 +3,6 @@ import logging
 from django.contrib.contenttypes.models import ContentType
 from django.core.management.base import BaseCommand
 from django.db import connection
-from django.db.backends.base.schema import BaseDatabaseSchemaEditor
 from simple_history.models import HistoricalRecords
 
 from dynamic_fields.methods import column_exists
@@ -34,18 +33,13 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         pk = kwargs["pk"]
-        editor = BaseDatabaseSchemaEditor(connection)
         instance = DynamicField.objects.get(pk=pk)
         model = instance.get_model()
         field = instance.get_field()
         field.set_attributes_from_name(instance.field_name)
         if not column_exists(model._meta.db_table, instance.field_name):
-            sql = editor.sql_create_column % {
-                "table": editor.quote_name(model._meta.db_table),
-                "column": editor.quote_name(field.column),
-                "definition": None,
-            }
-            editor.execute(sql)
+            with connection.schema_editor() as editor:
+                editor.add_field(model, field)
             logger.info(
                 f"Field does not exist, adding it in {model.__class__.__name__}."
             )
@@ -56,12 +50,8 @@ class Command(BaseCommand):
         if historical_model_ct:
             history_model = historical_model_ct.model_class()
             if not column_exists(history_model._meta.db_table, instance.field_name):
-                sql = editor.sql_create_column % {
-                    "table": editor.quote_name(history_model._meta.db_table),
-                    "column": editor.quote_name(field.column),
-                    "definition": None,
-                }
-                editor.execute(sql)
+                with connection.schema_editor() as editor:
+                    editor.add_field(history_model, field)
                 logger.info(
                     f"Field does not exist, adding it in {history_model.__class__.__name__}."
                 )
