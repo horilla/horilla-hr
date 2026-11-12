@@ -141,7 +141,6 @@ class TicketForm(ModelForm):
             "assigning_type",
             "raised_on",
             "deadline",
-            "status",
             "tags",
         ]
         widgets = {
