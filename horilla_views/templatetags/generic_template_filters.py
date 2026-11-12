@@ -109,6 +109,8 @@ def getattribute(value, attr: str):
     Gets an attribute of an object dynamically from a string name
     """
     result = ""
+    if not attr:
+        return result
     attrs = attr.split("__")
     for attr in attrs:
         if isinstance(
