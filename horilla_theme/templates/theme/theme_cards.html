@@ -4,8 +4,8 @@
         <div class="theme-card relative bg-white rounded-lg border transition-all duration-300 hover:shadow-lg flex flex-col {% if active_theme and active_theme.id == theme.id %}border-primary-600 shadow-md{% else %}border-dark-50 hover:border-primary-300{% endif %}">
             <!-- Active Badge -->
             {% if active_theme and active_theme.id == theme.id %}
-                <div class="absolute -top-2 -right-2 bg-primary-600 text-white rounded-full p-2 shadow-lg z-10 border-2 border-white">
-                    <i class="fas fa-check text-sm"></i>
+                <div class="absolute -top-2 -right-2 w-6 h-6 flex items-center justify-center bg-primary-600 text-white rounded-full shadow-lg z-10 border-2 border-white">
+                    <i class="fas fa-check text-xs"></i>
                 </div>
             {% endif %}
 
