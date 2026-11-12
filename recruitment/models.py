@@ -574,6 +574,33 @@ class Recruitment(HorillaModel):
             if len(hired_candidate) >= self.vacancy:
                 return True
 
+    def lock_for_shortlisting(self):
+        """
+        Serialise concurrent shortlisting for this recruitment. Call inside
+        ``transaction.atomic`` before ``is_vacancy_filled_for``; it is a no-op
+        where row locks are unsupported (SQLite).
+        """
+        type(self).default.select_for_update().filter(pk=self.pk).first()
+
+    def is_vacancy_filled_for(self, candidate):
+        """
+        Whether shortlisting ``candidate`` would exceed the vacancy. It reads the
+        per-position vacancy (as ``vacancy_progress`` does): a recruitment with
+        one position counts every selected candidate against it, with several
+        only those of the candidate's own position. The candidate's own current
+        selection is not counted against them.
+        """
+        rows = {row["position"]: row["vacancy"] for row in self.vacancy_rows()}
+        hired = self.candidate.filter(hired=True, is_active=True)
+        if candidate.pk:
+            hired = hired.exclude(pk=candidate.pk)
+        if len(rows) == 1:
+            vacancy = next(iter(rows.values()))
+        else:
+            vacancy = rows.get(candidate.job_position_id_id)
+            hired = hired.filter(job_position_id=candidate.job_position_id_id)
+        return bool(vacancy) and hired.count() >= vacancy
+
     def get_or_create_applied_stage(self):
         """
         Return this recruitment's Applied stage, creating it if missing.
@@ -1582,6 +1609,24 @@ class Candidate(HorillaModel):
     # Rejected ribbon (`canceled`) and `hired` were never set. Naming the method
     # here routes the stage through it, per selected candidate.
     bulk_update_setters = {"stage_id": "set_stage"}
+
+    SHORTLIST_FILLED_MESSAGE = _(
+        "The vacancy for this recruitment is already filled. "
+        "Do you still want to move this candidate to the Shortlisted stage?"
+    )
+
+    def shortlist_needs_confirmation(self, stage):
+        """
+        True when moving this candidate to ``stage`` would shortlist them into a
+        recruitment whose vacancy is already filled, which the user has to
+        confirm. Moves to other stages, and a candidate who is already
+        shortlisted, never need it.
+        """
+        if stage is None or stage.stage_type != "shortlisted":
+            return False
+        if self.stage_id_id == stage.pk and self.hired:
+            return False
+        return stage.recruitment_id.is_vacancy_filled_for(self)
 
     def set_stage(self, stage):
         """
