@@ -33260,6 +33260,12 @@ msgstr "Telefon numarası"
 msgid "Message templates and flows created successfully."
 msgstr "Mesaj şablonları ve akışları başarıyla oluşturuldu."
 
+#: horilla_theme/templates/employee/create_form/custom_fields.html
+#: horilla_theme/templates/tabs/personal_tab.html
+msgctxt "employee form section"
+msgid "Custom"
+msgstr "Özel"
+
 #~ msgid "Tracking Id"
 #~ msgstr "İzleme Kimliği"
 

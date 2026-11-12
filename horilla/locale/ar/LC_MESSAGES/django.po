@@ -30504,6 +30504,12 @@ msgstr "رقم الهاتف"
 msgid "Message templates and flows created successfully."
 msgstr "تم إنشاء قوالب الرسائل وتدفقاتها بنجاح."
 
+#: horilla_theme/templates/employee/create_form/custom_fields.html
+#: horilla_theme/templates/tabs/personal_tab.html
+msgctxt "employee form section"
+msgid "Custom"
+msgstr "مخصص"
+
 #~ msgid "Tracking Id"
 #~ msgstr "رقم التتبع"
 

@@ -33511,6 +33511,12 @@ msgstr "Número de teléfono"
 msgid "Message templates and flows created successfully."
 msgstr "Plantillas y flujos de mensajes creados correctamente."
 
+#: horilla_theme/templates/employee/create_form/custom_fields.html
+#: horilla_theme/templates/tabs/personal_tab.html
+msgctxt "employee form section"
+msgid "Custom"
+msgstr "Personalizado"
+
 #~ msgid "Tracking Id"
 #~ msgstr "Id de seguimiento"
 

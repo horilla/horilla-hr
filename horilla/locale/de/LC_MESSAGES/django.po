@@ -33553,6 +33553,12 @@ msgstr "Telefonnummer"
 msgid "Message templates and flows created successfully."
 msgstr "Nachrichtenvorlagen und Flows erfolgreich erstellt."
 
+#: horilla_theme/templates/employee/create_form/custom_fields.html
+#: horilla_theme/templates/tabs/personal_tab.html
+msgctxt "employee form section"
+msgid "Custom"
+msgstr "Benutzerdefiniert"
+
 #~ msgid "Tracking Id"
 #~ msgstr "Tracking-Id"
 

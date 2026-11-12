@@ -225,6 +225,31 @@ class EmployeeForm(ModelForm):
             "dob": TextInput(attrs={"type": "date", "id": "dob"}),
         }
 
+    PLACED_FIELDS = frozenset(
+        {
+            "address",
+            "badge_id",
+            "children",
+            "city",
+            "country",
+            "dob",
+            "email",
+            "emergency_contact",
+            "emergency_contact_name",
+            "emergency_contact_relation",
+            "employee_first_name",
+            "employee_last_name",
+            "employee_profile",
+            "experience",
+            "gender",
+            "marital_status",
+            "phone",
+            "qualification",
+            "state",
+            "zip",
+        }
+    )
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["email"].widget.attrs["autocomplete"] = "email"
@@ -245,6 +270,13 @@ class EmployeeForm(ModelForm):
     def as_p(self, *args, **kwargs):
         context = {"form": self}
         return render_to_string("employee/create_form/personal_info_as_p.html", context)
+
+    def custom_fields(self):
+        """
+        Fields the add and edit templates don't place by hand, such as dynamic
+        fields; employee/create_form/custom_fields.html shows them.
+        """
+        return [self[name] for name in self.fields if name not in self.PLACED_FIELDS]
 
     def clean(self):
         super().clean()
