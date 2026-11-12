@@ -8,7 +8,8 @@
     >
 
         <div class="p-2 px-3 rounded-[6px] text-xs relative bg-white mb-1.5 shadow-sm hover:shadow-md transition-shadow">
-            {% if actions or view.action_method %}
+            {% with action_html=instance|getattribute:view.action_method %}
+            {% if action_html.strip or actions and not view.action_method %}
             <div
                 x-data="{ open: false }"
                 class="absolute inline-block dropdown-wrapper right-2.5 top-2.5 w-3"
@@ -16,7 +17,7 @@
                 title="{% trans 'Actions' %}"
                 onclick="event.stopPropagation()"
             >
-                <button class="cursor-pointer dropdown-toggle w-[10px]" @click="open = !open">
+                <button class="cursor-pointer dropdown-toggle w-[15px]" @click="open = !open">
                     <i class="fa-solid fa-ellipsis-vertical text-black"></i>
                 </button>
 
@@ -28,7 +29,7 @@
                 >
                     <ul class="text-xs">
                         {% if view.action_method %}
-                            {{ instance|getattribute:view.action_method|safe }}
+                            {{ action_html|safe }}
                         {% else %}
                             {% for action in actions %}
                                 {% if action.accessibility|accessibility:instance %}
@@ -46,6 +47,7 @@
                 </div>
             </div>
             {% endif %}
+            {% endwith %}
 
             <div
                 class="flex items-center gap-2 mb-1 pb-0.5 border-b border-b-[#565e6c13] min-w-0"
