@@ -1,4 +1,5 @@
-"""The survey page (constructor, audience, results), its actions, the library, the dashboard."""
+"""The survey page (constructor, audience, results), its actions, loading the
+standard questionnaires, the dashboard."""
 
 import csv
 import json
@@ -22,12 +23,12 @@ from django.views.decorators.http import require_POST
 from base.backends import ConfiguredEmailBackend
 from horilla.decorators import login_required, permission_required
 from horilla.http.response import HorillaRedirect
+from horilla_views.generic.cbv.views import HorillaFormView
 from notifications.signals import notify
 from surveys import answers as answer_rules
 from surveys.access import can_manage, can_view_results
 from surveys.library import load_standard
 from surveys.models import (
-    Questionnaire,
     Survey,
     SurveyAnswer,
     SurveyInvitation,
@@ -62,7 +63,6 @@ def survey_detail(request, pk):
             "can_manage": can_manage(request.user, survey),
             "can_results": can_view_results(request.user, survey),
             "can_save_to_library": request.user.has_perm("surveys.add_questionnaire"),
-            "tab": request.GET.get("tab", "questions"),
         },
     )
 
@@ -120,9 +120,7 @@ def audience_tab(request, pk):
     )
     if denied:
         return denied
-    invitations = survey.invitations.select_related("employee").order_by(
-        "employee__employee_first_name"
-    )
+    invited = survey.invitations.count()
     return render(
         request,
         "surveys/tabs/audience.html",
@@ -130,8 +128,8 @@ def audience_tab(request, pk):
             "survey": survey,
             "can_manage": can_manage(request.user, survey),
             "audience_count": survey.audience_employees().count(),
-            "invitations": invitations,
-            "pending": invitations.exclude(
+            "invited": invited,
+            "pending": survey.invitations.exclude(
                 status=SurveyInvitation.STATUS_SUBMITTED
             ).count(),
         },
@@ -404,16 +402,6 @@ def export_results(request, pk):
 
 
 @login_required
-@permission_required("surveys.view_survey")
-def library(request):
-    return render(
-        request,
-        "surveys/library.html",
-        {"questionnaires": Questionnaire.objects.all()},
-    )
-
-
-@login_required
 @require_POST
 @permission_required("surveys.add_questionnaire")
 def load_standard_questionnaires(request):
@@ -424,15 +412,9 @@ def load_standard_questionnaires(request):
         )
     else:
         messages.info(request, _("The standard questionnaires are already there."))
-    return HorillaRedirect(request)
-
-
-@login_required
-@require_POST
-@permission_required("surveys.delete_questionnaire")
-def delete_questionnaire(request, pk):
-    get_object_or_404(Questionnaire, pk=pk).delete()
-    messages.success(request, _("Questionnaire deleted."))
+    if request.headers.get("HX-Request"):
+        # the Actions menu of the library: show the messages, reload the cards
+        return HorillaFormView.HttpResponse(targets_to_reload=["#applyFilter"])
     return HorillaRedirect(request)
 
 
@@ -442,7 +424,13 @@ def delete_questionnaire(request, pk):
 @login_required
 @permission_required("surveys.view_survey")
 def dashboard(request):
-    return render(request, "surveys/dashboard.html")
+    tiles = [
+        ("kOpen", _("Open surveys"), "clipboard-outline", "#3b82f61f"),
+        ("kInvited", _("Invited (open surveys)"), "people-outline", "#b71db01f"),
+        ("kAnswered", _("Answered"), "checkmark-done-outline", "#1cba5121"),
+        ("kRate", _("Response rate"), "trending-up-outline", "#ea7f2f2e"),
+    ]
+    return render(request, "surveys/dashboard.html", {"tiles": tiles})
 
 
 @login_required

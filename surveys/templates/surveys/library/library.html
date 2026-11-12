@@ -1,0 +1,15 @@
+{% extends "index.html" %}
+{% load i18n %}
+{% block content %}
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <div hx-get='{% url "surveys-library-nav" %}?{{ request.GET.urlencode }}' hx-trigger="load"></div>
+    {% include "generic/components.html" %}
+    <div class="oh-checkpoint-badge mb-2" id="selectedInstances" data-ids="[]" data-clicked="" style="display:none"></div>
+    <p class="text-sm text-[#666] mb-3">
+        {% trans "Ready-made questionnaires. A survey started from one gets a copy of its questions, which you can change, remove or add to before opening it. To keep your own questionnaire here, use Save to library on a survey's page." %}
+    </p>
+    {# the nav loads the cards or the list, whichever view was chosen last #}
+    <div class="oh-wrapper" id="listContainer"></div>
+    {# where the Actions menu's "Load standard questionnaires" answers #}
+    <div id="libraryActionTarget" hidden></div>
+{% endblock %}

@@ -1,11 +1,11 @@
-"""Filters of the surveys list."""
+"""Filters of the surveys list and the library."""
 
 import django_filters
 from django import forms
 from django.utils.translation import gettext_lazy as _
 
 from horilla.filters import HorillaFilterSet
-from surveys.models import Survey
+from surveys.models import Questionnaire, Survey
 
 
 class SurveyFilter(HorillaFilterSet):
@@ -28,3 +28,12 @@ class SurveyFilter(HorillaFilterSet):
     class Meta:
         model = Survey
         fields = ["status", "is_anonymous", "audience"]
+
+
+class QuestionnaireFilter(HorillaFilterSet):
+    search = django_filters.CharFilter(field_name="title", lookup_expr="icontains")
+    is_anonymous = django_filters.BooleanFilter(label=_("Anonymous"))
+
+    class Meta:
+        model = Questionnaire
+        fields = ["is_anonymous"]

@@ -12,7 +12,8 @@ SUBMENUS = [
     {
         "menu": _("Surveys"),
         "redirect": reverse("surveys-view"),
-        "match_prefixes": ["/surveys/"],
+        # a survey's own page
+        "match_prefixes": ["/surveys/survey-detail/"],
     },
     {"menu": _("Library"), "redirect": reverse("surveys-library")},
 ]

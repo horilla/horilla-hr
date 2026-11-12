@@ -56,6 +56,14 @@ class LibraryTests(TestCase):
         defaults.update(kwargs)
         return Questionnaire.objects.create(**defaults)
 
+    def delete(self, questionnaire):
+        """Through the generic delete confirmation, as the library's buttons do."""
+        self.client.post(
+            questionnaire.get_delete_url(),
+            {"action": "on", "revert": "on", "confirm": "on"},
+            HTTP_HX_REQUEST="true",
+        )
+
     def create_survey(self, **data):
         form = {"title": "Pulse", "description": "", "audience": "all"}
         form.update(data)
@@ -98,6 +106,14 @@ class LibraryTests(TestCase):
         call_command("seed_survey_library", verbosity=0)
         self.assertEqual(Questionnaire.objects.count(), 3)
 
+    def test_the_actions_menu_loads_them_and_reloads_the_cards(self):
+        response = self.client.post(
+            reverse("surveys-library-load-standard"), HTTP_HX_REQUEST="true"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "#applyFilter")
+        self.assertEqual(Questionnaire.objects.count(), 3)
+
     def test_a_broken_question_is_refused(self):
         questionnaire = Questionnaire(
             title="Broken", questions=[{"type": "choice", "question": "One option?"}]
@@ -107,18 +123,39 @@ class LibraryTests(TestCase):
 
     # --- the page -----------------------------------------------------------
 
-    def test_the_library_page_shows_the_questionnaires(self):
-        self.make_questionnaire()
+    def test_the_library_shows_the_questionnaires(self):
+        questionnaire = self.make_questionnaire()
         page = self.client.get(reverse("surveys-library"))
-        self.assertContains(page, "Team pulse")
-        self.assertContains(page, "3 questions")
-        self.assertContains(page, "Anything else?")
-        self.assertContains(page, "Rating 1–5")
+        self.assertContains(page, reverse("surveys-library-nav"))
+        for name in ("surveys-library-cards", "surveys-library-list"):
+            view = self.client.get(reverse(name), HTTP_HX_REQUEST="true")
+            self.assertContains(view, "Team pulse", msg_prefix=name)
+            self.assertContains(view, questionnaire.get_detail_url(), msg_prefix=name)
+        self.assertContains(
+            self.client.get(reverse("surveys-library-cards"), HTTP_HX_REQUEST="true"),
+            "3 questions",
+        )
+
+        detail = self.client.get(questionnaire.get_detail_url(), HTTP_HX_REQUEST="true")
+        self.assertContains(detail, "Anything else?")
+        self.assertContains(detail, "Rating 1–5")
+        self.assertContains(detail, questionnaire.get_use_url())
 
         self.client.force_login(self.plain_user)
         self.assertNotEqual(
             self.client.get(reverse("surveys-library")).status_code, 200
         )
+        # htmx gets Horilla's "no permission" fragment, with a 200
+        self.assertNotContains(
+            self.client.get(reverse("surveys-library-cards"), HTTP_HX_REQUEST="true"),
+            "Team pulse",
+        )
+
+    def test_the_library_nav_switches_views_and_loads_the_standard_ones(self):
+        nav = self.client.get(reverse("surveys-library-nav"), HTTP_HX_REQUEST="true")
+        self.assertContains(nav, reverse("surveys-library-load-standard"))
+        self.assertContains(nav, reverse("surveys-library-cards"))
+        self.assertContains(nav, reverse("surveys-library-list"))
 
     # --- a survey from the library or blank ---------------------------------
 
@@ -276,7 +313,7 @@ class LibraryTests(TestCase):
 
         self.save_to_library(survey)
         self.client.post(reverse("surveys-library-load-standard"))
-        self.client.post(reverse("questionnaire-delete", args=[questionnaire.pk]))
+        self.delete(questionnaire)
         self.client.post(
             reverse("questionnaire-edit", args=[questionnaire.pk]),
             {"title": "Hacked"},
@@ -303,7 +340,7 @@ class LibraryTests(TestCase):
             ),
             ("Weekly pulse", True, 3),
         )
-        self.client.post(reverse("questionnaire-delete", args=[questionnaire.pk]))
+        self.delete(questionnaire)
         self.assertFalse(Questionnaire.objects.exists())
 
 

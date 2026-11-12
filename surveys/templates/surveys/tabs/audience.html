@@ -1,41 +1,24 @@
 {% load i18n %}
-<div class="row mb-3">
-    <div class="col-md-4"><div class="border rounded p-3"><div class="text-muted small">{% trans "Audience" %}</div><div class="fw-bold">{{ survey.audience_label }}</div><div class="text-muted small">{% blocktrans with n=audience_count %}{{ n }} active employees match{% endblocktrans %}</div></div></div>
-    <div class="col-md-4"><div class="border rounded p-3"><div class="text-muted small">{% trans "Invited" %}</div><div class="fw-bold fs-4">{{ invitations|length }}</div></div></div>
-    <div class="col-md-4"><div class="border rounded p-3"><div class="text-muted small">{% trans "Answered" %}</div><div class="fw-bold fs-4">{{ survey.answered_label }}</div></div></div>
-</div>
-{% if survey.status == "draft" %}
-    <div class="oh-alert oh-alert--info">{% trans "Invitations are created when the survey is opened; employees who join the audience later get theirs on the next opening or reminder." %}</div>
-{% elif pending and can_manage %}
-    <p class="text-muted">{% blocktrans with n=pending %}{{ n }} have not answered yet. Use “Remind” above to nudge them.{% endblocktrans %}</p>
-{% endif %}
-{% if invitations %}
-<div class="oh-sticky-table">
-    <div class="oh-sticky-table__table">
-        <div class="oh-sticky-table__thead"><div class="oh-sticky-table__tr">
-            <div class="oh-sticky-table__th">{% trans "Employee" %}</div>
-            <div class="oh-sticky-table__th">{% trans "Department" %}</div>
-            <div class="oh-sticky-table__th">{% trans "Status" %}</div>
-            <div class="oh-sticky-table__th">{% trans "Invited" %}</div>
-            <div class="oh-sticky-table__th">{% trans "Reminded" %}</div>
-            <div class="oh-sticky-table__th">{% trans "Answered" %}</div>
-        </div></div>
-        <div class="oh-sticky-table__tbody">
-        {% for i in invitations %}
-            <div class="oh-sticky-table__tr">
-                <div class="oh-sticky-table__td">{{ i.employee.get_full_name }}</div>
-                <div class="oh-sticky-table__td">{{ i.employee.get_department|default:"—" }}</div>
-                <div class="oh-sticky-table__td">
-                    {% if i.status == "submitted" %}<span class="oh-badge oh-badge--small oh-badge--info">{{ i.get_status_display }}</span>
-                    {% elif i.status == "started" %}<span class="oh-badge oh-badge--small oh-badge--secondary">{{ i.get_status_display }}</span>
-                    {% else %}<span class="text-muted">{{ i.get_status_display }}</span>{% endif %}
-                </div>
-                <div class="oh-sticky-table__td">{{ i.sent_at|date:"d.m.Y H:i"|default:"—" }}</div>
-                <div class="oh-sticky-table__td">{{ i.reminded_at|date:"d.m.Y H:i"|default:"—" }}</div>
-                <div class="oh-sticky-table__td">{{ i.submitted_at|date:"d.m.Y H:i"|default:"—" }}</div>
-            </div>
-        {% endfor %}
-        </div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+    <div class="bg-white p-4 rounded-md shadow-card border border-[#ebebeb]">
+        <p class="text-sm">{% trans "Audience" %}</p>
+        <p class="text-base font-bold">{{ survey.audience_label }}</p>
+        <p class="text-xs text-[#666]">{% blocktrans with n=audience_count %}{{ n }} active employees match{% endblocktrans %}</p>
+    </div>
+    <div class="bg-white p-4 rounded-md shadow-card border border-[#ebebeb]">
+        <p class="text-sm">{% trans "Invited" %}</p>
+        <p class="text-xl font-bold">{{ invited }}</p>
+    </div>
+    <div class="bg-white p-4 rounded-md shadow-card border border-[#ebebeb]">
+        <p class="text-sm">{% trans "Answered" %}</p>
+        <p class="text-xl font-bold">{{ survey.answered_label }}</p>
     </div>
 </div>
+{% if survey.status == "draft" %}
+    <p class="text-xs text-[#666] mb-3">{% trans "Invitations are created when the survey is opened; employees who join the audience later get theirs on the next opening or reminder." %}</p>
+{% elif pending and can_manage %}
+    <p class="text-xs text-[#666] mb-3">{% blocktrans with n=pending %}{{ n }} have not answered yet. Use “Remind” above to nudge them.{% endblocktrans %}</p>
+{% endif %}
+{% if invited %}
+    <div hx-get="{% url 'survey-invitations' survey.pk %}" hx-trigger="load"></div>
 {% endif %}

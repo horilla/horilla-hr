@@ -25,15 +25,36 @@ import secrets
 
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from django.utils.translation import ngettext
 
 from base.horilla_company_manager import HorillaCompanyManager
 from base.models import Company, Department, JobPosition
 from employee.models import Employee
 from horilla.models import HorillaModel
+from horilla_views.cbv_methods import render_template
 
 TOKEN_BYTES = 32  # 43 url-safe characters
+
+
+def _pill(text, colour):
+    """A status as a pill, inline-styled like the other modules' badges."""
+    return (
+        f'<span style="background-color:{colour};color:#fff;padding:3px 10px;'
+        f'border-radius:999px;font-size:.8rem;font-weight:600;white-space:nowrap">'
+        f"{text}</span>"
+    )
+
+
+def _moment(value):
+    """A date and time of the audience list, in the local zone."""
+    from django.utils import formats
+
+    if not value:
+        return "—"
+    return formats.date_format(timezone.localtime(value), "SHORT_DATETIME_FORMAT")
 
 
 class Survey(HorillaModel):
@@ -171,9 +192,13 @@ class Survey(HorillaModel):
     # --- for the list and the detail page -----------------------------------
 
     def get_detail_url(self):
-        from django.urls import reverse
-
         return reverse("survey-detail", args=[self.pk])
+
+    def get_update_url(self):
+        return reverse("survey-edit", args=[self.pk])
+
+    def get_delete_url(self):
+        return f"{reverse('generic-delete')}?model=surveys.Survey&pk={self.pk}"
 
     def status_badge(self):
         """The status as a pill, inline-styled like the other modules' badges."""
@@ -182,11 +207,7 @@ class Survey(HorillaModel):
             self.STATUS_OPEN: "#3b82f6",
             self.STATUS_CLOSED: "#ef4444",
         }[self.status]
-        return (
-            f'<span style="background-color:{colour};color:#fff;padding:3px 10px;'
-            f'border-radius:999px;font-size:.8rem;font-weight:600;white-space:nowrap">'
-            f"{self.get_status_display()}</span>"
-        )
+        return _pill(self.get_status_display(), colour)
 
     def audience_label(self):
         if self.audience == self.AUDIENCE_DEPARTMENTS:
@@ -227,9 +248,9 @@ class Survey(HorillaModel):
         )
 
     def row_actions(self):
-        from django.template.loader import render_to_string
-
-        return render_to_string("surveys/row_actions.html", {"survey": self})
+        # render_template, not render_to_string: the buttons depend on perms,
+        # which only a context made with the request carries
+        return render_template("surveys/row_actions.html", {"survey": self})
 
     # --- numbers -----------------------------------------------------------
 
@@ -433,6 +454,45 @@ class Questionnaire(HorillaModel):
     def question_count(self):
         return len(self.questions or [])
 
+    # --- for the library's cards, list and detail ------------------------------
+
+    def question_count_label(self):
+        count = self.question_count()
+        return ngettext("%(count)s question", "%(count)s questions", count) % {
+            "count": count
+        }
+
+    def anonymity_label(self):
+        return _("Anonymous") if self.is_anonymous else _("Not anonymous")
+
+    def get_detail_url(self):
+        return reverse("questionnaire-detail", args=[self.pk])
+
+    def get_update_url(self):
+        return reverse("questionnaire-edit", args=[self.pk])
+
+    def get_use_url(self):
+        """The create form of a survey, filled in from this questionnaire."""
+        return f"{reverse('survey-create')}?questionnaire={self.pk}"
+
+    def get_delete_url(self):
+        return f"{reverse('generic-delete')}?model=surveys.Questionnaire&pk={self.pk}"
+
+    def questions_html(self):
+        return render_template(
+            "surveys/library/questions.html", {"questionnaire": self}
+        )
+
+    def row_actions(self):
+        return render_template(
+            "surveys/library/row_actions.html", {"questionnaire": self}
+        )
+
+    def detail_actions(self):
+        return render_template(
+            "surveys/library/detail_actions.html", {"questionnaire": self}
+        )
+
 
 class SurveyInvitation(HorillaModel):
     """One employee's personal link, and whether they have answered."""
@@ -481,6 +541,28 @@ class SurveyInvitation(HorillaModel):
 
     def submitted(self):
         return self.status == self.STATUS_SUBMITTED
+
+    # --- for the audience list -------------------------------------------------
+
+    def status_badge(self):
+        colour = {
+            self.STATUS_INVITED: "#808080",
+            self.STATUS_STARTED: "#f59e0b",
+            self.STATUS_SUBMITTED: "#22c55e",
+        }[self.status]
+        return _pill(self.get_status_display(), colour)
+
+    def department_label(self):
+        return str(self.employee.get_department() or "—")
+
+    def sent_label(self):
+        return _moment(self.sent_at)
+
+    def reminded_label(self):
+        return _moment(self.reminded_at)
+
+    def submitted_label(self):
+        return _moment(self.submitted_at)
 
 
 class SurveyResponse(HorillaModel):

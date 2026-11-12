@@ -13,5 +13,6 @@
     <div hx-get='{% url "surveys-nav" %}?{{ request.GET.urlencode }}' hx-trigger="load"></div>
     {% include "generic/components.html" %}
     <div class="oh-checkpoint-badge mb-2" id="selectedInstances" data-ids="[]" data-clicked="" style="display:none"></div>
-    <div class="oh-wrapper" hx-get='{% url "surveys-list" %}?{{ request.GET.urlencode }}' hx-trigger="load" id="listContainer"></div>
+    {# the nav loads the list or the cards, whichever view was chosen last #}
+    <div class="oh-wrapper" id="listContainer"></div>
 {% endblock %}

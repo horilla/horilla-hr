@@ -1,0 +1,12 @@
+{% load i18n %}
+<p class="font-medium text-xs text-[#565E6C] mb-2">{% trans "Questions" %}</p>
+<ol class="list-decimal ps-5 space-y-2">
+    {% for q in questionnaire.question_rows %}
+        <li class="text-sm">
+            <span class="font-semibold">{{ q.question }}</span>
+            <div class="text-xs text-[#666]">
+                {{ q.type }}{% if q.is_required %} · <span class="text-red-600">{% trans "required" %}</span>{% endif %}{% if q.options %} · {{ q.options|join:" / " }}{% endif %}
+            </div>
+        </li>
+    {% endfor %}
+</ol>

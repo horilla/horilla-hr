@@ -69,6 +69,73 @@ class HrSurveyTests(TestCase):
         page = self.client.get(reverse("survey-detail", args=[survey.pk]))
         self.assertNotEqual(page.status_code, 200)
 
+    def test_each_page_lights_up_only_its_own_submenu(self):
+        """The sidebar marks every submenu whose link the path starts with."""
+        from surveys.sidebar import SUBMENUS
+
+        survey = self.make_survey()
+        dashboard, surveys, library = (s["redirect"] for s in SUBMENUS)
+        pages = {
+            reverse("surveys-dashboard"): dashboard,
+            reverse("surveys-view"): surveys,
+            survey.get_detail_url(): surveys,
+            reverse("surveys-library"): library,
+        }
+        for path, submenu in pages.items():
+            lit = [
+                s["redirect"]
+                for s in SUBMENUS
+                if path.startswith(s["redirect"])
+                or any(path.startswith(p) for p in s.get("match_prefixes", []))
+            ]
+            self.assertEqual(lit, [submenu], path)
+        self.assertRedirects(
+            self.client.get("/surveys/"), reverse("surveys-view"), status_code=302
+        )
+
+    def test_the_list_and_the_cards_with_their_actions(self):
+        survey = self.make_survey()
+        nav = self.client.get(reverse("surveys-nav"), HTTP_HX_REQUEST="true")
+        self.assertContains(nav, reverse("surveys-list"))
+        self.assertContains(nav, reverse("surveys-card"))
+        for name in ("surveys-list", "surveys-card"):
+            view = self.client.get(reverse(name), HTTP_HX_REQUEST="true")
+            self.assertContains(view, "Pulse", msg_prefix=name)
+            self.assertContains(view, survey.get_detail_url(), msg_prefix=name)
+            # Edit and Delete need perms, so the actions are rendered with them
+            self.assertContains(view, survey.get_update_url(), msg_prefix=name)
+            self.assertContains(
+                view, f"model=surveys.Survey&pk={survey.pk}", msg_prefix=name
+            )
+
+    def test_the_tabs_of_a_survey(self):
+        survey = self.make_survey(status=Survey.STATUS_OPEN)
+        survey.invite()
+        page = self.client.get(survey.get_detail_url())
+        self.assertContains(page, reverse("survey-tabs", args=[survey.pk]))
+        tabs = self.client.get(
+            reverse("survey-tabs", args=[survey.pk]), HTTP_HX_REQUEST="true"
+        )
+        for name in (
+            "survey-questions-tab",
+            "survey-audience-tab",
+            "survey-results-tab",
+        ):
+            self.assertContains(tabs, reverse(name, args=[survey.pk]), msg_prefix=name)
+
+        audience = self.client.get(reverse("survey-audience-tab", args=[survey.pk]))
+        invitations_url = reverse("survey-invitations", args=[survey.pk])
+        self.assertContains(audience, invitations_url)
+        invitations = self.client.get(invitations_url, HTTP_HX_REQUEST="true")
+        self.assertContains(invitations, "Alice")
+        self.assertContains(invitations, "Invited")
+
+        self.client.force_login(self.plain_user)
+        for url in (reverse("survey-tabs", args=[survey.pk]), invitations_url):
+            self.assertEqual(
+                self.client.get(url, HTTP_HX_REQUEST="true").status_code, 403, url
+            )
+
     def test_creating_a_survey_goes_to_its_page(self):
         response = self.client.post(
             reverse("survey-create"),

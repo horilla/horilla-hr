@@ -1,0 +1,15 @@
+{% load i18n %}
+<div class="flex items-center justify-center gap-1" onclick="event.stopPropagation()">
+    {% if perms.surveys.add_survey %}
+        <a hx-get="{{ questionnaire.get_use_url }}" hx-target="#genericModalBody" data-target="#genericModal" data-toggle="oh-modal-toggle"
+           class="oh-btn oh-btn--light-bkg oh-btn--sq-sm" title="{% trans 'Use' %}"><ion-icon name="copy-outline"></ion-icon></a>
+    {% endif %}
+    {% if perms.surveys.change_questionnaire %}
+        <a hx-get="{{ questionnaire.get_update_url }}" hx-target="#genericModalBody" data-target="#genericModal" data-toggle="oh-modal-toggle"
+           class="oh-btn oh-btn--light-bkg oh-btn--sq-sm" title="{% trans 'Edit' %}"><ion-icon name="create-outline"></ion-icon></a>
+    {% endif %}
+    {% if perms.surveys.delete_questionnaire %}
+        <a hx-get="{{ questionnaire.get_delete_url }}" hx-target="#deleteConfirmationBody" data-target="#deleteConfirmation" data-toggle="oh-modal-toggle"
+           class="oh-btn oh-btn--danger-bkg oh-btn--sq-sm" title="{% trans 'Delete' %}"><ion-icon name="trash-outline"></ion-icon></a>
+    {% endif %}
+</div>
