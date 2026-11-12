@@ -2576,7 +2576,9 @@ class HorillaNavView(TemplateView):
             context["custom_filter_rows"] = getattr(filterset, "custom_filter_rows", [])
             context["applied_filter_count"] = self._get_applied_filter_count(filterset)
 
-        active_view = models.ActiveView.objects.filter(path=self.request.path).first()
+        active_view = models.ActiveView.objects.filter(
+            path=self.request.path, created_by=self.request.user
+        ).first()
         # An explicit ?view= outranks the persisted one for this render, so the toggle and rendered content agree; persisting happens elsewhere.
         requested_view = self.request.GET.get("view")
         if requested_view and (not active_view or active_view.type != requested_view):
