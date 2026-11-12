@@ -71,7 +71,7 @@
            happily cache. {% endcomment %}
         <link
             rel="stylesheet"
-            href="{% static 'horilla_theme/assets/css/v1_styles.css' %}?v=25"
+            href="{% static 'horilla_theme/assets/css/v1_styles.css' %}?v=26"
         >
         <link rel="stylesheet" href="{% static 'build/css/pivottable.min.css' %}">
         {% with theme=theme_obj %}
@@ -234,6 +234,13 @@
                        white background does -- a translucent tint here would
                        let scrolled-under text bleed through visually. */
                     background: color-mix(in srgb, {{ theme.primary_600|default:"#E54F38" }} 12%, white) !important;
+                }
+                body.dark .highlight-selected .stickyleft {
+                    background: color-mix(in srgb, {{ theme.primary_600|default:"#E54F38" }} 12%, #2e2e2e) !important;
+                }
+                body.dark .highlight-selected .stickyleft-second,
+                body.dark .highlight-selected .stickyright {
+                    background: color-mix(in srgb, {{ theme.primary_600|default:"#E54F38" }} 12%, #444444) !important;
                 }
                 /* Some rows (e.g. cancelled leave requests, see
                    is_attendance_request_cancelled in leave/models.py) set an

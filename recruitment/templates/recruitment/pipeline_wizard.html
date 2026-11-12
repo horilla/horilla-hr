@@ -177,6 +177,24 @@
             .rec-vac-add[hidden] { display: none; }
             .rec-vac-foot:has(.rec-vac-add[hidden]) { display: none; }
             .rec-vac-empty { padding: 10px; text-align: center; color: #6b7280; font-size: 12px; }
+            /* ---- dark mode ---- */
+            .dark .rec-wiz-mode, .dark .rec-wiz-item, .dark .rec-wiz-row,
+            .dark .rec-wiz-row.is-lifted, .dark .rec-vac-wrap, .dark .rec-vac-pill, .dark .rec-vac-add { background: #1c1c1c; border-color: #333; }
+            .dark .rec-wiz-num { background: #333; color: #b5b5b5; }
+            .dark .rec-wiz-mode strong, .dark .rec-vac-table { color: #e5e5e5; }
+            .dark .rec-wiz-step2 .rec-wiz-intro, .dark .rec-vac-empty,
+            .dark .rec-vac-table th, .dark .rec-vac-table td.rec-vac-sn { color: #9ca3af; }
+            .dark .rec-wiz-badge, .dark .rec-wiz-icon { background: #2a2a2a; color: #d1d5db; }
+            .dark .rec-wiz-icon:hover:not(:disabled), .dark .rec-wiz-grip:hover { background: #3a3a3a; }
+            .dark .rec-wiz-row input[type="text"], .dark .rec-wiz-row select,
+            .dark .rec-vac-input { background-color: #141414; border-color: #3a3a3a; color: #e5e5e5; }
+            .dark .rec-vac-table .rec-vac-select { background-color: #141414; border-color: #3a3a3a; color: #e5e5e5; }
+            .dark .rec-vac-input:disabled { background: #262626; }
+            .dark .rec-vac-input.is-over { background: #3a1616; color: #f87171; border-color: #b91c1c; }
+            .dark .rec-vac-total, .dark .rec-vac-foot { background: #181818; border-color: #333; }
+            .dark .rec-vac-table th, .dark .rec-vac-table td { border-bottom-color: #2e2e2e; }
+            .dark .rec-vac-table tbody tr:hover td { background: #222; }
+            .dark .rec-wiz-row.is-confirming { background: #3a1616; border-color: #7f1d1d; }
         </style>
         <div class="oh-steps" role="tablist" data-steps>
             <button type="button" class="oh-steps__step" role="tab" data-step-tab="details" aria-controls="step-details">

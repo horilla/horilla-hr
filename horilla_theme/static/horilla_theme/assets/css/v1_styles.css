@@ -4977,6 +4977,13 @@ textarea[data-summernote]:has(+ .note-editor) {
 .note-editor.note-frame .note-dropdown-menu .note-dropdown-item:hover {
   background: #f1f3f6;
 }
+.note-editor.note-frame .note-color-all.open > .note-dropdown-menu {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 16px;
+  width: max-content;
+}
 .note-editor.note-frame .note-editing-area .note-editable {
   padding: 14px 16px;
   background: #fff;
@@ -5343,3 +5350,15 @@ option[value="dynamic_create"] {
 .swal2-popup.oh-swal-stack .swal2-styled.swal2-deny {
   background-color: #475569;
 }
+
+
+/* Step tabs (.oh-steps) shared by the multi-step modal forms: dark mode */
+body.dark .oh-steps__step { background: #242424; border-color: #444444; }
+body.dark .oh-steps__step:hover { border-color: #666666; }
+body.dark .oh-steps__step.is-current { border-color: var(--primary-600, #e54f38); }
+body.dark .oh-steps__num { background: #333333; color: #bbbbbb; }
+body.dark .oh-steps__step.is-current .oh-steps__num { background: var(--primary-600, #e54f38); color: #fff; }
+body.dark .oh-steps__step.is-done .oh-steps__num { background: #164534; color: #6fd3b0; }
+body.dark .oh-steps__label { color: #f1f1f1; }
+body.dark .oh-steps__hint { color: #9ca3af; }
+body.dark .oh-step-nav { border-top-color: #333333; }
