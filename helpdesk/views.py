@@ -1218,20 +1218,16 @@ def can_access_ticket(request, ticket):
     employee = request.user.employee_get
     return (
         request.user.has_perm("helpdesk.view_ticket")
+        or request.user.has_perm("helpdesk.change_ticket")
         or employee == ticket.employee_id
         or employee in ticket.assigned_to.all()
         or ticket.employee_id.get_reporting_manager() == employee
         or is_department_manager(request, ticket)
-        or (
-            ticket.assigning_type == "individual"
-            and employee == ticket.get_raised_on_object()
-        )
     )
 
 
 @login_required
 @hx_request_required
-@ticket_owner_can_enter(perm="helpdesk.view_ticket", model=Ticket)
 def view_ticket_document(request, doc_id):
     """
     This function used to view the uploaded document in the modal.
@@ -1280,7 +1276,6 @@ def view_ticket_document(request, doc_id):
 
 @login_required
 @hx_request_required
-@ticket_owner_can_enter(perm="helpdesk.view_ticket", model=Ticket)
 def delete_ticket_document(request, doc_id):
     """
     This function used to delete the uploaded document in the modal.
@@ -1306,7 +1301,7 @@ def delete_ticket_document(request, doc_id):
 
     document_obj.delete()
     messages.success(request, _("Document has been deleted."))
-    return HorillaRedirect(request)
+    return HttpResponse("")
 
 
 @login_required
@@ -1382,6 +1377,8 @@ def comment_edit(request):
         if not (
             request.user.has_perm("helpdesk.change_claimrequest")
             or request.user.has_perm("helpdesk.change_ticket")
+            or request.user.has_perm("helpdesk.change_comment")
+            or comment.employee_id == request.user.employee_get
             or comment.ticket.employee_id == request.user.employee_get
             or is_department_manager(request, comment.ticket)
         ):
