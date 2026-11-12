@@ -6448,7 +6448,7 @@ msgstr "Как даты отображаются в системе для выб
 msgid "Badge ID Prefix"
 msgstr "Префикс табельного номера"
 
-msgid "Prefix added to employee badge IDs e.g. EMP0001"
+msgid "Prefix added to employee Badge IDs e.g. EMP0001"
 msgstr "Префикс, добавляемый к табельным номерам сотрудников, например EMP0001"
 
 msgid "Currency Symbol"
@@ -12235,7 +12235,7 @@ msgstr ""
 msgid "Badge Prefix"
 msgstr "Префикс табельного номера"
 
-msgid "Set initial badge-id"
+msgid "Set initial Badge ID"
 msgstr "Укажите начальный табельный номер"
 
 msgid "Add notes"
@@ -19171,7 +19171,7 @@ msgid ""
 "Post job openings directly to LinkedIn and manage applicants from Horilla."
 msgstr ""
 
-msgid "Prefix added to every auto-generated employee badge ID (e.g. PEP0001)."
+msgid "Prefix added to every auto-generated employee Badge ID (e.g. PEP0001)."
 msgstr ""
 "Префикс, добавляемый к каждому автоматически создаваемому табельному номеру "
 "сотрудника (например, PEP0001)."
@@ -21276,7 +21276,7 @@ msgstr ""
 msgid "Employee Badge ID is required."
 msgstr "Требуется указать ID темы"
 
-msgid "This badge id does not exist."
+msgid "This Badge ID does not exist."
 msgstr "Такого ID бейджа не существует."
 
 #, fuzzy

@@ -6123,7 +6123,7 @@ msgstr ""
 msgid "Badge ID Prefix"
 msgstr "Префікс ID значка"
 
-msgid "Prefix added to employee badge IDs e.g. EMP0001"
+msgid "Prefix added to employee Badge IDs e.g. EMP0001"
 msgstr ""
 "Префікс, доданий до ідентифікаторів бейджів співробітників, напр. EMP0001"
 
@@ -11740,7 +11740,7 @@ msgstr ""
 msgid "Badge Prefix"
 msgstr "Префікс бейджа"
 
-msgid "Set initial badge-id"
+msgid "Set initial Badge ID"
 msgstr "Встановити початковий ідентифікатор бейджа"
 
 msgid "Add notes"
@@ -17177,7 +17177,7 @@ msgstr "Застосовані фільтри: "
 msgid "Asset User"
 msgstr "Користувач активу"
 
-msgid "Asset User Badge Id"
+msgid "Asset User Badge ID"
 msgstr "Бейдж користувача активу"
 
 msgid "Equals"
@@ -17310,10 +17310,10 @@ msgstr "Звіти по цілях співробітників"
 msgid "Feedback Reports"
 msgstr "Звіти по відгуках"
 
-msgid "Manager Badge Id"
+msgid "Manager Badge ID"
 msgstr "Бейдж керівника"
 
-msgid "Assignee Badge Id"
+msgid "Assignee Badge ID"
 msgstr "Бейдж виконавця"
 
 msgid "Assignee Department"
@@ -17328,7 +17328,7 @@ msgstr "Роль виконавця"
 msgid "Feedback Title"
 msgstr "Назва відгуку"
 
-msgid "Employee Badge Id"
+msgid "Employee Badge ID"
 msgstr "Бейдж співробітника"
 
 msgid "Subordinate"
@@ -17379,13 +17379,13 @@ msgstr "Завдання"
 msgid "Stage Manager"
 msgstr "Менеджер етапу"
 
-msgid "Stage Manager Badge Id"
+msgid "Stage Manager Badge ID"
 msgstr "Бейдж менеджера етапу"
 
 msgid "Task Manager"
 msgstr "Диспетчер завдань"
 
-msgid "Task Manager Badge Id"
+msgid "Task Manager Badge ID"
 msgstr "Бейдж керівника завдання"
 
 msgid "Candidates"
@@ -17922,7 +17922,7 @@ msgid ""
 "Post job openings directly to LinkedIn and manage applicants from Horilla."
 msgstr "Публікуйте вакансії прямо в LinkedIn і керуйте відгуками з Horilla."
 
-msgid "Prefix added to every auto-generated employee badge ID (e.g. PEP0001)."
+msgid "Prefix added to every auto-generated employee Badge ID (e.g. PEP0001)."
 msgstr ""
 "Префікс для кожного автоматично згенерованого ID бейджа працівника (напр. "
 "PEP0001).Префікс, доданий до ідентифікаторів бейджів співробітників, напр. "
@@ -19959,7 +19959,7 @@ msgstr ""
 msgid "Employee Badge ID is required."
 msgstr "Бейдж співробітника"
 
-msgid "This badge id does not exist."
+msgid "This Badge ID does not exist."
 msgstr "Цей ідентифікаційний номер не існує."
 
 #, fuzzy

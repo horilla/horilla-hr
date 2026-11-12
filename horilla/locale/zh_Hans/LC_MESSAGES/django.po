@@ -6532,7 +6532,7 @@ msgstr "所选公司在系统中如何显示日期。"
 msgid "Badge ID Prefix"
 msgstr "徽章 ID 前缀"
 
-msgid "Prefix added to employee badge IDs e.g. EMP0001"
+msgid "Prefix added to employee Badge IDs e.g. EMP0001"
 msgstr "添加到员工徽章 ID 的前缀，例如电磁脉冲0001"
 
 msgid "Currency Symbol"
@@ -12446,7 +12446,7 @@ msgstr "设置一次请假兑现的金额"
 msgid "Badge Prefix"
 msgstr "徽章前缀"
 
-msgid "Set initial badge-id"
+msgid "Set initial Badge ID"
 msgstr "设置初始徽章ID"
 
 msgid "Add notes"
@@ -18550,7 +18550,7 @@ msgstr "使用中的資源"
 
 #, fuzzy
 #| msgid "Asset fine added"
-msgid "Asset User Badge Id"
+msgid "Asset User Badge ID"
 msgstr "资产罚款已添加"
 
 #, fuzzy
@@ -18719,12 +18719,12 @@ msgstr "反馈答复"
 
 #, fuzzy
 #| msgid "Manage Stage Order"
-msgid "Manager Badge Id"
+msgid "Manager Badge ID"
 msgstr "管理阶段顺序"
 
 #, fuzzy
 #| msgid "Assigned "
-msgid "Assignee Badge Id"
+msgid "Assignee Badge ID"
 msgstr "已分配"
 
 #, fuzzy
@@ -18747,7 +18747,7 @@ msgstr "反馈标题"
 
 #, fuzzy
 #| msgid "Employee saved"
-msgid "Employee Badge Id"
+msgid "Employee Badge ID"
 msgstr "员工信息已保存"
 
 msgid "Subordinate"
@@ -18808,7 +18808,7 @@ msgstr "阶段经理"
 
 #, fuzzy
 #| msgid "Stage Manager"
-msgid "Stage Manager Badge Id"
+msgid "Stage Manager Badge ID"
 msgstr "阶段经理"
 
 msgid "Task Manager"
@@ -18816,7 +18816,7 @@ msgstr "任务经理"
 
 #, fuzzy
 #| msgid "Task Manager"
-msgid "Task Manager Badge Id"
+msgid "Task Manager Badge ID"
 msgstr "任务经理"
 
 msgid "Candidates"
@@ -19478,7 +19478,7 @@ msgid ""
 "Post job openings directly to LinkedIn and manage applicants from Horilla."
 msgstr ""
 
-msgid "Prefix added to every auto-generated employee badge ID (e.g. PEP0001)."
+msgid "Prefix added to every auto-generated employee Badge ID (e.g. PEP0001)."
 msgstr "自动生成的员工工号前缀（例如 PEP0001）。"
 
 msgid "No Comments have been added for this Shift request"
@@ -21665,7 +21665,7 @@ msgstr ""
 msgid "Employee Badge ID is required."
 msgstr "员工信息已保存"
 
-msgid "This badge id does not exist."
+msgid "This Badge ID does not exist."
 msgstr "此徽章ID不存在"
 
 #, fuzzy

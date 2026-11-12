@@ -6143,7 +6143,7 @@ msgstr ""
 msgid "Badge ID Prefix"
 msgstr "Prefisso ID badge"
 
-msgid "Prefix added to employee badge IDs e.g. EMP0001"
+msgid "Prefix added to employee Badge IDs e.g. EMP0001"
 msgstr "Prefisso aggiunto agli ID badge dei dipendenti, ad es. EMP0001"
 
 msgid "Currency Symbol"
@@ -11805,7 +11805,7 @@ msgstr ""
 msgid "Badge Prefix"
 msgstr "Prefisso Badge"
 
-msgid "Set initial badge-id"
+msgid "Set initial Badge ID"
 msgstr "Imposta badge-id iniziale"
 
 msgid "Add notes"
@@ -17267,7 +17267,7 @@ msgstr "Filtri applicati: "
 msgid "Asset User"
 msgstr "Utente del bene"
 
-msgid "Asset User Badge Id"
+msgid "Asset User Badge ID"
 msgstr "ID badge dell'utente del bene"
 
 msgid "Equals"
@@ -17400,10 +17400,10 @@ msgstr "Report obiettivi dipendente"
 msgid "Feedback Reports"
 msgstr "Report feedback"
 
-msgid "Manager Badge Id"
+msgid "Manager Badge ID"
 msgstr "ID badge responsabile"
 
-msgid "Assignee Badge Id"
+msgid "Assignee Badge ID"
 msgstr "ID badge dell'assegnatario"
 
 msgid "Assignee Department"
@@ -17418,7 +17418,7 @@ msgstr "Ruolo dell'assegnatario"
 msgid "Feedback Title"
 msgstr "Titolo Feedback"
 
-msgid "Employee Badge Id"
+msgid "Employee Badge ID"
 msgstr "ID badge dipendente"
 
 msgid "Subordinate"
@@ -17469,13 +17469,13 @@ msgstr "Attività"
 msgid "Stage Manager"
 msgstr "Gestore Stage"
 
-msgid "Stage Manager Badge Id"
+msgid "Stage Manager Badge ID"
 msgstr "ID badge responsabile di fase"
 
 msgid "Task Manager"
 msgstr "Gestore Attività"
 
-msgid "Task Manager Badge Id"
+msgid "Task Manager Badge ID"
 msgstr "ID badge responsabile attività"
 
 msgid "Candidates"
@@ -18017,7 +18017,7 @@ msgstr ""
 "Pubblica offerte di lavoro direttamente su LinkedIn e gestisci i candidati "
 "da Horilla."
 
-msgid "Prefix added to every auto-generated employee badge ID (e.g. PEP0001)."
+msgid "Prefix added to every auto-generated employee Badge ID (e.g. PEP0001)."
 msgstr ""
 "Prefisso aggiunto a ogni ID badge dipendente generato automaticamente (ad "
 "es. PEP0001)."
@@ -20073,7 +20073,7 @@ msgstr ""
 msgid "Employee Badge ID is required."
 msgstr "ID badge dipendente"
 
-msgid "This badge id does not exist."
+msgid "This Badge ID does not exist."
 msgstr "Questo badge id non esiste."
 
 #, fuzzy
