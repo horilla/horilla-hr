@@ -290,7 +290,14 @@ def add_attachment(request):
         attachments.append(attachment)
     policy.attachments.add(*attachments)
     messages.success(request, _("Attachments added"))
-    response = render(request, "policies/attachments.html", {"policy": policy})
+    response = render(
+        request,
+        "policies/attachments.html",
+        {
+            "policy": policy,
+            "show_inline_preview": request.GET.get("show_inline_preview"),
+        },
+    )
     # See the matching comment in remove_attachment() below: the add-files
     # form's own hx-target (#attachmentContainer) swaps out the element the
     # request was made from, so an hx-on::after-request there would never
@@ -317,7 +324,14 @@ def remove_attachment(request):
     ids = request.GET.getlist("ids")
     PolicyMultipleFile.objects.filter(id__in=ids).delete()
     messages.success(request, _("Attachment removed"))
-    response = render(request, "policies/attachments.html", {"policy": policy})
+    response = render(
+        request,
+        "policies/attachments.html",
+        {
+            "policy": policy,
+            "show_inline_preview": request.GET.get("show_inline_preview"),
+        },
+    )
     # `hx-on::after-request` on the remove icon never actually fires here --
     # the icon's own hx-target (#attachmentContainer) swaps out the content it
     # is itself part of before the event can reach it, same as the toast-never-

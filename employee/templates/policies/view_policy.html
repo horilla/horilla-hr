@@ -21,29 +21,14 @@
 <div class="oh-modal__dialog-body border rounded-md shadow-card m-[20px]">
     <p class="oh-card__footer--border-top"></p>
     {{ policy.body|sanitize_html }}
-    {# Inline the attached documents: a policy that is just an uploaded PDF used to show an empty modal with a 40px icon. #}
-    {% for attachment in policy.attachments.all %}
-        {% if attachment.is_pdf %}
-            <iframe
-                src="{{ attachment.attachment.url }}"
-                title="{{ policy.title }}"
-                loading="lazy"
-                class="border rounded-md mt-3"
-                style="width:100%;height:65vh"
-            ></iframe>
-        {% elif attachment.is_image %}
-            <img
-                src="{{ attachment.attachment.url }}"
-                alt="{{ policy.title }}"
-                loading="lazy"
-                class="border rounded-md mt-3"
-                style="max-width:100%"
-            />
-        {% endif %}
-    {% endfor %}
 </div>
 <div id="attachmentContainer" style="margin: 0 20px 20px">
-    {% include "policies/attachments.html" %}
+    {% comment %}
+    The inline PDF/image preview lives inside attachments.html itself now
+    (show_inline_preview=True), re-rendered together with the icon grid on
+    every add/remove so it can't go stale showing a just-removed file.
+    {% endcomment %}
+    {% include "policies/attachments.html" with show_inline_preview=True %}
 </div>
 <div class="h-1"></div>
 
