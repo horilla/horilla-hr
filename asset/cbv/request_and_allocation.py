@@ -16,6 +16,7 @@ from django.utils.translation import gettext_noop
 from django.views.decorators.http import require_http_methods
 from django.views.generic.edit import DeleteView
 
+from asset.events import log_event
 from asset.filters import (
     AssetAllocationFilter,
     AssetRenewalFilter,
@@ -962,6 +963,14 @@ class AssetServiceRequestDetailView(HorillaDetailedView):
         if "status" in request.POST:
             new_status = request.POST.get("status")
             if new_status in dict(AssetServiceRequest.STATUS):
+                if new_status == "In Progress" and instance.status != "In Progress":
+                    log_event(
+                        instance.assignment_id.asset_id,
+                        "service_in_progress",
+                        employee=instance.requested_employee_id,
+                        assignment=instance.assignment_id,
+                        service_request=instance,
+                    )
                 instance.status = new_status
                 if new_status in ("Completed", "Rejected"):
                     instance.resolved_by_employee_id = request.user.employee_get
@@ -1331,6 +1340,22 @@ class AssetReassignFormView(HorillaFormView):
         old_asset = AssetAssignment.objects.get(pk=self.kwargs["pk"]).asset_id
         instance = form.save()
         new_asset = instance.asset_id
+        if new_asset != old_asset:
+            employee = instance.assigned_to_employee_id
+            log_event(
+                old_asset,
+                "reassigned_out",
+                employee=employee,
+                assignment=instance,
+                description=str(new_asset),
+            )
+            log_event(
+                new_asset,
+                "reassigned_in",
+                employee=employee,
+                assignment=instance,
+                description=str(old_asset),
+            )
 
         old_active = AssetAssignment.objects.filter(
             asset_id=old_asset, return_date__isnull=True

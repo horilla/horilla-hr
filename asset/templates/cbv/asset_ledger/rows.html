@@ -1,0 +1,33 @@
+{% load i18n l10n %}
+                    {% for e in rows %}
+                        <tr class="{% if e.future %}opacity-60{% endif %}">
+                            <td class="px-3 py-2 whitespace-nowrap text-gray-700">{{ e.date|date:"d M Y" }}</td>
+                            <td class="px-3 py-2 whitespace-nowrap"><span class="inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold {{ e.pill }}">{{ e.label }}</span>
+                                {% if e.condition_label %}<span class="inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold {{ e.condition_pill }}">{{ e.condition_label }}</span>{% endif %}</td>
+                            {% if show_unit %}
+                            <td class="px-3 py-2 whitespace-nowrap">
+                                {% if e.unit_serial %}
+                                    <button type="button" class="inline-flex items-center rounded-md border border-gray-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-gray-700 hover:border-gray-800 hover:bg-gray-50"
+                                            title="{% trans 'Show Only This Unit' %}" hx-get="{{ asset.ledger_url }}" hx-vals='{"unit": {{ e.unit_pk }}}' hx-include="closest form" hx-target="#genericModalBody">{{ e.unit_serial }}</button>
+                                {% else %}<span class="text-[11px] text-gray-400">{% trans "All Units" %}</span>{% endif %}
+                            </td>
+                            {% endif %}
+                            <td class="px-3 py-2 text-gray-700 max-w-[260px]">
+                                {% if not show_unit or e.detail != e.unit_serial %}{{ e.detail }}{% endif %}
+                                {% if e.amount is not None %}<span class="font-semibold">{{ e.amount }}</span>{% endif %}
+                                {% if e.note %}<span class="block text-[11px] text-gray-500">{{ e.note }}</span>{% endif %}
+                            </td>
+                            <td class="px-3 py-2 text-gray-700">{% if e.employee %}{{ e.employee }}{% else %}&mdash;{% endif %}</td>
+                            <td class="px-3 py-2 text-gray-700">{% if e.actor %}{{ e.actor }}{% else %}&mdash;{% endif %}</td>
+                            <td class="px-3 py-2 text-gray-700"><div class="flex items-center gap-2">{% include "cbv/asset_ledger/holders.html" with people=e.holder_people shown=":3" more="3:" size=24 %}{% if show_unit and e.holder_people|length == 1 %}<span>{{ e.holders.0 }}</span>{% endif %}</div></td>
+                            <td class="px-3 py-2 whitespace-nowrap"><span class="inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold {{ e.status_pill }}">{{ e.status_label }}</span>{% if e.units_total %} <span class="text-[11px] text-gray-500">{{ e.units_held }}/{{ e.units_total }}</span>{% endif %}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="{% if show_unit %}8{% else %}7{% endif %}" class="px-3 py-10 text-center text-sm text-gray-500">{% trans "No Events Match The Chosen Filters." %}</td></tr>
+                    {% endfor %}
+{% if page_obj.has_next %}
+    <tr hx-get="{{ asset.ledger_url }}" hx-vals='{"page": {{ page_obj.next_page_number }}, "rows_only": 1}' hx-include="closest form"
+        hx-trigger="intersect once" hx-target="this" hx-swap="outerHTML">
+        <td colspan="{% if show_unit %}8{% else %}7{% endif %}" class="px-3 py-3 text-center text-[11px] text-gray-400">{% trans "Loading More Events..." %}</td>
+    </tr>
+{% endif %}

@@ -10,6 +10,7 @@ from asset.cbv import (
     asset_batch_no,
     asset_category,
     asset_history,
+    asset_ledger,
     asset_tab,
     dashboard,
     request_and_allocation,
@@ -98,6 +99,11 @@ urlpatterns = [
         "asset-information/<int:pk>/",
         asset.AssetInformationView.as_view(),
         name="asset-information",
+    ),
+    path(
+        "asset-ledger/<int:pk>/",
+        asset_ledger.AssetLedgerView.as_view(),
+        name="asset-ledger",
     ),
     path(
         "asset-item-bulk-edit/<int:asset_id>/",

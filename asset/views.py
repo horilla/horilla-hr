@@ -25,6 +25,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import gettext_noop
 
+from asset.events import log_event
 from asset.filters import (
     AssetAllocationFilter,
     AssetAllocationReGroup,
@@ -1000,6 +1001,12 @@ def asset_allocate_return(request, assignment_id):
             asset_return_status = asset_return_form.cleaned_data["return_status"]
             asset_return_date = asset_return_form.cleaned_data["return_date"]
             asset_return_condition = asset_return_form.cleaned_data["return_condition"]
+            log_event(
+                asset,
+                "returned_by",
+                employee=asset_allocation.assigned_to_employee_id,
+                assignment=asset_allocation,
+            )
             AssetServiceRequest.objects.filter(
                 assignment_id=asset_allocation, status__in=["Requested", "In Progress"]
             ).update(status="Returned")

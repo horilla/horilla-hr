@@ -1,5 +1,20 @@
 {% load static i18n %}
 <div class="flex items-center justify-center gap-1" onclick="event.stopPropagation()">
+    {% if perms.asset.view_asset %}
+        <a
+            class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
+            data-toggle="oh-modal-toggle"
+            data-target="#genericModal"
+            hx-get="{{ instance.ledger_url }}"
+            hx-target="#genericModalBody"
+            title="{% trans 'Asset Lifecycle' %}"
+            onclick="event.stopPropagation()"
+            style="cursor: pointer"
+        >
+            <ion-icon name="receipt-outline"></ion-icon>
+        </a>
+    {% endif %}
+
     {% if perms.asset.change_asset %}
         {% if asset_under == 'asset_filter' %}
             <a

@@ -306,6 +306,10 @@ class Asset(HorillaModel):
         url = reverse_lazy("asset-update", kwargs={"pk": self.pk})
         return url
 
+    def ledger_url(self):
+        """The url of this asset's ledger."""
+        return reverse_lazy("asset-ledger", kwargs={"pk": self.pk})
+
     def get_delete_url(self):
         """
         This method to get delete url
@@ -1119,3 +1123,65 @@ class AssetServiceRequestNote(HorillaModel):
 
     def __str__(self):
         return f"{self.note}"
+
+
+class AssetEvent(HorillaModel):
+    """
+    Something in an asset's life that the other tables do not keep: a move to or from another asset, a service
+    request taken in hand, or who processed a return. The ledger merges these with what the tables hold.
+    """
+
+    TYPES = [
+        ("reassigned_out", _("Reassigned Out")),
+        ("reassigned_in", _("Reassigned In")),
+        ("service_in_progress", _("Service In Progress")),
+        ("returned_by", _("Returned By")),
+    ]
+
+    asset_id = models.ForeignKey(
+        Asset,
+        on_delete=models.CASCADE,
+        related_name="ledger_events",
+        verbose_name=_("Asset"),
+    )
+    event_type = models.CharField(
+        max_length=30, choices=TYPES, verbose_name=_("Event Type")
+    )
+    event_date = models.DateTimeField(
+        default=timezone.now, verbose_name=_("Event Date")
+    )
+    employee_id = models.ForeignKey(
+        Employee,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="asset_ledger_events",
+        verbose_name=_("Employee"),
+    )
+    assignment_id = models.ForeignKey(
+        AssetAssignment,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="ledger_events",
+    )
+    service_request_id = models.ForeignKey(
+        AssetServiceRequest,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="ledger_events",
+    )
+    description = models.CharField(
+        max_length=255, blank=True, verbose_name=_("Description")
+    )
+
+    class Meta:
+        """Meta class for AssetEvent model"""
+
+        ordering = ["event_date", "pk"]
+        verbose_name = _("Asset Event")
+        verbose_name_plural = _("Asset Events")
+
+    def __str__(self):
+        return f"{self.asset_id} - {self.get_event_type_display()}"

@@ -17,6 +17,21 @@
         </a>
     {% endif %}
 
+    {# Lifecycle #}
+    {% if perms.asset.view_asset %}
+        <a
+            data-toggle="oh-modal-toggle"
+            data-target="#genericModal"
+            hx-get="{{ instance.ledger_url }}"
+            hx-target="#genericModalBody"
+            class="oh-btn oh-btn--light-bkg px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
+            title="{% trans 'Asset Lifecycle' %}"
+        >
+            <ion-icon name="receipt-outline"></ion-icon>
+            {% trans "Lifecycle" %}
+        </a>
+    {% endif %}
+
     {# Duplicate #}
     {% if perms.asset.change_asset %}
         <a
