@@ -191,13 +191,16 @@
                                     {{ tag_form.tags }}
                                 </div>
                             {% else %}
-                                <span class="text-sm text-grey font-bold">
+                                <div class="flex flex-wrap gap-1">
                                     {% for tag in ticket.tags.all %}
-                                        {{ tag }},
+                                        <span
+                                            class="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap"
+                                            style="{{ tag.color|tag_pill_style }}"
+                                        >{{ tag }}</span>
                                     {% empty %}
-                                        {% trans "No tags assigned" %}
+                                        <span class="text-sm text-grey font-bold">{% trans "No tags assigned" %}</span>
                                     {% endfor %}
-                                </span>
+                                </div>
                             {% endif %}
                         </div>
                     </div>

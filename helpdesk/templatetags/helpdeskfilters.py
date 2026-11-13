@@ -1,8 +1,22 @@
 from django import template
 
-from helpdesk.models import ClaimRequest, DepartmentManager
+from helpdesk.models import ClaimRequest, DepartmentManager, Ticket
 
 register = template.Library()
+
+
+@register.filter(name="tag_pill_style")
+def tag_pill_style(color):
+    """
+    Build the pill style for a tag colour
+
+    Parameters:
+        color (str): the colour stored on a tag
+
+    Returns:
+        str: style declarations with the tag colour as the background
+    """
+    return Ticket.get_tag_pill_style(color)
 
 
 @register.filter(name="claim_request_exists")

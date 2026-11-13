@@ -1,10 +1,12 @@
 import os
+import re
 from datetime import date, datetime
 
 from django.db import models
 from django.forms import ValidationError
 from django.middleware.csrf import get_token
 from django.urls import reverse_lazy
+from django.utils.html import format_html, format_html_join
 from django.utils.text import format_lazy
 from django.utils.translation import gettext_lazy as _
 
@@ -275,15 +277,66 @@ class Ticket(HorillaModel):
 
         return assigned_to
 
+    @staticmethod
+    def clean_tag_color(color):
+        """
+        Return a colour value that is safe to place in a style attribute
+
+        Parameters:
+            color (str): the colour stored on a tag
+
+        Returns:
+            str: the colour without a trailing semicolon, or a neutral grey when
+            the stored value is not a plain hex, named or rgb colour
+        """
+        value = str(color or "").strip().rstrip(";").strip()
+        if re.match(
+            r"^(#[0-9a-fA-F]{3,8}|[a-zA-Z]{3,20}|rgba?\(\s*\d{1,3}\s*(?:,\s*\d{1,3}\s*){2}(?:,\s*[\d.]+\s*)?\))$",
+            value,
+        ):
+            return value
+        return "#6b7280"
+
+    @staticmethod
+    def get_tag_pill_style(color):
+        """
+        Build the background and text colour of a tag pill
+
+        Parameters:
+            color (str): the colour stored on a tag
+
+        Returns:
+            str: style declarations with the tag colour as the background and a
+            light or dark text colour chosen for readability
+        """
+        color = Ticket.clean_tag_color(color)
+        text = "#ffffff"
+        hex_value = color.lstrip("#")
+        if color.startswith("#") and len(hex_value) in (3, 6):
+            if len(hex_value) == 3:
+                hex_value = "".join(char * 2 for char in hex_value)
+            red, green, blue = (int(hex_value[i : i + 2], 16) for i in (0, 2, 4))
+            if (red * 299 + green * 587 + blue * 114) / 1000 > 160:
+                text = "#1f2937"
+        return f"background: {color}; color: {text};"
+
     def get_tags_col(self):
         """
-        This method is used to get the tags column
+        This method is used to get the tags column as coloured pills
         """
-        tags = self.tags.all()
-        if tags:
-            tags = ", ".join([tag.title for tag in tags])
-
-        return tags
+        tags = list(self.tags.all())
+        if not tags:
+            return ""
+        pills = format_html_join(
+            "",
+            '<span style="display: inline-block; padding: 1px 10px; border-radius: 9999px; font-size: 12px; font-weight: 500; line-height: 1.5; white-space: nowrap; {}">{}</span>',
+            ((self.get_tag_pill_style(tag.color), tag.title) for tag in tags),
+        )
+        return format_html(
+            '<div style="display: flex; flex-wrap: wrap; gap: 4px;" title="{}">{}</div>',
+            ", ".join(tag.title for tag in tags),
+            pills,
+        )
 
     def can_manage_priority(self):
         """

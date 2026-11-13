@@ -38,15 +38,15 @@
     }
 
     .oh-btn--add-another {
+        border: 1px solid {{ theme_obj.primary_500|default:"#F7C8C1" }} !important;
         background-color: {{ theme_obj.primary_500|default:"#F7C8C1" }} !important;
         color: #ffffff !important;
-        border: 1px solid {{ theme_obj.primary_500|default:"#F7C8C1" }} !important;
     }
     .oh-btn--add-another:hover,
     .oh-btn--add-another:focus,
     .oh-btn--add-another:focus-visible {
-        background-color: {{ theme_obj.primary_600|default:"#E54F38" }} !important;
         border-color: {{ theme_obj.primary_600|default:"#E54F38" }} !important;
+        background-color: {{ theme_obj.primary_600|default:"#E54F38" }} !important;
     }
 
     .list-checked li:before {
@@ -63,12 +63,12 @@
     }
 
     .oh-modal__dialog--custom .oh-general__tab .oh-general__tab-link--active {
-        background-color: {{ theme_obj.primary_600|default:"#E54F38" }} !important;
         border-color: {{ theme_obj.primary_600|default:"#E54F38" }} !important;
+        background-color: {{ theme_obj.primary_600|default:"#E54F38" }} !important;
     }
 
     .oh-tabs__content .heightContainer,
-    [id$="profileTab"] .heightContainer {
+    [id$='profileTab'] .heightContainer {
         max-height: none !important;
         overflow-y: visible !important;
     }
@@ -83,12 +83,12 @@
         overflow-y: auto !important;
     }
 
-    [id^="pipelineTabContent"] .heightContainer {
+    [id^='pipelineTabContent'] .heightContainer {
         max-height: calc(100vh - 260px) !important;
         overflow-y: auto !important;
     }
 
-    [id^="feedbackTabs"] .heightContainer {
+    [id^='feedbackTabs'] .heightContainer {
         max-height: calc(100vh - 260px) !important;
         overflow-y: auto !important;
     }
