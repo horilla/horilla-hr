@@ -13,6 +13,7 @@ from django.views.decorators.http import require_http_methods
 
 from employee.models import Employee
 from horilla.decorators import login_required
+from horilla.methods import handle_no_permission
 from report.access import (
     company_id_from_request,
     user_can_export_report,
@@ -44,7 +45,6 @@ from report.personalization import (
     presets_for_report,
     recent_run_slugs,
     saved_views_for_user,
-    session_company_id,
 )
 from report.registry import (
     DOMAIN_LABELS,
@@ -54,6 +54,7 @@ from report.registry import (
     run_report,
     run_report_kpis,
 )
+from report.sidebar import menu_accessibility
 from report.views.explorer import explorer_domain_entries
 
 
@@ -76,6 +77,30 @@ def _export_meta(request, definition, filters, slug: str) -> dict:
         ),
         "generated_at": timezone.now(),
     }
+
+
+def _validate_custom_period(request):
+    """Return an error message for a custom date range that is missing,
+    malformed or reversed, else None. Presets are always valid. parse_period
+    silently swaps/defaults bad dates, so the preview and export validate
+    first to keep what the user typed identical to what gets reported."""
+    preset = (request.GET.get("period_preset") or "").lower()
+    if preset != "custom":
+        return None
+    from datetime import date
+
+    raw_from = (request.GET.get("from_date") or "").strip()
+    raw_to = (request.GET.get("to_date") or "").strip()
+    if not raw_from or not raw_to:
+        return _("Please select both a Start Date and an End Date.")
+    try:
+        start = date.fromisoformat(raw_from)
+        end = date.fromisoformat(raw_to)
+    except ValueError:
+        return _("Please enter valid dates.")
+    if end < start:
+        return _("End Date cannot be earlier than Start Date.")
+    return None
 
 
 def _ensure_definitions_loaded():
@@ -116,6 +141,9 @@ def standard_report_catalog(request):
     company_id = company_id_from_request(request)
     grouped = reports_by_domain(user=request.user, company_id=company_id)
 
+    if not grouped and not menu_accessibility(request, None, None):
+        return handle_no_permission(request)
+
     all_slugs = [r.slug for reports in grouped.values() for r in reports]
     last_run_by_slug = dict(
         ReportRunLog.objects.filter(
@@ -150,9 +178,6 @@ def standard_report_catalog(request):
                         ),
                         "subscribe_url": reverse(
                             "standard-report-subscribe", args=[r.slug]
-                        ),
-                        "inspector_url": reverse(
-                            "standard-report-inspector", args=[r.slug]
                         ),
                         "can_subscribe": user_can_subscribe_report(
                             request.user, r, company_id=company_id
@@ -286,6 +311,7 @@ def standard_report_print_filters(request, slug):
             "filter_schema": filter_schema,
             "filter_options": filter_options,
             "export_url": reverse("standard-report-export", args=[slug]),
+            "preview_url": reverse("standard-report-preview", args=[slug]),
             "detail_url": reverse("standard-report-detail", args=[slug]),
             "can_export": can_export,
             "pdf_row_limit": 500,
@@ -298,15 +324,9 @@ def standard_report_print_filters(request, slug):
 
 @login_required
 @require_http_methods(["GET"])
-def standard_report_inspector(request, slug):
-    """
-    HTMX fragment for the catalog's right-side inspector panel — shown when
-    a row/card is selected in list mode. "Your subscription" and audit
-    history are real data (ReportSubscription / ReportRunLog), not the
-    fabricated per-report "Owner"/"Schedule" fields the design mockup used
-    (a report definition has no single owner, and can have 0-N
-    subscriptions across different users with different frequencies).
-    """
+def standard_report_preview(request, slug):
+    """HTMX partial: filtered preview of a standard report for the print
+    modal. Uses the same filters/query as export, so the download matches."""
     _ensure_definitions_loaded()
     definition = get_report(slug)
     company_id = company_id_from_request(request)
@@ -317,46 +337,40 @@ def standard_report_inspector(request, slug):
             _("You do not have permission to view this report.")
         )
 
-    subscription = (
-        ReportSubscription.objects.filter(
-            report_slug=slug, owner=request.user, is_active=True
+    context = {"report_name": str(definition.name), "slug": slug}
+    error = _validate_custom_period(request)
+    if error:
+        context["error"] = error
+        return render(request, "report/standard_report_preview.html", context)
+
+    filters = filters_from_request(request)
+    try:
+        payload = run_report(slug, filters)
+    except Exception:
+        context["error"] = _(
+            "Could not generate the preview. Please try again or adjust the filters."
         )
-        .order_by("-created_at")
-        .first()
-    )
+        return render(request, "report/standard_report_preview.html", context)
 
-    can_view_audit = request.user.is_superuser or request.user.has_perm(
-        "employee.view_employee"
-    )
-    audit_qs = ReportRunLog.objects.filter(report_slug=slug, is_active=True)
-    session_company = session_company_id(request)
-    if session_company is not None:
-        audit_qs = audit_qs.filter(company_id_id=session_company)
-    else:
-        audit_qs = audit_qs.filter(company_id__isnull=True)
-    if not can_view_audit:
-        audit_qs = audit_qs.filter(user=request.user)
-    audit_entries = list(
-        audit_qs.select_related("user__employee_get").order_by("-created_at")[:5]
-    )
-
-    return render(
-        request,
-        "report/standard_report_inspector.html",
+    table = payload.get("table") or {}
+    columns = table.get("columns") or []
+    rows = table.get("rows") or []
+    query = request.GET.copy()
+    query["format"] = "pdf"
+    query["inline"] = "1"
+    context.update(
         {
-            "report": definition,
-            "report_name": str(definition.name),
-            "report_description": str(definition.description),
-            "slug": slug,
-            "print_url": reverse("standard-report-print-filters", args=[slug]),
-            "subscribe_url": reverse("standard-report-subscribe", args=[slug]),
-            "can_subscribe": user_can_subscribe_report(
-                request.user, definition, company_id=company_id
-            ),
-            "subscription": subscription,
-            "audit_entries": audit_entries,
-        },
+            "total_rows": max(len(rows), int(table.get("total_rows") or 0)),
+            "pdf_url": reverse("standard-report-export", args=[slug])
+            + "?"
+            + query.urlencode()
+            + "#toolbar=0&navpanes=0",
+            "period_label": filters.period_label,
+            "is_all_time": filters.period_preset == "all_time",
+        }
     )
+    log_report_run(request, slug, "view", filters_dict_from_request(request))
+    return render(request, "report/standard_report_preview.html", context)
 
 
 @login_required
@@ -461,6 +475,10 @@ def standard_report_export(request, slug):
     ):
         return JsonResponse({"error": "Forbidden"}, status=403)
 
+    period_error = _validate_custom_period(request)
+    if period_error:
+        return JsonResponse({"error": period_error}, status=400)
+
     filters = filters_from_request(request)
     filters.extra["row_limit"] = 5000
     fmt = (request.GET.get("format") or "xlsx").lower()
@@ -519,12 +537,19 @@ def standard_report_export(request, slug):
     payload = run_report(slug, filters)
     safe_name = slug.replace("/", "-")
     meta = _export_meta(request, definition, filters, slug)
-    log_report_run(request, slug, "export", log_filters)
+    # ?inline=1 serves the very same PDF for the in-modal preview: shown, not
+    # downloaded, and not logged as an export (the real download still is).
+    inline_preview = fmt == "pdf" and request.GET.get("inline") == "1"
+    if not inline_preview:
+        log_report_run(request, slug, "export", log_filters)
     if fmt == "csv":
         return export_csv(payload, filename=f"{safe_name}.csv", meta=meta)
     if fmt == "pdf":
         try:
-            return export_pdf(payload, filename=f"{safe_name}.pdf", meta=meta)
+            response = export_pdf(payload, filename=f"{safe_name}.pdf", meta=meta)
+            if inline_preview:
+                response["Content-Disposition"] = f'inline; filename="{safe_name}.pdf"'
+            return response
         except Exception as exc:
             return JsonResponse({"error": str(exc)}, status=500)
     return export_xlsx(payload, filename=f"{safe_name}.xlsx", meta=meta)

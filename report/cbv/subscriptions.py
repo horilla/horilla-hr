@@ -18,66 +18,10 @@ from horilla_views.generic.cbv.views import (
     TemplateView,
 )
 from report.access import company_id_from_request, user_can_subscribe_report
+from report.filters import ReportSubscriptionFilter
 from report.forms import ReportSubscriptionForm
 from report.models import ReportSubscription
 from report.registry import DOMAIN_LABELS, get_report, reports_by_domain
-
-
-def _subscription_actions():
-    """
-    Edit/Send now/Pause-Activate/Delete action buttons, shared verbatim
-    between the subscriptions list row and the detail-view modal footer -
-    both render a dict-based `actions` list the same way (see
-    horilla_detailed_view.html and horilla_list_table.html, both do
-    `{{action.attrs|format:object_or_instance}}`), so one shared list keeps
-    them from drifting out of sync.
-    """
-    return [
-        {
-            "action": _("Edit"),
-            "icon": "create-outline",
-            "attrs": """
-                class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
-                title="{% trans 'Edit' %}"
-                data-toggle="oh-modal-toggle"
-                data-target="#genericModal"
-                hx-get="{get_edit_url}"
-                hx-target="#genericModalBody"
-            """,
-        },
-        {
-            "action": _("Send now"),
-            "icon": "send-outline",
-            "attrs": """
-                class="oh-btn oh-btn--success oh-btn--sq-sm"
-                title="{% trans 'Send now' %}"
-                hx-confirm="{% trans 'Send this report now?' %}"
-                hx-post="{get_run_url}"
-                hx-target="#relatedModel"
-            """,
-        },
-        {
-            "action": _("Pause/Activate"),
-            "icon": "power-outline",
-            "attrs": """
-                class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
-                title="{% trans 'Pause or activate' %}"
-                hx-post="{get_toggle_url}"
-                hx-target="#relatedModel"
-            """,
-        },
-        {
-            "action": _("Delete"),
-            "icon": "trash-outline",
-            "attrs": """
-                class="oh-btn oh-btn--danger oh-btn--sq-sm"
-                title="{% trans 'Delete' %}"
-                hx-confirm="{% trans 'Delete this subscription?' %}"
-                hx-post="{get_delete_url}"
-                hx-target="#relatedModel"
-            """,
-        },
-    ]
 
 
 @method_decorator(login_required, name="dispatch")
@@ -89,7 +33,7 @@ class ReportSubscriptionsView(TemplateView):
 
 @method_decorator(login_required, name="dispatch")
 class ReportSubscriptionsNav(HorillaNavView):
-    nav_title = _("Report Subscriptions")
+    nav_title = _("Report Schedules")
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -114,6 +58,7 @@ class ReportSubscriptionsListView(HorillaListView):
     """List of the current user's own report subscriptions."""
 
     model = ReportSubscription
+    filter_class = ReportSubscriptionFilter
     # True (not False) is what actually unlocks the checkbox column that
     # both the colored row_status_class border-div and the
     # row_status_indications pills below render inside of — see
@@ -126,7 +71,7 @@ class ReportSubscriptionsListView(HorillaListView):
     row_status_class = "status-{status_slug}"
 
     columns = [
-        (_("Subscription"), "name"),
+        (_("Schedule"), "name"),
         (_("Report"), "report_name"),
         (_("Frequency"), "frequency_label"),
         (_("Recipients"), "recipients_display"),
@@ -152,31 +97,84 @@ class ReportSubscriptionsListView(HorillaListView):
         super().__init__(**kwargs)
         self.view_id = "reportSubscriptions"
         self.search_url = reverse("report-subscriptions-list")
-        # Quick status filter pills — same visual/interaction convention as
-        # payroll's Payslip list, adapted since this list has no
-        # filter_class/form of its own to drive: each pill just re-fetches
-        # the list with a `status` query param that get_queryset() below
-        # reads directly, rather than Payslip's "set a hidden filter-form
-        # field, then click Apply" mechanism.
         self.row_status_indications = [
             (
                 "active--dot",
                 _("Active"),
-                f"""
-                onclick="htmx.ajax('GET', '{self.search_url}?status=active',
-                    {{target: '#{self.view_id}', swap: 'outerHTML'}});"
-                """,
+                self._status_pill_attrs("active"),
             ),
             (
                 "paused--dot",
                 _("Paused"),
-                f"""
-                onclick="htmx.ajax('GET', '{self.search_url}?status=paused',
-                    {{target: '#{self.view_id}', swap: 'outerHTML'}});"
-                """,
+                self._status_pill_attrs("paused"),
             ),
         ]
-        self.actions = _subscription_actions()
+        self.actions = [
+            {
+                "action": _("Edit"),
+                "icon": "create-outline",
+                "attrs": """
+                    class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
+                    data-toggle="oh-modal-toggle"
+                    data-target="#genericModal"
+                    hx-get="{get_edit_url}"
+                    hx-target="#genericModalBody"
+                """,
+            },
+            {
+                "action": _("Send now"),
+                "icon": "send-outline",
+                "attrs": f"""
+                    class="oh-btn oh-btn--success oh-btn--sq-sm"
+                    hx-confirm="{_('Send this report now?')}"
+                    hx-post="{{get_run_url}}"
+                    hx-target="#relatedModel"
+                """,
+            },
+            {
+                "action": _("Pause/Activate"),
+                "icon": "power-outline",
+                "attrs": """
+                    class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
+                    hx-post="{get_toggle_url}"
+                    hx-target="#relatedModel"
+                """,
+            },
+            {
+                "action": _("Delete"),
+                "icon": "trash-outline",
+                "attrs": f"""
+                    class="oh-btn oh-btn--danger oh-btn--sq-sm"
+                    hx-confirm="{_('Delete this schedule?')}"
+                    hx-post="{{get_delete_url}}"
+                    hx-target="#relatedModel"
+                """,
+            },
+        ]
+
+    @staticmethod
+    def _status_pill_attrs(status: str) -> str:
+        """
+        Build the onclick attrs of a quick status pill.
+
+        Parameters:
+            status: "active" or "paused".
+
+        Returns:
+            Attribute string that writes the status into the nav form's hidden
+            status input (creating it when missing) and submits the form.
+        """
+        return f"""
+            onclick="
+            var form = $('#applyFilter').closest('form');
+            var input = form.find('[name=status]');
+            if (!input.length) {{
+                input = $('<input type=&quot;hidden&quot; name=&quot;status&quot;>').appendTo(form);
+            }}
+            input.val('{status}');
+            $('#applyFilter').click();
+            "
+        """
 
     def get_queryset(self, queryset=None, filtered=False, *args, **kwargs):
         # HorillaListView's base get_queryset() ultimately calls the manager's
@@ -188,13 +186,7 @@ class ReportSubscriptionsListView(HorillaListView):
         if queryset is None:
             queryset = ReportSubscription.objects.get_queryset()
         queryset = super().get_queryset(queryset, filtered, *args, **kwargs)
-        queryset = queryset.filter(owner=self.request.user).select_related("company_id")
-        status = self.request.GET.get("status")
-        if status == "active":
-            queryset = queryset.filter(is_active=True)
-        elif status == "paused":
-            queryset = queryset.filter(is_active=False)
-        return queryset
+        return queryset.filter(owner=self.request.user).select_related("company_id")
 
 
 @method_decorator(login_required, name="dispatch")
@@ -203,11 +195,11 @@ class ReportSubscriptionFormView(HorillaFormView):
 
     model = ReportSubscription
     form_class = ReportSubscriptionForm
-    new_display_title = _("Create a subscription")
+    new_display_title = _("Create a schedule")
     template_name = "cbv/subscriptions/subscription_form.html"
 
     def _permission_denied(self, request: HttpRequest) -> HttpResponse:
-        message = _("You do not have permission to subscribe to this report.")
+        message = _("You do not have permission to schedule this report.")
         messages.error(request, message)
         return HttpResponseForbidden(message)
 
@@ -300,7 +292,7 @@ class ReportSubscriptionFormView(HorillaFormView):
         form.save()
         messages.success(
             self.request,
-            _("Subscription created.") if creating else _("Subscription updated."),
+            _("Schedule created.") if creating else _("Schedule updated."),
         )
         return self.HttpResponse()
 
@@ -324,7 +316,48 @@ class ReportSubscriptionDetailView(HorillaDetailedView):
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self.actions = _subscription_actions()
+        self.actions = [
+            {
+                "action": _("Edit"),
+                "icon": "create-outline",
+                "attrs": """
+                    class="oh-btn oh-btn--light-bkg"
+                    data-toggle="oh-modal-toggle"
+                    data-target="#genericModal"
+                    hx-get="{get_edit_url}"
+                    hx-target="#genericModalBody"
+                """,
+            },
+            {
+                "action": _("Send now"),
+                "icon": "send-outline",
+                "attrs": f"""
+                    class="oh-btn oh-btn--success"
+                    hx-confirm="{_('Send this report now?')}"
+                    hx-post="{{get_run_url}}"
+                    hx-target="#relatedModel"
+                """,
+            },
+            {
+                "action": _("Pause/Activate"),
+                "icon": "power-outline",
+                "attrs": """
+                    class="oh-btn oh-btn--light-bkg"
+                    hx-post="{get_toggle_url}"
+                    hx-target="#relatedModel"
+                """,
+            },
+            {
+                "action": _("Delete"),
+                "icon": "trash-outline",
+                "attrs": f"""
+                    class="oh-btn oh-btn--danger"
+                    hx-confirm="{_('Delete this schedule?')}"
+                    hx-post="{{get_delete_url}}"
+                    hx-target="#relatedModel"
+                """,
+            },
+        ]
 
     def get_queryset(self):
         return ReportSubscription.objects.filter(owner=self.request.user)

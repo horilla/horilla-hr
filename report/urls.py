@@ -162,6 +162,11 @@ urlpatterns = [
         name="standard-report-print-filters",
     ),
     path(
+        "standard/<slug:slug>/preview/",
+        standard_reports.standard_report_preview,
+        name="standard-report-preview",
+    ),
+    path(
         "standard/<slug:slug>/",
         standard_reports.standard_report_detail,
         name="standard-report-detail",
@@ -205,11 +210,6 @@ urlpatterns = [
         "standard/<slug:slug>/presets/<int:preset_id>/delete/",
         standard_reports.standard_report_preset_delete,
         name="standard-report-preset-delete",
-    ),
-    path(
-        "standard/<slug:slug>/inspector/",
-        standard_reports.standard_report_inspector,
-        name="standard-report-inspector",
     ),
     path("employee-report/", employee_report.employee_report, name="employee-report"),
     path("employee-pivot/", employee_report.employee_pivot, name="employee-pivot"),
