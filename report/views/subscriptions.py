@@ -46,7 +46,7 @@ def subscription_toggle(request, subscription_id):
         return JsonResponse({"ok": True, "is_active": sub.is_active, "id": sub.id})
     messages.success(
         request,
-        _("Subscription activated.") if sub.is_active else _("Subscription paused."),
+        _("Schedule activated.") if sub.is_active else _("Schedule paused."),
     )
     return redirect("report-subscriptions")
 
@@ -60,7 +60,7 @@ def subscription_delete(request, subscription_id):
         return _reload_response(request)
     if request.headers.get("X-Requested-With"):
         return JsonResponse({"ok": True})
-    messages.success(request, _("Subscription deleted."))
+    messages.success(request, _("Schedule deleted."))
     return redirect("report-subscriptions")
 
 
@@ -81,7 +81,7 @@ def subscription_run_now(request, subscription_id):
     if result.ok:
         messages.success(request, result.detail or _("Report emailed."))
     else:
-        messages.error(request, result.detail or _("Could not send subscription."))
+        messages.error(request, result.detail or _("Could not send schedule."))
 
     if request.headers.get("HX-Request"):
         return _reload_response(request)

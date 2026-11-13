@@ -119,7 +119,7 @@ def deliver_subscription(
     import report.metrics  # noqa: F401
 
     if not subscription.is_active and not force:
-        return DeliveryResult(False, "inactive", "Subscription is inactive")
+        return DeliveryResult(False, "inactive", "Schedule is inactive")
 
     now = timezone.now()
     if not force and not subscription_is_due(subscription, now):
@@ -252,7 +252,7 @@ def deliver_subscription(
             f"{_('Attached is your scheduled Horilla report:')}\n\n"
             f"{report_title}\n"
             f"{_('Period')}: {filters.from_date} → {filters.to_date}\n"
-            f"{_('Subscription')}: {subscription.name}\n"
+            f"{_('Schedule')}: {subscription.name}\n"
             f"{_('Format')}: {fmt.upper()}\n"
         )
         email = EmailMessage(
