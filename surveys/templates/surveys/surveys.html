@@ -1,0 +1,18 @@
+{% extends "index.html" %}
+{% load i18n %}
+{% block content %}
+    <style>
+        .survey-open--dot { background-color: #3b82f6; }
+        .survey-draft--dot { background-color: rgba(128,128,128,.48); }
+        .survey-closed--dot { background-color: #ef4444; }
+        .survey-open { border-left: 3.4px solid #3b82f6 !important; border-radius: 4px 0 0 4px; }
+        .survey-draft { border-left: 3.4px solid rgba(128,128,128,.48) !important; border-radius: 4px 0 0 4px; }
+        .survey-closed { border-left: 3.4px solid #ef4444 !important; border-radius: 4px 0 0 4px; }
+    </style>
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <div hx-get='{% url "surveys-nav" %}?{{ request.GET.urlencode }}' hx-trigger="load"></div>
+    {% include "generic/components.html" %}
+    <div class="oh-checkpoint-badge mb-2" id="selectedInstances" data-ids="[]" data-clicked="" style="display:none"></div>
+    {# the nav loads the list or the cards, whichever view was chosen last #}
+    <div class="oh-wrapper" id="listContainer"></div>
+{% endblock %}

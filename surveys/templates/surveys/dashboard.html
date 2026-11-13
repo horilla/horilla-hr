@@ -1,0 +1,97 @@
+{% extends "index.html" %}
+{% load i18n %}
+{% block content %}
+<div class="flex flex-wrap justify-between items-center gap-2 mb-3">
+    <h3 class="text-lg font-semibold">{% trans "Surveys" %}</h3>
+    <a href="{% url 'surveys-view' %}"
+       class="px-4 py-2 bg-white rounded-md text-xs flex items-center gap-2 border border-primary-500 hover:border-primary-600 transition duration-300">
+        <ion-icon name="list-outline"></ion-icon>{% trans "All surveys" %}
+    </a>
+</div>
+<div class="grid grid-cols-1 xl:grid-cols-4 md:grid-cols-2 gap-4 mb-4">
+    {% for id, label, icon, tint in tiles %}
+    <div class="bg-white p-6 rounded-md shadow-card">
+        <div class="flex items-center gap-4">
+            <div class="p-3 rounded-md flex" style="background-color:{{ tint }}"><ion-icon name="{{ icon }}" class="text-xl"></ion-icon></div>
+            <div>
+                <p class="text-sm">{{ label }}</p>
+                <p class="text-xl font-bold text-secondary-900" id="{{ id }}">–</p>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+<div class="grid grid-cols-12 gap-4 mb-4">
+    <div class="xl:col-span-8 col-span-12 bg-white p-6 rounded-md shadow-card">
+        <h3 class="text-md font-semibold mb-2">{% trans "Responses in the last 30 days" %}</h3>
+        <div class="relative" style="height:260px"><canvas id="chartDays"></canvas></div>
+    </div>
+    <div class="xl:col-span-4 col-span-12 bg-white p-6 rounded-md shadow-card">
+        <h3 class="text-md font-semibold mb-2">{% trans "By department (open surveys)" %}</h3>
+        <div class="relative" style="height:260px"><canvas id="chartDept"></canvas></div>
+    </div>
+</div>
+<div class="bg-white p-6 rounded-md shadow-card">
+    <h3 class="text-md font-semibold mb-2">{% trans "Recent surveys" %}</h3>
+    <div id="recent"></div>
+</div>
+<script>
+fetch("{% url 'surveys-dashboard-data' %}").then(function (r) { return r.json(); }).then(function (d) {
+    document.getElementById("kOpen").textContent = d.kpi.open;
+    document.getElementById("kInvited").textContent = d.kpi.invited;
+    document.getElementById("kAnswered").textContent = d.kpi.answered;
+    document.getElementById("kRate").textContent = d.kpi.rate + "%";
+    var dark = document.documentElement.classList.contains("dark");
+    var textColor = dark ? "#cbd5e1" : "#334155";
+    var axes = {
+        x: { ticks: { color: textColor, maxTicksLimit: 10 }, grid: { display: false } },
+        y: { beginAtZero: true, ticks: { color: textColor, precision: 0 } }
+    };
+    new Chart(document.getElementById("chartDays"), {
+        type: "line",
+        data: {
+            labels: d.per_day.map(function (p) { return p.day.slice(8, 10) + "." + p.day.slice(5, 7); }),
+            datasets: [{
+                label: "{% trans 'Responses'|escapejs %}", data: d.per_day.map(function (p) { return p.n; }),
+                borderColor: "#e54f38", backgroundColor: "rgba(229,79,56,.15)", fill: true, tension: 0.35, pointRadius: 0
+            }]
+        },
+        options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: axes }
+    });
+    new Chart(document.getElementById("chartDept"), {
+        type: "bar",
+        data: {
+            labels: d.per_department.map(function (p) { return p.department; }),
+            datasets: [
+                { label: "{% trans 'Answered'|escapejs %}", data: d.per_department.map(function (p) { return p.done; }), backgroundColor: "#22c55e", borderRadius: 4 },
+                { label: "{% trans 'Pending'|escapejs %}", data: d.per_department.map(function (p) { return p.total - p.done; }), backgroundColor: "#f59e0b", borderRadius: 4 }
+            ]
+        },
+        options: {
+            indexAxis: "y", maintainAspectRatio: false,
+            plugins: { legend: { position: "bottom", labels: { color: textColor, boxWidth: 12 } } },
+            scales: { x: { stacked: true, beginAtZero: true, ticks: { color: textColor, precision: 0 } }, y: { stacked: true, ticks: { color: textColor }, grid: { display: false } } }
+        }
+    });
+    var recent = document.getElementById("recent");
+    if (!d.recent.length) { recent.innerHTML = '<p class="text-sm text-[#666] mb-0">{% trans "No surveys yet."|escapejs %}</p>'; return; }
+    d.recent.forEach(function (s) {
+        var a = document.createElement("a");
+        a.className = "flex justify-between gap-2 py-2 border-b border-[#f0f0f0] text-sm hover:text-primary-600";
+        a.href = s.url;
+        var title = document.createElement("span");
+        title.textContent = s.title + " ";
+        var status = document.createElement("span");
+        status.className = "text-xs text-[#666]";
+        status.textContent = s.status;
+        title.appendChild(status);
+        var rate = document.createElement("span");
+        rate.className = "whitespace-nowrap";
+        rate.textContent = s.answered + " / " + s.invited + " (" + s.rate + "%)";
+        a.appendChild(title);
+        a.appendChild(rate);
+        recent.appendChild(a);
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,65 @@
+{% load i18n %}
+<div id="surveyQuestions">
+{% comment %}
+The tab reloads after the question form saves (the #reloadQuestions button).
+The trigger is an element of its own with nothing inside: htmx hands hx-swap
+down to the children, and an outerHTML on the wrapper made "Add question"
+replace the modal's body instead of filling it.
+{% endcomment %}
+<span hidden hx-get="{% url 'survey-questions-tab' survey.pk %}" hx-trigger="reloadQuestions from:body"
+      hx-target="#surveyQuestions" hx-swap="outerHTML"></span>
+<div class="flex flex-wrap justify-between items-center gap-2 mb-3">
+    <p class="text-xs text-[#666] mb-0">{% trans "Drag the handle to reorder. Employees see the questions in this order." %}</p>
+    {% if can_manage %}
+    <a hx-get="{% url 'survey-question-add' %}?survey={{ survey.pk }}" hx-target="#genericModalBody" data-target="#genericModal" data-toggle="oh-modal-toggle"
+       class="px-4 py-2 bg-brand-600 text-white rounded-md text-xs flex items-center gap-2 hover:bg-brand-800 transition duration-300 cursor-pointer">
+        <ion-icon name="add-outline"></ion-icon>{% trans "Add question" %}
+    </a>
+    {% endif %}
+</div>
+{% if not survey.questions.exists %}
+    <div class="flex flex-col items-center justify-center py-10">
+        <img src="/static/horilla_theme/assets/img/no-records.svg" alt="" width="160" class="mb-4">
+        <p class="text-[#666] text-sm">{% trans "No questions yet. Add the first one." %}</p>
+    </div>
+{% endif %}
+<ul class="space-y-2" id="questionList">
+    {% for q in survey.questions.all %}
+    <li class="border border-[#ebebeb] py-3 px-3.5 rounded-md shadow-card bg-white flex items-start gap-3" data-id="{{ q.pk }}">
+        {% if can_manage %}<span class="text-lg leading-none text-[#999] js-handle" style="cursor:grab" title="{% trans 'Drag to reorder' %}">≡</span>{% endif %}
+        <span class="text-sm font-semibold text-primary-600 js-number">{{ forloop.counter }}.</span>
+        <div class="flex-1 min-w-0">
+            <div class="text-sm font-semibold">{{ q.question }}</div>
+            <div class="text-xs text-[#666] mt-1">
+                {{ q.get_type_display }}
+                {% if q.is_required %}· <span class="text-red-600">{% trans "required" %}</span>{% endif %}
+                {% if q.options %}· {{ q.options|join:" / " }}{% endif %}
+            </div>
+        </div>
+        {% if can_manage %}
+        <div class="flex items-center gap-1">
+            <a hx-get="{% url 'survey-question-edit' q.pk %}" hx-target="#genericModalBody" data-target="#genericModal" data-toggle="oh-modal-toggle"
+               class="oh-btn oh-btn--light-bkg oh-btn--sq-sm" title="{% trans 'Edit' %}"><ion-icon name="create-outline"></ion-icon></a>
+            <form method="post" action="{% url 'survey-question-delete' q.pk %}" onsubmit="return confirm('{% trans 'Delete this question?' %}')">{% csrf_token %}
+                <button class="oh-btn oh-btn--danger-bkg oh-btn--sq-sm" title="{% trans 'Delete' %}"><ion-icon name="trash-outline"></ion-icon></button>
+            </form>
+        </div>
+        {% endif %}
+    </li>
+    {% endfor %}
+</ul>
+{% if can_manage %}
+<script>
+    $(function () {
+        $("#questionList").sortable({
+            handle: ".js-handle",
+            update: function () {
+                var order = $("#questionList li").map(function () { return $(this).data("id"); }).get();
+                $.post("{% url 'survey-reorder' survey.pk %}", {order: JSON.stringify(order), csrfmiddlewaretoken: "{{ csrf_token }}"},
+                    function () { $("#questionList li").each(function (i) { $(this).find(".js-number").text((i + 1) + "."); }); });
+            }
+        });
+    });
+</script>
+{% endif %}
+</div>
