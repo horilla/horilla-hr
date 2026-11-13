@@ -31,6 +31,14 @@ body.dark .group:hover .group-hover\:text-primary-700 {
 body.dark .accordion-panel ul li a.text-primary-600 {
   color: var(--primary-300, #fcedeb) !important;
 }
+/* The generic `.accordion-panel ul li a` colour (#bbb !important, further
+   down) beats Tailwind's hover:text-primary-600, so Settings sidebar links
+   showed no hover feedback in dark mode. :hover adds specificity, so this
+   wins over the #bbb rule; the active item's rule above still takes
+   precedence for the current page. */
+body.dark .accordion-panel ul li a:hover {
+  color: var(--primary-600, #e54f38) !important;
+}
 body.dark .bg-white,
 body.dark .bg-primary-200,
 body.dark
@@ -209,6 +217,8 @@ body.dark .bg-primary-300,
 body.dark .sidebarItemActive,
 body.dark .hover\:bg-primary-100:hover,
 body.dark .oh-btn--light,
+body.dark .oh-btn--view,
+body.dark .oh-btn--view-active,
 body.dark .pvtAxisContainer li span.pvtAttr,
 body.dark .pvtFilterBox,
 body.dark .oh-activity-sidebar__qa-item,
@@ -287,21 +297,321 @@ body.dark ::-webkit-scrollbar {
   width: 5px;
 }
 
+/* Without this the square where two scrollbars meet stays browser-white. */
+body.dark ::-webkit-scrollbar-corner {
+  background: #1a1a1a;
+}
+
+/* ---- White surfaces that had no dark counterpart ------------------------
+   The base styles paint these with a hard-coded white (some with
+   !important), so on the dark panels they read as bright highlights. */
+
+/* Active list/kanban/card view switcher (generic nav). */
+body.dark .oh-view-btn--active {
+  background-color: color-mix(
+    in srgb,
+    var(--primary-600, #e54f38) 18%,
+    #1a1a1a
+  ) !important;
+}
+
+/* Legacy view switcher (oh-btn--view) used by report/payroll/recruitment. */
+body.dark .oh-btn--view {
+  background-color: #1a1a1a;
+  border-color: #444444;
+  color: #dddddd;
+}
+body.dark .oh-btn--view:hover,
+body.dark .oh-btn--view:focus,
+body.dark .oh-btn--view:focus-visible {
+  background-color: #2a2a2a;
+  border-color: #555555;
+}
+body.dark .oh-btn--view-active,
+body.dark .oh-btn--view-active:hover {
+  background-color: color-mix(
+    in srgb,
+    var(--primary-600, #e54f38) 18%,
+    #1a1a1a
+  );
+  border-color: var(--primary-600, #e54f38);
+  color: var(--primary-600, #e54f38);
+}
+
+/* Export dialog (two-pane field picker; its CSS is injected by index.js). */
+body.dark .hlv-export-pane {
+  border-color: #3a3a3a;
+  background: #242424;
+}
+body.dark .hlv-export-pane--right {
+  background: #1f1f1f;
+}
+body.dark .hlv-export-pane-head {
+  border-bottom-color: #3a3a3a;
+  background: #1f1f1f;
+}
+body.dark .hlv-export-pane-title {
+  color: #dddddd;
+}
+body.dark .hlv-export-search {
+  border-color: #444444;
+  background: #1a1a1a;
+  color: #dddddd;
+}
+body.dark .hlv-export-pane-body > .row:has(input[id^="select-all"]) {
+  border-bottom-color: #3a3a3a;
+}
+body.dark .hlv-export-list-item {
+  border-color: #3a3a3a;
+  background: #2a2a2a;
+  color: #dddddd;
+}
+body.dark .hlv-export-order-badge {
+  background: color-mix(in srgb, var(--primary-600, #e54f38) 22%, #1a1a1a);
+}
+body.dark .hlv-export-drag-placeholder {
+  border-color: #555555;
+}
+
+/* File-import drop zone and its progress bar. */
+body.dark .oh-dropdown__import-label {
+  border-color: #4a4a4a;
+  background: #1f1f1f;
+  color: #dddddd;
+}
+body.dark .oh-dropdown__import-label:hover,
+body.dark .oh-dropdown__import-label.oh-import-drag {
+  border-color: var(--primary-600, #e54f38);
+  background: color-mix(in srgb, var(--primary-600, #e54f38) 12%, #1a1a1a);
+}
+body.dark .oh-dropdown__import-label.oh-import-has-file {
+  border-color: #16a34a;
+  background: #10301f;
+}
+body.dark .oh-upload-loader__bar {
+  background: #444444;
+}
+
+/* Avatar-stack hover popovers and the resignation description card. */
+body.dark .oh-avatar-float-popover,
+body.dark .full-description {
+  border-color: #444444;
+  background: #242424;
+  color: #dddddd;
+}
+
+/* Rich-text descriptions carry their own inline white backgrounds / dark text
+   from the editor; inside the dark popover that gave grey-on-white blocks. */
+body.dark .full-description *,
+body.dark .oh-avatar-float-popover * {
+  background-color: transparent !important;
+  color: inherit !important;
+}
+
+/* Language settings "Cancel". */
+body.dark #companyLanguageSettings .lang-btn-cancel {
+  border-color: #444444;
+  background: #2a2a2a;
+  color: #dddddd;
+}
+
+/* ApexCharts only ships a light tooltip theme. */
+body.dark .apexcharts-tooltip.apexcharts-theme-light,
+body.dark .apexcharts-yaxistooltip.apexcharts-theme-light,
+body.dark .apexcharts-xaxistooltip.apexcharts-theme-light {
+  border-color: #444444;
+  background: #242424;
+  color: #eeeeee;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+}
+body.dark .apexcharts-tooltip.apexcharts-theme-light .apexcharts-tooltip-title {
+  border-bottom-color: #3a3a3a;
+  background: #1f1f1f;
+}
+body.dark .apexcharts-yaxistooltip-left::before,
+body.dark .apexcharts-yaxistooltip-left::after,
+body.dark .apexcharts-xaxistooltip-bottom::before,
+body.dark .apexcharts-xaxistooltip-bottom::after {
+  border-color: transparent;
+}
+body.dark .apexcharts-tooltip-arrow {
+  background: #242424;
+}
+
+/* Text shades the theme defines as very dark tints (dark-300 is ~rgb(80,28,20),
+   a 1.1:1 contrast on the dark panels). dark-200/400/500 were already lifted
+   above; these three had no counterpart, so role chips, step lists and inactive
+   tabs were nearly invisible. Not !important, so hover colours still win. */
+body.dark .text-dark-100 {
+  color: #999999;
+}
+body.dark .text-dark-300 {
+  color: #cfcfcf;
+}
+body.dark .text-dark-600 {
+  color: #e0e0e0;
+}
+body.dark .hover\:text-primary-600:hover {
+  color: var(--primary-600, #e54f38);
+}
+
+/* Light Tailwind border shades that had no dark counterpart (frames, dividers
+   and card outlines showed up as thin white lines on the dark panels). */
+body.dark .border-secondary-100,
+body.dark .border-secondary-200,
+body.dark .border-secondary-300,
+body.dark .border-t.border-secondary-100,
+body.dark .border-b.border-secondary-200,
+body.dark .border-\[\#EAE8E3\],
+body.dark .border-\[\#eae8e3\] {
+  border-color: #3a3a3a;
+}
+/* Pale grey chips with dark text (e.g. meeting tags). */
+body.dark .bg-\[\#eef0f4\] {
+  border-color: #242424 !important; /* "+N" overflow avatar: its ring is set inline */
+  background-color: #333333 !important;
+  color: #dddddd !important;
+}
+/* Same colour set inline (nested group-by toolbar panel). */
+body.dark #ngbToolbarPanel {
+  border-color: #3a3a3a !important;
+}
+/* Filter chips are filled with the theme colour; drop their white outline. */
+body.dark .oh-titlebar__tag--custom {
+  border-color: transparent;
+}
+/* Overlapping avatar ring should blend into the dark card, not show white. */
+body.dark .oh-avatar-stack__img {
+  border-color: #242424;
+}
+
+/* File drop zone (assets/js/file_dropzone.js). */
+body.dark .hz-file-drop {
+  border-color: #4a4a4a;
+  color: #dddddd;
+}
+body.dark .hz-file-drop:hover,
+body.dark .hz-file-drop.is-dragover {
+  border-color: var(--primary-600, #e54f38);
+  background: color-mix(in srgb, var(--primary-600, #e54f38) 12%, #1a1a1a);
+}
+body.dark .hz-file-drop.has-files {
+  border-color: #666666;
+}
+body.dark .hz-file-drop__file {
+  border-color: #444444;
+  background: #2a2a2a;
+  color: #dddddd;
+}
+body.dark .hz-file-drop__remove {
+  color: #aaaaaa;
+}
+body.dark .hz-file-drop__remove:hover {
+  color: var(--primary-600, #e54f38);
+}
+
+/* Tab hover. Several pages (policies, employee settings, grace time...) set
+   `.oh-tabs__tab:hover` inline to the theme's pale tint (primary-100), which is
+   a white-pink block with unreadable grey text on the dark panels. */
+body.dark .oh-tabs__tab:not(.oh-tabs__tab--active):hover {
+  border-color: var(--primary-600, #e54f38) !important;
+  background-color: color-mix(in srgb, var(--primary-600, #e54f38) 14%, #1a1a1a) !important;
+  color: #ffffff !important;
+}
+/* Selected tab. Light mode shows it as a primary tint with primary text; the
+   shared `#000` panel rule used to turn it into a black block that looked
+   like a hole next to the grey inactive tabs. */
+body.dark .oh-tabs__tab.oh-tabs__tab--active,
+body.dark .oh-tabs__tab.oh-tabs__tab--active:hover {
+  background-color: color-mix(in srgb, var(--primary-600, #e54f38) 22%, #1a1a1a) !important;
+  border-color: var(--primary-600, #e54f38) !important;
+  color: #ffffff !important;
+}
+body.dark .oh-tabs__tab.oh-tabs__tab--active i,
+body.dark .oh-tabs__tab.oh-tabs__tab--active span:not(.oh-badge):not([class*="bg-"]) {
+  color: #ffffff !important;
+}
+
+/* Light hover backgrounds that had no dark counterpart. `hover:bg-[#f5f5f5]`
+   alone is used ~130 times (menu rows, pager buttons...). Same #333 the
+   existing hover:bg-gray-* rules use. */
+body.dark .hover\:bg-\[\#f5f5f5\]:hover,
+body.dark .hover\:bg-\[\#F5F5F5\]:hover,
+body.dark .hover\:bg-\[\#F3F2EE\]:hover,
+body.dark .hover\:bg-\[\#F7F6F3\]:hover,
+body.dark .hover\:bg-secondary-50:hover,
+body.dark .hover\:bg-secondary-100:hover,
+body.dark .hover\:bg-primary-200:hover,
+body.dark .hover\:bg-dark-50:hover,
+body.dark .hover\:bg-brand-50:hover,
+body.dark .hover\:bg-white:hover,
+body.dark .hover\:bg-white\/50:hover {
+  background-color: #333333 !important;
+}
+
+/* ApexCharts tooltip text is a dark slate (rgba(15,23,42,.55)) by default. */
+body.dark .apexcharts-tooltip.apexcharts-theme-light,
+body.dark .apexcharts-tooltip.apexcharts-theme-light .apexcharts-tooltip-title,
+body.dark .apexcharts-tooltip.apexcharts-theme-light .apexcharts-tooltip-text,
+body.dark .apexcharts-tooltip.apexcharts-theme-light .apexcharts-tooltip-text-y-label,
+body.dark .apexcharts-tooltip.apexcharts-theme-light .apexcharts-tooltip-text-y-value {
+  color: #eeeeee;
+}
+
+/* Rows tinted inline by model methods. The compensatory-leave "rejected" row
+   swaps its background to `lightgrey` from an onmouseover script, and the
+   candidate list marks converted employees with #f1ffd5; both leave the default
+   #bbb text unreadable on the dark panels. Sticky cells repeat the colour with
+   !important in index.html, so they need the same override. */
+body.dark [style*="background-color: lightgrey"],
+body.dark tr[style*="background-color: lightgrey"] .stickyleft,
+body.dark tr[style*="background-color: lightgrey"] .stickyleft-second,
+body.dark tr[style*="background-color: lightgrey"] .stickyright {
+  background-color: #3a3a3a !important;
+}
+body.dark [style*="#f1ffd5"],
+body.dark tr[style*="#f1ffd5"] .stickyleft,
+body.dark tr[style*="#f1ffd5"] .stickyleft-second,
+body.dark tr[style*="#f1ffd5"] .stickyright {
+  background-color: #1f3326 !important;
+}
+
+/* Column-customise button in list table headers. */
+body.dark .oh-sticky-dropdown_btn {
+  background: #2a2a2a;
+  border-color: #444444;
+  color: #dddddd;
+}
+body.dark .oh-sticky-dropdown_btn:hover {
+  background: #333333;
+}
+body.dark .oh-sticky-dropdown_btn.is-column-config-trigger {
+  color: #bbbbbb;
+}
+body.dark .oh-sticky-dropdown_btn.is-column-config-trigger:hover,
+body.dark .oh-sticky-dropdown_btn.is-column-config-trigger[aria-expanded="true"] {
+  color: var(--primary-600, #e54f38);
+  border-color: var(--primary-600, #e54f38);
+  background: color-mix(in srgb, var(--primary-600, #e54f38) 15%, #1a1a1a);
+}
+
+/* Track used to be #636363 -- a bright grey strip on the black panels, with a
+   darker thumb sitting on it. Dark track, lighter thumb instead. */
 body.dark ::-webkit-scrollbar-track {
-  background: #636363;
+  background: #1f1f1f;
   /* border-radius: 5px; */
   cursor: pointer;
 }
 
 body.dark ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: #555555;
   /* border-radius: 5px; */
   transition: 0.3s;
   cursor: pointer;
 }
 
 body.dark ::-webkit-scrollbar-thumb:hover {
-  background: #242f3f;
+  background: #777777;
 }
 
 body.dark #sidebar ::-webkit-scrollbar-track {
@@ -416,6 +726,34 @@ body.dark .hover\:bg-primary-50:hover {
    instead of showing up as stray light patches on the dark theme. */
 body.dark .oh-report-drag-hint {
   color: #bbbbbb;
+}
+/* The collapsible ROWS/unused-fields panel header (report/static/report/
+   css/pivot_explorer.css's .oh-fields-toggle-header) is its own light bar
+   with no dark variant, so it showed up as a bright white strip against
+   the rest of the (correctly dark) pivot builder. */
+body.dark #pivot-container .oh-fields-toggle-header {
+  background-color: #1a1a1a;
+  border-bottom-color: #333333;
+  color: #d1d5db;
+}
+body.dark #pivot-container .oh-fields-toggle-header:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+}
+/* .oh-btn--view-active sets an explicit near-black text color (hsl(0,0%,
+   11%)) in light mode -- invisible once its background is remapped to
+   black below, unlike .oh-btn--view's icon, which has no explicit color
+   of its own and so already inherits a readable one. */
+body.dark .oh-btn--view-active {
+  color: #ffffff !important;
+}
+/* .oh-btn--view (inactive -- excluding -active, which is handled above
+   and must win over this) has no explicit color of its own in light
+   mode, so it inherits whatever ambient text color is nearby -- here
+   that's a dark slate gray meant to sit on a light background, which
+   reads as near-invisible against the black this rule set above. */
+body.dark .oh-btn--view:not(.oh-btn--view-active) {
+  color: #9aa1ab !important;
 }
 body.dark .pvtAxisContainer.pvtUnused::before,
 body.dark .pvtAxisContainer.pvtRows::before,
