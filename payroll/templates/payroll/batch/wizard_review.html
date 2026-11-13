@@ -457,6 +457,13 @@ read. Sorting a column overrides that, so there is a way back to it.
   #pb-review-table tbody tr.pb__row--blocked .stickyright { background: #fef2f2; }
   #pb-review-table .stickyleft { border-right: 1px solid #ececec; }
   #pb-review-table .stickyright { border-left: 1px solid #ececec; }
+  /* The id-scoped light tints above beat the generic dark rules. */
+  body.dark #pb-review-table tbody tr.pb__row--blocked .stickyleft,
+  body.dark #pb-review-table tbody tr.pb__row--blocked .stickyright { background: #3a1f1f; }
+  body.dark #pb-review-table tbody tr.pb__row--blocked:hover .stickyleft,
+  body.dark #pb-review-table tbody tr.pb__row--blocked:hover .stickyright { background: #4a2525; }
+  body.dark #pb-review-table .stickyleft { border-right-color: #3a3a3a; }
+  body.dark #pb-review-table .stickyright { border-left-color: #3a3a3a; }
   #pb-review-table td { padding-top: 2px; padding-bottom: 2px; }
   .pb__colhead { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: #6b7280; margin-bottom: 4px; }
   .pb__colopt { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 2px 0; cursor: pointer; }
