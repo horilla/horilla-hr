@@ -49,7 +49,7 @@
         >
         <link
             rel="stylesheet"
-            href="{% static 'horilla_theme/assets/css/dark.css' %}"
+            href="{% static 'horilla_theme/assets/css/dark.css' %}?v=11"
         >
         <link
             href="{% static 'cdn/googleapi/css/inter-font-style.css' %}"
@@ -59,11 +59,22 @@
         <link href="{% static 'cdn/select2/css/select2.min.css' %}" rel="stylesheet">
 
         <script src="{% static 'horilla_theme/assets/js/global.js' %}?v=2"></script>
+        {% trans "Choose or Drop a File Here" as hz_drop_single %}
+        {% trans "Choose or Drop Files Here" as hz_drop_multiple %}
+        {% trans "Remove" as hz_drop_remove %}
+        <script>
+            window.HZ_FILE_DROP_I18N = {
+                single: "{{ hz_drop_single|escapejs }}",
+                multiple: "{{ hz_drop_multiple|escapejs }}",
+                remove: "{{ hz_drop_remove|escapejs }}"
+            };
+        </script>
+        <script src="{% static 'horilla_theme/assets/js/file_dropzone.js' %}?v=1" defer></script>
         <script src="{% static 'cdn/hyperscript/script/_hyperscript.min.js' %}"></script>
         <!-- Load global.css after Select2 to ensure custom styles override Select2 defaults -->
         <link
             rel="stylesheet"
-            href="{% static 'horilla_theme/assets/css/global.css' %}?v=3"
+            href="{% static 'horilla_theme/assets/css/global.css' %}?v=4"
         >
         {% comment %} ?v= busts browser caches when this stylesheet changes
            (same trick as tourController.js in footer_scripts.html) - bump it
@@ -235,6 +246,9 @@
                        let scrolled-under text bleed through visually. */
                     background: color-mix(in srgb, {{ theme.primary_600|default:"#E54F38" }} 12%, white) !important;
                 }
+                /* Dark mode: mix onto each sticky column's own dark base (the
+                   same ones the rgba(255,166,0) tint below uses) instead of
+                   white, which showed up as pale-pink cells on selection. */
                 body.dark .highlight-selected .stickyleft {
                     background: color-mix(in srgb, {{ theme.primary_600|default:"#E54F38" }} 12%, #2e2e2e) !important;
                 }

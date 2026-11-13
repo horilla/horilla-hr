@@ -1699,3 +1699,124 @@ tr[href] > td {
   background-color: #242424;
   border-color: hsl(0, 0%, 25%);
 }
+
+
+/* ====================================
+*        File drop zone
+* Applied by assets/js/file_dropzone.js to every plain <input type="file">:
+* the dashed "Choose or Drop Files Here" box. The real input is stretched
+* invisibly over the box so click, drag-and-drop and validation stay native.
+* ==================================== */
+.hz-file-drop-wrap {
+  width: 100%;
+}
+
+.hz-file-drop {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 4.75rem;
+  padding: 1.25rem 1rem;
+  border: 2px dashed #d1d5db;
+  border-radius: 0.625rem;
+  background: transparent;
+  color: #374151;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.hz-file-drop:hover,
+.hz-file-drop.is-dragover {
+  border-color: var(--primary-600, #e54f38);
+  background: var(--primary-100, #fff5f1);
+}
+
+.hz-file-drop.has-files {
+  border-color: var(--primary-500, #f2b7a6);
+}
+
+.hz-file-drop.is-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.hz-file-drop__icon {
+  flex-shrink: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.hz-file-drop > input[type="file"] {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  opacity: 0 !important;
+  font-size: 0 !important;
+  cursor: pointer;
+}
+
+.hz-file-drop.is-disabled > input[type="file"] {
+  cursor: not-allowed;
+}
+
+.hz-file-drop__files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-top: 0.5rem;
+}
+
+.hz-file-drop__files:empty {
+  display: none;
+}
+
+.hz-file-drop__file {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  max-width: 100%;
+  padding: 0.125rem 0.375rem 0.125rem 0.625rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 9999px;
+  background: #f9fafb;
+  color: #374151;
+  font-size: 0.75rem;
+}
+
+.hz-file-drop__name {
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hz-file-drop__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  padding: 0;
+  border: 0;
+  border-radius: 9999px;
+  background: none;
+  color: #9ca3af;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.hz-file-drop__remove:hover {
+  color: var(--primary-600, #e54f38);
+}
