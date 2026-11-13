@@ -46,6 +46,8 @@ EXEMPT = {
     "base.IntegrationApps": "Per-company integration toggle.",
     "base.SetupChecklistDismissal": "Per-user, per-company UI dismissal flag.",
     "horilla_theme.CompanyTheme": "Per-company theme singleton.",
+    "horilla_identity.ExternalIdentity": "Looked up by explicit provider + company.",
+    "horilla_scim.ScimProvider": "Per-company integration settings.",
     "facedetection.FaceDetection": "Per-company OneToOne settings row.",
     "geofencing.GeoFencing": "Per-company OneToOne settings row.",
     "horilla_audit.HistoryTrackingFields": "Per-company audit configuration.",
