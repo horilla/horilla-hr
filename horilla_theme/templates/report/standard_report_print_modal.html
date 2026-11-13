@@ -12,23 +12,22 @@
     <form
         action="{{ export_url }}"
         method="get"
-        onsubmit="event.stopPropagation();
-            $(this).parents().find('.oh-modal--show').last().toggleClass('oh-modal--show');"
+        hx-get="{{ preview_url }}"
+        hx-target="#sr-preview-region"
+        hx-swap="innerHTML"
+        hx-indicator="#sr-preview-loading"
         id="standardReportPrintForm"
+        data-export-url="{{ export_url }}"
+        novalidate
     >
         <div class="oh-dropdown__filter-body">
-            <div class="oh-accordion oh-accordion--show">
-                <div
-                    class="oh-accordion-header"
-                    onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
-                >
-                    {% trans "Period" %}
-                </div>
-                <div class="oh-accordion-body">
+            <div class="mb-3">
+                <div class="oh-label fw-bold mb-2">{% trans "Period" %}</div>
+                <div>
                     <div class="row">
                         <div class="col-sm-12 col-md-12 col-lg-12">
                             <div class="oh-input-group">
-                                <label class="oh-label" for="sr-print-period">{% trans "Period" %}</label>
+                                <label class="oh-label" for="sr-print-period">{% trans "Select period" %}</label>
                                 <select class="oh-select w-100" name="period_preset" id="sr-print-period">
                                     {% for p in filter_options.period_presets %}
                                     <option value="{{ p.id }}" {% if p.id == default_period %}selected{% endif %}>{{ p.label }}</option>
@@ -38,13 +37,13 @@
                         </div>
                         <div class="col-sm-12 col-md-6 col-lg-6 sr-print-custom-dates" id="sr-print-from-wrap" hidden>
                             <div class="oh-input-group">
-                                <label class="oh-label" for="sr-print-from">{% trans "From" %}</label>
+                                <label class="oh-label" for="sr-print-from">{% trans "Start Date" %}</label>
                                 <input class="oh-input w-100" type="date" name="from_date" id="sr-print-from">
                             </div>
                         </div>
                         <div class="col-sm-12 col-md-6 col-lg-6 sr-print-custom-dates" id="sr-print-to-wrap" hidden>
                             <div class="oh-input-group">
-                                <label class="oh-label" for="sr-print-to">{% trans "To" %}</label>
+                                <label class="oh-label" for="sr-print-to">{% trans "End Date" %}</label>
                                 <input class="oh-input w-100" type="date" name="to_date" id="sr-print-to">
                             </div>
                         </div>
@@ -52,49 +51,7 @@
                 </div>
             </div>
 
-            {% if filter_schema.primary or filter_schema.advanced %}
-            <div class="oh-accordion oh-accordion--show">
-                <div
-                    class="oh-accordion-header"
-                    onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
-                >
-                    {% trans "Filters" %}
-                </div>
-                <div class="oh-accordion-body">
-                    <div class="row">
-                        {% for field in filter_schema.primary %}
-                        <div class="col-sm-12 col-md-6 col-lg-6">
-                            <div class="oh-input-group">
-                                <label class="oh-label" for="sr-print-{{ field.id }}">{{ field.label }}</label>
-                                <select class="oh-select w-100" name="{{ field.id }}" id="sr-print-{{ field.id }}">
-                                    {% if field.empty_label %}<option value="">{{ field.empty_label }}</option>{% endif %}
-                                    {% for choice in field.choices %}
-                                    <option
-                                        value="{{ choice.id }}"
-                                        {% if field.id == "employment_status" and choice.id == default_employment_status %}selected{% endif %}
-                                    >{{ choice.label }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                        {% endfor %}
-                        {% for field in filter_schema.advanced %}
-                        <div class="col-sm-12 col-md-6 col-lg-6">
-                            <div class="oh-input-group">
-                                <label class="oh-label" for="sr-print-{{ field.id }}">{{ field.label }}</label>
-                                <select class="oh-select w-100" name="{{ field.id }}" id="sr-print-{{ field.id }}">
-                                    {% if field.empty_label %}<option value="">{{ field.empty_label }}</option>{% endif %}
-                                    {% for choice in field.choices %}
-                                    <option value="{{ choice.id }}">{{ choice.label }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-            {% endif %}
+            <input type="hidden" name="employment_status" value="{{ default_employment_status }}">
         </div>
 
         {# "text-muted small" are Bootstrap utilities this Tailwind-based theme #}
@@ -104,15 +61,29 @@
             {% blocktrans with limit=pdf_row_limit %}PDF shows the first {{ limit }} rows. Use Excel for a fuller extract.{% endblocktrans %}
         </p>
 
-        {# "Open full report" hidden for now — detail page design isn't finalized yet. #}
+        <div id="sr-date-error" class="text-danger text-xs mt-2" role="alert" hidden></div>
+
+        <style>
+            #sr-preview-loading { display: none; }
+            #sr-preview-loading.htmx-request { display: block; }
+        </style>
+        <div id="sr-preview-loading" class="htmx-indicator text-center py-3 text-gray-500">
+            <ion-icon name="sync-outline" class="sr-spin"></ion-icon> {% trans "Generating preview..." %}
+        </div>
+        <div id="sr-preview-region" class="mt-3"></div>
+
         <div class="oh-modal__dialog-footer pt-3 flex-wrap gap-2">
-            <button type="submit" name="format" value="xlsx" class="oh-btn oh-btn--secondary oh-btn--small">
-                <ion-icon name="download-outline"></ion-icon>
-                {% trans "Print Excel" %}
+            <button type="submit" class="oh-btn oh-btn--secondary oh-btn--small" id="sr-preview-btn">
+                <ion-icon name="refresh-outline"></ion-icon>
+                {% trans "Generate / Refresh Preview" %}
             </button>
-            <button type="submit" name="format" value="pdf" class="oh-btn oh-btn--secondary oh-btn--small">
+            <button type="button" class="oh-btn oh-btn--secondary oh-btn--small sr-download" data-format="xlsx" disabled>
                 <ion-icon name="download-outline"></ion-icon>
-                {% trans "Print PDF" %}
+                {% trans "Download Excel" %}
+            </button>
+            <button type="button" class="oh-btn oh-btn--secondary oh-btn--small sr-download" data-format="pdf" disabled>
+                <ion-icon name="download-outline"></ion-icon>
+                {% trans "Download PDF" %}
             </button>
         </div>
     </form>
@@ -137,6 +108,89 @@
     if (period) {
         period.addEventListener("change", toggleCustomDates);
         toggleCustomDates();
+    }
+
+    var form = document.getElementById("standardReportPrintForm");
+    if (form) {
+        var region = document.getElementById("sr-preview-region");
+        var errBox = document.getElementById("sr-date-error");
+        var downloads = form.querySelectorAll(".sr-download");
+        var from = document.getElementById("sr-print-from");
+        var to = document.getElementById("sr-print-to");
+        var previewed = null;
+
+        function params() {
+            return new URLSearchParams(new FormData(form)).toString();
+        }
+        function setDownloads() {
+            var ok = previewed !== null && previewed === params();
+            downloads.forEach(function (b) { b.disabled = !ok; });
+        }
+        function dateError() {
+            if (!period || period.value !== "custom") return "";
+            if (!from.value || !to.value) return "{% trans 'Please select both a Start Date and an End Date.' %}";
+            if (to.value < from.value) return "{% trans 'End Date cannot be earlier than Start Date.' %}";
+            return "";
+        }
+        function showError(msg) {
+            errBox.textContent = msg;
+            errBox.hidden = !msg;
+        }
+        if (from && to) {
+            from.addEventListener("change", function () { to.min = from.value || ""; });
+        }
+
+        form.addEventListener("htmx:beforeRequest", function (e) {
+            if (e.target !== form) return;
+            var msg = dateError();
+            showError(msg);
+            if (msg) { e.preventDefault(); return; }
+            downloads.forEach(function (b) { b.disabled = true; });
+        });
+        form.addEventListener("htmx:afterSwap", function (e) {
+            if (e.target !== region) return;
+            var ok = region.querySelector('[data-sr-preview-state="ok"]');
+            previewed = ok ? params() : null;
+            setDownloads();
+        });
+        form.addEventListener("htmx:responseError", function () {
+            region.innerHTML = '<div class="oh-alert-container"><div class="oh-alert oh-alert--animated oh-alert--danger">{% trans "Could not generate the preview. Please try again." %}</div></div>';
+        });
+        // Any change makes the preview stale; refresh it automatically.
+        var timer = null;
+        function refresh() {
+            clearTimeout(timer);
+            timer = setTimeout(function () { htmx.trigger(form, "submit"); }, 300);
+        }
+        $(form).on("change", "select, input", function () { showError(""); setDownloads(); refresh(); });
+        form.addEventListener("submit", function (e) { e.preventDefault(); });
+        // Show the preview as soon as the modal opens.
+        if (window.htmx) { htmx.process(form); refresh(); }
+
+        downloads.forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                if (btn.disabled) return;
+                var q = new URLSearchParams(new FormData(form));
+                q.set("format", btn.dataset.format);
+                window.location.href = form.dataset.exportUrl + "?" + q.toString();
+            });
+        });
+
+        // Widen the shared modal for the preview table; restore on close.
+        var modalEl = document.getElementById("genericModal");
+        var dialog = modalEl && modalEl.querySelector(".oh-modal__dialog");
+        if (dialog) {
+            dialog.style.maxWidth = "1200px";
+            dialog.style.width = "92vw";
+            var obs = new MutationObserver(function () {
+                if (!modalEl.classList.contains("oh-modal--show")) {
+                    dialog.style.maxWidth = "";
+                    dialog.style.width = "";
+                    obs.disconnect();
+                }
+            });
+            obs.observe(modalEl, { attributes: true, attributeFilter: ["class"] });
+        }
     }
 
     var $modal = $("#genericModal");

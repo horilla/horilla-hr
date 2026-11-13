@@ -196,14 +196,16 @@
             <div id="pageAppliedFilterChips" class="oh-applied-filters__chips"></div>
         </div>
 
-        <!-- Pivot Container -->
-        <!-- The "Table"/renderer <select> normally sits wedged in the pivot
-             grid's top-left corner -- moved out to a plain standalone
-             control up here instead (see relocateRendererSelect() in the
-             script below), so it reads as a page-level "view as" setting
-             rather than one more cramped field inside the builder grid. -->
-        <div id="oh-report-view-slot" class="oh-report-view-slot">
-            <label>{% trans "View As" %}</label>
+        <div class="oh-report-controls">
+            <!-- Pivot Container -->
+            <!-- The "Table"/renderer <select> normally sits wedged in the pivot
+                 grid's top-left corner -- moved out to a plain standalone
+                 control up here instead (see relocateRendererSelect() in the
+                 script below), so it reads as a page-level "view as" setting
+                 rather than one more cramped field inside the builder grid. -->
+            <div id="oh-report-view-slot" class="oh-report-view-slot" style="font-size:14px;">
+                <label style="font-size:14px;"><ion-icon name="eye-outline"></ion-icon>{% trans "View As" %} :</label>
+            </div>
         </div>
         <p class="oh-report-drag-hint">{% trans "Drag fields between the boxes below to change how this report is grouped." %}</p>
         <div id="pivot-container" class="mb-5" style="width: 100%; overflow-x: auto"></div>
@@ -222,6 +224,13 @@
     // line of this script runs, silently breaking the page. A function
     // scope per script execution avoids that entirely.
     (function () {
+        // "Table Barchart" (pivottable.js's own built-in renderer, mini bar
+        // charts inside each table cell) isn't wanted in the "View As"
+        // list -- every `renderers: $.extend($.pivotUtilities.renderers,
+        // plotlyRenderers)` call below extends (and so returns) this same
+        // shared object, so removing the key here once, before any of them
+        // run, drops it everywhere "View As" is built from it.
+        delete $.pivotUtilities.renderers["Table Barchart"];
 
     // ------------------------------------------------------------------
     // Report Templates: save/reload the current field arrangement
@@ -319,8 +328,14 @@
         var $slot = $("#oh-report-view-slot");
         var $select = $("#pivot-container .pvtUi select.pvtRenderer");
         if (!$slot.length || !$select.length) return;
-        $slot.find("select.pvtRenderer").remove();
-        $slot.append($select);
+        // Remove everything but the label: the old select itself, plus its
+        // Select2 widget -- a separate sibling element Select2 inserts next
+        // to it, which "select.pvtRenderer".remove() alone never touches,
+        // leaving one orphaned widget behind every time the report model
+        // (and so pivottable.js's whole UI, renderer select included) is
+        // rebuilt from scratch.
+        $slot.children().not("label").remove();
+        $slot.append($select.addClass("oh-select"));
     }
 
     // PivotTable.js always labels the grand-total row/column header
