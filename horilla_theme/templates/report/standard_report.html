@@ -325,7 +325,7 @@
                     </li>
                     {% if can_subscribe %}
                     <li>
-                        <a class="px-4 py-1.5 hover:text-primary-600 transition duration-300 text-xs gap-4 items-center flex w-full cursor-pointer" id="sr-subscribe">{% trans "Subscribe" %}</a>
+                        <a class="px-4 py-1.5 hover:text-primary-600 transition duration-300 text-xs gap-4 items-center flex w-full cursor-pointer" id="sr-subscribe">{% trans "Schedule" %}</a>
                     </li>
                     {% endif %}
                     {% if explorer_url %}
@@ -427,7 +427,7 @@
     <div class="oh-modal" id="sr-subscribe-modal" role="dialog" aria-modal="true" aria-labelledby="sr-subscribe-title" aria-hidden="true">
         <div class="oh-modal__dialog">
             <div class="oh-modal__dialog-header">
-                <h2 class="oh-modal__dialog-title" id="sr-subscribe-title">{% trans "Subscribe to this report" %}</h2>
+                <h2 class="oh-modal__dialog-title" id="sr-subscribe-title">{% trans "Schedule this report" %}</h2>
                 <button type="button" class="oh-modal__close" id="sr-sub-close">
                     <ion-icon name="close-outline"></ion-icon>
                 </button>
@@ -460,7 +460,7 @@
             </div>
             <div class="oh-modal__dialog-footer">
                 <button type="button" class="oh-btn oh-btn--secondary-outline oh-btn--small" id="sr-sub-cancel">{% trans "Cancel" %}</button>
-                <button type="button" class="oh-btn oh-btn--secondary oh-btn--small" id="sr-sub-save">{% trans "Create subscription" %}</button>
+                <button type="button" class="oh-btn oh-btn--secondary oh-btn--small" id="sr-sub-save">{% trans "Create schedule" %}</button>
             </div>
         </div>
     </div>
@@ -1604,11 +1604,11 @@
                 }),
             });
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error || "Failed to subscribe");
+            if (!res.ok) throw new Error(data.error || "Failed to schedule");
             closeSubscribeModal();
             if (data.manage_url && window.confirm(
-                (data.message || "{% trans 'Subscription created.'|escapejs %}") +
-                "\n\n{% trans 'Open subscriptions list?'|escapejs %}"
+                (data.message || "{% trans 'Schedule created.'|escapejs %}") +
+                "\n\n{% trans 'Open schedules list?'|escapejs %}"
             )) {
                 window.location.href = data.manage_url;
             }
