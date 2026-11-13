@@ -359,3 +359,7 @@ class DepartmentManagerCreateForm(ModelForm):
                 self.fields["manager"].queryset = Employee.objects.filter(
                     id__in=employees
                 )
+        elif self.is_bound and self.data.get("department"):
+            self.fields["manager"].queryset = Employee.objects.filter(
+                employee_work_info__department_id=self.data.get("department")
+            )
