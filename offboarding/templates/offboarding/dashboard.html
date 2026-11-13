@@ -1245,7 +1245,11 @@
                     const el = document.getElementById('ob-pipeline');
                     if (!data.stages.length) { el.innerHTML = emptyHtml('{% trans "No offboarding stages"|escapejs %}'); return; }
                     const stageColors = { notice_period: 'rgba(245,158,11,0.15)', interview: 'rgba(99,102,241,0.15)', handover: 'rgba(59,130,246,0.15)', fnf: 'rgba(168,85,247,0.15)', other: 'rgba(148,163,184,0.15)', archived: 'rgba(34,197,94,0.15)' };
-                    const stageTextColors = { notice_period: '#d97706', interview: '#4f46e5', handover: '#2563eb', fnf: '#7c3aed', other: '#64748b', archived: '#16a34a' };
+                    const isDarkTheme = document.body.classList.contains('dark');
+                    // The light-theme shades are ~2:1 against the dark tinted cards; use lighter tints there.
+                    const stageTextColors = isDarkTheme
+                        ? { notice_period: '#fbbf24', interview: '#a5b4fc', handover: '#93c5fd', fnf: '#c4b5fd', other: '#cbd5e1', archived: '#4ade80' }
+                        : { notice_period: '#d97706', interview: '#4f46e5', handover: '#2563eb', fnf: '#7c3aed', other: '#64748b', archived: '#16a34a' };
                     el.innerHTML = '<div class="ob-pipeline">' + data.stages.map(s =>
                         `<a href="${offboardingPipelineUrl}?stage_type=${s.type}" class="ob-pipeline-step" style="background:${stageColors[s.type] || 'rgba(148,163,184,0.15)'};color:inherit;text-decoration:none;display:block;">
                     <div class="ob-pipeline-step__count" style="color:${stageTextColors[s.type] || '#64748b'};">${s.count}</div>

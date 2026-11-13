@@ -4,7 +4,8 @@
     <div
         hx-get="{% url 'document-request-nav-cbv' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}"
         hx-trigger="load"
-        style="position: sticky; top: 75px; z-index: 30; background: #fff;"
+        class="bg-white"
+        style="position: sticky; top: 75px; z-index: 30;"
     ></div>
 
     <p class="text-xs text-gray-500 mt-1 ml-2">

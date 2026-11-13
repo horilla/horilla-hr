@@ -59,6 +59,37 @@ It follows the pointer's position (not hover events, which are unreliable while 
     .vp__row--over .vp__bar > i { background: #dc2626; }
     .vp__row--full .vp__bar > i { background: #10b981; }
     .vp__row--partial .vp__bar > i { background: #f59e0b; }
+
+    /* Dark mode: the pill, the hover popover and its cards are otherwise white. */
+    .dark .vp__pill { border-color: #444; background: #2a2a2a; color: #ddd; }
+    .dark .vp:hover .vp__pill, .dark .vp:focus-visible .vp__pill, .dark .vp:focus-within .vp__pill { border-color: #666; box-shadow: none; }
+    .dark .vp__pill ion-icon { color: #aaa; }
+    .dark .vp__count { color: #fff; }
+    .dark .vp--full .vp__count { color: #34d399; }
+    .dark .vp--over .vp__count { color: #f87171; }
+    .dark .vp__bar { background: #444; }
+    .dark .vp__over { border-color: #7f1d1d; background: #3b1212; color: #fca5a5; }
+    .dark .vp__over ion-icon { color: #fca5a5; }
+    .dark .vp__overpos { background: #2a2a2a; color: #fca5a5; }
+    .dark .vp__pop { border-color: #444; background: #242424; box-shadow: 0 16px 40px rgba(0, 0, 0, .6); color: #ddd; }
+    .dark .vp__head { border-bottom-color: #3a3a3a; background: #1f1f1f; }
+    .dark .vp__title { color: #fff; }
+    .dark .vp__state { border-color: #444; background: #2f2f2f; color: #ccc; }
+    .dark .vp__state--partial { border-color: #78531a; background: #3a2c10; color: #fcd34d; }
+    .dark .vp__state--full { border-color: #14532d; background: #10301f; color: #6ee7b7; }
+    .dark .vp__state--over { border-color: #7f1d1d; background: #3b1212; color: #fca5a5; }
+    .dark .vp__stat { border-color: #3a3a3a; background: #1f1f1f; }
+    .dark .vp__stat b { color: #fff; }
+    .dark .vp__stat span { color: #aaa; }
+    .dark .vp__stat--over b { color: #f87171; }
+    .dark .vp__table th { border-bottom-color: #3a3a3a; color: #aaa; }
+    .dark .vp__table td { border-bottom-color: #333; }
+    .dark .vp__table tfoot td { border-top-color: #3a3a3a; background: #1f1f1f; }
+    .dark .vp__name { color: #fff; }
+    .dark .vp__dept { color: #aaa; }
+    .dark .vp__muted { color: #888; }
+    .dark .vp__tag { background: #10301f; color: #6ee7b7; }
+    .dark .vp__tag.vp__tag--over { background: #3b1212; color: #fca5a5; }
   </style>
   <span class="vp__pill vp--{{ vacancy.state }}">
     <ion-icon name="people-outline"></ion-icon>

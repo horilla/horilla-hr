@@ -6,14 +6,7 @@
     .sr-tabs-row-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .sr-tabs-row-top .oh-btn { flex-shrink: 0; }
 
-    /* Browse/Audit/Subscriptions — chip-pill tabs with a count badge each,
-       matching HorillaTabView's real look (horilla_theme/templates/generic/
-       horilla_tabs.html: .oh-tabs__tab / .oh-tabs__tab--active / the coral
-       count-circle). Values copied from that component; kept as our own
-       .sr-tab classes rather than swapping in HorillaTabView itself, since
-       that component's JS drives its own htmx-per-tab-url/localStorage-free
-       lazy-load machinery, while this page already has its own (simpler,
-       already-correct) tab-switch JS below. */
+    /* Chip tabs with a count badge, styled like HorillaTabView. */
     #srTabs { display: flex; gap: 8px; margin-bottom: 4px; }
     #srTabs .sr-tab {
         cursor: pointer;
@@ -56,51 +49,13 @@
         flex-wrap: wrap;
     }
     .sr-toolbar[hidden] { display: none; }
-    /* Audit/Subscriptions tabs live inside the toolbar, so switching away
-       from Browse must hide the search/sort/view controls (irrelevant to
-       those real CBV-backed panels, which bring their own Nav search)
-       while keeping the tab group itself visible and clickable. */
+    /* Audit and Schedule tabs bring their own nav, so hide the Browse controls. */
     .sr-toolbar--minimal .sr-toolbar-controls-card { display: none; }
     #srTabsRow { width: 100%; display: flex; flex-direction: column; gap: 12px; }
-    /* Every region on a standard Horilla list page sits inside its own
-       white card (HorillaTabView's chip-tab bar in one, HorillaNavView's
-       toolbar + the table in another) rather than floating on the grey
-       page background — this reproduces that same "nothing floats bare"
-       structure for the tab bar and the search/sort/view toolbar. */
-    .sr-card-block {
-        background: hsl(0, 0%, 100%);
-        border-radius: 6px;
-        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.05);
-        padding: 12px 16px;
-    }
-    .dark .sr-card-block { background: #242424; }
     .sr-toolbar-controls-card { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .sr-search { position: relative; flex: 1; min-width: 200px; max-width: 420px; }
-    .sr-search ion-icon {
-        position: absolute;
-        left: 12px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: hsl(0, 0%, 60%);
-        font-size: 15px;
-        pointer-events: none;
-    }
-    .sr-search input {
-        width: 100%;
-        box-sizing: border-box;
-        padding: 9px 12px 9px 34px;
-        border: 1px solid #ebebeb;
-        border-radius: 6px;
-        font-size: 14px;
-        background: hsl(0, 0%, 100%);
-        color: inherit;
-    }
-    .dark .sr-search input { background: hsl(0, 0%, 15%); border-color: hsl(0, 0%, 30%); }
 
-    /* Sort/Recent triggers match HorillaNavView's real Filter-button look
-       (horilla_theme/templates/generic/horilla_nav.html: white bg + a
-       coral-tinted border, not oh-btn--light-bkg's grey fill -- see
-       markup); only the dropdown-content panels below are page-specific. */
+    /* Sort and Recent dropdown panels. */
     .sr-sort-menu { min-width: 180px; padding: 6px; right: 0; }
     .sr-sort-option {
         display: block;
@@ -140,65 +95,13 @@
     .sr-chip-item:hover { background: hsl(0, 0%, 95%); }
     .dark .sr-chip-item:hover { background: hsl(0, 0%, 22%); }
 
-    /* List/Grid toggle uses the real oh-btn--view/oh-btn--view-active
-       button classes, but this theme's own stylesheet (v1_styles.css)
-       never defines the *container* look (main.css/style.min.css do, but
-       this theme's index.html doesn't load either) -- confirmed via direct
-       inspection of main.css: the two items share one border with no gap
-       (`.oh-view-type:first-child { border-right: 0; }`), forming one
-       merged segmented control, not two separate floating buttons.
-       Reproduced here rather than loading the unrelated legacy stylesheet. */
-    #srViewToggle {
-        display: flex;
-        list-style: none;
-        padding-left: 0;
-        margin-bottom: 0;
-    }
-    #srViewToggle .oh-btn--view,
-    #srViewToggle .oh-btn--view-active {
-        border-radius: 0;
-    }
-    #srViewToggle li:first-child .oh-btn--view,
-    #srViewToggle li:first-child .oh-btn--view-active {
-        border-radius: 6px 0 0 6px;
-    }
-    #srViewToggle li:last-child .oh-btn--view,
-    #srViewToggle li:last-child .oh-btn--view-active {
-        border-radius: 0 6px 6px 0;
-        border-left: 0;
-    }
-
-    /* Two-column workspace: list (rail+sections) + inspector panel. Grid
-       mode collapses to one column — there's no inspector in grid mode
-       (1c's own mockup has no right panel either; grid is for bulk/
-       overview scanning, list is for focused single-report work). */
-    .sr-workspace { display: grid; grid-template-columns: 1fr 320px; gap: 20px; align-items: start; }
-    .sr-workspace.sr-view--grid { grid-template-columns: 1fr; }
-    .sr-workspace.sr-view--grid .sr-inspector { display: none; }
-    @media (max-width: 1100px) {
-        .sr-workspace { grid-template-columns: 1fr; }
-        .sr-inspector { display: none; }
-    }
-
-    /* Whole Browse list (rail + sections) sits inside one real card — same
-       tokens as .oh-card / the theme's own card component — instead of
-       floating directly on the page's grey background. The individual
-       .sr-rows groups below keep their own (lighter) border, nested inside
-       this outer card — same "outer card wraps individually-bordered
-       items" pattern the Employees grid itself uses. */
     .sr-browse-layout {
         display: grid;
         grid-template-columns: 190px 1fr;
         gap: 24px;
         align-items: start;
-        background: hsl(0, 0%, 100%);
-        border: 1px solid #ebebeb;
-        border-radius: 6px;
-        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.05);
-        padding: 20px;
         min-width: 0;
     }
-    .dark .sr-browse-layout { background: #242424; border-color: hsl(0, 0%, 25%); }
     @media (max-width: 900px) {
         .sr-browse-layout { grid-template-columns: 1fr; }
         .sr-rail { display: none; }
@@ -245,24 +148,13 @@
     .sr-saved-view--active { background: var(--primary-100, #FFF5F1); color: var(--primary-600, #E54F38); }
     .dark .sr-saved-view--active { background: rgba(229, 79, 56, .16); color: var(--primary-500, #F7C8C1); }
     .sr-saved-view__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    /* "My favorites" is the one saved-view row with an icon -- a real icon
-       (not the literal "★" text glyph this had before) sized/aligned to sit
-       on the same baseline as the row text, colored via currentColor so it
-       picks up the row's own hover/active coloring instead of staying a
-       fixed color while the text around it changes. */
     .sr-saved-view__icon {
         font-size: 13px;
         vertical-align: -1px;
         margin-right: 2px;
     }
     .sr-saved-view__del {
-        /* Always present/hit-testable — never display:none — so a real
-           hover-then-click doesn't race the moment the row's :hover state
-           (and the box this creates/removes from layout) settles. Opacity
-           keeps the "only prominent on hover" look without that race:
-           reproduced via automated hover+click sequences intermittently
-           landing on nothing (no confirm dialog, no request) when this was
-           display:none/inline. */
+        /* Hidden with opacity, not display:none, so hover-then-click stays reliable. */
         flex-shrink: 0;
         opacity: 0;
         color: #999;
@@ -288,6 +180,7 @@
         text-align: left;
     }
     .sr-save-view-btn:hover { background: var(--primary-100, #FFF5F1); border-radius: 6px; }
+    .dark .sr-save-view-btn:hover { background: rgba(229, 79, 56, .16); }
 
     .sr-sections { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
     .sr-section--hidden { display: none; }
@@ -306,42 +199,19 @@
 
     .sr-rows { background: hsl(0, 0%, 100%); border: 1px solid #ebebeb; border-radius: 6px; overflow: hidden; }
     .dark .sr-rows { background: hsl(0, 0%, 16%); border-color: hsl(0, 0%, 25%); }
-    /* Colored left border keyed to domain — same visual language as the
-       colored row_status_class border used on model-backed lists (e.g.
-       payroll's Payslip list), just keyed to domain instead of a lifecycle
-       status since reports don't have one. */
+    /* Left border is colored per domain. */
     .sr-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #ebebeb; border-left: 3.4px solid transparent; cursor: pointer; }
     .dark .sr-row { border-color: hsl(0, 0%, 25%); }
     .sr-row:last-child { border-bottom: none; }
     .sr-row:hover { background: hsl(213, 22%, 96%); }
     .dark .sr-row:hover { background: hsl(0, 0%, 18%); }
     .sr-row--hidden { display: none; }
-    /* Selected-for-inspector state (list mode only) — coral instead of the
-       mockup's blue. */
+    /* Rows belonging to the active saved view. */
     .sr-row.is-selected { background: var(--primary-100, #FFF5F1); }
     .dark .sr-row.is-selected { background: rgba(229, 79, 56, .14); }
-    .sr-row__icon {
-        width: 30px;
-        height: 30px;
-        border-radius: 6px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 14px;
-        flex-shrink: 0;
-    }
     .sr-row__body { flex: 1; min-width: 0; }
-    /* Explicit font-size/color instead of relying on the template's
-       "text-muted small" classes — this theme doesn't load Bootstrap, so
-       those never actually applied. Sizes/colors match the real list
-       table's own header/cell typography (14px/#000 header-ish text,
-       14px/#666 muted cell text) confirmed via computed styles on the
-       Audit tab's real HorillaListView table. */
     .sr-row__name { font-weight: 600; font-size: 14px; line-height: 1.4; }
-    /* 13px and single-line for the list: at 14px the description carried the
-       same visual weight as the name it sits under, so nothing anchored the
-       eye when scanning 30+ rows. One line keeps every row the same height
-       -- the inspector panel is where the full text belongs. */
+    /* Single-line description so every row has the same height. */
     .sr-row__desc {
         margin-top: 1px;
         font-size: 13px;
@@ -362,23 +232,11 @@
     }
     .dark .sr-row__meta { color: hsl(0, 0%, 65%); }
     .sr-row__actions { display: flex; gap: 4px; flex-shrink: 0; }
-    /* Favorite/Subscribe are real oh-btn--sq-sm oh-btn--transparent icon
-       buttons (see markup) — only the primary-color hover tint is added on
-       top here, matching the same tint used on the report detail page. */
+    /* Hover tint for the favorite and schedule buttons. */
     .sr-row__btn:hover { background: var(--primary-100, #FFF5F1); color: var(--primary-600, #E54F38); }
     .sr-fav-btn.is-on { color: var(--primary-600, #E54F38); }
 
-    /* Grid view — same .sr-row elements/data, restyled via CSS Grid instead
-       of duplicate markup. Tokens (border #ebebeb, .shadow-card box-shadow,
-       text-sm/text-xs sizing) are copied from the theme's own card
-       component — horilla_theme/templates/generic/horilla_card.html, which
-       is what HorillaCardView (e.g. the Employees grid) actually renders. */
-    /* 320px floor rather than 260px: at 260 the old four-across
-       "check | icon | body | actions" band left the description roughly
-       130px wide, which wrapped it to ~7 words a line and stretched cards
-       to ~490px tall for ~30 words. The theme's own card grid
-       (generic/horilla_card.html) uses a fixed grid-cols-4, so this tracks
-       the same density while still collapsing on narrow screens. */
+    /* Grid view: the same rows restyled as cards. */
     .sr-sections.sr-view--grid .sr-rows {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -386,21 +244,16 @@
         background: transparent;
         border: none;
     }
-    /* Header band (icon + title) over a full-width description, instead of
-       the description sharing a row with the icon and action buttons. The
-       description gets the card's whole width, and actions are lifted out
-       of flow to the top-right corner the way the theme card's own
-       dropdown-toggle is positioned. */
+    /* Icon and title on top, full-width description below. */
     .sr-sections.sr-view--grid .sr-row.sr-row--hidden { display: none; }
     .sr-sections.sr-view--grid .sr-row {
         position: relative;
         display: grid;
-        grid-template-columns: 34px minmax(0, 1fr);
+        grid-template-columns: minmax(0, 1fr);
         grid-template-areas:
-            "icon  name"
-            "desc  desc"
-            "meta  meta";
-        column-gap: 10px;
+            "name"
+            "desc"
+            "meta";
         row-gap: 8px;
         align-content: start;
         align-items: center;
@@ -411,10 +264,6 @@
         box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.05);
         padding: 12px 14px;
         min-width: 0;
-        /* Deliberately no min-height: a short description left ~55px of dead
-           space above the meta row. The clamp below bounds the tall end, so
-           cards stay within a line of each other without padding the short
-           ones out to a fixed floor. */
         transition: box-shadow .15s ease, border-color .15s ease;
     }
     .sr-sections.sr-view--grid .sr-row:hover {
@@ -434,10 +283,7 @@
         background: #242424;
         border-color: hsl(0, 0%, 25%);
     }
-    /* Checkbox lifted out of the grid flow to the top-left corner: as a
-       real column it stole ~30px from the description on every card while
-       being used only during bulk-select. It stays hit-testable and only
-       reveals itself on hover or once something is checked. */
+    /* Checkbox sits in the top-left corner, shown on hover or when checked. */
     .sr-sections.sr-view--grid .sr-row__check {
         position: absolute;
         top: 10px;
@@ -454,20 +300,7 @@
     .sr-sections.sr-view--grid .sr-row.is-checked .sr-row__check {
         opacity: 1;
     }
-    /* 34px square with the theme's 6px radius, matching the list view's own
-       icon tile -- the 44px circle was sized for a layout where it sat
-       beside the text rather than above it. */
-    .sr-sections.sr-view--grid .sr-row__icon {
-        grid-area: icon;
-        align-self: center;
-        width: 34px;
-        height: 34px;
-        border-radius: 6px;
-        font-size: 16px;
-    }
-    /* .sr-row__body is a flex wrapper in list mode; in grid mode its two
-       children are promoted onto the card grid itself so the description
-       can span the full width instead of being trapped beside the icon. */
+    /* In grid mode the body's children are placed on the card grid directly. */
     .sr-sections.sr-view--grid .sr-row__body {
         display: contents;
     }
@@ -476,14 +309,13 @@
         font-size: 14px;
         font-weight: 600;
         line-height: 1.35;
-        /* Two lines maximum: report names such as "Quality of Hire
-           (90-day retention)" otherwise push the description down and
-           break card alignment across the row. */
+        /* Two lines maximum. */
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
-        /* Keep clear of the absolutely-positioned action buttons. */
+        /* Leave room for the checkbox and the action buttons. */
+        padding-left: 26px;
         padding-right: 56px;
     }
     .sr-sections.sr-view--grid .sr-row__desc {
@@ -493,15 +325,10 @@
         line-height: 1.5;
         color: #666;
         overflow-wrap: break-word;
-        /* Must reset the list view's nowrap/ellipsis: leaving it set kept
-           every card description on a single line and silently defeated the
-           clamp below. */
+        /* Reset the list view's single-line truncation. */
         white-space: normal;
         text-overflow: clip;
-        /* Clamped rather than unbounded: descriptions run from 6 to 30+
-           words, and without this the tallest one set the height of every
-           card in its row. Full text is available on hover and in the
-           inspector panel. */
+        /* Three lines maximum; the full text is in the tooltip. */
         display: -webkit-box;
         -webkit-line-clamp: 3;
         -webkit-box-orient: vertical;
@@ -511,8 +338,6 @@
     .dark .sr-sections.sr-view--grid .sr-row__desc { color: hsl(0, 0%, 65%); }
     .sr-sections.sr-view--grid .sr-row__meta {
         grid-area: meta;
-        /* start, not end: align-self:end pinned this to the card floor and
-           reopened the same gap the min-height was creating. */
         align-self: start;
         width: auto;
         min-width: 0;
@@ -529,9 +354,7 @@
         color: hsl(0, 0%, 58%);
         border-top-color: hsl(0, 0%, 24%);
     }
-    /* Actions pinned to the top-right, mirroring the theme card's own
-       absolutely-positioned action affordance -- as a grid column they
-       competed with the title for width on every card. */
+    /* Actions pinned to the top-right. */
     .sr-sections.sr-view--grid .sr-row__actions {
         position: absolute;
         top: 10px;
@@ -554,7 +377,7 @@
         justify-content: center;
     }
 
-    /* Bulk action bar — shown once 1+ rows are checked. Coral, not the mockup's blue. */
+    /* Bulk action bar, shown once rows are checked. */
     .sr-bulk-bar {
         display: flex;
         align-items: center;
@@ -576,60 +399,16 @@
 
     .sr-tab-panel[hidden] { display: none; }
 
-    /* Inspector panel — 1b's right-side workspace column. Real data only:
-       Format / "Your subscription" (the current user's own subscription,
-       not a fabricated global "Owner"/"Schedule") and real audit history. */
-    .sr-inspector {
-        background: hsl(0, 0%, 100%);
-        border: 1px solid #ebebeb;
-        border-radius: 6px;
-        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.05);
-        padding: 20px;
-        position: sticky;
-        top: 0;
-    }
-    .dark .sr-inspector { background: #242424; border-color: hsl(0, 0%, 25%); }
-    .sr-inspector__eyebrow {
-        font-size: 12px;
-        font-weight: 700;
-        letter-spacing: 0.05em;
-        color: var(--primary-600, #E54F38);
-        margin-bottom: 6px;
-    }
-    .sr-inspector__title { font-size: 16px; font-weight: 700; margin: 0 0 6px; }
-    .sr-inspector__desc { font-size: 14px; color: #666; margin: 0 0 16px; line-height: 1.5; }
-    .dark .sr-inspector__desc { color: hsl(0, 0%, 65%); }
-    .sr-inspector__actions { display: flex; gap: 8px; margin-bottom: 16px; }
-    .sr-inspector__actions .oh-btn { flex: 1; justify-content: center; }
-    .sr-inspector__grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 12px;
-        padding-bottom: 16px;
-        border-bottom: 1px solid #ebebeb;
-        margin-bottom: 16px;
-    }
-    .dark .sr-inspector__grid { border-color: hsl(0, 0%, 25%); }
-    .sr-inspector__label { font-size: 12px; color: #999; margin-bottom: 2px; }
-    .sr-inspector__value { font-size: 14px; font-weight: 600; }
-    .sr-inspector__section-title { font-size: 12px; font-weight: 700; letter-spacing: 0.05em; color: #666; margin-bottom: 8px; }
-    .dark .sr-inspector__section-title { color: hsl(0, 0%, 65%); }
-    .sr-inspector__audit { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-    .sr-inspector__audit li { font-size: 12px; color: #444; line-height: 1.5; }
-    .dark .sr-inspector__audit li { color: hsl(0, 0%, 78%); }
-    .sr-inspector__audit-actor { font-weight: 600; }
-    .sr-inspector__audit-date { color: #999; }
-    .sr-inspector__empty { color: #999 !important; }
-    .sr-inspector__placeholder { color: #999; font-size: 14px; text-align: center; padding: 30px 0; }
 </style>
 
 <div id="relatedModel"></div>
 
 <div class="oh-wrapper">
+<div class="bg-white p-3 rounded-md shadow-card">
 
     <div class="sr-toolbar" id="srToolbar">
         <div id="srTabsRow">
-            <div class="sr-tabs-row-top sr-card-block">
+            <div class="sr-tabs-row-top">
                 <div id="srTabs">
                     <button type="button" class="sr-tab sr-tab--active" data-tab="browse">
                         <span class="sr-tab__badge">{{ report_count }}</span>
@@ -646,21 +425,35 @@
                         {% trans "Schedule" %}
                     </button>
                 </div>
-                {% if has_explorer_access %}
-                <a class="oh-btn oh-btn--secondary-outline oh-btn--shadow" href="{% url 'report-explorer' %}">
-                    {% trans "Explorer" %}
-                </a>
-                {% endif %}
             </div>
 
-            <div class="sr-toolbar-controls-card sr-card-block">
-                <div class="sr-search">
-                    <ion-icon name="search-outline"></ion-icon>
-                    <input type="text" id="srSearchInput" placeholder="{% trans 'Search reports…' %}">
+            <div class="sr-toolbar-controls-card">
+                <div class="flex flex-wrap justify-between items-center w-full gap-2">
+                <h3 class="text-lg font-semibold">{% trans "Standard Reports" %}</h3>
+                <div class="flex flex-wrap gap-1">
+                <div class="relative sr-search">
+                    <input
+                        type="text"
+                        id="srSearchInput"
+                        class="text-color-600 ps-8 p-1.5 pb-2 placeholder:text-xs w-full border border-primary-500 rounded-md focus-visible:outline-0 placeholder:text-dark-100 text-sm [transition:.3s] focus:border-primary-600"
+                        placeholder="{% trans 'Search reports…' %}"
+                        aria-label="{% trans 'Search Input' %}"
+                        autocomplete="off"
+                    >
+                    <i class="fas fa-search absolute left-3 top-[1px] bottom-0 m-auto flex items-center opacity-50 text-xs"></i>
+                </div>
+
+                <div class="flex gap-1 text-[#000]" id="srViewToggle">
+                    <button type="button" class="tab-btn bg-white px-4 py-2 rounded-md text-xs flex items-center gap-2 border transition duration-300 border-primary-500 nav-view-btn oh-view-btn--active" data-view="list" title="{% trans 'List view' %}">
+                        <ion-icon name="list-outline"></ion-icon>
+                    </button>
+                    <button type="button" class="tab-btn bg-white px-4 py-2 rounded-md text-xs flex items-center gap-2 border transition duration-300 border-primary-500 nav-view-btn" data-view="grid" title="{% trans 'Grid view' %}">
+                        <ion-icon name="grid-outline"></ion-icon>
+                    </button>
                 </div>
 
                 <div class="relative dropdown-wrapper">
-                    <button type="button" class="px-4 py-2 bg-white rounded-md text-xs flex items-center gap-2 border border-primary-500 hover:border-primary-600 transition duration-300 cursor-pointer">
+                    <button type="button" class="px-5 py-2 h-full bg-[white] rounded-md text-xs flex items-center gap-2 border border-primary-500 hover:border-primary-600 transition duration-300 cursor-pointer">
                         <ion-icon name="swap-vertical-outline"></ion-icon>
                         {% trans "Sort" %}
                     </button>
@@ -679,7 +472,7 @@
                     hx-target="find .dropdown-content"
                     hx-swap="innerHTML"
                 >
-                    <button type="button" class="px-4 py-2 bg-white rounded-md text-xs flex items-center gap-2 border border-primary-500 hover:border-primary-600 transition duration-300 cursor-pointer">
+                    <button type="button" class="px-5 py-2 h-full bg-[white] rounded-md text-xs flex items-center gap-2 border border-primary-500 hover:border-primary-600 transition duration-300 cursor-pointer">
                         <ion-icon name="time-outline"></ion-icon>
                         {% trans "Recent" %}
                     </button>
@@ -698,19 +491,8 @@
                         {% endfor %}
                     </div>
                 </div>
-
-                <ul class="oh-view-types" id="srViewToggle">
-                    <li class="oh-view-type" data-view="list">
-                        <a href="#" class="oh-btn oh-btn--view oh-btn--view-active" data-view="list" title="{% trans 'List view' %}">
-                            <ion-icon name="list-outline"></ion-icon>
-                        </a>
-                    </li>
-                    <li class="oh-view-type" data-view="grid">
-                        <a href="#" class="oh-btn oh-btn--view" data-view="grid" title="{% trans 'Grid view' %}">
-                            <ion-icon name="grid-outline"></ion-icon>
-                        </a>
-                    </li>
-                </ul>
+                </div>
+                </div>
             </div>
         </div>
     </div>
@@ -761,7 +543,7 @@
                         <button type="button" class="sr-save-view-btn" id="srCreateViewBtn">+ {% trans "Save view" %}</button>
                     </nav>
 
-                    <div class="sr-sections max-h-[calc(100vh-350px)] overflow-y-auto" id="srSections">
+                    <div class="sr-sections max-h-[calc(100vh_-_260px)] overflow-y-auto" id="srSections">
                         {% for section in sections %}
                         <section id="sec-{{ section.domain }}" class="sr-section" data-domain="{{ section.domain }}">
                             <div class="sr-section__head">
@@ -783,15 +565,14 @@
                                     data-search="{{ report.name|lower }} {{ report.description|lower }}"
                                     data-order="{{ forloop.counter }}"
                                     data-last-run="{% if report.last_run %}{{ report.last_run|date:'c' }}{% endif %}"
-                                    data-print-url="{{ report.print_url }}"
-                                    data-inspector-url="{{ report.inspector_url }}"
+                                    data-toggle="oh-modal-toggle"
+                                    data-target="#genericModal"
+                                    hx-get="{{ report.print_url }}"
+                                    hx-target="#genericModalBody"
                                 >
                                     <label class="sr-row__check" onclick="event.stopPropagation();">
                                         <input type="checkbox" class="oh-input oh-input__checkbox sr-bulk-check" data-slug="{{ report.slug }}">
                                     </label>
-                                    <span class="sr-row__icon" style="background:{{ section.soft }};color:{{ section.color }};">
-                                        <ion-icon name="{{ section.icon }}"></ion-icon>
-                                    </span>
                                     <div class="sr-row__body">
                                         <div class="sr-row__name">{{ report.name }}</div>
                                         <div class="sr-row__desc" title="{{ report.description }}">{{ report.description }}</div>
@@ -833,9 +614,6 @@
                 <div class="sr-no-results" id="srNoResults" hidden>{% trans "No reports match your search." %}</div>
             </div>
 
-            <aside class="sr-inspector" id="srInspector">
-                <div class="sr-inspector__placeholder">{% trans "Select a report to see details." %}</div>
-            </aside>
         </div>
         {% else %}
         <div class="oh-empty">
@@ -850,12 +628,9 @@
     <div id="tabSubs" class="sr-tab-panel" hidden></div>
 
 </div>
+</div>
 
-{# "Save view" name-entry — replaces the native prompt() the browser-chrome-styled #}
-{# dialog that was here before (not this app's design, and blocks Cancel/OK from #}
-{# looking or behaving like the rest of the UI). Purely client-side form (no htmx #}
-{# fetch needed to build it), so it's defined inline rather than routed through   #}
-{# #genericModalBody like the print/export modal. #}
+{# Save view modal #}
 <div class="oh-modal" id="srSaveViewModal" role="dialog" aria-modal="true" aria-labelledby="srSaveViewModalLabel" aria-hidden="true">
     <div class="oh-modal__dialog" style="max-width: 420px;">
         <div class="oh-modal__dialog-header">
@@ -890,8 +665,7 @@
     </div>
 </div>
 
-{# Bulk "Schedule selected" — replaces two chained native prompt() calls    #}
-{# (recipients, then frequency), which broke the flow and could not validate. #}
+{# Bulk schedule modal #}
 <div class="oh-modal" id="srSubscribeModal" role="dialog" aria-modal="true" aria-labelledby="srSubscribeModalLabel" aria-hidden="true">
     <div class="oh-modal__dialog" style="max-width: 460px;">
         <div class="oh-modal__dialog-header">
@@ -949,8 +723,7 @@
     </div>
 </div>
 
-{# Bulk "Add to view" — replaces a prompt() that asked the user to retype an #}
-{# existing view name from a comma-separated list pasted into the dialog.    #}
+{# Bulk add-to-view modal #}
 <div class="oh-modal" id="srAddToViewModal" role="dialog" aria-modal="true" aria-labelledby="srAddToViewModalLabel" aria-hidden="true">
     <div class="oh-modal__dialog" style="max-width: 440px;">
         <div class="oh-modal__dialog-header">
@@ -993,12 +766,7 @@
 <script>
 (function () {
 function initStandardCatalog() {
-    // htmx.min.js loads via a script tag in the base template that comes
-    // after this page's own content — on a fresh page load (not a tab
-    // click), window.htmx doesn't exist yet if this ran immediately/
-    // synchronously, so the Audit/Subscriptions panel fetch below silently
-    // never fired. DOMContentLoaded guarantees every prior synchronous
-    // script tag in the document — including htmx — has already run.
+    // Wait for DOMContentLoaded so htmx is loaded before the panels fetch.
     var tabButtons = document.querySelectorAll("#srTabs .sr-tab");
     var panels = {
         browse: document.getElementById("tabBrowse"),
@@ -1025,14 +793,7 @@ function initStandardCatalog() {
             loaded[tab] = true;
             htmx.ajax("GET", panelUrls[tab], { target: "#" + panels[tab].id, swap: "innerHTML" });
         }
-        // Remember the active tab so a refresh lands back on it instead of
-        // always resetting to Browse. A URL query param (`?tab=...` +
-        // history.replaceState) was tried first, but this app has a global,
-        // unrelated "restore saved filters" script (saveFilters.js) that
-        // unconditionally strips ALL query params from the URL on every
-        // page load — it would silently undo that within moments of load.
-        // localStorage isn't touched by that script, and already proven
-        // reliable here for the List/Grid view preference below.
+        // Remember the active tab in localStorage; saveFilters.js strips query params.
         if (!opts.skipPersist) {
             try { localStorage.setItem("srActiveTab", tab); } catch (e) {}
         }
@@ -1050,12 +811,7 @@ function initStandardCatalog() {
         activate(initialTab, { skipPersist: true });
     }
 
-    // Plain in-page navigation (href="#...") changes the URL hash, which
-    // fires a `popstate` event in modern browsers even for a forward click —
-    // and this app's global popstate handler (index.html) forces a full
-    // page reload to keep htmx-loaded content fresh on browser back/forward.
-    // Every "#"-only trigger below (rail links, the view-type anchors) must
-    // preventDefault() and do its job in JS instead of ever touching the URL.
+    // "#" links below must preventDefault: the global popstate handler reloads the page.
     document.querySelectorAll(".sr-rail-link").forEach(function (link) {
         link.addEventListener("click", function (e) {
             e.preventDefault();
@@ -1180,8 +936,8 @@ function initStandardCatalog() {
         if (sectionsEl) sectionsEl.classList.toggle("sr-view--grid", mode === "grid");
         if (workspaceEl) workspaceEl.classList.toggle("sr-view--grid", mode === "grid");
         if (viewToggle) {
-            viewToggle.querySelectorAll(".oh-btn--view").forEach(function (btn) {
-                btn.classList.toggle("oh-btn--view-active", btn.dataset.view === mode);
+            viewToggle.querySelectorAll(".nav-view-btn").forEach(function (btn) {
+                btn.classList.toggle("oh-view-btn--active", btn.dataset.view === mode);
             });
         }
         updateBulkBar();
@@ -1194,7 +950,7 @@ function initStandardCatalog() {
     applyView(savedViewMode);
 
     if (viewToggle) {
-        viewToggle.querySelectorAll(".oh-btn--view").forEach(function (btn) {
+        viewToggle.querySelectorAll(".nav-view-btn").forEach(function (btn) {
             btn.addEventListener("click", function (e) {
                 e.preventDefault();
                 var mode = btn.dataset.view;
@@ -1202,41 +958,6 @@ function initStandardCatalog() {
                 try { localStorage.setItem("srReportsView", mode); } catch (err) {}
             });
         });
-    }
-
-    // ---- Inspector panel (list mode) ----
-    var inspectorEl = document.getElementById("srInspector");
-
-    function selectRow(row) {
-        if (!row || !window.htmx) return;
-        document.querySelectorAll(".sr-row.is-selected").forEach(function (r) {
-            r.classList.remove("is-selected");
-        });
-        row.classList.add("is-selected");
-        htmx.ajax("GET", row.dataset.inspectorUrl, { target: "#srInspector", swap: "innerHTML" });
-    }
-
-    document.querySelectorAll(".sr-row").forEach(function (row) {
-        row.addEventListener("click", function (e) {
-            if (sectionsEl && sectionsEl.classList.contains("sr-view--grid")) {
-                // Grid mode: no inspector panel — clicking the card body
-                // opens the export modal directly. The #genericModal shell
-                // comes from generic/components.html (pulled in on every
-                // page via the floating_button include, outside the htmx
-                // swap target); the injected content's close button is bound
-                // by the app-wide htmx:afterSettle handler in htmxSelect2.js.
-                htmx.ajax("GET", row.dataset.printUrl, { target: "#genericModalBody", swap: "innerHTML" }).then(function () {
-                    document.getElementById("genericModal").classList.add("oh-modal--show");
-                });
-                return;
-            }
-            selectRow(row);
-        });
-    });
-
-    var firstRow = document.querySelector(".sr-row");
-    if (firstRow && !(sectionsEl && sectionsEl.classList.contains("sr-view--grid"))) {
-        selectRow(firstRow);
     }
 
     // ---- Saved views (sidebar) ----
@@ -1263,15 +984,7 @@ function initStandardCatalog() {
         e.stopPropagation();
         var viewId = e.target.dataset.viewId;
         var rowEl = e.target.closest(".sr-saved-view");
-        // window.confirm is globally overridden app-wide (static/index/index.js)
-        // to route through SweetAlert2 — but only for elements it can trace back
-        // to an htmx trigger (form/a/[hx-*]) via event.target.closest(...). This
-        // span has none, so that override hits its own early-return and hands
-        // back undefined every time, which reads as "cancelled" — the delete
-        // silently never fires. Calling Swal directly (the same fix already
-        // used for this exact issue elsewhere in this app, e.g. the report
-        // template delete in standard_report_print_modal's sibling views)
-        // sidesteps the override instead of fighting it.
+        // Call Swal directly: the global confirm override ignores elements without an htmx trigger.
         Swal.fire({
             text: "{% trans 'Delete this saved view?'|escapejs %}",
             icon: "question",
@@ -1291,7 +1004,7 @@ function initStandardCatalog() {
         });
     });
 
-    // ---- Save view modal (replaces the native prompt()) ----
+    // ---- Save view modal ----
     var saveViewModal = document.getElementById("srSaveViewModal");
     var saveViewInput = document.getElementById("srSaveViewName");
     var saveViewError = document.getElementById("srSaveViewError");
@@ -1361,9 +1074,7 @@ function initStandardCatalog() {
     saveViewInput.addEventListener("keydown", function (e) {
         if (e.key === "Enter") { e.preventDefault(); submitSaveView(); }
     });
-    // Clear the inline error the moment the user starts fixing the name —
-    // otherwise a stale "duplicate name" message lingers after they've
-    // already changed it.
+    // Clear the inline error as soon as the name changes.
     saveViewInput.addEventListener("input", function () { setSaveViewError(""); });
     saveViewModal.addEventListener("click", function (e) {
         if (e.target === saveViewModal) closeSaveViewModal();
@@ -1396,18 +1107,14 @@ function initStandardCatalog() {
     document.querySelectorAll(".sr-bulk-check").forEach(function (cb) {
         cb.addEventListener("click", function (e) { e.stopPropagation(); });
         cb.addEventListener("change", function () {
-            // In grid mode the checkbox only appears on hover, so a checked
-            // card needs to keep showing it once the pointer moves away.
+            // The checkbox is hover-only in grid mode, so keep it visible while checked.
             var card = cb.closest(".sr-row");
             if (card) card.classList.toggle("is-checked", cb.checked);
             updateBulkBar();
         });
     });
 
-    // ---- Toast, replacing alert() for bulk-action feedback ----
-    // alert() halts the JS event loop and renders in browser chrome, so it
-    // looked nothing like the rest of the app and blocked interaction until
-    // dismissed. This is non-blocking and dismisses itself.
+    // ---- Toast for bulk-action feedback ----
     function srToast(message, kind) {
         var host = document.getElementById("srToastHost");
         if (!host) {
@@ -1453,7 +1160,7 @@ function initStandardCatalog() {
         srToast(slugs.length + " {% trans 'report(s) queued — check your email shortly.'|escapejs %}");
     });
 
-    // ---- Subscribe modal ----
+    // ---- Schedule modal ----
     var subModal = document.getElementById("srSubscribeModal");
     var subRecipients = document.getElementById("srSubscribeRecipients");
     var subFrequency = document.getElementById("srSubscribeFrequency");
@@ -1541,8 +1248,6 @@ function initStandardCatalog() {
     }
 
     function refreshAtvOptions() {
-        // Existing views become real options instead of a comma-separated
-        // list the user had to read and retype exactly.
         atvSelect.innerHTML = "";
         Array.from(document.querySelectorAll("#srSavedViewsList .sr-saved-view")).forEach(function (el) {
             var opt = document.createElement("option");
@@ -1640,12 +1345,7 @@ function initStandardCatalog() {
 
 }
 
-// This page arrives two ways: (1) full page load — this inline script runs
-// BEFORE the base template's htmx/footer scripts, so binding must wait for
-// DOMContentLoaded; (2) swapped into #ohMainContent by the sidebar's hx-get —
-// DOMContentLoaded fired long ago and will never fire again, so waiting for
-// it means NO handler ever binds (dead first click until a hard refresh).
-// document.readyState distinguishes the two exactly.
+// Bind now when swapped in by the sidebar (DOMContentLoaded already fired), else wait for it.
 if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initStandardCatalog);
 } else {

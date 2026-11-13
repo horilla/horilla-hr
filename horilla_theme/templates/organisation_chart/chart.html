@@ -379,6 +379,22 @@
         border-color: #3a3b42;
     }
 
+    /* Per-side connector colours. The light rules above set individual sides
+       (e.g. the last child's right border, the first child's left border) and
+       `border: 0 none` resets colour to currentColor (white on dark), so a
+       single border-color on li::before/::after isn't enough. These have
+       higher specificity than every light rule, whatever their order. */
+    .dark .genealogy-tree li:not(:only-child)::before,
+    .dark .genealogy-tree li:not(:only-child)::after {
+        border-top-color: #3a3b42;
+    }
+    .dark .genealogy-tree li:not(:only-child)::after {
+        border-left-color: #3a3b42;
+    }
+    .dark .genealogy-tree li:not(:only-child):last-child::before {
+        border-right-color: #3a3b42;
+    }
+
     .dark .canvas-wrap {
         border-color: #2c2d33;
         background-color: #1c1c20;
