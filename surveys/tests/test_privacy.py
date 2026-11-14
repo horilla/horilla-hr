@@ -223,6 +223,24 @@ class ResultsWaitForCloseTests(TestCase):
         )
         self.assertIn("text/csv", export["Content-Type"])
 
+    def test_a_survey_past_its_closing_time_releases_its_results(self):
+        built = build_survey(tag="wait_e", anonymous=True, people=2)
+        submit(built, built.invitations[0], note="ended-answer")
+        # a draft that was never sent in is dropped, as on a manual close
+        Client().post(
+            answer_url(built.invitations[1]) + "?autosave=1",
+            {built.note_name(): "unfinished"},
+        )
+        Survey.objects.filter(pk=built.survey.pk).update(
+            closes_at=timezone.now() - timezone.timedelta(hours=1)
+        )
+        page = self.results(built)
+        self.assertContains(page, "ended-answer")
+        self.assertNotContains(page, "once the survey is closed")
+        self.assertFalse(
+            SurveyResponse.objects.filter(survey=built.survey, is_draft=True).exists()
+        )
+
     def test_a_named_survey_shows_results_while_open(self):
         submit(self.named, self.named.invitations[0], note="visible-now")
         self.assertContains(self.results(self.named), "visible-now")

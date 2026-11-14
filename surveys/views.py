@@ -594,6 +594,7 @@ def _nps(question, scores):
 
 @login_required
 def results_tab(request, pk):
+    Survey.close_ended()  # a survey past its closing time counts as closed here
     survey, denied = _survey_for(request, pk, can_view_results)
     if denied:
         return denied
@@ -640,6 +641,7 @@ def results_tab(request, pk):
 
 @login_required
 def export_results(request, pk):
+    Survey.close_ended()  # a survey past its closing time counts as closed here
     survey, denied = _survey_for(request, pk, can_view_results)
     if denied:
         return denied
