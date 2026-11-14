@@ -5,9 +5,9 @@ name: Unit Tests
 
 on:
   push:
-    branches: [dev/v2.0, "2.0"]
+    branches: [dev/v2.0, "2.0", "fix/surveys-*"]
   pull_request:
-    branches: [dev/v2.0, "2.0"]
+    branches: [dev/v2.0, "2.0", "fix/surveys-*"]
 
 jobs:
   smoke:

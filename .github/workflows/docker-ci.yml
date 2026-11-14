@@ -6,9 +6,9 @@ name: Docker CI
 
 on:
   push:
-    branches: [dev/v2.0, "2.0"]
+    branches: [dev/v2.0, "2.0", "fix/surveys-*"]
   pull_request:
-    branches: [dev/v2.0, "2.0"]
+    branches: [dev/v2.0, "2.0", "fix/surveys-*"]
 
 env:
   COMPOSE_FILE: docker-compose.yml

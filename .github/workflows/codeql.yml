@@ -6,9 +6,9 @@ name: CodeQL
 
 on:
   push:
-    branches: [dev/v2.0, "2.0"]
+    branches: [dev/v2.0, "2.0", "fix/surveys-*"]
   pull_request:
-    branches: [dev/v2.0, "2.0"]
+    branches: [dev/v2.0, "2.0", "fix/surveys-*"]
   schedule:
     # Rules improve between commits; a weekly run catches findings that did not
     # exist when the code was merged.
