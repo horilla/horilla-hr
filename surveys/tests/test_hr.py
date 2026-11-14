@@ -67,7 +67,9 @@ class HrSurveyTests(TestCase):
             )
         self.client.force_login(self.plain_user)
         page = self.client.get(reverse("survey-detail", args=[survey.pk]))
-        self.assertNotEqual(page.status_code, 200)
+        # sent back to the home page with the "no permission" message, nothing shown
+        self.assertRedirects(page, "/", fetch_redirect_response=False)
+        self.assertNotContains(page, "Pulse", status_code=302)
 
     def test_each_page_lights_up_only_its_own_submenu(self):
         """The sidebar marks every submenu whose link the path starts with."""
@@ -299,7 +301,7 @@ class HrSurveyTests(TestCase):
         token = survey.invitations.get(employee=self.alice).token
         alice_mail = next(m for m in mail.outbox if m.to == ["alice@hr.horilla"])
         self.assertIn(f"/surveys/s/{token}/", alice_mail.body)
-        self.assertTrue(survey.invitations.filter(sent_at__isnull=False).count(), 4)
+        self.assertEqual(survey.invitations.filter(sent_at__isnull=False).count(), 4)
 
     def test_a_survey_without_questions_does_not_open(self):
         survey = Survey.objects.create(title="Empty", company_id=self.company)

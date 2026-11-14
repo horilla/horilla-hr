@@ -142,8 +142,10 @@ class LibraryTests(TestCase):
         self.assertContains(detail, questionnaire.get_use_url())
 
         self.client.force_login(self.plain_user)
-        self.assertNotEqual(
-            self.client.get(reverse("surveys-library")).status_code, 200
+        self.assertRedirects(
+            self.client.get(reverse("surveys-library")),
+            "/",
+            fetch_redirect_response=False,
         )
         # htmx gets Horilla's "no permission" fragment, with a 200
         self.assertNotContains(

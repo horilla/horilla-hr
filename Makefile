@@ -52,7 +52,7 @@ clean: ## Clean up (removes volumes — data loss!)
 
 # Unit-test coverage program (feature/unit-test-coverage)
 # Smoke = Phases 0–3 first-party app minimum bar.
-SMOKE_LABELS ?= leave attendance base horilla_auth employee accessibility payroll horilla_api biometric asset recruitment onboarding offboarding pms project helpdesk report whatsapp facedetection geofencing horilla_documents horilla_automations horilla_backup horilla_crumbs horilla_ldap horilla_meet horilla_theme horilla_widgets horilla_views horilla_audit horilla master_import horilla_tour
+SMOKE_LABELS ?= leave attendance base horilla_auth employee accessibility payroll horilla_api biometric asset recruitment onboarding offboarding pms project helpdesk report whatsapp facedetection geofencing horilla_documents horilla_automations horilla_backup horilla_crumbs horilla_ldap horilla_meet horilla_theme horilla_widgets horilla_views horilla_audit horilla master_import horilla_tour surveys
 UNIT_LABELS ?= $(SMOKE_LABELS)
 
 test-smoke: ## Run CI smoke unit tests (min bar across first-party apps)
@@ -67,7 +67,7 @@ test-unit: ## Run unit-test labels (override UNIT_LABELS=...)
 # above it -- a gate that cannot fail is worse than none, because it reads
 # as one. Ratchet this up as suites land; never down to make a build pass.
 COV_FAIL_UNDER ?= 26
-COV_SOURCE ?= leave,attendance,base,payroll,recruitment,report,horilla_auth,employee,accessibility,horilla_api
+COV_SOURCE ?= leave,attendance,base,payroll,recruitment,report,horilla_auth,employee,accessibility,horilla_api,surveys
 
 test-cov: ## Smoke suite under coverage (low fail-under floor)
 	python -m coverage erase
