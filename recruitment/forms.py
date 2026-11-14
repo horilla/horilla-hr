@@ -327,7 +327,69 @@ class RecruitmentCreationForm(BaseModelForm):
     # def create_option(self, *args,**kwargs):
     #     option = super().create_option(*args,**kwargs)
 
+    def check_vacancy_against_headcount(self):
+        """
+        A recruitment cannot open more vacancies than its job position has room for: the position's
+        headcount less the people already in it and the vacancies already open. A position with no
+        headcount set has no limit, and neither does a recruitment that includes one.
+        """
+        lines = getattr(self, "vacancy_line_list", None)
+        if lines is not None:
+            # One line per job position: each is held to what is free in its own position.
+            for position, number in lines.items():
+                if not position.headcount or number is None:
+                    continue
+                available = position.available_vacancies(
+                    exclude_recruitment=self.instance
+                )
+                if number > available:
+                    self.add_error(
+                        "vacancy_lines",
+                        _(
+                            "Vacancy (%(vacancy)s) For %(position)s Is More Than The %(available)s Still Free. "
+                            "Headcount Less The People Already In It And The Vacancies Already Open."
+                        )
+                        % {
+                            "vacancy": number,
+                            "position": position.job_position,
+                            "available": available,
+                        },
+                    )
+            return
+        if getattr(self, "wizard_vacancy", False):
+            return  # the details step alone: the vacancies come on their own step
+        positions = list(self.cleaned_data.get("open_positions") or [])
+        vacancy = self.cleaned_data.get("vacancy")
+        if not positions or vacancy is None:
+            return
+        if self.instance.pk and not {"vacancy", "open_positions"} & set(
+            self.changed_data
+        ):
+            return  # an old recruitment that no longer fits is not blocked from saving other changes
+        if any(not position.headcount for position in positions):
+            return
+        available = sum(
+            position.available_vacancies(exclude_recruitment=self.instance)
+            for position in positions
+        )
+        if vacancy > available:
+            self.add_error(
+                "vacancy",
+                _(
+                    "Vacancy (%(vacancy)s) Is More Than The %(available)s Still Free For %(positions)s. "
+                    "Headcount Less The People Already In It And The Vacancies Already Open."
+                )
+                % {
+                    "vacancy": vacancy,
+                    "available": available,
+                    "positions": ", ".join(
+                        position.job_position for position in positions
+                    ),
+                },
+            )
+
     def clean(self):
+        self.check_vacancy_against_headcount()
         if isinstance(self.fields["recruitment_managers"], HorillaMultiSelectField):
             ids = self.data.getlist("recruitment_managers")
             if ids:

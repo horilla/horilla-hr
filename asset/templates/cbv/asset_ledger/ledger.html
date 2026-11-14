@@ -1,0 +1,196 @@
+{% load static i18n l10n %}
+{% comment %}
+The ledger of one asset, shown in the generic modal: figures, filters, and one line per event with who holds
+the asset and what state it is in after that line.
+{% endcomment %}
+<script>
+    // The "+N" button of an avatar group opens its list beside the button; any other click closes it. The list
+    // moves to the page body while open, so no table or scroll area around the button can cover or clip it.
+    if (!window.assetHoldersPopover) {
+        window.assetHoldersPopover = true;
+        var closeHolders = function (except) {
+            document.querySelectorAll("body > [data-holders-panel]").forEach(function (panel) {
+                if (panel === except) return;
+                panel.classList.add("hidden");
+                if (panel.holdersHome && panel.holdersHome.isConnected) panel.holdersHome.appendChild(panel);
+                else panel.remove();
+            });
+        };
+        document.addEventListener("click", function (event) {
+            if (event.target.closest("[data-holders-panel]")) return;
+            var button = event.target.closest("[data-holders-toggle]");
+            var panel = button && (button.holdersPanel || button.parentElement.querySelector("[data-holders-panel]"));
+            var wasOpen = panel && panel.parentElement === document.body;
+            closeHolders();
+            if (!panel || wasOpen) return;
+            button.holdersPanel = panel;
+            panel.holdersHome = button.parentElement;
+            document.body.appendChild(panel);
+            panel.classList.remove("hidden");
+            panel.style.zIndex = 2147483000;
+            var box = button.getBoundingClientRect();
+            panel.style.left = Math.max(12, Math.min(box.left, window.innerWidth - panel.offsetWidth - 12)) + "px";
+            panel.style.top = (box.bottom + 6 + panel.offsetHeight > window.innerHeight ? box.top - 6 - panel.offsetHeight : box.bottom + 6) + "px";
+        });
+    }
+</script>
+<style>
+    /* The dialog holds a wide table, so it is wider than the 700px the generic modal body allows. */
+    #genericModalBody:has(#assetLedger) { max-width: min(1240px, 94vw); }
+    /* The filter controls on the right all share one height. */
+    #assetLedgerForm .select2-container .select2-selection--single { height: 32px; display: flex; align-items: center; }
+    #assetLedgerForm .select2-container .select2-selection__rendered { line-height: 30px; padding-top: 0; padding-bottom: 0; }
+    #assetLedgerForm .select2-container .select2-selection__arrow { top: 0; height: 30px; display: flex; align-items: center; }
+</style>
+<div class="modal-box bg-white w-full rounded-lg shadow-card p-0 max-h-[85vh] overflow-y-auto flex flex-col" id="assetLedger">
+    <div class="p-5 flex flex-col min-h-0">
+        <div class="flex justify-between items-start mb-4">
+            <div>
+                <h2 class="text-md font-semibold">{% trans "Asset Lifecycle" %}</h2>
+                <p class="text-xs text-gray-500 mt-0.5">{{ asset.asset_name }} &middot; {{ asset.asset_tracking_id }} &middot; {{ asset.asset_category_id }}{% if unit %} &middot; {% trans "Unit" %}: <span class="font-semibold text-gray-700">{{ unit_serial }}</span>{% endif %}</p>
+            </div>
+            <button
+                class="text-gray-500 hover:text-red-500 text-xl static oh-modal__close oh-modal__close--custom"
+                onclick="$(this).closest('.oh-modal--show').removeClass('oh-modal--show')"
+            >
+                <img src="{% static 'horilla_theme/assets/icons/close.svg' %}" alt="">
+            </button>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-2 mb-2">
+            <div class="rounded-lg bg-gray-50 px-3 py-2">
+                <p class="text-[10.5px] font-semibold text-gray-500">{% trans "Total Units" %}</p>
+                <p class="text-lg font-bold text-gray-800 leading-tight">{{ units.total }}</p>
+            </div>
+            <div class="rounded-lg bg-blue-50 px-3 py-2">
+                <p class="text-[10.5px] font-semibold text-blue-700">{% trans "In Use" %}</p>
+                <p class="text-lg font-bold text-blue-700 leading-tight">{{ units.in_use }}</p>
+            </div>
+            <div class="rounded-lg bg-green-50 px-3 py-2">
+                <p class="text-[10.5px] font-semibold text-green-700">{% trans "Available" %}</p>
+                <p class="text-lg font-bold text-green-700 leading-tight">{{ units.available }}</p>
+            </div>
+            <div class="rounded-lg bg-red-50 px-3 py-2">
+                <p class="text-[10.5px] font-semibold text-red-700">{% trans "Damaged" %}</p>
+                <p class="text-lg font-bold text-red-700 leading-tight">{{ units.damaged }}</p>
+            </div>
+            <div class="rounded-lg bg-gray-100 px-3 py-2">
+                <p class="text-[10.5px] font-semibold text-gray-600">{% trans "Lost" %}</p>
+                <p class="text-lg font-bold text-gray-700 leading-tight">{{ units.lost }}</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">
+            <div class="rounded-lg border border-gray-100 px-3 py-2">
+                <p class="text-[10.5px] font-semibold text-gray-500">{% if unit %}{% trans "Unit Status Now" %}{% else %}{% trans "Status Now" %}{% endif %}</p>
+                <span class="inline-block mt-1 rounded-full px-2 py-0.5 text-[11px] font-semibold {{ summary.status_pill }}">{{ summary.status_label }}</span>{% if summary.units_total %} <span class="text-[11px] text-gray-500">{{ summary.units_held }}/{{ summary.units_total }} {% trans "Held" %}</span>{% endif %}
+            </div>
+            <div class="rounded-lg border border-gray-100 px-3 py-2 md:col-span-2">
+                <p class="text-[10.5px] font-semibold text-gray-500">{% trans "Held By" %}</p>
+                <div class="mt-1 flex items-center gap-2.5 text-sm font-semibold text-gray-800">
+                    {% include "cbv/asset_ledger/holders.html" with people=summary.holder_people shown=":6" more="6:" size=30 %}
+                    {% if summary.holder_people|length == 1 %}<span class="truncate">{{ summary.holders.0 }}</span>{% elif summary.holder_people %}<span class="text-xs font-medium text-gray-500">{% blocktrans count n=summary.holder_people|length %}{{ n }} Holder{% plural %}{{ n }} Holders{% endblocktrans %}</span>{% endif %}
+                </div>
+            </div>
+            <div class="rounded-lg border border-gray-100 px-3 py-2">
+                <p class="text-[10.5px] font-semibold text-gray-500">{% trans "Times Allocated" %}</p>
+                <p class="text-sm font-semibold text-gray-800 mt-0.5">{{ summary.allocations }}</p>
+            </div>
+            <div class="rounded-lg border border-gray-100 px-3 py-2">
+                <p class="text-[10.5px] font-semibold text-gray-500">{% trans "Service Requests" %}</p>
+                <p class="text-sm font-semibold text-gray-800 mt-0.5">{{ summary.services }}{% if summary.open_services %} <span class="text-[11px] font-medium text-violet-600">({{ summary.open_services }} {% trans "Open" %})</span>{% endif %}</p>
+            </div>
+        </div>
+
+        {% comment %}The controls reload the ledger themselves: a select2 only fires a change that does not bubble to the form.{% endcomment %}
+        <form id="assetLedgerForm" onsubmit="return false">
+        <div class="flex items-start justify-between gap-3 mb-3">
+            <div class="flex items-center gap-1.5 flex-wrap flex-1 min-w-0 min-h-[32px]">
+                {% if view == "table" %}{% for key, label, count in kinds %}
+                    <label class="cursor-pointer">
+                        <input type="checkbox" name="kind" value="{{ key }}" class="peer sr-only" {% if key in chosen %}checked{% endif %}
+                               hx-get="{{ asset.ledger_url }}" hx-trigger="change" hx-include="closest form" hx-target="#genericModalBody">
+                        <span class="inline-flex items-center gap-1 rounded-full border border-gray-200 px-2.5 py-1 text-[11px] font-semibold text-gray-600 peer-checked:bg-gray-800 peer-checked:text-white peer-checked:border-gray-800">
+                            {{ label }} <span class="opacity-70">{{ count }}</span>
+                        </span>
+                    </label>
+                {% endfor %}{% endif %}
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <div class="flex items-center gap-1.5 rounded-md border border-gray-200 px-2 text-[11px] text-gray-500" style="height: 32px">
+                    {% trans "From" %}
+                    <input type="date" name="date_from" value="{{ date_from|date:'Y-m-d' }}" class="text-xs text-gray-700" style="width: 116px; border: 0; padding: 0; background: transparent"
+                           hx-get="{{ asset.ledger_url }}" hx-trigger="change" hx-include="closest form" hx-target="#genericModalBody">
+                    {% trans "To" %}
+                    <input type="date" name="date_to" value="{{ date_to|date:'Y-m-d' }}" class="text-xs text-gray-700" style="width: 116px; border: 0; padding: 0; background: transparent"
+                           hx-get="{{ asset.ledger_url }}" hx-trigger="change" hx-include="closest form" hx-target="#genericModalBody">
+                    {% if date_from or date_to %}
+                        <button type="button" class="text-base leading-none text-gray-400 hover:text-red-500" title="{% trans 'Clear Dates' %}"
+                                hx-get="{{ asset.ledger_url }}" hx-vals='{"date_from": "", "date_to": ""}' hx-include="closest form" hx-target="#genericModalBody">&times;</button>
+                    {% endif %}
+                </div>
+                {% if single %}
+                    <div class="inline-flex rounded-md border border-gray-200 overflow-hidden text-[11px] font-semibold" style="height: 32px">
+                        {% for value, label in views %}
+                            <label class="cursor-pointer h-full">
+                                <input type="radio" name="view" value="{{ value }}" class="peer sr-only" {% if view == value %}checked{% endif %}
+                                       hx-get="{{ asset.ledger_url }}" hx-trigger="change" hx-include="closest form" hx-target="#genericModalBody">
+                                <span class="flex items-center h-full px-3 text-gray-600 peer-checked:bg-gray-800 peer-checked:text-white">{{ label }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                {% if units.units|length > 1 %}
+                    <div style="width: 200px">
+                    <select name="unit" class="oh-select" data-allow-clear="false" title="{% trans 'Unit' %}"
+                            hx-get="{{ asset.ledger_url }}" hx-trigger="change" hx-include="closest form" hx-target="#genericModalBody">
+                        <option value="">{% trans "All Units" %}</option>
+                        {% for u in units.units %}
+                            <option value="{{ u.pk }}" {% if u.pk == unit %}selected{% endif %}>{{ u.serial }} &middot; {{ u.status_label }}</option>
+                        {% endfor %}
+                    </select>
+                    </div>
+                {% endif %}
+                {% if view == "table" or view == "timeline" %}
+                <div style="width: 140px">
+                <select name="order" class="oh-select" data-allow-clear="false"
+                        hx-get="{{ asset.ledger_url }}" hx-trigger="change" hx-include="closest form" hx-target="#genericModalBody">
+                    <option value="desc" {% if newest_first %}selected{% endif %}>{% trans "Newest First" %}</option>
+                    <option value="asc" {% if not newest_first %}selected{% endif %}>{% trans "Oldest First" %}</option>
+                </select>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if view == "timeline" %}
+        <div class="border border-gray-200 rounded-xl bg-white overflow-auto min-h-0" style="max-height: 46vh">
+            <ol class="list-none m-0 p-4 pb-1">
+                {% include "cbv/asset_ledger/timeline_items.html" %}
+            </ol>
+        </div>
+        {% else %}
+        <div class="border border-gray-200 rounded-xl overflow-auto min-h-0" style="max-height: 38vh">
+            <table class="w-full text-xs">
+                <thead class="bg-gray-50 text-gray-600 sticky top-0">
+                    <tr class="text-left">
+                        <th class="px-3 py-2 font-bold whitespace-nowrap">{% trans "Date" %}</th>
+                        <th class="px-3 py-2 font-bold">{% trans "Event" %}</th>
+                        {% if show_unit %}<th class="px-3 py-2 font-bold">{% trans "Unit" %}</th>{% endif %}
+                        <th class="px-3 py-2 font-bold">{% trans "Details" %}</th>
+                        <th class="px-3 py-2 font-bold">{% trans "Employee" %}</th>
+                        <th class="px-3 py-2 font-bold">{% trans "By" %}</th>
+                        <th class="px-3 py-2 font-bold">{% trans "Held By After" %}</th>
+                        <th class="px-3 py-2 font-bold">{% trans "Status After" %}</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% include "cbv/asset_ledger/rows.html" %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+        <p class="text-[11px] text-gray-500 mt-2">{% blocktrans count n=total %}{{ n }} Event In Total{% plural %}{{ n }} Events In Total{% endblocktrans %}</p>
+        </form>
+    </div>
+</div>

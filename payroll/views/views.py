@@ -675,10 +675,14 @@ def delete_payslip(request, payslip_id):
     Args:
         payslip_id (int): Payslip model instance id
     """
+    from payroll.models.payroll_batch import PayrollBatch
+
     from .component_views import filter_payslip
 
+    batch_id = None
     try:
         payslip = Payslip.objects.get(id=payslip_id)
+        batch_id = payslip.payroll_batch_id
         if payslip.status == "paid":
             messages.error(request, _("A paid payslip cannot be deleted."))
         else:
@@ -688,6 +692,9 @@ def delete_payslip(request, payslip_id):
         messages.error(request, _("Payslip not found."))
     except ProtectedError:
         messages.error(request, _("Something went wrong"))
+    # Its last payslip takes the batch with it, so a batch page has nothing left to reload.
+    if batch_id and not PayrollBatch._base_manager.filter(pk=batch_id).exists():
+        return HorillaRedirect(request, reverse("payroll-batch-home"))
     if request.headers.get("HX-Request"):
         response = HttpResponse("", status=200)
         response["HX-Trigger"] = json.dumps(

@@ -369,17 +369,25 @@ class StatusTests(TestCase):
         allowed, _reason = self.batch.can_transition_to(PayrollBatch.APPROVED)
         self.assertTrue(allowed)
 
-    def test_paid_is_terminal(self):
+    def test_a_paid_run_only_steps_back_to_approved(self):
+        """Undoing a payment is allowed, one step; skipping the approval it was paid on is not."""
         self.batch.status = PayrollBatch.PAID
         self.batch.progress_state = PayrollBatch.DONE
         self.batch.save()
 
-        for target in (
-            PayrollBatch.DRAFT,
-            PayrollBatch.REVIEW,
-            PayrollBatch.APPROVED,
-        ):
+        for target in (PayrollBatch.DRAFT, PayrollBatch.REVIEW, PayrollBatch.CANCELLED):
             with self.subTest(target=target):
                 allowed, reason = self.batch.can_transition_to(target)
                 self.assertFalse(allowed)
-                self.assertIn("cannot be changed", str(reason))
+                self.assertIn("cannot be changed directly", str(reason))
+        self.assertTrue(self.batch.can_transition_to(PayrollBatch.APPROVED)[0])
+
+    def test_a_cancelled_run_can_be_reopened_as_a_draft_only(self):
+        self.batch.status = PayrollBatch.CANCELLED
+        self.batch.progress_state = PayrollBatch.DONE
+        self.batch.save()
+
+        self.assertTrue(self.batch.can_transition_to(PayrollBatch.DRAFT)[0])
+        for target in (PayrollBatch.REVIEW, PayrollBatch.APPROVED, PayrollBatch.PAID):
+            with self.subTest(target=target):
+                self.assertFalse(self.batch.can_transition_to(target)[0])

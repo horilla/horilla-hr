@@ -13,6 +13,7 @@ from horilla_views.cbv_methods import hx_request_required, login_required
 from horilla_views.generic.cbv.views import HorillaTabView, TemplateView
 from payroll.cbv.allowances import AllowanceListView
 from payroll.cbv.deduction import DeductionListView
+from payroll.cbv.pay_adjustments import PayAdjustmentListView
 from payroll.cbv.payslip_automation import PaySlipAutomationListView
 from payroll.cbv.salary_structure import SalaryStructureListView
 
@@ -108,6 +109,10 @@ class PayrollSettingsTabView(HorillaTabView):
                 "url": f"{reverse('payroll-settings-always-applied-tab')}",
             },
             {
+                "title": _("Arrears & Recovery"),
+                "url": f"{reverse('payroll-settings-pay-adjustment-tab')}",
+            },
+            {
                 "title": _("Payslip Auto Generation"),
                 "url": f"{reverse('payroll-settings-auto-payslip-tab')}",
             },
@@ -134,6 +139,7 @@ class PayrollSettingsTabView(HorillaTabView):
             AllowanceListView,
             DeductionListView,
             None,
+            PayAdjustmentListView,
             PaySlipAutomationListView,
         ]
         for tab, view_cls in zip(self.tabs, view_classes):
@@ -189,6 +195,16 @@ class PayrollSettingsAlwaysAppliedTab(TemplateView):
         context["rows"] = all_always_applied_rows()
         context["headings"] = [_("Component"), _("Type"), _("Tax"), _("Applies")]
         return context
+
+
+@method_decorator(login_required, name="dispatch")
+@method_decorator(hx_request_required, name="dispatch")
+class PayrollSettingsPayAdjustmentTab(TemplateView):
+    """
+    The arrears and recovery tab: embeds the nav, which loads the list.
+    """
+
+    template_name = "cbv/payroll_settings/pay_adjustment_tab.html"
 
 
 @method_decorator(login_required, name="dispatch")

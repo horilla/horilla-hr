@@ -121,11 +121,11 @@
                             <div
                                 class="oh-sticky-table__th {% if request.sort_option.order == '-badge_id' %}arrow-up {% elif request.sort_option.order == 'badge_id' %}arrow-down {% else %}arrow-up-down {% endif %}"
                                 data-cell-index="3"
-                                data-cell-title='{% trans "Badge Id" %}'
+                                data-cell-title='{% trans "Badge ID" %}'
                                 hx-target="#view-container"
                                 hx-get="{% url 'employee-filter-view' %}?{{pd}}&orderby=badge_id"
                             >
-                                {% trans "Badge Id" %}
+                                {% trans "Badge ID" %}
                             </div>
                             <div
                                 class="oh-sticky-table__th"

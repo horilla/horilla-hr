@@ -108,6 +108,14 @@
     .pd-pipeline-step { flex: 1; text-align: center; padding: 12px 8px; border-radius: 8px; text-decoration: none; color: inherit; display: block; transition: all 0.2s; }
     .pd-pipeline-step:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); transform: translateY(-1px); text-decoration: none; color: inherit; }
     .pd-pipeline-step__count { font-size: 22px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+    .pd-pipeline-step__count--draft { color: #64748b; }
+    .pd-pipeline-step__count--review_ongoing { color: #2563eb; }
+    .pd-pipeline-step__count--confirmed { color: #d97706; }
+    .pd-pipeline-step__count--paid { color: #16a34a; }
+    .dark .pd-pipeline-step__count--draft { color: #cbd5e1; }
+    .dark .pd-pipeline-step__count--review_ongoing { color: #60a5fa; }
+    .dark .pd-pipeline-step__count--confirmed { color: #fbbf24; }
+    .dark .pd-pipeline-step__count--paid { color: #4ade80; }
     .pd-pipeline-step__label { font-size: 10px; font-weight: 600; text-transform: uppercase; opacity: 0.7; }
 
     /* Customize Panel */
@@ -371,8 +379,8 @@ function pdInit() {
     function presetRange(p) {
         const t = new Date(), y = t.getFullYear(), m = t.getMonth();
         if (p === 'today') return [t, t];
-        if (p === 'this_week') { const s = new Date(y, m, t.getDate() - ((t.getDay() + 6) % 7)); return [s, new Date(s.getFullYear(), s.getMonth(), s.getDate() + 6)]; }
-        if (p === 'last_week') { const s = new Date(y, m, t.getDate() - ((t.getDay() + 6) % 7) - 7); return [s, new Date(s.getFullYear(), s.getMonth(), s.getDate() + 6)]; }
+        if (p === 'this_week') { const s = new Date(y, m, t.getDate() - ((t.getDay() - {{ first_day_of_week|default:1 }} + 7) % 7)); return [s, new Date(s.getFullYear(), s.getMonth(), s.getDate() + 6)]; }
+        if (p === 'last_week') { const s = new Date(y, m, t.getDate() - ((t.getDay() - {{ first_day_of_week|default:1 }} + 7) % 7) - 7); return [s, new Date(s.getFullYear(), s.getMonth(), s.getDate() + 6)]; }
         if (p === 'this_month') return [new Date(y, m, 1), new Date(y, m + 1, 0)];
         if (p === 'last_month') return [new Date(y, m - 1, 1), new Date(y, m, 0)];
         if (p === 'this_year') return [new Date(y, 0, 1), new Date(y, 11, 31)];
@@ -711,10 +719,9 @@ function pdInit() {
             const el = document.getElementById('pd-pipeline');
             if (data.total === 0) { el.innerHTML = emptyHtml('{% trans "No payslips this month"|escapejs %}'); return; }
             const colors = { draft: 'rgba(148,163,184,0.15)', review_ongoing: 'rgba(59,130,246,0.15)', confirmed: 'rgba(245,158,11,0.15)', paid: 'rgba(34,197,94,0.15)' };
-            const textColors = { draft: '#64748b', review_ongoing: '#2563eb', confirmed: '#d97706', paid: '#16a34a' };
             el.innerHTML = '<div class="pd-pipeline">' + data.statuses.map(s =>
                 `<a href="{% url 'view-payslip' %}?status=${s.status}&start_date_from=${fromInput.value}&start_date_till=${toInput.value}&filter_applied=1" class="pd-pipeline-step" style="background:${colors[s.status]};">
-                    <div class="pd-pipeline-step__count" style="color:${textColors[s.status]};">${s.count}</div>
+                    <div class="pd-pipeline-step__count pd-pipeline-step__count--${s.status}">${s.count}</div>
                     <div class="pd-pipeline-step__label">${s.label}</div>
                 </a>`
             ).join('<div style="display:flex;align-items:center;opacity:0.3;font-size:18px;">→</div>') + '</div>';

@@ -125,6 +125,31 @@ SYSTEM_COMPONENTS = [
         "defaults": {"is_taxable": True, "maximum_unit": FULL_PERIOD},
         "no_proration": True,
     },
+    # ------------------------------------------------- arrears and recovery
+    {
+        "key": "arrears",
+        "kind": EARNING,
+        "title": "Arrears",
+        "summary": _("Back pay owed to an employee, paid in a chosen month."),
+        "note": _(
+            "Created when an arrears entry is confirmed. Not taxable by default; "
+            "each entry can say otherwise, and so can an employee's own exception."
+        ),
+        "defaults": {"is_taxable": False, "maximum_unit": FULL_PERIOD},
+        "no_proration": True,
+    },
+    {
+        "key": "recovery",
+        "kind": DEDUCTION,
+        "title": "Recovery",
+        "summary": _("Excess pay taken back from an employee, in instalments."),
+        "note": _(
+            "One deduction per instalment date. Pre-tax by default, since "
+            "recovering an overpayment reduces the income that was taxed."
+        ),
+        "defaults": {"is_pretax": True, "maximum_unit": FULL_PERIOD},
+        "no_proration": True,
+    },
     {
         "key": "leave_encashment",
         "kind": EARNING,

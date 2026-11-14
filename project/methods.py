@@ -85,27 +85,24 @@ def employees_for_project(project):
 
 
 def any_project_manager(user):
-    employee = user.employee_get
-    if employee.project_managers.all().exists():
-        return True
-    else:
+    employee = getattr(user, "employee_get", None)
+    if not employee:
         return False
+    return employee.project_managers.all().exists()
 
 
 def any_task_manager(user):
-    employee = user.employee_get
-    if employee.task_set.all().exists():
-        return True
-    else:
+    employee = getattr(user, "employee_get", None)
+    if not employee:
         return False
+    return employee.task_set.all().exists()
 
 
 def any_task_member(user):
-    employee = user.employee_get
-    if employee.tasks.all().exists():
-        return True
-    else:
+    employee = getattr(user, "employee_get", None)
+    if not employee:
         return False
+    return employee.tasks.all().exists()
 
 
 @decorator_with_arguments
@@ -242,7 +239,7 @@ PROJECT_IMPORT_REQUIRED_HEADERS = ["Title", "Status", "Start Date", "Description
 
 PROJECT_IMPORT_ERROR_COLUMNS = [
     "Title",
-    "Manager Badge id",
+    "Manager Badge ID",
     "Status",
     "Start Date",
     "End Date",
@@ -375,7 +372,7 @@ def process_project_records(data_frame, selected_company=None, allowed_ids=None)
             errors["Description Error"] = _("Description is a required field.")
 
         managers = []
-        raw_badges = row.get("Manager Badge id")
+        raw_badges = row.get("Manager Badge ID")
         if raw_badges is not None and not pd.isna(raw_badges):
             badge_ids = [
                 clean_badge_id(b) for b in str(raw_badges).split(",") if b.strip()

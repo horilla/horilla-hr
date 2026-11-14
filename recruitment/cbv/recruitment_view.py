@@ -263,9 +263,30 @@ class RecruitmentCreationFormExtended(RecruitmentCreationForm):
     extended form view for create
     """
 
+    # Texts of the shared pipeline wizard (recruitment/pipeline_wizard.html).
+    wizard_details_label = _("Recruitment")
+    wizard_details_hint = _("Title, dates and managers.")
+    wizard_intro_edit = _(
+        "Drag the stages to reorder them, rename them, change their type or remove "
+        "the ones you do not need. Changes are saved with the recruitment."
+    )
+    wizard_intro_create = _(
+        "Choose the stages candidates move through for this recruitment. You can "
+        "always add, rename or reorder stages later from the pipeline."
+    )
+    wizard_required_type = "applied"
+    wizard_name_max = 50
+    wizard_required_message = _(
+        "The pipeline needs at least one stage of type Applied."
+    )
+    wizard_locked_message = _(
+        "This stage has candidates. Move them to another stage before deleting it."
+    )
+
     cols = {
         "title": 12,
         "description": 12,
+        "recruitment_managers": 12,
         "is_published": 4,
         "optional_profile_image": 4,
         "optional_resume": 4,
@@ -320,10 +341,11 @@ class RecruitmentCreationFormExtended(RecruitmentCreationForm):
         self.pipeline_stage_list = None if self.instance.pk else list(DEFAULT_PIPELINE)
         # The model allows a blank title; the form does not.
         self.fields["title"].required = True
-        self.restrict_job_position_to_one()
         if not self.instance.pk:
             self.fields["vacancy"].initial = 1
             self.fields["open_positions"].required = True
+        self.vacancy_line_list = None
+        self.setup_vacancy_step()
         self.setup_pipeline_step()
         self.linkedin_enabled = IntegrationApps.objects.filter(
             app_label="linkedin", is_enabled=True
@@ -333,32 +355,106 @@ class RecruitmentCreationFormExtended(RecruitmentCreationForm):
             self.fields["publish_in_linkedin"].widget = forms.HiddenInput()
             self.fields["linkedin_account_id"].widget = forms.HiddenInput()
 
-    def restrict_job_position_to_one(self):
+    # Stage types that older data carries under a name the app no longer offers: "Hired" is the shortlisted type.
+    # Shown (and saved, if the pipeline is saved) as the current type, so such a stage can still be edited.
+    LEGACY_STAGE_TYPES = {"hired": "shortlisted"}
+
+    def setup_vacancy_step(self):
         """
-        A recruitment is opened for one job position: show a single select
-        instead of the many-to-many multi select. It is still stored through
-        open_positions, as a one item list.
+        Vacancies are set on a step of their own, one line per job position chosen on the first step.
+
+        The lines travel in a hidden field as JSON, like the pipeline's stages, and ``vacancy`` becomes a hidden
+        total the lines overwrite. A form shown without the wizard (duplicate) keeps the plain Vacancy field.
         """
-        multi = self.fields["open_positions"]
-        self.fields["open_positions"] = forms.ModelChoiceField(
-            queryset=multi.queryset,
-            required=True,
-            label=multi.label,
-            empty_label=_("---Choose Job Position---"),
-            widget=forms.Select(
-                attrs={k: v for k, v in multi.widget.attrs.items() if k != "multiple"}
-            ),
+        self.wizard_vacancy = True
+        # The job positions are chosen on the vacancy step, a line each. The field stays (it is what is saved) but
+        # as hidden inputs the step keeps in step with its lines; the plain select is kept for the duplicate form.
+        positions = self.fields["open_positions"]
+        self._open_positions_widget = positions.widget
+        positions.widget = forms.MultipleHiddenInput()
+        positions.required = False
+        self.position_options_json = json.dumps(
+            [
+                {"id": position.pk, "label": str(position)}
+                for position in positions.queryset
+            ]
         )
-        if self.instance.pk:
-            # A recruitment saved earlier with several positions shows its first.
-            self.initial["open_positions"] = (
-                self.instance.open_positions.values_list("pk", flat=True)
-                .order_by("pk")
-                .first()
+        self.fields["vacancy"].widget = forms.HiddenInput()
+        self.fields["vacancy"].required = False
+        initial = self.instance.vacancy_rows() if self.instance.pk else []
+        self.fields["vacancy_lines"] = forms.CharField(
+            required=False, initial=json.dumps(initial), widget=forms.HiddenInput()
+        )
+
+    def parse_vacancy_lines(self):
+        """
+        Read the vacancy lines the step sent: ``{job position: vacancy}``, one per chosen position, and make
+        their total the recruitment's vacancy. Problems are reported on the vacancy step.
+        """
+        raw = self.cleaned_data.get("vacancy_lines") or ""
+        if not raw:
+            return  # nothing from the wizard (a duplicate, say): the Vacancy field stands
+        try:
+            rows = json.loads(raw)
+            assert isinstance(rows, list)
+        except (ValueError, AssertionError):
+            self.add_error(
+                "vacancy_lines",
+                _("The Vacancy Lines Could Not Be Read. Please Review Them."),
             )
+            return
+        # The job positions are the lines' own: each line names the position it is for.
+        wanted = [str((row or {}).get("position")) for row in rows]
+        positions = {
+            str(p.pk): p
+            for p in self.fields["open_positions"].queryset.filter(
+                pk__in=[pk for pk in wanted if pk.isdigit()]
+            )
+        }
+        if len(set(wanted)) != len(wanted):
+            self.add_error(
+                "vacancy_lines", _("A Job Position Can Only Be On One Line.")
+            )
+            return
+        lines = {}
+        for row in rows:
+            position = positions.get(str((row or {}).get("position")))
+            given = (row or {}).get("vacancy")
+            try:
+                # Empty is "not specified": the line stays, with no number.
+                number = None if given in (None, "") else int(given)
+            except (TypeError, ValueError):
+                number = -1
+            if position is None:
+                self.add_error(
+                    "vacancy_lines", _("Choose A Job Position For Every Line.")
+                )
+                return
+            if number is not None and number < 0:
+                self.add_error(
+                    "vacancy_lines",
+                    _(
+                        "Vacancy For %(position)s Must Be A Whole Number Of Zero Or More."
+                    )
+                    % {"position": position.job_position},
+                )
+                return
+            lines[position] = number
+        if not lines:
+            self.add_error("vacancy_lines", _("Add At Least One Job Position."))
+            return
+        self.vacancy_line_list = lines
+        self.cleaned_data["open_positions"] = self.fields[
+            "open_positions"
+        ].queryset.filter(pk__in=[position.pk for position in lines])
+        self.cleaned_data["vacancy"] = sum(number or 0 for number in lines.values())
 
     def _post_clean(self):
         super()._post_clean()
+        # The vacancy total is not on screen: what the model says about it belongs on the vacancy step.
+        if "vacancy_lines" in self.fields and "vacancy" in self._errors:
+            for message in self._errors.pop("vacancy"):
+                self.add_error("vacancy_lines", message)
         # A blank title is reported by the required field and again by
         # Recruitment.clean(); show it once.
         title_errors = self.errors.get("title")
@@ -372,10 +468,6 @@ class RecruitmentCreationFormExtended(RecruitmentCreationForm):
         if not self.linkedin_enabled:
             return False
         return self.cleaned_data.get("publish_in_linkedin")
-
-    def clean_open_positions(self):
-        job_position = self.cleaned_data.get("open_positions")
-        return [job_position] if job_position else []
 
     def setup_pipeline_step(self):
         """
@@ -401,7 +493,9 @@ class RecruitmentCreationFormExtended(RecruitmentCreationForm):
                 {
                     "id": stage.pk,
                     "name": stage.stage,
-                    "type": stage.stage_type,
+                    "type": self.LEGACY_STAGE_TYPES.get(
+                        stage.stage_type, stage.stage_type
+                    ),
                     "locked": stage.pk in with_candidates,
                 }
                 for stage in self.instance.stage_set.order_by("sequence")
@@ -437,11 +531,15 @@ class RecruitmentCreationFormExtended(RecruitmentCreationForm):
         )
 
     def clean(self):
+        # The details step alone ("Next" from step 1) does not know the vacancies yet.
+        if "vacancy_lines" in self.fields and self.data.get("validate_step") != "1":
+            self.parse_vacancy_lines()
         super().clean()
-        # "Next" only checks step 1; the pipeline is checked when it is saved.
+        # "Next" only checks the step it leaves (1: the details, 2: the vacancies); the pipeline is checked when it
+        # is saved. Checking it on the way to its own step would block the person from ever reaching it.
         if (
             "pipeline_mode" in self.fields
-            and self.data.get("validate_step") != "1"
+            and self.data.get("validate_step") not in ("1", "2")
             and self.cleaned_data.get("pipeline_mode") == "custom"
         ):
             self.pipeline_stage_list = self.clean_custom_pipeline()
@@ -584,6 +682,8 @@ class RecruitmentForm(HorillaFormView):
     form_class = RecruitmentCreationFormExtended
     new_display_title = _("Add Recruitment")
     dynamic_create_fields = [("skills", RecruitmentNewSkillForm)]
+    # Lists to refresh after saving, on top of what the caller asked for (a subclass opened from a list sets it).
+    reload_targets = ()
     # template_name = "cbv/recruitment/recruitment_form.html"
 
     def get_context_data(self, **kwargs):
@@ -600,11 +700,11 @@ class RecruitmentForm(HorillaFormView):
         """
         Process form submission to save or update a Recruitment object and display success message.
         """
-        targets_to_reload = []
+        targets_to_reload = list(self.reload_targets)
         is_create = not form.instance.pk
 
-        if self.request.POST.get("validate_step") == "1":
-            # "Next" on step 1 of the wizard: the details are valid, nothing
+        if self.request.POST.get("validate_step") in ("1", "2"):
+            # "Next" on a step of the wizard: what is on it is valid, nothing
             # is saved until the last step is submitted.
             return HttpResponse(PIPELINE_STEP_OK)
 
@@ -612,6 +712,8 @@ class RecruitmentForm(HorillaFormView):
             try:
                 with transaction.atomic():
                     recruitment = form.save()
+                    if form.vacancy_line_list is not None:
+                        recruitment.set_vacancy_lines(form.vacancy_line_list)
                     if form.pipeline_stage_list is not None:
                         update_pipeline(recruitment, form.pipeline_stage_list)
             except ProtectedError:
@@ -632,6 +734,8 @@ class RecruitmentForm(HorillaFormView):
         else:
             with transaction.atomic():
                 recruitment = form.save()
+                if form.vacancy_line_list is not None:
+                    recruitment.set_vacancy_lines(form.vacancy_line_list)
                 create_pipeline(recruitment, form.pipeline_stage_list)
             recruitment_managers = self.request.POST.getlist("recruitment_managers")
             if recruitment_managers:
@@ -705,54 +809,57 @@ class AddCandidateFormView(HorillaFormView):
 @method_decorator(
     permission_required(perm="recruitment.view_recruitment"), name="dispatch"
 )
-class RecruitmentFormDuplicate(HorillaFormView):
+class RecruitmentFormDuplicate(RecruitmentForm):
     """
-    Duplicate form view
+    Duplicate a recruitment through the same steps as a new one: the form opens filled in from the original
+    (title marked as a copy, positions, vacancy lines, managers, dates), and saving creates a new recruitment.
     """
 
-    model = Recruitment
-    form_class = RecruitmentCreationFormExtended
+    new_display_title = _("Duplicate Recruitment")
+    reload_targets = ("#applyFilter",)
 
-    def get_context_data(self, **kwargs):
-        """
-        Return context data for duplicating a Recruitment object form with modified initial values.
-        """
-        context = super().get_context_data(**kwargs)
-        original_object = Recruitment.objects.get(id=self.kwargs["pk"])
-        form = self.form_class(instance=original_object)
-        # Duplicating saves in one step; the wizard is for create and edit.
-        form.wizard_template = None
-        for field_name, field in form.fields.items():
-            if isinstance(field, forms.CharField):
-                if field.initial:
-                    initial_value = field.initial
-                else:
-                    initial_value = f"{form.initial.get(field_name, '')} (copy)"
-                form.initial[field_name] = initial_value
-                form.fields[field_name].initial = initial_value
-        context["form"] = form
-        self.form_class.verbose_name = _("Duplicate")
-        return context
+    def init_form(self, *args, data={}, files={}, instance=None, **kwargs):
+        """No instance: the copy is a new recruitment, the original only fills the form in (see get_initial)."""
+        return super().init_form(*args, data=data, files=files, instance=None, **kwargs)
 
-    def form_valid(self, form: RecruitmentCreationFormExtended) -> HttpResponse:
-        """
-        Process form submission to add a new recruitment.
-        """
-        form = self.form_class(self.request.POST)
-        if form.is_valid():
-            recruitment = form.save()
-            message = _("Recruitment added")
-            recruitment.save()
-            recruitment_managers = self.request.POST.getlist("recruitment_managers")
-            job_positions = self.request.POST.getlist("open_positions")
-            if recruitment_managers:
-                recruitment.recruitment_managers.set(recruitment_managers)
-            if job_positions:
-                recruitment.open_positions.set(job_positions)
-            messages.success(self.request, message)
-            return self.HttpResponse(targets_to_reload=["#applyFilter"])
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        if form.instance.pk:
+            # A URL with a pk makes the base view put the original back as the form's instance; a copy is new.
+            form.instance = Recruitment()
+            self.form_class.verbose_name = self.new_display_title
+        return form
 
-        return super().form_valid(form)
+    def get_initial(self):
+        initial = super().get_initial()
+        original = Recruitment.objects.filter(pk=self.kwargs.get("pk")).first()
+        if original is None:
+            return initial
+        initial.update(
+            {
+                "title": f"{original.title or ''} (copy)",
+                "description": original.description,
+                "start_date": original.start_date,
+                "end_date": original.end_date,
+                "vacancy": original.vacancy,
+                "open_positions": list(
+                    original.open_positions.values_list("pk", flat=True)
+                ),
+                "recruitment_managers": list(
+                    original.recruitment_managers.values_list("pk", flat=True)
+                ),
+                "survey_templates": list(
+                    original.survey_templates.values_list("pk", flat=True)
+                ),
+                "skills": list(original.skills.values_list("pk", flat=True)),
+                "is_published": original.is_published,
+                "optional_profile_image": original.optional_profile_image,
+                "optional_resume": original.optional_resume,
+                "company_id": original.company_id_id,
+                "vacancy_lines": json.dumps(original.vacancy_rows()),
+            }
+        )
+        return initial
 
 
 @method_decorator(login_required, name="dispatch")

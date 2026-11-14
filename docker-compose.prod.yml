@@ -31,8 +31,12 @@ services:
     volumes: !override
       - staticfiles:/app/staticfiles
       - media:/app/media
+    # nginx is the way in and reaches web over the Docker network. Published
+    # on every interface, Django's port would bypass nginx (the login rate
+    # limit, the /metrics/ block, the security headers), so it is kept on
+    # localhost for health checks and debugging.
     ports: !override
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
 
   # Single replica: see the comment on this service in docker-compose.yml.
   # Mirrors web's environment so both read the same .env, minus the HTTP-only

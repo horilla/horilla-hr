@@ -58,6 +58,9 @@
     <span data-mi-actions="skipped" class="mi__actions" style="display:none;">
       <a class="mi__btn mi__btn--small" hx-boost="false" href="{{ review.downloads.skipped }}"><ion-icon name="download-outline"></ion-icon>{% trans "Download Skipped Records" %}</a>
     </span>
+    <button type="button" class="mi__btn mi__btn--small mi__btn--primary" id="mi-save" style="display:none;">
+      <ion-icon name="save-outline"></ion-icon><span>{% trans "Save Changes & Recheck" %}</span>
+    </button>
   </div>
 </div>
 <div class="mi__card-sub" style="margin-bottom:.5rem;">{% trans "Every value can be edited and any record skipped. Then use Save changes & recheck." %}</div>

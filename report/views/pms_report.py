@@ -407,9 +407,9 @@ if apps.is_installed("pms"):
                         if item["managers__employee_first_name"]
                         else "-"
                     ),
-                    "Manager Badge Id": item["managers__badge_id"] or "-",
+                    "Manager Badge ID": item["managers__badge_id"] or "-",
                     "Assignees": f"{item['assignees__employee_first_name']} {item['assignees__employee_last_name']}",
-                    "Assignee Badge Id": item["assignees__badge_id"] or "-",
+                    "Assignee Badge ID": item["assignees__badge_id"] or "-",
                     "Assignee Department": (
                         item["assignees__employee_work_info__department_id__department"]
                         if item[
@@ -512,9 +512,9 @@ if apps.is_installed("pms"):
                             {
                                 "Title": feedback.review_cycle,
                                 "Manager": manager,
-                                "Manager Badge Id": manager_badge_id,
+                                "Manager Badge ID": manager_badge_id,
                                 "Employee": employee,
-                                "Employee Badge Id": employee_badge_id,
+                                "Employee Badge ID": employee_badge_id,
                                 "Answerable Employees": answerable_names,
                                 "Questions": question.question,
                                 "Answer": "",
@@ -544,9 +544,9 @@ if apps.is_installed("pms"):
                                 {
                                     "Title": feedback.review_cycle,
                                     "Manager": manager,
-                                    "Manager Badge Id": manager_badge_id,
+                                    "Manager Badge ID": manager_badge_id,
                                     "Employee": employee,
-                                    "Employee Badge Id": employee_badge_id,
+                                    "Employee Badge ID": employee_badge_id,
                                     "Answerable Employees": answerable_names,
                                     "Questions": question.question,
                                     "Answer": answer_value,
@@ -604,7 +604,7 @@ if apps.is_installed("pms"):
             data_list = [
                 {
                     "Employee": f"{item['employee_objective_id__employee_id__employee_first_name']} {item['employee_objective_id__employee_id__employee_last_name']}",
-                    "Employee Badge Id": (
+                    "Employee Badge ID": (
                         item["employee_objective_id__employee_id__badge_id"] or "-"
                     ),
                     "Department": (

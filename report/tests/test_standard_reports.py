@@ -1187,3 +1187,37 @@ class DrilldownRegistryTests(SimpleTestCase):
                 ReportFilters(from_date=date(2026, 1, 1), to_date=date(2026, 1, 31)),
                 {"dimension": "department", "value": "HR"},
             )
+
+
+class StandardReportPreviewDateValidationTests(SimpleTestCase):
+    def _request(self, **params):
+        return RequestFactory().get("/", params)
+
+    def test_presets_are_always_valid(self):
+        from report.views.standard_reports import _validate_custom_period
+
+        self.assertIsNone(
+            _validate_custom_period(self._request(period_preset="last_30"))
+        )
+
+    def test_custom_requires_both_dates(self):
+        from report.views.standard_reports import _validate_custom_period
+
+        req = self._request(period_preset="custom", from_date="2026-01-01")
+        self.assertIn("Start Date and an End Date", _validate_custom_period(req))
+
+    def test_end_before_start_rejected(self):
+        from report.views.standard_reports import _validate_custom_period
+
+        req = self._request(
+            period_preset="custom", from_date="2026-02-01", to_date="2026-01-01"
+        )
+        self.assertIn("cannot be earlier", _validate_custom_period(req))
+
+    def test_valid_range_ok(self):
+        from report.views.standard_reports import _validate_custom_period
+
+        req = self._request(
+            period_preset="custom", from_date="2026-01-01", to_date="2026-01-31"
+        )
+        self.assertIsNone(_validate_custom_period(req))

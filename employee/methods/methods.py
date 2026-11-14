@@ -367,7 +367,7 @@ def process_employee_records(
             save = False
 
         elif badge_id in seen_badge_ids:
-            errors["Badge ID Error"] = "An employee with this badge ID already exists."
+            errors["Badge ID Error"] = "An employee with this Badge ID already exists."
             save = False
 
         else:

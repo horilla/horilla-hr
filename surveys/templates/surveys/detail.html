@@ -1,0 +1,67 @@
+{% extends "index.html" %}
+{% load i18n %}
+{% block content %}
+<meta name="csrf-token" content="{{ csrf_token }}">
+{% include "generic/components.html" %}
+{# the header row of a Horilla nav: title on the left, the buttons on the right #}
+<div class="flex flex-wrap justify-between items-center gap-2 mb-3">
+    <div class="flex items-center gap-2 min-w-0">
+        <a href="{% url 'surveys-view' %}" class="oh-btn oh-btn--light-bkg oh-btn--sq-sm" title="{% trans 'Back' %}">
+            <ion-icon name="arrow-back-outline"></ion-icon>
+        </a>
+        <h3 class="text-lg font-semibold truncate">{{ survey.title }}</h3>
+    </div>
+    {% if can_manage %}
+    <div class="flex flex-wrap gap-1">
+        <a hx-get="{% url 'survey-edit' survey.pk %}" hx-target="#genericModalBody" data-target="#genericModal" data-toggle="oh-modal-toggle"
+           class="px-4 py-2 bg-white rounded-md text-xs flex items-center gap-2 border border-primary-500 hover:border-primary-600 transition duration-300 cursor-pointer">
+            <ion-icon name="create-outline"></ion-icon>{% trans "Edit" %}
+        </a>
+        {% if can_save_to_library %}
+        <a hx-get="{% url 'survey-save-to-library' survey.pk %}" hx-target="#genericModalBody" data-target="#genericModal" data-toggle="oh-modal-toggle"
+           class="px-4 py-2 bg-white rounded-md text-xs flex items-center gap-2 border border-primary-500 hover:border-primary-600 transition duration-300 cursor-pointer">
+            <ion-icon name="library-outline"></ion-icon>{% trans "Save to library" %}
+        </a>
+        {% endif %}
+        {% if survey.status != "open" %}
+            <form method="post" action="{% url 'survey-open' survey.pk %}" onsubmit="return confirm('{% trans 'Open the survey and send the invitations?' %}')">{% csrf_token %}
+                <button class="px-4 py-2 bg-brand-600 text-white rounded-md text-xs flex items-center gap-2 hover:bg-brand-800 transition duration-300">
+                    <ion-icon name="paper-plane-outline"></ion-icon>{% if survey.status == "closed" %}{% trans "Reopen" %}{% else %}{% trans "Open and send" %}{% endif %}
+                </button>
+            </form>
+        {% else %}
+            <form method="post" action="{% url 'survey-remind' survey.pk %}" onsubmit="return confirm('{% trans 'Remind everyone who has not answered?' %}')">{% csrf_token %}
+                <button class="px-4 py-2 bg-white rounded-md text-xs flex items-center gap-2 border border-primary-500 hover:border-primary-600 transition duration-300">
+                    <ion-icon name="notifications-outline"></ion-icon>{% trans "Remind" %}
+                </button>
+            </form>
+            <form method="post" action="{% url 'survey-close' survey.pk %}" onsubmit="return confirm('{% trans 'Close the survey? No more answers will be taken.' %}')">{% csrf_token %}
+                <button class="px-4 py-2 bg-brand-600 text-white rounded-md text-xs flex items-center gap-2 hover:bg-brand-800 transition duration-300">
+                    <ion-icon name="lock-closed-outline"></ion-icon>{% trans "Close" %}
+                </button>
+            </form>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+<div class="bg-white p-6 rounded-md shadow-card mb-3">
+    <div class="flex flex-wrap items-center gap-2">
+        {{ survey.status_badge|safe }}
+        <span class="text-xs flex items-center gap-1 px-2 py-1 rounded-md border border-[#ebebeb]">
+            <ion-icon name="people-outline"></ion-icon>{{ survey.audience_label }}
+        </span>
+        {% if survey.is_anonymous %}
+            <span class="text-xs flex items-center gap-1 px-2 py-1 rounded-md border border-[#ebebeb]">
+                <ion-icon name="eye-off-outline"></ion-icon>{% trans "Anonymous" %}
+            </span>
+        {% endif %}
+        {% if survey.closes_at %}
+            <span class="text-xs text-[#666]">{% blocktrans with date=survey.closes_at|date:"d.m.Y H:i" %}closes {{ date }}{% endblocktrans %}</span>
+        {% endif %}
+    </div>
+    {% if survey.description %}<p class="text-sm text-[#666] mt-3 mb-0" style="white-space:pre-line">{{ survey.description }}</p>{% endif %}
+</div>
+<div hx-get="{% url 'survey-tabs' survey.pk %}" hx-trigger="load"></div>
+{# the question form reloads the Questions tab through this button #}
+<button id="reloadQuestions" hidden onclick="htmx.trigger(document.body, 'reloadQuestions')"></button>
+{% endblock %}

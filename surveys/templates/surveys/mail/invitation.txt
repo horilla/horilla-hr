@@ -1,0 +1,11 @@
+{% load i18n %}{% blocktrans with name=employee.get_full_name %}Hello, {{ name }}!{% endblocktrans %}
+
+{% if reminder %}{% trans "The survey is still waiting for your answers:" %}{% else %}{% trans "You are invited to a short survey:" %}{% endif %} {{ survey.title }}
+{% if survey.description %}
+{{ survey.description }}
+{% endif %}
+{{ url }}
+
+{% if survey.is_anonymous %}{% trans "The survey is anonymous: your answers are stored without your name." %}{% endif %}
+{% trans "Your answers are saved as you go - you can come back to the same link any time." %}
+{% if survey.closes_at %}{% blocktrans with date=survey.closes_at|date:"d.m.Y H:i" %}Open until {{ date }}.{% endblocktrans %}{% endif %}

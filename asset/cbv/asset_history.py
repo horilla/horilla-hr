@@ -78,12 +78,14 @@ class AssetHistorylistView(HorillaListView):
     # and Nav are separate classes/templates (see employee/cbv/employees.py's
     # EmployeesList/EmployeeNav for the same split).
     nested_group_by_fields = [
-        ("asset_id__asset_name", _("Asset")),
+        ("asset_id", _("Asset")),
+        ("asset_item_id", _("Asset Item")),
         ("assigned_to_employee_id", _("Employee")),
         ("assigned_date", _("Assigned Date")),
         ("return_date", _("Returned Date")),
         ("return_status", _("Return Status")),
     ]
+    group_by_template_name = "generic/nested_group_by_table.html"
 
 
 @method_decorator(login_required, name="dispatch")
@@ -123,14 +125,20 @@ class AssetHistoryNavView(HorillaNavView):
 
     group_by_fields = [
         ("asset_id__asset_name", _("Asset")),
+        ("asset_item_id", _("Asset Item")),
         ("assigned_to_employee_id", _("Employee")),
         ("assigned_date", _("Assigned Date")),
         ("return_date", _("Returned Date")),
     ]
 
-    # Mirrors AssetHistorylistView.nested_group_by_fields
+    # Mirrors AssetHistorylistView.nested_group_by_fields. Opens grouped by
+    # Asset (by FK, so same-named assets stay separate); levels can be changed
+    # or removed from the "Grouped by" bar.
+    default_group_by = "asset_id"
+    default_nested_group_by = ["asset_id", "asset_item_id"]
     nested_group_by_fields = [
-        ("asset_id__asset_name", _("Asset")),
+        ("asset_id", _("Asset")),
+        ("asset_item_id", _("Asset Item")),
         ("assigned_to_employee_id", _("Employee")),
         ("assigned_date", _("Assigned Date")),
         ("return_date", _("Returned Date")),

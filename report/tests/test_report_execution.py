@@ -1379,3 +1379,136 @@ class ExportPolishTests(TestCase):
         from report.chart_render import render_chart_png
 
         self.assertIsNone(render_chart_png({"categories": [], "series": []}))
+
+
+class SubscriptionListFilterTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        import report.metrics  # noqa: F401
+
+        cls.company = make_company("Sub List Corp")
+        cls.admin = make_user("sublist_admin", is_superuser=True)
+        make_employee(
+            company=cls.company, email="sublist_admin@test.horilla", user=cls.admin
+        )
+        cls.recipient = make_employee(
+            company=cls.company,
+            email="sublist_rcpt@test.horilla",
+            first_name="Zelda",
+            last_name="Recipient",
+        )
+
+    def setUp(self):
+        clear_selected_company()
+
+    def _client(self):
+        from django.test import Client
+
+        client = Client()
+        client.force_login(self.admin)
+        session = client.session
+        session["selected_company"] = "all"
+        session.save()
+        return client
+
+    def _subscription(self, name, recipients=(), **overrides):
+        from report.models import ReportSubscription
+
+        defaults = {
+            "report_slug": "workforce-composition",
+            "name": name,
+            "frequency": "weekly",
+            "owner": self.admin,
+        }
+        defaults.update(overrides)
+        subscription = ReportSubscription.objects.create(**defaults)
+        subscription.recipients_employees.set(recipients)
+        return subscription
+
+    def _list(self, **params):
+        from django.urls import reverse
+
+        response = self._client().get(
+            reverse("report-subscriptions-list"), params, HTTP_HX_REQUEST="true"
+        )
+        self.assertEqual(response.status_code, 200)
+        return response.content.decode()
+
+    def test_search_matches_name_and_recipient(self):
+        self._subscription("Alpha digest")
+        self._subscription("Bravo digest", recipients=[self.recipient])
+        html = self._list(search="Alpha")
+        self.assertIn("Alpha digest", html)
+        self.assertNotIn("Bravo digest", html)
+        html = self._list(search="Zelda")
+        self.assertIn("Bravo digest", html)
+        self.assertNotIn("Alpha digest", html)
+
+    def test_status_filter_keeps_paused_rows_reachable(self):
+        self._subscription("Live one")
+        self._subscription("Sleeping one", is_active=False)
+        html = self._list(status="paused", search="")
+        self.assertIn("Sleeping one", html)
+        self.assertNotIn("Live one", html)
+        html = self._list(status="active", search="")
+        self.assertIn("Live one", html)
+        self.assertNotIn("Sleeping one", html)
+
+    def test_row_actions_render_translated_confirmations(self):
+        self._subscription("Alpha digest")
+        html = self._list()
+        self.assertIn('hx-confirm="Delete this schedule?"', html)
+        self.assertIn('hx-confirm="Send this report now?"', html)
+        self.assertNotIn("{% trans", html)
+
+    def test_filter_tags_report_the_applied_search(self):
+        self._subscription("Alpha digest")
+        html = self._list(search="Alpha")
+        self.assertIn('data-field="search"', html)
+
+
+class AuditFilterPlaceholderTests(TestCase):
+    def test_text_filters_have_readable_placeholders(self):
+        from report.filters import ReportAuditFilter
+
+        form = ReportAuditFilter().form
+        self.assertEqual(
+            form.fields["q"].widget.attrs["placeholder"], "Username Or Email"
+        )
+        self.assertEqual(
+            form.fields["report_slug"].widget.attrs["placeholder"], "Report Slug"
+        )
+        self.assertNotIn("Invalid", str(form["q"]))
+
+    def test_search_matches_report_name_user_and_action(self):
+        import report.metrics  # noqa: F401
+        from report.filters import ReportAuditFilter
+        from report.models import ReportRunLog
+
+        company = make_company("Audit Search Corp")
+        user = make_user("audit_searcher")
+        make_employee(
+            company=company,
+            email="audit_searcher@test.horilla",
+            first_name="Zelda",
+            last_name="Auditor",
+            user=user,
+        )
+        mine = ReportRunLog.objects.create(
+            report_slug="workforce-composition", action="export", user=user
+        )
+        other = ReportRunLog.objects.create(
+            report_slug="turnover-attrition", action="view"
+        )
+
+        def found(text):
+            qs = ReportAuditFilter(
+                {"search": text}, queryset=ReportRunLog.objects.all()
+            ).qs
+            return set(qs.values_list("pk", flat=True))
+
+        self.assertEqual(found("Zelda"), {mine.pk})
+        self.assertEqual(found("audit_searcher"), {mine.pk})
+        self.assertEqual(found("workforce-comp"), {mine.pk})
+        self.assertEqual(found("export"), {mine.pk})
+        self.assertEqual(found("view"), {other.pk})

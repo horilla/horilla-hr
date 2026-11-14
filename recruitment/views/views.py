@@ -241,6 +241,57 @@ def pipeline_grouper(request, recruitments):
 
 
 @login_required
+def position_vacancy(request):
+    """
+    How many vacancies a recruitment can still open for the chosen job position(s), for the recruitment form.
+
+    ``available`` is None when none of them has a headcount (no limit).
+    """
+    from base.models import JobPosition
+
+    if not (
+        request.user.has_perm("recruitment.add_recruitment")
+        or request.user.has_perm("recruitment.change_recruitment")
+    ):
+        return JsonResponse({"error": "forbidden"}, status=403)
+    ids = [pk for pk in request.GET.getlist("open_positions") if str(pk).isdigit()]
+    recruitment = (
+        Recruitment.objects.entire().filter(pk=request.GET.get("recruitment")).first()
+    )
+    rows = []
+    for position in JobPosition.objects.filter(pk__in=ids):
+        candidates = (
+            Candidate.objects.entire().filter(
+                recruitment_id=recruitment, job_position_id=position, is_active=True
+            )
+            if recruitment is not None
+            else Candidate.objects.none()
+        )
+        rows.append(
+            {
+                "id": position.pk,
+                "department": position.department_id.department,
+                "applied": candidates.count(),
+                "selected": candidates.filter(hired=True).count(),
+                "name": position.job_position,
+                "headcount": position.headcount,
+                "filled": position.filled_count(),
+                "open": position.open_vacancy_count(exclude_recruitment=recruitment),
+                "available": position.available_vacancies(
+                    exclude_recruitment=recruitment
+                ),
+            }
+        )
+    limited = bool(rows) and all(row["headcount"] for row in rows)
+    return JsonResponse(
+        {
+            "positions": rows,
+            "available": sum(row["available"] for row in rows) if limited else None,
+        }
+    )
+
+
+@login_required
 @hx_request_required
 @permission_required(perm="recruitment.add_recruitment")
 def recruitment(request):
@@ -2266,6 +2317,24 @@ def form_send_mail(request, cand_id=None):
     else:
         stage_id = None
 
+    # Onboarding "Bulk Mail": the list rows are CandidateStage records, whose pks
+    # are not Candidate ids, so hand the modal the stage's candidates plus a
+    # CandidateStage pk -> Candidate pk map to translate the row selection.
+    onboarding_stage_id = None
+    onboarding_candidate_map = {}
+    raw_onboarding_stage_id = request.GET.get("onboarding_stage_id", "")
+    if raw_onboarding_stage_id.isdigit():
+        onboarding_stage_id = int(raw_onboarding_stage_id)
+        candidates = candidates.filter(
+            onboarding_stage__onboarding_stage_id__id=onboarding_stage_id
+        )
+        onboarding_candidate_map = {
+            str(stage_pk): candidate_pk
+            for stage_pk, candidate_pk in candidates.values_list(
+                "onboarding_stage__pk", "pk"
+            )
+        }
+
     HorillaMailTemplate.objects.get_or_create(
         title="Candidate Portal Login",
         defaults={
@@ -2306,6 +2375,8 @@ def form_send_mail(request, cand_id=None):
             "templates": templates,
             "candidates": candidates,
             "stage_id": stage_id,
+            "onboarding_stage_id": onboarding_stage_id,
+            "onboarding_candidate_map": onboarding_candidate_map,
             "searchWords": MailTemplateForm().get_template_language(),
         },
     )
@@ -2702,7 +2773,7 @@ def create_candidate_rating(request, cand_id):
     else:
         messages.error(request, _("No Candidate found matching the query"))
 
-    return redirect(recruitment_pipeline)
+    return redirect("cbv-pipeline")
 
 
 # ///////////////////////////////////////////////
@@ -3163,7 +3234,7 @@ def update_candidate_rating(request, cand_id):
     else:
         messages.error(request, _("No Candidate found matching the query"))
 
-    return redirect(recruitment_pipeline)
+    return redirect("cbv-pipeline")
 
 
 def open_recruitments(request):

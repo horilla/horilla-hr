@@ -1,0 +1,17 @@
+{% include "generic/horilla_form.html" %}
+<script>
+    // The options are asked only of a single or multiple choice question, and
+    // there they are required
+    (function () {
+        var form = $("#{{ view_id }}Form");
+        var choiceTypes = ["choice", "multiple"];
+        function showOptions() {
+            var needed = choiceTypes.indexOf(form.find("[name=type]").val()) !== -1;
+            var field = form.find("#id_options_text_parent_div");
+            field.toggle(needed);
+            field.find("label").toggleClass("required-star", needed);
+        }
+        form.find("[name=type]").on("change", showOptions);
+        showOptions();
+    })();
+</script>

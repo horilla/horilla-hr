@@ -8,21 +8,61 @@
         $(this).closest('.oh-accordion').toggleClass('oh-accordion--show');
     });
 
+    // innerHTML only carries attributes, not live state. Copy what the user
+    // picked (selected option, checked box, typed value) onto the attributes
+    // so the saved HTML reopens exactly as it was left. Handlers assigned as
+    // properties (onchange) are not serialized, so this cannot be left to them.
+    function syncConditionState(formEl) {
+        formEl.querySelectorAll('select').forEach(select => {
+            Array.from(select.options).forEach(option => {
+                if (option.selected) {
+                    option.setAttribute('selected', 'selected');
+                } else {
+                    option.removeAttribute('selected');
+                }
+            });
+        });
+        formEl.querySelectorAll('input').forEach(input => {
+            if (input.type === 'checkbox' || input.type === 'radio') {
+                if (input.checked) {
+                    input.setAttribute('checked', 'checked');
+                } else {
+                    input.removeAttribute('checked');
+                }
+                input.value = input.checked ? 'on' : 'off';
+            } else {
+                input.setAttribute('value', input.value);
+            }
+        });
+        formEl.querySelectorAll('textarea').forEach(textarea => {
+            textarea.textContent = textarea.value;
+        });
+    }
+
     $(document).on('click', '#{{view_id}}Form button[type="submit"]', function () {
         const $mainForm = $('#{{view_id}}Form');
-        const conditionFormEl = $('#multipleConditionForm')[0];
+        // The same element feeds the query string and the saved HTML so the
+        // two cannot disagree.
+        const conditionFormEl =
+            $('.note-editable #multipleConditionForm')[0] || $('#multipleConditionForm')[0];
 
         if (!conditionFormEl) return;
 
+        syncConditionState(conditionFormEl);
+
         const queryString = Array.from(conditionFormEl.elements)
             .filter(el => el.name && !el.disabled)
-            .map(el => encodeURIComponent(el.name) + '=' + encodeURIComponent(el.value))
+            .map(el => {
+                // An unchecked switch must serialize as "off", never "on".
+                const value = (el.type === 'checkbox' || el.type === 'radio')
+                    ? (el.checked ? 'on' : 'off')
+                    : el.value;
+                return encodeURIComponent(el.name) + '=' + encodeURIComponent(value);
+            })
             .join('&');
 
         $mainForm.find('[name="condition_querystring"]').val(queryString);
-
-        const html = $(".note-editable #multipleConditionForm").html();
-        $mainForm.find('[name="condition_html"]').val(html);
+        $mainForm.find('[name="condition_html"]').val($(conditionFormEl).html());
     });
 
     $("#dynamic_field_condition").parent().removeClass("col-md-6");

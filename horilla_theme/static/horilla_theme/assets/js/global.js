@@ -253,3 +253,25 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 })();
+
+// htmx 2.x no longer shows a confirm() dialog for hx-confirm on its own --
+// it just fires "htmx:confirm" and expects the page to handle it (see the
+// htmx 2.0 migration guide). Without this, every hx-confirm element in the
+// app silently does nothing at all when clicked: no dialog, no request.
+// (Not using window.confirm here: static/index/index.js overrides it with
+// a version that reads window.event, which is unset -- and throws -- for a
+// call made from this listener, so it would silently swallow every
+// confirm instead of showing one.)
+document.addEventListener("htmx:confirm", function (e) {
+  if (!e.target.hasAttribute("hx-confirm")) return;
+  e.preventDefault();
+  Swal.fire({
+    text: e.detail.question,
+    icon: "question",
+    showCancelButton: true,
+    confirmButtonColor: "#008000",
+    cancelButtonColor: "#6c757d",
+  }).then(function (result) {
+    if (result.isConfirmed) e.detail.issueRequest(true);
+  });
+});

@@ -1,45 +1,31 @@
 {% load static i18n helpdeskfilters %}
 <div class="flex items-center justify-center gap-1" onclick="event.stopPropagation()">
-    {% if tab != 'my_tickets' %}
-        {% if perms.helpdesk.change_ticket or perms.helpdesk.change_claimrequest or perms.helpdesk.view_claimrequest or request.user.employee_get|is_department_manager:ticket %}
+    {% if tab == 'suggested_tickets' %}
+        {% if request.user.employee_get in ticket.assigned_to.all %}
             <button
-                hx-get = "{% url "view-ticket-claim-request" ticket.id %}"
-                hx-target="#objectDetailsModalTarget"
-                data-toggle="oh-modal-toggle"
-                data-target="#objectDetailsModal"
-                class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
-                title = "{% trans "Claim Requests" %}"
+                disabled
+                class="oh-btn oh-btn--success oh-btn--sq-sm"
+                title="{% trans 'Claim' %}"
             >
-                <ion-icon name="eye-outline"></ion-icon>
+                <ion-icon name="checkmark-done-outline"></ion-icon>
             </button>
-        {% endif %}
-        {% if tab != 'all_tickets' %}
-            {% if request.user.employee_get in ticket.assigned_to.all %}
-                <button
-                    disabled
-                    class="oh-btn oh-btn--success oh-btn--sq-sm"
-                    title="{% trans 'Claim' %}"
-                >
-                    <ion-icon name="checkmark-done-outline"></ion-icon>
-                </button>
-            {% elif ticket.assigned_to.all %}
-                <button
-                    disabled
-                    class="oh-btn oh-btn--success oh-btn--sq-sm"
-                    title="{% trans 'Claim' %}"
-                >
-                    <ion-icon name="checkmark-done-outline"></ion-icon>
-                </button>
-            {% else %}
-                <a
-                    type="submit"
-                    href = "{% url 'claim-ticket' ticket.id %}"
-                    class="oh-btn oh-btn--success oh-btn--sq-sm"
-                    title="{% trans 'Claim' %}"
-                >
-                    <ion-icon name="checkmark-done-outline"></ion-icon>
-                </a>
-            {% endif %}
+        {% elif ticket.assigned_to.all %}
+            <button
+                disabled
+                class="oh-btn oh-btn--success oh-btn--sq-sm"
+                title="{% trans 'Claim' %}"
+            >
+                <ion-icon name="checkmark-done-outline"></ion-icon>
+            </button>
+        {% else %}
+            <a
+                type="submit"
+                href = "{% url 'claim-ticket' ticket.id %}"
+                class="oh-btn oh-btn--success oh-btn--sq-sm"
+                title="{% trans 'Claim' %}"
+            >
+                <ion-icon name="checkmark-done-outline"></ion-icon>
+            </a>
         {% endif %}
     {% endif %}
 

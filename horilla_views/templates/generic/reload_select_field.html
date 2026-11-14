@@ -15,12 +15,13 @@ $("#{{dynamic_id}} [name={{field.name}}]").change(function (e) {
     }
     if (values == "dynamic_create") {
       $("#modalButton{{field.name}}").click()
+      $(this).val("")
     }else if (values.includes("dynamic_create")) {
       let index = values.indexOf("dynamic_create");
       values.splice(index, 1);
       $(this).val(values).change();
       $("#modalButton{{field.name}}").parent().find('input[name=dynamic_initial]').val(values)
-      $("#reload-field{{field.name}}{{request.GET.view_id}}").find('input[name=dynamic_initial]').val(values)
+      $("#reload-field{{field.name}}{{view_id}}").find('input[name=dynamic_initial]').val(values)
       $("#modalButton{{field.name}}").click()
 
     }else {

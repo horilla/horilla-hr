@@ -1,0 +1,152 @@
+{% load i18n %}
+{% comment %}
+The Filter panel of the Arrears & Recovery list. Name or Badge ID sits above the sections, as on the
+Employee list; then the entry (type, status, where it was applied), the employee's work info, and the
+Advanced section, the shared "+ Add filter" builder: amount, pay date, confirmed on, title and reason.
+{% endcomment %}
+<input type="hidden" name="view" id="filterView" value="">
+<div class="oh-dropdown__filter-body">
+  <div class="row">
+    <div class="col-sm-12 col-md-12 col-lg-12">
+      <div class="oh-input-group">
+        <label class="oh-label" for="{{ form.name_or_badge.id_for_label }}">{% trans "Name or Badge ID" %}</label>
+        {{ form.name_or_badge }}
+      </div>
+    </div>
+  </div>
+
+  <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+    <div class="oh-accordion-header">
+      <span class="oh-filter-section-icon"><ion-icon name="pricetag-outline"></ion-icon></span>
+      {% trans "Type & Status" %}
+    </div>
+    <div class="oh-accordion-body">
+      <div class="row">
+        <div class="col-sm-6">
+          <div class="oh-input-group">
+            <label class="oh-label">{% trans "Type" %}</label>
+            {{ form.kind }}
+          </div>
+        </div>
+        <div class="col-sm-6">
+          <div class="oh-input-group">
+            <label class="oh-label">{% trans "Status" %}</label>
+            {{ form.status }}
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-sm-6">
+          <div class="oh-input-group">
+            <label class="oh-label">{% trans "Applied In" %}</label>
+            {{ form.applied }}
+          </div>
+        </div>
+        <div class="col-sm-6">
+          <div class="oh-input-group">
+            <label class="oh-label">{% trans "Taxable / Pre-Tax" %}</label>
+            {{ form.tax }}
+          </div>
+        </div>
+        <div class="col-sm-12">
+          <div class="oh-input-group">
+            <label class="oh-label">{% trans "Confirmed By" %}</label>
+            {{ form.approved_by }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+    <div class="oh-accordion-header">
+      <span class="oh-filter-section-icon"><ion-icon name="briefcase-outline"></ion-icon></span>
+      {% trans "Work Info" %}
+    </div>
+    <div class="oh-accordion-body">
+      <div class="row">
+        <div class="col-sm-12">
+          <div class="oh-input-group">
+            <label class="oh-label">{% trans "Email" %}</label>
+            {{ form.email }}
+          </div>
+        </div>
+        <div class="col-sm-12">
+          <div class="oh-input-group">
+            <label class="oh-label">{% trans "Company" %}</label>
+            {{ form.employee_id__employee_work_info__company_id }}
+          </div>
+        </div>
+        <div class="col-sm-12">
+          <div class="oh-input-group">
+            <label class="oh-label">{% trans "Reporting Manager" %}</label>
+            {{ form.employee_id__employee_work_info__reporting_manager_id }}
+          </div>
+        </div>
+        <div class="col-sm-12">
+          <div class="oh-input-group">
+            <label class="oh-label">{% trans "Department" %}</label>
+            {{ form.employee_id__employee_work_info__department_id }}
+          </div>
+        </div>
+        <div class="col-sm-12">
+          <div class="oh-input-group">
+            <label class="oh-label">{% trans "Job Position" %}</label>
+            {{ form.employee_id__employee_work_info__job_position_id }}
+          </div>
+        </div>
+        <div class="col-sm-12">
+          <div class="oh-input-group">
+            <label class="oh-label">{% trans "Shift" %}</label>
+            {{ form.employee_id__employee_work_info__shift_id }}
+          </div>
+        </div>
+        <div class="col-sm-12">
+          <div class="oh-input-group">
+            <label class="oh-label">{% trans "Employee Tag" %}</label>
+            {{ form.employee_id__employee_work_info__tags }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+    <div class="oh-accordion-header">
+      <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
+      {% trans "Advanced" %}
+    </div>
+    <div class="oh-accordion-body">
+      <div class="row"><div class="col-sm-12"><div class="oh-input-group">
+        <div id="customFilterRowsContainer-pay-adjustment" class="oh-custom-filter-rows"></div>
+        <button type="button" class="oh-custom-filter-add" onclick="addCustomFilterRow('pay-adjustment')">+ {% trans "Add filter" %}</button>
+      </div></div></div>
+    </div>
+  </div>
+</div>
+{{ custom_filter_fields|json_script:"customFilterFields-pay-adjustment" }}
+{{ custom_filter_rows|json_script:"customFilterRows-pay-adjustment" }}
+<script>initCustomFilterBuilder('pay-adjustment');</script>
+<script>
+  // The panel's other filters apply as they change; the Advanced rows wait for Apply, so a half-built
+  // row (a field with no value yet) never refreshes the list. Stopped here, before the page-wide live handlers.
+  (function () {
+    var rows = document.getElementById("customFilterRowsContainer-pay-adjustment");
+    if (!rows) return;
+    ["change", "input"].forEach(function (name) {
+      rows.addEventListener(name, function (event) { event.stopPropagation(); });
+    });
+  })();
+</script>
+
+<script>
+  $("#filterForm").submit(function () {
+    var count = 0;
+    $(this).serialize().split("&").forEach(function (field) {
+      var parts = field.split("=");
+      if (["view", "search", "nav_url", "filter_applied"].indexOf(parts[0]) === -1 && parts[1]) { count++; }
+    });
+    $("#filterCount").empty();
+    if (count > 0) { $("#filterCount").text("(" + count + ")"); }
+  });
+</script>

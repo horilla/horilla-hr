@@ -30,6 +30,7 @@ _ALLOWED_HTML_TAGS = {
     "code",
     "div",
     "em",
+    "font",
     "h1",
     "h2",
     "h3",
@@ -58,7 +59,28 @@ _ALLOWED_HTML_TAGS = {
     "u",
     "ul",
 }
+_SAFE_FONT_COLOR = re.compile(
+    r"^(#[0-9a-fA-F]{3,8}|[a-zA-Z]{3,20}|rgba?\(\s*\d{1,3}\s*(?:,\s*\d{1,3}\s*){2}(?:,\s*[\d.]+\s*)?\))$"
+)
+
+
+def _allow_font_attribute(tag, name, value):
+    """
+    Allow only a plain colour value on a font tag's color attribute
+
+    Parameters:
+        tag (str): tag name being sanitised
+        name (str): attribute name
+        value (str): attribute value
+
+    Returns:
+        bool: True if the attribute is color and its value is a plain colour
+    """
+    return name == "color" and bool(_SAFE_FONT_COLOR.match(value))
+
+
 _ALLOWED_HTML_ATTRS = {
+    "font": _allow_font_attribute,
     "a": ["href", "title", "target", "rel"],
     "img": ["src", "alt", "title", "width", "height"],
     "td": ["colspan", "rowspan"],

@@ -506,7 +506,7 @@ if apps.is_installed("recruitment"):
                 {
                     "Recruitment": item["title"],
                     "Manager": f"{item['recruitment_managers__employee_first_name']} {item['recruitment_managers__employee_last_name']}",
-                    "Manager Badge Id": item["recruitment_managers__badge_id"] or "-",
+                    "Manager Badge ID": item["recruitment_managers__badge_id"] or "-",
                     "Closed": "Closed" if item["closed"] else "Open",
                     "Status": "Published" if item["is_published"] else "Not Published",
                     "Start Date": item["start_date"],
@@ -551,7 +551,7 @@ if apps.is_installed("recruitment"):
                         if item["employee_id__employee_first_name"]
                         else "-"
                     ),
-                    "Stage Manager Badge Id": item["employee_id__badge_id"] or "-",
+                    "Stage Manager Badge ID": item["employee_id__badge_id"] or "-",
                     "Task": (
                         item["onboarding_task__task_title"]
                         if item["onboarding_task__task_title"]
@@ -562,7 +562,7 @@ if apps.is_installed("recruitment"):
                         if item["onboarding_task__employee_id__employee_first_name"]
                         else "-"
                     ),
-                    "Task Manager Badge Id": (
+                    "Task Manager Badge ID": (
                         item["onboarding_task__employee_id__badge_id"] or "-"
                     ),
                     "Candidates": (

@@ -298,7 +298,7 @@ if apps.is_installed("asset"):
                     ]
                     else "-"
                 ),
-                "Asset User Badge Id": (
+                "Asset User Badge ID": (
                     item["assetassignment__assigned_by_employee_id__badge_id"] or "-"
                 ),
                 "Email": (

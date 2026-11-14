@@ -21,6 +21,7 @@ from base.methods import reload_queryset
 from base.models import Company, Department, EmployeeShift, JobPosition, WorkType
 from employee.models import Employee
 from horilla.filters import HorillaFilterSet
+from horilla.week import week_start
 from pms.models import (
     AnonymousFeedback,
     BonusPointSetting,
@@ -60,7 +61,7 @@ class DateRangeFilter(django_filters.Filter):
 
             if value == "week":
                 today = datetime.date.today()
-                start_of_week = today - datetime.timedelta(days=today.weekday())
+                start_of_week = week_start(today)
                 end_of_week = start_of_week + datetime.timedelta(days=6)
                 qs = qs.filter(created_at__range=[start_of_week, end_of_week])
 
@@ -407,7 +408,7 @@ class FeedbackFilter(HorillaFilterSet):
         elif value == "due_today":
             return queryset.filter(end_date=today)
         elif value == "due_this_week":
-            start_of_week = today - timedelta(days=today.weekday())
+            start_of_week = week_start(today)
             end_of_week = start_of_week + timedelta(days=6)
             return queryset.filter(end_date__range=(start_of_week, end_of_week))
         elif value == "due_this_month":
@@ -574,7 +575,7 @@ class KeyResultFilter(CustomFilterSet):
         if value == "due_today":
             return queryset.filter(end_date=today)
         elif value == "due_this_week":
-            start = today - timedelta(days=today.weekday())
+            start = week_start(today)
             end = start + timedelta(days=6)
             return queryset.filter(end_date__range=(start, end))
         elif value == "due_this_month":
@@ -805,7 +806,7 @@ class EmployeeObjectiveFilter(HorillaFilterSet):
         if value == "due_today":
             return queryset.filter(employee_key_result__end_date=today)
         elif value == "due_this_week":
-            start = today - timedelta(days=today.weekday())
+            start = week_start(today)
             end = start + timedelta(days=6)
             return queryset.filter(employee_key_result__end_date__range=(start, end))
         elif value == "due_this_month":
@@ -1065,7 +1066,7 @@ class AnonymousFilter(HorillaFilterSet):
 
             if value == "week":
                 today = datetime.date.today()
-                start_of_week = today - datetime.timedelta(days=today.weekday())
+                start_of_week = week_start(today)
                 end_of_week = start_of_week + datetime.timedelta(days=6)
                 qs = qs.filter(created_at__range=[start_of_week, end_of_week])
 

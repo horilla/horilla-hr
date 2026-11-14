@@ -94,8 +94,8 @@ class AutomationForm(ModelForm):
             self.instance, "condition_html", None
         ) or self.data.get("condition_html")
         self.fields["condition_querystring"].initial = getattr(
-            self.instance, "condition", None
-        ) or self.data.get("condition_html")
+            self.instance, "condition_querystring", None
+        ) or self.data.get("condition_querystring")
 
         # --- Apply option template name for all select fields ---
         for field in self.fields.values():

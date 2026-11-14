@@ -20,6 +20,7 @@ and a contract activated between the two steps would silently join a run
 nobody reviewed.
 """
 
+import json
 import logging
 from datetime import date, timedelta
 
@@ -146,9 +147,7 @@ def batch_set_status(request, batch_id):
     allowed, reason = batch.can_transition_to(wanted)
     if not allowed:
         messages.error(request, reason)
-        return HorillaRedirect(
-            request, reverse("payroll-batch-detail", args=[batch.pk])
-        )
+        return _status_answer(request, batch)
 
     batch.status = wanted
     batch.save(update_fields=["status"])
@@ -176,6 +175,20 @@ def batch_set_status(request, batch_id):
         request,
         _("Batch marked %(status)s.") % {"status": batch.get_status_display()},
     )
+    return _status_answer(request, batch)
+
+
+def _status_answer(request, batch):
+    """
+    The menu posts with htmx: answer with a trigger the page refreshes itself on, so a status change
+    needs no reload. A plain post (no script, or an old link) is still sent back to the page.
+    """
+    if request.headers.get("HX-Request"):
+        response = HttpResponse("", status=200)
+        response["HX-Trigger"] = json.dumps(
+            {"reloadPayrollPayslips": {"target": "body"}}
+        )
+        return response
     return HorillaRedirect(request, reverse("payroll-batch-detail", args=[batch.pk]))
 
 
@@ -393,6 +406,19 @@ def wizard_review(request):
 # ---------------------------------------------------------------------------
 
 
+def _extra_workers():
+    """
+    How many extra slice loops the progress modal runs beside the bar's own.
+
+    Parallel slices only pay off where requests run in separate processes (gunicorn with several
+    workers). The development server runs Python one thread at a time, so there they only add
+    contention: off in debug, three extra otherwise, or set PAYROLL_PARALLEL_SLICES.
+    """
+    from django.conf import settings
+
+    return int(getattr(settings, "PAYROLL_PARALLEL_SLICES", 0 if settings.DEBUG else 3))
+
+
 def _progress_context(batch):
     """Who is next and who just finished, from queries that stay small on a long run."""
     from django.utils import timezone
@@ -471,7 +497,9 @@ def wizard_start(request):
     if request.headers.get("HX-Request"):
         # The review page shows the run in a modal instead of leaving the page.
         return render(
-            request, "payroll/batch/_progress_modal.html", _progress_context(batch)
+            request,
+            "payroll/batch/_progress_modal.html",
+            {**_progress_context(batch), "extra_workers": _extra_workers()},
         )
     return redirect("payroll-batch-progress", batch_id=batch.pk)
 

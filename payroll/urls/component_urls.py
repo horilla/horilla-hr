@@ -12,6 +12,7 @@ from payroll.cbv import (
     asset_fine,
     deduction,
     loan_advance_salary,
+    pay_adjustments,
     payslip,
     reimbursements,
     salary_structure,
@@ -20,6 +21,7 @@ from payroll.models.models import Deduction
 from payroll.views import (
     component_formula_views,
     component_views,
+    pay_adjustment_import_views,
     salary_structure_preview,
 )
 
@@ -311,6 +313,61 @@ urlpatterns = [
         "create-deduction/",
         deduction.DeductionFormView.as_view(),
         name="create-deduction",
+    ),
+    path(
+        "pay-adjustment-import/",
+        pay_adjustment_import_views.pay_adjustment_import,
+        name="pay-adjustment-import",
+    ),
+    path(
+        "pay-adjustment-import-confirm/",
+        pay_adjustment_import_views.pay_adjustment_import_confirm,
+        name="pay-adjustment-import-confirm",
+    ),
+    path(
+        "pay-adjustment-import-errors/",
+        pay_adjustment_import_views.pay_adjustment_import_errors,
+        name="pay-adjustment-import-errors",
+    ),
+    path(
+        "pay-adjustment-import-template/",
+        pay_adjustment_import_views.pay_adjustment_import_template,
+        name="pay-adjustment-import-template",
+    ),
+    path(
+        "pay-adjustment-nav/",
+        pay_adjustments.PayAdjustmentNav.as_view(),
+        name="pay-adjustment-nav",
+    ),
+    path(
+        "pay-adjustment-list-view/",
+        pay_adjustments.PayAdjustmentListView.as_view(),
+        name="pay-adjustment-list-view",
+    ),
+    path(
+        "create-pay-adjustment/",
+        pay_adjustments.PayAdjustmentFormView.as_view(),
+        name="create-pay-adjustment",
+    ),
+    path(
+        "update-pay-adjustment/<int:pk>/",
+        pay_adjustments.PayAdjustmentFormView.as_view(),
+        name="update-pay-adjustment",
+    ),
+    path(
+        "set-pay-adjustment-status/<int:pk>/",
+        pay_adjustments.set_pay_adjustment_status,
+        name="set-pay-adjustment-status",
+    ),
+    path(
+        "pay-adjustment-bulk-delete/",
+        pay_adjustments.pay_adjustment_bulk_delete,
+        name="pay-adjustment-bulk-delete",
+    ),
+    path(
+        "delete-pay-adjustment/<int:pk>/",
+        pay_adjustments.delete_pay_adjustment,
+        name="delete-pay-adjustment",
     ),
     # path("view-deduction/", component_views.view_deduction, name="view-deduction"),
     path(

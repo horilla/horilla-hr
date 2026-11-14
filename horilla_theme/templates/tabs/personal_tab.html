@@ -101,6 +101,24 @@
                         </div>
                     </dl>
                 </div>
+
+                {% if custom_fields %}
+                    <div class="px-3 py-3">
+                        <p class="mb-1.5 text-xxs font-semibold uppercase tracking-wide text-dark-100">
+                            {% trans "Custom" context "employee form section" %}
+                        </p>
+                        <dl>
+                            {% for field in custom_fields %}
+                                <div class="flex items-baseline justify-between gap-3 py-2">
+                                    <dt class="text-xs font-medium text-color-600">{{ field.label }}</dt>
+                                    <dd class="text-right text-sm {% if field.value %}font-medium text-dark-500{% else %}italic text-dark-100{% endif %}">
+                                        {{ field.value|default:_("Not set") }}
+                                    </dd>
+                                </div>
+                            {% endfor %}
+                        </dl>
+                    </div>
+                {% endif %}
             </div>
         </div>
     </section>

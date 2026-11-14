@@ -273,6 +273,138 @@ class Recruitment(HorillaModel):
         """
         return self.candidate.filter(hired=True).count()
 
+    def unfilled_for(self, position):
+        """
+        Places this recruitment still has to fill in ``position``: that position's vacancy less the people already
+        hired into it. A recruitment without per-position lines counts its whole vacancy for each position.
+        """
+        line = self.vacancy_lines.filter(job_position_id=position).first()
+        if line is None:
+            if self.vacancy_lines.exists():
+                return 0  # lines exist and this position is not among them
+            return max((self.vacancy or 0) - self.total_hires(), 0)
+        if line.vacancy is None:
+            return 0  # no number of places was specified for this position
+        hired = self.candidate.filter(hired=True, job_position_id=position).count()
+        return max(line.vacancy - hired, 0)
+
+    def vacancy_progress(self):
+        """
+        How the vacancies stand, for the pipeline: per job position how many places there are, how many people
+        applied, how many were selected (hired) and how many places are left, with the totals.
+
+        A recruitment with one job position counts every candidate against it (older candidates carry no position
+        of their own); with several, each candidate counts for the position they applied for. ``over`` is how many
+        were selected beyond the places there are (per position, and in all).
+        """
+        from base.models import JobPosition
+
+        rows = self.vacancy_rows()
+        positions = {
+            position.pk: position
+            for position in JobPosition.objects.entire()
+            .filter(pk__in=[row["position"] for row in rows])
+            .select_related("department_id")
+        }
+        candidates = self.candidate.filter(is_active=True)
+        single = len(rows) == 1
+        detail = []
+        for row in rows:
+            position = positions.get(row["position"])
+            if position is None:
+                continue
+            scope = (
+                candidates if single else candidates.filter(job_position_id=position)
+            )
+            applied = scope.count()
+            selected = scope.filter(hired=True).count()
+            vacancy = row["vacancy"]
+            detail.append(
+                {
+                    "position": position.job_position,
+                    "department": position.department_id.department,
+                    "vacancy": vacancy,
+                    "applied": applied,
+                    "selected": selected,
+                    "remaining": (
+                        None if vacancy is None else max(vacancy - selected, 0)
+                    ),
+                    "is_filled": bool(vacancy) and selected >= vacancy,
+                    "over": max(selected - vacancy, 0) if vacancy is not None else 0,
+                }
+            )
+        total = sum(item["vacancy"] or 0 for item in detail)
+        selected = sum(item["selected"] for item in detail)
+        over = sum(item["over"] for item in detail)
+        return {
+            "rec_id": self.pk,
+            "rows": detail,
+            "over": over,
+            "positions_over": sum(1 for item in detail if item["over"]),
+            "total": total,
+            "selected": selected,
+            "remaining": max(total - selected, 0),
+            "applied": sum(item["applied"] for item in detail),
+            "positions": len(detail),
+            "positions_filled": sum(1 for item in detail if item["is_filled"]),
+            "percent": min(100, round(selected / total * 100)) if total else 0,
+            "state": (
+                "over"
+                if over
+                else (
+                    "none"
+                    if not total
+                    else (
+                        "full"
+                        if selected >= total
+                        else "partial" if selected else "empty"
+                    )
+                )
+            ),
+        }
+
+    def vacancy_rows(self):
+        """
+        The vacancy per job position as ``[{"position": pk, "vacancy": n or None}]``, for the vacancy step.
+
+        A recruitment saved before the lines existed has none: its one vacancy goes to its first position and
+        the rest are not specified.
+        """
+        rows = [
+            {"position": line["job_position_id"], "vacancy": line["vacancy"]}
+            for line in self.vacancy_lines.order_by("pk").values(
+                "job_position_id", "vacancy"
+            )
+        ]
+        if rows:
+            return rows
+        positions = list(
+            self.open_positions.order_by("pk").values_list("pk", flat=True)
+        )
+        return [
+            {"position": pk, "vacancy": (self.vacancy or 0) if index == 0 else None}
+            for index, pk in enumerate(positions)
+        ]
+
+    def set_vacancy_lines(self, lines):
+        """
+        Replace the per-position vacancies with ``{job position: vacancy}`` and keep ``vacancy`` as their total.
+        A position whose vacancy is ``None`` is not specified: it has a line but adds nothing to the total.
+        """
+        keep = []
+        for position, number in lines.items():
+            RecruitmentVacancy.objects.update_or_create(
+                recruitment_id=self,
+                job_position_id=position,
+                defaults={"vacancy": number},
+            )
+            keep.append(position.pk)
+        self.vacancy_lines.exclude(job_position_id__in=keep).delete()
+        total = sum(number or 0 for number in lines.values())
+        if self.vacancy != total:
+            type(self).default.filter(pk=self.pk).update(vacancy=total)
+            self.vacancy = total
+
     def __str__(self):
         title = (
             f"{self.job_position_id.job_position} {self.start_date}"
@@ -442,6 +574,33 @@ class Recruitment(HorillaModel):
             if len(hired_candidate) >= self.vacancy:
                 return True
 
+    def lock_for_shortlisting(self):
+        """
+        Serialise concurrent shortlisting for this recruitment. Call inside
+        ``transaction.atomic`` before ``is_vacancy_filled_for``; it is a no-op
+        where row locks are unsupported (SQLite).
+        """
+        type(self).default.select_for_update().filter(pk=self.pk).first()
+
+    def is_vacancy_filled_for(self, candidate):
+        """
+        Whether shortlisting ``candidate`` would exceed the vacancy. It reads the
+        per-position vacancy (as ``vacancy_progress`` does): a recruitment with
+        one position counts every selected candidate against it, with several
+        only those of the candidate's own position. The candidate's own current
+        selection is not counted against them.
+        """
+        rows = {row["position"]: row["vacancy"] for row in self.vacancy_rows()}
+        hired = self.candidate.filter(hired=True, is_active=True)
+        if candidate.pk:
+            hired = hired.exclude(pk=candidate.pk)
+        if len(rows) == 1:
+            vacancy = next(iter(rows.values()))
+        else:
+            vacancy = rows.get(candidate.job_position_id_id)
+            hired = hired.filter(job_position_id=candidate.job_position_id_id)
+        return bool(vacancy) and hired.count() >= vacancy
+
     def get_or_create_applied_stage(self):
         """
         Return this recruitment's Applied stage, creating it if missing.
@@ -476,6 +635,45 @@ class Recruitment(HorillaModel):
                     )
             except IntegrityError:
                 return stages.get(stage_type="applied")
+
+
+class RecruitmentVacancy(models.Model):
+    """
+    The vacancies a recruitment opens for one of its job positions.
+
+    A recruitment can be open for several positions, each with its own number of places; the recruitment's own
+    ``vacancy`` is their total. A recruitment saved before this existed has no lines, and its single ``vacancy``
+    stands for every position it is open for.
+    """
+
+    recruitment_id = models.ForeignKey(
+        Recruitment,
+        on_delete=models.CASCADE,
+        related_name="vacancy_lines",
+        verbose_name=_("Recruitment"),
+    )
+    job_position_id = models.ForeignKey(
+        JobPosition,
+        on_delete=models.CASCADE,
+        related_name="recruitment_vacancy_lines",
+        verbose_name=_("Job Position"),
+    )
+    vacancy = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name=_("Vacancy"),
+        help_text=_(
+            "Empty Means Not Specified: No Number Of Places Was Set For This Position."
+        ),
+    )
+
+    class Meta:
+        unique_together = [("recruitment_id", "job_position_id")]
+        verbose_name = _("Recruitment Vacancy")
+        verbose_name_plural = _("Recruitment Vacancies")
+
+    def __str__(self):
+        return f"{self.job_position_id} ({self.vacancy if self.vacancy is not None else _('Not Specified')})"
 
 
 class Stage(HorillaModel):
@@ -1411,6 +1609,24 @@ class Candidate(HorillaModel):
     # Rejected ribbon (`canceled`) and `hired` were never set. Naming the method
     # here routes the stage through it, per selected candidate.
     bulk_update_setters = {"stage_id": "set_stage"}
+
+    SHORTLIST_FILLED_MESSAGE = _(
+        "The vacancy for this recruitment is already filled. "
+        "Do you still want to move this candidate to the Shortlisted stage?"
+    )
+
+    def shortlist_needs_confirmation(self, stage):
+        """
+        True when moving this candidate to ``stage`` would shortlist them into a
+        recruitment whose vacancy is already filled, which the user has to
+        confirm. Moves to other stages, and a candidate who is already
+        shortlisted, never need it.
+        """
+        if stage is None or stage.stage_type != "shortlisted":
+            return False
+        if self.stage_id_id == stage.pk and self.hired:
+            return False
+        return stage.recruitment_id.is_vacancy_filled_for(self)
 
     def set_stage(self, stage):
         """

@@ -47,7 +47,7 @@ A complete, step-by-step guide to running Horilla HR using Docker. Covers develo
 
 | Service | Port | Required For |
 |---------|------|-------------|
-| Web App | 8000 | Development access |
+| Web App | 8000 | Development access (production: localhost only) |
 | Nginx | 80 | Production HTTP |
 | PostgreSQL | 5432 | Internal only (not exposed in production) |
 | Redis | 6379 | Internal only (not exposed in production) |

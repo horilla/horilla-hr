@@ -213,10 +213,15 @@ class TicketTabView(HorillaTabView):
 
         extra_params = self.request.GET.copy()
         extra_params.pop("view", None)
-        query_string = extra_params.urlencode()
 
-        def with_query(url):
-            return f"{url}?{query_string}" if query_string else url
+        def with_query(url, params):
+            qs = params.urlencode()
+            return f"{url}?{qs}" if qs else url
+
+        open_params = extra_params
+        if not extra_params.get("status") and not extra_params.get("is_open"):
+            open_params = extra_params.copy()
+            open_params["is_open"] = "true"
 
         employee = self.request.user.employee_get
         base_qs = Ticket.objects.all()
@@ -224,7 +229,7 @@ class TicketTabView(HorillaTabView):
             base_qs = base_qs.filter(is_active=True)
 
         my_tickets_count = TicketFilter(
-            self.request.GET, queryset=base_qs.filter(employee_id=employee)
+            extra_params, queryset=base_qs.filter(employee_id=employee)
         ).qs.count()
 
         suggested_qs = base_qs.none()
@@ -250,18 +255,18 @@ class TicketTabView(HorillaTabView):
             assigned_to=employee
         )
         suggested_tickets_count = TicketFilter(
-            self.request.GET, queryset=suggested_qs.distinct()
+            open_params, queryset=suggested_qs.distinct()
         ).qs.count()
 
         self.tabs = [
             {
                 "title": _("My Tickets"),
-                "url": with_query(reverse("my-tickets-tab-shell")),
+                "url": with_query(reverse("my-tickets-tab-shell"), extra_params),
                 "badge": my_tickets_count,
             },
             {
                 "title": _("Suggested Tickets"),
-                "url": with_query(reverse("suggested-tickets-tab-shell")),
+                "url": with_query(reverse("suggested-tickets-tab-shell"), open_params),
                 "badge": suggested_tickets_count,
             },
         ]
@@ -273,12 +278,12 @@ class TicketTabView(HorillaTabView):
                 self.request, base_qs, "helpdesk.view_ticket"
             )
             all_tickets_count = TicketFilter(
-                self.request.GET, queryset=all_tickets_qs
+                open_params, queryset=all_tickets_qs
             ).qs.count()
             self.tabs.append(
                 {
                     "title": _("All Tickets"),
-                    "url": with_query(reverse("all-tickets-tab-shell")),
+                    "url": with_query(reverse("all-tickets-tab-shell"), open_params),
                     "badge": all_tickets_count,
                 }
             )
@@ -325,42 +330,13 @@ class TicketListBase(HorillaListView):
 
     row_status_indications = [
         (
-            "canceled--dot",
-            _("Canceled"),
+            "new--dot",
+            _("New"),
             """
             onclick="
-            $('#applyFilter').closest('form').find('[name=status]').val('canceled');
-            $('[name=new]').val('unknown').change();
-            $('[name=in_progress]').val('unknown').change();
+            $('#applyFilter').closest('form').find('[name=status]').val('new');
+            $('#applyFilter').closest('form').find('[name=is_open]').val('');
             $('[name=on_hold]').val('unknown').change();
-            $('[name=resolved]').val('unknown').change();
-            $('#applyFilter').click();
-            "
-
-            """,
-        ),
-        (
-            "resolved--dot",
-            _("Resolved"),
-            """
-            onclick="
-            $('#applyFilter').closest('form').find('[name=status]').val('resolved');
-            $('[name=new]').val('unknown').change();
-            $('[name=in_progress]').val('unknown').change();
-            $('[name=on_hold]').val('unknown').change();
-            $('[name=canceled]').val('unknown').change();
-            $('#applyFilter').click();
-            "
-
-            """,
-        ),
-        (
-            "on_hold--dot",
-            _("On Hold"),
-            """
-            onclick="
-            $('#applyFilter').closest('form').find('[name=status]').val('on_hold');
-            $('[name=new]').val('unknown').change();
             $('[name=in_progress]').val('unknown').change();
             $('[name=resolved]').val('unknown').change();
             $('[name=canceled]').val('unknown').change();
@@ -375,6 +351,7 @@ class TicketListBase(HorillaListView):
             """
             onclick="
             $('#applyFilter').closest('form').find('[name=status]').val('in_progress');
+            $('#applyFilter').closest('form').find('[name=is_open]').val('');
             $('[name=new]').val('unknown').change();
             $('[name=on_hold]').val('unknown').change();
             $('[name=resolved]').val('unknown').change();
@@ -385,15 +362,48 @@ class TicketListBase(HorillaListView):
             """,
         ),
         (
-            "new--dot",
-            _("New"),
+            "on_hold--dot",
+            _("On Hold"),
             """
             onclick="
-            $('#applyFilter').closest('form').find('[name=status]').val('new');
-            $('[name=on_hold]').val('unknown').change();
+            $('#applyFilter').closest('form').find('[name=status]').val('on_hold');
+            $('#applyFilter').closest('form').find('[name=is_open]').val('');
+            $('[name=new]').val('unknown').change();
             $('[name=in_progress]').val('unknown').change();
             $('[name=resolved]').val('unknown').change();
             $('[name=canceled]').val('unknown').change();
+            $('#applyFilter').click();
+            "
+
+            """,
+        ),
+        (
+            "resolved--dot",
+            _("Resolved"),
+            """
+            onclick="
+            $('#applyFilter').closest('form').find('[name=status]').val('resolved');
+            $('#applyFilter').closest('form').find('[name=is_open]').val('');
+            $('[name=new]').val('unknown').change();
+            $('[name=in_progress]').val('unknown').change();
+            $('[name=on_hold]').val('unknown').change();
+            $('[name=canceled]').val('unknown').change();
+            $('#applyFilter').click();
+            "
+
+            """,
+        ),
+        (
+            "canceled--dot",
+            _("Canceled"),
+            """
+            onclick="
+            $('#applyFilter').closest('form').find('[name=status]').val('canceled');
+            $('#applyFilter').closest('form').find('[name=is_open]').val('');
+            $('[name=new]').val('unknown').change();
+            $('[name=in_progress]').val('unknown').change();
+            $('[name=on_hold]').val('unknown').change();
+            $('[name=resolved]').val('unknown').change();
             $('#applyFilter').click();
             "
 

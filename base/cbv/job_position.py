@@ -106,6 +106,7 @@ class JobPositionDetailView(HorillaDetailedView):
     body = [
         (_("Job Position"), "job_position"),
         (_("Department"), "department_id"),
+        (_("Headcount"), "headcount"),
     ]
 
 

@@ -176,10 +176,21 @@ def own_structure_only(queryset, model, employee):
     contract = forced_contract(employee)
     if contract is None or contract.salary_structure_id_id is None:
         return queryset
-    foreign = model.objects.filter(salary_structures__isnull=False).exclude(
-        salary_structures=contract.salary_structure_id_id
+    # Which components belong to other structures is the same for every call about this employee and
+    # contract, so it is read once and kept on the employee instance.
+    cache = (
+        employee.__dict__.setdefault("_foreign_components", {})
+        if hasattr(employee, "__dict__")
+        else {}
     )
-    return queryset.exclude(pk__in=foreign.values("pk"))
+    key = (model, contract.salary_structure_id_id)
+    if key not in cache:
+        cache[key] = list(
+            model.objects.filter(salary_structures__isnull=False)
+            .exclude(salary_structures=contract.salary_structure_id_id)
+            .values_list("pk", flat=True)
+        )
+    return queryset.exclude(pk__in=cache[key])
 
 
 def group_targeted(employee, model=None):
@@ -196,7 +207,11 @@ def group_targeted(employee, model=None):
     from employee.models import EmployeeWorkInformation
 
     model = model or Allowance
-    info = EmployeeWorkInformation.objects.filter(employee_id=employee).first()
+    # The employee's own cached work info: read once per employee, not once per component kind.
+    try:
+        info = employee.employee_work_info
+    except EmployeeWorkInformation.DoesNotExist:
+        info = None
     if info is None:
         return model.objects.none()
     query = Q()
@@ -220,6 +235,13 @@ def eligible_allowances(employee, start_date, end_date):
     minus one-time components dated outside the period. The only addition is
     the ordering.
     """
+    from payroll.methods.component_catalog import active as active_catalog
+
+    catalog = active_catalog()
+    if catalog is not None:
+        # Inside a run's slice: matched from the components read once for it. Same rules, no queries.
+        return catalog.eligible(Allowance, employee, start_date, end_date)
+
     specific = own_structure_only(
         Allowance.objects.filter(specific_employees=employee), Allowance, employee
     )
@@ -247,6 +269,8 @@ def eligible_allowances(employee, start_date, end_date):
         .exclude(is_system=True)
         .distinct()
         .order_by("sequence", "pk")
+        # The extra "when it applies" rules, read with the components instead of one query each.
+        .prefetch_related("apply_conditions")
     )
 
 

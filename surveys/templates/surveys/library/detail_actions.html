@@ -1,0 +1,21 @@
+{% load i18n %}
+<div class="flex flex-wrap gap-1">
+    {% if perms.surveys.add_survey %}
+        <a hx-get="{{ questionnaire.get_use_url }}" hx-target="#genericModalBody" data-target="#genericModal" data-toggle="oh-modal-toggle"
+           class="px-4 py-2 bg-brand-600 text-white rounded-md text-xs flex items-center gap-2 hover:bg-brand-800 transition duration-300 cursor-pointer">
+            <ion-icon name="copy-outline"></ion-icon>{% trans "Use" %}
+        </a>
+    {% endif %}
+    {% if perms.surveys.change_questionnaire %}
+        <a hx-get="{{ questionnaire.get_update_url }}" hx-target="#genericModalBody" data-target="#genericModal" data-toggle="oh-modal-toggle"
+           class="px-4 py-2 bg-white rounded-md text-xs flex items-center gap-2 border border-primary-500 hover:border-primary-600 transition duration-300 cursor-pointer">
+            <ion-icon name="create-outline"></ion-icon>{% trans "Edit" %}
+        </a>
+    {% endif %}
+    {% if perms.surveys.delete_questionnaire %}
+        <a hx-get="{{ questionnaire.get_delete_url }}" hx-target="#deleteConfirmationBody" data-target="#deleteConfirmation" data-toggle="oh-modal-toggle"
+           class="px-4 py-2 bg-white text-red-600 rounded-md text-xs flex items-center gap-2 border border-red-500 hover:border-red-600 transition duration-300 cursor-pointer">
+            <ion-icon name="trash-outline"></ion-icon>{% trans "Delete" %}
+        </a>
+    {% endif %}
+</div>

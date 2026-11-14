@@ -46,7 +46,10 @@
     {% include 'generic/filter_count_and_custom_builder.html' %}
 {% endif %}
 <div class="text-sm font-semibold bg-[#f3f3f3] px-3 py-3 text-[#333] flex items-center justify-between gap-2 flex-wrap">
-    <span>{{ nav_title }}</span>
+    <div class="flex items-center gap-3 flex-wrap">
+        <span>{{ nav_title }}</span>
+        {% if nav_info_template %}{% include nav_info_template %}{% endif %}
+    </div>
 
     <div class="flex flex-wrap items-center gap-1">
         {% if search_url %}

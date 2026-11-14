@@ -130,8 +130,13 @@ def question_order_update(request):
     if request.method == "POST":
         # Extract data from the request
         question_id = request.POST.get("question_id")
-        new_position = int(request.POST.get("new_position"))
-        qs = RecruitmentSurvey.objects.get(id=question_id)
+        try:
+            new_position = int(request.POST.get("new_position"))
+        except (TypeError, ValueError):
+            return JsonResponse({"error": "Invalid new position"}, status=400)
+        qs = RecruitmentSurvey.objects.filter(id=question_id).first()
+        if qs is None:
+            return JsonResponse({"error": "Question not found"}, status=400)
 
         if qs.sequence > new_position:
             new_position = new_position

@@ -38,15 +38,15 @@
     }
 
     .oh-btn--add-another {
+        border: 1px solid {{ theme_obj.primary_500|default:"#F7C8C1" }} !important;
         background-color: {{ theme_obj.primary_500|default:"#F7C8C1" }} !important;
         color: #ffffff !important;
-        border: 1px solid {{ theme_obj.primary_500|default:"#F7C8C1" }} !important;
     }
     .oh-btn--add-another:hover,
     .oh-btn--add-another:focus,
     .oh-btn--add-another:focus-visible {
-        background-color: {{ theme_obj.primary_600|default:"#E54F38" }} !important;
         border-color: {{ theme_obj.primary_600|default:"#E54F38" }} !important;
+        background-color: {{ theme_obj.primary_600|default:"#E54F38" }} !important;
     }
 
     .list-checked li:before {
@@ -63,12 +63,12 @@
     }
 
     .oh-modal__dialog--custom .oh-general__tab .oh-general__tab-link--active {
-        background-color: {{ theme_obj.primary_600|default:"#E54F38" }} !important;
         border-color: {{ theme_obj.primary_600|default:"#E54F38" }} !important;
+        background-color: {{ theme_obj.primary_600|default:"#E54F38" }} !important;
     }
 
     .oh-tabs__content .heightContainer,
-    [id$="profileTab"] .heightContainer {
+    [id$='profileTab'] .heightContainer {
         max-height: none !important;
         overflow-y: visible !important;
     }
@@ -83,12 +83,12 @@
         overflow-y: auto !important;
     }
 
-    [id^="pipelineTabContent"] .heightContainer {
+    [id^='pipelineTabContent'] .heightContainer {
         max-height: calc(100vh - 260px) !important;
         overflow-y: auto !important;
     }
 
-    [id^="feedbackTabs"] .heightContainer {
+    [id^='feedbackTabs'] .heightContainer {
         max-height: calc(100vh - 260px) !important;
         overflow-y: auto !important;
     }
@@ -127,7 +127,7 @@
 
 <script>
     window.CURRENT_LANGUAGE = "{{ LANGUAGE_CODE }}";
-    var at_work_seconds = {{ request.user.employee_get.get_forecasted_at_work.forecasted_at_work_seconds }}
+    var at_work_seconds = Number("{{ request.user.employee_get.get_forecasted_at_work.forecasted_at_work_seconds|default:0 }}") || 0;
     var run = 0
 </script>
 <script src="{% static 'horilla_theme/assets/js/tailwind.js' %}"></script>
@@ -232,6 +232,38 @@
             },
         },
     };
+</script>
+{% comment %}
+  The in-browser Tailwind compiler (tailwind.js and tailwindcdn.js) stores the
+  page's new class names in self["/template.html"] and reads them back after an
+  await. When two builds overlap, the second overwrites the first's list before
+  it is read, and the first batch never gets CSS. Its classes are already marked
+  as done, so they are never retried. Firefox 159 hits this when a list view
+  loads over HTMX: the list's Quick filter dropdown loses z-20 and opens hidden
+  under the table's sticky header.
+
+  This makes that global keep every class it is given, so whichever build reads
+  it compiles all of them. Tailwind caches the classes it has already compiled,
+  so the longer list costs little.
+{% endcomment %}
+<script>
+    (function () {
+        var key = "/template.html";
+        var seen = new Set();
+        var add = function (value) {
+            String(value || "").split(" ").forEach(function (name) {
+                if (name) seen.add(name);
+            });
+        };
+        add(self[key]);
+        Object.defineProperty(self, key, {
+            configurable: true,
+            get: function () {
+                return Array.from(seen).join(" ");
+            },
+            set: add,
+        });
+    })();
 </script>
 <script src="{% static '/jquery/ajax.js' %}"></script>
 <script src="{% static '/jquery/jquery.min.js' %}"></script>

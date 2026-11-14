@@ -134,6 +134,43 @@
   #{{view_id}} .accordion-btn.doc-open + .accordion-panel {
     border-top: 0;
   }
+
+  /* Dark mode. The rules above are scoped to the view id (some with
+     !important), so the generic body.dark rules in dark.css can't reach them;
+     same palette as the group-by lists (nested_group_by_table.html). */
+  body.dark #docToolbarPanel thead th {
+    color: #ffffff;
+  }
+  /* Expand All / Collapse All: dark-grey text and light borders by default. */
+  body.dark #docToolbarPanel .text-\[\#4B4A45\] {
+    color: #dddddd;
+  }
+  body.dark #docToolbarPanel .border-\[\#DEDBD4\],
+  body.dark #docToolbarPanel .border-\[\#EAE8E3\],
+  body.dark #docToolbarPanel.border-\[\#EAE8E3\] {
+    border-color: #444444;
+  }
+  body.dark #docToolbarPanel .hover\:bg-\[\#F7F6F3\]:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+  }
+  body.dark #{{view_id}} .accordion-wrapper {
+    background-color: #1a1a1a;
+  }
+  body.dark #{{view_id}} .accordion-btn {
+    background: #2b201d !important;
+  }
+  body.dark #{{view_id}} .accordion-btn:hover {
+    background: #34261f !important;
+  }
+  body.dark #{{view_id}} .accordion-btn.doc-open {
+    border-bottom-color: #5a3b31;
+  }
+  body.dark #{{view_id}} .accordion-panel {
+    background: #242424;
+  }
+  body.dark #{{view_id}} .accordion-item {
+    border-color: #444444;
+  }
 </style>
 
 <div id="{{view_id}}">

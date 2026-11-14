@@ -1,14 +1,51 @@
 {% load static i18n i18n %}
+<style>
+    .oh-leave-card { position: relative; }
+    .oh-leave-card__more {
+        max-height: 0;
+        overflow: hidden;
+        opacity: 0;
+        transition: max-height .25s ease, opacity .2s ease, margin-top .25s ease;
+    }
+    .oh-leave-card--expanded .oh-leave-card__more {
+        max-height: 260px;
+        opacity: 1;
+        margin-top: .5rem;
+    }
+    .oh-leave-card__hint {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: .2rem;
+        margin-top: .4rem;
+        font-size: .68rem;
+        color: var(--dark-200, #9ca3af);
+        cursor: pointer;
+    }
+    .oh-leave-card--expanded .oh-leave-card__hint-chev { transform: rotate(180deg); }
+    .oh-leave-card__hint-chev { transition: transform .2s ease; font-size: .9rem; }
+</style>
+<script>
+    // Capture phase, so this runs before the card's own click-to-open-modal
+    // listener (bound in the bubble phase) ever sees the click.
+    document.addEventListener("click", function (e) {
+        var hint = e.target.closest(".oh-leave-card__hint");
+        if (!hint) return;
+        e.preventDefault();
+        e.stopPropagation();
+        hint.closest(".oh-leave-card").classList.toggle("oh-leave-card--expanded");
+    }, true);
+</script>
 <div class="grid grid-cols-12 gap-3 mb-2" id="userLeaveCards">
     {% for user_leave in user_leaves %}
         <div
-            class="col-span-2"
-            id="requestCreateCard"
+            class="col-span-2 oh-leave-card"
             data-toggle="oh-modal-toggle"
             data-target="#objectCreateModal"
             hx-get="{% url 'user-request' user_leave.leave_type_id.id %}"
             hx-target="#objectCreateModalTarget"
             role="button"
+            tabindex="0"
         >
             <div class="p-5 bg-white rounded-md shadow-card h-full">
                 <div class="oh-profile oh-profile--md">
@@ -31,53 +68,61 @@
                         </p>
                     </div>
                     <div class="flex justify-between mb-1 text-xs text-dark-200">
-                        <p>{% trans "Carryforward Leave Days" %}</p>
-                        <p class="text-sm font-bold">{{ user_leave.carryforward_days }}</p>
-                    </div>
-                    <div class="flex justify-between mb-1 text-xs text-dark-200">
-                        <p>{% trans "Total Leave Days" %}</p>
-                        <p class="text-sm font-bold">
-                            {% if user_leave.leave_type_id.limit_leave %}{{ user_leave.total_leave_days }}{% else %}{% trans "No Limit" %}{% endif %}
-                        </p>
-                    </div>
-                    <div class="flex justify-between mb-1 text-xs text-dark-200">
                         <p>{% trans "Total Leave Taken" %}</p>
                         <p class="text-sm font-bold">{{ user_leave.leave_taken }}</p>
                     </div>
-                    {% with expiry=user_leave.forecast_carryforward_expiry reset=user_leave.forecast_next_reset %}
-                        {% if expiry or reset %}
-                            <div class="mt-2 pt-2 border-t border-secondary-100 space-y-1.5">
-                                {% if expiry %}
-                                    <div class="rounded-md bg-warning-light px-2 py-1.5 text-xs" title="{% trans 'Carried-forward leave lapses on this date' %}">
-                                        <div class="flex items-center gap-1 font-semibold text-warning-dark">
-                                            <ion-icon name="hourglass-outline"></ion-icon>
-                                            <span>{% trans "Carry Forward Expiry" %}</span>
+
+                    <div class="oh-leave-card__hint">
+                        <span>{% trans "More details" %}</span>
+                        <ion-icon name="chevron-down-outline" class="oh-leave-card__hint-chev"></ion-icon>
+                    </div>
+
+                    <div class="oh-leave-card__more">
+                        <div class="flex justify-between mb-1 text-xs text-dark-200">
+                            <p>{% trans "Carryforward Leave Days" %}</p>
+                            <p class="text-sm font-bold">{{ user_leave.carryforward_days }}</p>
+                        </div>
+                        <div class="flex justify-between mb-1 text-xs text-dark-200">
+                            <p>{% trans "Total Leave Days" %}</p>
+                            <p class="text-sm font-bold">
+                                {% if user_leave.leave_type_id.limit_leave %}{{ user_leave.total_leave_days }}{% else %}{% trans "No Limit" %}{% endif %}
+                            </p>
+                        </div>
+                        {% with expiry=user_leave.forecast_carryforward_expiry reset=user_leave.forecast_next_reset %}
+                            {% if expiry or reset %}
+                                <div class="mt-2 pt-2 border-t border-secondary-100 space-y-1.5">
+                                    {% if expiry %}
+                                        <div class="rounded-md bg-warning-light px-2 py-1.5 text-xs" title="{% trans 'Carried-forward leave lapses on this date' %}">
+                                            <div class="flex items-center gap-1 font-semibold text-warning-dark">
+                                                <ion-icon name="hourglass-outline"></ion-icon>
+                                                <span>{% trans "Carry Forward Expiry" %}</span>
+                                            </div>
+                                            <div class="flex justify-between mt-0.5 text-dark-200">
+                                                <span>{{ expiry.date|date:"d M Y" }}</span>
+                                                {% if expiry.amount %}
+                                                    <span class="font-bold text-danger-dark">-{{ expiry.amount|floatformat:"-2" }} {% trans "days" %}</span>
+                                                {% else %}
+                                                    <span class="text-dark-100">{% trans "Nothing to expire" %}</span>
+                                                {% endif %}
+                                            </div>
                                         </div>
-                                        <div class="flex justify-between mt-0.5 text-dark-200">
-                                            <span>{{ expiry.date|date:"d M Y" }}</span>
-                                            {% if expiry.amount %}
-                                                <span class="font-bold text-danger-dark">-{{ expiry.amount|floatformat:"-2" }} {% trans "days" %}</span>
-                                            {% else %}
-                                                <span class="text-dark-100">{% trans "Nothing to expire" %}</span>
-                                            {% endif %}
+                                    {% endif %}
+                                    {% if reset %}
+                                        <div class="rounded-md bg-primary-100 px-2 py-1.5 text-xs" title="{% trans 'Next scheduled leave reset' %}">
+                                            <div class="flex items-center gap-1 font-semibold text-primary-600">
+                                                <ion-icon name="refresh-outline"></ion-icon>
+                                                <span>{% trans "Next Leave Reset" %}</span>
+                                            </div>
+                                            <div class="flex justify-between mt-0.5 text-dark-200">
+                                                <span>{{ reset.date|date:"d M Y" }}</span>
+                                                <span>{% trans "Balance after" %}: <b>{{ reset.balance|floatformat:"-2" }}</b></span>
+                                            </div>
                                         </div>
-                                    </div>
-                                {% endif %}
-                                {% if reset %}
-                                    <div class="rounded-md bg-primary-100 px-2 py-1.5 text-xs" title="{% trans 'Next scheduled leave reset' %}">
-                                        <div class="flex items-center gap-1 font-semibold text-primary-600">
-                                            <ion-icon name="refresh-outline"></ion-icon>
-                                            <span>{% trans "Next Leave Reset" %}</span>
-                                        </div>
-                                        <div class="flex justify-between mt-0.5 text-dark-200">
-                                            <span>{{ reset.date|date:"d M Y" }}</span>
-                                            <span>{% trans "Balance after" %}: <b>{{ reset.balance|floatformat:"-2" }}</b></span>
-                                        </div>
-                                    </div>
-                                {% endif %}
-                            </div>
-                        {% endif %}
-                    {% endwith %}
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        {% endwith %}
+                    </div>
                 </div>
             </div>
         </div>

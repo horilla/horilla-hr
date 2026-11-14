@@ -1,0 +1,37 @@
+{% load i18n l10n %}
+{% for e in rows %}
+    <li class="relative flex gap-3 {% if e.future %}opacity-75{% endif %}">
+        <div class="relative w-7 shrink-0">
+            {% if not forloop.last or page_obj.has_next %}<span class="absolute left-1/2 -translate-x-1/2 w-0.5 {% if e.gap_future %}bg-gray-200{% else %}bg-green-300{% endif %}" style="top: 15px; bottom: 0"></span>{% endif %}
+            <span class="relative z-10 flex items-center justify-center rounded-full ring-4 {% if e.latest %}ring-green-100{% else %}ring-white{% endif %} {% if e.future %}bg-gray-100 text-gray-400 border border-dashed border-gray-300{% else %}{{ e.pill }}{% endif %}" style="width: 28px; height: 28px; margin-top: 1px"><ion-icon name="{{ e.icon }}" style="font-size: 17px"></ion-icon></span>
+        </div>
+        <div class="flex-1 min-w-0 mb-3 rounded-lg border border-gray-100 px-3.5 py-2.5 hover:bg-gray-50/70">
+            <div class="flex items-start justify-between gap-4">
+                <div class="flex items-center gap-2 flex-wrap min-w-0">
+                    <span class="text-sm font-semibold text-gray-800">{{ e.label }}</span>
+                    {% if e.condition_label %}<span class="inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold {{ e.condition_pill }}">{{ e.condition_label }}</span>{% endif %}
+                    {% if e.latest %}<span class="inline-block rounded-full bg-green-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">{% trans "Latest" %}</span>{% endif %}
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    <span class="inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold {{ e.status_pill }}">{{ e.status_label }}{% if e.units_total %} {{ e.units_held }}/{{ e.units_total }}{% endif %}</span>
+                    <span class="text-xs font-semibold text-gray-600 whitespace-nowrap" style="min-width: 78px; text-align: right">{{ e.date|date:"d M Y" }}</span>
+                </div>
+            </div>
+            {% if e.detail or e.amount is not None or e.note %}
+                <p class="text-xs text-gray-600 mt-0.5">{{ e.detail }}{% if e.amount is not None %} <span class="font-semibold text-gray-800">{{ e.amount }}</span>{% endif %}{% if e.note %} <span class="text-gray-400">&middot; {{ e.note }}</span>{% endif %}</p>
+            {% endif %}
+            {% if e.employee or e.actor %}
+                <div class="flex items-center gap-4 flex-wrap mt-1.5 text-[11px] text-gray-500">
+                    {% if e.employee %}<span class="inline-flex items-center gap-1"><ion-icon name="person-outline" class="text-gray-400" style="font-size: 13px"></ion-icon>{{ e.employee }}</span>{% endif %}
+                    {% if e.actor %}<span class="inline-flex items-center gap-1"><ion-icon name="create-outline" class="text-gray-400" style="font-size: 13px"></ion-icon>{% trans "By" %} {{ e.actor }}</span>{% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </li>
+{% empty %}
+    <li class="py-10 text-center text-sm text-gray-500">{% trans "No Events Match The Chosen Filters." %}</li>
+{% endfor %}
+{% if page_obj.has_next %}
+    <li class="py-3 text-center text-[11px] text-gray-400" hx-get="{{ asset.ledger_url }}" hx-vals='{"page": {{ page_obj.next_page_number }}, "rows_only": 1}' hx-include="closest form"
+        hx-trigger="intersect once" hx-target="this" hx-swap="outerHTML">{% trans "Loading More Events..." %}</li>
+{% endif %}

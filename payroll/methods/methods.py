@@ -83,7 +83,7 @@ def get_leaves(employee, start_date, end_date):
     if apps.is_installed("leave"):
         approved_leaves = employee.leaverequest_set.filter(
             status__in=["approved", "cancel_requested"]
-        )
+        ).select_related("leave_type_id")
     else:
         approved_leaves = None
     paid_leave = 0

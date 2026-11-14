@@ -7,6 +7,7 @@ from typing import Any
 
 from django.contrib import messages
 from django.core.cache import cache as CACHE
+from django.db import transaction
 from django.db.models import Count, Q
 from django.http import HttpResponse as DjangoHttpResponse
 from django.http import JsonResponse
@@ -204,6 +205,11 @@ class RecruitmentTabView(HorillaTabView):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        # The view is built before dispatch() runs the login check, so an
+        # anonymous request (no user, no session key) reaches this code. There
+        # is nothing to prepare for them; dispatch() redirects to the login page.
+        if not (self.request.user and self.request.user.is_authenticated):
+            return
         recruitments = self.filter_class(self.request.GET).qs.filter(is_active=True)
         if self.request.GET.get("closed") in (None, "", "unknown"):
             recruitments = recruitments.filter(closed=False)
@@ -355,6 +361,9 @@ class RecruitmentCandidateNav(HorillaNavView):
         rec = models.Recruitment.objects.filter(pk=rec_id).first()
         if rec:
             self.nav_title = str(rec)
+            # Next to the title: how many of the places are filled, and the detail per job position.
+            self.nav_info_template = "cbv/pipeline/vacancy_progress.html"
+            self.nav_info_context = {"vacancy": rec.vacancy_progress()}
         if rec and (
             self.request.user.has_perm("recruitment.add_candidate")
             or self.request.user.has_perm("recruitment.change_recruitment")
@@ -370,6 +379,26 @@ class RecruitmentCandidateNav(HorillaNavView):
 
         if rec:
             self.actions = recruitment_pipeline_actions(self.request, rec)
+
+
+@method_decorator(login_required, name="dispatch")
+@method_decorator(hx_request_required, name="dispatch")
+@method_decorator(
+    manager_can_enter(perm="recruitment.view_recruitment"), name="dispatch"
+)
+class RecruitmentVacancyProgress(TemplateView):
+    """
+    The vacancy indicator of a recruitment's pipeline tab on its own, loaded again after candidates are
+    selected or moved so its figures stay current.
+    """
+
+    template_name = "cbv/pipeline/vacancy_progress.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        rec = models.Recruitment.objects.filter(pk=self.kwargs["rec_id"]).first()
+        context["vacancy"] = rec.vacancy_progress() if rec else {}
+        return context
 
 
 @method_decorator(login_required, name="dispatch")
@@ -780,6 +809,7 @@ class CandidateCard(HorillaKanbanView):
 
     kanban_attrs = """
         onclick="window.location.href = '{get_profile_url}?next=' + encodeURIComponent(window.location.pathname + window.location.search)"
+        style="cursor: grab;"
     """
 
     details = {
@@ -950,23 +980,32 @@ class CandidateCard(HorillaKanbanView):
 
     def kanban_move_item(self):
         """
-        Move the dragged candidate, and tell the board when the move filled
-        the recruitment's vacancy (the kanban script shows it as a popup).
+        Move the dragged candidate. Shortlisting into a recruitment whose
+        vacancy is already filled needs the user's confirmation: without
+        ``confirm`` in the request nothing is saved and a 409 asks the board to
+        confirm (it then repeats the request with ``confirm``). The check and
+        the move share one transaction on the locked recruitment.
         """
-        response = super().kanban_move_item()
-        if response.status_code != 200:
-            return response
         stage = self.resolve_kanban_group(self.request.POST.get("groupId"))
-        if (
-            stage
-            and stage.stage_type == "shortlisted"
-            and stage.recruitment_id.is_vacancy_filled()
-        ):
-            payload = json.loads(response.content)
-            payload["message"] = str(_("Vacancy is filled"))
-            payload["vacancy"] = stage.recruitment_id.vacancy
-            return JsonResponse(payload)
-        return response
+        if stage is None or stage.stage_type != "shortlisted":
+            return super().kanban_move_item()
+        with transaction.atomic():
+            stage.recruitment_id.lock_for_shortlisting()
+            if not self.request.POST.get("confirm"):
+                movers = (
+                    self.get_queryset()
+                    .filter(pk__in=self.get_kanban_order())
+                    .exclude(stage_id=stage)
+                )
+                if any(c.shortlist_needs_confirmation(stage) for c in movers):
+                    return JsonResponse(
+                        {
+                            "needs_confirmation": True,
+                            "message": str(models.Candidate.SHORTLIST_FILLED_MESSAGE),
+                        },
+                        status=409,
+                    )
+            return super().kanban_move_item()
 
 
 @method_decorator(login_required, name="dispatch")
@@ -1054,14 +1093,51 @@ class ChangeStage(HorillaFormView):
             messages.info(self.request, _("Stage not updated"))
             return self.HttpResponse()
 
-        messages.success(self.request, _("Stage Updated"))
         previous_stage_id = (
             models.Candidate.objects.filter(pk=form.instance.pk)
             .values_list("stage_id", flat=True)
             .first()
         )
+        stage = form.cleaned_data["stage_id"]
+        if stage.stage_type == "shortlisted" and not self.request.POST.get("confirm"):
+            with transaction.atomic():
+                stage.recruitment_id.lock_for_shortlisting()
+                needs_confirmation = form.instance.shortlist_needs_confirmation(stage)
+            if needs_confirmation:
+                return self.confirm_shortlisting_response(form, previous_stage_id)
+        messages.success(self.request, _("Stage Updated"))
         candidate = form.save()
         return self.reload_stages_response({previous_stage_id, candidate.stage_id_id})
+
+    def confirm_shortlisting_response(self, form, previous_stage_id):
+        """
+        Ask whether to shortlist into a filled vacancy. OK repeats the change
+        with ``confirm``; Cancel reloads the candidate's own stage list so the
+        dropdown shows the unchanged stage again.
+        """
+        script_id = get_short_uuid(4, "confirmshort")
+        payload = json.dumps(
+            {
+                "url": self.request.path,
+                "stage_id": form.cleaned_data["stage_id"].pk,
+                "message": str(models.Candidate.SHORTLIST_FILLED_MESSAGE),
+                "title": str(_("Vacancy Filled")),
+                "ok": str(_("OK")),
+                "cancel": str(_("Cancel")),
+            }
+        )
+        return DjangoHttpResponse(
+            f"<script id='{script_id}'>(function(o){{"
+            "Swal.fire({title:o.title,text:o.message,icon:'warning',"
+            "showCancelButton:true,confirmButtonText:o.ok,cancelButtonText:o.cancel,"
+            "confirmButtonColor:'#008000',cancelButtonColor:'#6c757d'})"
+            ".then(function(r){if(r.isConfirmed){"
+            "htmx.ajax('POST',o.url,{values:{stage_id:o.stage_id,confirm:1},"
+            "target:'body',swap:'beforeend'});}else{"
+            f"{stage_reload_script({previous_stage_id})}"
+            "}});})(" + payload + ");"
+            "</script>"
+        )
 
     def reload_stages_response(self, stage_ids):
         """

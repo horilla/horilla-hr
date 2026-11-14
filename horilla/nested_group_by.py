@@ -1,8 +1,10 @@
 import re
 from collections import defaultdict
 
-from django.db.models import Count, Q
+from django.core.paginator import Paginator
+from django.db.models import Count, F, Q, Window
 from django.db.models.fields.related_descriptors import ForwardManyToOneDescriptor
+from django.db.models.functions import RowNumber
 from django.utils.translation import gettext as _
 
 from horilla.group_by import _page_from_list, _page_of_groupers, _resolve_fk_groupers
@@ -63,6 +65,49 @@ def _display_map_for_field(model, group_field, values):
     }
 
 
+def _window_order(queryset):
+    """
+    Build the ordering used to number rows inside each group.
+
+    Parameters:
+        queryset (QuerySet): The queryset being grouped.
+
+    Returns:
+        list: Order-by expressions from the queryset's ordering, ending in pk.
+    """
+    ordering = list(queryset.query.order_by) or (
+        list(queryset.model._meta.ordering) if queryset.query.default_ordering else []
+    )
+    expressions = []
+    for item in ordering:
+        if isinstance(item, str):
+            expressions.append(
+                F(item[1:]).desc() if item.startswith("-") else F(item).asc()
+            )
+        else:
+            expressions.append(item)
+    expressions.append(F("pk").asc())
+    return expressions
+
+
+def _leaf_dynamic_name(key):
+    """
+    Build the pagination GET parameter name of the leaf group a key points to.
+
+    Parameters:
+        key (tuple): The group value at every level, outermost first.
+
+    Returns:
+        str: The parameter name build_level assigns to that leaf.
+    """
+    prefix = "ngb"
+    name = None
+    for value in key:
+        name = f"dynamic_page_{prefix}_{value}".replace(" ", "_")
+        prefix = f"{prefix}_{value}"
+    return name
+
+
 def nested_group_by_queryset(
     queryset, group_fields, page=None, page_name="page", records_per_page=None
 ):
@@ -74,8 +119,9 @@ def nested_group_by_queryset(
     query burst for every visible top-level group (N+1 across nesting
     levels). Instead this resolves every (level0, level1, ..., count)
     combination that actually occurs in ONE SQL GROUP BY query, then only
-    fetches label objects and row instances for the current top-level
-    page — query cost stays flat regardless of table size or group count.
+    fetches label objects for the current top-level page and, for each leaf
+    group, only the rows of the page it is showing — query cost and row
+    loading stay flat regardless of table size or group count.
     """
     from base.methods import get_pagination
 
@@ -97,9 +143,17 @@ def nested_group_by_queryset(
     level0_keys = _ordered_keep_none(c[level0_field] for c in combos)
     page_obj, page_keys = _page_of_groupers(level0_keys, page, records_per_page)
     page_keys_set = set(page_keys)
+    page_combos = [c for c in combos if c[level0_field] in page_keys_set]
 
-    # Actual row instances for just the current page's top-level groups —
-    # one query for each row's full group-key tuple, one for the objects.
+    leaf_ranges = {}
+    for combo in page_combos:
+        key = tuple(combo[f] for f in group_fields)
+        requested = request.GET.get(_leaf_dynamic_name(key)) if request else None
+        number = (
+            Paginator(range(combo["_n"]), records_per_page).get_page(requested).number
+        )
+        leaf_ranges[key] = ((number - 1) * records_per_page, number * records_per_page)
+
     # A plain `__in` lookup never matches NULL rows even when None is
     # explicitly in the list (SQL's `IN (NULL)` never matches), so a
     # None grouper needs its own explicit isnull=True branch or that
@@ -108,20 +162,41 @@ def nested_group_by_queryset(
     level0_filter = Q(**{f"{level0_field}__in": non_null_page_keys})
     if None in page_keys_set:
         level0_filter |= Q(**{f"{level0_field}__isnull": True})
-    rows_qs = queryset.filter(level0_filter)
-    pk_to_key = {
-        r["pk"]: tuple(r[f] for f in group_fields)
-        for r in rows_qs.values("pk", *group_fields)
+    numbered_rows = (
+        queryset.filter(level0_filter)
+        .annotate(
+            _row_number=Window(
+                RowNumber(),
+                partition_by=[F(f) for f in group_fields],
+                order_by=_window_order(queryset),
+            )
+        )
+        .values("pk", "_row_number", *group_fields)
+    )
+    ranked_pks = defaultdict(list)
+    for row in numbered_rows:
+        key = tuple(row[f] for f in group_fields)
+        ranked_pks[key].append((row["_row_number"], row["pk"]))
+    pks_by_key = {
+        key: [pk for _, pk in sorted(rows)] for key, rows in ranked_pks.items()
     }
-    rows_by_key = defaultdict(list)
-    for obj in rows_qs:
-        key = pk_to_key.get(obj.pk)
-        if key is not None:
-            rows_by_key[key].append(obj)
+    page_pks_by_key = {
+        key: pks[slice(*leaf_ranges.get(key, (0, 0)))]
+        for key, pks in pks_by_key.items()
+    }
+    objects_by_pk = {
+        obj.pk: obj
+        for obj in queryset.filter(
+            pk__in=[pk for pks in page_pks_by_key.values() for pk in pks]
+        )
+    }
+    rows_by_key = {
+        key: [objects_by_pk[pk] for pk in pks if pk in objects_by_pk]
+        for key, pks in page_pks_by_key.items()
+    }
 
     # Label objects resolved only for values occurring under the current
     # page of top-level groups, not the whole table.
-    page_combos = [c for c in combos if c[level0_field] in page_keys_set]
     label_cache = {}
     for level, field in enumerate(group_fields):
         related_model = _related_model_for_field(model, field)
@@ -169,7 +244,9 @@ def nested_group_by_queryset(
                     dynamic_name,
                     request,
                     records_per_page,
+                    total_count=node["count"],
                 )
+                node["list"].all_pks = pks_by_key.get(key, [])
             nodes.append(node)
         return nodes
 

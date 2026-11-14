@@ -197,6 +197,14 @@ class DeploymentWiringTests(SimpleTestCase):
         # Two schedulers reintroduce the duplicate-run problem.
         self.assertEqual(prod["services"]["scheduler"]["deploy"]["replicas"], 1)
 
+    def test_production_publishes_web_on_localhost_only(self):
+        # On every interface, Django's port bypasses nginx: its login rate
+        # limit, /metrics/ block and security headers.
+        prod = self._compose("docker-compose.prod.yml")
+        for port in prod["services"]["web"]["ports"]:
+            with self.subTest(port=port):
+                self.assertTrue(str(port).startswith("127.0.0.1:"))
+
     def test_runner_reports_job_failures(self):
         """APScheduler swallows job exceptions into its own logger, so a
         failing job paged nobody. The runner must attach the error listener."""

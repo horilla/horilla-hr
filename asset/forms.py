@@ -564,11 +564,12 @@ class AssetReturnForm(ModelForm):
 
 class AssetServiceRequestForm(ModelForm):
     """
-    A Django ModelForm for employees to raise a service request against
-    one of their own active asset allocations.
+    A Django ModelForm to raise a service request against an active asset
+    allocation: an employee's own allocations, or any allocation for users
+    with asset.change_assetassignment.
     """
 
-    cols = {"issue_description": 12}
+    cols = {"issue_description": 12, "assignment_id": 12}
 
     class Meta:
         model = AssetServiceRequest
@@ -591,9 +592,22 @@ class AssetServiceRequestForm(ModelForm):
         request = getattr(_thread_locals, "request", None)
         employee = request.user.employee_get
         super().__init__(*args, **kwargs)
-        self.fields["assignment_id"].queryset = AssetAssignment.objects.filter(
-            assigned_to_employee_id=employee, return_date__isnull=True
-        )
+        if request.user.has_perm("asset.change_assetassignment"):
+            if not request.GET.get("assignment_id"):
+                self.fields["assignment_id"].widget = forms.Select(
+                    attrs={"class": "oh-select oh-select-2 w-100"}
+                )
+                self.fields["assignment_id"].label = _("Asset")
+                self.fields["assignment_id"].label_from_instance = (
+                    lambda obj: f"{obj.asset_id} - {obj.assigned_to_employee_id}"
+                )
+            self.fields["assignment_id"].queryset = AssetAssignment.objects.filter(
+                return_date__isnull=True
+            ).select_related("asset_id", "assigned_to_employee_id")
+        else:
+            self.fields["assignment_id"].queryset = AssetAssignment.objects.filter(
+                assigned_to_employee_id=employee, return_date__isnull=True
+            )
 
         assignment_id = None
         if self.data:
@@ -618,8 +632,7 @@ class AssetServiceRequestForm(ModelForm):
 
     def save(self, commit=True):
         instance = super().save(commit=False)
-        request = getattr(_thread_locals, "request", None)
-        instance.requested_employee_id = request.user.employee_get
+        instance.requested_employee_id = instance.assignment_id.assigned_to_employee_id
         if commit:
             instance.save()
         return instance

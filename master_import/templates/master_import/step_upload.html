@@ -16,7 +16,7 @@
   <div class="mi__card-head">
     <div class="mi__pick">
       <label class="mi__pick-label" for="mi-dataset">{% trans "Data to Import" %}</label>
-      <select class="mi__pick-select" id="mi-dataset" onchange="if (this.value) miGo('{% url 'master-import' %}?dataset=' + this.value)">
+      <select class="mi__pick-select oh-select" id="mi-dataset" onchange="if (this.value) miGo('{% url 'master-import' %}?dataset=' + this.value)">
         {% for item in datasets %}
         <option value="{{ item.key }}" {% if item.key == dataset.key %}selected{% endif %} {% if not item.available %}disabled{% endif %}>{{ item.label }}</option>
         {% endfor %}
@@ -54,13 +54,10 @@
         {% endif %}
         <label class="mi__drop" id="mi-drop" for="mi-file">
           <ion-icon name="cloud-upload-outline"></ion-icon>
-          <div class="mi__drop-title">{% trans "Drop your file here, or browse" %}</div>
-          <div class="mi__drop-sub">{% trans "CSV or Excel workbook, up to 10 MB. Nothing is saved until you confirm the import." %}</div>
+          <div class="mi__drop-title" id="mi-drop-title">{% trans "Drop your file here, or browse" %}</div>
+          <div class="mi__drop-sub" id="mi-drop-sub">{% trans "CSV or Excel workbook, up to 10 MB. Nothing is saved until you confirm the import." %}</div>
         </label>
         <input type="file" id="mi-file" name="file" accept=".csv,.xlsx,.xls" hidden>
-        <div class="mi__file" id="mi-picked">
-          <ion-icon name="document-outline"></ion-icon><span id="mi-picked-name"></span>
-        </div>
       </div>
 
     </div>
@@ -101,14 +98,17 @@
 (function () {
   var input = document.getElementById("mi-file");
   var drop = document.getElementById("mi-drop");
-  var picked = document.getElementById("mi-picked");
-  var name = document.getElementById("mi-picked-name");
   var go = document.getElementById("mi-continue");
+  var title = document.getElementById("mi-drop-title");
+  var sub = document.getElementById("mi-drop-sub");
+  var origTitle = title.textContent;
+  var origSub = sub.textContent;
 
   function show() {
     var has = input.files && input.files.length;
-    picked.style.display = has ? "flex" : "none";
-    name.textContent = has ? input.files[0].name : "";
+    title.textContent = has ? input.files[0].name : origTitle;
+    sub.textContent = has ? "{% trans 'Click or drop another file to replace' as replace_msg %}{{ replace_msg|escapejs }}" : origSub;
+    drop.classList.toggle("mi__drop--has", !!has);
     go.disabled = !has;
   }
   input.addEventListener("change", show);

@@ -62,7 +62,6 @@ from offboarding.forms import (
 from offboarding.methods import (
     cancel_resignation,
     decide_resignation_cancellation,
-    has_offboarding_record,
     request_resignation_cancellation,
 )
 from offboarding.models import (
@@ -1106,6 +1105,29 @@ def resignation_list_swap_response(original_request):
         return HttpResponse(" ", content_type="text/html")
 
 
+def resignation_reload_script_response():
+    """
+    Re-triggers the resignation list's own hidden reload button instead of
+    rebuilding the list server-side: that button already carries the exact
+    filter the list is currently showing, so this is the only reliable way
+    to keep the applied filter after an action that doesn't target
+    #listContainer itself.
+    """
+    # Deferred: this script runs mid-swap (it's arriving via its own htmx
+    # swap into #resignationActionTarget); clicking .reload-record
+    # synchronously here races that outer swap's settle step and can hand
+    # htmx a detached node to swap into. A tick later, it's settled.
+    script = (
+        "<script>"
+        "setTimeout(function () {"
+        "$('.reload-record').click();"
+        "$('#reloadMessagesButton').click();"
+        "}, 0);"
+        "</script>"
+    )
+    return HttpResponse(script)
+
+
 @login_required
 @check_feature_enabled("resignation_request")
 def delete_resignation_request(request):
@@ -1233,7 +1255,7 @@ def update_status(request):
     if status == "rejected" and not reject_reason:
         messages.error(request, _("Please provide a reason for rejecting the request"))
         if request.headers.get("HX-Request"):
-            return resignation_list_swap_response(request)
+            return resignation_reload_script_response()
         return redirect(reverse("resignation-request-view"))
 
     letters = ResignationLetter.objects.filter(id__in=ids)
@@ -1285,7 +1307,7 @@ def update_status(request):
                 icon="information",
             )
     if request.headers.get("HX-Request"):
-        return resignation_list_swap_response(request)
+        return resignation_reload_script_response()
     return redirect(reverse("resignation-request-view"))
 
 
@@ -1404,16 +1426,13 @@ def decide_resignation_cancellation_request(request, id, action):
         messages.error(request, error)
         return HorillaRedirect(request)
     if approve:
-        messages.success(request, _("Resignation cancellation approved"))
-        if has_offboarding_record(letter):
-            messages.warning(
-                request,
-                _(
-                    "%(name)s is already in the offboarding pipeline; that record "
-                    "was left untouched and can be removed from the pipeline if needed."
-                )
-                % {"name": letter.employee_id.get_full_name()},
+        messages.success(
+            request,
+            _(
+                "Resignation cancellation approved. %(name)s was removed from offboarding."
             )
+            % {"name": letter.employee_id.get_full_name()},
+        )
     else:
         messages.success(request, _("Resignation cancellation rejected"))
     with contextlib.suppress(Exception):

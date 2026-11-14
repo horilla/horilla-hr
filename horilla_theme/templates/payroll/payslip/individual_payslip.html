@@ -16,8 +16,27 @@
 The payslip and its tax working side by side, the pair centred in the view. The
 working is its own card so the payslip stays the statement it is.
 {% endcomment %}
-<div style="display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:center;gap:16px;width:94%;max-width:1480px;margin:0 auto;">
-<div class="bg-white px-6 py-4 rounded-md shadow-card" style="flex:1 1 640px;max-width:980px;min-width:0;">
+{% comment %}
+A grid, so the cards fill the page instead of leaving a hole under the shorter column: the payslip and the tax
+working side by side, the CTC break down across the full width beneath them. On a narrow screen they stack.
+{% endcomment %}
+<style>
+  .pslp-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, 440px); justify-content: center; align-items: start; gap: 16px; width: 94%; max-width: 1480px; margin: 0 auto; }
+  /* The aside is only a wrapper the page swaps as one piece: its cards are the grid's own items. */
+  .pslp-grid > #payslipTaxPanel { display: contents; }
+  .pslp-grid .tsp, .pslp-grid .cbk { grid-column: 2; grid-row: 1; margin-top: 0; }
+  /* With a CTC break down the tax working, the longer card, goes full width underneath, its two steps side by side,
+     so neither column is left with a hole under it. */
+  .pslp-grid:has(.cbk) .tsp { grid-column: 1 / -1; grid-row: 2; }
+  /* Nothing beside the payslip: it stays a centred statement. */
+  .pslp-grid:not(:has(.tsp, .cbk)) { grid-template-columns: minmax(0, 980px); }
+  @media (max-width: 1100px) {
+    .pslp-grid, .pslp-grid:not(:has(.tsp, .cbk)) { grid-template-columns: minmax(0, 1fr); }
+    .pslp-grid .tsp, .pslp-grid .cbk, .pslp-grid:has(.cbk) .tsp { grid-column: 1; grid-row: auto; }
+  }
+</style>
+<div class="pslp-grid">
+<div class="bg-white px-6 py-4 rounded-md shadow-card" style="min-width:0;">
     <div class="flex gap-2 md:gap-0 flex-wrap justify-between items-end mb-2 border-b border-dark-50 pb-3">
         <div class="flex items-center gap-5">
             <div class="bg-dark-50 p-2 rounded-md w-14">
@@ -116,7 +135,7 @@ working is its own card so the payslip stays the statement it is.
     </div>
 </div>
 {% if payslip|income_tax_explanation or payslip|ctc_breakdown %}
-<aside id="payslipTaxPanel" style="flex:0 0 360px;width:360px;max-width:100%;">
+<aside id="payslipTaxPanel" style="display:contents;">
   {% include "payroll/payslip/_tax_side_panel.html" %}
   {% include "payroll/payslip/_ctc_breakdown.html" %}
 </aside>

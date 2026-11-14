@@ -35,6 +35,25 @@ $(function () {
             }
         }
     });
+    // A tooltip closes on mouseleave, and an element that is replaced under the cursor (a list redrawn, a row
+    // re-rendered, a modal swapped) never gets one: its tooltip stays on the page for good ("Drag to reorder" left
+    // hanging over the pipeline stages). After the DOM changes, drop every tooltip whose element is gone.
+    var orphanTimer = null;
+    function sweepOrphanTooltips() {
+        orphanTimer = null;
+        document.querySelectorAll(".ui-tooltip").forEach(function (tip) {
+            var owner = tip.id ? document.querySelector('[aria-describedby~="' + tip.id + '"]') : null;
+            if (!owner) tip.remove();
+        });
+    }
+    new MutationObserver(function (mutations) {
+        for (var i = 0; i < mutations.length; i++) {
+            if (mutations[i].removedNodes.length) {
+                if (orphanTimer === null) orphanTimer = setTimeout(sweepOrphanTooltips, 60);
+                return;
+            }
+        }
+    }).observe(document.body, { childList: true, subtree: true });
     var scrollSettleTimer = null;
 
     document.addEventListener(

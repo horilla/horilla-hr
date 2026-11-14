@@ -305,7 +305,7 @@ def employee_pivot(request):
     data_list = [
         {
             "Name": f"{item['employee_first_name']} {item['employee_last_name']}",
-            "Badge Id": item["badge_id"] or "-",
+            "Badge ID": item["badge_id"] or "-",
             "Gender": choice_gender.get(item["gender"]),
             "Email": item["email"],
             "Phone": item["phone"],

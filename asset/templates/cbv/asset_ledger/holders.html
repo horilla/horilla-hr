@@ -1,0 +1,28 @@
+{% load i18n %}
+{% comment %}
+A group of overlapping avatars for the people in ``people``, showing the ``shown`` slice (for example ":4") of them, ``more`` being the rest ("4:") and a "+N" button that opens
+a list of everyone. Used for who holds an asset.
+{% endcomment %}
+{% if people %}
+<div class="inline-flex items-center" data-holders>
+    {% for p in people|slice:shown %}
+        <span class="inline-flex items-center justify-center overflow-hidden rounded-full ring-2 ring-white bg-gray-200 text-[10px] font-bold text-gray-600 {% if not forloop.first %}-ml-2{% endif %}" style="width: {{ size|default:28 }}px; height: {{ size|default:28 }}px" title="{{ p.name }}">
+            {% if p.avatar %}<img src="{{ p.avatar }}" alt="{{ p.name }}" class="w-full h-full object-cover">{% else %}{{ p.initials }}{% endif %}
+        </span>
+    {% endfor %}
+    {% with rest=people|slice:more %}{% if rest %}
+        <button type="button" data-holders-toggle class="-ml-2 inline-flex items-center justify-center rounded-full ring-2 ring-white bg-gray-800 text-[10px] font-bold text-white hover:bg-gray-700" style="min-width: {{ size|default:28 }}px; height: {{ size|default:28 }}px; padding: 0 6px" title="{% trans 'Show Everyone' %}">+{{ rest|length }}</button>
+        <div data-holders-panel class="hidden rounded-lg border border-gray-200 bg-white p-2 shadow-lg" style="position: fixed; z-index: 100000; min-width: 220px; max-height: 260px; overflow-y: auto">
+            <p class="px-2 pb-1 text-[10.5px] font-semibold uppercase tracking-wide text-gray-400">{% blocktrans count n=people|length %}{{ n }} Holder{% plural %}{{ n }} Holders{% endblocktrans %}</p>
+            {% for p in people %}
+                <div class="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-gray-50">
+                    <span class="inline-flex items-center justify-center overflow-hidden rounded-full bg-gray-200 text-[10px] font-bold text-gray-600" style="width: 24px; height: 24px">
+                        {% if p.avatar %}<img src="{{ p.avatar }}" alt="" class="w-full h-full object-cover">{% else %}{{ p.initials }}{% endif %}
+                    </span>
+                    <span class="text-xs font-medium text-gray-700">{{ p.name }}</span>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}{% endwith %}
+</div>
+{% else %}&mdash;{% endif %}

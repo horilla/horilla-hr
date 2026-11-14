@@ -93,6 +93,17 @@
             },
         };
     </script>
+    {% trans "Choose or Drop a File Here" as hz_drop_single %}
+    {% trans "Choose or Drop Files Here" as hz_drop_multiple %}
+    {% trans "Remove" as hz_drop_remove %}
+    <script>
+        window.HZ_FILE_DROP_I18N = {
+            single: "{{ hz_drop_single|escapejs }}",
+            multiple: "{{ hz_drop_multiple|escapejs }}",
+            remove: "{{ hz_drop_remove|escapejs }}"
+        };
+    </script>
+    <script src="/static/horilla_theme/assets/js/file_dropzone.js?v=1" defer></script>
 </head>
 
 <script src="{% static '/jquery/jquery.min.js' %}"></script>

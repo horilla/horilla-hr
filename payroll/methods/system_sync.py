@@ -55,6 +55,20 @@ def rows_to_check(keys=None):
         if want(key) and claim.allowance_id_id:
             pairs.append((claim.allowance_id, key, claim.employee_id))
 
+    if want("arrears") or want("recovery"):
+        from payroll.models.models import PayAdjustment
+
+        for entry in PayAdjustment.objects.entire().filter(status="approved"):
+            # The fourth item is what the entry itself fixes, which the standard item must not undo.
+            if entry.kind == "arrears" and want("arrears") and entry.allowance_id_id:
+                pairs.append(
+                    (entry.allowance_id, "arrears", entry.employee_id, entry.tax_pin())
+                )
+            if entry.kind == "recovery" and want("recovery") and entry.deduction_id_id:
+                pairs.append(
+                    (entry.deduction_id, "recovery", entry.employee_id, entry.tax_pin())
+                )
+
     if want("penalty"):
         from base.models import PenaltyAccounts
 
@@ -76,12 +90,16 @@ def align(keys=None, apply=True):
     """
     paid = paid_deduction_ids()
     changes, frozen = [], []
-    for row, key, employee in rows_to_check(keys):
+    for row, key, employee, *rest in rows_to_check(keys):
         if row is None or getattr(row, "is_system", False):
             continue
+        fixed = rest[0] if rest else {}
         differs = {
             field: value
-            for field, value in policy_fields(key, employee=employee).items()
+            for field, value in {
+                **policy_fields(key, employee=employee),
+                **fixed,
+            }.items()
             if getattr(row, field) != value
         }
         if not differs:

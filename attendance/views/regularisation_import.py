@@ -325,7 +325,7 @@ def _check(record, by_badge, period_days, computed):
             None,
             None,
             None,
-            _("No employee with badge ID %(badge)s") % {"badge": badge or "—"},
+            _("No employee with Badge ID %(badge)s") % {"badge": badge or "—"},
         )
     if unreadable:
         return (

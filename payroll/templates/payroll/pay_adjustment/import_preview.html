@@ -1,0 +1,77 @@
+{% load i18n %}
+{% comment %}Step two: every row checked, nothing written. The good ones can be imported; the rest say why not.{% endcomment %}
+<div id="payAdjustmentImportPreview">
+  <div class="flex items-center gap-2 mb-2 text-sm">
+    <span class="font-medium">{{ file_name }}</span>
+    <span class="text-xs font-medium rounded-full" style="padding: 1px 9px; background: #dcfce7; color: #166534;"
+          data-valid-count>{{ valid_count }} {% trans "Ready" %}</span>
+    {% if failed_count %}
+      <span class="text-xs font-medium rounded-full" style="padding: 1px 9px; background: #fee2e2; color: #991b1b;"
+            data-failed-count>{{ failed_count }} {% trans "With Problems" %}</span>
+    {% endif %}
+  </div>
+  {% if failed_count %}
+    <p class="text-xs text-gray-500 mb-2">
+      {% trans "Rows With Problems Are Left Out. Download Them, Correct Them And Import Them Again." %}
+    </p>
+  {% endif %}
+
+  <div class="border border-gray-200 rounded-lg" style="max-height: 46vh; overflow: auto;">
+    <table class="w-full text-xs" style="border-collapse: collapse;">
+      <thead style="position: sticky; top: 0; background: #f9fafb;">
+        <tr class="text-gray-600" style="text-align: left; background: #f9fafb;">
+          <th style="padding: 6px 10px; vertical-align: middle;">#</th>
+          <th style="padding: 6px 10px; vertical-align: middle;">{% trans "Employee" %}</th>
+          <th style="padding: 6px 10px; vertical-align: middle;">{% trans "Type" %}</th>
+          <th style="padding: 6px 10px; vertical-align: middle;">{% trans "Title" %}</th>
+          <th style="padding: 6px 10px; vertical-align: middle;">{% trans "Amount" %}</th>
+          <th style="padding: 6px 10px; vertical-align: middle;">{% trans "Pay Date" %}</th>
+          <th style="padding: 6px 10px; vertical-align: middle;">{% trans "Taxable / Pre-Tax" %}</th>
+          <th style="padding: 6px 10px; vertical-align: middle;">{% trans "Result" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in table %}
+          <tr data-import-row="{{ row.row }}" style="border-top: 1px solid #f1f2f4;{% if row.errors %} background: #fff5f5;{% endif %}">
+            <td style="padding: 6px 10px; vertical-align: middle;">{{ row.row }}</td>
+            <td style="padding: 6px 10px; vertical-align: middle;">{{ row.employee }}</td>
+            <td style="padding: 6px 10px; vertical-align: middle;">{{ row.kind_label }}</td>
+            <td style="padding: 6px 10px; vertical-align: middle;">{{ row.title }}</td>
+            <td style="padding: 6px 10px; vertical-align: middle;">{{ row.amount }}</td>
+            <td style="padding: 6px 10px; vertical-align: middle;">{{ row.pay_date }}</td>
+            <td style="padding: 6px 10px; vertical-align: middle;">{{ row.tax }}</td>
+            <td style="padding: 6px 10px; vertical-align: middle;">
+              {% if row.errors %}
+                <span class="inline-flex items-center gap-1" style="color: #991b1b;"><ion-icon name="alert-circle" style="font-size: 14px; flex-shrink: 0;"></ion-icon>{{ row.errors|join:" " }}</span>
+              {% else %}
+                <span class="inline-flex items-center gap-1 rounded-full" style="padding: 1px 8px; background: #dcfce7; color: #166534;"><ion-icon name="checkmark-circle" style="font-size: 14px;"></ion-icon>{% trans "Ready" %}</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if hidden_rows %}
+    <p class="text-xs text-gray-500 mt-1">{% blocktrans %}{{ hidden_rows }} More Rows Are Not Shown, But Are Checked And Imported The Same.{% endblocktrans %}</p>
+  {% endif %}
+
+  <div class="flex items-center gap-3 pt-4 mt-4 border-t border-gray-200">
+    <a href="#" class="px-4 py-2 rounded-md text-xs flex items-center gap-2 transition duration-300 border border-brand-600 text-brand-600 hover:text-white hover:bg-brand-800 cursor-pointer mr-auto" style="text-decoration: none;" hx-get="{% url 'pay-adjustment-import' %}?step=upload"
+       hx-target="#payAdjustmentImportBody" hx-swap="innerHTML">{% trans "Upload Another File" %}</a>
+    {% if failed_count %}
+      <a href="{% url 'pay-adjustment-import-errors' %}?token={{ token }}" class="px-4 py-2 rounded-md text-xs flex items-center gap-2 transition duration-300 border border-brand-600 text-brand-600 hover:text-white hover:bg-brand-800 cursor-pointer" style="text-decoration: none;">
+        <ion-icon name="cloud-download-outline" style="font-size: 16px;"></ion-icon>{% trans "Download Problems" %}
+      </a>
+    {% endif %}
+    {% if valid_count %}
+      <form hx-post="{% url 'pay-adjustment-import-confirm' %}" hx-target="#payAdjustmentImportBody" hx-swap="innerHTML">
+        {% csrf_token %}
+        <input type="hidden" name="token" value="{{ token }}">
+        <button type="submit" class="px-4 py-2 rounded-md text-xs flex items-center gap-2 transition duration-300 bg-brand-600 text-white hover:bg-brand-800">
+          {% blocktrans count n=valid_count %}Import {{ n }} Entry As A Draft{% plural %}Import {{ n }} Entries As Drafts{% endblocktrans %}
+        </button>
+      </form>
+    {% endif %}
+  </div>
+</div>

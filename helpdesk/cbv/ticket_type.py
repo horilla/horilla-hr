@@ -209,8 +209,6 @@ class TicketsCreateFormView(HorillaFormView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         self.form.fields["employee_id"].initial = self.request.user.employee_get
-        status = self.request.GET.get("status")
-        self.form.fields["status"].initial = status
         if self.form.instance.pk:
             self.form_class.verbose_name = _("Update Ticket")
         context["form"] = self.form

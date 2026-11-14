@@ -200,8 +200,16 @@ class TicketFilter(HorillaFilterSet):
         statuses (new/in_progress/on_hold) into one count -- there's no
         single `status` value that represents that, so this is a separate
         method filter rather than reusing the plain `status` field.
+
+        Also backs the Tickets list's own default (see TicketTabView in
+        helpdesk/cbv/pipeline.py), which is carried forward as a hidden
+        `is_open` value once set -- an explicit `status` pick (a quick-
+        filter dot, or the Status field in the filter panel) must win over
+        that leftover default rather than AND-ing against it into an
+        impossible, contradictory combination (e.g. is_open=true AND
+        status=resolved matching nothing).
         """
-        if value:
+        if value and not (self.data and self.data.get("status")):
             return queryset.filter(status__in=["new", "in_progress", "on_hold"])
         return queryset
 

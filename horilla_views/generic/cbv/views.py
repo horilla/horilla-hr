@@ -46,6 +46,7 @@ from horilla.nested_group_by import nested_group_by_queryset
 from horilla.signals import post_generic_import, pre_generic_import
 from horilla_views import models
 from horilla_views.cbv_methods import (  # update_initial_cache,
+    SESSION_CACHE_TIMEOUT,
     WEEK,
     assign_related,
     dedupe_single_value_params,
@@ -56,6 +57,7 @@ from horilla_views.cbv_methods import (  # update_initial_cache,
     get_verbose_name_from_field_path,
     hx_request_required,
     login_required,
+    nested_group_by_cache_key,
     paginator_qry,
     saved_filter_cache_key,
     saved_filter_path_query,
@@ -537,6 +539,12 @@ class HorillaListView(ListView):
         nested_fields = list(
             dict.fromkeys(f for f in self._saved_filters.getlist("nested_fields") if f)
         )
+        if nested_fields and request and request.session.session_key:
+            CACHE.set(
+                nested_group_by_cache_key(request.session.session_key, request.path),
+                nested_fields,
+                SESSION_CACHE_TIMEOUT,
+            )
         group_field = self._saved_filters.get("field")
         if isinstance(queryset, list) and (nested_fields or group_field):
             # sortby() returns a plain sorted list, but group-by needs a real QuerySet; rebuild one preserving this row order via Case/When.
@@ -609,9 +617,20 @@ class HorillaListView(ListView):
         page_object_list = getattr(
             context["queryset"], "object_list", context["queryset"]
         )
+        grouped = context.get("nested_groups", context.get("groups"))
         ordered_ids = []
         try:
-            if hasattr(page_object_list, "values_list"):
+            if grouped is not None:
+                pending = list(reversed(grouped.object_list))
+                while pending:
+                    group = pending.pop()
+                    if group.get("children"):
+                        pending.extend(reversed(group["children"]))
+                    elif group.get("list") is not None:
+                        ordered_ids.extend(
+                            str(instance.pk) for instance in group["list"].object_list
+                        )
+            elif hasattr(page_object_list, "values_list"):
                 ordered_ids = [
                     str(pk) for pk in page_object_list.values_list("pk", flat=True)
                 ]
@@ -2362,6 +2381,9 @@ class HorillaNavView(TemplateView):
     empty_inputs: list = []
     view_types: list = []
     create_attrs: str = """"""
+    # A template shown beside the title (an indicator, a count) and the context it needs; nothing by default.
+    nav_info_template: str = ""
+    nav_info_context: dict = {}
     create_label: str = ""
     # An ion-icon name shown on the create button in place of the "+" glyph.
     create_icon: str = ""
@@ -2370,6 +2392,8 @@ class HorillaNavView(TemplateView):
     hide_search: bool = False
     apply_first_filter = True
     default_group_by: str = ""
+    # Optional multi-level default for the nested "Grouped by" bar; falls back to [default_group_by].
+    default_nested_group_by: list = []
     # Opt-in redesign of the Filter dropdown's accordion sections (see horilla_nav.html's .oh-filter-modern styles).
     modern_filter: bool = False
 
@@ -2490,6 +2514,8 @@ class HorillaNavView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["nav_title"] = self.nav_title
+        context["nav_info_template"] = self.nav_info_template
+        context.update(self.nav_info_context)
         context["search_url"] = self.search_url
         context["search_swap_target"] = self.search_swap_target
         context["search_input_attrs"] = self.search_input_attrs
@@ -2497,8 +2523,24 @@ class HorillaNavView(TemplateView):
         context["nested_group_by_fields"] = self.nested_group_by_fields
         get_params = self._effective_get_params()
         nested_selected = get_params.getlist("nested_fields")
+        if (
+            not nested_selected
+            and self.request
+            and self.search_url
+            and self.request.session.session_key
+        ):
+            nested_selected = (
+                CACHE.get(
+                    nested_group_by_cache_key(
+                        self.request.session.session_key, self.search_url
+                    )
+                )
+                or []
+            )
         if not nested_selected:
-            nested_selected = [self.default_group_by] if self.default_group_by else [""]
+            nested_selected = list(self.default_nested_group_by) or (
+                [self.default_group_by] if self.default_group_by else [""]
+            )
         context["nested_fields_selected"] = nested_selected
         context["actions"] = self.actions
         context["filter_body_template"] = self.filter_body_template
@@ -2534,7 +2576,9 @@ class HorillaNavView(TemplateView):
             context["custom_filter_rows"] = getattr(filterset, "custom_filter_rows", [])
             context["applied_filter_count"] = self._get_applied_filter_count(filterset)
 
-        active_view = models.ActiveView.objects.filter(path=self.request.path).first()
+        active_view = models.ActiveView.objects.filter(
+            path=self.request.path, created_by=self.request.user
+        ).first()
         # An explicit ?view= outranks the persisted one for this render, so the toggle and rendered content agree; persisting happens elsewhere.
         requested_view = self.request.GET.get("view")
         if requested_view and (not active_view or active_view.type != requested_view):

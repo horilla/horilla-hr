@@ -1,35 +1,61 @@
 {% load static i18n %}
+{% if show_inline_preview %}
+    {% comment %}
+    view_policy.html's own big PDF/image preview -- re-rendered together
+    with the icon grid below on every add/remove so it never goes stale
+    (used to still show a just-removed attachment's image/PDF until the
+    whole modal was reopened).
+    {% endcomment %}
+    {% for attachment in policy.attachments.all %}
+        {% if attachment.is_pdf %}
+            <iframe
+                src="{{ attachment.attachment.url }}"
+                title="{{ policy.title }}"
+                loading="lazy"
+                class="border rounded-md mt-3"
+                style="width:100%;height:65vh"
+            ></iframe>
+        {% elif attachment.is_image %}
+            <img
+                src="{{ attachment.attachment.url }}"
+                alt="{{ policy.title }}"
+                loading="lazy"
+                class="border rounded-md mt-3"
+                style="max-width:100%"
+            />
+        {% endif %}
+    {% endfor %}
+{% endif %}
 <form
-    hx-post="{% url 'add-attachment-policy' %}?policy_id={{policy.id}}"
+    hx-post="{% url 'add-attachment-policy' %}?policy_id={{policy.id}}{% if show_inline_preview %}&show_inline_preview=1{% endif %}"
     hx-target="#attachmentContainer"
-    class="add-files-form"
-    style="display: grid !important; width: 100%; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 16px !important; align-items: center; justify-items: start"
+    class="add-files-form mt-3"
+    style="display: flex !important; flex-wrap: wrap; width: 100%; gap: 10px !important; align-items: center"
     method="post"
     hx-encoding="multipart/form-data"
 >
     {% for attachment in policy.attachments.all %}
         {% if perms.employee.delete_policymultiplefile %}
-            <a
-                href="{{ attachment.attachment.url }}"
-                rel="noopener noreferrer"
-                target="_blank"
-            >
-                <span
-                    class="oh-file-icon {{ attachment.icon_class }}"
-                    style="width: 40px; height: 40px"
-                    ><img
-                        src="{% static '/images/ui/minus-icon.png' %}"
-                        style="display: block; width: 50%; height: 50%"
-                        hx-get="{% url 'remove-attachment-policy' %}?ids={{ attachment.id }}&policy_id={{ policy.id }}"
-                        hx-target="#attachmentContainer"
-                        hx-confirm="{% trans 'Are you sure you want to remove this attachment?' %}"
-                        onclick="
-                            event.stopPropagation();
-                            event.preventDefault();
-                        "
-                    />
-                </span>
-            </a>
+            <div class="relative" style="width: 24px; height: 24px">
+                <a
+                    href="{{ attachment.attachment.url }}"
+                    rel="noopener noreferrer"
+                    target="_blank"
+                >
+                    <span
+                        class="oh-file-icon {{ attachment.icon_class }}"
+                        style="width: 24px; height: 24px"
+                    ></span>
+                </a>
+                <img
+                    src="{% static '/images/ui/minus-icon.png' %}"
+                    title="{% trans 'Remove attachment' %}"
+                    style="position: absolute; top: 0; right: 0; width: 12px; height: 12px; cursor: pointer"
+                    hx-get="{% url 'remove-attachment-policy' %}?ids={{ attachment.id }}&policy_id={{ policy.id }}{% if show_inline_preview %}&show_inline_preview=1{% endif %}"
+                    hx-target="#attachmentContainer"
+                    hx-confirm="{% trans 'Are you sure you want to remove this attachment?' %}"
+                />
+            </div>
         {% else %}
         <a
             href="{{ attachment.attachment.url }}"

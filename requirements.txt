@@ -175,3 +175,4 @@ setuptools==84.1.0
 
 # Testing
 coverage>=7.0
+tblib==3.2.2

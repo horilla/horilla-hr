@@ -757,12 +757,12 @@
         const t = new Date();
         if (p === "today") return [t, t];
         if (p === "week") {
-            const dow = (t.getDay() + 6) % 7;
+            const dow = (t.getDay() - {{ first_day_of_week|default:1 }} + 7) % 7;
             const from = new Date(t.getFullYear(), t.getMonth(), t.getDate() - dow);
             return [from, new Date(from.getFullYear(), from.getMonth(), from.getDate() + 6)];
         }
         if (p === "last_week") {
-            const dow = (t.getDay() + 6) % 7;
+            const dow = (t.getDay() - {{ first_day_of_week|default:1 }} + 7) % 7;
             const from = new Date(t.getFullYear(), t.getMonth(), t.getDate() - dow - 7);
             return [from, new Date(from.getFullYear(), from.getMonth(), from.getDate() + 6)];
         }

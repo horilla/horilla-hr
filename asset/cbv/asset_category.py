@@ -6,6 +6,8 @@ from typing import Any
 
 from django import forms
 from django.contrib import messages
+from django.db.models import Count, IntegerField, OuterRef, Subquery, Value
+from django.db.models.functions import Coalesce
 from django.http import HttpResponse
 from django.urls import reverse
 from django.utils.decorators import method_decorator
@@ -14,7 +16,7 @@ from django.utils.translation import gettext_lazy as _
 from asset.cbv.asset_batch_no import DynamicCreateBatchNo
 from asset.filters import AssetFilter
 from asset.forms import AssetCategoryForm, AssetForm, AssetReportForm
-from asset.models import Asset, AssetCategory, AssetDocuments, AssetReport
+from asset.models import Asset, AssetCategory, AssetDocuments, AssetItem, AssetReport
 from base.methods import has_export_access
 from horilla_views.cbv_methods import (
     hx_request_required,
@@ -346,6 +348,37 @@ class AssetCategoryListView(HorillaListView):
         data-target="#genericModal"
         data-toggle="oh-modal-toggle"
     """
+
+    def get_queryset(self, queryset=None, filtered=False, *args, **kwargs):
+        """
+        Return the filtered asset queryset with its category and batch number
+        loaded in the same query.
+
+        Parameters:
+            queryset (QuerySet, optional): Base queryset to filter.
+            filtered (bool): Whether the queryset is already filtered.
+
+        Returns:
+            QuerySet: Assets with related rows joined and the count annotated.
+        """
+        available_items = (
+            AssetItem.objects.filter(asset_id=OuterRef("pk"), status="Available")
+            .order_by()
+            .values("asset_id")
+            .annotate(total=Count("pk"))
+            .values("total")
+        )
+        return (
+            super()
+            .get_queryset(queryset, filtered, *args, **kwargs)
+            .select_related("asset_category_id", "asset_lot_number_id")
+            .annotate(
+                annotated_available_count=Coalesce(
+                    Subquery(available_items, output_field=IntegerField()),
+                    Value(0),
+                )
+            )
+        )
 
 
 @method_decorator(login_required, name="dispatch")

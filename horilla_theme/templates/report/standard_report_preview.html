@@ -1,0 +1,22 @@
+{% load i18n %}
+{% if error %}
+<div class="oh-alert-container" data-sr-preview-state="error">
+    <div class="oh-alert oh-alert--animated oh-alert--danger" role="alert">{{ error }}</div>
+</div>
+{% else %}
+<div data-sr-preview-state="ok" class="sr-preview">
+    {% if total_rows %}
+    {# The preview is the generated PDF itself, so it is exactly what Download PDF delivers. #}
+    <iframe
+        src="{{ pdf_url }}"
+        title="{{ report_name }}"
+        class="w-100 border rounded"
+        style="height: 520px;"
+    ></iframe>
+    {% else %}
+    <div class="p-4 text-center border rounded" data-sr-preview-empty>
+        <p class="mb-0 text-gray-500">{% trans "No records found for the selected date range." %}</p>
+    </div>
+    {% endif %}
+</div>
+{% endif %}

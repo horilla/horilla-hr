@@ -144,6 +144,26 @@ class SummaryFollowsPayslipsTests(BatchWithPayslips, Fixture):
         batch.refresh_from_db()
         self.assertEqual((batch.generated_count, batch.total_gross), (1, 300.0))
 
+    def test_deleting_the_last_payslip_sends_the_page_to_the_batch_list(self):
+        """The batch goes with its last payslip, so the page cannot reload itself and is redirected."""
+        batch = self._batch()
+        slip = self._slip(batch, self.people[0])
+        response = self.client.post(
+            reverse("delete-payslip", args=[slip.pk]), HTTP_HX_REQUEST="true"
+        )
+        self.assertFalse(PayrollBatch.objects.filter(pk=batch.pk).exists())
+        self.assertEqual(response["HX-Redirect"], reverse("payroll-batch-home"))
+
+    def test_deleting_one_of_several_payslips_reloads_in_place(self):
+        batch = self._batch()
+        slip = self._slip(batch, self.people[0])
+        self._slip(batch, self.people[1])
+        response = self.client.post(
+            reverse("delete-payslip", args=[slip.pk]), HTTP_HX_REQUEST="true"
+        )
+        self.assertTrue(PayrollBatch.objects.filter(pk=batch.pk).exists())
+        self.assertIn("reloadPayrollPayslips", response["HX-Trigger"])
+
     def test_editing_a_payslip_changes_the_summary(self):
         batch = self._batch()
         slip = self._slip(batch, self.people[0])
@@ -603,6 +623,78 @@ class StatusTests(Fixture):
 
         self.payslip.refresh_from_db()
         self.assertEqual(self.payslip.status, "draft")
+
+    def test_the_menu_changes_status_without_a_redirect(self):
+        """Posted with htmx it is answered with the trigger the page refreshes on, not a redirect."""
+        response = self.client.post(
+            self.url, {"status": PayrollBatch.APPROVED}, HTTP_HX_REQUEST="true"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("HX-Redirect", response)
+        self.assertIn("reloadPayrollPayslips", response["HX-Trigger"])
+        self.batch.refresh_from_db()
+        self.assertEqual(self.batch.status, PayrollBatch.APPROVED)
+
+    def test_a_refused_move_still_refreshes_the_page_and_says_why(self):
+        self.batch.status = PayrollBatch.PAID
+        self.batch.save()
+        response = self.client.post(
+            self.url, {"status": PayrollBatch.DRAFT}, HTTP_HX_REQUEST="true"
+        )
+        self.assertIn("reloadPayrollPayslips", response["HX-Trigger"])
+        self.batch.refresh_from_db()
+        self.assertEqual(self.batch.status, PayrollBatch.PAID)
+
+    def test_the_status_forms_are_htmx_and_the_controls_can_be_swapped(self):
+        response = self.client.get(
+            reverse("payroll-batch-detail", args=[self.batch.pk])
+        )
+        self.assertContains(response, 'id="pb-run-controls"')
+        self.assertContains(response, 'id="pb-status-pill"')
+        self.assertContains(response, f'hx-post="{self.url}"')
+
+    def test_a_draft_run_can_be_marked_paid_directly(self):
+        self.client.post(self.url, {"status": PayrollBatch.PAID})
+
+        self.batch.refresh_from_db()
+        self.payslip.refresh_from_db()
+        self.assertEqual(self.batch.status, PayrollBatch.PAID)
+        self.assertEqual(self.payslip.status, "paid")
+
+    def test_the_draft_menu_offers_paid(self):
+        response = self.client.get(
+            reverse("payroll-batch-detail", args=[self.batch.pk])
+        )
+        self.assertContains(response, "Mark As Paid")
+        self.assertContains(response, "Mark As In Review")
+
+    def test_a_cancelled_run_can_be_reopened_as_a_draft(self):
+        self.client.post(self.url, {"status": PayrollBatch.CANCELLED})
+        self.client.post(self.url, {"status": PayrollBatch.DRAFT})
+
+        self.batch.refresh_from_db()
+        self.payslip.refresh_from_db()
+        self.assertEqual(self.batch.status, PayrollBatch.DRAFT)
+        self.assertEqual(self.payslip.status, "draft")
+
+    def test_a_cancelled_run_offers_the_way_back_in_the_page(self):
+        self.client.post(self.url, {"status": PayrollBatch.CANCELLED})
+        response = self.client.get(
+            reverse("payroll-batch-detail", args=[self.batch.pk])
+        )
+        self.assertContains(response, "Change Status")
+        self.assertContains(response, "Mark As Draft")
+
+    def test_a_payment_can_be_undone_one_step(self):
+        """Paid goes back to approved, and the payslips go back to confirmed with it."""
+        self.client.post(self.url, {"status": PayrollBatch.APPROVED})
+        self.client.post(self.url, {"status": PayrollBatch.PAID})
+        self.client.post(self.url, {"status": PayrollBatch.APPROVED})
+
+        self.batch.refresh_from_db()
+        self.payslip.refresh_from_db()
+        self.assertEqual(self.batch.status, PayrollBatch.APPROVED)
+        self.assertEqual(self.payslip.status, "confirmed")
 
     def test_a_forbidden_move_is_refused_by_the_view(self):
         """

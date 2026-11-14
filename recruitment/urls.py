@@ -50,6 +50,11 @@ urlpatterns = [
         interview.InterviewDetailView.as_view(),
         name="interview-detail-view",
     ),
+    path(
+        "recruitment-position-vacancy/",
+        views.position_vacancy,
+        name="recruitment-position-vacancy",
+    ),
     # path("recruitment-create/", views.recruitment, name="recruitment-create"),
     path(
         "recruitment-create/",
@@ -1107,6 +1112,11 @@ urlpatterns = [
         "recruitment-pipeline-tab-nav/<int:rec_id>/",
         pipeline.RecruitmentCandidateNav.as_view(),
         name="recruitment-pipeline-tab-nav",
+    ),
+    path(
+        "recruitment-pipeline-vacancy/<int:rec_id>/",
+        pipeline.RecruitmentVacancyProgress.as_view(),
+        name="recruitment-pipeline-vacancy",
     ),
     path(
         "cbv-change-stage/<int:pk>/",

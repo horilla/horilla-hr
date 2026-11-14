@@ -49,11 +49,11 @@ class ReportAuditListView(HorillaListView):
     show_toggle_form = False
 
     columns = [
-        (_("When"), "created_at"),
-        (_("Action"), "get_action_display"),
         (_("Report"), "report_name"),
+        (_("Action"), "get_action_display"),
         (_("Employee"), "employee_label"),
         (_("Format"), "format_label"),
+        (_("When"), "created_at"),
         (_("Company"), "company_label"),
     ]
 

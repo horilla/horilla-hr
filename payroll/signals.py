@@ -208,7 +208,12 @@ def keep_batch_summary_current(sender, instance, created=False, **kwargs):
     """A batch follows the payslips inside it: edits and deletes change its summary, and it goes with its last payslip."""
     if kwargs.get("raw") or created or not instance.payroll_batch_id:
         return
+    from payroll.methods.batch_run import defer_batch_totals
     from payroll.models.payroll_batch import PayrollBatch
+
+    if defer_batch_totals.get():
+        # A slice is being written: it refreshes the batch once, after it commits.
+        return
 
     batch = PayrollBatch._base_manager.filter(pk=instance.payroll_batch_id).first()
     if batch is None:

@@ -51,6 +51,7 @@ from horilla.config import logger
 from horilla.export_safety import safe_cell
 from horilla.horilla_middlewares import _thread_locals
 from horilla.methods import handle_no_permission
+from horilla.week import first_day_of_week, week_start  # noqa: F401 (re-exported)
 from horilla_views.templatetags.generic_template_filters import getattribute
 
 FIELD_WIDGET_MAP = {
@@ -517,21 +518,6 @@ def paginator_qry(qryset, page_number, records_per_page=50):
 WEEK = "week"
 
 
-def first_day_of_week():
-    """
-    settings.HORILLA_FIRST_DAY_OF_WEEK (0 = Sunday, 1 = Monday ... 6 =
-    Saturday). Monday, like the attendance dashboard, when it is unset,
-    empty or anything other than 0 to 6.
-    """
-    value = str(getattr(settings, "HORILLA_FIRST_DAY_OF_WEEK", "")).strip()
-    return int(value) if value in ("0", "1", "2", "3", "4", "5", "6") else 1
-
-
-def week_start(day):
-    """First day of the calendar week containing `day` (see first_day_of_week)."""
-    return day - timedelta(days=(day.isoweekday() - first_day_of_week()) % 7)
-
-
 def get_quick_date_filters(ranges, fields):
     """
     Build (label, onclick attrs) pairs from ranges and (exact, from, to) fields.
@@ -749,13 +735,22 @@ SAVED_FILTER_CACHE_VOLATILE_PARAMS = {
     "nav_url",
     "page",
     "view_id",
+    "field",
+    "nested_fields",
 }
 
 
-def saved_filter_cache_key(request):
+def saved_filter_cache_key(request, path=None):
     """
     Cache key for a request's "last search/filter" on a HorillaListView /
     HorillaCardView page.
+
+    `path` lets a *different* view (e.g. the paired HorillaNavView, whose
+    own path never matches the list's) compute the exact key that list
+    view would have written its cache entry under - see
+    HorillaNavView._effective_get_params's nested-fields fallback.
+    Defaults to this request's own path, unchanged for every existing
+    caller.
 
     Keying on request.path alone collides whenever the same URL embeds more
     than one independent list in a single session - e.g. every pipeline
@@ -784,8 +779,19 @@ def saved_filter_cache_key(request):
         if key not in SAVED_FILTER_CACHE_VOLATILE_PARAMS
     )
     return (
-        request.session.session_key + request.path + urlencode(identity_params) + "cbv"
+        request.session.session_key
+        + (path if path is not None else request.path)
+        + urlencode(identity_params)
+        + "cbv"
     )
+
+
+def nested_group_by_cache_key(session_key, path):
+    """
+    Cache key for a list view's last "Grouped by" selection (nested_fields),
+    remembered per session+path with no identity_params folded in at all.
+    """
+    return f"{session_key}{path}nested-group-by"
 
 
 def update_saved_filter_cache(request, cache):
@@ -828,11 +834,40 @@ def get_field_class_map(model_class: models.Model, bulk_update_fields: list) -> 
     return field_class_map
 
 
+def hide_self_only_employee_field(form, request):
+    """
+    Hide the employee field when its only choice is the logged-in user.
+
+    Parameters:
+        form: The form about to be rendered.
+        request: The current HttpRequest.
+
+    Returns:
+        None
+    """
+    field = form.fields.get("employee_id")
+    employee = getattr(getattr(request, "user", None), "employee_get", None)
+    if (
+        field is None
+        or employee is None
+        or field.widget.is_hidden
+        or not isinstance(field, forms.ModelChoiceField)
+        or isinstance(field, forms.ModelMultipleChoiceField)
+    ):
+        return
+    choices = list(field.queryset[:2])
+    if len(choices) != 1 or choices[0] != employee:
+        return
+    field.widget = forms.HiddenInput()
+    field.initial = employee.pk
+
+
 def structured(self):
     """
     Render the form fields as HTML table rows with Bootstrap styling.
     """
     request = getattr(_thread_locals, "request", None)
+    hide_self_only_employee_field(self, request)
     context = {
         "form": self,
         "request": request,

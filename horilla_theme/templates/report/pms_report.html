@@ -1,7 +1,8 @@
 {% extends "index.html" %}
+{% load static i18n %}
+
 {% block content %}
-    {% load static %}
-    {% load i18n %}
+    {% include "horilla_theme/components/report_libs.html" %}
 
     <div class="oh-wrapper mt-3">
         <div class="d-flex mt-3 mb-3" style="justify-content: space-between; align-items: center">
@@ -195,25 +196,29 @@
             <div id="pageAppliedFilterChips" class="oh-applied-filters__chips"></div>
         </div>
 
-        <!-- Model Selection Dropdown -->
-        <div style="width: 350px; display: flex">
-            <span class="mt-1 text-md font-semibold" style="font-size: 16px; width: 200px">{% trans "Choose Report" %} :
-            </span>
-            <select id="model-select" class="oh-select oh-select--sm ml-2 mb-2" style="width: 200px">
-                <option value="objective">{% trans "Objectives" %}</option>
-                <option value="employeeobjective">{% trans "Employee Objective" %}</option>
-                <option value="feedback">{% trans "Feedback" %}</option>
-            </select>
-        </div>
+        <div class="oh-report-controls">
+            <!-- Model Selection Dropdown -->
+            <div class="oh-report-control-row">
+                <span class="oh-report-control-label" style="font-size:14px;">
+                    <ion-icon name="bar-chart-outline" style="font-size:14px;"></ion-icon>
+                    {% trans "Choose Report" %} :
+                </span>
+                <select id="model-select" class="oh-select mb-2" style="width: 200px">
+                    <option value="objective">{% trans "Objectives" %}</option>
+                    <option value="employeeobjective">{% trans "Employee Objective" %}</option>
+                    <option value="feedback">{% trans "Feedback" %}</option>
+                </select>
+            </div>
 
-        <!-- Pivot Container -->
-        <!-- The "Table"/renderer <select> normally sits wedged in the pivot
-             grid's top-left corner -- moved out to a plain standalone
-             control up here instead (see relocateRendererSelect() in the
-             script below), so it reads as a page-level "view as" setting
-             rather than one more cramped field inside the builder grid. -->
-        <div id="oh-report-view-slot" class="oh-report-view-slot oh-report--multi-model">
-            <label>{% trans "View As" %} :</label>
+            <!-- Pivot Container -->
+            <!-- The "Table"/renderer <select> normally sits wedged in the pivot
+                 grid's top-left corner -- moved out to a plain standalone
+                 control up here instead (see relocateRendererSelect() in the
+                 script below), so it reads as a page-level "view as" setting
+                 rather than one more cramped field inside the builder grid. -->
+            <div id="oh-report-view-slot" class="oh-report-view-slot oh-report--multi-model" style="font-size:14px;">
+                <label style="font-size:14px;"><ion-icon name="eye-outline"></ion-icon>{% trans "View As" %} :</label>
+            </div>
         </div>
         <p class="oh-report-drag-hint">{% trans "Drag fields between the boxes below to change how this report is grouped." %}</p>
         <div id="pivot-container" class="mb-5" style="width: 100%; overflow-x: auto">
@@ -241,6 +246,13 @@
     // line of this script runs, silently breaking the page. A function
     // scope per script execution avoids that entirely.
     (function () {
+        // "Table Barchart" (pivottable.js's own built-in renderer, mini bar
+        // charts inside each table cell) isn't wanted in the "View As"
+        // list -- every `renderers: $.extend($.pivotUtilities.renderers,
+        // plotlyRenderers)` call below extends (and so returns) this same
+        // shared object, so removing the key here once, before any of them
+        // run, drops it everywhere "View As" is built from it.
+        delete $.pivotUtilities.renderers["Table Barchart"];
 
     // Available Fields / Columns / Rows fold/unfold (Odoo-Kanban-column
     // style). PivotTable.js rebuilds each of these boxes' contents on
@@ -333,8 +345,14 @@
         var $slot = $("#oh-report-view-slot");
         var $select = $("#pivot-container .pvtUi select.pvtRenderer");
         if (!$slot.length || !$select.length) return;
-        $slot.find("select.pvtRenderer").remove();
-        $slot.append($select);
+        // Remove everything but the label: the old select itself, plus its
+        // Select2 widget -- a separate sibling element Select2 inserts next
+        // to it, which "select.pvtRenderer".remove() alone never touches,
+        // leaving one orphaned widget behind every time the report model
+        // (and so pivottable.js's whole UI, renderer select included) is
+        // rebuilt from scratch.
+        $slot.children().not("label").remove();
+        $slot.append($select.addClass("oh-select"));
     }
 
     // PivotTable.js always labels the grand-total row/column header
@@ -373,10 +391,10 @@
 
     function defaultRowsConfigFor(model) {
         if (model === "feedback") {
-            return ["Title", "Employee Badge Id", "Employee", "Manager", "Answerable Employees", "Answered Employees", "Questions", "Answer"];
+            return ["Title", "Employee Badge ID", "Employee", "Manager", "Answerable Employees", "Answered Employees", "Questions", "Answer"];
         }
         if (model === "employeeobjective") {
-            return ["Employee Badge Id", "Employee", "Objective", "Employee Keyresult", "Keyresult Target Value", "Keyresult Current Value"];
+            return ["Employee Badge ID", "Employee", "Objective", "Employee Keyresult", "Keyresult Target Value", "Keyresult Current Value"];
         }
         return ["Objective", "Key Results", "Manager", "Assignees"];
     }
@@ -1327,9 +1345,9 @@
         var FILTER_FIELDS_BY_MODEL = {
             objective: [
                 { value: "managers", label: "{% trans 'Managers'|escapejs %}", type: "dropdown" },
-                { value: "manager_badge_id", label: "{% trans 'Manager Badge Id'|escapejs %}", type: "dropdown" },
+                { value: "manager_badge_id", label: "{% trans 'Manager Badge ID'|escapejs %}", type: "dropdown" },
                 { value: "assignees", label: "{% trans 'Assignees'|escapejs %}", type: "dropdown" },
-                { value: "assignee_badge_id", label: "{% trans 'Assignee Badge Id'|escapejs %}", type: "dropdown" },
+                { value: "assignee_badge_id", label: "{% trans 'Assignee Badge ID'|escapejs %}", type: "dropdown" },
                 { value: "assignee_department", label: "{% trans 'Assignee Department'|escapejs %}", type: "dropdown" },
                 { value: "assignee_job_position", label: "{% trans 'Assignee Job Position'|escapejs %}", type: "dropdown" },
                 { value: "assignee_job_role", label: "{% trans 'Assignee Job Role'|escapejs %}", type: "dropdown" },
@@ -1341,9 +1359,9 @@
                 { value: "review_cycle", label: "{% trans 'Feedback Title'|escapejs %}", type: "dropdown" },
                 { value: "status", label: "{% trans 'Status'|escapejs %}", type: "dropdown" },
                 { value: "employee", label: "{% trans 'Employee'|escapejs %}", type: "dropdown" },
-                { value: "employee_badge_id", label: "{% trans 'Employee Badge Id'|escapejs %}", type: "dropdown" },
+                { value: "employee_badge_id", label: "{% trans 'Employee Badge ID'|escapejs %}", type: "dropdown" },
                 { value: "manager", label: "{% trans 'Manager'|escapejs %}", type: "dropdown" },
-                { value: "manager_badge_id", label: "{% trans 'Manager Badge Id'|escapejs %}", type: "dropdown" },
+                { value: "manager_badge_id", label: "{% trans 'Manager Badge ID'|escapejs %}", type: "dropdown" },
                 { value: "colleague", label: "{% trans 'Colleague'|escapejs %}", type: "dropdown" },
                 { value: "subordinate", label: "{% trans 'Subordinate'|escapejs %}", type: "dropdown" },
                 { value: "start_date", label: "{% trans 'Start Date'|escapejs %}", type: "date" },
@@ -1351,7 +1369,7 @@
             ],
             employeeobjective: [
                 { value: "employee", label: "{% trans 'Employee'|escapejs %}", type: "dropdown" },
-                { value: "employee_badge_id", label: "{% trans 'Employee Badge Id'|escapejs %}", type: "dropdown" },
+                { value: "employee_badge_id", label: "{% trans 'Employee Badge ID'|escapejs %}", type: "dropdown" },
                 { value: "department", label: "{% trans 'Department'|escapejs %}", type: "dropdown" },
                 { value: "job_position", label: "{% trans 'Job Position'|escapejs %}", type: "dropdown" },
                 { value: "job_role", label: "{% trans 'Job Role'|escapejs %}", type: "dropdown" },

@@ -35,7 +35,7 @@ class LetterFilter(HorillaFilterSet):
     LetterFilter class
     """
 
-    search = django_filters.CharFilter(field_name="title", lookup_expr="icontains")
+    search = django_filters.CharFilter(method="search_method")
     planned_to_leave_on = django_filters.DateFilter(
         field_name="planned_to_leave_on",
         widget=forms.DateInput(attrs={"type": "date"}),
@@ -166,6 +166,17 @@ class LetterFilter(HorillaFilterSet):
             "employee_id__employee_work_info__job_position_id",
             "employee_id__employee_work_info__reporting_manager_id",
         ]
+
+    def search_method(self, queryset, name, value):
+        """
+        Quick search box: by resignation title, employee name or badge ID.
+        """
+        return (
+            queryset.filter(title__icontains=value)
+            | queryset.filter(employee_id__employee_first_name__icontains=value)
+            | queryset.filter(employee_id__employee_last_name__icontains=value)
+            | queryset.filter(employee_id__badge_id__icontains=value)
+        )
 
     def filter_name_or_badge(self, queryset, name, value):
         """

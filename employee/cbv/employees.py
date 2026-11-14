@@ -383,7 +383,7 @@ class EmployeesList(HorillaListView):
         (_("Employee"), "employee_name_with_badge_id", "get_avatar"),
         (_("Email"), "get_email"),
         (_("Phone"), "phone"),
-        (_("Badge Id"), "badge_id"),
+        (_("Badge ID"), "badge_id"),
         (_("Job Position"), "employee_work_info__job_position_id"),
         (_("Department"), "employee_work_info__department_id"),
         (_("Shift"), "employee_work_info__shift_id"),
@@ -426,7 +426,7 @@ class EmployeesList(HorillaListView):
                 """
     sortby_mapping = [
         (_("Employee"), "get_full_name", "get_avatar"),
-        (_("Badge Id"), "badge_id"),
+        (_("Badge ID"), "badge_id"),
         (
             _("Reporting Manager"),
             "employee_work_info__reporting_manager_id__get_full_name",
@@ -466,7 +466,7 @@ class TabEmployeeWorkList(HorillaListView):
     show_filter_tags = False
 
     columns = [
-        (_("Badge Id"), "badge_id"),
+        (_("Badge ID"), "badge_id"),
         (_("Work Email"), "employee_work_info__email"),
         (
             _("Reporting Manager"),
@@ -511,7 +511,7 @@ class EmployeeWorkDetails(HorillaDetailedView):
     model = Employee
 
     body = [
-        (_("Badge Id"), "badge_id"),
+        (_("Badge ID"), "badge_id"),
         (_("Work Email"), "employee_work_info__email"),
         (
             _("Reporting Manager"),

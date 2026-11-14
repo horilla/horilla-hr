@@ -593,40 +593,67 @@
            .oh-report-view-slot below -- so that whole conflict no longer
            applies and the aggregator picker just keeps its normal width. */
 
+        /* Groups "Choose Report" + "View As" (or just "View As" on the
+           single-model explorers) -- no card/background, just spacing;
+           sits directly on the page background like the rest of the
+           header area. */
+        .oh-report-controls {
+            display: inline-block;
+            margin: 12px 0 16px;
+        }
+
+        .oh-report-control-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .oh-report-control-label,
+        .oh-report-controls .oh-report-view-slot label {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 18px;
+            font-weight: 600;
+            color: inherit;
+        }
+
+        .oh-report-controls ion-icon {
+            color: #e54f38;
+            font-size: 1.1rem;
+        }
+
         .oh-report-view-slot {
             display: flex;
             align-items: center;
             gap: 8px;
-            margin-bottom: 10px;
+            /* Always the last (or only) row inside .oh-report-controls now
+               -- .oh-report-control-row above carries the spacing between
+               rows, so this doesn't need its own trailing margin. */
+            margin-bottom: 0;
         }
 
-        .oh-report-view-slot label {
-            font-size: 13px;
-            font-weight: 600;
-            color: #4b5563;
-        }
-
-        .oh-report-view-slot select.pvtRenderer {
-            width: 170px;
-            min-width: 170px;
-            max-width: 170px;
+        /* #model-select ("Choose Report") and the relocated "View As"
+           renderer select are both .oh-select now, so the global Select2
+           auto-init (see htmxSelect2.js) replaces them with a
+           .select2-container sibling sized off whatever flex space is
+           available at init time -- pin both back to the same fixed
+           width instead, so they look like a matched pair (same style as
+           the Filter panel's own Select2 fields) rather than two
+           differently-sized boxes. !important overrides Select2's own
+           inline width style. */
+        #model-select.select2-hidden-accessible + .select2-container,
+        .oh-report-view-slot select.pvtRenderer.select2-hidden-accessible + .select2-container {
+            width: 200px !important;
         }
 
 /* ------------------------------------------------------------------ *
  * Multi-model explorers only (leave, payroll, pms, recruitment).
  *
  * These pages put a "Choose Report" row directly above the view slot, so
- * the slot's label matches that row's typography (16px semibold) and the
- * slot gains top spacing to separate the two. The single-model explorers
- * have no such row and keep the smaller 13px muted label.
+ * the slot gains top spacing to separate the two.
  * ------------------------------------------------------------------ */
 .oh-report--multi-model .oh-report-view-slot {
     margin-top: 14px;
-}
-
-.oh-report--multi-model .oh-report-view-slot label {
-    font-size: 16px;
-    font-weight: 600;
-    margin-right: 47px;
-    color: inherit;
 }

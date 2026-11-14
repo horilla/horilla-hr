@@ -17,6 +17,7 @@ import uuid
 from base.import_template_data import import_template_frame, write_import_xlsx
 from horilla.http.response import HorillaRedirect, with_bulk_result
 from horilla.methods import remove_dynamic_url
+from horilla.posted_ids import posted_ids
 
 logger = logging.getLogger(__name__)
 
@@ -553,7 +554,12 @@ def attendance_bulk_delete(request):
     """
     success_count = 0
     error_messages = []
-    ids = request.POST.getlist("ids", "[]")
+    # Repeated params or one JSON string; anything else is "nothing selected"
+    # rather than a ValueError from id__in.
+    ids = posted_ids(request.POST)
+    if not ids:
+        messages.error(request, _("No attendances selected."))
+        return JsonResponse({"message": "No attendances selected."}, status=400)
     attendances = Attendance.objects.filter(id__in=ids)
     employee_ids = attendances.values_list("employee_id", flat=True)
     overtimes = AttendanceOverTime.objects.filter(
@@ -1369,6 +1375,23 @@ def validation_condition_delete(request, obj_id):
     return redirect("/attendance/validation-condition-view")
 
 
+def _may_act_on_attendance(request, attendance):
+    """
+    True when the caller may validate or approve this attendance record.
+
+    ``manager_can_enter`` admits anyone who manages *any* employee, so a route
+    that acts on a client-named record must also check that the caller is the
+    reporting manager of that record's employee, unless they hold the
+    ``attendance.change_attendance`` permission.
+    """
+    user = request.user
+    return (
+        user.is_superuser
+        or user.has_perm("attendance.change_attendance")
+        or is_reportingmanger(request, attendance)
+    )
+
+
 @login_required
 @require_http_methods(["POST"])
 @manager_can_enter("attendance.change_attendance")
@@ -1385,7 +1408,9 @@ def validate_bulk_attendance(request):
     for obj_id in ids:
         try:
             attendance = Attendance.objects.get(id=obj_id)
-            if attendance.employee_id.id != request.user.employee_get.id:
+            if attendance.employee_id.id != request.user.employee_get.id and (
+                _may_act_on_attendance(request, attendance)
+            ):
                 filtered_ids.append(obj_id)
         except Attendance.DoesNotExist:
             error_messages.append(_("Attendance not found"))
@@ -1472,6 +1497,18 @@ def validate_this_attendance(request, obj_id):
             if attendance.employee_id.id == request.user.employee_get.id:
                 messages.error(request, _("You cannot validate your own attendance."))
                 return attendance_view_redirect(request)
+            # manager_can_enter admits anyone who manages *any* employee, so
+            # scope it here: without the permission the caller must be the
+            # reporting manager of this record's employee.
+            if not request.user.has_perm("attendance.change_attendance"):
+                work_info = getattr(attendance.employee_id, "employee_work_info", None)
+                manager_id = getattr(work_info, "reporting_manager_id_id", None)
+                if manager_id != request.user.employee_get.id:
+                    messages.error(
+                        request,
+                        _("You don't have permission to validate this attendance."),
+                    )
+                    return attendance_view_redirect(request)
         attendance.attendance_validated = True
         # Recalculate worked hours from attendance activities before validation
         # to ensure Hours Account reflects actual worked time.
@@ -1564,6 +1601,12 @@ def approve_overtime(request, obj_id):
             if attendance.employee_id.id == request.user.employee_get.id:
                 messages.error(request, _("You cannot approve your own overtime."))
                 return attendance_view_redirect(request)
+            if not _may_act_on_attendance(request, attendance):
+                messages.error(
+                    request,
+                    _("You don't have permission to approve this overtime."),
+                )
+                return attendance_view_redirect(request)
         attendance.attendance_overtime_approve = True
         attendance.save()
         urlencode = request.GET.urlencode()
@@ -1623,6 +1666,8 @@ def approve_bulk_overtime(request):
             not request.user.is_superuser
             and attendance.employee_id.employee_user_id == request.user
         ):
+            continue
+        if not _may_act_on_attendance(request, attendance):
             continue
         candidates.append(attendance)
 
@@ -3604,8 +3649,12 @@ def edit_allowed_ips(request):
                     messages.success(request, _("IP address updated successfully"))
                 return HorillaRedirect(request)
 
-    except (ValueError, IndexError):
+    except (TypeError, ValueError, IndexError):
+        # A missing id (int(None) is a TypeError), a non-number or one outside
+        # the list. There is no form to show, so go back to the list like
+        # delete_allowed_ips does.
         messages.error(request, _("Invalid ID provided."))
+        return redirect("allowed-ips")
 
     return render(
         request,

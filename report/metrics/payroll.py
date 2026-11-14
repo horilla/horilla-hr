@@ -466,7 +466,7 @@ def payslip_register(filters: ReportFilters) -> dict:
         "table": {
             "columns": [
                 {"key": "employee", "label": _("Employee")},
-                {"key": "badge", "label": _("Badge")},
+                {"key": "badge", "label": _("Badge ID")},
                 {"key": "department", "label": _("Department")},
                 {"key": "start_date", "label": _("Start")},
                 {"key": "end_date", "label": _("End")},
@@ -559,7 +559,7 @@ def payslip_register_drilldown(
         value=value,
         columns=[
             {"key": "employee", "label": _("Employee")},
-            {"key": "badge", "label": _("Badge")},
+            {"key": "badge", "label": _("Badge ID")},
             {"key": "department", "label": _("Department")},
             {"key": "end_date", "label": _("End")},
             {"key": "net", "label": _("Net")},

@@ -410,20 +410,21 @@ class PayrollBatch(HorillaModel):
 
     STATUS_CHOICES = [
         (DRAFT, _("Draft")),
-        (REVIEW, _("In review")),
+        (REVIEW, _("In Review")),
         (APPROVED, _("Approved")),
         (PAID, _("Paid")),
         (CANCELLED, _("Cancelled")),
     ]
 
-    # Paid is terminal. A run that has been paid is a record of money that
-    # left the business; correcting it means another run, not an edit.
+    # A run can be marked paid from any open status (a run paid outside the usual approval still has
+    # to be recorded). Going back is one step: a cancelled run can be reopened as a draft, and a paid
+    # run can have its payment undone (back to approved) -- never straight to draft or review.
     ALLOWED_TRANSITIONS = {
-        DRAFT: {REVIEW, APPROVED, CANCELLED},
-        REVIEW: {DRAFT, APPROVED, CANCELLED},
+        DRAFT: {REVIEW, APPROVED, PAID, CANCELLED},
+        REVIEW: {DRAFT, APPROVED, PAID, CANCELLED},
         APPROVED: {REVIEW, PAID, CANCELLED},
-        PAID: set(),
-        CANCELLED: set(),
+        PAID: {APPROVED},
+        CANCELLED: {DRAFT},
     }
 
     # While a batch is approved or paid its payslips take their status from the batch alone.
@@ -520,7 +521,7 @@ class PayrollBatch(HorillaModel):
         if new_status not in self.ALLOWED_TRANSITIONS[self.status]:
             if self.status == self.PAID:
                 return False, _(
-                    "A paid run cannot be changed. Correct it with another run."
+                    "A paid run cannot be changed directly. Undo the payment first (mark it approved)."
                 )
             return False, _("A run that is %(current)s cannot become %(wanted)s.") % {
                 "current": self.get_status_display(),

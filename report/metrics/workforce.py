@@ -1130,7 +1130,7 @@ def workforce_composition_drilldown(
         value=value,
         columns=[
             {"key": "employee", "label": _("Employee")},
-            {"key": "badge", "label": _("Badge")},
+            {"key": "badge", "label": _("Badge ID")},
             {"key": "department", "label": _("Department")},
             {"key": "job_position", "label": _("Job position")},
             {"key": "link", "label": _("Open"), "type": "link"},

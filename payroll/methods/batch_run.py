@@ -30,10 +30,13 @@ does not change that rule — it makes it impossible to hit by accident.
 """
 
 import logging
+import time
+from contextvars import ContextVar
 
 from django.db import transaction
 from django.utils.translation import gettext_lazy as _
 
+from payroll.methods.component_catalog import use_catalog
 from payroll.methods.contract_periods import (
     PAYABLE_STATUSES,
     contracts_in_period,
@@ -42,9 +45,10 @@ from payroll.methods.contract_periods import (
 
 logger = logging.getLogger(__name__)
 
-# How many employees one request generates. Small, so the bar moves every
-# moment or two; a 500-person run is still only a couple of hundred quick requests.
-SLICE_SIZE = 3
+# How many employees one request generates. Each request carries its own overhead (login check,
+# attendance summary, rendering the bar), so too small a slice spends more time on round trips than
+# on payslips; this still moves the bar every couple of seconds.
+SLICE_SIZE = 20
 
 BLOCKING = "blocking"
 WARNING = "warning"
@@ -104,7 +108,41 @@ def eligible_employees(employees, start_date, end_date):
     return ok, excluded
 
 
-def _exceptions_for(row, employee, contract):
+def recovery_over_pay(employee, contract, start_date, end_date):
+    """
+    ``(due, pay, titles)`` when the confirmed recoveries falling in this period come to more than
+    the employee's monthly pay, otherwise ``None``.
+
+    A payslip can only take what the pay covers: the deductions are capped at gross, and whatever is
+    left is neither taken nor carried to the next period. Seen here, before anything is generated,
+    the entry can still be sent back to Draft and corrected; on a payslip it can not.
+    """
+    from payroll.models.models import PayAdjustment
+
+    if not (start_date and end_date):
+        return None
+    # The package for a CTC contract, else the monthly wage; nothing to compare with on a daily or
+    # hourly wage, where the month's pay is not known until the days are counted.
+    pay = float(contract.monthly_ctc or 0) or (
+        float(contract.wage or 0) if contract.wage_type == "monthly" else 0.0
+    )
+    if pay <= 0:
+        return None
+    due = list(
+        PayAdjustment.objects.filter(
+            employee_id=employee,
+            kind="recovery",
+            status="approved",
+            pay_date__range=(start_date, end_date),
+        ).order_by("pay_date", "pk")
+    )
+    total = round(sum(entry.amount for entry in due), 2)
+    if total <= pay:
+        return None
+    return total, pay, [entry.title for entry in due]
+
+
+def _exceptions_for(row, employee, contract, start_date=None, end_date=None):
     """
     What is wrong with one employee's inputs, most serious first.
 
@@ -113,6 +151,25 @@ def _exceptions_for(row, employee, contract):
     yet" is worth knowing and is not a reason to hold up everybody's pay.
     """
     problems = []
+
+    over = recovery_over_pay(employee, contract, start_date, end_date)
+    if over:
+        due, pay, titles = over
+        problems.append(
+            (
+                BLOCKING,
+                _(
+                    "Recoveries Due This Period Come To %(due)s, More Than The Monthly Pay Of %(pay)s, "
+                    "So Only Part Could Be Taken (%(titles)s). Send Them Back To Draft In Arrears & "
+                    "Recovery And Spread Them Over More Months."
+                )
+                % {
+                    "due": f"{due:,.2f}",
+                    "pay": f"{pay:,.2f}",
+                    "titles": ", ".join(titles),
+                },
+            )
+        )
 
     unresolved = row.get("unresolved_conflicts", 0)
     if unresolved:
@@ -196,7 +253,7 @@ def review(employees, start_date, end_date):
     for employee in ok:
         row = summaries.get(employee.pk, {}) or {}
         contract = contracts_in_period(employee, start_date, end_date)[-1][0]
-        problems = _exceptions_for(row, employee, contract)
+        problems = _exceptions_for(row, employee, contract, start_date, end_date)
         rows.append(
             {
                 "employee": employee,
@@ -273,9 +330,19 @@ def create_batch(*, name, start_date, end_date, employees, user=None, settings=N
     return batch
 
 
+# Set while a slice is being written: the batch row is then not touched per payslip, because that
+# row lock would make parallel slices wait for each other. The totals are refreshed once the slice commits.
+defer_batch_totals = ContextVar("defer_batch_totals", default=False)
+
+
 def generate_slice(batch, size=SLICE_SIZE):
     """
     Generate the next few payslips. Returns how many were handled.
+
+    Safe to call from several requests at once: the lines of a slice are claimed with a row lock that
+    others skip, and held until the slice commits, so nobody is paid twice and a request that dies
+    mid-slice leaves its lines queued for the next one. This is what lets the progress modal run
+    several slices side by side.
 
     Sliced rather than done in one request because a run of any size needs to
     show progress, and because a request that dies halfway should leave a
@@ -298,49 +365,69 @@ def generate_slice(batch, size=SLICE_SIZE):
         batch.progress_state = PayrollBatch.RUNNING
         batch.save(update_fields=["progress_state"])
 
-    queued = list(
-        batch.lines.filter(status=PayrollBatchLine.QUEUED).select_related(
-            "employee_id"
-        )[:size]
-    )
-    if not queued:
-        _finish(batch)
-        return 0
-
-    employees = [line.employee_id for line in queued]
-    summaries = _summaries_for(employees, batch)
-
-    for line in queued:
-        employee = line.employee_id
-        try:
-            _generate_one(
-                batch,
-                line,
-                employee,
-                summaries.get(employee.pk, {}),
-                payslip_fields,
-                save_payslip,
-                payroll_calculation,
+    token = defer_batch_totals.set(True)
+    try:
+        with transaction.atomic(), use_catalog():
+            queued = list(
+                batch.lines.select_related("employee_id")
+                .select_for_update(skip_locked=True, of=("self",))
+                .filter(status=PayrollBatchLine.QUEUED)[:size]
             )
-        except (StructureConfigurationError, TaxComputationError) as exc:
-            # Expected, explainable refusals: the engine declining to invent a
-            # figure. Recorded against the person so it can be fixed.
-            line.status = PayrollBatchLine.FAILED
-            line.message = str(exc)
-            line.save(update_fields=["status", "message"])
-        except Exception as exc:  # noqa: BLE001 - one bad row must not stop the run
-            logger.exception("Payroll batch %s failed for %s", batch.pk, employee)
-            line.status = PayrollBatchLine.FAILED
-            line.message = f"{type(exc).__name__}: {exc}"
-            line.save(update_fields=["status", "message"])
+            if not queued:
+                handled = 0
+            else:
+                handled = len(queued)
+                employees = [line.employee_id for line in queued]
+                summaries = _summaries_for(employees, batch)
+
+                for line in queued:
+                    employee = line.employee_id
+                    try:
+                        # A savepoint per person: a failure undoes that person's half-written rows only.
+                        with transaction.atomic():
+                            _generate_one(
+                                batch,
+                                line,
+                                employee,
+                                summaries.get(employee.pk, {}),
+                                payslip_fields,
+                                save_payslip,
+                                payroll_calculation,
+                            )
+                    except (StructureConfigurationError, TaxComputationError) as exc:
+                        # Expected, explainable refusals: the engine declining to invent a
+                        # figure. Recorded against the person so it can be fixed.
+                        line.status = PayrollBatchLine.FAILED
+                        line.message = str(exc)
+                        line.save(update_fields=["status", "message"])
+                    except (
+                        Exception
+                    ) as exc:  # noqa: BLE001 - one bad row must not stop the run
+                        logger.exception(
+                            "Payroll batch %s failed for %s", batch.pk, employee
+                        )
+                        line.status = PayrollBatchLine.FAILED
+                        line.message = f"{type(exc).__name__}: {exc}"
+                        line.save(update_fields=["status", "message"])
+    finally:
+        defer_batch_totals.reset(token)
+
+    if not handled:
+        if batch.lines.filter(status=PayrollBatchLine.QUEUED).exists():
+            # Everything left is being written by another slice: wait for it rather than finish early.
+            time.sleep(0.3)
+        else:
+            _finish(batch)
+        return 0
 
     batch.processed_count = batch.lines.exclude(status=PayrollBatchLine.QUEUED).count()
     batch.save(update_fields=["processed_count"])
+    batch.refresh_totals()
 
     if not batch.lines.filter(status=PayrollBatchLine.QUEUED).exists():
         _finish(batch)
 
-    return len(queued)
+    return handled
 
 
 def _summaries_for(employees, batch):
@@ -419,7 +506,18 @@ def _generate_one(
         )
 
     line.status = PayrollBatchLine.DONE
-    line.message = ""
+    # Done, but not all of it: the deductions came to more than the pay, so part was left untaken.
+    uncovered = float(((payslip.pay_head_data or {}).get("uncovered_deduction")) or 0)
+    line.message = (
+        str(
+            _(
+                "%(amount)s Could Not Be Deducted: The Deductions Came To More Than The Pay."
+            )
+            % {"amount": f"{uncovered:,.2f}"}
+        )
+        if uncovered > 0.005
+        else ""
+    )
     line.payslip = payslip
     line.save(update_fields=["status", "message", "payslip"])
 
