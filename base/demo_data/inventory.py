@@ -26,6 +26,7 @@ SIDEBAR_DEMO_MODELS: tuple[tuple[str, str], ...] = (
     ("recruitment", "InterviewSchedule"),
     ("onboarding", "OnboardingStage"),
     ("offboarding", "Offboarding"),
+    ("surveys", "Survey"),
     ("pms", "EmployeeObjective"),
     ("project", "Project"),
     ("project", "TimeSheet"),

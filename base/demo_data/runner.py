@@ -64,6 +64,7 @@ from base.demo_data.modules.recruitment_features import (
     backfill_rejected_candidates,
 )
 from base.demo_data.modules.request_windows import backfill_request_windows
+from base.demo_data.modules.surveys_demo import seed_demo_survey
 from base.demo_data.org import (
     differentiate_org_taxonomy_by_company,
     standardize_org_taxonomy,
@@ -182,6 +183,8 @@ def run_enterprise_demo_seeder(
 
         created, updated = seed_standard_report_templates()
         result["report_templates"] = {"created": created, "updated": updated}
+
+    result["surveys"] = seed_demo_survey(today)
 
     result["date_clamp"] = clamp_demo_dates(today)
 
