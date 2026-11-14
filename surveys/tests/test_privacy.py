@@ -16,7 +16,7 @@ from django.apps import apps
 from django.core.exceptions import ValidationError
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
-from django.utils import timezone
+from django.utils import formats, timezone
 
 from surveys.forms import SurveyForm
 from surveys.models import Survey, SurveyInvitation, SurveyResponse
@@ -296,7 +296,7 @@ class ExportAndAudienceTests(TestCase):
         self.assertIn("Employee", header)
 
     def test_the_audience_list_of_an_anonymous_survey_shows_no_answer_time(self):
-        today = timezone.localdate().strftime("%d.%m.%Y")
+        today = formats.date_format(timezone.localdate(), "DATE_FORMAT")
         anon = hr_client(self.anon).get(
             reverse("survey-invitations", args=[self.anon.survey.pk]),
             HTTP_HX_REQUEST="true",

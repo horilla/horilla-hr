@@ -49,7 +49,9 @@ log = logging.getLogger("surveys")
 def _survey_for(request, pk, check):
     survey = get_object_or_404(Survey, pk=pk)
     if not check(request.user, survey):
-        messages.error(request, _("You do not have permission for this."))
+        messages.error(
+            request, _("Sorry, your account does not have permission for this.")
+        )
         return survey, HorillaRedirect(request)
     return survey, None
 
@@ -132,7 +134,9 @@ def reorder_questions(request, pk):
 def delete_question(request, pk):
     question = get_object_or_404(SurveyQuestion, pk=pk)
     if not can_run(request.user, question.survey):
-        messages.error(request, _("You do not have permission for this."))
+        messages.error(
+            request, _("Sorry, your account does not have permission for this.")
+        )
     elif question.survey.status != Survey.STATUS_DRAFT and question.answers.exists():
         messages.error(
             request, _("This question already has answers; close the survey instead.")
@@ -240,7 +244,7 @@ def _send_invitations(request, survey, invitations, *, reminder=False):
                             )
                             if reminder
                             else gettext_noop(
-                                "You are invited to the survey '%(title)s'"
+                                "Please take part in the survey '%(title)s'"
                             )
                         ),
                         verb_params={"title": survey.title},
@@ -404,7 +408,7 @@ def open_survey(request, pk):
             _("The survey opens on %(date)s; until then the link says so.")
             % {
                 "date": formats.date_format(
-                    timezone.localtime(survey.opens_at), "d.m.Y H:i"
+                    timezone.localtime(survey.opens_at), "DATETIME_FORMAT"
                 )
             },
         )
@@ -537,6 +541,8 @@ def _results(survey, department=None):
             if removed:
                 item["labels"].append(_("Other (removed options)"))
                 item["series"].append(removed)
+            # the same numbers as a list, for the text version of the chart
+            item["rows"] = list(zip(item["labels"], item["series"]))
             if question.type in (
                 question.TYPE_RATING,
                 question.TYPE_LIKERT,
@@ -710,7 +716,13 @@ def load_standard_questionnaires(request):
     added = load_standard()
     if added:
         messages.success(
-            request, _("%(n)s standard questionnaire(s) added.") % {"n": len(added)}
+            request,
+            ngettext(
+                "%(n)s standard questionnaire added.",
+                "%(n)s standard questionnaires added.",
+                len(added),
+            )
+            % {"n": len(added)},
         )
     else:
         messages.info(request, _("The standard questionnaires are already there."))

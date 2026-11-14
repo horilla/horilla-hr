@@ -7,11 +7,11 @@
     {% if survey.description %}<p class="sv-desc">{{ survey.description }}</p>{% endif %}
     <div class="sv-meta">
         {% if survey.is_anonymous %}
-            <span class="sv-pill sv-pill--ok">&#128274; {% trans "Anonymous: HR sees who has answered, not what you answered" %}</span>
+            <span class="sv-pill sv-pill--ok"><span aria-hidden="true">&#128274;</span> {% trans "Anonymous: HR sees who has answered, not what you answered" %}</span>
         {% else %}
             <span class="sv-pill">{% blocktrans with name=invitation.employee.get_full_name %}Answering as {{ name }}{% endblocktrans %}</span>
         {% endif %}
-        {% if survey.closes_at %}<span>{% blocktrans with date=survey.closes_at|date:"d.m.Y H:i" %}Open until {{ date }}{% endblocktrans %}</span>{% endif %}
+        {% if survey.closes_at %}<span>{% blocktrans with date=survey.closes_at|date:"DATETIME_FORMAT" %}Open until {{ date }}{% endblocktrans %}</span>{% endif %}
     </div>
 </div>
 
@@ -19,57 +19,76 @@
       hx-on::after-request="surveySaved(event)" novalidate>
     {% csrf_token %}
     <div class="sv-bar">
-        <span id="progress">{{ answered }} / {{ questions|length }}</span>
-        <span id="savedAt"></span>
+        <span><span class="sv-sr">{% trans "Questions answered:" %} </span><span id="progress">{{ answered }} / {{ questions|length }}</span></span>
+        <span id="savedAt" role="status" aria-live="polite"></span>
     </div>
 
-    {% if errors %}<div class="sv-alert">{% trans "Some answers need attention - see the marked questions." %}</div>{% endif %}
+    {% if errors %}
+    <div class="sv-alert" id="errorSummary" role="alert" tabindex="-1">
+        {% trans "Some answers need attention. Please check these questions:" %}
+        <ul>
+            {% for item in questions %}{% if item.error %}<li><a href="#q-{{ item.q.pk }}">{{ forloop.counter }}. {{ item.q.question }}</a></li>{% endif %}{% endfor %}
+        </ul>
+    </div>
+    {% endif %}
 
     {% for item in questions %}
         {% with q=item.q name=item.name value=item.value %}
-        <div class="sv-card {% if item.error %}sv-card--error{% endif %}" data-question>
-            <div class="sv-q">
-                <label><span class="sv-num">{{ forloop.counter }}.</span>{{ q.question }}</label>
-                {% if q.is_required %}<span class="sv-pill sv-pill--req">{% trans "Required" %}</span>{% endif %}
-            </div>
-
-            {% if q.type == "text" %}
-                <input type="text" class="sv-input" name="{{ name }}" value="{{ value|default_if_none:'' }}" maxlength="500">
-            {% elif q.type == "textarea" %}
-                <textarea class="sv-textarea" name="{{ name }}" rows="4" maxlength="4000">{{ value|default_if_none:'' }}</textarea>
-            {% elif q.type == "choice" or q.type == "yes_no" or q.type == "likert" %}
-                <div class="sv-chips">
-                    {% for v, label in item.choices %}
-                        <label class="sv-chip"><input type="radio" name="{{ name }}" value="{{ v }}" {% if value == v %}checked{% endif %}>{{ label }}</label>
-                    {% endfor %}
+        <div class="sv-card {% if item.error %}sv-card--error{% endif %}" data-question id="q-{{ q.pk }}">
+            {% if q.type == "text" or q.type == "textarea" or q.type == "number" or q.type == "date" %}
+                <div class="sv-q">
+                    <label for="f-{{ q.pk }}"><span class="sv-num">{{ forloop.counter }}.</span>{{ q.question }}</label>
+                    {% if q.is_required %}<span class="sv-pill sv-pill--req">{% trans "Required" %}</span>{% endif %}
                 </div>
-            {% elif q.type == "multiple" %}
-                <div class="sv-chips">
-                    {% for v, label in item.choices %}
-                        <label class="sv-chip"><input type="checkbox" name="{{ name }}" value="{{ v }}" {% if v in value %}checked{% endif %}>{{ label }}</label>
-                    {% endfor %}
-                </div>
-                <p class="sv-hint">{% trans "Select all that apply." %}</p>
-            {% elif q.type == "rating" or q.type == "nps" %}
-                <div class="sv-chips">
-                    {% for v, label in item.choices %}
-                        <label class="sv-chip sv-chip--sq"><input type="radio" name="{{ name }}" value="{{ v }}" {% if value == v %}checked{% endif %}>{{ label }}</label>
-                    {% endfor %}
-                </div>
-            {% elif q.type == "number" %}
-                <input type="number" step="any" class="sv-input sv-input--short" name="{{ name }}" value="{{ value|default_if_none:'' }}">
-            {% elif q.type == "date" %}
-                <input type="date" class="sv-input sv-input--short" name="{{ name }}" value="{{ value|default_if_none:'' }}">
+                {% if q.type == "text" %}
+                    <input type="text" id="f-{{ q.pk }}" class="sv-input" name="{{ name }}" value="{{ value|default_if_none:'' }}" maxlength="500"{% if q.is_required %} aria-required="true"{% endif %}{% if item.error %} aria-invalid="true" aria-describedby="err-{{ q.pk }}"{% endif %}>
+                {% elif q.type == "textarea" %}
+                    <textarea id="f-{{ q.pk }}" class="sv-textarea" name="{{ name }}" rows="4" maxlength="4000"{% if q.is_required %} aria-required="true"{% endif %}{% if item.error %} aria-invalid="true" aria-describedby="err-{{ q.pk }}"{% endif %}>{{ value|default_if_none:'' }}</textarea>
+                {% elif q.type == "number" %}
+                    <input type="number" step="any" id="f-{{ q.pk }}" class="sv-input sv-input--short" name="{{ name }}" value="{{ value|default_if_none:'' }}"{% if q.is_required %} aria-required="true"{% endif %}{% if item.error %} aria-invalid="true" aria-describedby="err-{{ q.pk }}"{% endif %}>
+                {% else %}
+                    <input type="date" id="f-{{ q.pk }}" class="sv-input sv-input--short" name="{{ name }}" value="{{ value|default_if_none:'' }}"{% if q.is_required %} aria-required="true"{% endif %}{% if item.error %} aria-invalid="true" aria-describedby="err-{{ q.pk }}"{% endif %}>
+                {% endif %}
+            {% else %}
+                <fieldset class="sv-set"{% if item.error %} aria-describedby="err-{{ q.pk }}"{% endif %}{% if q.type != "multiple" %} role="radiogroup"{% if q.is_required %} aria-required="true"{% endif %}{% if item.error %} aria-invalid="true"{% endif %}{% endif %}>
+                    <legend class="sv-q">
+                        <span class="sv-num">{{ forloop.counter }}.</span>{{ q.question }}
+                        {% if q.is_required %}<span class="sv-pill sv-pill--req">{% trans "Required" %}</span>{% endif %}
+                    </legend>
+                    {% if q.type == "multiple" %}
+                        <div class="sv-chips">
+                            {% for v, label in item.choices %}
+                                <label class="sv-chip"><input type="checkbox" name="{{ name }}" value="{{ v }}" {% if v in value %}checked{% endif %}>{{ label }}</label>
+                            {% endfor %}
+                        </div>
+                        <p class="sv-hint">{% trans "Select all that apply." %}</p>
+                    {% elif q.type == "rating" or q.type == "nps" %}
+                        <div class="sv-chips">
+                            {% for v, label in item.choices %}
+                                <label class="sv-chip sv-chip--sq"><input type="radio" name="{{ name }}" value="{{ v }}" {% if value == v %}checked{% endif %}>{{ label }}</label>
+                            {% endfor %}
+                        </div>
+                        {% with low=item.choices|first high=item.choices|last %}
+                        <p class="sv-ends"><span>{% blocktrans with n=low.1 %}{{ n }} is the lowest{% endblocktrans %}</span><span>{% blocktrans with n=high.1 %}{{ n }} is the highest{% endblocktrans %}</span></p>
+                        {% endwith %}
+                    {% else %}
+                        <div class="sv-chips">
+                            {% for v, label in item.choices %}
+                                <label class="sv-chip"><input type="radio" name="{{ name }}" value="{{ v }}" {% if value == v %}checked{% endif %}>{{ label }}</label>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </fieldset>
             {% endif %}
 
-            {% if item.error %}<p class="sv-err">{{ item.error }}</p>{% endif %}
+            {% if item.error %}<p class="sv-err" id="err-{{ q.pk }}">{{ item.error }}</p>{% endif %}
         </div>
         {% endwith %}
     {% endfor %}
 
     <div class="sv-actions">
-        <button type="submit" class="sv-btn">{% trans "Submit answers" %}</button>
-        <span class="sv-hint" style="margin:0">{% trans "Your answers are saved as you go - you can close this page and come back by the same link." %}</span>
+        <button type="submit" class="sv-btn">{% trans "Submit Answers" %}</button>
+        <span class="sv-hint" style="margin:0">{% trans "Answers are saved as you go - you can close this page and come back by the same link." %}</span>
     </div>
 </form>
 
@@ -99,6 +118,8 @@
         });
         document.getElementById("progress").textContent = done + " / " + boxes.length;
     }
+    var summary = document.getElementById("errorSummary");
+    if (summary) { summary.focus(); }
     // Enter in a one-line field would send the whole form, with its checks; the
     // button is the way to submit
     document.getElementById("surveyForm").addEventListener("keydown", function (e) {

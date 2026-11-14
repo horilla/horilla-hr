@@ -1,13 +1,13 @@
 {% load i18n %}
 <div class="d-flex gap-1" onclick="event.stopPropagation()">
-    <a href="{{ survey.get_detail_url }}" class="oh-btn oh-btn--light-bkg oh-btn--sq-sm" title="{% trans 'Open' %}"><ion-icon name="open-outline"></ion-icon></a>
+    <a href="{{ survey.get_detail_url }}" class="oh-btn oh-btn--light-bkg oh-btn--sq-sm" title="{% trans 'Open Survey' %}" aria-label="{% trans 'Open Survey' %}"><ion-icon name="open-outline"></ion-icon></a>
     {% if perms.surveys.change_survey %}
         <button hx-get="{% url 'survey-edit' survey.pk %}" hx-target="#genericModalBody" data-target="#genericModal" data-toggle="oh-modal-toggle"
-                class="oh-btn oh-btn--light-bkg oh-btn--sq-sm" title="{% trans 'Edit' %}"><ion-icon name="create-outline"></ion-icon></button>
+                class="oh-btn oh-btn--light-bkg oh-btn--sq-sm" title="{% trans 'Edit' %}" aria-label="{% trans 'Edit' %}"><ion-icon name="create-outline"></ion-icon></button>
     {% endif %}
     {% if perms.surveys.delete_survey %}
         <a hx-get="{% url 'generic-delete' %}?model=surveys.Survey&pk={{ survey.pk }}" hx-target="#deleteConfirmationBody"
-           data-target="#deleteConfirmation" data-toggle="oh-modal-toggle" class="oh-btn oh-btn--danger-bkg oh-btn--sq-sm" title="{% trans 'Delete' %}">
+           data-target="#deleteConfirmation" data-toggle="oh-modal-toggle" class="oh-btn oh-btn--danger-bkg oh-btn--sq-sm" title="{% trans 'Delete' %}" aria-label="{% trans 'Delete' %}">
             <ion-icon name="trash-outline"></ion-icon></a>
     {% endif %}
 </div>

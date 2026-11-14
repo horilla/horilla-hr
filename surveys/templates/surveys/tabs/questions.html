@@ -13,7 +13,7 @@ replace the modal's body instead of filling it.
     {% if can_run %}
     <a hx-get="{% url 'survey-question-add' %}?survey={{ survey.pk }}" hx-target="#genericModalBody" data-target="#genericModal" data-toggle="oh-modal-toggle"
        class="px-4 py-2 bg-brand-600 text-white rounded-md text-xs flex items-center gap-2 hover:bg-brand-800 transition duration-300 cursor-pointer">
-        <ion-icon name="add-outline"></ion-icon>{% trans "Add question" %}
+        <ion-icon name="add-outline"></ion-icon>{% trans "Add Question" %}
     </a>
     {% endif %}
 </div>
@@ -26,7 +26,7 @@ replace the modal's body instead of filling it.
 <ul class="space-y-2" id="questionList">
     {% for q in survey.questions.all %}
     <li class="border border-[#ebebeb] py-3 px-3.5 rounded-md shadow-card bg-white flex items-start gap-3" data-id="{{ q.pk }}">
-        {% if can_run %}<span class="text-lg leading-none text-[#999] js-handle" style="cursor:grab" title="{% trans 'Drag to reorder' %}">≡</span>{% endif %}
+        {% if can_run %}<span class="text-lg leading-none text-[#999] js-handle" style="cursor:grab" title="{% trans 'Drag to reorder' %}" aria-label="{% trans 'Drag to reorder' %}">≡</span>{% endif %}
         <span class="text-sm font-semibold text-primary-600 js-number">{{ forloop.counter }}.</span>
         <div class="flex-1 min-w-0">
             <div class="text-sm font-semibold">{{ q.question }}</div>
@@ -38,10 +38,13 @@ replace the modal's body instead of filling it.
         </div>
         {% if can_run %}
         <div class="flex items-center gap-1">
+            {# the same reordering as the handle, for keyboards and screen readers #}
+            <button type="button" class="oh-btn oh-btn--light-bkg oh-btn--sq-sm js-move" data-direction="-1" title="{% trans 'Move up' %}" aria-label="{% trans 'Move up' %}"><ion-icon name="arrow-up-outline"></ion-icon></button>
+            <button type="button" class="oh-btn oh-btn--light-bkg oh-btn--sq-sm js-move" data-direction="1" title="{% trans 'Move down' %}" aria-label="{% trans 'Move down' %}"><ion-icon name="arrow-down-outline"></ion-icon></button>
             <a hx-get="{% url 'survey-question-edit' q.pk %}" hx-target="#genericModalBody" data-target="#genericModal" data-toggle="oh-modal-toggle"
-               class="oh-btn oh-btn--light-bkg oh-btn--sq-sm" title="{% trans 'Edit' %}"><ion-icon name="create-outline"></ion-icon></a>
+               class="oh-btn oh-btn--light-bkg oh-btn--sq-sm" title="{% trans 'Edit' %}" aria-label="{% trans 'Edit' %}"><ion-icon name="create-outline"></ion-icon></a>
             <form method="post" action="{% url 'survey-question-delete' q.pk %}" onsubmit="return confirm('{% trans 'Delete this question?'|escapejs %}')">{% csrf_token %}
-                <button class="oh-btn oh-btn--danger-bkg oh-btn--sq-sm" title="{% trans 'Delete' %}"><ion-icon name="trash-outline"></ion-icon></button>
+                <button class="oh-btn oh-btn--danger-bkg oh-btn--sq-sm" title="{% trans 'Delete' %}" aria-label="{% trans 'Delete' %}"><ion-icon name="trash-outline"></ion-icon></button>
             </form>
         </div>
         {% endif %}
@@ -51,13 +54,20 @@ replace the modal's body instead of filling it.
 {% if can_run %}
 <script>
     $(function () {
-        $("#questionList").sortable({
-            handle: ".js-handle",
-            update: function () {
-                var order = $("#questionList li").map(function () { return $(this).data("id"); }).get();
-                $.post("{% url 'survey-reorder' survey.pk %}", {order: JSON.stringify(order), csrfmiddlewaretoken: "{{ csrf_token }}"},
-                    function () { $("#questionList li").each(function (i) { $(this).find(".js-number").text((i + 1) + "."); }); });
-            }
+        var list = $("#questionList");
+        function saveOrder() {
+            var order = list.find("li").map(function () { return $(this).data("id"); }).get();
+            $.post("{% url 'survey-reorder' survey.pk %}", {order: JSON.stringify(order), csrfmiddlewaretoken: "{{ csrf_token }}"},
+                function () { list.find("li").each(function (i) { $(this).find(".js-number").text((i + 1) + "."); }); });
+        }
+        list.sortable({handle: ".js-handle", update: saveOrder});
+        list.on("click", ".js-move", function () {
+            var item = $(this).closest("li"), down = $(this).data("direction") > 0;
+            var other = down ? item.next() : item.prev();
+            if (!other.length) { return; }
+            if (down) { other.after(item); } else { other.before(item); }
+            $(this).trigger("focus");
+            saveOrder();
         });
     });
 </script>

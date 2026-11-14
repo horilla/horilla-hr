@@ -56,7 +56,7 @@ date and open a fresh Unreleased above it.
   - **Opening and closing.** A survey with nobody to send to, or a closing date in the
     past, is not opened. A survey past its closing time shows as closed, and an anonymous
     one drops its unfinished drafts then. A survey that is already open can invite the
-    people who joined the audience since ("Send to new people"). The link says whether
+    people who joined the audience since ("Send to New People"). The link says whether
     the survey has not opened yet, has closed, or has ended.
   - **Sending.** HR is told how many were emailed, how many only notified in Horilla,
     and by name who could not be reached or whose e-mail failed; those people are not
@@ -71,6 +71,19 @@ date and open a fresh Unreleased above it.
     The dashboard counts days in the local time zone and the lists load their numbers in
     one query. The standard questionnaires cannot be added twice, and replacing a
     questionnaire in the library needs the permission to change questionnaires.
+  - **Accessibility.** The answer page uses a labelled field or a fieldset with a legend for
+    every question, announces errors and moves focus to them, shows where the focus is,
+    announces saving, and has darker brand colours that reach a 4.5:1 contrast. Charts have
+    a text version, questions can be moved with buttons as well as by dragging, and icon
+    buttons have names. Public pages are never cached and send no Referer header.
+  - **Wording and formats.** Counts use proper singular and plural forms, dates follow the
+    language of the user instead of a fixed day.month.year, the "Reminder:" mail prefix is
+    translated, the invitation mail carries the link as plain text under the button, the
+    company's name is shown on the answer page, and texts that began with "You" or sounded
+    blunt were reworded.
+  - `surveys/README.md` describes the permissions, what anonymity does and does not
+    promise, the `SURVEYS_MIN_RESPONSES` setting, the seed command and why tokens are
+    stored in plain text.
 
 ## [2.4.0] — 2026-11-10
 

@@ -202,7 +202,7 @@ class SurveysCard(HorillaCardView):
         user = self.request.user
         self.actions = [
             {
-                "action": _("Open"),
+                "action": _("Open Survey"),
                 "attrs": 'class="oh-dropdown__link" href="{get_detail_url}"',
             }
         ]
@@ -326,13 +326,15 @@ class InvitationsList(HorillaListView):
 class SurveyFormView(HorillaFormView):
     model = Survey
     form_class = SurveyForm
-    new_display_title = _("Create survey")
+    new_display_title = _("Create Survey")
     template_name = "surveys/survey_form.html"
 
     def dispatch(self, request, *args, **kwargs):
         perm = "surveys.change_survey" if kwargs.get("pk") else "surveys.add_survey"
         if not request.user.has_perm(perm):
-            messages.error(request, _("You do not have permission for this."))
+            messages.error(
+                request, _("Sorry, your account does not have permission for this.")
+            )
             return HttpResponse(
                 "<script>$('.oh-modal--show').removeClass('oh-modal--show');$('#reloadMessagesButton').click();</script>"
             )
@@ -356,7 +358,7 @@ class SurveyFormView(HorillaFormView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         if self.form.instance.pk:
-            self.form_class.verbose_name = _("Edit survey")
+            self.form_class.verbose_name = _("Edit Survey")
         return context
 
     def _tell_new_managers(self, survey, before):
@@ -419,7 +421,7 @@ class SurveyQuestionFormView(HorillaFormView):
 
     model = SurveyQuestion
     form_class = SurveyQuestionForm
-    new_display_title = _("Add question")
+    new_display_title = _("Add Question")
     template_name = "surveys/question_form.html"
 
     def dispatch(self, request, *args, **kwargs):
@@ -430,7 +432,9 @@ class SurveyQuestionFormView(HorillaFormView):
         else:
             self.survey = Survey.objects.filter(pk=survey_pk).first()
         if self.survey is None or not can_run(request.user, self.survey):
-            messages.error(request, _("You do not have permission for this."))
+            messages.error(
+                request, _("Sorry, your account does not have permission for this.")
+            )
             return HttpResponse(
                 "<script>$('.oh-modal--show').removeClass('oh-modal--show');$('#reloadMessagesButton').click();</script>"
             )
@@ -439,7 +443,7 @@ class SurveyQuestionFormView(HorillaFormView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         if self.form.instance.pk:
-            self.form_class.verbose_name = _("Edit question")
+            self.form_class.verbose_name = _("Edit Question")
         return context
 
     def form_valid(self, form: SurveyQuestionForm) -> HttpResponse:
@@ -492,7 +496,7 @@ class LibraryNav(HorillaNavView):
         if self.request.user.has_perm("surveys.add_questionnaire"):
             self.actions = [
                 {
-                    "action": _("Load standard questionnaires"),
+                    "action": _("Load Standard Questionnaires"),
                     "attrs": f"""
                         hx-post="{reverse('surveys-library-load-standard')}"
                         hx-target="#libraryActionTarget"
@@ -594,7 +598,7 @@ class QuestionnaireFormView(HorillaFormView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        self.form_class.verbose_name = _("Edit questionnaire")
+        self.form_class.verbose_name = _("Edit Questionnaire")
         return context
 
     def form_valid(self, form: QuestionnaireForm) -> HttpResponse:
@@ -611,7 +615,7 @@ class SaveToLibraryView(HorillaFormView):
 
     model = Questionnaire
     form_class = SaveToLibraryForm
-    new_display_title = _("Save to library")
+    new_display_title = _("Save to Library")
 
     def dispatch(self, request, *args, **kwargs):
         self.survey = Survey.objects.filter(pk=kwargs.get("survey_pk")).first()
@@ -624,7 +628,9 @@ class SaveToLibraryView(HorillaFormView):
             )
         )
         if not allowed:
-            messages.error(request, _("You do not have permission for this."))
+            messages.error(
+                request, _("Sorry, your account does not have permission for this.")
+            )
             return HttpResponse(CLOSE_MODAL)
         if not self.survey.questions.exists():
             messages.error(request, _("The survey has no questions to save."))

@@ -1,1 +1,1 @@
-{% autoescape off %}{% if reminder %}Reminder: {% endif %}{{ survey.title }}{% endautoescape %}
+{% load i18n %}{% autoescape off %}{% if reminder %}{% trans "Reminder:" %} {% endif %}{{ survey.title }}{% endautoescape %}

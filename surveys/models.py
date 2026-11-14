@@ -55,15 +55,14 @@ def _pill(text, colour):
 def _moment(value, with_time=True):
     """A date and time of the audience list, in the local zone.
 
-    Written the way the survey page writes "closes ...": the locale's short
-    format ("11/12/2026 11:35 a.m.") does not fit the column.
+    In the language's own long format, the same one the survey page uses.
     """
     from django.utils import formats
 
     if not value:
         return "—"
     return formats.date_format(
-        timezone.localtime(value), "d.m.Y H:i" if with_time else "d.m.Y"
+        timezone.localtime(value), "DATETIME_FORMAT" if with_time else "DATE_FORMAT"
     )
 
 
@@ -384,6 +383,11 @@ class Survey(HorillaModel):
         """The title for the list and the cards, which print what they are given."""
         return format_html("{}", self.title)
 
+    def company_label(self):
+        """The name of the company the survey belongs to ('' when it has none)."""
+        company = self.company_id
+        return company.company if company else ""
+
     def audience_label(self):
         # Department and position names are typed by people: escaped here, as
         # the list and the cards print the label as it is
@@ -425,7 +429,7 @@ class Survey(HorillaModel):
         from django.utils import formats
 
         return (
-            formats.date_format(timezone.localtime(self.closes_at), "d.m.Y")
+            formats.date_format(timezone.localtime(self.closes_at), "DATE_FORMAT")
             if self.closes_at
             else "—"
         )

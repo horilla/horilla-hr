@@ -45,7 +45,7 @@ def validate(question, value):
     """Return the stored form of `value` or raise AnswerError."""
     if value in (None, "", []):
         if question.is_required:
-            raise AnswerError(_("This question is required."))
+            raise AnswerError(_("Please answer this question."))
         return None
 
     # jsonb cannot hold a NUL character, so it never reaches the database

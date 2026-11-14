@@ -127,7 +127,7 @@ class PublicAnswerTests(TestCase):
         n = self.names()
         response = self.post({n["tools"]: ["Fax"]})
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "This question is required.")
+        self.assertContains(response, "Please answer this question.")
         self.assertContains(response, "Choose from the given options.")
         self.assertTrue(SurveyResponse.objects.get().is_draft)
 
@@ -143,7 +143,7 @@ class PublicAnswerTests(TestCase):
         self.assertEqual(self.invitation.status, SurveyInvitation.STATUS_SUBMITTED)
         self.assertIsNotNone(self.invitation.submitted_at)
         # The same link now only says thank you, and takes nothing more
-        self.assertContains(self.client.get(self.url()), "already answered")
+        self.assertContains(self.client.get(self.url()), "already been answered")
         self.post({n["note"]: "again"})
         self.assertEqual(SurveyAnswer.objects.get(question=self.note).value, "fine")
 

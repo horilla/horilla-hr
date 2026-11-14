@@ -18,12 +18,14 @@ the other instead of racing to create the same response.
 
 import hmac
 import re
+from functools import wraps
 
 from django.core.cache import cache
 from django.db import transaction
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
-from django.utils import timezone
+from django.utils import formats, timezone
+from django.utils.cache import add_never_cache_headers
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods
 
@@ -42,6 +44,39 @@ TOKEN_PROBE_WINDOW = 600
 # What secrets.token_urlsafe produces; anything else cannot be a link of ours, so
 # it is turned away before the database sees it (a NUL byte, a 10 kB path)
 TOKEN_SHAPE = re.compile(r"[A-Za-z0-9_-]{20,64}")
+
+
+def private_page(view):
+    """Every answer of the public page is for one person only.
+
+    The link is the secret, so nothing may keep a copy of the page (a shared
+    computer's cache, a proxy) and nothing may pass the link on in a Referer
+    header when the page links elsewhere.
+    """
+
+    @wraps(view)
+    def wrapped(request, *args, **kwargs):
+        response = view(request, *args, **kwargs)
+        add_never_cache_headers(response)
+        response["Referrer-Policy"] = "no-referrer"
+        response["X-Robots-Tag"] = "noindex"
+        return response
+
+    return wrapped
+
+
+def _show(request, template, survey, context=None, status=None):
+    """Render a public page with the name of the company that sent the survey.
+
+    The name tells the person the page is the one their own company asked them to
+    open, not a look-alike.
+    """
+    context = {
+        "survey": survey,
+        "company_name": survey.company_label(),
+        **(context or {}),
+    }
+    return render(request, template, context, status=status)
 
 
 def find_invitation(request, token):
@@ -82,10 +117,11 @@ def _not_saved(reason):
 
 def _not_open(request, survey):
     """Why the link cannot be answered right now: not yet, closed, or past its end."""
-    return render(
+    return _show(
         request,
         "surveys/public/closed.html",
-        {"survey": survey, "reason": survey.availability()},
+        survey,
+        {"reason": survey.availability()},
     )
 
 
@@ -97,11 +133,11 @@ def _gone(request, autosave):
 
 
 def _page(request, survey, invitation, questions, saved, errors):
-    return render(
+    return _show(
         request,
         "surveys/public/answer.html",
+        survey,
         {
-            "survey": survey,
             "invitation": invitation,
             "questions": [
                 {
@@ -121,6 +157,7 @@ def _page(request, survey, invitation, questions, saved, errors):
     )
 
 
+@private_page
 @require_http_methods(["GET", "POST"])
 def answer(request, token):
     invitation, throttled = find_invitation(request, token)
@@ -137,9 +174,7 @@ def answer(request, token):
     if not invitation.person_is_active():
         return _gone(request, False)
     if invitation.submitted():
-        return render(
-            request, "surveys/public/done.html", {"survey": survey, "already": True}
-        )
+        return _show(request, "surveys/public/done.html", survey, {"already": True})
     if not survey.is_accepting():
         return _not_open(request, survey)
     response = SurveyResponse._base_manager.filter(invitation=invitation).first()
@@ -163,9 +198,7 @@ def _save(request, invitation, autosave):
         if invitation.submitted():
             if autosave:
                 return _not_saved("submitted")
-            return render(
-                request, "surveys/public/done.html", {"survey": survey, "already": True}
-            )
+            return _show(request, "surveys/public/done.html", survey, {"already": True})
         if not survey.is_accepting():
             if autosave:
                 return _not_saved("closed")
@@ -192,7 +225,10 @@ def _save(request, invitation, autosave):
                 )
         if autosave:
             return JsonResponse(
-                {"saved": True, "at": timezone.localtime().strftime("%H:%M")}
+                {
+                    "saved": True,
+                    "at": formats.time_format(timezone.localtime(), "TIME_FORMAT"),
+                }
             )
         if not errors:
             moment = SurveyResponse.finish(
@@ -204,7 +240,7 @@ def _save(request, invitation, autosave):
             SurveyInvitation._base_manager.filter(pk=invitation.pk).update(
                 status=SurveyInvitation.STATUS_SUBMITTED, submitted_at=moment
             )
-            return render(request, "surveys/public/done.html", {"survey": survey})
+            return _show(request, "surveys/public/done.html", survey)
 
     saved = {q.pk: v for q, v in values.items()}
     return _page(request, survey, invitation, questions, saved, errors)

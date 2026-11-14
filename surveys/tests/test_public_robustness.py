@@ -188,7 +188,7 @@ class ClosedAndSubmittedTests(TestCase):
         second = submit(self.built, self.invitation, note="second")
         self.assertEqual(first.status_code, 200)
         self.assertEqual(second.status_code, 200)
-        self.assertContains(second, "already answered")
+        self.assertContains(second, "already been answered")
         self.assertEqual(SurveyResponse.objects.filter(is_draft=False).count(), 1)
         self.assertEqual(
             SurveyAnswer.objects.get(question=self.built.note).value, "first"

@@ -1,11 +1,15 @@
 {% extends "index.html" %}
 {% load i18n %}
 {% block content %}
+<style>
+    /* read by screen readers only: the text version of a chart */
+    .sv-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+</style>
 <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
     <h3 class="text-lg font-semibold">{% trans "Surveys" %}</h3>
     <a href="{% url 'surveys-view' %}"
        class="px-4 py-2 bg-white rounded-md text-xs flex items-center gap-2 border border-primary-500 hover:border-primary-600 transition duration-300">
-        <ion-icon name="list-outline"></ion-icon>{% trans "All surveys" %}
+        <ion-icon name="list-outline"></ion-icon>{% trans "All Surveys" %}
     </a>
 </div>
 <div class="grid grid-cols-1 xl:grid-cols-4 md:grid-cols-2 gap-4 mb-4">
@@ -23,16 +27,18 @@
 </div>
 <div class="grid grid-cols-12 gap-4 mb-4">
     <div class="xl:col-span-8 col-span-12 bg-white p-6 rounded-md shadow-card">
-        <h3 class="text-md font-semibold mb-2">{% trans "Responses in the last 30 days" %}</h3>
-        <div class="relative" style="height:260px"><canvas id="chartDays"></canvas></div>
+        <h3 class="text-md font-semibold mb-2">{% trans "Responses in the Last 30 Days" %}</h3>
+        <div class="relative" style="height:260px"><canvas id="chartDays" role="img" aria-label="{% trans 'Responses in the last 30 days, by day. The same numbers are in the table after this chart.' %}"></canvas></div>
+        <table class="sv-sr" id="tableDays"><caption>{% trans "Responses in the last 30 days" %}</caption><thead><tr><th scope="col">{% trans "Day" %}</th><th scope="col">{% trans "Responses" %}</th></tr></thead><tbody></tbody></table>
     </div>
     <div class="xl:col-span-4 col-span-12 bg-white p-6 rounded-md shadow-card">
-        <h3 class="text-md font-semibold mb-2">{% trans "By department (open surveys)" %}</h3>
-        <div class="relative" style="height:260px"><canvas id="chartDept"></canvas></div>
+        <h3 class="text-md font-semibold mb-2">{% trans "By Department (Open Surveys)" %}</h3>
+        <div class="relative" style="height:260px"><canvas id="chartDept" role="img" aria-label="{% trans 'Answered and pending invitations of open surveys, by department. The same numbers are in the table after this chart.' %}"></canvas></div>
+        <table class="sv-sr" id="tableDept"><caption>{% trans "Open surveys by department" %}</caption><thead><tr><th scope="col">{% trans "Department" %}</th><th scope="col">{% trans "Answered" %}</th><th scope="col">{% trans "Pending" %}</th></tr></thead><tbody></tbody></table>
     </div>
 </div>
 <div class="bg-white p-6 rounded-md shadow-card">
-    <h3 class="text-md font-semibold mb-2">{% trans "Recent surveys" %}</h3>
+    <h3 class="text-md font-semibold mb-2">{% trans "Recent Surveys" %}</h3>
     <div id="recent"></div>
 </div>
 <script>
@@ -41,6 +47,17 @@ fetch("{% url 'surveys-dashboard-data' %}").then(function (r) { return r.json();
     document.getElementById("kInvited").textContent = d.kpi.invited;
     document.getElementById("kAnswered").textContent = d.kpi.answered;
     document.getElementById("kRate").textContent = d.kpi.rate + "%";
+    // the numbers of the charts as tables, for people who cannot see them
+    function fillTable(id, rows) {
+        var body = document.querySelector("#" + id + " tbody");
+        rows.forEach(function (cells) {
+            var tr = document.createElement("tr");
+            cells.forEach(function (c) { var td = document.createElement("td"); td.textContent = c; tr.appendChild(td); });
+            body.appendChild(tr);
+        });
+    }
+    fillTable("tableDays", d.per_day.map(function (p) { return [p.day, p.n]; }));
+    fillTable("tableDept", d.per_department.map(function (p) { return [p.department, p.done, p.total - p.done]; }));
     var dark = document.documentElement.classList.contains("dark");
     var textColor = dark ? "#cbd5e1" : "#334155";
     var axes = {
@@ -53,7 +70,7 @@ fetch("{% url 'surveys-dashboard-data' %}").then(function (r) { return r.json();
             labels: d.per_day.map(function (p) { return p.day.slice(8, 10) + "." + p.day.slice(5, 7); }),
             datasets: [{
                 label: "{% trans 'Responses'|escapejs %}", data: d.per_day.map(function (p) { return p.n; }),
-                borderColor: "#e54f38", backgroundColor: "rgba(229,79,56,.15)", fill: true, tension: 0.35, pointRadius: 0
+                borderColor: "#c8321b", backgroundColor: "rgba(200,50,27,.15)", fill: true, tension: 0.35, pointRadius: 0
             }]
         },
         options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: axes }

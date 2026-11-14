@@ -2,13 +2,13 @@
 {% load i18n %}
 {% block content %}
 <div class="sv-card sv-card--center">
-    <div class="sv-big sv-big--muted">&#128274;</div>
+    <div class="sv-big sv-big--muted" aria-hidden="true">&#128274;</div>
     <h1 class="sv-title">{{ survey.title }}</h1>
     <p class="sv-desc">
         {% if reason == "scheduled" %}
-            {% blocktrans with date=survey.opens_at|date:"d.m.Y H:i" %}This survey opens on {{ date }}. Come back to this link then.{% endblocktrans %}
+            {% blocktrans with date=survey.opens_at|date:"DATETIME_FORMAT" %}This survey opens on {{ date }}. Come back to this link then.{% endblocktrans %}
         {% elif reason == "ended" %}
-            {% blocktrans with date=survey.closes_at|date:"d.m.Y H:i" %}This survey closed on {{ date }}.{% endblocktrans %}
+            {% blocktrans with date=survey.closes_at|date:"DATETIME_FORMAT" %}This survey closed on {{ date }}.{% endblocktrans %}
         {% elif reason == "closed" %}
             {% trans "This survey has closed." %}
         {% else %}

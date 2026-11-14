@@ -2,10 +2,10 @@
 {% load i18n %}
 {% block content %}
 <div class="sv-card sv-card--center">
-    <div class="sv-big sv-big--ok">&#10004;</div>
+    <div class="sv-big sv-big--ok" aria-hidden="true">&#10004;</div>
     <h1 class="sv-title">{{ survey.title }}</h1>
     <p class="sv-desc">
-        {% if already %}{% trans "You have already answered this survey. Thank you!" %}{% else %}{% trans "Thank you - your answers are in." %}{% endif %}
+        {% if already %}{% trans "Thank you! This survey has already been answered from this link." %}{% else %}{% trans "Thank you - your answers are in." %}{% endif %}
     </p>
 </div>
 {% endblock %}
