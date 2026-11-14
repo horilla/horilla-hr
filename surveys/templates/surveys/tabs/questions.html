@@ -40,7 +40,7 @@ replace the modal's body instead of filling it.
         <div class="flex items-center gap-1">
             <a hx-get="{% url 'survey-question-edit' q.pk %}" hx-target="#genericModalBody" data-target="#genericModal" data-toggle="oh-modal-toggle"
                class="oh-btn oh-btn--light-bkg oh-btn--sq-sm" title="{% trans 'Edit' %}"><ion-icon name="create-outline"></ion-icon></a>
-            <form method="post" action="{% url 'survey-question-delete' q.pk %}" onsubmit="return confirm('{% trans 'Delete this question?' %}')">{% csrf_token %}
+            <form method="post" action="{% url 'survey-question-delete' q.pk %}" onsubmit="return confirm('{% trans 'Delete this question?'|escapejs %}')">{% csrf_token %}
                 <button class="oh-btn oh-btn--danger-bkg oh-btn--sq-sm" title="{% trans 'Delete' %}"><ion-icon name="trash-outline"></ion-icon></button>
             </form>
         </div>

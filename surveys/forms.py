@@ -69,6 +69,12 @@ class SurveyForm(ModelForm):
             self.fields["questionnaire"].choices = [
                 (self.BLANK, _("Blank survey"))
             ] + library
+        if self.instance.pk and self.instance.status != Survey.STATUS_DRAFT:
+            # People were told "anonymous" or "named" when they were invited; a
+            # disabled field ignores what is posted and keeps the stored value
+            anonymous = self.fields["is_anonymous"]
+            anonymous.disabled = True
+            anonymous.help_text = _("Fixed once the survey has been opened.")
 
     def clean_questionnaire(self):
         value = self.cleaned_data.get("questionnaire")

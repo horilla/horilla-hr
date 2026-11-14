@@ -5,11 +5,18 @@ the tests: what a question of each type accepts, what "required" means for it,
 and how the raw POST turns into the JSON kept in SurveyAnswer.value.
 """
 
+import math
 from datetime import date
 
 from django.utils.translation import gettext_lazy as _
 
 from surveys.models import SurveyQuestion as Q
+
+
+# A number answer is kept as JSON: it must be finite and short, because PostgreSQL's
+# jsonb refuses NaN and Infinity and a 400-digit figure helps nobody
+MAX_NUMBER_CHARS = 32
+MAX_NUMBER = 10**15
 
 
 class AnswerError(ValueError):
@@ -41,6 +48,10 @@ def validate(question, value):
             raise AnswerError(_("This question is required."))
         return None
 
+    # jsonb cannot hold a NUL character, so it never reaches the database
+    if any("\x00" in str(v) for v in (value if isinstance(value, list) else [value])):
+        raise AnswerError(_("Remove the unsupported characters and try again."))
+
     allowed = [v for v, _label in question.choices()]
     if question.type == Q.TYPE_MULTIPLE:
         if not isinstance(value, list):
@@ -48,7 +59,8 @@ def validate(question, value):
         bad = [v for v in value if v not in allowed]
         if bad:
             raise AnswerError(_("Choose from the given options."))
-        return value
+        # an option ticked twice (a hand-made request) counts once
+        return list(dict.fromkeys(value))
     if question.type in (
         Q.TYPE_CHOICE,
         Q.TYPE_LIKERT,
@@ -60,10 +72,15 @@ def validate(question, value):
             raise AnswerError(_("Choose from the given options."))
         return str(value)
     if question.type == Q.TYPE_NUMBER:
+        text = str(value).strip().replace(",", ".")
+        if len(text) > MAX_NUMBER_CHARS:
+            raise AnswerError(_("Enter a number of up to 15 digits."))
         try:
-            number = float(str(value).replace(",", "."))
+            number = float(text)
         except ValueError:
             raise AnswerError(_("Enter a number.")) from None
+        if not math.isfinite(number) or abs(number) >= MAX_NUMBER:
+            raise AnswerError(_("Enter a number of up to 15 digits."))
         return int(number) if number.is_integer() else number
     if question.type == Q.TYPE_DATE:
         try:

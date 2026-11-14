@@ -91,9 +91,9 @@ class PublicAnswerTests(TestCase):
         for _ in range(TOKEN_PROBE_LIMIT):
             self.assertEqual(self.client.get(self.url("x" * 43)).status_code, 404)
         self.assertEqual(self.client.get(self.url("y" * 43)).status_code, 429)
-        # The real token is throttled too for that client:
-        # probing cannot be mixed with use.
-        self.assertEqual(self.client.get(self.url()).status_code, 429)
+        # Only misses are counted: the real link still opens, so an address that
+        # others share cannot lock an employee out of their own survey
+        self.assertEqual(self.client.get(self.url()).status_code, 200)
 
     def test_autosave_keeps_a_draft_and_marks_started(self):
         n = self.names()

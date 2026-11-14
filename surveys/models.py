@@ -23,17 +23,19 @@ are then changed like any others.
 
 import secrets
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import ngettext
 
 from base.horilla_company_manager import HorillaCompanyManager
 from base.models import Company, Department, JobPosition
 from employee.models import Employee
-from horilla.models import HorillaModel
+from horilla.models import HorillaModel, has_xss
 from horilla_views.cbv_methods import render_template
 
 TOKEN_BYTES = 32  # 43 url-safe characters
@@ -48,7 +50,7 @@ def _pill(text, colour):
     )
 
 
-def _moment(value):
+def _moment(value, with_time=True):
     """A date and time of the audience list, in the local zone.
 
     Written the way the survey page writes "closes ...": the locale's short
@@ -58,7 +60,14 @@ def _moment(value):
 
     if not value:
         return "—"
-    return formats.date_format(timezone.localtime(value), "d.m.Y H:i")
+    return formats.date_format(
+        timezone.localtime(value), "d.m.Y H:i" if with_time else "d.m.Y"
+    )
+
+
+def local_midnight(moment):
+    """The start of the local day of `moment`: all an anonymous response keeps."""
+    return timezone.localtime(moment).replace(hour=0, minute=0, second=0, microsecond=0)
 
 
 class Survey(HorillaModel):
@@ -89,7 +98,8 @@ class Survey(HorillaModel):
         default=True,
         verbose_name=_("Anonymous"),
         help_text=_(
-            "Answers are stored without the employee; only who has answered is kept."
+            "Answers are stored without the employee; HR sees who has answered, "
+            "not what they answered."
         ),
     )
     status = models.CharField(
@@ -148,6 +158,24 @@ class Survey(HorillaModel):
             raise ValidationError(
                 {"closes_at": _("The survey must close after it opens.")}
             )
+        if self.pk:
+            stored = (
+                Survey._base_manager.filter(pk=self.pk)
+                .values_list("is_anonymous", "status")
+                .first()
+            )
+            if (
+                stored
+                and stored[1] != self.STATUS_DRAFT
+                and stored[0] != self.is_anonymous
+            ):
+                raise ValidationError(
+                    {
+                        "is_anonymous": _(
+                            "Anonymity is fixed once the survey has been opened."
+                        )
+                    }
+                )
 
     # --- state -------------------------------------------------------------
 
@@ -161,6 +189,45 @@ class Survey(HorillaModel):
         if self.closes_at and now > self.closes_at:
             return False
         return True
+
+    # --- what an anonymous survey may show -----------------------------------
+
+    def min_responses(self):
+        """How many people must have answered before results and export show.
+
+        Only anonymous surveys wait: with fewer answers than this, one answer
+        points at its author. SURVEYS_MIN_RESPONSES changes it (default 5).
+        """
+        if not self.is_anonymous:
+            return 0
+        return max(0, int(getattr(settings, "SURVEYS_MIN_RESPONSES", 5)))
+
+    def submitted_count(self):
+        return SurveyResponse._base_manager.filter(survey=self, is_draft=False).count()
+
+    def results_withheld(self):
+        """True while answers exist but too few to show without naming anyone."""
+        have = self.submitted_count()
+        return 0 < have < self.min_responses()
+
+    def drop_anonymous_drafts(self):
+        """Delete the unfinished drafts of an anonymous survey; returns how many.
+
+        A draft still knows its invitation, so it is the one place where an
+        anonymous answer is tied to a person. It is not part of any result.
+        """
+        if not self.is_anonymous:
+            return 0
+        drafts = SurveyResponse._base_manager.filter(survey=self, is_draft=True)
+        invitation_ids = [
+            i for i in drafts.values_list("invitation_id", flat=True) if i
+        ]
+        count = drafts.count()
+        drafts.delete()
+        SurveyInvitation._base_manager.filter(
+            pk__in=invitation_ids, status=SurveyInvitation.STATUS_STARTED
+        ).update(status=SurveyInvitation.STATUS_INVITED)
+        return count
 
     # --- audience ----------------------------------------------------------
 
@@ -213,20 +280,28 @@ class Survey(HorillaModel):
         }[self.status]
         return _pill(self.get_status_display(), colour)
 
+    def title_display(self):
+        """The title for the list and the cards, which print what they are given."""
+        return format_html("{}", self.title)
+
     def audience_label(self):
+        # Department and position names are typed by people: escaped here, as
+        # the list and the cards print the label as it is
         if self.audience == self.AUDIENCE_DEPARTMENTS:
-            return (
+            text = (
                 ", ".join(str(d) for d in self.departments.all())
                 or self.get_audience_display()
             )
-        if self.audience == self.AUDIENCE_POSITIONS:
-            return (
+        elif self.audience == self.AUDIENCE_POSITIONS:
+            text = (
                 ", ".join(p.job_position for p in self.job_positions.all())
                 or self.get_audience_display()
             )
-        if self.audience == self.AUDIENCE_EMPLOYEES:
-            return str(self.employees.count()) + " " + str(_("employees"))
-        return self.get_audience_display()
+        elif self.audience == self.AUDIENCE_EMPLOYEES:
+            text = str(self.employees.count()) + " " + str(_("employees"))
+        else:
+            text = self.get_audience_display()
+        return format_html("{}", text)
 
     def invited_count(self):
         return self.invitations.count()
@@ -347,6 +422,11 @@ class SurveyQuestion(HorillaModel):
                 )
             if len(set(options)) != len(options):
                 raise ValidationError({"options": _("Options must differ.")})
+            if any(has_xss(option) for option in options):
+                # options are JSON, so the text-field check never sees them
+                raise ValidationError(
+                    {"options": _("Options cannot contain markup or scripts.")}
+                )
             self.options = options
         else:
             self.options = []
@@ -465,6 +545,10 @@ class Questionnaire(HorillaModel):
     def question_count(self):
         return len(self.questions or [])
 
+    def title_display(self):
+        """The title for the library's list and cards, which print what they get."""
+        return format_html("{}", self.title)
+
     # --- for the library's cards, list and detail ------------------------------
 
     def question_count_label(self):
@@ -564,7 +648,7 @@ class SurveyInvitation(HorillaModel):
         return _pill(self.get_status_display(), colour)
 
     def department_label(self):
-        return str(self.employee.get_department() or "—")
+        return format_html("{}", str(self.employee.get_department() or "—"))
 
     def sent_label(self):
         return _moment(self.sent_at)
@@ -573,7 +657,8 @@ class SurveyInvitation(HorillaModel):
         return _moment(self.reminded_at)
 
     def submitted_label(self):
-        return _moment(self.submitted_at)
+        # an anonymous survey keeps the day only, whatever the list shows
+        return _moment(self.submitted_at, with_time=not self.survey.is_anonymous)
 
 
 class SurveyResponse(HorillaModel):
@@ -606,6 +691,46 @@ class SurveyResponse(HorillaModel):
 
     def __str__(self):
         return f"{self.survey} #{self.pk}"
+
+    @classmethod
+    def start(cls, survey, invitation):
+        """A new draft for `invitation`, written without Horilla's user stamp.
+
+        HorillaModel.save() records the logged-in user as created_by. An
+        employee who answers with a Horilla session open would otherwise be
+        written onto the response of an anonymous survey, so drafts are
+        inserted without going through save().
+        """
+        response = cls(survey=survey, invitation=invitation)
+        cls._base_manager.bulk_create([response])
+        if response.pk is None:  # a database that does not return the new key
+            response = cls._base_manager.get(invitation=invitation)
+        return response
+
+    @classmethod
+    def finish(cls, response, invitation, *, anonymous, now):
+        """Close a draft; returns the moment recorded for the submission.
+
+        An anonymous response is cut loose from its invitation here and keeps
+        no user and no time of day, only the date: the exact moment and the
+        creation stamp would otherwise match it to the audience list.
+        """
+        if anonymous:
+            day = local_midnight(now)
+            cls._base_manager.filter(pk=response.pk).update(
+                is_draft=False,
+                invitation=None,
+                created_by=None,
+                modified_by=None,
+                created_at=day,
+                started_at=day,
+                submitted_at=day,
+            )
+            return day
+        cls._base_manager.filter(pk=response.pk).update(
+            is_draft=False, invitation=invitation, submitted_at=now
+        )
+        return now
 
     def answers_by_question(self):
         return {a.question_id: a.value for a in self.answers.all()}

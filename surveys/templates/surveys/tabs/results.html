@@ -15,14 +15,22 @@
             </select>
         </div>
         {% endif %}
-        <a href="{% url 'survey-export' survey.pk %}"
+        {% if not withheld %}<a href="{% url 'survey-export' survey.pk %}"
            class="px-4 py-2 bg-white rounded-md text-xs flex items-center gap-2 border border-primary-500 hover:border-primary-600 transition duration-300">
             <ion-icon name="download-outline"></ion-icon>{% trans "Export" %} CSV
-        </a>
+        </a>{% endif %}
     </div>
 </div>
 {% if survey.is_anonymous %}<p class="text-xs text-[#666] mb-3">{% trans "Anonymous survey: results cannot be filtered by employee or department." %}</p>{% endif %}
-{% if not total %}
+{% if withheld %}
+    <div class="flex flex-col items-center justify-center py-10">
+        <img src="/static/horilla_theme/assets/img/no-records.svg" alt="" width="160" class="mb-4">
+        <p class="text-[#666] text-sm text-center">
+            {% blocktrans count n=needed %}Results appear once {{ n }} person has answered.{% plural %}Results appear once {{ n }} people have answered.{% endblocktrans %}
+            {% trans "Until then no answer is shown, so that nobody can be picked out." %}
+        </p>
+    </div>
+{% elif not total %}
     <div class="flex flex-col items-center justify-center py-10">
         <img src="/static/horilla_theme/assets/img/no-records.svg" alt="" width="160" class="mb-4">
         <p class="text-[#666] text-sm">{% trans "No responses yet." %}</p>
@@ -47,10 +55,13 @@
     </div>
 {% endfor %}
 </div>
+{{ chart_data|json_script:"survey-chart-data" }}
 <script>
 (function () {
-    // Chart.js is on every Horilla page, as on the other modules' dashboards
-    var data = {{ chart_data|safe }};
+    // Chart.js is on every Horilla page, as on the other modules' dashboards.
+    // The data sits in a JSON script element, escaped for HTML: what people typed
+    // in an option cannot end the script
+    var data = JSON.parse(document.getElementById("survey-chart-data").textContent);
     var dark = document.documentElement.classList.contains("dark");
     var textColor = dark ? "#cbd5e1" : "#334155";
     var palette = ["#e54f38", "#f59e0b", "#3b82f6", "#22c55e", "#a855f7", "#14b8a6"];

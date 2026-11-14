@@ -24,18 +24,18 @@
         </a>
         {% endif %}
         {% if survey.status != "open" %}
-            <form method="post" action="{% url 'survey-open' survey.pk %}" onsubmit="return confirm('{% trans 'Open the survey and send the invitations?' %}')">{% csrf_token %}
+            <form method="post" action="{% url 'survey-open' survey.pk %}" onsubmit="return confirm('{% trans 'Open the survey and send the invitations?'|escapejs %}')">{% csrf_token %}
                 <button class="px-4 py-2 bg-brand-600 text-white rounded-md text-xs flex items-center gap-2 hover:bg-brand-800 transition duration-300">
                     <ion-icon name="paper-plane-outline"></ion-icon>{% if survey.status == "closed" %}{% trans "Reopen" %}{% else %}{% trans "Open and send" %}{% endif %}
                 </button>
             </form>
         {% else %}
-            <form method="post" action="{% url 'survey-remind' survey.pk %}" onsubmit="return confirm('{% trans 'Remind everyone who has not answered?' %}')">{% csrf_token %}
+            <form method="post" action="{% url 'survey-remind' survey.pk %}" onsubmit="return confirm('{% trans 'Remind everyone who has not answered?'|escapejs %}')">{% csrf_token %}
                 <button class="px-4 py-2 bg-white rounded-md text-xs flex items-center gap-2 border border-primary-500 hover:border-primary-600 transition duration-300">
                     <ion-icon name="notifications-outline"></ion-icon>{% trans "Remind" %}
                 </button>
             </form>
-            <form method="post" action="{% url 'survey-close' survey.pk %}" onsubmit="return confirm('{% trans 'Close the survey? No more answers will be taken.' %}')">{% csrf_token %}
+            <form method="post" action="{% url 'survey-close' survey.pk %}" onsubmit="return confirm('{% trans 'Close the survey? No more answers will be taken.'|escapejs %}')">{% csrf_token %}
                 <button class="px-4 py-2 bg-brand-600 text-white rounded-md text-xs flex items-center gap-2 hover:bg-brand-800 transition duration-300">
                     <ion-icon name="lock-closed-outline"></ion-icon>{% trans "Close" %}
                 </button>

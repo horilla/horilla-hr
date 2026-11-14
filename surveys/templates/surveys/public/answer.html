@@ -7,7 +7,7 @@
     {% if survey.description %}<p class="sv-desc">{{ survey.description }}</p>{% endif %}
     <div class="sv-meta">
         {% if survey.is_anonymous %}
-            <span class="sv-pill sv-pill--ok">&#128274; {% trans "Anonymous: your answers are not linked to you" %}</span>
+            <span class="sv-pill sv-pill--ok">&#128274; {% trans "Anonymous: HR sees who has answered, not what you answered" %}</span>
         {% else %}
             <span class="sv-pill">{% blocktrans with name=invitation.employee.get_full_name %}Answering as {{ name }}{% endblocktrans %}</span>
         {% endif %}
@@ -15,7 +15,7 @@
     </div>
 </div>
 
-<form method="post" id="surveyForm" hx-post="?autosave=1" hx-trigger="change delay:400ms" hx-swap="none"
+<form method="post" id="surveyForm" hx-post="?autosave=1" hx-trigger="change delay:400ms" hx-swap="none" hx-sync="this:replace"
       hx-on::after-request="surveySaved(event)" novalidate>
     {% csrf_token %}
     <div class="sv-bar">
@@ -76,11 +76,19 @@
 <script>
     function surveySaved(event) {
         var el = document.getElementById("savedAt");
-        if (event.detail.successful) {
-            try { el.textContent = "{% trans 'Saved' %} " + (JSON.parse(event.detail.xhr.responseText).at || ""); }
-            catch (e) { el.textContent = "{% trans 'Saved' %}"; }
+        var xhr = event.detail.xhr, body = {};
+        try { body = JSON.parse(xhr.responseText); } catch (e) {}
+        if (event.detail.successful && body.saved) {
+            el.textContent = "{% trans 'Saved' as saved_msg %}{{ saved_msg|escapejs }}" + " " + (body.at || "");
+        } else if (xhr && xhr.status === 409) {
+            // the survey closed or the answers were already submitted: nothing more is kept
+            el.textContent = body.reason === "submitted"
+                ? "{% trans 'Answers were already submitted for this survey.' as sub_msg %}{{ sub_msg|escapejs }}"
+                : "{% trans 'This survey has closed, so nothing more can be saved.' as closed_msg %}{{ closed_msg|escapejs }}";
+            document.querySelectorAll("#surveyForm input, #surveyForm textarea, #surveyForm button")
+                .forEach(function (field) { field.disabled = true; });
         } else {
-            el.textContent = "{% trans 'Not saved - check your connection' %}";
+            el.textContent = "{% trans 'Not saved - check your connection' as lost_msg %}{{ lost_msg|escapejs }}";
         }
         var boxes = document.querySelectorAll("[data-question]"), done = 0;
         boxes.forEach(function (box) {

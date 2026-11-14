@@ -123,7 +123,7 @@ class SurveysList(HorillaListView):
     model = Survey
     filter_class = SurveyFilter
     columns = [
-        (_("Title"), "title"),
+        (_("Title"), "title_display"),
         (_("Status"), "status_badge"),
         (_("Audience"), "audience_label"),
         (_("Invited"), "invited_count"),
@@ -154,7 +154,7 @@ class SurveysCard(HorillaCardView):
     model = Survey
     filter_class = SurveyFilter
     details = {
-        "title": "{title}",
+        "title": "{title_display}",
         "subtitle": format_lazy(
             "{}: {}<br>{}: {}<br>{}: {}",
             _("Audience"),
@@ -275,12 +275,19 @@ class InvitationsList(HorillaListView):
             or can_manage(request.user, survey)
         ):
             return HttpResponseForbidden()
+        if survey.is_anonymous:
+            # Who has answered is shown, when they did is not: next to the order of
+            # an export or the time on a response it would say who wrote what
+            self.columns = [c for c in type(self).columns if c[1] != "submitted_label"]
+            self.sortby_mapping = [
+                m for m in type(self).sortby_mapping if m[1] != "submitted_at"
+            ]
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self, queryset=None, filtered=False, *args, **kwargs):
         queryset = SurveyInvitation.objects.filter(
             survey_id=self.kwargs.get("pk")
-        ).select_related("employee")
+        ).select_related("employee", "survey")
         return super().get_queryset(queryset, filtered, *args, **kwargs)
 
 
@@ -472,7 +479,7 @@ class QuestionnaireCards(HorillaCardView):
     model = Questionnaire
     filter_class = QuestionnaireFilter
     details = {
-        "title": "{title}",
+        "title": "{title_display}",
         "subtitle": "{question_count_label}<br>{anonymity_label}",
     }
     card_attrs = _modal("{get_detail_url}")
@@ -489,7 +496,7 @@ class QuestionnaireList(HorillaListView):
     model = Questionnaire
     filter_class = QuestionnaireFilter
     columns = [
-        (_("Title"), "title"),
+        (_("Title"), "title_display"),
         (_("Questions"), "question_count"),
         (_("Anonymous"), "anonymity_label"),
     ]

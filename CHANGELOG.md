@@ -32,6 +32,24 @@ date and open a fresh Unreleased above it.
 ### Security      — vulnerabilities fixed; link the advisory and credit the reporter
 -->
 
+### Added
+
+- Surveys: a new module for employee surveys, contributed by @yuri-val (#1361). HR builds
+  a survey from scratch or from the library of questionnaires, chooses the audience (all
+  employees, departments, job positions or chosen people) and sends each person a
+  personal link that needs no login. Answers are saved as they are typed. Results,
+  a CSV export and a dashboard show how many have answered.
+  - An **anonymous** survey keeps no one's name with their answers: the response carries
+    no user and only the date, and HR sees who has answered but not what. Results and
+    export stay hidden until at least 5 people have answered (change it with the
+    `SURVEYS_MIN_RESPONSES` setting), the export lists answers in random order without
+    times, and whether a survey is anonymous cannot be changed once it is open. The
+    unfinished drafts of an anonymous survey are deleted when it is closed.
+  - The page an employee answers on refuses numbers and text the database cannot store,
+    counts a repeated or double-clicked submit once, and tells the person when the
+    survey has closed instead of saying "Saved".
+  - The survey tests now run in CI (`surveys` is in the smoke labels).
+
 ## [2.4.0] — 2026-11-10
 
 Payroll and recruitment release. It adds Arrears & Recovery entries, a much faster payslip

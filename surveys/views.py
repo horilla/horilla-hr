@@ -3,6 +3,7 @@ standard questionnaires, the dashboard."""
 
 import csv
 import json
+import random
 from collections import Counter, defaultdict
 from datetime import timedelta
 
@@ -17,11 +18,12 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext as _
-from django.utils.translation import gettext_noop
+from django.utils.translation import gettext_noop, ngettext
 from django.views.decorators.http import require_POST
 
 from base.backends import ConfiguredEmailBackend
 from horilla.decorators import login_required, permission_required
+from horilla.export_safety import safe_cell
 from horilla.http.response import HorillaRedirect
 from horilla_views.generic.cbv.views import HorillaFormView
 from notifications.signals import notify
@@ -81,15 +83,34 @@ def questions_tab(request, pk):
     )
 
 
+MAX_ORDER_CHARS = 20_000
+MAX_ORDER_ITEMS = 1_000
+
+
+def _read_order(raw):
+    """The question ids of a reorder request, or None when it is not a plain list."""
+    if len(raw) > MAX_ORDER_CHARS:
+        return None
+    try:
+        order = json.loads(raw)
+    except (ValueError, RecursionError):
+        return None
+    if not isinstance(order, list) or len(order) > MAX_ORDER_ITEMS:
+        return None
+    # type(...) is int: True and 1.5 are not ids, and 1e999 never gets as far as int()
+    if any(type(x) is not int or not 0 < x < 2**31 for x in order):
+        return None
+    return order
+
+
 @login_required
 @require_POST
 def reorder_questions(request, pk):
     survey, denied = _survey_for(request, pk, can_manage)
     if denied:
         return JsonResponse({"status": "forbidden"}, status=403)
-    try:
-        order = [int(x) for x in json.loads(request.POST.get("order", "[]"))]
-    except (ValueError, TypeError):
+    order = _read_order(request.POST.get("order", "[]"))
+    if order is None:
         return JsonResponse({"status": "error"}, status=400)
     with transaction.atomic():
         for index, question_pk in enumerate(order, start=1):
@@ -231,8 +252,19 @@ def close_survey(request, pk):
     survey, denied = _survey_for(request, pk, can_manage)
     if denied:
         return denied
+    dropped = survey.drop_anonymous_drafts()
     Survey.objects.filter(pk=pk).update(status=Survey.STATUS_CLOSED)
     messages.success(request, _("Survey closed."))
+    if dropped:
+        messages.info(
+            request,
+            ngettext(
+                "%(n)s unfinished answer of this anonymous survey was deleted.",
+                "%(n)s unfinished answers of this anonymous survey were deleted.",
+                dropped,
+            )
+            % {"n": dropped},
+        )
     return HorillaRedirect(request)
 
 
@@ -307,6 +339,9 @@ def _results(survey, department=None):
             item["texts"] = [str(v) for v in values]
         else:
             item["texts"] = [str(v) for v in values]
+        if survey.is_anonymous and "texts" in item:
+            # not in the order they came in, which is the order of the audience list
+            item["texts"].sort(key=str.casefold)
         results.append(item)
     return responses.count(), results
 
@@ -328,33 +363,44 @@ def results_tab(request, pk):
     survey, denied = _survey_for(request, pk, can_view_results)
     if denied:
         return denied
-    department = request.GET.get("department") or None
-    total, results = _results(survey, department)
+    department = request.GET.get("department", "")
+    # a department is a number; an anonymous survey is never cut by department
+    department = (
+        department
+        if department.isdigit() and len(department) < 10 and not survey.is_anonymous
+        else None
+    )
     from base.models import Department
 
-    return render(
-        request,
-        "surveys/tabs/results.html",
-        {
-            "survey": survey,
-            "total": total,
-            "results": results,
-            "departments": Department.objects.all() if not survey.is_anonymous else [],
-            "department": department,
-            "chart_data": json.dumps(
-                [
-                    {
-                        "id": r["question"].pk,
-                        "labels": r.get("labels"),
-                        "series": r.get("series"),
-                        "type": r["question"].type,
-                    }
-                    for r in results
-                    if "series" in r
-                ]
-            ),
-        },
+    context = {
+        "survey": survey,
+        "departments": Department.objects.all() if not survey.is_anonymous else [],
+        "department": department,
+        "withheld": survey.results_withheld(),
+        "needed": survey.min_responses(),
+    }
+    if context["withheld"]:
+        # too few answers to show without pointing at the people who gave them
+        context.update(total=survey.submitted_count(), results=[], chart_data=[])
+        return render(request, "surveys/tabs/results.html", context)
+
+    total, results = _results(survey, department)
+    context.update(
+        total=total,
+        results=results,
+        # handed to the template as data (json_script), never written into the script
+        chart_data=[
+            {
+                "id": r["question"].pk,
+                "labels": r.get("labels"),
+                "series": r.get("series"),
+                "type": r["question"].type,
+            }
+            for r in results
+            if "series" in r
+        ],
     )
+    return render(request, "surveys/tabs/results.html", context)
 
 
 @login_required
@@ -362,39 +408,55 @@ def export_results(request, pk):
     survey, denied = _survey_for(request, pk, can_view_results)
     if denied:
         return denied
+    if survey.results_withheld():
+        messages.info(
+            request,
+            ngettext(
+                "The export is available once %(n)s person has answered.",
+                "The export is available once %(n)s people have answered.",
+                survey.min_responses(),
+            )
+            % {"n": survey.min_responses()},
+        )
+        return HorillaRedirect(request)
     questions = list(survey.questions.all())
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="survey-{survey.pk}.csv"'
     response.write("﻿")
     writer = csv.writer(response)
-    header = ["#", _("Submitted at")]
-    if not survey.is_anonymous:
-        header += [_("Employee"), _("Department")]
-    writer.writerow(header + [q.question for q in questions])
-    rows = (
+    # Every cell goes through safe_cell: what people typed must not run as a formula
+    # when HR opens the file in a spreadsheet
+    if survey.is_anonymous:
+        header = ["#"]
+    else:
+        header = ["#", _("Submitted at"), _("Employee"), _("Department")]
+    writer.writerow([safe_cell(c) for c in header + [q.question for q in questions]])
+    rows = list(
         SurveyResponse.objects.filter(survey=survey, is_draft=False)
         .select_related("invitation__employee__employee_work_info__department_id")
-        .order_by("submitted_at")
+        .prefetch_related("answers")
+        .order_by("pk" if survey.is_anonymous else "submitted_at")
     )
+    if survey.is_anonymous:
+        # no time, and not in the order of submission either: the audience list
+        # shows who answered when, and the same order would line the two up
+        random.shuffle(rows)
     for index, row in enumerate(rows, start=1):
         values = row.answers_by_question()
-        line = [
-            index,
-            (
-                timezone.localtime(row.submitted_at).strftime("%Y-%m-%d %H:%M")
-                if row.submitted_at
-                else ""
-            ),
-        ]
+        line = [index]
         if not survey.is_anonymous:
             employee = row.invitation.employee if row.invitation else None
             line += [
+                (
+                    timezone.localtime(row.submitted_at).strftime("%Y-%m-%d %H:%M")
+                    if row.submitted_at
+                    else ""
+                ),
                 employee.get_full_name() if employee else "",
                 str(employee.get_department() or "") if employee else "",
             ]
-        writer.writerow(
-            line + [answer_rules.label(q, values.get(q.pk)) for q in questions]
-        )
+        line += [answer_rules.label(q, values.get(q.pk)) for q in questions]
+        writer.writerow([safe_cell(c) for c in line])
     return response
 
 
