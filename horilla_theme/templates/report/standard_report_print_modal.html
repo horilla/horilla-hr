@@ -128,8 +128,8 @@
         }
         function dateError() {
             if (!period || period.value !== "custom") return "";
-            if (!from.value || !to.value) return "{% trans 'Please select both a Start Date and an End Date.' %}";
-            if (to.value < from.value) return "{% trans 'End Date cannot be earlier than Start Date.' %}";
+            if (!from.value || !to.value) return "{% trans 'Please select both a Start Date and an End Date.'|escapejs %}";
+            if (to.value < from.value) return "{% trans 'End Date cannot be earlier than Start Date.'|escapejs %}";
             return "";
         }
         function showError(msg) {
@@ -154,7 +154,7 @@
             setDownloads();
         });
         form.addEventListener("htmx:responseError", function () {
-            region.innerHTML = '<div class="oh-alert-container"><div class="oh-alert oh-alert--animated oh-alert--danger">{% trans "Could not generate the preview. Please try again." %}</div></div>';
+            region.innerHTML = '<div class="oh-alert-container"><div class="oh-alert oh-alert--animated oh-alert--danger">{% trans "Could not generate the preview. Please try again."|escapejs %}</div></div>';
         });
         // Any change makes the preview stale; refresh it automatically.
         var timer = null;
