@@ -4,7 +4,13 @@ from django import forms
 from django.utils.translation import gettext_lazy as _
 
 from base.forms import ModelForm
+from horilla import horilla_middlewares
 from surveys.models import Questionnaire, Survey, SurveyQuestion
+
+
+def _request_user():
+    request = getattr(horilla_middlewares._thread_locals, "request", None)
+    return getattr(request, "user", None)
 
 
 class SurveyForm(ModelForm):
@@ -134,6 +140,19 @@ class SurveyQuestionForm(ModelForm):
         )
         if self.instance.pk and self.instance.options:
             self.fields["options_text"].initial = "\n".join(self.instance.options)
+        # Once people have answered, what the answers mean must not shift under
+        # them: a "Yes/No" turned into a number, or an option renamed, would
+        # leave answers that no longer fit the question
+        self.answered_options = set()
+        if self.instance.pk and self.instance.answers.exists():
+            self.fields["type"].disabled = True
+            self.fields["type"].help_text = _("Fixed once the question has answers.")
+            self.answered_options = self.instance.answered_options()
+            if self.answered_options:
+                self.fields["options_text"].help_text = _(
+                    "Options that already have answers cannot be changed or "
+                    "removed. New ones can be added."
+                )
 
     def clean(self):
         cleaned = super().clean()
@@ -142,6 +161,16 @@ class SurveyQuestionForm(ModelForm):
         ]
         self.instance.options = [line for line in lines if line]
         self.instance.type = cleaned.get("type") or self.instance.type
+        lost = sorted(self.answered_options - set(self.instance.options))
+        if lost:
+            self.add_error(
+                "options_text",
+                _(
+                    "Options that already have answers cannot be changed or removed: %(options)s."
+                )
+                % {"options": ", ".join(lost)},
+            )
+            return cleaned
         try:
             self.instance.clean()
         except forms.ValidationError as error:
@@ -188,10 +217,17 @@ class SaveToLibraryForm(QuestionnaireForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        library = [
-            (str(q.pk), _("Replace: %(title)s") % {"title": q.title})
-            for q in Questionnaire.objects.all()
-        ]
+        user = _request_user()
+        # replacing changes a questionnaire that is already there, which saving a
+        # new one does not: it needs the change permission, not only the add one
+        library = (
+            [
+                (str(q.pk), _("Replace: %(title)s") % {"title": q.title})
+                for q in Questionnaire.objects.all()
+            ]
+            if user is not None and user.has_perm("surveys.change_questionnaire")
+            else []
+        )
         if library:
             self.fields["replace"].choices = [
                 (self.NEW, _("A new questionnaire"))
@@ -203,4 +239,11 @@ class SaveToLibraryForm(QuestionnaireForm):
         value = self.cleaned_data.get("replace")
         if not value or value == self.NEW:
             return None
+        user = _request_user()
+        if user is None or not user.has_perm("surveys.change_questionnaire"):
+            raise forms.ValidationError(
+                _(
+                    "Replacing a questionnaire needs permission to change questionnaires."
+                )
+            )
         return Questionnaire.objects.filter(pk=value).first()

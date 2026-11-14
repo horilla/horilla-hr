@@ -7,6 +7,7 @@ Questionnaire rows like those HR saves itself. The wording is our own. The
 texts are translatable, and are stored in the language active at loading.
 """
 
+from django.db import IntegrityError, transaction
 from django.utils.translation import gettext_lazy as _
 
 from surveys.models import Questionnaire
@@ -182,6 +183,10 @@ def load_standard():
                 for q in item["questions"]
             ],
         )
-        questionnaire.save()
+        try:
+            with transaction.atomic():
+                questionnaire.save()
+        except IntegrityError:  # another request added it a moment ago
+            continue
         added.append(questionnaire)
     return added

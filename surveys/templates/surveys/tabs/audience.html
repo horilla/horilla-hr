@@ -15,7 +15,7 @@
     </div>
 </div>
 {% if survey.status == "draft" %}
-    <p class="text-xs text-[#666] mb-3">{% trans "Invitations are created when the survey is opened; employees who join the audience later get theirs on the next opening or reminder." %}</p>
+    <p class="text-xs text-[#666] mb-3">{% trans "Invitations are created when the survey is opened. Employees who join the audience later get theirs with “Send to new people”." %}</p>
 {% elif pending and can_manage %}
     <p class="text-xs text-[#666] mb-3">{% blocktrans with n=pending %}{{ n }} have not answered yet. Use “Remind” above to nudge them.{% endblocktrans %}</p>
 {% endif %}

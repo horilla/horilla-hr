@@ -36,6 +36,16 @@ urlpatterns = [
     path("<int:pk>/open/", views.open_survey, name="survey-open"),
     path("<int:pk>/close/", views.close_survey, name="survey-close"),
     path("<int:pk>/remind/", views.remind, name="survey-remind"),
+    path(
+        "<int:pk>/invitations/<int:invitation_pk>/link/",
+        views.invitation_link,
+        name="survey-invitation-link",
+    ),
+    path(
+        "<int:pk>/invitations/<int:invitation_pk>/resend/",
+        views.invitation_resend,
+        name="survey-invitation-resend",
+    ),
     path("<int:pk>/export/", views.export_results, name="survey-export"),
     path(
         "<int:survey_pk>/save-to-library/",

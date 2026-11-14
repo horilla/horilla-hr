@@ -10,7 +10,7 @@ replace the modal's body instead of filling it.
       hx-target="#surveyQuestions" hx-swap="outerHTML"></span>
 <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
     <p class="text-xs text-[#666] mb-0">{% trans "Drag the handle to reorder. Employees see the questions in this order." %}</p>
-    {% if can_manage %}
+    {% if can_run %}
     <a hx-get="{% url 'survey-question-add' %}?survey={{ survey.pk }}" hx-target="#genericModalBody" data-target="#genericModal" data-toggle="oh-modal-toggle"
        class="px-4 py-2 bg-brand-600 text-white rounded-md text-xs flex items-center gap-2 hover:bg-brand-800 transition duration-300 cursor-pointer">
         <ion-icon name="add-outline"></ion-icon>{% trans "Add question" %}
@@ -26,7 +26,7 @@ replace the modal's body instead of filling it.
 <ul class="space-y-2" id="questionList">
     {% for q in survey.questions.all %}
     <li class="border border-[#ebebeb] py-3 px-3.5 rounded-md shadow-card bg-white flex items-start gap-3" data-id="{{ q.pk }}">
-        {% if can_manage %}<span class="text-lg leading-none text-[#999] js-handle" style="cursor:grab" title="{% trans 'Drag to reorder' %}">≡</span>{% endif %}
+        {% if can_run %}<span class="text-lg leading-none text-[#999] js-handle" style="cursor:grab" title="{% trans 'Drag to reorder' %}">≡</span>{% endif %}
         <span class="text-sm font-semibold text-primary-600 js-number">{{ forloop.counter }}.</span>
         <div class="flex-1 min-w-0">
             <div class="text-sm font-semibold">{{ q.question }}</div>
@@ -36,7 +36,7 @@ replace the modal's body instead of filling it.
                 {% if q.options %}· {{ q.options|join:" / " }}{% endif %}
             </div>
         </div>
-        {% if can_manage %}
+        {% if can_run %}
         <div class="flex items-center gap-1">
             <a hx-get="{% url 'survey-question-edit' q.pk %}" hx-target="#genericModalBody" data-target="#genericModal" data-toggle="oh-modal-toggle"
                class="oh-btn oh-btn--light-bkg oh-btn--sq-sm" title="{% trans 'Edit' %}"><ion-icon name="create-outline"></ion-icon></a>
@@ -48,7 +48,7 @@ replace the modal's body instead of filling it.
     </li>
     {% endfor %}
 </ul>
-{% if can_manage %}
+{% if can_run %}
 <script>
     $(function () {
         $("#questionList").sortable({

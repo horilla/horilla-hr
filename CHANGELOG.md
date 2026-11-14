@@ -49,6 +49,28 @@ date and open a fresh Unreleased above it.
     counts a repeated or double-clicked submit once, and tells the person when the
     survey has closed instead of saying "Saved".
   - The survey tests now run in CI (`surveys` is in the smoke labels).
+  - **Who may do what.** HR (the module's permissions) builds, opens and closes
+    surveys. A survey's managers see its audience and results, export them and send
+    reminders, and nothing more; they are told when they are named and reach the survey
+    from that link, as the Surveys menu is for HR only.
+  - **Opening and closing.** A survey with nobody to send to, or a closing date in the
+    past, is not opened. A survey past its closing time shows as closed, and an anonymous
+    one drops its unfinished drafts then. A survey that is already open can invite the
+    people who joined the audience since ("Send to new people"). The link says whether
+    the survey has not opened yet, has closed, or has ended.
+  - **Sending.** HR is told how many were emailed, how many only notified in Horilla,
+    and by name who could not be reached or whose e-mail failed; those people are not
+    recorded as invited. Reminders skip people who are no longer active. The Audience
+    tab has Copy link and Send again for HR.
+  - **Answers.** A question that has answers keeps its type and its answered options;
+    results still count answers to options that were taken out. The answer page follows
+    the form as it stands (an emptied field clears the draft), saves while typing and no
+    longer submits on Enter. A link stops working when the employee or their login is
+    switched off.
+  - Survey audiences use the survey's own company, not the one selected in the menu.
+    The dashboard counts days in the local time zone and the lists load their numbers in
+    one query. The standard questionnaires cannot be added twice, and replacing a
+    questionnaire in the library needs the permission to change questionnaires.
 
 ## [2.4.0] — 2026-11-10
 

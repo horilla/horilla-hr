@@ -97,24 +97,23 @@ def validate(question, value):
 def collect(questions, data, *, strict):
     """{question: stored value} for every question, plus {question: error}.
 
-    strict=False (a draft) keeps whatever can be stored and never complains
-    about an empty required question; strict=True (a submission) applies every
-    rule.
+    strict=True (a submission) applies every rule. strict=False (a draft) is the
+    form as it stands: an emptied field comes back as None, which clears the saved
+    answer, and a required question left empty is not an error yet. A wrong
+    value is never stored, in either mode.
     """
     values, errors = {}, {}
     for question in questions:
         raw = read(question, data)
+        if not strict and raw in (None, "", []):
+            values[question] = None
+            continue
         try:
             value = validate(question, raw)
         except AnswerError as error:
-            if strict or raw not in (None, "", []):
-                errors[question] = error.message
-            # A wrong value is not stored, neither in a draft nor in a submission.
+            errors[question] = error.message
             continue
-        if strict or value is not None:
-            values[question] = (
-                value  # a draft does not write "nothing" over an earlier answer
-            )
+        values[question] = value
     return values, errors
 
 

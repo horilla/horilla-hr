@@ -22,10 +22,12 @@ are then changed like any others.
 """
 
 import secrets
+from datetime import datetime, time
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import Count, Q
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html
@@ -68,6 +70,27 @@ def _moment(value, with_time=True):
 def local_midnight(moment):
     """The start of the local day of `moment`: all an anonymous response keeps."""
     return timezone.localtime(moment).replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+def local_midnight_of(day):
+    """The start of the local date `day`, as an aware datetime."""
+    return timezone.make_aware(datetime.combine(day, time.min))
+
+
+def with_counts(queryset):
+    """Surveys with their invited and answered numbers, counted in the same query.
+
+    The lists and the dashboard show both for every row; asked of each survey
+    they are two queries per row.
+    """
+    return queryset.annotate(
+        n_invited=Count("invitations", distinct=True),
+        n_answered=Count(
+            "invitations",
+            filter=Q(invitations__status="submitted"),
+            distinct=True,
+        ),
+    )
 
 
 class Survey(HorillaModel):
@@ -131,7 +154,8 @@ class Survey(HorillaModel):
         related_name="surveys_managed",
         verbose_name=_("Managers"),
         help_text=_(
-            "See the results and send reminders without the global permission."
+            "Can see this survey, its audience and results, export the results "
+            "and send reminders. They cannot change the survey or its questions."
         ),
     )
     company_id = models.ForeignKey(
@@ -179,16 +203,58 @@ class Survey(HorillaModel):
 
     # --- state -------------------------------------------------------------
 
+    AVAILABLE, NOT_OPEN, SCHEDULED, CLOSED, ENDED = (
+        "available",
+        "not_open",
+        "scheduled",
+        "closed",
+        "ended",
+    )
+
+    def availability(self, now=None):
+        """What an employee meets at the link: answerable, or why not."""
+        now = now or timezone.now()
+        if self.status == self.STATUS_DRAFT:
+            return self.NOT_OPEN
+        if self.status == self.STATUS_CLOSED:
+            return self.CLOSED
+        if self.closes_at and now > self.closes_at:
+            return self.ENDED
+        if self.opens_at and now < self.opens_at:
+            return self.SCHEDULED
+        return self.AVAILABLE
+
     def is_accepting(self, now=None):
         """Whether an answer may be submitted right now."""
-        now = now or timezone.now()
-        if self.status != self.STATUS_OPEN:
-            return False
-        if self.opens_at and now < self.opens_at:
-            return False
-        if self.closes_at and now > self.closes_at:
-            return False
-        return True
+        return self.availability(now) == self.AVAILABLE
+
+    def is_ended(self, now=None):
+        """Open on paper, but past its closing time."""
+        return self.availability(now) == self.ENDED
+
+    def shown_status(self):
+        """The status as a person should read it: a survey past its end is closed."""
+        return self.STATUS_CLOSED if self.is_ended() else self.status
+
+    @classmethod
+    def close_ended(cls):
+        """Close the surveys whose closing time has passed; returns how many.
+
+        Run when the lists and the dashboard load, so a survey past its end is
+        closed in the database too (filters, counts, the audience list) and an
+        anonymous one gets its unfinished drafts dropped like on a manual close.
+        """
+        ended = list(
+            cls._base_manager.filter(
+                status=cls.STATUS_OPEN, closes_at__lt=timezone.now()
+            )
+        )
+        for survey in ended:
+            survey.drop_anonymous_drafts()
+            cls._base_manager.filter(pk=survey.pk, status=cls.STATUS_OPEN).update(
+                status=cls.STATUS_CLOSED
+            )
+        return len(ended)
 
     # --- what an anonymous survey may show -----------------------------------
 
@@ -251,17 +317,25 @@ class Survey(HorillaModel):
 
     def audience_employees(self):
         """The active employees the survey goes to, by its audience rule."""
-        base = Employee.objects.filter(is_active=True)
+        # The survey's own company, not the one the admin happens to have selected
+        # in Horilla: that is what Employee.objects would filter by
+        base = Employee._base_manager.filter(is_active=True)
+        if self.company_id_id:
+            base = base.filter(employee_work_info__company_id=self.company_id_id)
         if self.audience == self.AUDIENCE_DEPARTMENTS:
             return base.filter(
-                employee_work_info__department_id__in=self.departments.all()
+                employee_work_info__department_id__in=Department._base_manager.filter(
+                    survey=self
+                )
             )
         if self.audience == self.AUDIENCE_POSITIONS:
             return base.filter(
-                employee_work_info__job_position_id__in=self.job_positions.all()
+                employee_work_info__job_position_id__in=JobPosition._base_manager.filter(
+                    survey=self
+                )
             )
         if self.audience == self.AUDIENCE_EMPLOYEES:
-            return base.filter(pk__in=self.employees.all())
+            return base.filter(surveys_invited_to=self)
         return base
 
     def invite(self):
@@ -269,7 +343,11 @@ class Survey(HorillaModel):
 
         Returns the new ones.
         """
-        existing = set(self.invitations.values_list("employee_id", flat=True))
+        existing = set(
+            SurveyInvitation._base_manager.filter(survey=self).values_list(
+                "employee_id", flat=True
+            )
+        )
         new = [
             SurveyInvitation(
                 survey=self, employee=employee, token=SurveyInvitation.new_token()
@@ -277,6 +355,9 @@ class Survey(HorillaModel):
             for employee in self.audience_employees().exclude(pk__in=existing)
         ]
         return SurveyInvitation.objects.bulk_create(new)
+
+    def has_answers(self):
+        return self.submitted_count() > 0
 
     # --- for the list and the detail page -----------------------------------
 
@@ -295,8 +376,9 @@ class Survey(HorillaModel):
             self.STATUS_DRAFT: "#808080",
             self.STATUS_OPEN: "#3b82f6",
             self.STATUS_CLOSED: "#ef4444",
-        }[self.status]
-        return _pill(self.get_status_display(), colour)
+        }[self.shown_status()]
+        label = dict(self.STATUSES)[self.shown_status()]
+        return _pill(label, colour)
 
     def title_display(self):
         """The title for the list and the cards, which print what they are given."""
@@ -322,9 +404,13 @@ class Survey(HorillaModel):
         return format_html("{}", text)
 
     def invited_count(self):
+        if hasattr(self, "n_invited"):  # from with_counts()
+            return self.n_invited
         return self.invitations.count()
 
     def answered_count(self):
+        if hasattr(self, "n_answered"):
+            return self.n_answered
         return self.invitations.filter(status=SurveyInvitation.STATUS_SUBMITTED).count()
 
     def answered_label(self):
@@ -352,14 +438,10 @@ class Survey(HorillaModel):
     # --- numbers -----------------------------------------------------------
 
     def response_rate(self):
-        total = self.invitations.count()
+        total = self.invited_count()
         if not total:
             return 0
-        return round(
-            100
-            * self.invitations.filter(status=SurveyInvitation.STATUS_SUBMITTED).count()
-            / total
-        )
+        return round(100 * self.answered_count() / total)
 
 
 class SurveyQuestion(HorillaModel):
@@ -462,6 +544,15 @@ class SurveyQuestion(HorillaModel):
             return [(str(i), str(i)) for i in range(0, self.NPS_MAX + 1)]
         return []
 
+    def answered_options(self):
+        """The options that at least one answer has chosen."""
+        chosen = set()
+        for value in self.answers.values_list("value", flat=True):
+            for item in value if isinstance(value, list) else [value]:
+                if item not in (None, ""):
+                    chosen.add(str(item))
+        return chosen & set(self.options or [])
+
     def charted(self):
         """Whether the answers are counted into a chart (vs. listed)."""
         return self.type not in (self.TYPE_TEXT, self.TYPE_TEXTAREA, self.TYPE_DATE)
@@ -495,6 +586,14 @@ class Questionnaire(HorillaModel):
         verbose_name = _("Questionnaire")
         verbose_name_plural = _("Questionnaires")
         ordering = ["title"]
+        constraints = [
+            # loading the standard questionnaires twice at once must not add copies
+            models.UniqueConstraint(
+                fields=["code"],
+                condition=~models.Q(code=""),
+                name="surveys_questionnaire_unique_code",
+            )
+        ]
 
     def __str__(self):
         return self.title
@@ -655,6 +754,17 @@ class SurveyInvitation(HorillaModel):
     def submitted(self):
         return self.status == self.STATUS_SUBMITTED
 
+    def person_is_active(self):
+        """False once the employee, or the login that goes with them, is switched off.
+
+        A link kept from before somebody left must not keep working.
+        """
+        employee = self.employee
+        if not employee.is_active:
+            return False
+        user = employee.employee_user_id
+        return user is None or user.is_active
+
     # --- for the audience list -------------------------------------------------
 
     def status_badge(self):
@@ -677,6 +787,9 @@ class SurveyInvitation(HorillaModel):
     def submitted_label(self):
         # an anonymous survey keeps the day only, whatever the list shows
         return _moment(self.submitted_at, with_time=not self.survey.is_anonymous)
+
+    def row_actions(self):
+        return render_template("surveys/invitation_actions.html", {"invitation": self})
 
 
 class SurveyResponse(HorillaModel):

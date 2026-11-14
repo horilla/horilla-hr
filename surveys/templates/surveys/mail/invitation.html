@@ -16,6 +16,7 @@
     <tr><td style="padding:0 40px 28px;font-size:13px;line-height:1.6;color:#6b7280">
         {% if survey.is_anonymous %}{% trans "The survey is anonymous: HR sees who has answered, not what you answered." %}<br>{% endif %}
         {% trans "Your answers are saved as you go - you can come back to the same link any time." %}
+        {% if scheduled and survey.opens_at %}<br>{% blocktrans with date=survey.opens_at|date:"d.m.Y H:i" %}The survey opens on {{ date }}; the link works from then.{% endblocktrans %}{% endif %}
         {% if survey.closes_at %}<br>{% blocktrans with date=survey.closes_at|date:"d.m.Y H:i" %}Open until {{ date }}.{% endblocktrans %}{% endif %}
     </td></tr>
 </table></td></tr></table>

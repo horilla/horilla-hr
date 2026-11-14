@@ -15,7 +15,7 @@
     </div>
 </div>
 
-<form method="post" id="surveyForm" hx-post="?autosave=1" hx-trigger="change delay:400ms" hx-swap="none" hx-sync="this:replace"
+<form method="post" id="surveyForm" hx-post="?autosave=1" hx-trigger="change delay:400ms, input delay:800ms" hx-swap="none" hx-sync="this:replace"
       hx-on::after-request="surveySaved(event)" novalidate>
     {% csrf_token %}
     <div class="sv-bar">
@@ -99,6 +99,11 @@
         });
         document.getElementById("progress").textContent = done + " / " + boxes.length;
     }
+    // Enter in a one-line field would send the whole form, with its checks; the
+    // button is the way to submit
+    document.getElementById("surveyForm").addEventListener("keydown", function (e) {
+        if (e.key === "Enter" && e.target.tagName === "INPUT") { e.preventDefault(); }
+    });
     document.getElementById("surveyForm").addEventListener("submit", function (e) {
         e.preventDefault();
         this.removeAttribute("hx-post");

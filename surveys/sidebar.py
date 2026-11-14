@@ -20,11 +20,6 @@ SUBMENUS = [
 
 
 def surveys_accessibility(request, menu, user_perms, *args, **kwargs):
-    """HR with the module's permissions, or a manager of any survey."""
-    if request.user.has_module_perms("surveys"):
-        return True
-    try:
-        employee = request.user.employee_get
-    except Exception:
-        return False
-    return employee.surveys_managed.exists()
+    """The menu is for HR. A manager of one survey reaches it from the link in
+    their notification, and has no use for the lists and the library."""
+    return request.user.has_module_perms("surveys")

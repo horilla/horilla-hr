@@ -53,7 +53,7 @@ def find_invitation(request, token):
         # Constant-time compare on the candidate row, so a near-miss costs the same
         candidate = (
             SurveyInvitation._base_manager.filter(token=token)
-            .select_related("survey", "employee")
+            .select_related("survey", "employee", "employee__employee_user_id")
             .first()
         )
         if candidate is not None and hmac.compare_digest(candidate.token, token):
@@ -78,6 +78,22 @@ def _questions(survey):
 def _not_saved(reason):
     """Autosave refused: the page must say so instead of showing "Saved"."""
     return JsonResponse({"saved": False, "reason": reason}, status=409)
+
+
+def _not_open(request, survey):
+    """Why the link cannot be answered right now: not yet, closed, or past its end."""
+    return render(
+        request,
+        "surveys/public/closed.html",
+        {"survey": survey, "reason": survey.availability()},
+    )
+
+
+def _gone(request, autosave):
+    """The person behind the link is no longer active: it works for nobody."""
+    if autosave:
+        return _not_saved("closed")
+    return render(request, "surveys/public/not_found.html", status=404)
 
 
 def _page(request, survey, invitation, questions, saved, errors):
@@ -118,12 +134,14 @@ def answer(request, token):
         return _save(request, invitation, autosave)
 
     survey = invitation.survey
+    if not invitation.person_is_active():
+        return _gone(request, False)
     if invitation.submitted():
         return render(
             request, "surveys/public/done.html", {"survey": survey, "already": True}
         )
     if not survey.is_accepting():
-        return render(request, "surveys/public/closed.html", {"survey": survey})
+        return _not_open(request, survey)
     response = SurveyResponse._base_manager.filter(invitation=invitation).first()
     saved = response.answers_by_question() if response else {}
     return _page(request, survey, invitation, _questions(survey), saved, {})
@@ -134,10 +152,14 @@ def _save(request, invitation, autosave):
     with transaction.atomic():
         # Lock the row and read it again: a request that waited here sees what
         # the one before it did (a submitted invitation, a response that exists)
-        invitation = SurveyInvitation._base_manager.select_for_update(of=("self",)).get(
-            pk=invitation.pk
+        invitation = (
+            SurveyInvitation._base_manager.select_for_update(of=("self",))
+            .select_related("survey", "employee", "employee__employee_user_id")
+            .get(pk=invitation.pk)
         )
         survey = invitation.survey
+        if not invitation.person_is_active():
+            return _gone(request, autosave)
         if invitation.submitted():
             if autosave:
                 return _not_saved("submitted")
@@ -147,7 +169,7 @@ def _save(request, invitation, autosave):
         if not survey.is_accepting():
             if autosave:
                 return _not_saved("closed")
-            return render(request, "surveys/public/closed.html", {"survey": survey})
+            return _not_open(request, survey)
 
         questions = _questions(survey)
         values, errors = answer_rules.collect(
@@ -160,9 +182,14 @@ def _save(request, invitation, autosave):
                 status=SurveyInvitation.STATUS_STARTED
             )
         for question, value in values.items():
-            SurveyAnswer.objects.update_or_create(
-                response=response, question=question, defaults={"value": value}
-            )
+            if value is None:  # left empty: nothing is kept for it
+                SurveyAnswer.objects.filter(
+                    response=response, question=question
+                ).delete()
+            else:
+                SurveyAnswer.objects.update_or_create(
+                    response=response, question=question, defaults={"value": value}
+                )
         if autosave:
             return JsonResponse(
                 {"saved": True, "at": timezone.localtime().strftime("%H:%M")}

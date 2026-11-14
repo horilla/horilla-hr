@@ -10,7 +10,9 @@ from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
 from django.utils.text import format_lazy
 from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext_noop
 from django.views.generic import TemplateView
+from notifications.signals import notify
 
 from horilla.decorators import login_required, permission_required
 from horilla_views.generic.cbv.views import (
@@ -21,7 +23,7 @@ from horilla_views.generic.cbv.views import (
     HorillaNavView,
     HorillaTabView,
 )
-from surveys.access import can_manage, can_view_results
+from surveys.access import can_manage, can_run, can_view_results
 from surveys.filters import QuestionnaireFilter, SurveyFilter
 from surveys.forms import (
     QuestionnaireForm,
@@ -29,7 +31,13 @@ from surveys.forms import (
     SurveyForm,
     SurveyQuestionForm,
 )
-from surveys.models import Questionnaire, Survey, SurveyInvitation, SurveyQuestion
+from surveys.models import (
+    Questionnaire,
+    Survey,
+    SurveyInvitation,
+    SurveyQuestion,
+    with_counts,
+)
 
 CLOSE_MODAL = (
     "<script>$('.oh-modal--show').removeClass('oh-modal--show');"
@@ -147,6 +155,14 @@ class SurveysList(HorillaListView):
         self.search_url = reverse("surveys-list")
         self.action_method = "row_actions"
 
+    def get_queryset(self, queryset=None, filtered=False, *args, **kwargs):
+        Survey.close_ended()
+        # the numbers of every row in this query, not two more queries per row
+        queryset = with_counts(Survey.objects.all()).prefetch_related(
+            "departments", "job_positions"
+        )
+        return super().get_queryset(queryset, filtered, *args, **kwargs)
+
 
 @method_decorator(login_required, name="dispatch")
 @method_decorator(permission_required("surveys.view_survey"), name="dispatch")
@@ -168,6 +184,17 @@ class SurveysCard(HorillaCardView):
     card_attrs = "onclick=\"window.location.href='{get_detail_url}'\""
     card_status_class = "survey-{status}"
     card_status_indications = STATUS_INDICATIONS
+
+    def get_queryset(self):
+        Survey.close_ended()
+        queryset = super().get_queryset()
+        if not getattr(self, "_counted", False):
+            # the numbers of every card in this query, not two more per card
+            self._counted = True
+            self.queryset = with_counts(queryset).prefetch_related(
+                "departments", "job_positions"
+            )
+        return self.queryset
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -282,6 +309,10 @@ class InvitationsList(HorillaListView):
             self.sortby_mapping = [
                 m for m in type(self).sortby_mapping if m[1] != "submitted_at"
             ]
+        if can_run(request.user, survey):
+            # Copy link and Resend: a link is the answer itself, so only the people
+            # who run surveys get them, not a survey's manager
+            self.action_method = "row_actions"
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self, queryset=None, filtered=False, *args, **kwargs):
@@ -328,15 +359,41 @@ class SurveyFormView(HorillaFormView):
             self.form_class.verbose_name = _("Edit survey")
         return context
 
+    def _tell_new_managers(self, survey, before):
+        """A manager named on a survey hears about it, with the link to its page:
+        they have no Surveys menu to find it by."""
+        added = survey.managers.exclude(pk__in=before).select_related(
+            "employee_user_id"
+        )
+        for manager in added:
+            if manager.employee_user_id_id is None:
+                continue
+            notify.send(
+                self.request.user,
+                recipient=manager.employee_user_id,
+                verb=gettext_noop(
+                    "Survey '%(title)s' has been assigned to you to look after"
+                ),
+                verb_params={"title": survey.title},
+                icon="clipboard",
+                redirect=survey.get_detail_url(),
+            )
+
     def form_valid(self, form: SurveyForm) -> HttpResponse:
         if form.is_valid():
             new = not form.instance.pk
             questionnaire = form.cleaned_data.get("questionnaire") if new else None
+            managers_before = (
+                set()
+                if new
+                else set(form.instance.managers.values_list("pk", flat=True))
+            )
             survey = form.save(commit=False)
             if new:
                 survey.company_id = self.request.user.employee_get.get_company()
             survey.save()
             form.save_m2m()
+            self._tell_new_managers(survey, managers_before)
             if questionnaire:
                 questionnaire.copy_questions_to(survey)
             if new:
@@ -372,7 +429,7 @@ class SurveyQuestionFormView(HorillaFormView):
             self.survey = question.survey if question else None
         else:
             self.survey = Survey.objects.filter(pk=survey_pk).first()
-        if self.survey is None or not can_manage(request.user, self.survey):
+        if self.survey is None or not can_run(request.user, self.survey):
             messages.error(request, _("You do not have permission for this."))
             return HttpResponse(
                 "<script>$('.oh-modal--show').removeClass('oh-modal--show');$('#reloadMessagesButton').click();</script>"

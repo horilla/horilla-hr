@@ -154,6 +154,6 @@ class PublicAnswerTests(TestCase):
 
     def test_a_closed_survey_takes_nothing(self):
         Survey.objects.filter(pk=self.survey.pk).update(status=Survey.STATUS_CLOSED)
-        self.assertContains(self.client.get(self.url()), "not open")
+        self.assertContains(self.client.get(self.url()), "has closed")
         self.post({self.names()["mood"]: "5"})
         self.assertFalse(SurveyResponse.objects.exists())

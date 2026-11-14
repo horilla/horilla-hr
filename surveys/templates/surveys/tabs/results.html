@@ -49,7 +49,7 @@
             <span class="text-xs text-[#666] whitespace-nowrap">{{ r.answered }} {% trans "answered" %}</span>
         </div>
         {% if r.nps %}<p class="text-sm mt-1 mb-0">NPS: <b class="text-xl">{% if r.nps.score > 0 %}+{% endif %}{{ r.nps.score }}</b> <span class="text-xs text-[#666]">· {% trans "promoters" %} {{ r.nps.promoters }} · {% trans "passives" %} {{ r.nps.passives }} · {% trans "detractors" %} {{ r.nps.detractors }}</span></p>{% endif %}
-        {% if r.average %}<p class="text-xs text-[#666] mt-1 mb-0">{% trans "Average" %}: <b>{{ r.average }}</b>{% if r.minimum != None %} · {% trans "min" %} {{ r.minimum }} · {% trans "max" %} {{ r.maximum }}{% endif %}</p>{% endif %}
+        {% if r.average is not None %}<p class="text-xs text-[#666] mt-1 mb-0">{% trans "Average" %}: <b>{{ r.average }}</b>{% if r.minimum != None %} · {% trans "min" %} {{ r.minimum }} · {% trans "max" %} {{ r.maximum }}{% endif %}</p>{% endif %}
         {% if r.series %}
             <div class="relative mt-2" style="height:240px"><canvas id="chart-{{ r.question.pk }}"></canvas></div>
         {% elif r.texts %}

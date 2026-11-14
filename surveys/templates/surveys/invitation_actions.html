@@ -1,0 +1,33 @@
+{% load i18n %}
+{% if not invitation.submitted %}
+<div class="d-flex gap-1" onclick="event.stopPropagation()">
+    {# the link is asked for when the button is pressed, so it is not in the page for anyone who only looks #}
+    <button type="button" class="oh-btn oh-btn--light-bkg oh-btn--sq-sm" title="{% trans 'Copy link' %}"
+            data-link-url="{% url 'survey-invitation-link' invitation.survey_id invitation.pk %}"
+            onclick="surveyCopyLink(this)"><ion-icon name="link-outline"></ion-icon></button>
+    {% if invitation.survey.status == "open" %}
+    <form method="post" action="{% url 'survey-invitation-resend' invitation.survey_id invitation.pk %}" class="m-0">{% csrf_token %}
+        <button class="oh-btn oh-btn--light-bkg oh-btn--sq-sm" title="{% trans 'Send the link again' %}"><ion-icon name="paper-plane-outline"></ion-icon></button>
+    </form>
+    {% endif %}
+</div>
+<script>
+    if (!window.surveyCopyLink) {
+        window.surveyCopyLink = function (button) {
+            var token = (document.querySelector('meta[name="csrf-token"]') || {}).content || "";
+            fetch(button.dataset.linkUrl, {method: "POST", headers: {"X-CSRFToken": token}, credentials: "same-origin"})
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (!data.url) { return; }
+                    if (navigator.clipboard && window.isSecureContext) {
+                        navigator.clipboard.writeText(data.url).then(function () {
+                            button.title = "{% trans 'Copied' as copied_msg %}{{ copied_msg|escapejs }}";
+                        });
+                    } else {
+                        window.prompt("{% trans 'Copy this link' as copy_msg %}{{ copy_msg|escapejs }}", data.url);
+                    }
+                });
+        };
+    }
+</script>
+{% endif %}
