@@ -1,16 +1,20 @@
 {% load i18n %}
 {% if not invitation.submitted %}
 <div class="d-flex gap-1" onclick="event.stopPropagation()">
+    {% if not invitation.survey.is_anonymous %}
     {# the link is asked for when the button is pressed, so it is not in the page for anyone who only looks #}
+    {# not for an anonymous survey: the link opens the person's unfinished draft #}
     <button type="button" class="oh-btn oh-btn--light-bkg oh-btn--sq-sm" title="{% trans 'Copy link' %}" aria-label="{% trans 'Copy link' %}"
             data-link-url="{% url 'survey-invitation-link' invitation.survey_id invitation.pk %}"
             onclick="surveyCopyLink(this)"><ion-icon name="link-outline"></ion-icon></button>
+    {% endif %}
     {% if invitation.survey.status == "open" %}
     <form method="post" action="{% url 'survey-invitation-resend' invitation.survey_id invitation.pk %}" class="m-0">{% csrf_token %}
         <button class="oh-btn oh-btn--light-bkg oh-btn--sq-sm" title="{% trans 'Send the link again' %}" aria-label="{% trans 'Send the link again' %}"><ion-icon name="paper-plane-outline"></ion-icon></button>
     </form>
     {% endif %}
 </div>
+{% if not invitation.survey.is_anonymous %}
 <script>
     if (!window.surveyCopyLink) {
         window.surveyCopyLink = function (button) {
@@ -30,4 +34,5 @@
         };
     }
 </script>
+{% endif %}
 {% endif %}

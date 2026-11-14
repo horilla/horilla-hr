@@ -61,7 +61,8 @@ date and open a fresh Unreleased above it.
   - **Sending.** HR is told how many were emailed, how many only notified in Horilla,
     and by name who could not be reached or whose e-mail failed; those people are not
     recorded as invited. Reminders skip people who are no longer active. The Audience
-    tab has Copy link and Send again for HR.
+    tab has Send again for HR, and Copy link for named surveys only (the link of an
+    anonymous survey opens the person's unfinished draft).
   - **Answers.** A question that has answers keeps its type and its answered options;
     results still count answers to options that were taken out. The answer page follows
     the form as it stands (an emptied field clears the draft), saves while typing and no

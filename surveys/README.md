@@ -88,6 +88,9 @@ treat database access accordingly. To limit exposure:
   further misses are refused for the rest of the window. A valid link is never throttled.
 - *Copy link* asks the server for the link when pressed, so it is not written into the
   page for people who only look at the audience list.
+- An **anonymous** survey has no *Copy link* (the server refuses it too): the link opens
+  the person's unfinished draft, so whoever holds it could read what they have typed so
+  far. *Send again* mails the link to the person instead.
 
 ## Settings
 

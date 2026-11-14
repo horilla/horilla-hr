@@ -471,10 +471,17 @@ def _invitation_for_hr(request, pk, invitation_pk):
 @login_required
 @require_POST
 def invitation_link(request, pk, invitation_pk):
-    """The personal link of one person, to copy and send by hand."""
+    """The personal link of one person, to copy and send by hand.
+
+    Never for an anonymous survey: the link opens the person's unfinished draft,
+    so whoever holds it can read the answers of someone who has not submitted.
+    HR can still mail the link to the person (Send again).
+    """
     survey, invitation, denied = _invitation_for_hr(request, pk, invitation_pk)
     if denied:
         return JsonResponse({"status": "forbidden"}, status=403)
+    if survey.is_anonymous:
+        return JsonResponse({"status": "anonymous"}, status=403)
     if invitation.submitted():
         return JsonResponse({"status": "submitted"}, status=409)
     response = JsonResponse({"status": "ok", "url": _answer_url(request, invitation)})

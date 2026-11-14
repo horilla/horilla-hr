@@ -693,6 +693,32 @@ class WhoMayDoWhatTests(TestCase):
         )
         self.assertEqual(refused.status_code, 409)
 
+    def test_an_anonymous_survey_gives_nobody_a_link_to_a_draft(self):
+        anon = build_survey(tag="perm_a", anonymous=True, people=2)
+        invitation = anon.invitations[0]
+        # a person who started and has not submitted: a draft tied to the invitation
+        Client().post(
+            answer_url(invitation) + "?autosave=1", {anon.note_name(): "private draft"}
+        )
+        client = hr_client(anon)
+        response = client.post(
+            reverse("survey-invitation-link", args=[anon.survey.pk, invitation.pk])
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json(), {"status": "anonymous"})
+        self.assertNotIn(invitation.token.encode(), response.content)
+        audience = client.get(
+            reverse("survey-invitations", args=[anon.survey.pk]),
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertNotContains(audience, "surveyCopyLink")
+        self.assertNotContains(audience, "survey-invitation-link")
+        # mailing the link to the person is still there
+        self.assertContains(
+            audience,
+            reverse("survey-invitation-resend", args=[anon.survey.pk, invitation.pk]),
+        )
+
     def test_an_invitation_of_another_survey_is_a_404(self):
         other = build_survey(tag="perm2", people=1)
         client = hr_client(self.built)
