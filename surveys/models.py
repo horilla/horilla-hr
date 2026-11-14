@@ -53,16 +53,24 @@ def _pill(text, colour):
 
 
 def _moment(value, with_time=True):
-    """A date and time of the audience list, in the local zone.
+    """A date (and time) of the audience list, in the local zone.
 
-    In the language's own long format, the same one the survey page uses.
+    The column is narrow, so it shows the date in the language's own format and
+    keeps the time for the tooltip. The long format with the time ("Nov. 14,
+    2026, 2:19 p.m.") was cut off in it.
     """
     from django.utils import formats
 
     if not value:
         return "—"
-    return formats.date_format(
-        timezone.localtime(value), "DATETIME_FORMAT" if with_time else "DATE_FORMAT"
+    local = timezone.localtime(value)
+    day = formats.date_format(local, "DATE_FORMAT")
+    if not with_time:
+        return day
+    return format_html(
+        '<span title="{}">{}</span>',
+        formats.date_format(local, "DATETIME_FORMAT"),
+        day,
     )
 
 

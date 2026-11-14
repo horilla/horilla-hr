@@ -93,7 +93,13 @@
 </form>
 
 <script>
+    var surveyForm = document.getElementById("surveyForm");
+    // once the survey has closed (or was answered elsewhere) nothing more is sent
+    surveyForm.addEventListener("htmx:beforeRequest", function (e) {
+        if (surveyForm.dataset.finished) { e.preventDefault(); }
+    });
     function surveySaved(event) {
+        if (surveyForm.dataset.finished) { return; }
         var el = document.getElementById("savedAt");
         var xhr = event.detail.xhr, body = {};
         try { body = JSON.parse(xhr.responseText); } catch (e) {}
@@ -104,7 +110,9 @@
             el.textContent = body.reason === "submitted"
                 ? "{% trans 'Answers were already submitted for this survey.' as sub_msg %}{{ sub_msg|escapejs }}"
                 : "{% trans 'This survey has closed, so nothing more can be saved.' as closed_msg %}{{ closed_msg|escapejs }}";
-            document.querySelectorAll("#surveyForm input, #surveyForm textarea, #surveyForm button")
+            surveyForm.dataset.finished = "1";
+            // not the hidden CSRF field: a request that is still on its way needs it
+            document.querySelectorAll("#surveyForm input:not([type=hidden]), #surveyForm textarea, #surveyForm button")
                 .forEach(function (field) { field.disabled = true; });
         } else {
             el.textContent = "{% trans 'Not saved - check your connection' as lost_msg %}{{ lost_msg|escapejs }}";

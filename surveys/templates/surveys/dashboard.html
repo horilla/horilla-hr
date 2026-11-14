@@ -29,12 +29,12 @@
     <div class="xl:col-span-8 col-span-12 bg-white p-6 rounded-md shadow-card">
         <h3 class="text-md font-semibold mb-2">{% trans "Responses in the Last 30 Days" %}</h3>
         <div class="relative" style="height:260px"><canvas id="chartDays" role="img" aria-label="{% trans 'Responses in the last 30 days, by day. The same numbers are in the table after this chart.' %}"></canvas></div>
-        <table class="sv-sr" id="tableDays"><caption>{% trans "Responses in the last 30 days" %}</caption><thead><tr><th scope="col">{% trans "Day" %}</th><th scope="col">{% trans "Responses" %}</th></tr></thead><tbody></tbody></table>
+        <div class="sv-sr"><table id="tableDays"><caption>{% trans "Responses in the last 30 days" %}</caption><thead><tr><th scope="col">{% trans "Day" %}</th><th scope="col">{% trans "Responses" %}</th></tr></thead><tbody></tbody></table></div>
     </div>
     <div class="xl:col-span-4 col-span-12 bg-white p-6 rounded-md shadow-card">
         <h3 class="text-md font-semibold mb-2">{% trans "By Department (Open Surveys)" %}</h3>
         <div class="relative" style="height:260px"><canvas id="chartDept" role="img" aria-label="{% trans 'Answered and pending invitations of open surveys, by department. The same numbers are in the table after this chart.' %}"></canvas></div>
-        <table class="sv-sr" id="tableDept"><caption>{% trans "Open surveys by department" %}</caption><thead><tr><th scope="col">{% trans "Department" %}</th><th scope="col">{% trans "Answered" %}</th><th scope="col">{% trans "Pending" %}</th></tr></thead><tbody></tbody></table>
+        <div class="sv-sr"><table id="tableDept"><caption>{% trans "Open surveys by department" %}</caption><thead><tr><th scope="col">{% trans "Department" %}</th><th scope="col">{% trans "Answered" %}</th><th scope="col">{% trans "Pending" %}</th></tr></thead><tbody></tbody></table></div>
     </div>
 </div>
 <div class="bg-white p-6 rounded-md shadow-card">
@@ -67,7 +67,10 @@ fetch("{% url 'surveys-dashboard-data' %}").then(function (r) { return r.json();
     new Chart(document.getElementById("chartDays"), {
         type: "line",
         data: {
-            labels: d.per_day.map(function (p) { return p.day.slice(8, 10) + "." + p.day.slice(5, 7); }),
+            labels: d.per_day.map(function (p) {
+                // the day in the person's language, without the year (the axis is 30 days)
+                return new Date(p.day + "T12:00:00").toLocaleDateString("{{ LANGUAGE_CODE|default:'en'|escapejs }}", { day: "numeric", month: "numeric" });
+            }),
             datasets: [{
                 label: "{% trans 'Responses'|escapejs %}", data: d.per_day.map(function (p) { return p.n; }),
                 borderColor: "#c8321b", backgroundColor: "rgba(200,50,27,.15)", fill: true, tension: 0.35, pointRadius: 0

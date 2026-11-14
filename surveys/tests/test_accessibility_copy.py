@@ -14,7 +14,7 @@ from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import formats, timezone, translation
 
-from surveys.models import Survey, SurveyQuestion
+from surveys.models import Survey, SurveyInvitation, SurveyQuestion
 from surveys.tests.support import answer_url, build_survey, hr_client, submit
 
 SURVEYS = Path(__file__).resolve().parent.parent
@@ -28,7 +28,7 @@ class PublicPageHeadersTests(TestCase):
 
     def assert_private(self, response):
         self.assertIn("no-store", response["Cache-Control"])
-        self.assertEqual(response["Referrer-Policy"], "no-referrer")
+        self.assertEqual(response["Referrer-Policy"], "same-origin")
         self.assertEqual(response["X-Robots-Tag"], "noindex")
 
     def test_the_answer_page_is_not_kept_and_does_not_pass_the_link_on(self):
@@ -47,6 +47,13 @@ class PublicPageHeadersTests(TestCase):
         )
         other = self.built.invitations[1]
         self.assert_private(client.get(answer_url(other)))  # closed page
+
+    def test_the_referrer_policy_lets_our_own_form_post_through(self):
+        # "no-referrer" makes browsers send "Origin: null" on a form post, which
+        # Django's CSRF check refuses: Submit answered 403 (found in a real browser)
+        response = Client().get(answer_url(self.invitation))
+        self.assertNotEqual(response["Referrer-Policy"], "no-referrer")
+        self.assertEqual(response["Referrer-Policy"], "same-origin")
 
     def test_the_page_names_the_company_that_sent_it(self):
         page = Client().get(answer_url(self.invitation))
@@ -131,6 +138,14 @@ class AnswerPageMarkupTests(TestCase):
             html, rf'id="f-{pk}"[^>]*aria-invalid="true" aria-describedby="err-{pk}"'
         )
 
+    def test_closing_the_form_keeps_the_csrf_field_and_stops_further_saves(self):
+        # a save still on its way after the form was disabled had no token and got a
+        # 403, which replaced "This survey has closed" with "Not saved" (real browser)
+        html = self.page()
+        self.assertIn("#surveyForm input:not([type=hidden])", html)
+        self.assertIn("surveyForm.dataset.finished", html)
+        self.assertIn("htmx:beforeRequest", html)
+
     def test_the_brand_colour_is_dark_enough_for_white_text(self):
         css = (SURVEYS / "templates/surveys/public/base.html").read_text()
         # #c8321b with white text is 5.35:1; the old #e54f38 was 3.81:1
@@ -161,6 +176,9 @@ class ChartAlternativesTests(TestCase):
         self.assertEqual(len(re.findall(r'<canvas id="chart\w+" role="img"', html)), 2)
         self.assertIn('id="tableDays"', html)
         self.assertIn('id="tableDept"', html)
+        # a table ignores width and overflow, so the hiding is on a div around it
+        # (found in a real browser: a hidden table still took 223 x 856 px)
+        self.assertEqual(html.count('<div class="sv-sr"><table'), 2)
 
 
 class ReorderWithoutTheMouseTests(TestCase):
@@ -208,6 +226,19 @@ class CountsAndDatesTests(TestCase):
         built = build_survey(tag="cn4", anonymous=False, people=0)
         html = self.audience(built)
         self.assertIn("1 person has not answered yet", html)
+
+    def test_the_audience_list_shows_the_date_and_keeps_the_time_for_the_tooltip(self):
+        built = build_survey(tag="col", anonymous=False, people=1)
+        SurveyInvitation._base_manager.filter(survey=built.survey).update(
+            sent_at=timezone.now()
+        )
+        page = hr_client(built).get(
+            reverse("survey-invitations", args=[built.survey.pk]),
+            HTTP_HX_REQUEST="true",
+        )
+        today = formats.date_format(timezone.localdate(), "DATE_FORMAT")
+        self.assertContains(page, f">{today}</span>")
+        self.assertContains(page, '<span title="')
 
     def test_dates_follow_the_language(self):
         built = build_survey(tag="dat", people=1)

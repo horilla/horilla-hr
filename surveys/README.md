@@ -76,7 +76,7 @@ trade-off is that anyone with read access to the database can open a person's li
 treat database access accordingly. To limit exposure:
 
 - A link only works while the survey is open and the person is active.
-- Public pages are served with `Cache-Control: no-store` and `Referrer-Policy: no-referrer`,
+- Public pages are served with `Cache-Control: no-store` and `Referrer-Policy: same-origin`,
   and are not indexed.
 - A guess that misses is counted per client address (behind a proxy, set
   `HORILLA_TRUSTED_PROXIES` so the real address is used); after 30 misses in 10 minutes

@@ -52,13 +52,18 @@ def private_page(view):
     The link is the secret, so nothing may keep a copy of the page (a shared
     computer's cache, a proxy) and nothing may pass the link on in a Referer
     header when the page links elsewhere.
+
+    The policy is "same-origin", not "no-referrer": with "no-referrer" browsers
+    send "Origin: null" on a form post, and Django's CSRF check refuses that, so
+    the Submit button would answer 403. "same-origin" sends no Referer to other
+    sites and keeps the real Origin on our own forms.
     """
 
     @wraps(view)
     def wrapped(request, *args, **kwargs):
         response = view(request, *args, **kwargs)
         add_never_cache_headers(response)
-        response["Referrer-Policy"] = "no-referrer"
+        response["Referrer-Policy"] = "same-origin"
         response["X-Robots-Tag"] = "noindex"
         return response
 

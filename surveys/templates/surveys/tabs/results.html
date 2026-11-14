@@ -55,11 +55,11 @@
         {% if r.average is not None %}<p class="text-xs text-[#666] mt-1 mb-0">{% trans "Average" %}: <b>{{ r.average }}</b>{% if r.minimum != None %} · {% trans "min" %} {{ r.minimum }} · {% trans "max" %} {{ r.maximum }}{% endif %}</p>{% endif %}
         {% if r.series %}
             <div class="relative mt-2" style="height:240px"><canvas id="chart-{{ r.question.pk }}" role="img" aria-label="{% blocktrans with q=r.question.question %}Chart of the answers to: {{ q }}. The same numbers are in the table after this chart.{% endblocktrans %}"></canvas></div>
-            <table class="sv-sr">
+            <div class="sv-sr"><table>
                 <caption>{{ r.question.question }}</caption>
                 <thead><tr><th scope="col">{% trans "Answer" %}</th><th scope="col">{% trans "People" %}</th></tr></thead>
                 <tbody>{% for label, n in r.rows %}<tr><td>{{ label }}</td><td>{{ n }}</td></tr>{% endfor %}</tbody>
-            </table>
+            </table></div>
         {% elif r.texts %}
             <ul class="list-disc ps-5 mt-2 space-y-1" style="max-height:260px;overflow:auto">
                 {% for t in r.texts %}<li class="text-xs">{{ t }}</li>{% endfor %}

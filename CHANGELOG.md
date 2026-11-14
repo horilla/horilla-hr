@@ -75,7 +75,7 @@ date and open a fresh Unreleased above it.
     every question, announces errors and moves focus to them, shows where the focus is,
     announces saving, and has darker brand colours that reach a 4.5:1 contrast. Charts have
     a text version, questions can be moved with buttons as well as by dragging, and icon
-    buttons have names. Public pages are never cached and send no Referer header.
+    buttons have names. Public pages are never cached and send no Referer header to other sites.
   - **Wording and formats.** Counts use proper singular and plural forms, dates follow the
     language of the user instead of a fixed day.month.year, the "Reminder:" mail prefix is
     translated, the invitation mail carries the link as plain text under the button, the
