@@ -19,8 +19,9 @@ Originally contributed by @yuri-val (#1361).
    people who joined the audience since (*Send to New People*).
 4. **People answer.** `/surveys/s/<token>/` shows the questions. Answers are saved as
    they are typed and the person can come back to the same link until the survey closes.
-5. **Close it** (or let the closing date pass). Results and export are available while
-   the survey is open and after it closes.
+5. **Close it** (or let the closing date pass). A named survey shows results and export
+   while it is open and after it closes. An **anonymous** survey shows them only once it
+   is closed (see Anonymity below).
 
 ## Who may do what
 
@@ -48,8 +49,11 @@ What an anonymous survey does:
   so it cannot be matched to a person by the login that wrote it or by when it arrived.
 - The link between a response and its invitation is removed when the response is
   submitted. HR sees **who has answered** (and on which day), never **what** they answered.
-- Results and export stay hidden until at least **5 people** have answered. Set
-  `SURVEYS_MIN_RESPONSES` in the Django settings to change the number.
+- Results and export are **hidden while the survey is open**, and after it closes they
+  appear only if at least **5 people** have answered. Set `SURVEYS_MIN_RESPONSES` in the
+  Django settings to change the number. A survey past its closing date counts as closed.
+  The hold is what stops anyone from comparing the results before and after one person
+  answers.
 - The export has no time column, and its rows are shuffled, so they do not line up with
   the audience list. Free-text answers are listed alphabetically, not in the order they
   arrived. Results cannot be cut by department.
@@ -61,8 +65,9 @@ What it does **not** promise:
 - Free text can give a person away by what it says. Tell people not to write anything
   they would not want recognised.
 - With few people in the audience, even 5 answers can point at someone.
-- Someone who watches the results page before and after one particular person answers
-  can work out that person's answer. The minimum number does not prevent this.
+- A survey that is **reopened** after it was closed. Someone who saw the results at the
+  first close and sees them again at the second close can work out the answers given in
+  between. Copy the survey instead of reopening it when it has anonymous answers.
 - People with direct database access can read the tables. Anonymity here is about what
   the application shows to HR.
 - An unfinished draft (before the person submits) is still tied to their invitation until
@@ -88,7 +93,7 @@ treat database access accordingly. To limit exposure:
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `SURVEYS_MIN_RESPONSES` | `5` | Answers needed before an anonymous survey shows results or export |
+| `SURVEYS_MIN_RESPONSES` | `5` | Answers needed before a **closed** anonymous survey shows results or export |
 
 It is read with `getattr`, so it does not have to be defined in `settings`.
 
