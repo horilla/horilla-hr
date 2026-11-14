@@ -99,7 +99,7 @@ class Survey(HorillaModel):
         verbose_name=_("Anonymous"),
         help_text=_(
             "Answers are stored without the employee; HR sees who has answered, "
-            "not what they answered."
+            "not what they answered. Results appear once the survey is closed."
         ),
     )
     status = models.CharField(
@@ -197,6 +197,7 @@ class Survey(HorillaModel):
 
         Only anonymous surveys wait: with fewer answers than this, one answer
         points at its author. SURVEYS_MIN_RESPONSES changes it (default 5).
+        Even then they show only once the survey is closed (see results_hold).
         """
         if not self.is_anonymous:
             return 0
@@ -205,10 +206,27 @@ class Survey(HorillaModel):
     def submitted_count(self):
         return SurveyResponse._base_manager.filter(survey=self, is_draft=False).count()
 
+    HOLD_UNTIL_CLOSED = "until_closed"
+    HOLD_TOO_FEW = "too_few"
+
+    def results_hold(self):
+        """Why results and export are not shown yet, or "" when they are.
+
+        An anonymous survey shows nothing while it is open: two looks at the
+        results, before and after one person answers, would give that answer
+        away. Once it is closed nothing can change, so the results appear, but
+        only when enough people answered for no answer to point at its author.
+        """
+        if not self.is_anonymous:
+            return ""
+        if self.status == self.STATUS_OPEN:
+            return self.HOLD_UNTIL_CLOSED
+        if 0 < self.submitted_count() < self.min_responses():
+            return self.HOLD_TOO_FEW
+        return ""
+
     def results_withheld(self):
-        """True while answers exist but too few to show without naming anyone."""
-        have = self.submitted_count()
-        return 0 < have < self.min_responses()
+        return bool(self.results_hold())
 
     def drop_anonymous_drafts(self):
         """Delete the unfinished drafts of an anonymous survey; returns how many.

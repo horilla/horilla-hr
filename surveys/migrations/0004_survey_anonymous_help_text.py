@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
             name="is_anonymous",
             field=models.BooleanField(
                 default=True,
-                help_text="Answers are stored without the employee; HR sees who has answered, not what they answered.",
+                help_text="Answers are stored without the employee; HR sees who has answered, not what they answered. Results appear once the survey is closed.",
                 verbose_name="Anonymous",
             ),
         ),

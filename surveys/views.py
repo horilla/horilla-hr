@@ -376,6 +376,7 @@ def results_tab(request, pk):
         "survey": survey,
         "departments": Department.objects.all() if not survey.is_anonymous else [],
         "department": department,
+        "hold": survey.results_hold(),
         "withheld": survey.results_withheld(),
         "needed": survey.min_responses(),
     }
@@ -408,16 +409,19 @@ def export_results(request, pk):
     survey, denied = _survey_for(request, pk, can_view_results)
     if denied:
         return denied
-    if survey.results_withheld():
-        messages.info(
-            request,
-            ngettext(
+    hold = survey.results_hold()
+    if hold:
+        if hold == Survey.HOLD_UNTIL_CLOSED:
+            text = _(
+                "The export of an anonymous survey is available once the survey is closed."
+            )
+        else:
+            text = ngettext(
                 "The export is available once %(n)s person has answered.",
                 "The export is available once %(n)s people have answered.",
                 survey.min_responses(),
-            )
-            % {"n": survey.min_responses()},
-        )
+            ) % {"n": survey.min_responses()}
+        messages.info(request, text)
         return HorillaRedirect(request)
     questions = list(survey.questions.all())
     response = HttpResponse(content_type="text/csv; charset=utf-8")

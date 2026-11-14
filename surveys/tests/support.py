@@ -71,3 +71,9 @@ def hr_client(built):
     client = Client()
     client.force_login(built.hr_user)
     return client
+
+
+def close(built):
+    """Close the survey the way HR does, without going through the page."""
+    Survey.objects.filter(pk=built.survey.pk).update(status=Survey.STATUS_CLOSED)
+    built.survey.refresh_from_db()

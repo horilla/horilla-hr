@@ -26,8 +26,13 @@
     <div class="flex flex-col items-center justify-center py-10">
         <img src="/static/horilla_theme/assets/img/no-records.svg" alt="" width="160" class="mb-4">
         <p class="text-[#666] text-sm text-center">
-            {% blocktrans count n=needed %}Results appear once {{ n }} person has answered.{% plural %}Results appear once {{ n }} people have answered.{% endblocktrans %}
-            {% trans "Until then no answer is shown, so that nobody can be picked out." %}
+            {% if hold == "until_closed" %}
+                {% trans "The results of an anonymous survey appear once the survey is closed." %}
+                {% trans "Until then no answer is shown, so that nobody can work out one person's answer from how the results change." %}
+            {% else %}
+                {% blocktrans count n=needed %}Results appear once {{ n }} person has answered.{% plural %}Results appear once {{ n }} people have answered.{% endblocktrans %}
+                {% trans "Until then no answer is shown, so that nobody can be picked out." %}
+            {% endif %}
         </p>
     </div>
 {% elif not total %}

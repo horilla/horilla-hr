@@ -413,6 +413,8 @@ class NpsScaleTests(TestCase):
                 response=response, question=self.question, value=score
             )
         self.client.force_login(self.hr_user)
+        # an anonymous survey shows its results only once it is closed
+        Survey.objects.filter(pk=self.survey.pk).update(status=Survey.STATUS_CLOSED)
         url = reverse("survey-results-tab", args=[self.survey.pk])
         page = self.client.get(url)
         self.assertEqual(

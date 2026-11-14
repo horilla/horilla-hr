@@ -15,7 +15,7 @@ from django.urls import reverse
 from surveys import views
 from surveys.forms import SurveyQuestionForm
 from surveys.models import Survey, SurveyQuestion
-from surveys.tests.support import build_survey, hr_client, submit
+from surveys.tests.support import build_survey, close, hr_client, submit
 
 CACHE = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
 
@@ -123,6 +123,7 @@ class SpreadsheetExportTests(TestCase):
                 )
                 for payload, invitation in zip(self.PAYLOADS, built.invitations):
                     submit(built, invitation, note=payload)
+                close(built)
                 rows = self.rows(built)
                 cells = [cell for row in rows for cell in row if cell]
                 for cell in cells:

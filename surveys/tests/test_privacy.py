@@ -23,6 +23,7 @@ from surveys.models import Survey, SurveyInvitation, SurveyResponse
 from surveys.tests.support import (
     answer_url,
     build_survey,
+    close,
     hr_client,
     submit,
 )
@@ -115,6 +116,7 @@ class MinimumAnswersTests(TestCase):
 
     def test_results_and_export_wait_for_five_answers(self):
         self.answer(self.anon, 4)
+        close(self.anon)
         hr = hr_client(self.anon)
         page = hr.get(reverse("survey-results-tab", args=[self.anon.survey.pk]))
         self.assertContains(page, "once 5 people have answered")
@@ -124,20 +126,29 @@ class MinimumAnswersTests(TestCase):
         self.assertNotIn("text/csv", export.get("Content-Type", ""))
         self.assertNotIn(b"secret-0", export.content)
 
+        self.reopen(self.anon)
         self.answer(self.anon, 5)  # the fifth person
+        close(self.anon)
         page = hr.get(reverse("survey-results-tab", args=[self.anon.survey.pk]))
         self.assertNotContains(page, "once 5 people have answered")
         self.assertContains(page, "secret-0")
         export = hr.get(reverse("survey-export", args=[self.anon.survey.pk]))
         self.assertIn("text/csv", export["Content-Type"])
 
+    def reopen(self, built):
+        Survey.objects.filter(pk=built.survey.pk).update(status=Survey.STATUS_OPEN)
+        built.survey.refresh_from_db()
+
     @override_settings(SURVEYS_MIN_RESPONSES=2)
     def test_the_minimum_is_a_setting(self):
         hr = hr_client(self.anon)
         url = reverse("survey-results-tab", args=[self.anon.survey.pk])
         self.answer(self.anon, 1)
+        close(self.anon)
         self.assertContains(hr.get(url), "once 2 people have answered")
+        self.reopen(self.anon)
         self.answer(self.anon, 2)
+        close(self.anon)
         self.assertNotContains(hr.get(url), "once 2 people have answered")
 
     def test_a_named_survey_shows_results_for_a_single_answer(self):
@@ -147,6 +158,81 @@ class MinimumAnswersTests(TestCase):
         )
         self.assertNotContains(page, "people have answered")
         self.assertContains(page, "secret-0")
+
+
+@override_settings(CACHES=CACHE, SURVEYS_MIN_RESPONSES=1)
+class ResultsWaitForCloseTests(TestCase):
+    """Two looks at the results, before and after one person answers, would give
+    that person's answer away. An anonymous survey shows none until it is closed."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.anon = build_survey(tag="wait_a", anonymous=True, people=3)
+        cls.named = build_survey(tag="wait_n", anonymous=False, people=3)
+
+    def results(self, built):
+        return hr_client(built).get(
+            reverse("survey-results-tab", args=[built.survey.pk])
+        )
+
+    def test_an_open_anonymous_survey_shows_no_results_even_with_many_answers(self):
+        for number, invitation in enumerate(self.anon.invitations[:3]):
+            submit(self.anon, invitation, note=f"hush-{number}")
+        page = self.results(self.anon)
+        self.assertContains(page, "once the survey is closed")
+        self.assertNotContains(page, "hush-0")
+        self.assertEqual(page.context["results"], [])
+        self.assertEqual(page.context["chart_data"], [])
+        # the chart data block is there but empty: nothing for a script to draw
+        self.assertContains(
+            page, '<script id="survey-chart-data" type="application/json">[]</script>'
+        )
+        self.assertNotContains(
+            page, reverse("survey-export", args=[self.anon.survey.pk])
+        )
+
+    def test_the_answers_of_an_open_survey_cannot_be_compared_before_and_after(self):
+        hr = hr_client(self.anon)
+        url = reverse("survey-results-tab", args=[self.anon.survey.pk])
+        submit(self.anon, self.anon.invitations[0], note="first-one")
+        before = hr.get(url).content
+        submit(self.anon, self.anon.invitations[1], note="second-one")
+        after = hr.get(url).content
+        for text in (before, after):
+            self.assertNotIn(b"first-one", text)
+            self.assertNotIn(b"second-one", text)
+        # the count of responses is not a secret (the audience list shows who
+        # answered), the answers are
+        self.assertEqual(hr.get(url).context["results"], [])
+
+    def test_the_export_of_an_open_anonymous_survey_is_refused(self):
+        submit(self.anon, self.anon.invitations[0], note="hush-export")
+        export = hr_client(self.anon).get(
+            reverse("survey-export", args=[self.anon.survey.pk])
+        )
+        self.assertEqual(export.status_code, 302)
+        self.assertNotIn("text/csv", export.get("Content-Type", ""))
+        self.assertNotIn(b"hush-export", export.content)
+
+    def test_closing_releases_the_results_and_the_export(self):
+        submit(self.anon, self.anon.invitations[0], note="after-close")
+        close(self.anon)
+        self.assertContains(self.results(self.anon), "after-close")
+        export = hr_client(self.anon).get(
+            reverse("survey-export", args=[self.anon.survey.pk])
+        )
+        self.assertIn("text/csv", export["Content-Type"])
+
+    def test_a_named_survey_shows_results_while_open(self):
+        submit(self.named, self.named.invitations[0], note="visible-now")
+        self.assertContains(self.results(self.named), "visible-now")
+
+    def test_a_survey_in_draft_says_there_are_no_answers_yet(self):
+        draft = build_survey(
+            tag="wait_d", anonymous=True, people=1, status=Survey.STATUS_DRAFT
+        )
+        page = self.results(draft)
+        self.assertNotContains(page, "once the survey is closed")
 
 
 @override_settings(CACHES=CACHE, SURVEYS_MIN_RESPONSES=1)
@@ -161,6 +247,7 @@ class ExportAndAudienceTests(TestCase):
             submit(cls.anon, invitation, note=f"anon-{3 - number}")
         for number, invitation in enumerate(cls.named.invitations[:2]):
             submit(cls.named, invitation, note=f"named-{number}")
+        close(cls.anon)
 
     def rows(self, built):
         export = hr_client(built).get(reverse("survey-export", args=[built.survey.pk]))
