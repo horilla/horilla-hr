@@ -42,7 +42,9 @@ date and open a fresh Unreleased above it.
   - An **anonymous** survey keeps no one's name with their answers: the response carries
     no user and only the date, and HR sees who has answered but not what. Results and
     export stay hidden while the survey is open and, once it is closed, until at least 5
-    people have answered (change it with the `SURVEYS_MIN_RESPONSES` setting), the export lists answers in random order without
+    people have answered (change it with the `SURVEYS_MIN_RESPONSES` setting). What was shown at a close never changes:
+    after a reopen, later answers join the results only once at least that many have come in, so two looks at the results
+    never differ by one person. The export lists answers in random order without
     times, and whether a survey is anonymous cannot be changed once it is open. The
     unfinished drafts of an anonymous survey are deleted when it is closed.
   - The page an employee answers on refuses numbers and text the database cannot store,

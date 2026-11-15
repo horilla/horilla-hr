@@ -26,7 +26,7 @@ from datetime import datetime, time
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Count, Q
 from django.urls import reverse
 from django.utils import timezone
@@ -279,22 +279,71 @@ class Survey(HorillaModel):
     def submitted_count(self):
         return SurveyResponse._base_manager.filter(survey=self, is_draft=False).count()
 
+    def result_filter(self):
+        """What a response must match to count in the results and the export.
+
+        A named survey counts every submitted response. An anonymous one counts
+        only the released ones (see release_due): what HR has been shown never
+        changes afterwards, whatever is answered later.
+        """
+        if self.is_anonymous:
+            return {"is_draft": False, "released": True}
+        return {"is_draft": False}
+
+    def released_count(self):
+        return SurveyResponse._base_manager.filter(
+            survey=self, **self.result_filter()
+        ).count()
+
+    def held_count(self):
+        """Submitted answers of an anonymous survey that are not shown (yet)."""
+        if not self.is_anonymous:
+            return 0
+        return SurveyResponse._base_manager.filter(
+            survey=self, is_draft=False, released=False
+        ).count()
+
+    def release_due(self):
+        """Show the answers that came in since the last release; how many.
+
+        Only a closed anonymous survey releases, and only when at least
+        min_responses() answers are waiting. Every release is then made of at
+        least that many new answers, so comparing two of them (before and after
+        a reopen) cannot single out one person: the difference is a group. A
+        smaller batch stays held until it has grown, at a later close.
+        """
+        if not self.is_anonymous or self.status != self.STATUS_CLOSED:
+            return 0
+        with transaction.atomic():
+            # serialise two readers closing the same survey at once
+            Survey._base_manager.select_for_update().get(pk=self.pk)
+            waiting = SurveyResponse._base_manager.filter(
+                survey=self, is_draft=False, released=False
+            )
+            if waiting.count() < max(1, self.min_responses()):
+                return 0
+            return waiting.update(released=True)
+
     HOLD_UNTIL_CLOSED = "until_closed"
     HOLD_TOO_FEW = "too_few"
 
     def results_hold(self):
         """Why results and export are not shown yet, or "" when they are.
 
-        An anonymous survey shows nothing while it is open: two looks at the
+        An anonymous survey shows nothing new while it is open: two looks at the
         results, before and after one person answers, would give that answer
-        away. Once it is closed nothing can change, so the results appear, but
-        only when enough people answered for no answer to point at its author.
+        away. Once it is closed the waiting answers are released, but only when
+        enough of them came in for none to point at its author (release_due).
+        What was released stays visible, also while the survey is open again.
         """
         if not self.is_anonymous:
             return ""
+        self.release_due()
+        if self.released_count():
+            return ""
         if self.status == self.STATUS_OPEN:
             return self.HOLD_UNTIL_CLOSED
-        if 0 < self.submitted_count() < self.min_responses():
+        if self.held_count():
             return self.HOLD_TOO_FEW
         return ""
 
@@ -821,6 +870,8 @@ class SurveyResponse(HorillaModel):
         related_name="response",
     )
     is_draft = models.BooleanField(default=True, verbose_name=_("Draft"))
+    # An anonymous answer is shown in the results only once released (Survey.release_due)
+    released = models.BooleanField(default=False, editable=False)
     started_at = models.DateTimeField(auto_now_add=True)
     submitted_at = models.DateTimeField(
         null=True, blank=True, verbose_name=_("Submitted at")

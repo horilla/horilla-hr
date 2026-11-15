@@ -22,6 +22,13 @@
     </div>
 </div>
 {% if survey.is_anonymous %}<p class="text-xs text-[#666] mb-3">{% trans "Anonymous survey: results cannot be filtered by employee or department." %}</p>{% endif %}
+{% if not withheld and held %}
+    <p class="text-xs text-[#666] mb-3" role="note">
+        {% blocktrans count n=held %}{{ n }} newer answer is not shown yet.{% plural %}{{ n }} newer answers are not shown yet.{% endblocktrans %}
+        {% blocktrans count n=needed %}They appear once the survey is closed and at least {{ n }} answer has come in since these results.{% plural %}They appear once the survey is closed and at least {{ n }} answers have come in since these results.{% endblocktrans %}
+        {% trans "Until then the results stay as they are, so that nobody can work out one person's answer from how they change." %}
+    </p>
+{% endif %}
 {% if withheld %}
     <div class="flex flex-col items-center justify-center py-10">
         <img src="/static/horilla_theme/assets/img/no-records.svg" alt="" width="160" class="mb-4">

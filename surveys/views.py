@@ -511,7 +511,7 @@ def invitation_resend(request, pk, invitation_pk):
 
 def _results(survey, department=None):
     """Per question: counts for charted types, averages for scales, texts otherwise."""
-    responses = SurveyResponse.objects.filter(survey=survey, is_draft=False)
+    responses = SurveyResponse.objects.filter(survey=survey, **survey.result_filter())
     if department:
         responses = responses.filter(
             invitation__employee__employee_work_info__department_id=department
@@ -627,6 +627,7 @@ def results_tab(request, pk):
         "hold": survey.results_hold(),
         "withheld": survey.results_withheld(),
         "needed": survey.min_responses(),
+        "held": survey.held_count(),
     }
     if context["withheld"]:
         # too few answers to show without pointing at the people who gave them
@@ -685,7 +686,7 @@ def export_results(request, pk):
         header = ["#", _("Submitted at"), _("Employee"), _("Department")]
     writer.writerow([safe_cell(c) for c in header + [q.question for q in questions]])
     rows = list(
-        SurveyResponse.objects.filter(survey=survey, is_draft=False)
+        SurveyResponse.objects.filter(survey=survey, **survey.result_filter())
         .select_related("invitation__employee__employee_work_info__department_id")
         .prefetch_related("answers")
         .order_by("pk" if survey.is_anonymous else "submitted_at")

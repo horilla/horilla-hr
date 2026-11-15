@@ -54,6 +54,12 @@ What an anonymous survey does:
   Django settings to change the number. A survey past its closing date counts as closed.
   The hold is what stops anyone from comparing the results before and after one person
   answers.
+- **Reopening a closed survey is safe.** What HR was shown at a close is *released* and
+  never changes afterwards. Answers given after a reopen join the results only at a later
+  close, and only once at least 5 of them (`SURVEYS_MIN_RESPONSES`) have come in since the
+  last release. Any two releases therefore differ by a group of people, never by one
+  person. Until then the results page says how many newer answers are held, and the export
+  lists the released answers only. Deadline extensions keep working.
 - The export has no time column, and its rows are shuffled, so they do not line up with
   the audience list. Free-text answers are listed alphabetically, not in the order they
   arrived. Results cannot be cut by department.
@@ -65,9 +71,9 @@ What it does **not** promise:
 - Free text can give a person away by what it says. Tell people not to write anything
   they would not want recognised.
 - With few people in the audience, even 5 answers can point at someone.
-- A survey that is **reopened** after it was closed. Someone who saw the results at the
-  first close and sees them again at the second close can work out the answers given in
-  between. Copy the survey instead of reopening it when it has anonymous answers.
+- A **small group of late answers** is not shown until it has grown to the minimum. HR who
+  reopen a survey for one or two more answers will not see them in the results; the page
+  says so. That is the price of the protection above.
 - People with direct database access can read the tables. Anonymity here is about what
   the application shows to HR.
 - An unfinished draft (before the person submits) is still tied to their invitation until
@@ -96,7 +102,7 @@ treat database access accordingly. To limit exposure:
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `SURVEYS_MIN_RESPONSES` | `5` | Answers needed before a **closed** anonymous survey shows results or export |
+| `SURVEYS_MIN_RESPONSES` | `5` | Answers needed before a **closed** anonymous survey shows results or export, and again for every batch of answers given after a reopen |
 
 It is read with `getattr`, so it does not have to be defined in `settings`.
 
