@@ -53,10 +53,15 @@
     page: "{{ request.resolver_match.url_name|default:'' }}",
     path: "{{ request.path|escapejs }}",
     activeUrl: "{% url 'tour-active' %}",
-    progressUrl: "{% url 'tour-progress' %}"
+    progressUrl: "{% url 'tour-progress' %}",
+    docs: {
+      heading: "{% trans 'Documentation' as docs_heading %}{{ docs_heading|escapejs }}",
+      label: "{% trans 'User Guide' as docs_label %}{{ docs_label|escapejs }}",
+      url: "https://docs.horilla.com/hr/functional/v1.0/"
+    }
   };
 </script>
-<script src="{% static 'build/js/tourController.js' %}"></script>
+<script src="{% static 'build/js/tourController.js' %}?v=2"></script>
 {% endif %}
 
 {% block footer_scripts %}
