@@ -59,3 +59,7 @@ python manage.py seed_docs_sample --flush --noinput
 - First slice: people, roles, and leave (types, balances, holidays, requests in each state).
   Attendance, payroll and the other modules are added in later slices.
 - The colleagues have no login. A second run does nothing; reset with `--flush`.
+- Run the whole environment with `DJANGO_SETTINGS_MODULE=horilla.docs_settings`. It is the normal
+  settings without the modules that are not released yet (`UNRELEASED_APPS`, now `surveys`), so
+  they have no tables, no URLs and no sidebar item. Set it for `migrate`, `seed_docs_sample` and
+  `runserver` alike.
