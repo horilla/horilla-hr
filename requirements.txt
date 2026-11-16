@@ -66,7 +66,7 @@ drf-yasg==1.21.15
 numpy>=1.26,<3
 openpyxl==3.1.5
 pandas>=2.1,<4
-XlsxWriter==3.2.9
+XlsxWriter==3.3.1
 
 # PDF handling
 # PYSEC-2026-2860 (from_string allows script execution and local-file
