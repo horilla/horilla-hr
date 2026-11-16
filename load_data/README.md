@@ -40,3 +40,22 @@ Catalog fixtures (`base_data`, `recruitment_data`, `project_data`, `leave_data`,
 The seeder remains as an idempotent safety net and for **dynamic** steps
 (relative dates, payslip month re-anchor, media copy, demo roles).
 `faq.json` is not loaded (invalid JSON); helpdesk expansion seeds FAQs instead.
+
+## Sample company for the user guide
+
+`seed_docs_sample` creates **Lakeside Works Ltd**, the one fictional company that every
+example and screenshot of the user guide comes from, so that a name in a sentence is the
+name in the picture. It is separate from the demo data above and meant for a throwaway
+database.
+
+```bash
+# Reset the database and seed the sample company
+python manage.py seed_docs_sample --flush --noinput
+```
+
+- 38 employees, five departments, a cast of eight with logins (`first.last@lakesideworks.example`,
+  password `Lakeside-docs-1`, change it with `--password`). Maya Chen is the administrator.
+- Everything is built around today's date, so the scenarios happen in the current month.
+- First slice: people, roles, and leave (types, balances, holidays, requests in each state).
+  Attendance, payroll and the other modules are added in later slices.
+- The colleagues have no login. A second run does nothing; reset with `--flush`.
