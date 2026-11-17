@@ -2,7 +2,6 @@
 This page handles the cbv methods for federal tax
 """
 
-import math
 from typing import Any
 
 from django import forms
@@ -140,7 +139,7 @@ class TaxBracketCreateForm(HorillaFormView):
             max_income = self.form.cleaned_data.get("max_income")
             if not max_income:
                 messages.info(self.request, _("The maximum income will be infinite"))
-                self.form.instance.max_income = math.inf
+                self.form.instance.max_income = None
             if form.instance.pk:
                 messages.success(
                     self.request, _("The tax bracket has been updated successfully.")
