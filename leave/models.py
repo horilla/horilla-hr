@@ -768,6 +768,12 @@ class AvailableLeave(HorillaModel):
         ],
     )
 
+    # Read by DynamicBulkUpdateForm.save(). A bulk update is otherwise one SQL
+    # UPDATE, which skips save(): total_leave_days kept the old figure and no
+    # history row was written, so the change was missing from the leave
+    # ledger (build_ledger) and the audit log.
+    bulk_update_with_save = True
+
     class Meta:
         unique_together = ("leave_type_id", "employee_id")
 

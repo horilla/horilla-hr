@@ -314,7 +314,16 @@ class DynamicBulkUpdateForm(forms.Form):
                 continue
             queryset = model.objects.filter(**{relation_mapp[model]: self.ids})
             data = data_mapp.get(model) or {}
-            if data:
+            if data and getattr(model, "bulk_update_with_save", False):
+                # A model that works out other fields in save(), or needs
+                # each change in its history, opts into one save() per record
+                # (see AvailableLeave.bulk_update_with_save).
+                for instance in queryset:
+                    for name, value in data.items():
+                        field = model._meta.get_field(name)
+                        setattr(instance, field.attname, field.to_python(value))
+                    instance.save()
+            elif data:
                 # here fields, files, and related fields-
                 # get updated but need to save the files manually
                 queryset.update(**data)
