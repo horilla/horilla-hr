@@ -660,6 +660,11 @@ class AvailableLeaveUpdateForm(BaseModelForm):
         model = AvailableLeave
         fields = ["available_days", "carryforward_days"]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not LeaveType.carryforward_in_use():
+            del self.fields["carryforward_days"]
+
 
 class CompanyLeaveForm(BaseModelForm):
     """
@@ -782,6 +787,14 @@ class AvailableLeaveColumnExportForm(forms.Form):
             "total_leave_days",
         ],
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not LeaveType.carryforward_in_use():
+            unused = {"carryforward_days", "total_leave_days"}
+            field = self.fields["selected_fields"]
+            field.choices = [c for c in field.choices if c[0] not in unused]
+            field.initial = [f for f in field.initial if f not in unused]
 
 
 class RejectForm(forms.Form):
