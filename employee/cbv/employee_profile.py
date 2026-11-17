@@ -139,7 +139,8 @@ class EmployeeProfileView(HorillaProfileView):
                         hx-target="#genericModalBody"
                         hx-swap="innerHTML"
                         hx-confirm="{_('This will immediately invalidate the current password. Continue?')}"
-                        hx-on::after-request="if (event.detail.successful) document.getElementById('genericModal').classList.add('oh-modal--show')"
+                        hx-on-htmx-before-request="$('#genericModalBody').empty();"
+                        hx-on-htmx-after-request="if ($('#genericModalBody').children().length) $('#genericModal').addClass('oh-modal--show');"
                     """,
                 },
                 {
