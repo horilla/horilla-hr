@@ -29,7 +29,24 @@ from horilla_views.generic.cbv.views import (
 )
 from leave.filters import AssignedLeaveFilter
 from leave.forms import AssignLeaveForm, AvailableLeaveColumnExportForm
-from leave.models import AvailableLeave
+from leave.models import AvailableLeave, LeaveType
+
+# carryforward_days, and total_leave_days (available + carryforward), which
+# only differ from available_days when carry forward is in use.
+CARRYFORWARD_FIELDS = {"carryforward_days", "total_leave_days"}
+
+
+def without_carryforward(items, index):
+    """
+    `items` (field names, or tuples with the field name at `index`) without
+    the carry forward fields. For views to call when
+    LeaveType.carryforward_in_use() is False.
+    """
+    return [
+        item
+        for item in items
+        if (item if isinstance(item, str) else item[index]) not in CARRYFORWARD_FIELDS
+    ]
 
 
 @method_decorator(login_required, name="dispatch")
@@ -57,6 +74,13 @@ class AssignedleaveList(HorillaListView):
         super().__init__(**kwargs)
         self.search_url = reverse("assign-filter")
         self.view_id = "assignedleavedelete"
+        if not LeaveType.carryforward_in_use():
+            self.columns = without_carryforward(self.columns, 1)
+            self.default_columns = without_carryforward(self.default_columns, 1)
+            self.nested_group_by_fields = without_carryforward(
+                self.nested_group_by_fields, 0
+            )
+            self.bulk_update_fields = without_carryforward(self.bulk_update_fields, 0)
 
     row_attrs = """
                 hx-get='{assigned_leave_detail_view}?instance_ids={ordered_ids}'
@@ -195,6 +219,11 @@ class AssignedLeaveNavView(HorillaNavView):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.search_url = reverse("assign-filter")
+        if not LeaveType.carryforward_in_use():
+            self.group_by_fields = without_carryforward(self.group_by_fields, 0)
+            self.nested_group_by_fields = without_carryforward(
+                self.nested_group_by_fields, 0
+            )
 
         self.actions = [
             {
@@ -342,6 +371,11 @@ class AssignedLeaveDetailView(HorillaDetailedView):
     ]
 
     action_method = "assigned_leave_detail_actions"
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        if not LeaveType.carryforward_in_use():
+            self.body = without_carryforward(self.body, 1)
 
 
 # not done

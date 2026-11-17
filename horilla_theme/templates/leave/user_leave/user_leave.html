@@ -1,4 +1,5 @@
-{% load static i18n i18n %}
+{% load static i18n leavefilters %}
+{% carryforward_in_use as show_carryforward %}
 <style>
     .oh-leave-card { position: relative; }
     .oh-leave-card__more {
@@ -78,6 +79,7 @@
                     </div>
 
                     <div class="oh-leave-card__more">
+                        {% if show_carryforward %}
                         <div class="flex justify-between mb-1 text-xs text-dark-200">
                             <p>{% trans "Carryforward Leave Days" %}</p>
                             <p class="text-sm font-bold">{{ user_leave.carryforward_days }}</p>
@@ -88,6 +90,7 @@
                                 {% if user_leave.leave_type_id.limit_leave %}{{ user_leave.total_leave_days }}{% else %}{% trans "No Limit" %}{% endif %}
                             </p>
                         </div>
+                        {% endif %}
                         {% with expiry=user_leave.forecast_carryforward_expiry reset=user_leave.forecast_next_reset %}
                             {% if expiry or reset %}
                                 <div class="mt-2 pt-2 border-t border-secondary-100 space-y-1.5">
