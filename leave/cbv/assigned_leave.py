@@ -76,9 +76,9 @@ class AssignedleaveList(HorillaListView):
         (_("Employee"), "employee_id", "employee_id__get_avatar"),
         (_("Badge ID"), "employee_id__badge_id"),
         (_("Leave Type"), "leave_type_id"),
-        (_("Available Days"), "available_days"),
+        (_("Available Days"), "available_days_display"),
         (_("Carryforward Days"), "carryforward_days"),
-        (_("Total Leave Days"), "total_leave_days"),
+        (_("Total Leave Days"), "total_leave_days_display"),
         (_("Assigned Date"), "assigned_date"),
         (_("Taken Leaves"), "leave_taken"),
     ]
@@ -334,9 +334,9 @@ class AssignedLeaveDetailView(HorillaDetailedView):
     }
     body = [
         (_("Leave Type"), "leave_type_id"),
-        (_("Available Days"), "available_days"),
+        (_("Available Days"), "available_days_display"),
         (_("Carryforward Days"), "carryforward_days"),
-        (_("Total Leave Days"), "total_leave_days"),
+        (_("Total Leave Days"), "total_leave_days_display"),
         (_("Assigned Date"), "assigned_date"),
         (_("Leave Reset Date"), "reset_date"),
     ]

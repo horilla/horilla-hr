@@ -53,7 +53,7 @@
             class="leave-count-badge text-xs font-bold"
             style="background-color: #dff0d8; border: 2px solid #3c763d;"
         >
-            {% trans "Available Leaves" %} : {{ total_leave_days }}
+            {% trans "Available Leaves" %} : {% if available_leave.leave_type_id.limit_leave %}{{ total_leave_days }}{% else %}{% trans "No Limit" %}{% endif %}
             {% if forcasted_days and forcasted_days > 0 %}
                 <img
                     src="{% static 'images/ui/info.png' %}"
