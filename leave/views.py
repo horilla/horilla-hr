@@ -5133,9 +5133,11 @@ def _reset_policy(leave_type):
         }
     if leave_type.carryforward_type == "no carryforward":
         carry = _("No Carry Forward")
+    elif leave_type.carryforward_max is None:
+        carry = _("Carry Forward, No Limit")
     else:
         carry = _("Carry Forward Up To %(n)s Days") % {
-            "n": _days(leave_type.carryforward_max or 0)
+            "n": _days(leave_type.carryforward_max)
         }
         if leave_type.carryforward_type == "carryforward expire":
             carry += " (" + str(_("Expires")) + ")"
