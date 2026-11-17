@@ -165,7 +165,7 @@ class EmployeeProfileView(HorillaProfileView):
                         hx-post="{reverse('employee-archive', args=[pk])}"
                         hx-target="#relatedModel"
                         hx-confirm="{_('Do you want to archive this employee?')}"
-                        hx-on::after-request="if (!document.querySelector('#relatedModel .oh-modal')) window.location.reload();"
+                        hx-on-htmx-after-request="if (!document.querySelector('#relatedModel .oh-modal')) window.location.reload();"
                     """,
                     "variant": "danger",
                 },
@@ -178,7 +178,7 @@ class EmployeeProfileView(HorillaProfileView):
                         hx-post="{reverse('employee-archive', args=[pk])}"
                         hx-target="#relatedModel"
                         hx-confirm="{_('Do you want to un-archive this employee?')}"
-                        hx-on::after-request="window.location.reload();"
+                        hx-on-htmx-after-request="window.location.reload();"
                     """,
                     "variant": "success",
                 },
