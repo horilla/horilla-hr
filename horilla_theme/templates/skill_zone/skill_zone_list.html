@@ -8,10 +8,10 @@
             background-color: #FAE2DB !important;
         }
         body.dark #skill_zone_container .oh-tabs__movable-header {
-            background-color: #2a2a2a !important;
+            background-color: color-mix(in srgb, var(--primary-600, #e54f38) 11%, #1f1f1f) !important;
         }
         body.dark #skill_zone_container .oh-tabs__movable-header:hover {
-            background-color: #333333 !important;
+            background-color: color-mix(in srgb, var(--primary-600, #e54f38) 20%, #1f1f1f) !important;
         }
         #skill_zone_container .talent-pool-head .fixed-table th,
         #skill_zone_container .talent-pool-head .fixed-table td {
@@ -182,7 +182,7 @@
                     {% if skill_zone.list.has_next or skill_zone.list.has_previous %}
                         <div class="flex justify-end items-center mb-2 ml-2 mr-2">
                             <div class="flex flex-wrap items-center gap-3 ml-auto">
-                                <div class="inline-flex items-center gap-0.5 bg-white border border-[#e6e6e6] rounded-md p-1">
+                                <div class="inline-flex items-center gap-0.5 bg-white border border-primary-500 rounded-md p-1">
                                     <button
                                         class="w-6 h-6 flex items-center justify-center rounded text-[10px] transition duration-300 {% if skill_zone.list.has_previous %}text-[#666] hover:bg-[#f5f5f5]{% else %}text-[#ccc] cursor-not-allowed{% endif %}"
                                         {% if skill_zone.list.has_previous %}
@@ -371,7 +371,7 @@
 
     {% if skill_zone.has_next or skill_zone.has_previous %}
         <div class="flex justify-end items-center mt-4 w-full">
-            <div class="inline-flex items-center gap-0.5 bg-white border border-[#e6e6e6] rounded-md p-1">
+            <div class="inline-flex items-center gap-0.5 bg-white border border-primary-500 rounded-md p-1">
                 <button
                     class="w-6 h-6 flex items-center justify-center rounded text-[10px] transition duration-300 {% if skill_zone.has_previous %}text-[#666] hover:bg-[#f5f5f5]{% else %}text-[#ccc] cursor-not-allowed{% endif %}"
                     {% if skill_zone.has_previous %}
