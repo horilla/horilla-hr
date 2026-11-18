@@ -35,7 +35,7 @@
             <div class="bg-white rounded-lg border border-secondary-200 px-3 py-2">
                 <p class="text-xs text-dark-100 mb-0.5">{% trans "Current balance" %}</p>
                 <p class="text-lg font-bold text-dark-200">
-                    {{ instance.available_days|add:instance.carryforward_days|floatformat:"-2" }}
+                    {% if instance.leave_type_id.limit_leave %}{{ instance.available_days|add:instance.carryforward_days|floatformat:"-2" }}{% else %}{% trans "No Limit" %}{% endif %}
                 </p>
             </div>
             <div class="bg-white rounded-lg border border-secondary-200 px-3 py-2">
@@ -70,7 +70,7 @@
                         <p class="text-sm font-semibold {% if forecast.credit >= 0 %}text-success-dark{% else %}text-danger-dark{% endif %}">
                             {% if forecast.credit >= 0 %}+{% endif %}{{ forecast.credit|floatformat:"-2" }}
                         </p>
-                        <p class="text-xs text-dark-100">{% trans "Bal." %} {{ forecast.balance|floatformat:"-2" }}</p>
+                        <p class="text-xs text-dark-100">{% trans "Bal." %} {% if instance.leave_type_id.limit_leave %}{{ forecast.balance|floatformat:"-2" }}{% else %}{% trans "No Limit" %}{% endif %}</p>
                     </div>
                 </div>
             {% endif %}
@@ -147,7 +147,7 @@
                         <p class="text-sm font-semibold {% if row.credit %}text-success-dark{% else %}text-danger-dark{% endif %}">
                             {% if row.credit %}+{{ row.credit|floatformat:"-2" }}{% elif row.debit %}-{{ row.debit|floatformat:"-2" }}{% else %}0{% endif %}
                         </p>
-                        <p class="text-xs text-dark-100">{% trans "Bal." %} {{ row.balance|floatformat:"-2" }}</p>
+                        <p class="text-xs text-dark-100">{% trans "Bal." %} {% if instance.leave_type_id.limit_leave %}{{ row.balance|floatformat:"-2" }}{% else %}{% trans "No Limit" %}{% endif %}</p>
                     </div>
                 </div>
             {% endfor %}

@@ -130,7 +130,7 @@
                                 {{ acc.leave_type_id }}
                             </td>
                             <td class="text-sm text-left p-3 text-[#666]">
-                                {{ acc.available_days }}
+                                {% if acc.leave_type_id.limit_leave %}{{ acc.available_days }}{% else %}{% trans "No Limit" %}{% endif %}
                             </td>
                             <td class="text-sm text-left p-3 text-[#666]">
                                 {{ acc.carryforward_days }}

@@ -811,6 +811,23 @@ class AvailableLeave(HorillaModel):
         """
         return f"{self.employee_id.get_department()} / {self.employee_id.get_job_position()}"
 
+    def available_days_display(self):
+        """
+        Available days, or "No Limit" for a leave type without a limit (its
+        balance is stored as a large placeholder number).
+        """
+        if self.leave_type_id.limit_leave:
+            return self.available_days
+        return _("No Limit")
+
+    def total_leave_days_display(self):
+        """
+        Total leave days, or "No Limit" for a leave type without a limit.
+        """
+        if self.leave_type_id.limit_leave:
+            return self.total_leave_days
+        return _("No Limit")
+
     def forcasted_leaves(self, date):
         if isinstance(date, str):
             date = datetime.strptime(date, "%Y-%m-%d").date()
@@ -1685,7 +1702,11 @@ class LeaveRequest(HorillaModel):
                 .values_list("total_leave_days", flat=True)
                 .first()
             )
-        return "-" if balance is None else f"{round(balance, 2):g}"
+        if balance is None:
+            return "-"
+        if not self.leave_type_id.limit_leave:
+            return _("No Limit")
+        return f"{round(balance, 2):g}"
 
     def penalty_col(self):
         """
