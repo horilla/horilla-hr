@@ -400,7 +400,16 @@ class LedgerUnitTests(Fixture):
             reverse("asset-ledger", kwargs={"pk": self.asset.pk}), **HX
         ).content.decode()
         self.assertNotIn("All Units", html)
-        self.assertIn("Total Units", html)
+        self.assertNotIn("Total Units", html)
+        self.assertIn("Times Allocated", html)
+
+    def test_a_multi_unit_asset_shows_the_unit_counts_until_a_unit_is_picked(self):
+        url = reverse("asset-ledger", kwargs={"pk": self.pool.pk})
+        self.assertIn("Total Units", self.client.get(url, **HX).content.decode())
+        picked = self.client.get(
+            url + f"?unit={self.units[0].pk}", **HX
+        ).content.decode()
+        self.assertNotIn("Total Units", picked)
 
 
 class LedgerViewTests(Fixture):

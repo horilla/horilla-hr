@@ -7,9 +7,9 @@ ValueError, a 500.
 import json
 from datetime import date
 
+from django.http import QueryDict
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
-from django.http import QueryDict
 
 from attendance.models import Attendance
 from horilla.posted_ids import parse_posted_id_list, posted_ids
@@ -73,4 +73,6 @@ class AttendanceBulkDeleteTests(TestCase):
         second = self.make_attendance(date(2026, 1, 6))
         response = self.client.post(self.url, {"ids": [first.pk, second.pk]})
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(Attendance.objects.filter(pk__in=[first.pk, second.pk]).exists())
+        self.assertFalse(
+            Attendance.objects.filter(pk__in=[first.pk, second.pk]).exists()
+        )
