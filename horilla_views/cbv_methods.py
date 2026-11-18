@@ -69,9 +69,9 @@ FIELD_WIDGET_MAP = {
             "cols": 40,
         }
     ),
-    models.IntegerField: forms.NumberInput(attrs={"class": "oh-input w-100"}),
-    models.FloatField: forms.NumberInput(attrs={"class": "oh-input w-100"}),
-    models.DecimalField: forms.NumberInput(attrs={"class": "oh-input w-100"}),
+    models.IntegerField: forms.NumberInput(attrs={"class": "oh-input w-100", "min": 0}),
+    models.FloatField: forms.NumberInput(attrs={"class": "oh-input w-100", "min": 0}),
+    models.DecimalField: forms.NumberInput(attrs={"class": "oh-input w-100", "min": 0}),
     models.EmailField: forms.EmailInput(attrs={"class": "oh-input w-100"}),
     models.DateField: forms.DateInput(
         attrs={"type": "date", "class": "oh-input w-100"}
