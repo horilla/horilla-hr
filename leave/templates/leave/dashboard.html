@@ -529,7 +529,7 @@
     // that are mid-render (they come up blank until a reload). Loading it only
     // when missing avoids that, and a second CDN covers a failed/slow first one.
     const APEX_CDNS = [
-        'https://cdn.jsdelivr.net/npm/apexcharts@7.8.0/dist/apexcharts.min.js',
+        '{% static "cdn/apexcharts/apexcharts.min.js" %}',
         'https://cdnjs.cloudflare.com/ajax/libs/apexcharts/3.54.1/apexcharts.min.js',
     ];
     let apexPromise = null;

@@ -2,7 +2,7 @@
 {% load static i18n %}
 
 {% block content %}
-<script id="pd-apexcharts" src="https://cdn.jsdelivr.net/npm/apexcharts@7.8.0/dist/apexcharts.min.js"></script>
+<script id="pd-apexcharts" src="{% static "cdn/apexcharts/apexcharts.min.js" %}"></script>
 {% include "components/legend_prefs.html" %}
 <style>
     :root {

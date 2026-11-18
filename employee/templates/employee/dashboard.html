@@ -2,7 +2,7 @@
 {% load static i18n %}
 
 {% block content %}
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts@7.8.0/dist/apexcharts.min.js"></script>
+    <script src="{% static "cdn/apexcharts/apexcharts.min.js" %}"></script>
     <style>
         :root {
             --em-indigo: var(--primary-600, #E54F38);
@@ -1172,7 +1172,7 @@
                     legend.set(items.map((i, n) => ({ name: i.label, value: i.count, color: colors[n] })));
                     renderChart(key, el, {
                         series: legend.series(),
-                        chart: { type, height: 300, background: 'transparent', fontFamily: 'inherit',
+                        chart: { type, height: 300, background: 'transparent', fontFamily: 'inherit', animations: { enabled: false },
                             events: { dataPointSelection: (e, ctx, cfg) => {
                                 const item = items[cfg.dataPointIndex];
                                 if (item && item.id) window.location.href = employeeUrlFor(field, item.id);
@@ -1194,7 +1194,8 @@
             const XAXIS_STYLE = { labels: { style: { colors: textColor, fontSize: '11px', fontWeight: 500 } }, axisBorder: { show: false }, axisTicks: { show: false } };
             const YAXIS_STYLE = { min: 0, forceNiceScale: true, labels: { style: { colors: textColor, fontSize: '11px' }, formatter: v => Number.isInteger(+v) ? v : '' } };
             const LEGEND_STYLE = { position: 'bottom', labels: { colors: textColor }, fontSize: '11px', fontWeight: 500, markers: { width: 8, height: 8, radius: 3 }, itemMargin: { horizontal: 8 } };
-            const baseChart = (extra) => ({ height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', ...extra });
+            // Animations off: every chart draws once at load, and the animated first paint was a large share of the page's main-thread time.
+            const baseChart = (extra) => ({ height: 300, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', animations: { enabled: false }, ...extra });
 
             // Same shared metric as the main dashboard's own "Hire vs Turnover"
             // card (base/dashboard.py's dashboard_turnover) -- last 6 months
@@ -1370,28 +1371,34 @@
                             const mix = c => Math.round(c + (255 - c) * t);
                             return '#' + [(v >> 16) & 255, (v >> 8) & 255, v & 255].map(mix).map(c => c.toString(16).padStart(2, '0')).join('');
                         };
-                        // One stacked series per (department, position) that has headcount
-                        const stacks = [];
-                        shown.forEach((x, col) => {
-                            Object.keys(x.d.by_position).sort((a, b) => x.d.by_position[b] - x.d.by_position[a]).forEach((key, i) => {
-                                const data = shown.map(() => 0);
-                                data[col] = x.d.by_position[key];
-                                stacks.push({ name: posLabel[key] || key, key, dept: x.d, data, color: shade(deptColors[x.n], Math.min(i * 0.22, 0.66)) });
-                            });
-                        });
+                        // One stacked series per *rank* within a department (largest position first), not per
+                        // (department, position) pair: the pair count grows with departments x positions and made
+                        // this chart ~1,500 bars / 3,000+ SVG nodes. Rank-based stacking draws the same picture with
+                        // at most max(positions per department) series. Each bar is coloured by its department.
+                        const columns = shown.map(x => Object.keys(x.d.by_position).sort((a, b) => x.d.by_position[b] - x.d.by_position[a]));
+                        const maxRank = Math.max(0, ...columns.map(c => c.length));
+                        const ranked = [];   // ranked[rank][column] -> { key, count } | null
+                        for (let rank = 0; rank < maxRank; rank++) {
+                            ranked.push(shown.map((x, col) => {
+                                const key = columns[col][rank];
+                                return key === undefined ? null : { key, count: x.d.by_position[key] };
+                            }));
+                        }
+                        const cellColor = (rank, col) => shade(deptColors[shown[col].n], Math.min(rank * 0.22, 0.66));
                         renderChart('dept-positions', el, {
-                            series: stacks.map(st => ({ name: st.name, data: st.data })),
+                            series: ranked.map((row, rank) => ({ name: `#${rank + 1}`, data: row.map(c => c ? c.count : 0) })),
                             chart: baseChart({ type: 'bar', stacked: true, height: 340,
                                 events: { dataPointSelection: (e, ctx, cfg) => {
-                                    const st = stacks[cfg.seriesIndex];
-                                    if (!st || !st.dept.id) return;
-                                    let url = employeeUrlFor('employee_work_info__department_id', st.dept.id);
-                                    if (st.key === 'unassigned') url += '&no_job_position=True';
-                                    else url += `&employee_work_info__job_position_id=${encodeURIComponent(st.key)}`;
+                                    const cell = (ranked[cfg.seriesIndex] || [])[cfg.dataPointIndex];
+                                    const dept = shown[cfg.dataPointIndex] && shown[cfg.dataPointIndex].d;
+                                    if (!cell || !dept || !dept.id) return;
+                                    let url = employeeUrlFor('employee_work_info__department_id', dept.id);
+                                    if (cell.key === 'unassigned') url += '&no_job_position=True';
+                                    else url += `&employee_work_info__job_position_id=${encodeURIComponent(cell.key)}`;
                                     window.location.href = url;
                                 }}
                             }),
-                            colors: stacks.map(st => st.color),
+                            colors: ranked.map((row, rank) => ({ dataPointIndex }) => cellColor(rank, dataPointIndex)),
                             plotOptions: { bar: { borderRadius: 6, borderRadiusApplication: 'end', borderRadiusWhenStacked: 'last', columnWidth: '42%' } },
                             stroke: { width: 2, colors: [cardBg] },
                             // Departments are the legend chips below, so the x axis is just a plain line.
@@ -1400,15 +1407,15 @@
                             legend: { show: false },
                             // Only the hovered department's own job positions
                             tooltip: { ...TOOLTIP_STYLE, shared: true, intersect: false,
-                                custom: ({ series, dataPointIndex, w }) => {
-                                    const rows = w.globals.seriesNames
-                                        .map((name, i) => ({ name, count: series[i][dataPointIndex], color: w.globals.colors[i] }))
-                                        .filter(r => r.count > 0)
+                                custom: ({ dataPointIndex, w }) => {
+                                    const rows = ranked
+                                        .map((row, rank) => ({ cell: row[dataPointIndex], color: cellColor(rank, dataPointIndex) }))
+                                        .filter(r => r.cell && r.cell.count > 0)
                                         .map(r => `<div class="apexcharts-tooltip-series-group apexcharts-active" style="display:flex;order:1;">
                                             <span class="apexcharts-tooltip-marker" style="background-color:${r.color};"></span>
                                             <div class="apexcharts-tooltip-text"><div class="apexcharts-tooltip-y-group">
-                                                <span class="apexcharts-tooltip-text-y-label">${esc(r.name)}: </span>
-                                                <span class="apexcharts-tooltip-text-y-value">${r.count}</span>
+                                                <span class="apexcharts-tooltip-text-y-label">${esc(posLabel[r.cell.key] || r.cell.key)}: </span>
+                                                <span class="apexcharts-tooltip-text-y-value">${r.cell.count}</span>
                                             </div></div></div>`).join('');
                                     return `<div class="apexcharts-tooltip-title">${esc(w.globals.labels[dataPointIndex])}</div>${rows}`;
                                 } },
