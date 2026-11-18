@@ -1,6 +1,6 @@
 {% load i18n static %}
 {% comment %}
-The "Always Applied" tab: the standard pay items, earnings and deductions in one table, laid out
+The "System Defaults" tab: the standard pay items, earnings and deductions in one table, laid out
 as every Horilla list is (the theme's list table: sticky header, truncated cells, action column).
 They apply to everybody whenever the event happens (a loan granted, a fine raised), so they are
 not rows of the Allowances and Deductions lists. Clicking a row is how their tax treatment is still
@@ -13,7 +13,7 @@ reached. It opens in the standard modal; saving it clicks #applyFilter, which he
 
     {% comment %}The same grey title bar as the other tabs' nav, search only: nine fixed rows, so it filters them in the page.{% endcomment %}
     <div class="text-sm font-semibold bg-[#f3f3f3] px-3 py-3 text-[#333] flex items-center justify-between gap-2 flex-wrap">
-        <span>{% trans "Always Applied" %}</span>
+        <span>{% trans "System Defaults" %}</span>
         <div class="flex flex-wrap items-center gap-1">
             <div class="relative">
                 <input type="text" id="alwaysAppliedSearch" autocomplete="off"
