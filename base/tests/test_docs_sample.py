@@ -124,3 +124,50 @@ class DocsSampleTests(TestCase):
         text = page.content.decode()
         for name in ("Ravi Menon", "Omar Haddad", "Tom Becker"):
             self.assertIn(name, text)
+
+
+class DocsSampleAttendanceTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.today = date.today()
+        cls.result = seed_docs_sample(today=cls.today)
+
+    def rows(self, last=None):
+        from attendance.models import Attendance
+
+        rows = Attendance._base_manager.all()
+        if last:
+            rows = rows.filter(employee_id__employee_last_name=last)
+        return rows.order_by("attendance_date")
+
+    def test_everyone_has_twenty_working_days_and_none_on_a_weekend(self):
+        self.assertEqual(self.result["attendance_rows"], (len(CAST) + len(STAFF)) * 20)
+        self.assertEqual(self.rows().count(), self.result["attendance_rows"])
+        self.assertTrue(all(r.attendance_date.weekday() < 5 for r in self.rows()))
+        self.assertTrue(all(r.attendance_date < self.today for r in self.rows()))
+
+    def test_lena_is_late_three_days_of_the_last_week(self):
+        late = [r for r in self.rows("Fischer") if r.attendance_clock_in.minute == 25]
+        self.assertEqual(len(late), 3)
+        self.assertEqual({r.attendance_date.weekday() for r in late}, {0, 2, 3})
+
+    def test_omar_works_the_evening_shift(self):
+        row = self.rows("Haddad").first()
+        self.assertEqual(row.shift_id.employee_shift, "Evening Shift")
+        self.assertGreaterEqual(row.attendance_clock_in.hour, 13)
+
+    def test_ravi_has_one_pending_correction_request(self):
+        from attendance.models import Attendance
+
+        pending = Attendance._base_manager.filter(is_validate_request=True)
+        self.assertEqual(pending.count(), 1)
+        request = pending.get()
+        self.assertEqual(request.employee_id.employee_last_name, "Menon")
+        self.assertEqual(request.attendance_clock_out.hour, 14)
+        self.assertIn("17:30", request.requested_data)
+        self.assertFalse(request.attendance_validated)
+
+    def test_only_the_latest_day_is_waiting_for_validation(self):
+        waiting = self.rows().filter(attendance_validated=False)
+        self.assertEqual(waiting.count(), len(CAST) + len(STAFF))
+        self.assertEqual(len({r.attendance_date for r in waiting}), 1)

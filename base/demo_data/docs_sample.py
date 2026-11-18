@@ -15,8 +15,9 @@ modules are added in later slices.
 
 from __future__ import annotations
 
+import json
 import logging
-from datetime import date, timedelta
+from datetime import date, time, timedelta
 
 from django.contrib.auth.models import Group
 from django.db import transaction
@@ -110,6 +111,135 @@ def last_weekday(day: date, weekday: int) -> date:
 
 def _slug(first: str, last: str) -> str:
     return f"{first}.{last}".lower()
+
+
+DAY_START, DAY_END = time(9, 0), time(17, 30)
+EVENING_START, EVENING_END = time(14, 0), time(22, 30)
+DAY_NAMES = [
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+]
+
+
+def _clock(start: time, minutes: int) -> time:
+    total = start.hour * 60 + start.minute + minutes
+    return time(total // 60, total % 60)
+
+
+def _hours(start: time, end: time) -> str:
+    minutes = (end.hour * 60 + end.minute) - (start.hour * 60 + start.minute)
+    return f"{minutes // 60:02d}:{minutes % 60:02d}"
+
+
+def seed_shifts_and_attendance(company, people_by_last, shift, work_type, today):
+    """Shift schedules and four weeks of attendance for the sample company.
+
+    The schedule is Monday to Friday, 09:00 to 17:30, with Omar Haddad on an
+    evening shift. Every other number is derived from the employee's row, so a
+    second run of the seeder gives the same pages. Stories the guides use:
+    Lena Fischer arrives late on three days of the last week, Ravi Menon forgot
+    to check out yesterday and has a pending correction request, and the
+    latest working day is left unvalidated for the approval guide.
+    """
+    from attendance.models import Attendance
+    from base.models import EmployeeShift, EmployeeShiftDay, EmployeeShiftSchedule
+    from employee.models import Employee
+
+    days = {}
+    for name in DAY_NAMES:
+        day, _ = EmployeeShiftDay.objects.get_or_create(day=name)
+        day.company_id.add(company)
+        days[name] = day
+    evening, _ = EmployeeShift.objects.get_or_create(employee_shift="Evening Shift")
+    evening.company_id.add(company)
+    shift.company_id.add(company)
+    for owner, start, end in (
+        (shift, DAY_START, DAY_END),
+        (evening, EVENING_START, EVENING_END),
+    ):
+        for name in DAY_NAMES[:5]:
+            EmployeeShiftSchedule.objects.get_or_create(
+                day=days[name],
+                shift_id=owner,
+                defaults=dict(
+                    minimum_working_hour="08:00", start_time=start, end_time=end
+                ),
+            )
+    omar = people_by_last["Haddad"]
+    omar.employee_work_info.shift_id = evening
+    omar.employee_work_info.save(update_fields=["shift_id"])
+
+    working_days = []
+    cursor = today - timedelta(days=1)
+    while len(working_days) < 20:
+        if cursor.weekday() < 5:
+            working_days.append(cursor)
+        cursor -= timedelta(days=1)
+    working_days.reverse()
+    last_week = set(working_days[-5:])
+    latest = working_days[-1]
+    created = 0
+    for employee in Employee.objects.filter(employee_work_info__company_id=company):
+        own_shift = employee.employee_work_info.shift_id
+        start, end = (
+            (EVENING_START, EVENING_END)
+            if own_shift == evening
+            else (DAY_START, DAY_END)
+        )
+        for day in working_days:
+            seed = employee.pk * 7 + day.toordinal()
+            minutes_in = (seed % 9) - 6  # between 6 minutes early and 2 late
+            minutes_out = (seed // 3) % 12  # up to 11 minutes after the end
+            if (
+                employee.employee_last_name == "Fischer"
+                and day in last_week
+                and day.weekday() in (0, 2, 3)
+            ):
+                minutes_in = 25
+            clock_in, clock_out = _clock(start, minutes_in), _clock(end, minutes_out)
+            row = Attendance(
+                employee_id=employee,
+                attendance_date=day,
+                shift_id=own_shift,
+                work_type_id=work_type,
+                attendance_day=days[DAY_NAMES[day.weekday()]],
+                attendance_clock_in_date=day,
+                attendance_clock_in=clock_in,
+                attendance_clock_out_date=day,
+                attendance_clock_out=clock_out,
+                attendance_worked_hour=_hours(clock_in, clock_out),
+                minimum_hour="08:00",
+                attendance_validated=day != latest,
+            )
+            if employee.employee_last_name == "Menon" and day == latest:
+                row.attendance_clock_out = _clock(
+                    DAY_START, 5 * 60
+                )  # 14:00, forgot to check out
+                row.attendance_worked_hour = _hours(clock_in, row.attendance_clock_out)
+                row.attendance_validated = False
+            row.save()
+            created += 1
+            if employee.employee_last_name == "Menon" and day == latest:
+                # the correction the employee asked for: check out at 17:30
+                wanted = Attendance.objects.get(pk=row.pk)
+                wanted.attendance_clock_out = DAY_END
+                wanted.attendance_worked_hour = _hours(
+                    wanted.attendance_clock_in, DAY_END
+                )
+                requested = json.dumps(wanted.serialize())
+                pending = Attendance.objects.get(pk=row.pk)
+                pending.requested_data = requested
+                pending.request_description = (
+                    "I forgot to check out when I left the office."
+                )
+                pending.is_validate_request = True
+                pending.save()
+    return created
 
 
 @transaction.atomic
@@ -339,11 +469,16 @@ def seed_docs_sample(
         note="Personal errand",
     )
 
+    attendance_rows = seed_shifts_and_attendance(
+        company, by_last, shift, work_type, today
+    )
+
     summary = {
         "company": COMPANY,
         "employees": len(people),
         "logins": [f"{_slug(c[0], c[1])}@{DOMAIN}" for c in CAST],
         "leave_requests": LeaveRequest.objects.count(),
+        "attendance_rows": attendance_rows,
     }
     logger.info("Docs sample seeded: %s", summary)
     return summary
