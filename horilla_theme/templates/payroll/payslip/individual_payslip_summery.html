@@ -448,7 +448,7 @@ the pay was worked out from. Everything below is the caveats.
           </span>
         </div>
         {% for allowance in allowances %}
-          <div class="ps__row">
+          <div class="ps__row" data-component="{{ allowance|component_key }}">
             <span class="ps__label">
               {{ allowance.title }}
               {% with w=workings|working_of:allowance %}
@@ -512,7 +512,7 @@ the pay was worked out from. Everything below is the caveats.
           </div>
         {% endif %}
         {% for deduction in basic_pay_deductions %}
-          <div class="ps__row">
+          <div class="ps__row" data-component="{{ deduction|component_key }}">
             <span class="ps__label">
               {{ deduction.title }}
               <span class="ps__sub">{% trans "off basic pay" %}</span>
@@ -522,7 +522,7 @@ the pay was worked out from. Everything below is the caveats.
           </div>
         {% endfor %}
         {% for deduction in gross_pay_deductions %}
-          <div class="ps__row">
+          <div class="ps__row" data-component="{{ deduction|component_key }}">
             <span class="ps__label">
               {{ deduction.title }}
               <span class="ps__sub">{% trans "off gross pay" %}</span>
@@ -532,7 +532,7 @@ the pay was worked out from. Everything below is the caveats.
           </div>
         {% endfor %}
         {% for deduction in pretax_deductions %}
-          <div class="ps__row">
+          <div class="ps__row" data-component="{{ deduction|component_key }}">
             <span class="ps__label">
               {{ deduction.title }}
               <span class="ps__sub">{% trans "before tax" %}</span>
@@ -544,7 +544,7 @@ the pay was worked out from. Everything below is the caveats.
           </div>
         {% endfor %}
         {% for deduction in post_tax_deductions %}
-          <div class="ps__row">
+          <div class="ps__row" data-component="{{ deduction|component_key }}">
             <span class="ps__label">
               {{ deduction.title }}
               {% with w=dworkings|working_of:deduction %}{% if w %}{% include "payroll/payslip/_earning_popover.html" with w=w %}{% endif %}{% endwith %}
@@ -564,7 +564,7 @@ the pay was worked out from. Everything below is the caveats.
           </span>
         </div>
         {% for deduction in tax_deductions %}
-          <div class="ps__row">
+          <div class="ps__row" data-component="{{ deduction|component_key }}">
             <span class="ps__label">
               {{ deduction.title }}
               {% with w=dworkings|working_of:deduction %}{% if w %}{% include "payroll/payslip/_earning_popover.html" with w=w %}{% endif %}{% endwith %}
@@ -575,7 +575,7 @@ the pay was worked out from. Everything below is the caveats.
           </div>
         {% endfor %}
         {% for deduction in net_deductions %}
-          <div class="ps__row">
+          <div class="ps__row" data-component="{{ deduction|component_key }}">
             <span class="ps__label">
               {{ deduction.title }}
               <span class="ps__sub">{% trans "off net pay" %}</span>
@@ -659,6 +659,45 @@ the pay was worked out from. Everything below is the caveats.
   </div>
   {% endif %}
 </div>
+
+{% comment %}
+A link from the allowance and deduction report carries ?highlight=<key>: every line of that component on this payslip,
+in the earnings, the deductions and the CTC break down, is marked and the first one is brought into view.
+{% endcomment %}
+<style>
+  /* A cue for where the report sent you, not a state: it is strong at first and fades out on its own. */
+  .ps__row--hl, .cbk__row--hl { border-radius: 4px; animation: psHighlight 4s ease-out 1 forwards; }
+  @keyframes psHighlight {
+    0%, 55% { background: rgba(229, 79, 56, .16); box-shadow: inset 3px 0 0 var(--primary-600, #E54F38); }
+    100% { background: transparent; box-shadow: inset 3px 0 0 transparent; }
+  }
+</style>
+<script>
+  (function () {
+    var params = new URLSearchParams(window.location.search);
+    var key = params.get("highlight");
+    if (!key) return;
+    // Only the page that was opened from the report is marked: take the parameter out of the address, so a
+    // reload, or coming back to this payslip later, shows it plain.
+    params.delete("highlight");
+    var query = params.toString();
+    window.history.replaceState(window.history.state, "", window.location.pathname + (query ? "?" + query : "") + window.location.hash);
+    function mark() {
+      var rows = document.querySelectorAll('[data-component="' + key.replace(/"/g, "") + '"]');
+      rows.forEach(function (row) {
+        row.classList.add(row.classList.contains("cbk__row") ? "cbk__row--hl" : "ps__row--hl");
+      });
+      var first = document.querySelector(".ps__row--hl");
+      if (first) first.scrollIntoView({block: "center", behavior: "smooth"});
+      // Once it has faded the marker is taken off, so nothing is left behind on the page.
+      window.setTimeout(function () {
+        rows.forEach(function (row) { row.classList.remove("ps__row--hl", "cbk__row--hl"); });
+      }, 4500);
+    }
+    // The break down below the payslip may still be loading when this runs.
+    if (document.readyState === "complete") mark(); else window.addEventListener("load", mark);
+  })();
+</script>
 
 {% if request.META.HTTP_HX_REQUEST and payslip|income_tax_explanation or request.META.HTTP_HX_REQUEST and payslip|ctc_breakdown %}
   <aside id="payslipTaxPanel" hx-swap-oob="true" style="display:contents;">

@@ -62,7 +62,7 @@ Each group is an accordion strip, like the tax working above it; the total and i
     <button type="button" class="cbk__strip" data-cbk-toggle aria-expanded="true"><span>{% trans "Paid To The Employee" %}</span><span class="cbk__sumval">{{ c.inside_total|floatformat:2 }}</span><span class="cbk__chev"></span></button>
     <div class="cbk__panel"><div class="cbk__inner"><div class="cbk__body">
       {% for row in c.inside %}
-        <div class="cbk__row"><span>{{ row.title }}</span><span>{{ row.amount|floatformat:2|currency_symbol_position }}</span></div>
+        <div class="cbk__row" data-component="{{ row.key }}"><span>{{ row.title }}</span><span>{{ row.amount|floatformat:2|currency_symbol_position }}</span></div>
       {% endfor %}
       <div class="cbk__subtotal"><span>{% trans "Total" %}</span><span>{{ c.inside_total|floatformat:2|currency_symbol_position }}</span></div>
     </div></div></div>
@@ -72,7 +72,7 @@ Each group is an accordion strip, like the tax working above it; the total and i
     <button type="button" class="cbk__strip" data-cbk-toggle aria-expanded="true"><span>{% trans "Paid By The Employer" %}</span><span class="cbk__sumval">{{ c.employer_total|floatformat:2 }}</span><span class="cbk__chev"></span></button>
     <div class="cbk__panel"><div class="cbk__inner"><div class="cbk__body">
       {% for row in c.employer %}
-        <div class="cbk__row"><span>{{ row.title }}</span><span>{{ row.amount|floatformat:2|currency_symbol_position }}</span></div>
+        <div class="cbk__row" data-component="{{ row.key }}"><span>{{ row.title }}</span><span>{{ row.amount|floatformat:2|currency_symbol_position }}</span></div>
       {% empty %}
         <div class="cbk__row cbk__row--muted"><span>{% trans "No Employer Contributions." %}</span><span></span></div>
       {% endfor %}
@@ -107,7 +107,7 @@ Each group is an accordion strip, like the tax working above it; the total and i
       <button type="button" class="cbk__strip" data-cbk-toggle aria-expanded="false"><span>{% trans "Outside The CTC" %}</span><span class="cbk__sumval">{{ c.outside_total|floatformat:2 }}</span><span class="cbk__chev"></span></button>
       <div class="cbk__panel"><div class="cbk__inner"><div class="cbk__body">
         {% for row in c.outside %}
-          <div class="cbk__row"><span>{{ row.title }}</span><span>{{ row.amount|floatformat:2|currency_symbol_position }}</span></div>
+          <div class="cbk__row" data-component="{{ row.key }}"><span>{{ row.title }}</span><span>{{ row.amount|floatformat:2|currency_symbol_position }}</span></div>
         {% endfor %}
         <div class="cbk__subtotal"><span>{% trans "Total" %}</span><span>{{ c.outside_total|floatformat:2|currency_symbol_position }}</span></div>
         <p class="cbk__note">{% trans "Paid On Top Of The Package, Not Taken Out Of It." %}</p>

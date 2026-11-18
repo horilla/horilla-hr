@@ -210,6 +210,14 @@ def working_of(workings, row):
     return workings.get(working_key(row) if isinstance(row, dict) else row)
 
 
+@register.filter(name="component_key")
+def component_key(row):
+    """The key of a stored earning or deduction line ("a:5", "d:104"), to find it again on the page."""
+    from payroll.methods.earning_working import working_key
+
+    return working_key(row) if isinstance(row, dict) else ""
+
+
 @register.filter(name="deduction_workings")
 def deduction_workings_filter(payslip):
     """{deduction key: how it was worked out} for a saved payslip; empty for a preview."""
