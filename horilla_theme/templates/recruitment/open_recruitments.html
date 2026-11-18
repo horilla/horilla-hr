@@ -5,9 +5,19 @@
 {% get_hq_company as hq_company %}
 
 <!DOCTYPE html>
-<html>
+<html class="{% if request.session.theme == 'dark' %}dark{% endif %}">
     <head>
         <meta charset="UTF-8">
+        {# Public page: anyone can open it, so the theme is remembered in the browser (localStorage), falling back to the signed-in user's saved theme. Runs before first paint so there is no light flash. #}
+        <script>
+            (function () {
+                var stored = null;
+                try { stored = localStorage.getItem("horilla-public-theme"); } catch (e) {}
+                var dark = stored ? stored === "dark" : document.documentElement.classList.contains("dark");
+                document.documentElement.classList.toggle("dark", dark);
+                window.__horillaPublicDark = dark;
+            })();
+        </script>
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link href="{% static 'horilla_theme/assets/css/tailwind.css' %}" rel="stylesheet">
         <title>{{ hq_company.company|default:"Horilla" }}{% trans " - Open Recruitments" %}</title>
@@ -38,7 +48,7 @@
         >
         <link
             rel="stylesheet"
-            href="/static/horilla_theme/assets/css/dark.css"
+            href="/static/horilla_theme/assets/css/dark.css?v=53"
         >
         <link
             rel="stylesheet"
@@ -126,6 +136,7 @@
     </head>
 
     <body class="bg-white font-['Plus_Jakarta_Sans',_sans-serif]">
+        <script>document.body.classList.toggle("dark", !!window.__horillaPublicDark);</script>
         {% if messages %}
             <div class="oh-alert-container">
                 {% for message in messages %}
@@ -167,6 +178,17 @@
                         {% trans "Open positions across our teams" %}
                     </p>
                 </div>
+                <button
+                    type="button"
+                    id="publicThemeToggle"
+                    class="ml-auto w-10 h-10 shrink-0 rounded-full bg-primary-100 text-primary-600 hover:bg-primary-600 hover:text-white flex items-center justify-center [transition:.2s]"
+                    title="{% trans 'Switch between light and dark mode' %}"
+                    aria-label="{% trans 'Toggle theme' %}"
+                    data-session-theme="{{ request.session.theme|default:'light' }}"
+                    data-authenticated="{% if request.user.is_authenticated %}1{% else %}0{% endif %}"
+                >
+                    <i class="fa-solid fa-moon" data-theme-icon></i>
+                </button>
             </div>
         </header>
 
@@ -370,6 +392,39 @@
                         backdrop.classList.toggle("hidden");
                     }
             }
+
+            // Light / dark switch. Public page, so the choice lives in localStorage; a signed-in user's
+            // saved theme is kept in step so the rest of the app opens in the same mode.
+            (function () {
+                var btn = document.getElementById("publicThemeToggle");
+                if (!btn) return;
+                var icon = btn.querySelector("[data-theme-icon]");
+                function paint(dark) {
+                    var root = document.documentElement;
+                    root.classList.add("theme-switching");
+                    root.classList.toggle("dark", dark);
+                    document.body.classList.toggle("dark", dark);
+                    void root.offsetWidth;
+                    requestAnimationFrame(function () { requestAnimationFrame(function () { root.classList.remove("theme-switching"); }); });
+                    if (icon) {
+                        icon.classList.toggle("fa-moon", !dark);
+                        icon.classList.toggle("fa-lightbulb", dark);
+                    }
+                    btn.setAttribute("aria-pressed", dark ? "true" : "false");
+                }
+                paint(document.documentElement.classList.contains("dark"));
+                btn.addEventListener("click", function () {
+                    var dark = !document.documentElement.classList.contains("dark");
+                    paint(dark);
+                    try { localStorage.setItem("horilla-public-theme", dark ? "dark" : "light"); } catch (e) {}
+                    if (btn.dataset.authenticated === "1" && (btn.dataset.sessionTheme === "dark") !== dark) {
+                        fetch("{% url 'toggle_theme' %}", {
+                            method: "POST",
+                            headers: { "X-CSRFToken": "{{ csrf_token }}", "X-Requested-With": "XMLHttpRequest" },
+                        }).then(function (r) { if (r.status === 204) btn.dataset.sessionTheme = dark ? "dark" : "light"; }).catch(function () {});
+                    }
+                });
+            })();
 
             document.addEventListener("DOMContentLoaded", function () {
                 const searchInput = document.getElementById("jobSearchInput");

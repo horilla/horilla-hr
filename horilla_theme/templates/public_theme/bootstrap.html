@@ -1,0 +1,13 @@
+{% comment %} Light/dark bootstrap for public (logged-out) pages. Include as early as possible in <head>.
+   The choice lives in localStorage ("horilla-public-theme"), shared by every public page, falling back
+   to a signed-in user's saved app theme. Applied before first paint so there is no light flash.
+   Pair with public_theme/body_sync.html (right after <body>) and public_theme/toggle.html (the button). {% endcomment %}
+<script>
+    (function () {
+        var stored = null;
+        try { stored = localStorage.getItem("horilla-public-theme"); } catch (e) {}
+        var dark = stored ? stored === "dark" : {% if request.session.theme == 'dark' %}true{% else %}false{% endif %};
+        document.documentElement.classList.toggle("dark", dark);
+        window.__horillaPublicDark = dark;
+    })();
+</script>

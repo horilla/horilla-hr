@@ -9,6 +9,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link href="{% static 'horilla_theme/assets/css/tailwind.css' %}" rel="stylesheet">
+    {# Same theme as the open-recruitments page: its light/dark choice is kept in localStorage (public page, no login), falling back to a signed-in user's saved theme. Applied before first paint. #}
+    <script>
+        (function () {
+            var stored = null;
+            try { stored = localStorage.getItem("horilla-public-theme"); } catch (e) {}
+            var dark = stored ? stored === "dark" : {% if request.session.theme == 'dark' %}true{% else %}false{% endif %};
+            document.documentElement.classList.toggle("dark", dark);
+            window.__horillaPublicDark = dark;
+        })();
+    </script>
     <title>{% trans "Application Form" %}{% if recruitment %} - {{ recruitment.title }}{% endif %}</title>
     <link
         rel="apple-touch-icon"
@@ -36,6 +46,10 @@
         rel="stylesheet"
         href="/static/horilla_theme/assets/css/global.css"
     />
+    <link
+        rel="stylesheet"
+        href="/static/horilla_theme/assets/css/dark.css?v=53"
+    >
     <link
         rel="stylesheet"
         href="/static/horilla_theme/assets/css/v1_styles.css"
@@ -140,6 +154,20 @@
             background-color: #fff;
             transition: border-color .2s;
         }
+        body.dark #id_gender,
+        body.dark #id_referral_source {
+            background-color: #1a1a1a;
+            color: #dfdfdf;
+            border-color: #555555;
+        }
+        body.dark .oh-select-2,
+        body.dark .select2-container--default .select2-selection--single {
+            background-color: #1a1a1a !important;
+            border-color: #555555 !important;
+        }
+        body.dark .select2-container--default .select2-selection--single .select2-selection__rendered {
+            color: #dfdfdf;
+        }
         #id_gender:focus,
         #id_gender:focus-visible,
         #id_referral_source:focus,
@@ -164,6 +192,7 @@
 <script src="{% static '/jquery/ajax.js' %}"></script>
 <script src="{% static '/jquery/jquery.min.js' %}"></script>
 <body class="bg-secondary-50 font-['Plus_Jakarta_Sans',_sans-serif]">
+    <script>document.body.classList.toggle("dark", !!window.__horillaPublicDark);</script>
 
     <!-- Top bar -->
     <header class="bg-white border-b border-secondary-200">
@@ -190,8 +219,51 @@
                     {% trans "Open positions across our teams" %}
                 </p>
             </div>
+            <button
+                type="button"
+                id="publicThemeToggle"
+                class="ml-auto w-10 h-10 shrink-0 rounded-full bg-primary-100 text-primary-600 hover:bg-primary-600 hover:text-white flex items-center justify-center [transition:.2s]"
+                title="{% trans 'Switch between light and dark mode' %}"
+                aria-label="{% trans 'Toggle theme' %}"
+                data-session-theme="{{ request.session.theme|default:'light' }}"
+                data-authenticated="{% if request.user.is_authenticated %}1{% else %}0{% endif %}"
+            >
+                <i class="fa-solid fa-moon" data-theme-icon></i>
+            </button>
         </div>
     </header>
+    <script>
+        (function () {
+            var btn = document.getElementById("publicThemeToggle");
+            if (!btn) return;
+            var icon = btn.querySelector("[data-theme-icon]");
+            function paint(dark) {
+                var root = document.documentElement;
+                root.classList.add("theme-switching");
+                root.classList.toggle("dark", dark);
+                document.body.classList.toggle("dark", dark);
+                void root.offsetWidth;
+                requestAnimationFrame(function () { requestAnimationFrame(function () { root.classList.remove("theme-switching"); }); });
+                if (icon) {
+                    icon.classList.toggle("fa-moon", !dark);
+                    icon.classList.toggle("fa-lightbulb", dark);
+                }
+                btn.setAttribute("aria-pressed", dark ? "true" : "false");
+            }
+            paint(document.documentElement.classList.contains("dark"));
+            btn.addEventListener("click", function () {
+                var dark = !document.documentElement.classList.contains("dark");
+                paint(dark);
+                try { localStorage.setItem("horilla-public-theme", dark ? "dark" : "light"); } catch (e) {}
+                if (btn.dataset.authenticated === "1" && (btn.dataset.sessionTheme === "dark") !== dark) {
+                    fetch("{% url 'toggle_theme' %}", {
+                        method: "POST",
+                        headers: { "X-CSRFToken": "{{ csrf_token }}", "X-Requested-With": "XMLHttpRequest" },
+                    }).then(function (r) { if (r.status === 204) btn.dataset.sessionTheme = dark ? "dark" : "light"; }).catch(function () {});
+                }
+            });
+        })();
+    </script>
 
     {% if messages %}
         <div class="oh-alert-container">
