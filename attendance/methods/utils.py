@@ -464,62 +464,14 @@ def pending_hour_data(labels, records):
 
 
 def attendance_day_checking(attendance_date, minimum_hour, employee=None):
-    # Convert the string to a datetime object
-    attendance_datetime = datetime.strptime(attendance_date, "%Y-%m-%d")
-
-    # Extract name of the day
-    attendance_day = attendance_datetime.strftime("%A")
-
-    # Taking all holidays into a list
-    leaves = []
-    holidays = Holidays.objects.all()
-    if employee is not None:
-        holidays = holidays.filter(Q(is_specific=False) | Q(employees=employee))
-    else:
-        holidays = holidays.filter(is_specific=False)
-    for holi in holidays:
-        start_date = holi.start_date
-        end_date = holi.end_date
-
-        # Convert start_date and end_date to datetime objects
-        start_date = datetime.strptime(str(start_date), "%Y-%m-%d")
-        end_date = datetime.strptime(str(end_date), "%Y-%m-%d")
-
-        # Add dates in between start date and end date including both
-        current_date = start_date
-        while current_date <= end_date:
-            leaves.append(current_date.strftime("%Y-%m-%d"))
-            current_date += timedelta(days=1)
-
-    # Checking attendance date is in holiday list, if found making the minimum hour to 00:00
-    for leave in leaves:
-        if str(leave) == str(attendance_date):
-            minimum_hour = "00:00"
-            break
-
-    # Making a dictonary contains week day value and leave day pairs
-    company_leaves = {}
-    company_leave = CompanyLeaves.objects.all()
-    for com_leave in company_leave:
-        a = dict(WEEK_DAYS).get(com_leave.based_on_week_day)
-        b = com_leave.based_on_week
-        company_leaves[b] = a
-
-    # Checking the attendance date is in which week
-    week_in_month = str(((attendance_datetime.day - 1) // 7 + 1) - 1)
-
-    # Checking the attendance date is in the company leave or not
-    for pairs in company_leaves.items():
-        # For all weeks based_on_week is None
-        if str(pairs[0]) == "None":
-            if str(pairs[1]) == str(attendance_day):
-                minimum_hour = "00:00"
-                break
-        # Checking with based_on_week and attendance_date week
-        if str(pairs[0]) == week_in_month:
-            if str(pairs[1]) == str(attendance_day):
-                minimum_hour = "00:00"
-                break
+    # TODO: Deprecate this function.
+    """
+    Previously checked for holidays/company leaves to set minimum_hour to "00:00".
+    Minimum hour fallback logic is now handled efficiently within Attendance.adjust_minimum_hour().
+    As per the flexible off-day policy (Issue #1223), we no longer drop the
+    minimum hour to zero on weekends/holidays. The standard shift's minimum hour
+    is retained to properly calculate part-day work vs actual overtime.
+    """
     return minimum_hour
 
 
