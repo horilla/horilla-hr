@@ -445,8 +445,24 @@
         /* Folded, vertical boxes (Available Fields / Columns): shrink to a
            thin strip and hide everything except the header, whose label
            rotates to read top-to-bottom -- the same "collapsed column"
-           look as an Odoo Kanban stage folded shut. */
-        #pivot-container .pvtAxisContainer.pvtUnused.oh-fields-collapsed,
+           look as an Odoo Kanban stage folded shut.
+           overflow:hidden is left off .pvtUnused specifically (unlike
+           .pvtRows) -- pivottable.js parents EVERY field's per-attribute
+           filter popup (.pvtFilterBox) as a sibling inside whichever axis
+           container originally built it, almost always Available Fields,
+           regardless of which axis the field pill itself is later dragged
+           to. Clipping that box here would hide a field's filter popup
+           even while its pill sits in Columns/Rows, any time Available
+           Fields happens to be folded -- not just its own remaining
+           pills, which are already fully hidden below via display:none
+           and so need no separate clipping anyway. */
+        #pivot-container .pvtAxisContainer.pvtUnused.oh-fields-collapsed {
+            width: 28px !important;
+            min-width: 28px !important;
+            max-width: 28px !important;
+            padding: 0 !important;
+        }
+
         #pivot-container .pvtAxisContainer.pvtRows.oh-columns-collapsed {
             width: 28px !important;
             min-width: 28px !important;
@@ -455,9 +471,9 @@
             padding: 0 !important;
         }
 
-        #pivot-container .pvtAxisContainer.pvtUnused.oh-fields-collapsed > *:not(.oh-fields-toggle-header),
-        #pivot-container .pvtAxisContainer.pvtRows.oh-columns-collapsed > *:not(.oh-fields-toggle-header),
-        #pivot-container .pvtAxisContainer.pvtCols.oh-rows-collapsed > *:not(.oh-fields-toggle-header) {
+        #pivot-container .pvtAxisContainer.pvtUnused.oh-fields-collapsed > *:not(.oh-fields-toggle-header):not(.pvtFilterBox),
+        #pivot-container .pvtAxisContainer.pvtRows.oh-columns-collapsed > *:not(.oh-fields-toggle-header):not(.pvtFilterBox),
+        #pivot-container .pvtAxisContainer.pvtCols.oh-rows-collapsed > *:not(.oh-fields-toggle-header):not(.pvtFilterBox) {
             display: none !important;
         }
 
@@ -656,4 +672,117 @@
  * ------------------------------------------------------------------ */
 .oh-report--multi-model .oh-report-view-slot {
     margin-top: 14px;
+}
+
+/* ------------------------------------------------------------------ *
+ * "v2" pivot table/grid restyle -- opt-in via .oh-report-table-v2 on
+ * #pivot-container, so only pages that add it (recruitment first) pick
+ * this up; the other report pages keep the old look until migrated too.
+ * The added ID+class combo outranks v1_styles.css's plain-class rules on
+ * the same elements, so no !important chase is needed beyond matching
+ * the handful that already carry one there.
+ * ------------------------------------------------------------------ */
+
+#pivot-container.oh-report-table-v2 {
+    border: 1px solid #ececec;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Available Fields / Columns / Rows shelves -- softer divider than the
+   stock 2px slate-gray one, light card background instead of flat white. */
+#pivot-container.oh-report-table-v2 .pvtAxisContainer,
+#pivot-container.oh-report-table-v2 .pvtVals {
+    border: none !important;
+    border-right: 1px solid #ececec !important;
+    background-color: #fafbfc;
+}
+
+#pivot-container.oh-report-table-v2 .pvtRendererArea {
+    border: none !important;
+    background-color: #ffffff;
+    padding: 16px !important;
+}
+
+/* Field pills -- rounded chips with a subtle shadow instead of the flat,
+   square-cornered tags, so they read as draggable cards. Drag-handle dots
+   recolored to the brand accent to match. */
+#pivot-container.oh-report-table-v2 .pvtAxisContainer li span.pvtAttr {
+    background-color: #ffffff !important;
+    border: 1px solid #e3e5e8 !important;
+    border-radius: 8px !important;
+    margin: 4px 6px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+#pivot-container.oh-report-table-v2 .pvtAxisContainer li span.pvtAttr:hover {
+    border-color: hsl(8, 77%, 56%) !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+#pivot-container.oh-report-table-v2 .pvtAxisContainer li span.pvtAttr::before {
+    background-color: hsl(8, 77%, 56%);
+    box-shadow:
+        0 -5px 0 hsl(8, 77%, 56%),
+        0 5px 0 hsl(8, 77%, 56%),
+        6px -5px 0 hsl(8, 77%, 56%),
+        6px 0 0 hsl(8, 77%, 56%),
+        6px 5px 0 hsl(8, 77%, 56%);
+}
+
+/* The actual report table -- consistent light borders and padding instead
+   of the stock mismatched colors/sizes (blue/teal headers, 12px/18px/10pt
+   font sizes all fighting each other across several v1_styles.css rules),
+   zebra striping, and a hover highlight using the brand accent. */
+#pivot-container.oh-report-table-v2 .pvtTable {
+    font-size: 14px;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+/* True column header row only -- pivottable.js renders this report's
+   per-row attribute labels (Candidate/Phone/Email/...) as <th> too (see
+   below), since there's no aggregated value column in this flat list
+   view (cols: [], Count hidden), so thead/.pvtColLabel has to be
+   targeted specifically or every data row would get styled like a
+   repeated header. */
+#pivot-container.oh-report-table-v2 .pvtTable thead tr th,
+#pivot-container.oh-report-table-v2 .pvtColLabel {
+    background-color: #eef1f5 !important;
+    color: #1f2937;
+    font-weight: 700 !important;
+    font-size: 12px !important;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border: 1px solid #dde1e6 !important;
+    border-bottom: 2px solid hsl(8, 77%, 56%) !important;
+    padding: 10px 14px !important;
+}
+
+/* Body cells -- .pvtRowLabel/tbody th get the same plain look as a
+   regular td (not the bold header treatment above), since they're data,
+   not column titles, despite being <th> elements structurally. */
+#pivot-container.oh-report-table-v2 .pvtTable td,
+#pivot-container.oh-report-table-v2 .pvtTable tbody tr th,
+#pivot-container.oh-report-table-v2 .pvtRowLabel {
+    background-color: #ffffff !important;
+    color: #333333;
+    font-weight: 400 !important;
+    font-size: 14px !important;
+    text-transform: none;
+    letter-spacing: normal;
+    text-align: left;
+    padding: 10px 14px !important;
+    border: 1px solid #f0f1f3 !important;
+}
+
+#pivot-container.oh-report-table-v2 .pvtTable tbody tr:nth-child(even) td,
+#pivot-container.oh-report-table-v2 .pvtTable tbody tr:nth-child(even) th {
+    background-color: #fafbfc !important;
+}
+
+#pivot-container.oh-report-table-v2 .pvtTable tbody tr:hover td,
+#pivot-container.oh-report-table-v2 .pvtTable tbody tr:hover th {
+    background-color: rgba(229, 79, 56, 0.05) !important;
 }
