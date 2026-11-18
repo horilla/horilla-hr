@@ -164,6 +164,47 @@ class CtcDownTests(CtcDownSetup, TestCase):
 
         self.assertAlmostEqual(data["gross_pay"] * 1.10, PERIOD_CTC, places=2)
 
+    def _esi_structure(self, per_day):
+        """The standard structure plus the library's ESI, run at a period CTC of 22 x per_day."""
+        from payroll.component_library import load_components
+
+        self._standard_structure()
+        Allowance.objects.filter(code="SPECIAL").update(sequence=90)
+        [esi] = load_components(["in_esi"])
+        esi.specific_employees.add(self.employee)
+        with patch(
+            "payroll.methods.methods.months_between_range",
+            return_value=[
+                {"working_days_on_period": WORKING_DAYS, "per_day_amount": per_day}
+            ],
+        ), patch(
+            "payroll.methods.methods.get_daily_salary",
+            return_value={"day_wage": per_day},
+        ), patch(
+            "payroll.methods.methods.get_leaves", return_value=EMPTY_LEAVES
+        ):
+            data = payroll_calculation(self.employee, PERIOD_START, PERIOD_END)
+        lines = [
+            line["amount"]
+            for bucket in ("pretax_deductions", "post_tax_deductions")
+            for line in data[bucket]
+            if line["title"] == "Employee State Insurance (ESI)"
+        ]
+        return data, lines
+
+    def test_esi_under_its_ceiling_comes_out_of_the_package_on_both_sides(self):
+        """Employee 0.75% of gross, employer 3.25% of it, and gross plus the employer's share is the CTC."""
+        data, lines = self._esi_structure(800.0)
+        ctc = WORKING_DAYS * 800.0
+        gross = data["gross_pay"]
+        self.assertAlmostEqual(gross * 1.0325, ctc, places=2)
+        self.assertAlmostEqual(lines[0], gross * 0.0075, places=2)
+
+    def test_esi_over_its_ceiling_is_left_out_and_the_balance_takes_the_whole_ctc(self):
+        data, lines = self._esi_structure(PER_DAY)
+        self.assertEqual(lines, [0])
+        self.assertAlmostEqual(data["gross_pay"], PERIOD_CTC, places=2)
+
     def test_loss_of_pay_comes_off_basic_and_everything_follows(self):
         """
         With "deduct leave from basic pay" on, the earning that IS basic pay is

@@ -94,6 +94,39 @@ def eligible_deductions(employee, start_date, end_date):
     ]
 
 
+def rules_hold(component, gross, context, taxable_gross=None):
+    """
+    Whether the deduction's "when it applies" rules hold at this gross.
+
+    The same rules the deduction pass applies, measured against the gross being
+    solved for instead of a gross that does not exist yet. Taxable gross is read
+    as gross unless it is given, which is what it is for the figures a balance can be solved on.
+    """
+    from payroll.methods.payslip_calc import (
+        _apply_rule_holds,
+        _extra_apply_conditions,
+        _is_default_gate,
+    )
+
+    ctc = float(context.get("CTC", 0) or 0)
+    basic = float(context.get("BASIC", 0) or 0)
+
+    def measure(choice, code=""):
+        if choice == "component":
+            return float(context.get((code or "").strip().upper(), 0) or 0)
+        if choice == "taxable_gross_pay" and taxable_gross is not None:
+            return float(taxable_gross)
+        if choice in ("gross_pay", "taxable_gross_pay"):
+            return gross
+        if choice == "ctc":
+            return ctc
+        return basic or ctc
+
+    rules = [] if _is_default_gate(component) else [component]
+    rules.extend(_extra_apply_conditions(component))
+    return all(_apply_rule_holds(rule, measure) for rule in rules)
+
+
 def balance_after_employer_cost(deductions, context):
     """
     What is left of CTC for the balance earning once the employer's own costs
@@ -107,6 +140,11 @@ def balance_after_employer_cost(deductions, context):
         balance = CTC - earned - fixed - rate * (earned + balance)
         balance = (CTC - earned * (1 + rate) - fixed) / (1 + rate)
 
+    A deduction with a rule (ESI only applies while gross is at or under its
+    ceiling) costs the employer nothing where the rule fails, so one that fails
+    at the gross this gives is left out and the balance is solved again. A
+    deduction is only ever dropped, never added back, so this settles.
+
     Never negative, like the balance itself.
     """
     earned = float(context.get(EARNED, 0) or 0)
@@ -115,19 +153,29 @@ def balance_after_employer_cost(deductions, context):
     ctc = float(context.get("CTC", 0) or 0) - float(context.get("_basic_lop", 0) or 0)
     figures = {"basic_pay": float(context.get("BASIC", 0) or 0)}
 
-    fixed = 0.0
-    gross_rate = 0.0
-    for component in deductions or ():
-        if component.employer_basis == "formula":
-            try:
-                result = employer_amount(component, figures, context)
-            except ComponentFormulaError:
-                continue
-            fixed += result[0] if result else 0.0
-        elif (component.employer_rate or 0) > 0:
-            if component.based_on == "gross_pay":
-                gross_rate += component.employer_rate / 100
-            else:
-                fixed += employer_amount(component, figures, context)[0]
+    def solve(active):
+        fixed = 0.0
+        gross_rate = 0.0
+        for component in active:
+            if component.employer_basis == "formula":
+                try:
+                    result = employer_amount(component, figures, context)
+                except ComponentFormulaError:
+                    continue
+                fixed += result[0] if result else 0.0
+            elif (component.employer_rate or 0) > 0:
+                if component.based_on == "gross_pay":
+                    gross_rate += component.employer_rate / 100
+                else:
+                    fixed += employer_amount(component, figures, context)[0]
+        return max((ctc - earned * (1 + gross_rate) - fixed) / (1 + gross_rate), 0.0)
 
-    return max((ctc - earned * (1 + gross_rate) - fixed) / (1 + gross_rate), 0.0)
+    active = list(deductions or ())
+    balance = solve(active)
+    while active:
+        kept = [c for c in active if rules_hold(c, earned + balance, context)]
+        if len(kept) == len(active):
+            break
+        active = kept
+        balance = solve(active)
+    return balance
