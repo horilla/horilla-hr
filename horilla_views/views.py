@@ -848,6 +848,140 @@ def _export_part_allowed(user, part):
     return True
 
 
+def render_export_file(
+    request, export_format, file_name, headers, final_rows, date_range=None
+):
+    """
+    The standard export file for headers and rows that are already worked out: Excel, PDF or CSV, with
+    the company, the title and the date range at the top. ``export_data`` builds its rows from a model;
+    an export with its own rows, like the allowance and deduction report, ends here too.
+    """
+    if date_range is None:
+        date_range = request.session.get("report_date_range", "")
+
+    # =====================================================
+    # COMPANY
+    # =====================================================
+    company_name = "All Company"
+    logo_path = None
+
+    company = getattr(request, "selected_company_instance", None)
+    if company:
+        company_name = company.company or company_name
+        if company.icon:
+            logo_path = company.icon.path
+
+    # =====================================================
+    # XLSX EXPORT (FIXED WIDTH – PERFORMANCE SAFE)
+    # =====================================================
+    if export_format == "xlsx":
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Quick Export"
+
+        total_columns = len(headers)
+        center = Alignment(horizontal="center", vertical="center")
+        header_fill = PatternFill(start_color="FFD700", fill_type="solid")
+        header_font = Font(bold=True)
+        thin = Side(style="thin")
+        border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+        # Logo
+        if logo_path and os.path.exists(logo_path):
+            img = Image(logo_path)
+            img.width = 120
+            img.height = 60
+            ws.add_image(img, "A1")
+
+        ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=total_columns)
+        ws.cell(row=1, column=1).value = company_name
+        ws.cell(row=1, column=1).font = Font(size=14, bold=True)
+        ws.cell(row=1, column=1).alignment = center
+
+        ws.merge_cells(start_row=2, start_column=1, end_row=3, end_column=total_columns)
+        ws.cell(row=2, column=1).value = file_name
+        ws.cell(row=2, column=1).font = Font(size=14, bold=True, color="FF0000")
+        ws.cell(row=2, column=1).alignment = center
+
+        ws.merge_cells(start_row=4, start_column=1, end_row=4, end_column=total_columns)
+        ws.cell(row=4, column=1).value = date_range
+        ws.cell(row=4, column=1).alignment = center
+
+        HEADER_ROW = 5
+
+        for col, header in enumerate(headers, start=1):
+            cell = ws.cell(row=HEADER_ROW, column=col)
+            cell.value = header
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.border = border
+            cell.alignment = center
+
+            # ✅ FIXED WIDTH (NO PERFORMANCE HIT)
+            ws.column_dimensions[cell.column_letter].width = 25
+
+        for r_idx, row in enumerate(final_rows, start=HEADER_ROW + 1):
+            for c_idx, val in enumerate(row, start=1):
+                # Text carried through from user-entered data can execute when
+                # the workbook is opened, so guard it on the way in.
+                ws.cell(row=r_idx, column=c_idx).value = safe_cell(val)
+
+        buf = BytesIO()
+        wb.save(buf)
+
+        response = HttpResponse(
+            buf.getvalue(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        response["Content-Disposition"] = f'attachment; filename="{file_name}.xlsx"'
+        return response
+
+    # =====================================================
+    # PDF EXPORT
+    # =====================================================
+    if export_format == "pdf":
+
+        html = render_to_string(
+            "generic/export_pdf.html",
+            {
+                "headers": headers,
+                "rows": [dict(zip(headers, r)) for r in final_rows],
+                "company_name": company_name,
+                "date_range": date_range,
+                "report_title": file_name,
+                "logo_path": (
+                    logo_path if logo_path and os.path.exists(logo_path) else None
+                ),
+                "landscape": len(headers) > 5,
+            },
+        )
+
+        buf = BytesIO()
+        pisa.CreatePDF(html, dest=buf)
+
+        return HttpResponse(
+            buf.getvalue(),
+            content_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{file_name}.pdf"'},
+        )
+
+    # =====================================================
+    # CSV EXPORT
+    # =====================================================
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = f'attachment; filename="{file_name}.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow([company_name])
+    writer.writerow([file_name])
+    writer.writerow([date_range])
+    writer.writerow([])
+    writer.writerow(headers)
+    writer.writerows(final_rows)
+
+    return response
+
+
 @func_login_required
 def export_data(request, *args, **kwargs):
 
@@ -866,20 +1000,6 @@ def export_data(request, *args, **kwargs):
         ExportOptionsMiddleware._clean_name(request.POST.get("export_file_name", ""))
         or "quick_export"
     )
-
-    date_range = request.session.get("report_date_range", "")
-
-    # =====================================================
-    # COMPANY
-    # =====================================================
-    company_name = "All Company"
-    logo_path = None
-
-    company = getattr(request, "selected_company_instance", None)
-    if company:
-        company_name = company.company or company_name
-        if company.icon:
-            logo_path = company.icon.path
 
     # =====================================================
     # MODEL
@@ -1019,115 +1139,7 @@ def export_data(request, *args, **kwargs):
             row[idx] = mmap.get(obj_id, "")
         final_rows.append(row[1:])
 
-    # =====================================================
-    # XLSX EXPORT (FIXED WIDTH – PERFORMANCE SAFE)
-    # =====================================================
-    if export_format == "xlsx":
-        wb = Workbook()
-        ws = wb.active
-        ws.title = "Quick Export"
-
-        total_columns = len(headers)
-        center = Alignment(horizontal="center", vertical="center")
-        header_fill = PatternFill(start_color="FFD700", fill_type="solid")
-        header_font = Font(bold=True)
-        thin = Side(style="thin")
-        border = Border(left=thin, right=thin, top=thin, bottom=thin)
-
-        # Logo
-        if logo_path and os.path.exists(logo_path):
-            img = Image(logo_path)
-            img.width = 120
-            img.height = 60
-            ws.add_image(img, "A1")
-
-        ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=total_columns)
-        ws.cell(row=1, column=1).value = company_name
-        ws.cell(row=1, column=1).font = Font(size=14, bold=True)
-        ws.cell(row=1, column=1).alignment = center
-
-        ws.merge_cells(start_row=2, start_column=1, end_row=3, end_column=total_columns)
-        ws.cell(row=2, column=1).value = file_name
-        ws.cell(row=2, column=1).font = Font(size=14, bold=True, color="FF0000")
-        ws.cell(row=2, column=1).alignment = center
-
-        ws.merge_cells(start_row=4, start_column=1, end_row=4, end_column=total_columns)
-        ws.cell(row=4, column=1).value = date_range
-        ws.cell(row=4, column=1).alignment = center
-
-        HEADER_ROW = 5
-
-        for col, header in enumerate(headers, start=1):
-            cell = ws.cell(row=HEADER_ROW, column=col)
-            cell.value = header
-            cell.fill = header_fill
-            cell.font = header_font
-            cell.border = border
-            cell.alignment = center
-
-            # ✅ FIXED WIDTH (NO PERFORMANCE HIT)
-            ws.column_dimensions[cell.column_letter].width = 25
-
-        for r_idx, row in enumerate(final_rows, start=HEADER_ROW + 1):
-            for c_idx, val in enumerate(row, start=1):
-                # Text carried through from user-entered data can execute when
-                # the workbook is opened, so guard it on the way in.
-                ws.cell(row=r_idx, column=c_idx).value = safe_cell(val)
-
-        buf = BytesIO()
-        wb.save(buf)
-
-        response = HttpResponse(
-            buf.getvalue(),
-            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        )
-        response["Content-Disposition"] = f'attachment; filename="{file_name}.xlsx"'
-        return response
-
-    # =====================================================
-    # PDF EXPORT
-    # =====================================================
-    if export_format == "pdf":
-
-        html = render_to_string(
-            "generic/export_pdf.html",
-            {
-                "headers": headers,
-                "rows": [dict(zip(headers, r)) for r in final_rows],
-                "company_name": company_name,
-                "date_range": date_range,
-                "report_title": file_name,
-                "logo_path": (
-                    logo_path if logo_path and os.path.exists(logo_path) else None
-                ),
-                "landscape": len(headers) > 5,
-            },
-        )
-
-        buf = BytesIO()
-        pisa.CreatePDF(html, dest=buf)
-
-        return HttpResponse(
-            buf.getvalue(),
-            content_type="application/pdf",
-            headers={"Content-Disposition": f'attachment; filename="{file_name}.pdf"'},
-        )
-
-    # =====================================================
-    # CSV EXPORT
-    # =====================================================
-    response = HttpResponse(content_type="text/csv")
-    response["Content-Disposition"] = f'attachment; filename="{file_name}.csv"'
-
-    writer = csv.writer(response)
-    writer.writerow([company_name])
-    writer.writerow([file_name])
-    writer.writerow([date_range])
-    writer.writerow([])
-    writer.writerow(headers)
-    writer.writerows(final_rows)
-
-    return response
+    return render_export_file(request, export_format, file_name, headers, final_rows)
 
 
 @method_decorator(login_required, name="dispatch")
