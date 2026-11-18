@@ -95,7 +95,7 @@
     </div>
 
     {% if page.has_previous or page.has_next %}
-      <div class="inline-flex items-center gap-0.5 bg-white border border-[#e6e6e6] rounded-md p-1 flex-shrink-0">
+      <div class="inline-flex items-center gap-0.5 bg-white border border-primary-500 rounded-md p-1 flex-shrink-0">
         <button type="button" class="w-6 h-6 flex items-center justify-center rounded text-[10px] {% if page.has_previous %}text-[#666] hover:bg-[#f5f5f5]{% else %}text-[#ccc] cursor-not-allowed{% endif %}"
                 {% if page.has_previous %}hx-target="#summary-table-container" hx-swap="innerHTML" hx-get="{% url 'attendance-monthly-summary-table' %}?{{ pd }}&page={{ page.previous_page_number }}"{% endif %}>
           <i class="fa-solid fa-angle-left"></i>
