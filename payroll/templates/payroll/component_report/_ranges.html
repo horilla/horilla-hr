@@ -1,0 +1,11 @@
+{% comment %}
+The quick date filters, in the row with the period line. A custom range is set with the dates in the Filter panel,
+so it is not offered here. Needs: ranges, range, base_query.
+{% endcomment %}
+<div class="flex flex-wrap justify-end gap-1">
+    {% for value, label in ranges %}
+        <a href="?{{ base_query }}&range={{ value }}"
+           hx-get="?{{ base_query }}&range={{ value }}" hx-target="#componentReportContent" hx-select="#componentReportContent" hx-swap="outerHTML" hx-push-url="true"
+           class="px-3 py-1.5 rounded-md text-xs border transition duration-300 {% if value == range %}bg-primary-100 border-primary-600 text-primary-600 font-semibold{% else %}bg-[white] border-primary-500 hover:border-primary-600{% endif %}">{{ label }}</a>
+    {% endfor %}
+</div>

@@ -1,5 +1,19 @@
 {% load i18n %}
 <div class="flex items-center justify-center gap-1">
+    {% if perms.payroll.view_payslip %}
+        <a
+            class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
+            href="{% url 'payroll-component-report-detail' 'deduction' instance.id %}"
+            onclick="event.stopPropagation();"
+            title="{% trans 'Report' %}"
+        >
+            <ion-icon
+                name="bar-chart-outline"
+                role="img"
+                class="md hydrated"
+            ></ion-icon>
+        </a>
+    {% endif %}
     {% if perms.payroll.change_deduction %}
         <a
             class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"

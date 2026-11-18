@@ -1,0 +1,130 @@
+{% extends 'index.html' %}
+{% load i18n %}
+{% load static %}
+{% load horillafilters %}
+
+{% block content %}
+<main :class="sidebarOpen ? 'oh-main__sidebar-visible' : ''">
+  {% include "payroll/batch/_batch.css.html" %}
+
+  <section class="oh-wrapper pb">
+
+    <div style="font-size:.78rem;" class="mb-1">
+      <a href="{% url 'payroll-component-report' %}?kind={{ kind }}">
+        {% if kind == "allowance" %}{% trans "Allowance Report" %}{% else %}{% trans "Deduction Report" %}{% endif %}
+      </a>
+    </div>
+    {% include "payroll/component_report/_nav.html" with search_placeholder=_("Search Employee") %}
+
+    <div id="componentReportContent">
+      {% include "payroll/component_report/_export_modal.html" %}
+      {% include "payroll/component_report/_tags.html" %}
+    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+      <div style="font-size:.8rem;color:#6b7280;">
+      {% if period_start and period_end %}{{ period_start|date:"j M Y" }} &ndash; {{ period_end|date:"j M Y" }}{% else %}{% trans "All Time" %}{% endif %}{% if entries > 1 %} &middot; {{ entries }} {% trans "Entries" %}{% elif component.code %} &middot; {{ component.code }}{% endif %}
+      </div>
+      {% include "payroll/component_report/_ranges.html" %}
+    </div>
+
+    <div class="pb__kpis">
+      <div class="pb__kpi">
+        <div class="pb__kpi-label">{% if split %}{% trans "Employee Share" %}{% elif kind == "allowance" %}{% trans "Total Paid" %}{% else %}{% trans "Total Deducted" %}{% endif %}</div>
+        <div class="pb__kpi-value" style="font-weight:700;">{{ totals.amount|floatformat:2|currency_symbol_position }}</div>
+      </div>
+      {% if split %}
+      <div class="pb__kpi">
+        <div class="pb__kpi-label">{% trans "Employer Share" %}</div>
+        <div class="pb__kpi-value">{{ totals.employer_amount|floatformat:2|currency_symbol_position }}</div>
+      </div>
+      <div class="pb__kpi">
+        <div class="pb__kpi-label">{% trans "Combined Total" %}</div>
+        <div class="pb__kpi-value" style="font-weight:700;">{{ totals.combined|floatformat:2|currency_symbol_position }}</div>
+      </div>
+      {% endif %}
+      <div class="pb__kpi">
+        <div class="pb__kpi-label">{% trans "Payslips" %}</div>
+        <div class="pb__kpi-value">{{ lines|length }}</div>
+      </div>
+    </div>
+
+    <p class="text-xs text-gray-500 mb-1">{% trans "What The Total Above Is A Sum Of." %}</p>
+    <div class="bg-white p-2 rounded-md shadow-card relative">
+      {% if lines %}
+      <div class="max-h-[calc(100vh_-_330px)] overflow-hidden overflow-y-auto overflow-x-auto heightContainer">
+        <table class="fixed-table w-full border-separate" data-bulk-select-option="false">
+          <colgroup>
+            {# The employee column takes its share; every column after it gets the same width. #}
+            <col style="width:28%">
+            <col>
+            <col>
+            <col>
+            {% if split %}<col><col>{% endif %}
+            <col>
+          </colgroup>
+          <thead class="sticky top-0 bg-[white] z-[1]">
+            <tr class="border-b border-[#ececec]">
+              <th class="text-sm font-medium text-left min-w-[85px]">
+                <div class="flex w-full gap-1.5 px-1.5 py-1.5 items-center"><span class="flex w-max">{% trans "Employee" %}</span></div>
+              </th>
+              <th class="text-sm font-medium text-left min-w-[85px]">
+                <div class="flex w-full gap-1.5 px-1.5 py-1.5 items-center"><span class="flex w-max">{% trans "Badge ID" %}</span></div>
+              </th>
+              <th class="text-sm font-medium text-left min-w-[85px]">
+                <div class="flex w-full gap-1.5 px-1.5 py-1.5 items-center"><span class="flex w-max">{% trans "Period" %}</span></div>
+              </th>
+              <th class="text-sm font-medium text-left min-w-[85px]">
+                <div class="flex w-full gap-1.5 px-1.5 py-1.5 items-center"><span class="flex w-max">{% trans "Payslip" %}</span></div>
+              </th>
+              <th class="text-sm font-medium text-right min-w-[85px]">
+                <div class="flex w-full gap-1.5 px-1.5 py-1.5 items-center justify-end"><span class="flex w-max">{% if split %}{% trans "Employee Share" %}{% else %}{% trans "Amount" %}{% endif %}</span></div>
+              </th>
+              {% if split %}
+              <th class="text-sm font-medium text-right min-w-[85px]">
+                <div class="flex w-full gap-1.5 px-1.5 py-1.5 items-center justify-end"><span class="flex w-max">{% trans "Employer Share" %}</span></div>
+              </th>
+              {% endif %}
+              {% if split %}
+              <th class="text-sm font-medium text-right min-w-[85px]">
+                <div class="flex w-full gap-1.5 px-1.5 py-1.5 items-center justify-end"><span class="flex w-max">{% trans "Combined Total" %}</span></div>
+              </th>
+              {% endif %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for line in lines %}
+            <tr class="cursor-pointer hover:bg-[#fafafa]" onclick="window.location.href='{% url 'view-created-payslip' line.payslip.pk %}?highlight={{ highlight }}'">
+              <td class="text-sm text-left px-1 py-1 text-[#666] h-[30px] max-w-0"><div class="truncate">{{ line.employee.get_full_name }}</div></td>
+              <td class="text-sm text-left px-1 py-1 text-[#666] h-[30px] max-w-0"><div class="truncate">{{ line.employee.badge_id|default:"—" }}</div></td>
+              <td class="text-sm text-left px-1 py-1 text-[#666] h-[30px] max-w-0"><div class="truncate">{{ line.start_date|date:"j M" }} &ndash; {{ line.end_date|date:"j M Y" }}</div></td>
+              <td class="text-sm text-left px-1 py-1 text-[#666] h-[30px] max-w-0"><div class="truncate">{{ line.status }}</div></td>
+              <td class="text-sm text-right px-1 py-1 text-[#666] h-[30px] max-w-0"><div class="truncate">{% if split %}{{ line.amount|floatformat:2|currency_symbol_position }}{% else %}<span class="font-semibold text-[#333]">{{ line.amount|floatformat:2|currency_symbol_position }}</span>{% endif %}</div></td>
+              {% if split %}<td class="text-sm text-right px-1 py-1 text-[#666] h-[30px] max-w-0"><div class="truncate">{{ line.employer_amount|floatformat:2|currency_symbol_position }}</div></td>{% endif %}
+              {% if split %}<td class="text-sm text-right px-1 py-1 text-[#666] h-[30px] max-w-0"><div class="truncate"><span class="font-semibold text-[#333]">{{ line.combined|floatformat:2|currency_symbol_position }}</span></div></td>{% endif %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-sm px-1 py-3 text-[#666]">
+        {% trans "Nothing For This Component In This Period." %}
+        {% if latest_period %}
+          <div class="mt-1">
+            <a class="text-primary-600" href="?{{ base_query }}&range=latest" hx-get="?{{ base_query }}&range=latest" hx-target="#componentReportContent" hx-select="#componentReportContent" hx-swap="outerHTML" hx-push-url="true">
+              {% blocktrans with start=latest_period.0|date:"j M Y" end=latest_period.1|date:"j M Y" %}Show The Latest Payslips: {{ start }} – {{ end }}{% endblocktrans %}
+            </a>
+          </div>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+      {% comment %}What the page chrome outside the swapped part needs to follow after a filter: read by the script in _nav.html.{% endcomment %}
+      <span id="componentReportMeta" hidden
+            data-count="{{ filter_count|default:0 }}" data-range="{{ range }}"
+            data-from="{{ period_start|date:'Y-m-d' }}" data-to="{{ period_end|date:'Y-m-d' }}"
+            data-applied="{{ applied_names }}"></span>
+    </div>
+
+  </section>
+</main>
+{% endblock content %}

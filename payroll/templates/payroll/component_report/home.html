@@ -1,0 +1,142 @@
+{% extends 'index.html' %}
+{% load i18n %}
+{% load static %}
+{% load horillafilters %}
+
+{% block content %}
+<main :class="sidebarOpen ? 'oh-main__sidebar-visible' : ''">
+  {% include "payroll/batch/_batch.css.html" %}
+
+  <section class="oh-wrapper pb">
+
+    <div style="font-size:.78rem;" class="mb-1">
+      <a href="{% url 'payroll-settings-view' %}">{% trans "Payroll Configuration" %}</a>
+    </div>
+    <div id="componentReportPage">
+    {% include "payroll/component_report/_nav.html" with search_placeholder=_("Search Component") %}
+
+    <div id="componentReportContent">
+      {% include "payroll/component_report/_export_modal.html" %}
+      {% include "payroll/component_report/_tags.html" %}
+    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+      <div style="font-size:.8rem;color:#6b7280;">
+      {% if period_start and period_end %}
+        {% blocktrans count n=payslip_count with start=period_start|date:"j M Y" end=period_end|date:"j M Y" %}
+          From {{ n }} Payslip For {{ start }} – {{ end }}
+        {% plural %}
+          From {{ n }} Payslips For {{ start }} – {{ end }}
+        {% endblocktrans %}
+      {% else %}
+        {% blocktrans count n=payslip_count %}From {{ n }} Payslip Across All Time{% plural %}From {{ n }} Payslips Across All Time{% endblocktrans %}
+      {% endif %}
+      </div>
+      {% include "payroll/component_report/_ranges.html" %}
+    </div>
+
+    <div class="pb__kpis">
+      <div class="pb__kpi">
+        <div class="pb__kpi-label">{% if totals.split %}{% trans "Employee Share" %}{% elif kind == "allowance" %}{% trans "Total Paid" %}{% else %}{% trans "Total Deducted" %}{% endif %}</div>
+        <div class="pb__kpi-value" style="font-weight:700;">{{ totals.total|floatformat:2|currency_symbol_position }}</div>
+      </div>
+      {% if totals.split %}
+      <div class="pb__kpi">
+        <div class="pb__kpi-label">{% trans "Employer Share" %}</div>
+        <div class="pb__kpi-value">{{ totals.employer_total|floatformat:2|currency_symbol_position }}</div>
+      </div>
+      <div class="pb__kpi">
+        <div class="pb__kpi-label">{% trans "Combined Total" %}</div>
+        <div class="pb__kpi-value" style="font-weight:700;">{{ totals.combined|floatformat:2|currency_symbol_position }}</div>
+      </div>
+      {% endif %}
+      <div class="pb__kpi">
+        <div class="pb__kpi-label">{% trans "Components" %}</div>
+        <div class="pb__kpi-value">{{ totals.components }}</div>
+      </div>
+      <div class="pb__kpi">
+        <div class="pb__kpi-label">{% trans "Employees" %}</div>
+        <div class="pb__kpi-value">{{ totals.employees }}</div>
+      </div>
+    </div>
+
+    <p class="text-xs text-gray-500 mb-1">{% trans "Read From The Payslips As Issued, Not Recomputed." %}</p>
+    <div class="bg-white p-2 rounded-md shadow-card relative">
+      {% if rows %}
+      <div class="max-h-[calc(100vh_-_330px)] overflow-hidden overflow-y-auto overflow-x-auto heightContainer">
+        <table class="fixed-table w-full border-separate" data-bulk-select-option="false">
+          <colgroup>
+            {# The component column takes its share; every column after it gets the same width. #}
+            <col style="width:28%">
+            <col>
+            <col>
+            <col>
+            {% if totals.split %}<col><col>{% endif %}
+            <col>
+          </colgroup>
+          <thead class="sticky top-0 bg-[white] z-[1]">
+            <tr class="border-b border-[#ececec]">
+              <th class="text-sm font-medium text-left min-w-[85px]">
+                <div class="flex w-full gap-1.5 px-1.5 py-1.5 items-center"><span class="flex w-max">{% trans "Component" %}</span></div>
+              </th>
+              <th class="text-sm font-medium text-right min-w-[85px]">
+                <div class="flex w-full gap-1.5 px-1.5 py-1.5 items-center justify-end"><span class="flex w-max">{% trans "Employees" %}</span></div>
+              </th>
+              <th class="text-sm font-medium text-right min-w-[85px]">
+                <div class="flex w-full gap-1.5 px-1.5 py-1.5 items-center justify-end"><span class="flex w-max">{% trans "Payslips" %}</span></div>
+              </th>
+              <th class="text-sm font-medium text-right min-w-[85px]">
+                <div class="flex w-full gap-1.5 px-1.5 py-1.5 items-center justify-end"><span class="flex w-max">{% trans "Average" %}</span></div>
+              </th>
+              {% if totals.split %}
+              <th class="text-sm font-medium text-right min-w-[85px]">
+                <div class="flex w-full gap-1.5 px-1.5 py-1.5 items-center justify-end"><span class="flex w-max">{% trans "Employee Share" %}</span></div>
+              </th>
+              {% endif %}
+              {% if totals.split %}
+              <th class="text-sm font-medium text-right min-w-[85px]">
+                <div class="flex w-full gap-1.5 px-1.5 py-1.5 items-center justify-end"><span class="flex w-max">{% trans "Employer Share" %}</span></div>
+              </th>
+              {% endif %}
+              <th class="text-sm font-medium text-right min-w-[85px]">
+                <div class="flex w-full gap-1.5 px-1.5 py-1.5 items-center justify-end"><span class="flex w-max">{% if totals.split %}{% trans "Combined Total" %}{% else %}{% trans "Total" %}{% endif %}</span></div>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+            <tr {% if row.id %}class="cursor-pointer hover:bg-[#fafafa]" onclick="window.location.href='{% url 'payroll-component-report-detail' kind row.id %}?{{ request.GET.urlencode }}'"{% endif %}>
+              <td class="text-sm text-left px-1 py-1 text-[#666] h-[30px] max-w-0"><div class="truncate"><span>{{ row.title }}</span>{% if row.by_hand %} <span class="text-xs text-[#9ca3af] ml-1">{% trans "Added By Hand" %}</span>{% elif row.entries > 1 %} <span class="text-xs text-[#9ca3af] ml-1">{{ row.entries }} {% trans "Entries" %}</span>{% elif row.code %} <span class="text-xs text-[#9ca3af] font-mono ml-1">{{ row.code }}</span>{% endif %}</div></td>
+              <td class="text-sm text-right px-1 py-1 text-[#666] h-[30px] max-w-0"><div class="truncate">{{ row.employees }}</div></td>
+              <td class="text-sm text-right px-1 py-1 text-[#666] h-[30px] max-w-0"><div class="truncate">{{ row.payslips }}</div></td>
+              <td class="text-sm text-right px-1 py-1 text-[#666] h-[30px] max-w-0"><div class="truncate">{{ row.average|floatformat:2|currency_symbol_position }}</div></td>
+              {% if totals.split %}<td class="text-sm text-right px-1 py-1 text-[#666] h-[30px] max-w-0"><div class="truncate">{{ row.total|floatformat:2|currency_symbol_position }}</div></td>{% endif %}
+              {% if totals.split %}<td class="text-sm text-right px-1 py-1 text-[#666] h-[30px] max-w-0"><div class="truncate">{{ row.employer_total|floatformat:2|currency_symbol_position }}</div></td>{% endif %}
+              <td class="text-sm text-right px-1 py-1 text-[#666] h-[30px] max-w-0"><div class="truncate"><span class="font-semibold text-[#333]">{% if totals.split %}{{ row.combined|floatformat:2|currency_symbol_position }}{% else %}{{ row.total|floatformat:2|currency_symbol_position }}{% endif %}</span></div></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-sm px-1 py-3 text-[#666]">
+        {% trans "Nothing In This Period." %}
+        {% if latest_period %}
+          <div class="mt-1">
+            <a class="text-primary-600" href="?{{ base_query }}&range=latest" hx-get="?{{ base_query }}&range=latest" hx-target="#componentReportContent" hx-select="#componentReportContent" hx-swap="outerHTML" hx-push-url="true">
+              {% blocktrans with start=latest_period.0|date:"j M Y" end=latest_period.1|date:"j M Y" %}Show The Latest Payslips: {{ start }} – {{ end }}{% endblocktrans %}
+            </a>
+          </div>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+      {% comment %}What the page chrome outside the swapped part needs to follow after a filter: read by the script in _nav.html.{% endcomment %}
+      <span id="componentReportMeta" hidden
+            data-count="{{ filter_count|default:0 }}" data-range="{{ range }}"
+            data-from="{{ period_start|date:'Y-m-d' }}" data-to="{{ period_end|date:'Y-m-d' }}"
+            data-applied="{{ applied_names }}"></span>
+    </div>
+    </div>
+
+  </section>
+</main>
+{% endblock content %}
