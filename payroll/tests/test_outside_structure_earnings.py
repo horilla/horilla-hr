@@ -262,6 +262,31 @@ class CtcBreakDown(OutsideHelpers, StructureTypeFixture):
         )
         self.assertIn("Not Part Of The CTC", notes)
 
+    def test_a_gross_based_deduction_tooltip_shows_the_gross_it_was_charged_on(self):
+        """Under CTC Down the package is more than the gross paid, so the working must not show the package."""
+        from payroll.methods.earning_working import deduction_workings
+
+        levy = Deduction.objects.create(
+            title="Gross Levy",
+            code="GL",
+            sequence=50,
+            is_fixed=False,
+            based_on="gross_pay",
+            rate=1.0,
+            employer_rate=10.0,
+            is_pretax=True,
+        )
+        levy.specific_employees.add(self.employee)
+        payslip = self.pay(with_bonus=False)
+        working = next(
+            w
+            for w in deduction_workings(payslip).values()
+            if w["title"] == "Gross Levy"
+        )
+        self.assertLess(payslip.gross_pay, 60000.0)
+        self.assertEqual(dict(working["steps"])["GROSS"], f"{payslip.gross_pay:,.2f}")
+        self.assertAlmostEqual(working["amount"], payslip.gross_pay * 0.01, places=2)
+
     def test_a_deduction_tooltip_shows_the_employer_contribution(self):
         from payroll.methods.earning_working import deduction_workings
 
