@@ -142,11 +142,12 @@ def seed_shifts_and_attendance(company, people_by_last, shift, work_type, today)
     The schedule is Monday to Friday, 09:00 to 17:30, with Omar Haddad on an
     evening shift. Every other number is derived from the employee's row, so a
     second run of the seeder gives the same pages. Stories the guides use:
-    Lena Fischer arrives late on three days of the last week, Ravi Menon forgot
-    to check out yesterday and has a pending correction request, and the
+    Lena Fischer arrives late on three days of the last week (three Late Arrival
+    records), Ravi Menon forgot to check out yesterday (one Early Departure
+    record) and has a pending correction request, and the
     latest working day is left unvalidated for the approval guide.
     """
-    from attendance.models import Attendance
+    from attendance.models import Attendance, AttendanceLateComeEarlyOut
     from base.models import EmployeeShift, EmployeeShiftDay, EmployeeShiftSchedule
     from employee.models import Employee
 
@@ -224,6 +225,17 @@ def seed_shifts_and_attendance(company, people_by_last, shift, work_type, today)
                 row.attendance_validated = False
             row.save()
             created += 1
+            # (save(), not create(): the model saves twice and create() forces an insert)
+            # the clock-in and clock-out screens record these when someone is
+            # late or leaves early; a seeded row has to record them itself
+            if minutes_in >= 15:
+                AttendanceLateComeEarlyOut(
+                    attendance_id=row, employee_id=employee, type="late_come"
+                ).save()
+            if employee.employee_last_name == "Menon" and day == latest:
+                AttendanceLateComeEarlyOut(
+                    attendance_id=row, employee_id=employee, type="early_out"
+                ).save()
             if employee.employee_last_name == "Menon" and day == latest:
                 # the correction the employee asked for: check out at 17:30
                 wanted = Attendance.objects.get(pk=row.pk)

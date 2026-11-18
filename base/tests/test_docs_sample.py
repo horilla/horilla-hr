@@ -171,3 +171,12 @@ class DocsSampleAttendanceTests(TestCase):
         waiting = self.rows().filter(attendance_validated=False)
         self.assertEqual(waiting.count(), len(CAST) + len(STAFF))
         self.assertEqual(len({r.attendance_date for r in waiting}), 1)
+
+    def test_late_and_early_records_match_the_stories(self):
+        from attendance.models import AttendanceLateComeEarlyOut as Record
+
+        late = Record._base_manager.filter(type="late_come")
+        self.assertEqual(late.count(), 3)
+        self.assertEqual({r.employee_id.employee_last_name for r in late}, {"Fischer"})
+        early = Record._base_manager.get(type="early_out")
+        self.assertEqual(early.employee_id.employee_last_name, "Menon")
