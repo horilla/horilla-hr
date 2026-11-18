@@ -79,6 +79,12 @@ SUBMENUS = [
         "match_prefixes": ["/payroll/filing-status-detail-view/"],
     },
     {
+        # The allowance and deduction report; its component pages are sub-paths of this URL.
+        "menu": _("Component Report"),
+        "redirect": reverse("payroll-component-report"),
+        "accessibility": "payroll.sidebar.payslip_accessibility",
+    },
+    {
         "menu": _("Configuration"),
         "redirect": reverse("payroll-settings-view"),
         "accessibility": "payroll.sidebar.payroll_settings_accessibility",
