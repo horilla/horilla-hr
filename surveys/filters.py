@@ -5,7 +5,7 @@ from django import forms
 from django.utils.translation import gettext_lazy as _
 
 from horilla.filters import HorillaFilterSet
-from surveys.models import Questionnaire, Survey
+from surveys.models import Questionnaire, Survey, SurveyInvitation
 
 
 class SurveyFilter(HorillaFilterSet):
@@ -24,6 +24,16 @@ class SurveyFilter(HorillaFilterSet):
         label=_("Closes till"),
         widget=forms.DateInput(attrs={"type": "date"}),
     )
+    has_answers = django_filters.BooleanFilter(
+        method="filter_has_answers", label=_("Has answers")
+    )
+
+    def filter_has_answers(self, queryset, name, value):
+        if value:
+            return queryset.filter(
+                invitations__status=SurveyInvitation.STATUS_SUBMITTED
+            ).distinct()
+        return queryset
 
     class Meta:
         model = Survey

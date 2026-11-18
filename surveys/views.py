@@ -425,11 +425,22 @@ def load_standard_questionnaires(request):
 @login_required
 @permission_required("surveys.view_survey")
 def dashboard(request):
+    open_url = reverse("surveys-view") + "?status=open&filter_applied=on"
+    # "Answered" is counted across INVITATIONS (one per employee per
+    # survey), not a field on Survey itself, so there's no literal
+    # "answered" filter on the survey list -- has_answers (SurveyFilter)
+    # surfaces the surveys that contributed to that count instead, the
+    # closest real drill-down target.
+    answered_url = reverse("surveys-view") + "?has_answers=true&filter_applied=on"
+    # Response rate has no destination at all, not even that -- it's a
+    # single derived percentage, not a count of anything filterable -- so
+    # it's rendered separately below as a static card showing the formula
+    # as a tooltip instead, same treatment recruitment's dashboard gives
+    # Conversion/Acceptance Rate.
     tiles = [
-        ("kOpen", _("Open surveys"), "clipboard-outline", "#3b82f61f"),
-        ("kInvited", _("Invited (open surveys)"), "people-outline", "#b71db01f"),
-        ("kAnswered", _("Answered"), "checkmark-done-outline", "#1cba5121"),
-        ("kRate", _("Response rate"), "trending-up-outline", "#ea7f2f2e"),
+        ("kOpen", _("Open surveys"), "clipboard-outline", "indigo", open_url),
+        ("kInvited", _("Invited (open surveys)"), "people-outline", "blue", open_url),
+        ("kAnswered", _("Answered"), "checkmark-done-outline", "green", answered_url),
     ]
     return render(request, "surveys/dashboard.html", {"tiles": tiles})
 
@@ -440,7 +451,14 @@ def dashboard_data(request):
     surveys = Survey.objects.all()
     open_surveys = surveys.filter(status=Survey.STATUS_OPEN)
     invitations = SurveyInvitation.objects.filter(survey__in=open_surveys)
-    submitted = invitations.filter(status=SurveyInvitation.STATUS_SUBMITTED)
+    # All-time, across every survey regardless of status -- paired together
+    # so "Response rate" always matches the "Answered" tile it's shown next
+    # to (both all-time), rather than silently mixing an all-time count
+    # with an open-surveys-only one.
+    all_time_invited = SurveyInvitation.objects.count()
+    all_time_answered = SurveyInvitation.objects.filter(
+        status=SurveyInvitation.STATUS_SUBMITTED
+    ).count()
     since = timezone.now() - timezone.timedelta(days=30)
     per_day = (
         SurveyResponse.objects.filter(is_draft=False, submitted_at__gte=since)
@@ -478,8 +496,13 @@ def dashboard_data(request):
             "kpi": {
                 "open": open_surveys.count(),
                 "invited": total_inv,
-                "answered": submitted.count(),
-                "rate": round(100 * submitted.count() / total_inv) if total_inv else 0,
+                "answered": all_time_answered,
+                "invited_all": all_time_invited,
+                "rate": (
+                    round(100 * all_time_answered / all_time_invited)
+                    if all_time_invited
+                    else 0
+                ),
                 "total": surveys.count(),
             },
             "per_day": [
