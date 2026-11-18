@@ -74,6 +74,9 @@ class BiometricNavBar(HorillaNavView):
     filter_instance = BiometricDeviceFilter()
     filter_form_context_name = "form"
     search_swap_target = "#listContainer"
+    # Modern slide-over filter panel (generic/horilla_nav.html's own
+    # {% if modern_filter %} branch), same as the other list pages.
+    modern_filter = True
 
 
 @method_decorator(login_required, name="dispatch")
