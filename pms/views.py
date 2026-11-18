@@ -3675,7 +3675,7 @@ def get_keyresult_data(request):
     if key_result:
         if request.GET.get("data-update") == "target_value":
             return HttpResponse(
-                f'<input type="number" name="target_value" value="{key_result.target_value}" class="oh-input w-100 form-control test test" placeholder="Target Value" id="id_target_value">'
+                f'<input type="number" min="0" name="target_value" value="{key_result.target_value}" class="oh-input w-100 form-control test test" placeholder="Target Value" id="id_target_value">'
             )
         if request.GET.get("data-update") == "end_date":
             start_date = datetime.datetime.strptime(
@@ -3688,7 +3688,7 @@ def get_keyresult_data(request):
     else:
         if request.GET.get("data-update") == "target_value":
             return HttpResponse(
-                f'<input type="number" name="target_value" value="" class="oh-input w-100 form-control test test" placeholder="Target Value" id="id_target_value">'
+                f'<input type="number" min="0" name="target_value" value="" class="oh-input w-100 form-control test test" placeholder="Target Value" id="id_target_value">'
             )
         if request.GET.get("data-update") == "end_date":
             return HttpResponse(

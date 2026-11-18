@@ -444,6 +444,8 @@ class EmployeeKeyResultForm(BaseForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        for field_name in ("start_value", "current_value"):
+            self.fields[field_name].widget.attrs.pop("min", None)
         request = getattr(horilla_middlewares._thread_locals, "request", None)
         if self.initial.get("employee_objective_id"):
             if (
@@ -608,6 +610,9 @@ class KeyResultForm(ModelForm):
         )  # access the logged-in user's information
         super().__init__(*args, **kwargs)
         reload_queryset(self.fields)
+        for field_name in ("target_value", "progress_percentage"):
+            if field_name in self.fields:
+                self.fields[field_name].widget.attrs.setdefault("min", 0)
         employees = Employee.objects.filter(
             is_active=True, employee_work_info__reporting_manager_id=employee
         )

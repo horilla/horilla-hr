@@ -128,6 +128,8 @@ class ModelForm(forms.ModelForm):
                         "placeholder": _(field.label.title()) if field.label else "",
                     }
                 )
+                if isinstance(widget, forms.NumberInput):
+                    widget.attrs.setdefault("min", 0)
 
             # Select fields
             elif isinstance(widget, forms.Select):
@@ -855,6 +857,10 @@ class BonusPointAddForm(ModelForm):
         widgets = {
             "reason": forms.TextInput(attrs={"required": "required"}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["points"].widget.attrs.pop("min", None)
 
 
 class BonusPointRedeemForm(ModelForm):

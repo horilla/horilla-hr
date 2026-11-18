@@ -126,6 +126,8 @@ class ConditionForm(forms.ModelForm):
                 field.widget.attrs.update(
                     {"class": "oh-input w-100", "placeholder": field.label}
                 )
+                if isinstance(widget, forms.NumberInput):
+                    field.widget.attrs.setdefault("min", 0)
             elif isinstance(widget, (forms.Textarea)):
                 field.widget.attrs.update(
                     {
@@ -161,6 +163,10 @@ class LeaveTypeAdminForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        for field in self.fields.values():
+            if isinstance(field.widget, forms.NumberInput):
+                field.widget.attrs.setdefault("min", 0)
 
         if f := self.fields.get("company_id"):
             from horilla_widgets.forms import default_select_option_template

@@ -120,6 +120,8 @@ class ModelForm(forms.ModelForm):
                         "placeholder": _(field.label.title()) if field.label else "",
                     }
                 )
+                if isinstance(widget, forms.NumberInput):
+                    widget.attrs.setdefault("min", 0)
 
             # Select fields
             elif isinstance(widget, forms.Select):
@@ -226,6 +228,8 @@ class DropDownForm(forms.ModelForm):
                             "placeholder": label,
                         }
                     )
+                if isinstance(widget, forms.NumberInput):
+                    widget.attrs.setdefault("min", 0)
             elif isinstance(widget, (forms.Select,)):
                 self.fields[field_name].widget.attrs.update(
                     {
