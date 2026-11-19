@@ -11,7 +11,7 @@
 ## 🚀 Features
 
 ### Core HR Modules
-- 👥 **Employee Management** - Centralized workforce data with LDAP integration
+- 👥 **Employee Management** - Centralized workforce data with LDAP and SCIM 2.0 provisioning
 - 🎯 **Recruitment** - End-to-end hiring process from job posting to onboarding
 - 📋 **Onboarding & Offboarding** - Structured workflows for employee lifecycle
 - ⏰ **Attendance & Time Tracking** - Biometric integration and automated check-in/out
