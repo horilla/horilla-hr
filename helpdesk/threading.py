@@ -48,13 +48,17 @@ class TicketSendThread(Thread):
         display_email_name = email_backend.dynamic_from_email_with_display_name
         if self.request:
             try:
-                display_email_name = f"{self.request.user.employee_get.get_full_name()} <{self.request.user.employee_get.email}>"
+                sender = self.request.user.employee_get
+                if sender.email:
+                    display_email_name = f"{sender.get_full_name()} <{sender.email}>"
             except:
                 logger.error(Exception)
 
         if ticket_id != "#":
             link = f"{protocol}://{host}/helpdesk/ticket-detail/{ticket_id}/"
         for recipient in recipients:
+            if not recipient.get_mail():
+                continue
             html_message = render_to_string(
                 "helpdesk/mail_templates/ticket_mail.html",
                 {
@@ -72,7 +76,7 @@ class TicketSendThread(Thread):
                 subject=subject,
                 body=html_message,
                 from_email=display_email_name,
-                to=[recipient.email],
+                to=[recipient.get_mail()],
                 reply_to=[display_email_name],
             )
             email.content_subtype = "html"
@@ -160,11 +164,15 @@ class AddAssigneeThread(Thread):
         display_email_name = email_backend.dynamic_from_email_with_display_name
         if self.request:
             try:
-                display_email_name = f"{self.request.user.employee_get.get_full_name()} <{self.request.user.employee_get.email}>"
+                sender = self.request.user.employee_get
+                if sender.email:
+                    display_email_name = f"{sender.get_full_name()} <{sender.email}>"
             except:
                 pass
         link = f"{protocol}://{host}/helpdesk/ticket-detail/{self.ticket.id}/"
         for recipient in self.recipients:
+            if not recipient.get_mail():
+                continue
             html_message = render_to_string(
                 "helpdesk/mail_templates/ticket_mail.html",
                 {
@@ -182,7 +190,7 @@ class AddAssigneeThread(Thread):
                 subject=subject,
                 body=html_message,
                 from_email=display_email_name,
-                to=[recipient.email],
+                to=[recipient.get_mail()],
                 reply_to=[display_email_name],
             )
             email.content_subtype = "html"
@@ -219,13 +227,17 @@ class RemoveAssigneeThread(Thread):
         display_email_name = email_backend.dynamic_from_email_with_display_name
         if self.request:
             try:
-                display_email_name = f"{self.request.user.employee_get.get_full_name()} <{self.request.user.employee_get.email}>"
+                sender = self.request.user.employee_get
+                if sender.email:
+                    display_email_name = f"{sender.get_full_name()} <{sender.email}>"
             except:
                 pass
         host = self.host
         protocol = self.protocol
         link = f"{protocol}://{host}/helpdesk/ticket-detail/{self.ticket.id}/"
         for recipient in self.recipients:
+            if not recipient.get_mail():
+                continue
             html_message = render_to_string(
                 "helpdesk/mail_templates/ticket_mail.html",
                 {
@@ -243,7 +255,7 @@ class RemoveAssigneeThread(Thread):
                 subject=subject,
                 body=html_message,
                 from_email=display_email_name,
-                to=[recipient.email],
+                to=[recipient.get_mail()],
                 reply_to=[display_email_name],
             )
             email.content_subtype = "html"

@@ -39,6 +39,11 @@ class MailSendThread(Thread):
         super().run()
         set_selected_company(self.company_id)
         for record in list(self.result_dict.values()):
+            employee = record["instances"][0].employee_id
+            to_mail = employee.get_mail()
+            if not to_mail:
+                # Nowhere to send it: the payslips stay marked as not sent
+                continue
             html_message = render_to_string(
                 "payroll/mail_templates/default.html",
                 {
@@ -58,12 +63,15 @@ class MailSendThread(Thread):
                         "application/pdf",
                     )
                 )
-            employee = record["instances"][0].employee_id
             email_backend = ConfiguredEmailBackend()
             display_email_name = email_backend.dynamic_from_email_with_display_name
             if self.request:
                 try:
-                    display_email_name = f"{self.request.user.employee_get.get_full_name()} <{self.request.user.employee_get.email}>"
+                    sender = self.request.user.employee_get
+                    if sender.email:
+                        display_email_name = (
+                            f"{sender.get_full_name()} <{sender.email}>"
+                        )
                 except:
                     logger.error(Exception)
 
@@ -71,7 +79,7 @@ class MailSendThread(Thread):
                 f"Hello, {record['instances'][0].get_name()} Your Payslips is Ready!",
                 html_message,
                 display_email_name,
-                [employee.get_mail()],
+                [to_mail],
                 reply_to=[display_email_name],
             )
             email.attachments = attachments
@@ -79,8 +87,10 @@ class MailSendThread(Thread):
             # Send the email
             email.content_subtype = "html"
             try:
-                email.send()
-                Payslip.objects.filter(id__in=self.ids).update(sent_to_employee=True)
+                if email.send():
+                    Payslip.objects.filter(
+                        id__in=[instance.id for instance in record["instances"]]
+                    ).update(sent_to_employee=True)
             except Exception as e:
                 logger.exception(e)
 
