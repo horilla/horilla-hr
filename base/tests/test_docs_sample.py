@@ -202,3 +202,12 @@ class DocsSampleAnchorTests(TestCase):
     def test_unpaid_leave_has_a_usable_balance_when_assigned(self):
         unpaid = LeaveType.objects.get(name="Unpaid Leave")
         self.assertEqual(unpaid.total_days, 100000)
+
+    def test_leave_types_carry_the_payment_type_the_screen_stores(self):
+        # a type made through the Create Leave Type form sets payment_type; without
+        # it the Update form opens blank and a save can turn Paid into Unpaid
+        types = {t.name: t.payment_type for t in LeaveType.objects.all()}
+        self.assertEqual(
+            types,
+            {"Annual Leave": "paid", "Sick Leave": "paid", "Unpaid Leave": "unpaid"},
+        )

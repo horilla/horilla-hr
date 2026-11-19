@@ -358,6 +358,7 @@ def seed_docs_sample(
     annual = LeaveType.objects.create(
         name="Annual Leave",
         payment="paid",
+        payment_type="paid",
         count=18,
         total_days=18,
         reset=True,
@@ -368,12 +369,20 @@ def seed_docs_sample(
         carryforward_max=5,
     )
     sick = LeaveType.objects.create(
-        name="Sick Leave", payment="paid", count=10, total_days=10
+        name="Sick Leave",
+        payment="paid",
+        payment_type="paid",
+        count=10,
+        total_days=10,
     )
     # 100000 days is what the Create Leave Type form stores when Limit Leave Days
     # is off, so an assigned balance behaves like one made through the screen
     LeaveType.objects.create(
-        name="Unpaid Leave", payment="unpaid", limit_leave=False, total_days=100000
+        name="Unpaid Leave",
+        payment="unpaid",
+        payment_type="unpaid",
+        limit_leave=False,
+        total_days=100000,
     )
 
     employees = [row[0] for row in people]
