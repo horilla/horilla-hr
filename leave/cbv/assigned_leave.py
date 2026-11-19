@@ -111,7 +111,6 @@ class AssignedleaveList(HorillaListView):
         "leave_type_id",
         "available_days",
         "carryforward_days",
-        "total_leave_days",
         "assigned_date",
     ]
 
