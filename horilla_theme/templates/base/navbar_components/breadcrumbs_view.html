@@ -58,7 +58,7 @@
                         {% for breadcrumb in groups.hidden %}
                             <li>
                                 {% if breadcrumb.clickable and breadcrumb.found %}
-                                    <a href="{{ breadcrumb.url }}">{% trans breadcrumb.name %}</a>
+                                    <a href="{{ breadcrumb.url|crumb_url }}">{% trans breadcrumb.name %}</a>
                                 {% else %}
                                     <span>{% trans breadcrumb.name %}</span>
                                 {% endif %}
