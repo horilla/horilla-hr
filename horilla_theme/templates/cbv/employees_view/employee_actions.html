@@ -87,6 +87,32 @@
 	</button>
 	{% endif %}
 
+	{% if perms.employee.change_employee %}
+	<button
+		type="button"
+		hx-post="{% url 'employee-reset-password-admin' instance.id %}"
+		hx-target="#genericModalBody"
+		hx-swap="innerHTML"
+		hx-on-htmx-before-request="$('#genericModalBody').empty();"
+		hx-on-htmx-after-request="if ($('#genericModalBody').children().length) $('#genericModal').addClass('oh-modal--show');"
+		hx-confirm="{% trans 'This will immediately invalidate the current password. Continue?' %}"
+		title="{% trans 'Reset Password' %}"
+		class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
+	>
+		<ion-icon name="key-outline"></ion-icon>
+	</button>
+	<button
+		type="button"
+		hx-post="{% url 'employee-send-invitation' instance.id %}"
+		hx-target="#relatedModel"
+		hx-confirm="{% trans 'Send an invitation email to this employee?' %}"
+		title="{% trans 'Send Invitation' %}"
+		class="oh-btn oh-btn--light-bkg oh-btn--sq-sm"
+	>
+		<ion-icon name="mail-outline"></ion-icon>
+	</button>
+	{% endif %}
+
 	{% if perms.employee.delete_employee %}
 		<button
 			type="button"
