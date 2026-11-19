@@ -157,6 +157,12 @@ class EmployeeCheckTests(TestCase):
         self.assertEqual(len(result.errors), 1)
         self.assertIn("username", " ".join(result.errors[0]["messages"]).lower())
 
+    def test_a_row_without_a_phone_is_imported(self):
+        rows = self.check(rows_for({"Mobile": None})).valid
+        self.assertEqual(len(rows), 1)
+        EMPLOYEES.commit(rows, Context())
+        self.assertEqual(Employee.objects.entire().get(badge_id="E-1").phone, "")
+
     def test_a_simple_password_is_accepted_to_be_changed_at_first_sign_in(self):
         result = self.check(rows_for({"Password": "1234"}))
         self.assertEqual(result.errors, [])

@@ -356,8 +356,8 @@ def process_employee_records(
             errors["First Name Error"] = "First name cannot be empty."
             save = False
 
-        # Phone validation
-        if not phone_regex.match(phone):
+        # Phone validation (optional; checked only when given)
+        if phone and not phone_regex.match(phone):
             errors["Phone Error"] = "Invalid phone number format."
             save = False
 

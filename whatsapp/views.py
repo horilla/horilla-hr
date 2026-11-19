@@ -468,6 +468,8 @@ def send_announcement_task(instance, request):
 
     for employee in employees:
         number = employee.phone
+        if not number:
+            continue
         send_text_message(number, final_text, header)
         for attachment in instance.attachments.all():
             link = attachment.file.url

@@ -101,7 +101,7 @@ class Employee(models.Model):
         upload_to=upload_path, null=True, blank=True, verbose_name=_("Profile Image")
     )
     email = models.EmailField(max_length=254, unique=True)
-    phone = models.CharField(max_length=25, validators=[phone_validator])
+    phone = models.CharField(max_length=25, blank=True, validators=[phone_validator])
     address = models.TextField(max_length=200, blank=True, null=True)
     country = models.CharField(max_length=100, blank=True, null=True)
     state = models.CharField(max_length=100, null=True, blank=True)
@@ -109,7 +109,7 @@ class Employee(models.Model):
     zip = models.CharField(max_length=20, null=True, blank=True, verbose_name=_("Zip"))
     dob = models.DateField(null=True, blank=True, verbose_name=_("Date of Birth"))
     gender = models.CharField(
-        max_length=10, null=True, choices=choice_gender, default="male"
+        max_length=10, null=True, blank=True, choices=choice_gender
     )
     qualification = models.CharField(max_length=50, blank=True, null=True)
     experience = models.IntegerField(null=True, blank=True)
