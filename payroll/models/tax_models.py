@@ -109,7 +109,7 @@ class TaxBracket(HorillaModel):
     objects = models.Manager()
 
     def __str__(self):
-        if self.max_income != math.inf:
+        if not self.is_open_ended():
             return (
                 f"{self.filing_status_id}"
                 f"{self.tax_rate}% tax rate on "
@@ -132,10 +132,16 @@ class TaxBracket(HorillaModel):
         float("inf") by others, and only the first was handled -- so the last
         row of a US table read "inf". Both mean the same thing and both say so.
         """
-        top = self.max_income
-        if top is None or top == math.inf:
+        if self.is_open_ended():
             return _("%(floor)s and above") % {"floor": f"{self.min_income:,.0f}"}
-        return f"{self.min_income:,.0f} – {top:,.0f}"
+        return f"{self.min_income:,.0f} – {self.max_income:,.0f}"
+
+    def is_open_ended(self):
+        """
+        Whether this bracket has no maximum income. That is stored as NULL;
+        brackets saved before that hold infinity until their next save.
+        """
+        return self.max_income is None or math.isinf(self.max_income)
 
     def get_display_max_income(self):
         """
@@ -143,9 +149,17 @@ class TaxBracket(HorillaModel):
         Returns:
             float or None: The maximum income if it is a finite value, otherwise None.
         """
-        if self.max_income != math.inf:
-            return self.max_income
-        return None
+        if self.is_open_ended():
+            return None
+        return self.max_income
+
+    def save(self, *args, **kwargs):
+        # No maximum is stored as NULL. Infinity, stored for it before, is not
+        # valid JSON: the API could not list the bracket and an audit log
+        # entry for it could not be saved.
+        if self.is_open_ended():
+            self.max_income = None
+        super().save(*args, **kwargs)
 
     def get_update_url(self):
         """

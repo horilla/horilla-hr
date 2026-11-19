@@ -10,7 +10,6 @@ django.shortcuts module.
 
 """
 
-import math
 from urllib.parse import parse_qs
 
 from django.contrib import messages
@@ -304,7 +303,7 @@ def create_tax_bracket(request, filing_status_id):
             max_income = tax_bracket_form.cleaned_data.get("max_income")
             if not max_income:
                 messages.info(request, _("The maximum income will be infinite"))
-                tax_bracket_form.instance.max_income = math.inf
+                tax_bracket_form.instance.max_income = None
             tax_bracket_form.save()
             messages.success(request, _("The tax bracket was created successfully."))
             return redirect(create_tax_bracket, filing_status_id=filing_status_id)
@@ -336,7 +335,7 @@ def update_tax_bracket(request, tax_bracket_id):
                 max_income = tax_bracket_form.cleaned_data.get("max_income")
                 if not max_income:
                     messages.info(request, _("The maximum income will be infinite"))
-                    tax_bracket_form.instance.max_income = math.inf
+                    tax_bracket_form.instance.max_income = None
                 tax_bracket_form.save()
                 messages.success(
                     request, _("The tax bracket has been updated successfully.")
