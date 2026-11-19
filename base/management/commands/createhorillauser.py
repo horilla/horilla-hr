@@ -49,7 +49,7 @@ class Command(BaseCommand):
 
         try:
             user = HorillaUser.objects.create_superuser(
-                username=username, email=email, password=password
+                username=username, email=email or "", password=password
             )
             employee = Employee()
             employee.employee_user_id = user

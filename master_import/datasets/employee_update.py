@@ -142,6 +142,10 @@ class EmployeeUpdater:
         self.structures = structure_table()
         taken_emails = {
             e.lower() for e in HorillaUser.objects.values_list("username", flat=True)
+        } | {
+            e.lower()
+            for e in Employee.objects.entire().values_list("email", flat=True)
+            if e
         }
         seen_people, new_emails, new_badges = {}, set(), set()
         all_badges = {

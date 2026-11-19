@@ -29,7 +29,7 @@ class Command(BaseCommand):
             for dn, entry in results:
 
                 user_id = entry.get("uid", [b""])[0].decode("utf-8")
-                email = entry.get("mail", [b""])[0].decode("utf-8")
+                email = entry.get("mail", [b""])[0].decode("utf-8") or None
                 first_name = entry.get("givenName", [b""])[0].decode("utf-8")
                 last_name = entry.get("sn", [b""])[0].decode("utf-8")
                 name = entry.get("cn", [b""])[0].decode("utf-8")
@@ -38,9 +38,21 @@ class Command(BaseCommand):
                 # Get the password from LDAP
                 ldap_password = entry.get("userPassword", [b""])[0].decode("utf-8")
 
+                if not email and not user_id:
+                    self.stdout.write(
+                        self.style.WARNING(f"Skipped {name}: no email and no uid.")
+                    )
+                    continue
+                # Without an email, the uid (the username) finds the employee
+                lookup = (
+                    {"email": email}
+                    if email
+                    else {"employee_user_id__username": user_id}
+                )
+
                 # Create or update the Employee record, storing the LDAP password
                 employee, created = Employee.objects.update_or_create(
-                    email=email,
+                    **lookup,
                     defaults={
                         "employee_first_name": first_name,
                         "employee_last_name": last_name,
@@ -51,9 +63,14 @@ class Command(BaseCommand):
 
                 # Retrieve the associated HorillaUser if it exists
                 try:
-                    user = HorillaUser.objects.get(
-                        Q(username=email) | Q(username=user_id) | Q(email=email)
-                    )
+                    if email:
+                        user = HorillaUser.objects.get(
+                            Q(username=email) | Q(username=user_id) | Q(email=email)
+                        )
+                    else:
+                        user = employee.employee_user_id
+                        if user is None:
+                            raise HorillaUser.DoesNotExist
                     user.username = user_id
                     user.set_password(
                         ldap_password

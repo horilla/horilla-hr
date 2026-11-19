@@ -196,7 +196,7 @@ class EmployeesDataset(Dataset):
         ),
         Field(
             "Email",
-            required=True,
+            required=False,
             group="Person",
             sample="maya.chen@acme.co",
             aliases=("work email", "email address", "e-mail", "mail", "official email"),
