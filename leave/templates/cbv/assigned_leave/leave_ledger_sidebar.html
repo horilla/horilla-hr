@@ -1,4 +1,5 @@
-{% load i18n %}
+{% load i18n leavefilters %}
+{% carryforward_in_use as show_carryforward %}
 <div class="oh-activity-sidebar__header mt-3 sticky top-0 z-[100] bg-white pb-2 flex items-center gap-2">
     <a style="cursor: pointer" onclick="$('.oh-activity-sidebar--show').removeClass('oh-activity-sidebar--show')">
         <ion-icon
@@ -38,12 +39,14 @@
                     {% if instance.leave_type_id.limit_leave %}{{ instance.available_days|add:instance.carryforward_days|floatformat:"-2" }}{% else %}{% trans "No Limit" %}{% endif %}
                 </p>
             </div>
+            {% if show_carryforward %}
             <div class="bg-white rounded-lg border border-secondary-200 px-3 py-2">
                 <p class="text-xs text-dark-100 mb-0.5">{% trans "Carryforward" %}</p>
                 <p class="text-lg font-bold text-dark-200">
                     {{ instance.carryforward_days|floatformat:"-2" }}
                 </p>
             </div>
+            {% endif %}
         </div>
     </div>
 

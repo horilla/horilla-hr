@@ -369,6 +369,19 @@ class LeaveType(HorillaModel):
     class Meta:
         ordering = ["-id"]
 
+    @classmethod
+    def carryforward_in_use(cls):
+        """
+        True if any leave type carries leave forward, or any balance still
+        holds carried-forward days. When neither is true, carryforward_days
+        is always 0 and total_leave_days always equals available_days, so
+        the balance screens leave both out.
+        """
+        return (
+            cls.objects.exclude(carryforward_type="no carryforward").exists()
+            or AvailableLeave.objects.filter(carryforward_days__gt=0).exists()
+        )
+
     def get_avatar(self):
         """
         Method will retun the api to the avatar or path to the profile image
