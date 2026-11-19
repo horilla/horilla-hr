@@ -5119,11 +5119,11 @@ def employee_available_leave_count(request):
 
             if leave_type.carryforward_type == "no carryforward":
                 total_leave_days = 0
-            elif (
-                leave_type.carryforward_type in ["carryforward", "carryforward expire"]
-                and leave_type.carryforward_max < total_leave_days
-            ):
-                total_leave_days = leave_type.carryforward_max
+            elif leave_type.carryforward_type in [
+                "carryforward",
+                "carryforward expire",
+            ]:
+                total_leave_days = leave_type.capped_carryforward(total_leave_days)
 
             total_leave_days += forcasted_days
 

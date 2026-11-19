@@ -501,16 +501,25 @@ class LeaveType(HorillaModel):
             return self.assignment_expiry_date(assigned_date)
         return self.carryforward_expire_date or assigned_date
 
+    def capped_carryforward(self, days):
+        """
+        Return how many of ``days`` can be carried forward: all of them when
+        no carryforward maximum is set.
+        """
+        if self.carryforward_max is None:
+            return days
+        return min(days, self.carryforward_max)
+
     def save(self, *args, **kwargs):
         from base.auth_backends import stamp_company_on_create
 
         stamp_company_on_create(self)
 
-        if (
-            self.carryforward_type != "no carryforward"
-            and self.carryforward_max is None
-        ):
-            self.carryforward_max = math.inf
+        # No maximum means unlimited carryforward and is stored as NULL, see
+        # capped_carryforward(). Infinity, which was stored for it before,
+        # is not valid JSON, so the audit log entry for the save failed.
+        if self.carryforward_max is not None and math.isinf(self.carryforward_max):
+            self.carryforward_max = None
         if self.pk and LeaveType.objects.get(id=self.pk).is_compensatory_leave:
             self.is_compensatory_leave = True
 
@@ -847,10 +856,9 @@ class AvailableLeave(HorillaModel):
 
     def update_carryforward(self):
         if self.leave_type_id.carryforward_type != "no carryforward":
-            if self.leave_type_id.carryforward_max >= self.total_leave_days:
-                self.carryforward_days = self.total_leave_days
-            else:
-                self.carryforward_days = self.leave_type_id.carryforward_max
+            self.carryforward_days = self.leave_type_id.capped_carryforward(
+                self.total_leave_days
+            )
         else:
             # Otherwise a stale carryforward_days value (e.g. left over
             # from before the policy was switched to "no carryforward")
@@ -1230,8 +1238,8 @@ class AvailableLeave(HorillaModel):
             (self.available_days or 0) + (self.carryforward_days or 0), 2
         )
         if self.leave_type_id.carryforward_type != "no carryforward":
-            forecasted_carryforward = min(
-                current_total, self.leave_type_id.carryforward_max or 0
+            forecasted_carryforward = self.leave_type_id.capped_carryforward(
+                current_total
             )
         else:
             forecasted_carryforward = 0
@@ -2172,11 +2180,12 @@ class LeaveRequest(HorillaModel):
 
         available_days = available_leave.available_days or 0
         carryforward_days = available_leave.carryforward_days or 0
-        carryforward_max = available_leave.leave_type_id.carryforward_max or 0
         carryforward_type = available_leave.leave_type_id.carryforward_type
 
         if carryforward_type in ["carryforward", "carryforward expire"]:
-            carryforward_days = min(carryforward_days, carryforward_max)
+            carryforward_days = available_leave.leave_type_id.capped_carryforward(
+                carryforward_days
+            )
         elif carryforward_type == "no carryforward":
             carryforward_days = 0
 
