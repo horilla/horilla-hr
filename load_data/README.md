@@ -55,7 +55,7 @@ python manage.py seed_docs_sample --flush --noinput
 
 - 38 employees, five departments, a cast of eight with logins (`first.last@lakesideworks.example`,
   password `Lakeside-docs-1`, change it with `--password`). Maya Chen is the administrator.
-- Everything is built around today's date, so the scenarios happen in the current month.
+- Everything is built around a fixed anchor date, 18 November 2026, not the day you run it, so pages and screenshots keep matching after every reset. Move it with `--today YYYY-MM-DD`.
 - First slice: people, roles, and leave (types, balances, holidays, requests in each state).
   Attendance, payroll and the other modules are added in later slices.
 - The colleagues have no login. A second run does nothing; reset with `--flush`.

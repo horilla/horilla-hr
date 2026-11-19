@@ -5,8 +5,9 @@ so that a name in a sentence is the name in the picture. See
 documentation/11-user-guide-structure.md (STR-07) in the guidelines repository.
 
 The dataset is meant for a throwaway database: reset it with
-`manage.py seed_docs_sample --flush`. It is built around today's date, so the
-scenarios always happen in the current month.
+`manage.py seed_docs_sample --flush`. It is built around a fixed anchor date
+(`ANCHOR_DATE`), not the day it runs, so a page written once keeps matching the
+data on every later reset. Pass `--today` to move the anchor.
 
 This first slice covers the company, its people and roles, and leave: types,
 balances, holidays and requests in each state. Attendance, payroll and the other
@@ -26,6 +27,7 @@ logger = logging.getLogger(__name__)
 
 COMPANY = "Lakeside Works Ltd"
 DEFAULT_PASSWORD = "Lakeside-docs-1"  # a documentation login on a throwaway database
+ANCHOR_DATE = date(2026, 11, 18)  # the "today" of every documentation scenario
 DOMAIN = "lakesideworks.example"  # a reserved domain: mail to it goes nowhere
 
 DEPARTMENTS = {
@@ -272,7 +274,7 @@ def seed_docs_sample(
     from horilla_auth.models import HorillaUser
     from leave.models import AvailableLeave, LeaveRequest, LeaveType
 
-    today = today or date.today()
+    today = today or ANCHOR_DATE
     if Company.objects.filter(company=COMPANY).exists():
         return {"skipped": f"{COMPANY} already exists; reset with --flush"}
 
@@ -368,8 +370,10 @@ def seed_docs_sample(
     sick = LeaveType.objects.create(
         name="Sick Leave", payment="paid", count=10, total_days=10
     )
+    # 100000 days is what the Create Leave Type form stores when Limit Leave Days
+    # is off, so an assigned balance behaves like one made through the screen
     LeaveType.objects.create(
-        name="Unpaid Leave", payment="unpaid", limit_leave=False, total_days=0
+        name="Unpaid Leave", payment="unpaid", limit_leave=False, total_days=100000
     )
 
     employees = [row[0] for row in people]

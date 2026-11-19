@@ -11,6 +11,7 @@ from base.demo_data.docs_sample import (
     CAST,
     COMPANY,
     DEFAULT_PASSWORD,
+    ANCHOR_DATE,
     DOMAIN,
     STAFF,
     seed_docs_sample,
@@ -180,3 +181,24 @@ class DocsSampleAttendanceTests(TestCase):
         self.assertEqual({r.employee_id.employee_last_name for r in late}, {"Fischer"})
         early = Record._base_manager.get(type="early_out")
         self.assertEqual(early.employee_id.employee_last_name, "Menon")
+
+
+class DocsSampleAnchorTests(TestCase):
+    """Without a date the seeder uses the fixed anchor, never the day it runs."""
+
+    @classmethod
+    def setUpTestData(cls):
+        seed_docs_sample()
+
+    def test_the_default_anchor_is_fixed(self):
+        from attendance.models import Attendance
+
+        self.assertEqual(ANCHOR_DATE, date(2026, 11, 18))
+        latest = Attendance._base_manager.order_by("-attendance_date").first()
+        self.assertEqual(latest.attendance_date, date(2026, 11, 17))
+        ravi = LeaveRequest.objects.get(employee_id__employee_last_name="Menon")
+        self.assertEqual(ravi.start_date, date(2026, 11, 23))
+
+    def test_unpaid_leave_has_a_usable_balance_when_assigned(self):
+        unpaid = LeaveType.objects.get(name="Unpaid Leave")
+        self.assertEqual(unpaid.total_days, 100000)

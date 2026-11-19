@@ -1,5 +1,7 @@
 """manage.py seed_docs_sample - the sample company of the user guide."""
 
+from datetime import date
+
 from django.core.management import call_command
 from django.core.management.base import BaseCommand
 
@@ -27,12 +29,18 @@ class Command(BaseCommand):
             help="Do not prompt for confirmation.",
         )
         parser.add_argument(
+            "--today",
+            default=None,
+            help="Anchor date, YYYY-MM-DD (default: the fixed documentation date).",
+        )
+        parser.add_argument(
             "--password",
             default=DEFAULT_PASSWORD,
             help="Password of the cast logins (default: the documented one).",
         )
 
     def handle(self, *args, **options):
+        anchor = date.fromisoformat(options["today"]) if options["today"] else None
         if options["flush"]:
             if options["interactive"]:
                 answer = input(
@@ -44,7 +52,7 @@ class Command(BaseCommand):
             call_command("flush", "--no-input", verbosity=0)
             self.stdout.write(self.style.SUCCESS("Database flushed."))
 
-        result = seed_docs_sample(password=options["password"])
+        result = seed_docs_sample(today=anchor, password=options["password"])
         if "skipped" in result:
             self.stdout.write(self.style.WARNING(result["skipped"]))
             return
