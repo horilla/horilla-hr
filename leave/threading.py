@@ -75,7 +75,7 @@ class LeaveMailSendThread(Thread):
             link = int(leave_request_id)
 
         for recipient in recipients:
-            if not recipient:
+            if not recipient or not recipient.get_mail():
                 continue
 
             company = recipient.get_company()
