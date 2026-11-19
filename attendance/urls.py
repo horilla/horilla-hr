@@ -1046,6 +1046,16 @@ urlpatterns = [
         name="attendance-dashboard-absentees",
     ),
     path(
+        "dashboard/api/frequent-late/",
+        att_dashboard.attendance_frequent_late,
+        name="attendance-dashboard-frequent-late",
+    ),
+    path(
+        "dashboard/api/frequent-early/",
+        att_dashboard.attendance_frequent_early,
+        name="attendance-dashboard-frequent-early",
+    ),
+    path(
         "dashboard/api/calendar/",
         att_dashboard.attendance_calendar_heatmap,
         name="attendance-dashboard-calendar",
