@@ -352,7 +352,7 @@
 							<ion-icon name="mail-outline"></ion-icon>
 							<span>{% trans "Email" %}:</span>
 						</span>
-						<span class="oh-profile__info-value">{{employee.email}}</span>
+						<span class="oh-profile__info-value">{{employee.email|default:""}}</span>
 					</li>
 					<li class="oh-profile__info-list-item">
 						<span class="oh-profile__info-label">

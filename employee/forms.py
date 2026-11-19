@@ -282,7 +282,9 @@ class EmployeeForm(ModelForm):
 
     def clean(self):
         super().clean()
-        email = self.cleaned_data["email"]
+        email = self.cleaned_data.get("email")
+        if not email:
+            return
         query = Employee.objects.entire().filter(email=email)
         if self.instance and self.instance.id:
             query = query.exclude(id=self.instance.id)

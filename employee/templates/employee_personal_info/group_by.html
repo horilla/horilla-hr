@@ -119,7 +119,7 @@
                         href="{% url 'employee-view-individual' emp.id %}"
                         style="color: inherit; text-decoration: none"
                         class="oh-sticky-table__td"
-                        >{{emp.email}}</a
+                        >{{emp.email|default:""}}</a
                       >
                       <a
                         href="{% url 'employee-view-individual' emp.id %}"

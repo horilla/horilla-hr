@@ -100,7 +100,7 @@ class Employee(models.Model):
     employee_profile = models.ImageField(
         upload_to=upload_path, null=True, blank=True, verbose_name=_("Profile Image")
     )
-    email = models.EmailField(max_length=254, unique=True)
+    email = models.EmailField(max_length=254, unique=True, null=True, blank=True)
     phone = models.CharField(max_length=25, blank=True, validators=[phone_validator])
     address = models.TextField(max_length=200, blank=True, null=True)
     country = models.CharField(max_length=100, blank=True, null=True)
@@ -277,10 +277,13 @@ class Employee(models.Model):
         """
         work_info = getattr(self, "employee_work_info", None)
         work_email = getattr(work_info, "email", None)
-        return work_email if work_email is not None else self.email
+        return work_email or self.email or None
 
     def get_email(self):
-        return self.get_mail()
+        """
+        The employee's email for display; blank when they have none
+        """
+        return self.get_mail() or ""
 
     def get_work_type(self):
         """
@@ -714,7 +717,6 @@ class Employee(models.Model):
         Recruitment model
         """
 
-        unique_together = ("employee_first_name", "employee_last_name", "email")
         permissions = (
             ("change_ownprofile", "Update own profile"),
             ("view_ownprofile", "View Own Profile"),
@@ -747,10 +749,11 @@ class Employee(models.Model):
         """
         from base.models import EmailLog
 
+        mail = self.get_mail()
+        if not mail:
+            return None
         return (
-            EmailLog.objects.filter(to__icontains=self.get_mail())
-            .order_by("-created_at")
-            .first()
+            EmailLog.objects.filter(to__icontains=mail).order_by("-created_at").first()
         )
 
     def get_subordinate_employees(self):
@@ -826,6 +829,8 @@ class Employee(models.Model):
                 )
 
     def save(self, *args, **kwargs):
+        # No email is stored as NULL, so any number of employees can have none
+        self.email = self.email or None
         self.full_clean()
         super().save(*args, **kwargs)
 
@@ -844,19 +849,20 @@ class Employee(models.Model):
             # HorillaUser can already own it as a username -- e.g. an
             # orphaned account left behind by a deleted employee. Fall back
             # to a random username rather than crashing on the uniqueness
-            # constraint; email stays the real address either way.
-            if HorillaUser.objects.filter(username=username).exists():
+            # constraint; email stays the real address either way. An
+            # employee without an email gets a random username too.
+            if not username or HorillaUser.objects.filter(username=username).exists():
                 username = generate_unique_fallback_username()
 
             user = HorillaUser.objects.create_user(
                 username=username,
-                email=self.email,
+                email=self.email or "",
                 password=password,
                 is_new_employee=True,
             )
             if not user:
                 user = HorillaUser.objects.create_user(
-                    username=username, email=self.email, password=password
+                    username=username, email=self.email or "", password=password
                 )
             self.employee_user_id = user
             # default permissions
