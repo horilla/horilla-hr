@@ -258,3 +258,23 @@ class TourCompanyIsolationTests(TestCase):
         self.assertIn("beta-tour", slugs_b)
         self.assertNotIn("alpha-tour", slugs_b)
         self.assertIn("getting-started", slugs_b)
+
+
+class TourPanelDocsTests(TestCase):
+    """The "?" panel links to the user guide below the tours."""
+
+    def test_pages_pass_the_user_guide_to_the_panel(self):
+        user = HorillaUser.objects.create_user(
+            username="docs_emp", email="docs@t.com", password="pass12345"
+        )
+        make_employee(
+            company=make_company("Docs Co", "addr"),
+            email="docs@t.com",
+            first_name="Docs",
+            last_name="User",
+            user=user,
+        )
+        self.client.force_login(user)
+        page = self.client.get(reverse("view-my-attendance"))
+        self.assertContains(page, "https://docs.horilla.com/hr/functional/v1.0/")
+        self.assertContains(page, "build/js/tourController.js")
