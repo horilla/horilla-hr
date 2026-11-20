@@ -425,15 +425,39 @@ docker cp $(docker compose ps -q web):/app/media ./media-backup
 
 ### Using Cloud Storage (S3/GCP)
 
-Horilla supports AWS S3 and Google Cloud Storage. Add to your environment:
+Horilla supports AWS S3, S3-compatible services such as MinIO, and Google Cloud Storage. Add the settings for your service to the web container's environment.
 
 **AWS S3:**
 ```
 AWS_ACCESS_KEY_ID=your-key
 AWS_SECRET_ACCESS_KEY=your-secret
 AWS_STORAGE_BUCKET_NAME=your-bucket
+AWS_S3_REGION_NAME=us-east-1
+AWS_S3_ADDRESSING_STYLE=virtual
 DEFAULT_FILE_STORAGE=horilla.horilla_backends.PrivateMediaStorage
+MEDIA_URL=/media
+MEDIA_ROOT=/app/media
+NAMESPACE=private
 ```
+
+Leave `AWS_S3_ENDPOINT_URL` unset for AWS. Horilla appends `NAMESPACE` to
+`MEDIA_URL` and `MEDIA_ROOT` in AWS mode.
+
+**MinIO:**
+
+```dotenv
+AWS_ACCESS_KEY_ID=minio-access-key
+AWS_SECRET_ACCESS_KEY=minio-secret-key
+AWS_STORAGE_BUCKET_NAME=horilla-media
+AWS_S3_ENDPOINT_URL=http://minio:9000
+DEFAULT_FILE_STORAGE=storages.backends.s3boto3.S3Boto3Storage
+AWS_S3_ADDRESSING_STYLE=path
+```
+
+Create the bucket in MinIO and use credentials with access to it. The example
+uses the S3 API address of a MinIO service named `minio` on the web container's
+Docker network. The region and media path overrides are optional when an
+endpoint URL is set.
 
 **Google Cloud Storage:**
 ```
