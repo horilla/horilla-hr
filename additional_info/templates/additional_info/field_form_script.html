@@ -1,0 +1,116 @@
+{% load i18n %}
+{% comment %}
+Makes the field form follow its Type: the Options box shows for a Dropdown only, and a preview shows
+the input employees will get. Written so that it runs once per rendering of the form.
+{% endcomment %}
+<script>
+    (function () {
+        // The page can hold other forms with the same ids, so everything is looked up inside this script's own form.
+        var form = document.currentScript && document.currentScript.closest("form");
+        if (!form) return;
+        function field(name) { return form.querySelector('[name="' + name + '"]'); }
+        function box(name) { var node = field(name); return node && node.closest('[id$="_parent_div"]'); }
+
+        var type = field("field_type");
+        if (!type || type.getAttribute("data-type-bound")) return;
+        type.setAttribute("data-type-bound", "1");
+
+        var label = field("label");
+        var options = field("options");
+        var help = field("help_text");
+        var required = field("is_required");
+        var optionsBox = box("options");
+        var helpBox = box("help_text");
+        if (!label || !options || !optionsBox || !helpBox) return;
+
+        var words = {
+            preview: "{% trans 'Preview' %}",
+            untitled: "{% trans 'Label' %}",
+            yes: "{% trans 'Yes' %}",
+            no: "{% trans 'No' %}",
+            none: "---------"
+        };
+
+        var preview = document.createElement("div");
+        preview.className = "col-12";
+        preview.style.paddingRight = "12px";
+        helpBox.insertAdjacentElement("afterend", preview);
+
+        function el(tag, className, text) {
+            var node = document.createElement(tag);
+            if (className) node.className = className;
+            if (text !== undefined) node.textContent = text;
+            return node;
+        }
+
+        function select(items) {
+            var node = el("select", "oh-input w-100");
+            node.disabled = true;
+            items.forEach(function (item) { node.appendChild(el("option", "", item)); });
+            return node;
+        }
+
+        function input(kind, placeholder) {
+            var node = el(kind === "long_text" ? "textarea" : "input", "oh-input w-100");
+            node.disabled = true;
+            if (kind === "long_text") node.rows = 2;
+            else node.type = {number: "number", date: "date", file: "file"}[kind] || "text";
+            if (placeholder) node.placeholder = placeholder;
+            return node;
+        }
+
+        function optionLines() {
+            return options.value.split("\n").map(function (line) { return line.trim(); }).filter(Boolean);
+        }
+
+        function control(kind) {
+            if (kind === "dropdown") return select([words.none].concat(optionLines()));
+            if (kind === "yes_no") return select([words.none, words.yes, words.no]);
+            return input(kind, kind === "number" ? "0" : "");
+        }
+
+        function render() {
+            var kind = type.value;
+            if (!kind && type.querySelector('option[value="text"]')) {
+                // after "Save And Add Another" the select is emptied; go back to the default
+                type.value = "text";
+                kind = "text";
+            }
+            var dropdown = kind === "dropdown";
+            optionsBox.style.display = dropdown ? "" : "none";
+            var optionsLabel = optionsBox.querySelector("label");
+            if (optionsLabel) optionsLabel.classList.toggle("required-star", dropdown);
+
+            preview.textContent = "";
+            if (!kind) return;
+            var box = el("div", "mt-2 mb-3 p-3");
+            box.style.cssText = "border:1px dashed #d0d5dd;border-radius:8px;background:#f9fafb";
+            box.appendChild(el("div", "mb-2", words.preview));
+            box.firstChild.style.cssText = "font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#98a2b3";
+            var title = el("label", "oh-label" + (required && required.checked ? " required-star" : ""), label.value.trim() || words.untitled);
+            box.appendChild(title);
+            box.appendChild(control(kind));
+            if (dropdown) {
+                var chips = el("div", "mt-2");
+                optionLines().forEach(function (line) {
+                    var chip = el("span", "", line);
+                    chip.style.cssText = "display:inline-block;margin:0 6px 4px 0;padding:1px 10px;border:1px solid #d0d5dd;border-radius:999px;background:#fff;font-size:12px";
+                    chips.appendChild(chip);
+                });
+                box.appendChild(chips);
+            }
+            if (help && help.value.trim()) {
+                var note = el("p", "", help.value.trim());
+                note.style.cssText = "font-size:12px;color:#98a2b3;margin:4px 0 0";
+                box.appendChild(note);
+            }
+            preview.appendChild(box);
+        }
+
+        $(type).on("change", render);
+        $(label).add(options).add(help).on("input", render);
+        $(required).on("change", render);
+        $(form).on("reset", function () { setTimeout(render, 0); });
+        render();
+    })();
+</script>

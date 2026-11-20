@@ -1,0 +1,26 @@
+{% load i18n %}
+<section id="additionalInfoSection">
+    <div class="overflow-hidden rounded-xl border border-[#ebebeb]">
+        <div class="flex items-center justify-between bg-[#f3f3f3] px-3 py-2">
+            <h3 class="text-sm font-semibold text-[#333]">{% trans "Additional Information" %}</h3>
+        </div>
+        <div class="bg-white px-3 py-1.5">
+            <dl>
+                {% for row in rows %}
+                    <div class="flex items-baseline justify-between gap-3 py-1.5">
+                        <dt class="shrink-0 text-[13px] font-semibold text-dark-200">{{ row.field.label }}</dt>
+                        <dd class="text-right text-[13px] break-words {% if row.display %}font-normal text-dark-500{% else %}italic text-dark-100{% endif %}">
+                            {% if row.is_file %}
+                                <a href="{{ row.value.url }}" target="_blank" rel="noopener" class="text-primary-600 underline">{{ row.display }}</a>
+                            {% elif row.display %}
+                                {{ row.display|linebreaksbr }}
+                            {% else %}
+                                {% trans "Not set" %}
+                            {% endif %}
+                        </dd>
+                    </div>
+                {% endfor %}
+            </dl>
+        </div>
+    </div>
+</section>

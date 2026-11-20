@@ -1,0 +1,58 @@
+{% load i18n %}
+
+<style>
+    /* A file field sits in a row of one-line inputs, so its drop box is as tall as they are and the saved file shows beneath it. */
+    #employeeUpdateAdditionalForm .hz-file-drop { min-height: 2.25rem; padding: 0.375rem 0.75rem; font-size: 0.75rem; line-height: 1.25rem; border-width: 1px; border-radius: 0.375rem; }
+    #employeeUpdateAdditionalForm .hz-file-drop__icon { width: 1rem; height: 1rem; }
+    #employeeUpdateAdditionalForm .text-muted.text-xs.mb-1 { display: none; }
+</style>
+
+<div class="oh-general__tab-target{% if active_tab and active_tab != 'additional' %} d-none{% endif %}" id="additional">
+    <div class="bg-white rounded-2xl shadow-card px-6 py-5">
+        <form
+            method="post"
+            hx-post="{% url 'employee-view-update' obj_id %}"
+            hx-target="#employee-update-form-root"
+            hx-swap="outerHTML"
+            hx-encoding="multipart/form-data"
+            {% if not container_mode %}
+                hx-push-url="{% url 'employee-view-update' obj_id %}"
+            {% endif %}
+            action="{% url 'employee-view-update' obj_id %}"
+            enctype="multipart/form-data"
+            id="employeeUpdateAdditionalForm"
+        >
+            {% csrf_token %}
+            {% if container_mode %}<input type="hidden" name="container" value="true">{% endif %}
+            <input type="hidden" name="form" value="additional">
+
+            {{ additional_form.non_field_errors }}
+
+            <div class="border border-[#ebebeb] rounded-md mb-5">
+                <h3 class="text-sm font-semibold bg-[#f3f3f3] px-3 py-3 text-[#333] flex items-center justify-between gap-2 flex-wrap rounded-t-md">
+                    {% trans "Additional Information" %}
+                </h3>
+                <div class="grid grid-cols-3 items-start gap-x-4 gap-y-3 emp-grid-3 px-3 py-3">
+                    {% for field in additional_form %}
+                        {# A long text takes the whole row so it is not squeezed beside short inputs. #}
+                        <div class="min-w-0{% if field.widget_type == 'textarea' %} col-span-full{% endif %}">
+                            <label class="block text-xs font-medium text-color-600 mb-1 {% if field.field.required %}required-star{% endif %}" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.help_text %}<p class="text-xs text-[#9ca3af] mt-1 mb-0">{{ field.help_text }}</p>{% endif %}
+                            {{ field.errors }}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-5 pt-4 border-t border-secondary-100">
+                <a href="{% url 'employee-view' %}?view=list" class="px-6 py-2 border border-secondary-200 rounded-lg text-sm font-medium text-color-600 hover:bg-secondary-50 no-underline transition-colors">
+                    {% trans "Cancel" %}
+                </a>
+                <button type="submit" class="px-6 py-2 bg-primary-600 rounded-lg text-sm font-medium text-white hover:bg-primary-700 transition-colors shadow-sm">
+                    {% trans "Save" %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
