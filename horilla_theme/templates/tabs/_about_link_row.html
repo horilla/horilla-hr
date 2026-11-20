@@ -1,0 +1,46 @@
+{% load i18n %}
+{% comment %}
+A label and value row of the About tab where the value opens a related page when the viewer may.
+Context: label, text (the value), can (may the viewer open it), href, query and q (optional: the
+search appended to href as ?<query><q>; query defaults to "search="), img and sub (optional avatar and small note).
+{% endcomment %}
+<div class="flex items-center justify-between gap-3 py-1.5">
+    <dt class="shrink-0 text-[13px] font-semibold text-dark-200">{{ label }}</dt>
+    <dd class="min-w-0 text-right text-[13px]">
+        {% if text %}
+            {% if can %}
+                <a
+                    href="{{ href }}{% if q %}?{{ query|default:'search=' }}{{ q|urlencode }}{% endif %}"
+                    class="group inline-flex max-w-full items-center gap-1.5 rounded-full border border-[#ebebeb] bg-white py-0.5 {% if img %}pl-1 pr-2{% else %}px-2{% endif %} transition-colors hover:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-1"
+                >
+                    {% if img %}
+                        <span class="relative flex h-4 w-4 shrink-0 overflow-hidden rounded-full bg-primary-100 ring-1 ring-secondary-100">
+                            <img src="{{ img }}" alt="" class="h-full w-full object-cover">
+                        </span>
+                    {% endif %}
+                    <span class="min-w-0 truncate text-[13px] font-normal text-dark-500 group-hover:text-primary-600">{{ text }}</span>
+                    {% if sub %}
+                        <span class="shrink-0 text-xxs font-semibold text-dark-100 group-hover:text-primary-600">{{ sub }}</span>
+                    {% endif %}
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 12 12"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.7"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="h-3 w-3 shrink-0 text-primary-600 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+                        aria-hidden="true"
+                    >
+                        <path d="M3.5 8.5 8.5 3.5M4.5 3.5h4v4"/>
+                    </svg>
+                </a>
+            {% else %}
+                <span class="font-normal text-dark-500">{{ text }}</span>
+            {% endif %}
+        {% else %}
+            <span class="italic text-dark-100">{% trans "Not set" %}</span>
+        {% endif %}
+    </dd>
+</div>
