@@ -115,6 +115,18 @@
   .mi__field--pick { display: inline-flex; align-items: center; gap: .35rem; cursor: pointer; font-size: .82rem; padding: 4px 12px; }
   .mi__field--pick input { accent-color: var(--mi-accent); }
   .mi__change { font-size: .78rem; color: #374151; padding: 1px 0; }
+  /* What will change for a record: a count in the table, the list in a popover. */
+  .mi__changes { display: inline-flex; align-items: center; gap: .3rem; padding: 2px 10px; border: 1px solid #d1d5db; border-radius: 999px; background: #fff; color: #374151; font-size: .76rem; font-weight: 600; white-space: nowrap; cursor: pointer; transition: border-color .15s, background .15s; }
+  .mi__changes:hover, .mi__changes[aria-expanded="true"] { border-color: var(--mi-accent); background: #fff7f5; color: #b3321f; }
+  .mi__pop { position: fixed; z-index: 3000; width: 360px; max-width: calc(100vw - 24px); max-height: min(60vh, 420px); overflow: auto; padding: .35rem 0; background: #fff; border: 1px solid var(--mi-line); border-radius: 10px; box-shadow: 0 14px 30px rgba(17, 24, 39, .18), 0 2px 6px rgba(17, 24, 39, .08); }
+  .mi__pop[hidden] { display: none; }
+  .mi__pop-title { padding: .3rem .8rem .35rem; font-size: .68rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #9ca3af; }
+  .mi__pop-row { display: grid; grid-template-columns: minmax(90px, 36%) 1fr; gap: .15rem .7rem; padding: .35rem .8rem; border-top: 1px solid #f1f2f4; font-size: .78rem; color: #374151; }
+  .mi__pop-row b { font-weight: 600; color: #111827; overflow-wrap: anywhere; }
+  .mi__pop-old { color: #9ca3af; text-decoration: line-through; overflow-wrap: anywhere; }
+  .mi__pop-new { color: #0f7b5f; font-weight: 600; overflow-wrap: anywhere; }
+  .mi__pop-arrow { color: #9ca3af; margin: 0 .25rem; }
+  .mi__pop-plain { display: block; }
   /* ---- step 1: one column, the drop zone first ---- */
   .mi__upload { max-width: 980px; margin: 0 auto; }
   .mi__dsbar { display: flex; gap: .2rem; padding: .5rem .8rem 0; border-bottom: 1px solid var(--mi-line); overflow-x: auto; }

@@ -72,16 +72,16 @@
       <thead class="sticky top-0 bg-[white] z-[1]"><tr>
         <th class="text-sm font-medium text-left" style="width:56px;">#</th>
         <th class="text-sm font-medium text-left" style="width:60px;">{% trans "Skip" %}</th>
+        {% if review.mode == "update" or review.mode == "both" %}<th class="text-sm font-medium text-left" style="min-width:120px;">{% trans "Changes" %}</th>{% endif %}
         {% for c in review.columns %}<th class="text-sm font-medium text-left min-w-[85px]">{{ c }}</th>{% endfor %}
-        {% if review.mode == "update" or review.mode == "both" %}<th class="text-sm font-medium text-left" style="min-width:320px;">{% trans "Changes" %}</th>{% endif %}
       </tr></thead>
       <tbody>
         {% for r in review.valid_rows %}
         <tr>
           <td class="text-sm px-1 py-1" title="{% trans 'Row' %} {{ r.row }} {% trans 'in your file' %}">{{ r.number }}</td>
           <td class="text-sm px-1 py-1" style="text-align:center;"><input type="checkbox" class="mi__skip" data-skip-row="{{ r.row }}" title="{% trans 'Leave this record out of the import' %}"></td>
+          {% if review.mode == "update" or review.mode == "both" %}<td class="text-sm text-left px-1 py-1 text-[#666]">{% if r.changes %}<button type="button" class="mi__changes" data-mi-changes aria-haspopup="dialog" aria-expanded="false" title="{% trans 'See what will change' %}"><ion-icon name="swap-horizontal-outline"></ion-icon>{{ r.changes|length }} {% if r.changes|length == 1 %}{% trans "Change" %}{% else %}{% trans "Changes" %}{% endif %}</button><div class="mi__changes-data" hidden>{% for change in r.changes %}<div>{{ change }}</div>{% endfor %}</div>{% endif %}</td>{% endif %}
           {% for cell in r.cells %}<td class="text-sm text-left px-1 py-1 text-[#666]">{% include "master_import/_cell.html" with cell=cell row=r.row %}</td>{% endfor %}
-          {% if review.mode == "update" or review.mode == "both" %}<td class="text-sm text-left px-1 py-1 text-[#666]">{% for change in r.changes %}<div class="mi__change">{{ change }}</div>{% endfor %}</td>{% endif %}
         </tr>
         {% empty %}
         <tr><td colspan="{{ review.columns|length|add:'3' }}" class="text-sm px-1 py-1 mi__sample" style="text-align:center;padding:1.2rem;">{% if review.mode == "update" %}{% if review.unchanged %}{% blocktrans with n=review.unchanged %}Nothing to update: {{ n }} matched rows already have these values.{% endblocktrans %}{% else %}{% trans "Nothing to update." %}{% endif %}{% else %}{% trans "No valid records." %}{% endif %}</td></tr>

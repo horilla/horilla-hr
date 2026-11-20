@@ -161,6 +161,81 @@
     if (tab) showTab(tab.dataset.miTab);
   });
 
+  // What will change for a record, in a popover. One panel is shared by every row, drawn from the row's hidden
+  // list, and placed under the button (above it when there is no room). "Label: old → new" reads as three parts.
+  var pop = null, popFor = null;
+  function closePop() {
+    if (pop) pop.hidden = true;
+    if (popFor) popFor.setAttribute("aria-expanded", "false");
+    popFor = null;
+  }
+  function openPop(button) {
+    var data = button.parentNode.querySelector(".mi__changes-data");
+    if (!data) return;
+    if (!pop) {
+      pop = document.createElement("div");
+      pop.className = "mi__pop";
+      pop.setAttribute("role", "dialog");
+      pop.hidden = true;
+      document.body.appendChild(pop);
+    }
+    pop.textContent = "";
+    var title = document.createElement("div");
+    title.className = "mi__pop-title";
+    title.textContent = "{% trans 'What Will Change'|escapejs %}";
+    pop.appendChild(title);
+    Array.prototype.forEach.call(data.children, function (line) {
+      var text = line.textContent;
+      var row = document.createElement("div");
+      row.className = "mi__pop-row";
+      var colon = text.indexOf(": "), arrow = text.indexOf(" \u2192 ");
+      if (colon > 0 && arrow > colon) {
+        var label = document.createElement("b");
+        label.textContent = text.slice(0, colon);
+        var value = document.createElement("span");
+        var before = document.createElement("span");
+        before.className = "mi__pop-old";
+        before.textContent = text.slice(colon + 2, arrow);
+        var after = document.createElement("span");
+        after.className = "mi__pop-new";
+        after.textContent = text.slice(arrow + 3);
+        var sign = document.createElement("span");
+        sign.className = "mi__pop-arrow";
+        sign.textContent = "\u2192";
+        value.appendChild(before);
+        value.appendChild(sign);
+        value.appendChild(after);
+        row.appendChild(label);
+        row.appendChild(value);
+      } else {
+        row.textContent = text;
+        row.className += " mi__pop-plain";
+      }
+      pop.appendChild(row);
+    });
+    pop.hidden = false;
+    var box = button.getBoundingClientRect(), size = pop.getBoundingClientRect();
+    var left = Math.max(12, Math.min(box.left, window.innerWidth - size.width - 12));
+    var top = box.bottom + 6;
+    if (top + size.height > window.innerHeight - 12 && box.top - size.height - 6 > 12) top = box.top - size.height - 6;
+    pop.style.left = left + "px";
+    pop.style.top = Math.max(12, top) + "px";
+    button.setAttribute("aria-expanded", "true");
+    popFor = button;
+  }
+  body.addEventListener("click", function (e) {
+    var button = e.target.closest("[data-mi-changes]");
+    if (!button) return;
+    e.stopPropagation();
+    var same = popFor === button;
+    closePop();
+    if (!same) openPop(button);
+  });
+  document.addEventListener("click", function (e) { if (pop && !pop.hidden && !pop.contains(e.target)) closePop(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closePop(); });
+  window.addEventListener("resize", closePop);
+  window.addEventListener("scroll", function (e) { if (!pop || !pop.contains(e.target)) closePop(); }, true);
+
   // Every cell is editable; only what differs from the file is kept.
   // Search narrows the rows of the table being looked at, by what the cells hold.
   body.addEventListener("input", function (e) {
