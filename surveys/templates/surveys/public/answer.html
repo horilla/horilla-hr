@@ -77,10 +77,10 @@
     function surveySaved(event) {
         var el = document.getElementById("savedAt");
         if (event.detail.successful) {
-            try { el.textContent = "{% trans 'Saved' %} " + (JSON.parse(event.detail.xhr.responseText).at || ""); }
-            catch (e) { el.textContent = "{% trans 'Saved' %}"; }
+            try { el.textContent = "{% trans 'Saved'|escapejs %} " + (JSON.parse(event.detail.xhr.responseText).at || ""); }
+            catch (e) { el.textContent = "{% trans 'Saved'|escapejs %}"; }
         } else {
-            el.textContent = "{% trans 'Not saved - check your connection' %}";
+            el.textContent = "{% trans 'Not saved - check your connection'|escapejs %}";
         }
         var boxes = document.querySelectorAll("[data-question]"), done = 0;
         boxes.forEach(function (box) {
