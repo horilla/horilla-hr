@@ -27,6 +27,8 @@ def breadcrumbs_fragment(request):
     if path:
         shown = copy.copy(request)
         shown.path = shown.path_info = path
+        # The page's crumb must not carry this request's own ?path= query.
+        shown.META = {**request.META, "QUERY_STRING": ""}
         local = build_breadcrumbs(shown)
         leaf = local[-1]
         here = path.rstrip("/")
