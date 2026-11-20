@@ -76,7 +76,7 @@ class CompanyleaveListView(HorillaListView):
 
     sortby_mapping = [
         ("Based On Week", "custom_based_on_week"),
-        ("Based On Week Day", "based_on_week_day_col"),
+        ("Based On Week Day", "based_on_week_day"),
     ]
 
     row_attrs = """

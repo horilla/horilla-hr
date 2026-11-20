@@ -23,3 +23,24 @@ def first_day_of_week():
 def week_start(day):
     """First day of the calendar week containing `day` (see first_day_of_week)."""
     return day - timedelta(days=(day.isoweekday() - first_day_of_week()) % 7)
+
+
+# Day names in Python weekday() order (Monday = 0), as stored by day-of-week
+# choice fields such as EmployeeShiftDay.day.
+WEEKDAY_NAMES = (
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+)
+
+
+def weekday_position(weekday):
+    """
+    Place of a Python weekday (Monday = 0 ... Sunday = 6) in the week that
+    starts on first_day_of_week(): 0 for the first day, 6 for the last.
+    """
+    return (weekday + 1 - first_day_of_week()) % 7
