@@ -204,7 +204,7 @@ class EmployeesDataset(Dataset):
         ),
         Field(
             "Phone",
-            required=True,
+            required=False,
             group="Person",
             sample="9876543210",
             aliases=(
