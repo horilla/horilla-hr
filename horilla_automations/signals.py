@@ -484,9 +484,12 @@ def send_mail(request, automation, instance):
     if request and hasattr(request, "user") and hasattr(request.user, "employee_get"):
         try:
             user = request.user.employee_get
-            display_email_name = f"{user.get_full_name()} <{user.get_mail()}>"  # 983
-            from_email = display_email_name
-            reply_to = [display_email_name]
+            if user.get_mail():
+                display_email_name = (
+                    f"{user.get_full_name()} <{user.get_mail()}>"  # 983
+                )
+                from_email = display_email_name
+                reply_to = [display_email_name]
         except Exception as e:
             logger.error(f"Error generating user-based email display name: {e}")
 

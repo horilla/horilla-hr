@@ -126,8 +126,18 @@ class Command(BaseCommand):
     def create_or_update_employee(
         self, user_id, email, first_name, last_name, phone, ldap_password
     ):
+        email = email or None
+        if not email and not user_id:
+            self.stdout.write(
+                self.style.WARNING(
+                    f"Skipped {first_name} {last_name}: no email and no uid."
+                )
+            )
+            return
+        # Without an email, the uid (kept as the username) finds the employee
+        lookup = {"email": email} if email else {"employee_user_id__username": user_id}
         employee, created = Employee.objects.update_or_create(
-            email=email,
+            **lookup,
             defaults={
                 "employee_first_name": first_name or "",
                 "employee_last_name": last_name or "",
@@ -136,10 +146,15 @@ class Command(BaseCommand):
         )
 
         try:
-            user = HorillaUser.objects.get(
-                Q(username=email) | Q(username=user_id) | Q(email=email)
-            )
-            user.username = email
+            if email:
+                user = HorillaUser.objects.get(
+                    Q(username=email) | Q(username=user_id) | Q(email=email)
+                )
+            else:
+                user = employee.employee_user_id
+                if user is None:
+                    raise HorillaUser.DoesNotExist
+            user.username = email or user_id
             user.set_password(ldap_password)  # Hash and store password securely
             user.save()
             action = "Updated"

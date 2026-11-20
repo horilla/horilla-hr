@@ -109,7 +109,7 @@
                             {{ employee.validity_date_dd }}/{{ employee.validity_date_mm }}/{{ employee.validity_date_yyyy }}
                         </td>
                         <td class="text-sm text-left p-3 text-[#666] h-[45px] truncate">
-                            {{ employee.employee_id.get_mail }}
+                            {{ employee.employee_id.get_mail|default:"" }}
                         </td>
                         <td class="text-sm text-left p-3 text-[#666] h-[45px]">
                             {{ employee.employee_id.get_job_position }}

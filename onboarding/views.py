@@ -1946,7 +1946,9 @@ def onboarding_send_mail(request, candidate_id):
     display_email_name = email_backend.dynamic_from_email_with_display_name
     if request:
         try:
-            display_email_name = f"{request.user.employee_get.get_full_name()} <{request.user.employee_get.email}>"
+            sender = request.user.employee_get
+            if sender.email:
+                display_email_name = f"{sender.get_full_name()} <{sender.email}>"
         except:
             logger.error(Exception)
 

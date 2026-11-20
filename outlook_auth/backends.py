@@ -43,6 +43,8 @@ class OutlookBackend(EmailBackend):
         if not self.request.user:
             return f"{self.api.outlook_display_name}<{self.api.outlook_email}>"
         employee = self.request.user.employee_get
+        if not employee.get_email():
+            return f"{self.api.outlook_display_name}<{self.api.outlook_email}>"
         full_name = employee.get_full_name()
         return f"{full_name} <{employee.get_email()}>"
 
@@ -73,9 +75,10 @@ def __init__(
 
     if request:
         try:
-            display_email_name = f"{request.user.employee_get.get_full_name()} <{request.user.employee_get.email}>"
-            from_email = display_email_name if not from_email else from_email
-            reply_to = [display_email_name] if not reply_to else reply_to
+            if request.user.employee_get.email:
+                display_email_name = f"{request.user.employee_get.get_full_name()} <{request.user.employee_get.email}>"
+                from_email = display_email_name if not from_email else from_email
+                reply_to = [display_email_name] if not reply_to else reply_to
 
         except Exception as e:
             logger.error(e)
@@ -131,10 +134,10 @@ def send_mail(self, *args, **kwargs):
     }
     if self.request and not self.request.user.is_anonymous:
         reply_to = self.request.user.employee_get.get_email()
-        self.email_data["message"]["replyTo"] = []
-        self.email_data["message"]["replyTo"].append(
-            {"emailAddress": {"address": reply_to}}
-        )
+        if reply_to:
+            self.email_data["message"]["replyTo"] = [
+                {"emailAddress": {"address": reply_to}}
+            ]
 
     if self.attachments:
         outlook_attachments = []

@@ -157,6 +157,23 @@ class EmployeeCheckTests(TestCase):
         self.assertEqual(len(result.errors), 1)
         self.assertIn("username", " ".join(result.errors[0]["messages"]).lower())
 
+    def test_a_row_without_a_phone_is_imported(self):
+        rows = self.check(rows_for({"Mobile": None})).valid
+        self.assertEqual(len(rows), 1)
+        EMPLOYEES.commit(rows, Context())
+        self.assertEqual(Employee.objects.entire().get(badge_id="E-1").phone, "")
+
+    def test_rows_without_an_email_are_imported(self):
+        rows = self.check(
+            rows_for({"Work Email": None}, {"Work Email": None, "Employee ID": "E-2"})
+        ).valid
+        self.assertEqual(len(rows), 2)
+        EMPLOYEES.commit(rows, Context())
+        for badge_id in ("E-1", "E-2"):
+            employee = Employee.objects.entire().get(badge_id=badge_id)
+            self.assertIsNone(employee.email)
+            self.assertEqual(employee.employee_user_id.username, badge_id)
+
     def test_a_simple_password_is_accepted_to_be_changed_at_first_sign_in(self):
         result = self.check(rows_for({"Password": "1234"}))
         self.assertEqual(result.errors, [])
@@ -236,7 +253,7 @@ class WizardTests(TestCase):
         self.upload([GOOD])
         job = ImportJob.objects.get()
         mapping = {f"map__{k}": v for k, v in job.mapping.items()}
-        mapping["map__Email"] = ""
+        mapping["map__Badge ID"] = ""
         response = self.client.post(
             reverse("master-import-map", args=[job.pk]), mapping
         )

@@ -310,7 +310,8 @@ def process_employee_records(
         save = True
         gender = emp.get("Gender")
 
-        email = str(emp.get("Email", "")).strip().lower()
+        raw_email = emp.get("Email")
+        email = "" if pd.isnull(raw_email) else str(raw_email).strip().lower()
         raw_phone = emp.get("Phone", "")
         phone = normalize_phone(raw_phone)
         badge_id = clean_badge_id(emp.get("Badge ID"))
@@ -346,8 +347,8 @@ def process_employee_records(
             )
             save = False
 
-        # Email validation
-        if not email or not email_regex.match(email):
+        # Email validation (optional; checked only when given)
+        if email and not email_regex.match(email):
             errors["Email Error"] = "Invalid email address."
             save = False
 
@@ -356,8 +357,8 @@ def process_employee_records(
             errors["First Name Error"] = "First name cannot be empty."
             save = False
 
-        # Phone validation
-        if not phone_regex.match(phone):
+        # Phone validation (optional; checked only when given)
+        if phone and not phone_regex.match(phone):
             errors["Phone Error"] = "Invalid phone number format."
             save = False
 
@@ -376,16 +377,22 @@ def process_employee_records(
             emp["Badge ID"] = badge_id
             seen_badge_ids.add(badge_id)
 
-        # Username/email uniqueness
-        if email in seen_usernames:
-            errors["User ID Error"] = "User with this email already exists."
+        # Username/email uniqueness; without an email the given username, else
+        # the badge ID, signs in
+        username = email or emp.get("Username") or badge_id
+        if username in seen_usernames:
+            errors["User ID Error"] = (
+                "User with this email already exists."
+                if email
+                else "User with this username already exists."
+            )
             save = False
         else:
-            seen_usernames.add(email)
+            seen_usernames.add(username)
 
         # Name+email uniqueness
         name_email_tuple = (first_name, last_name, email)
-        if name_email_tuple in seen_name_emails:
+        if email and name_email_tuple in seen_name_emails:
             errors["Name and Email Error"] = (
                 "This employee already exists in the system."
             )
@@ -447,6 +454,9 @@ def process_employee_records(
 
         # Final processing
         if save:
+            if not email:
+                emp["Email"] = None
+                emp["Username"] = username
             emp["Phone"] = phone
             emp["Date Joining"] = joining_date
             emp["Contract End Date"] = contract_end_date
@@ -489,7 +499,7 @@ def bulk_create_user_import(success_lists):
     users_to_create = [
         HorillaUser(
             username=row.get("Username") or row["Email"],
-            email=row["Email"],
+            email=row.get("Email") or "",
             password=(
                 (row.get("__hash") or make_password(row["Password"]))
                 if row.get("Password")
@@ -579,12 +589,13 @@ def send_employee_invitation(employee, host, is_secure):
     and by the auto-invite-on-create hooks in views.py.
 
     Returns True if the email was sent, False if it was skipped (no linked
-    account, invalid form data, or no mail server configured) -- never
+    account, no email address, invalid form data, or no mail server
+    configured) -- never
     raises, so a failed/skipped invitation never breaks the caller's own
     success path (e.g. employee creation).
     """
     user = employee.employee_user_id
-    if not user:
+    if not user or not employee.get_mail():
         return False
     email_backend = ConfiguredEmailBackend()
     if not email_backend.configuration:
@@ -603,7 +614,7 @@ def send_employee_invitation(employee, host, is_secure):
             subject_template_name="employee/mail_templates/invitation_subject.txt",
             html_email_template_name="employee/mail_templates/invitation_email.html",
         )
-        return True
+        return bool(form.sent_to_email)
     except Exception:
         logger.error("Failed to send invitation email to %s", employee, exc_info=True)
         return False
@@ -993,7 +1004,7 @@ def bulk_create_work_info_import(success_lists):
         if not employee_obj:
             continue
 
-        email = work_info["Email"]
+        email = work_info.get("Email")
         employee_work_info = existing_employee_work_infos.get(employee_obj)
         department_obj = existing_departments.get(work_info.get("Department"))
 
