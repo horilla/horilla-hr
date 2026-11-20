@@ -169,6 +169,13 @@ class Employee(models.Model):
                         _("Potential XSS content detected.")
                     )
 
+        # Run Django's own field validation too (validators=[...], choices, blank
+        # rules); skipping it left every model-level validator inert.
+        try:
+            super().clean_fields(exclude=exclude)
+        except ValidationError as e:
+            errors = e.update_error_dict(errors)
+
         if errors:
             raise ValidationError(errors)
 

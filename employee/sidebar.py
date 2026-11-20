@@ -4,6 +4,7 @@ employee/sidebar.py
 To set Horilla sidebar for employee
 """
 
+from django.apps import apps
 from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
 
@@ -115,6 +116,9 @@ def employee_settings_accessibility(request, submenu, user_perms, *args, **kwarg
         )
         or employee_type_accessibility(request, submenu, user_perms, *args, **kwargs)
         or employee_tag_accessibility(request, submenu, user_perms, *args, **kwargs)
+        or additional_info_fields_accessibility(
+            request, submenu, user_perms, *args, **kwargs
+        )
     )
 
 
@@ -172,3 +176,9 @@ def employee_type_accessibility(request, submenu, user_perms, *args, **kwargs):
 
 def employee_tag_accessibility(request, submenu, user_perms, *args, **kwargs):
     return request.user.has_perm("employee.view_employeetag")
+
+
+def additional_info_fields_accessibility(request, submenu, user_perms, *args, **kwargs):
+    return apps.is_installed("additional_info") and request.user.has_perm(
+        "additional_info.view_additionalinfofield"
+    )

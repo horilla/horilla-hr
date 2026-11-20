@@ -102,6 +102,16 @@
                     {% trans "Employee Tags" %}
                 </button>
             {% endif %}
+            {% if "additional_info"|app_installed and perms.additional_info.view_additionalinfofield %}
+                <button
+                    type="button"
+                    class="oh-tabs__tab employee-settings-tab-btn"
+                    data-tab-id="additional-info-fields"
+                    data-url="{% url 'additional-info-fields-tab' %}"
+                >
+                    {% trans "Additional Info Fields" %}
+                </button>
+            {% endif %}
             {% if perms.employee.view_actiontype %}
                 <button
                     type="button"

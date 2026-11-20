@@ -44,6 +44,7 @@ EMPLOYEE_HISTORY_MODELS = [
     # Work information
     ("employee", "employeeworkinformation"),
     ("employee", "employeebankdetails"),
+    ("additional_info", "additionalinfovalue"),
     # Payroll / compensation
     ("payroll", "contract"),
     ("payroll", "payslip"),
@@ -94,6 +95,7 @@ EMPLOYEE_HISTORY_MODELS = [
 MODEL_LABELS = {
     ("employee", "employeeworkinformation"): _("Work Information"),
     ("employee", "employeebankdetails"): _("Bank Details"),
+    ("additional_info", "additionalinfovalue"): _("Additional Info"),
     ("payroll", "contract"): _("Contract"),
     ("payroll", "payslip"): _("Payslip"),
     ("payroll", "salarystructure"): _("Salary Structure"),

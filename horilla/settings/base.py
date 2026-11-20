@@ -99,6 +99,8 @@ INSTALLED_APPS = [
     "report",
     "whatsapp",
     "horilla_ldap",
+    "additional_info",
+    "horilla_sso",
     "horilla_dbtemplate",
     "horilla_tour",
     "master_import",

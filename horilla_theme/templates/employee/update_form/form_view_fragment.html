@@ -70,6 +70,14 @@
                     <div class="w-5 h-5 rounded-full border-2 border-secondary-200{% if active_tab == 'bank' %} bg-white/20{% endif %} flex items-center justify-center text-xxs font-semibold">3</div>
                     {% trans "Bank Information" %}
                 </a>
+
+                {% if additional_form %}
+                <a href="#" class="emp-step-btn flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap no-underline{% if active_tab == 'additional' %} emp-step-btn--active{% else %} text-dark-200{% endif %}"
+                   data-action="general-tab" data-target="#additional" id="step-additional">
+                    <div class="w-5 h-5 rounded-full border-2 border-secondary-200{% if active_tab == 'additional' %} bg-white/20{% endif %} flex items-center justify-center text-xxs font-semibold">4</div>
+                    {% trans "Additional Information" %}
+                </a>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -78,6 +86,9 @@
     {% include 'employee/update_form/personal_info.html' with active_tab=active_tab %}
     {% include 'employee/update_form/work_details.html' with active_tab=active_tab %}
     {% include 'employee/update_form/bank_details.html' with active_tab=active_tab %}
+    {% if additional_form %}
+        {% include 'additional_info/employee_form_step.html' with active_tab=active_tab %}
+    {% endif %}
 
 </div>
 
@@ -95,15 +106,15 @@
     <script>
         (function () {
             function applyEmployeeEditTab(targetId) {
-                if (!["#personal", "#work", "#bank"].includes(targetId)) {
+                if (!["#personal", "#work", "#bank", "#additional"].includes(targetId) || !$(targetId).length) {
                     targetId = "#personal";
                 }
 
                 $(".oh-general__tab-target").addClass("d-none");
                 $(targetId).removeClass("d-none");
 
-                var stepMap = { "#personal": "step-personal", "#work": "step-work", "#bank": "step-bank" };
-                var steps = ["#personal", "#work", "#bank"];
+                var stepMap = { "#personal": "step-personal", "#work": "step-work", "#bank": "step-bank", "#additional": "step-additional" };
+                var steps = ["#personal", "#work", "#bank", "#additional"];
                 var activeIdx = steps.indexOf(targetId);
 
                 $(".emp-step-btn").each(function () {
@@ -131,7 +142,7 @@
                     applyEmployeeEditTab("#" + serverTab);
                 } else {
                     var stored = localStorage.getItem("activeEmpTab");
-                    if (["#personal", "#work", "#bank"].includes(stored)) {
+                    if (["#personal", "#work", "#bank", "#additional"].includes(stored)) {
                         applyEmployeeEditTab(stored);
                     }
                 }

@@ -66,7 +66,10 @@ class SaveEmployeeBulkUpdateTests(TestCase):
             with self.subTest(raw=raw):
                 response = self.client.post(
                     self.url,
-                    {"bulk_employee_ids": raw, "update_fields": '["employee_first_name"]'},
+                    {
+                        "bulk_employee_ids": raw,
+                        "update_fields": '["employee_first_name"]',
+                    },
                 )
                 self.assertEqual(response.status_code, 302)
         self.first.refresh_from_db()
