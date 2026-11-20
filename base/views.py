@@ -263,6 +263,33 @@ def is_reportingmanger(request, instance):
     return manager == employee_work_info_manager
 
 
+def sso_login_context():
+    """What the login page needs for the single sign-on buttons; empty when no provider is set up."""
+    if not apps.is_installed("horilla_sso"):
+        return {}
+    from django.db import DatabaseError
+
+    from horilla_sso.models import SSOLoginSettings
+    from horilla_sso.providers import ready_providers
+
+    try:
+        ready = ready_providers()
+        hide = bool(ready) and SSOLoginSettings.hides_password_form()
+    except DatabaseError:
+        return {}
+    return {
+        "sso_providers": [
+            {
+                "key": provider.key,
+                "label": provider.label,
+                "url_name": provider.login_url,
+            }
+            for provider, _config in ready
+        ],
+        "hide_password_form": hide,
+    }
+
+
 def initialize_database_condition():
     """
     Determines if the database initialization process should be triggered.
@@ -951,6 +978,7 @@ def login_user(request):
             "initialize_database": initialize_database_condition(),
             "form_username": form_state.get("username", ""),
             "field_errors": form_state.get("field_errors", {}),
+            **sso_login_context(),
         },
     )
 
