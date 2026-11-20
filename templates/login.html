@@ -45,7 +45,7 @@
                     <p class="text-muted text-center">
                         {% trans "Please login to access the dashboard." %}
                     </p>
-                    <form method="post" class="oh-form-group">
+                    <form method="post" class="oh-form-group" id="passwordLoginForm" {% if hide_password_form and not form_username and not field_errors %}hidden{% endif %}>
                         {% csrf_token %}
                         <div class="oh-input-group">
                             <label class="oh-label" for="username">{% trans "Username" %}</label>
@@ -100,6 +100,7 @@
                             </small>
                         {% endif %}
                     </form>
+                    {% include "sso_buttons.html" with btn_class="oh-btn oh-btn--shadow w-100 mt-3" %}
                     {% if initialize_database %}
                         <div>
                             <div class="d-flex gap-2">
