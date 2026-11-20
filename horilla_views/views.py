@@ -1,8 +1,8 @@
 import csv
-import importlib
 import json
 import os
 import re
+import sys
 from collections import defaultdict
 from io import BytesIO
 
@@ -113,6 +113,33 @@ class ToggleColumn(View):
         return HttpResponse("success")
 
 
+def _resolve_form_class(class_path):
+    """
+    Resolve a caller-supplied "package.module.FormClass" path to a form class
+    without ever importing anything.
+
+    Importing a request-supplied module path would run that module's top-level
+    code, so an uploaded .py file placed under MEDIA_ROOT could be executed.
+    Only modules that are already loaded and belong to an installed app are
+    considered; a form that rendered a page has necessarily been imported.
+    """
+    if not isinstance(class_path, str) or "." not in class_path:
+        return None
+    module_name, class_name = class_path.rsplit(".", 1)
+    installed_roots = {
+        app_config.name.split(".")[0] for app_config in apps.get_app_configs()
+    }
+    if module_name.split(".")[0] not in installed_roots:
+        return None
+    module = sys.modules.get(module_name)
+    if module is None:
+        return None
+    form_class = getattr(module, class_name, None)
+    if isinstance(form_class, type) and issubclass(form_class, forms.BaseForm):
+        return form_class
+    return None
+
+
 @method_decorator(login_required, name="dispatch")
 class ReloadField(View):
     """
@@ -132,9 +159,7 @@ class ReloadField(View):
                 message=_("No matching query found."),
             )
 
-        module_name, class_name = class_path.rsplit(".", 1)
-        module = importlib.import_module(module_name)
-        form_class = getattr(module, class_name, None)
+        form_class = _resolve_form_class(class_path)
         if not (
             isinstance(form_class, type) and issubclass(form_class, forms.BaseForm)
         ):
