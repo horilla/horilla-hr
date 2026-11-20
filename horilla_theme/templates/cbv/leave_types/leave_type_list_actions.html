@@ -76,15 +76,26 @@
     {% endif %}
 
     {% if perms.leave.delete_leavetype and perms.leave.add_availableleave %}
-        <a
-            hx-get="{% url 'generic-delete' %}?model=leave.LeaveType&pk={{instance.id}}"
-            hx-target="#deleteConfirmationBody"
-            data-toggle="oh-modal-toggle"
-            data-target="#deleteConfirmation"
-            class="oh-btn oh-btn--danger oh-btn--sq-sm"
-            title="{% trans 'Delete' %}"
-        >
-            <ion-icon name="trash-outline"></ion-icon>
-        </a>
+        {% if not instance.is_compensatory_leave %}
+            <a
+                hx-get="{% url 'generic-delete' %}?model=leave.LeaveType&pk={{instance.id}}"
+                hx-target="#deleteConfirmationBody"
+                data-toggle="oh-modal-toggle"
+                data-target="#deleteConfirmation"
+                class="oh-btn oh-btn--danger oh-btn--sq-sm"
+                title="{% trans 'Delete' %}"
+            >
+                <ion-icon name="trash-outline"></ion-icon>
+            </a>
+        {% else %}
+            <a
+                tabindex="-1"
+                aria-disabled="true"
+                title="{% trans 'Delete' %}"
+                class="oh-btn oh-btn--danger oh-btn--disabled oh-btn--sq-sm"
+            >
+                <ion-icon name="trash-outline"></ion-icon>
+            </a>
+        {% endif %}
     {% endif %}
 </div>

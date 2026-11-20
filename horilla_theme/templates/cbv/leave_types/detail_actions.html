@@ -27,29 +27,31 @@
             {% trans 'Assign' %}
         </a>
     {% endif %}
-    {% if perms.leave.change_leavetype and perms.leave.add_availableleave %}
-        <a
-            href="#"
-            hx-get="{% url 'type-update' instance.id %}"
-            data-toggle="oh-modal-toggle"
-            data-target="#objectUpdateModal"
-            hx-target="#objectUpdateModalTarget"
-            class="oh-btn oh-btn--light-bkg w-24 px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
-        >
-            <ion-icon name="create-outline" style="flex-shrink:0"></ion-icon>
-            {% trans 'Edit' %}
-        </a>
-    {% endif %}
-    {% if perms.leave.delete_leavetype and perms.leave.add_availableleave %}
-        <a
-            hx-confirm="{% trans 'Are you sure you want to delete this leave type?' %}"
-            hx-post="{% url 'type-delete' instance.id %}"
-            hx-target="#listContainer"
-            class="oh-btn oh-btn--danger w-24 px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
-        >
-            <ion-icon name="trash-outline" style="flex-shrink:0"></ion-icon>
-            {% trans 'Delete' %}
-        </a>
+    {% if not instance.is_compensatory_leave %}
+        {% if perms.leave.change_leavetype and perms.leave.add_availableleave %}
+            <a
+                href="#"
+                hx-get="{% url 'type-update' instance.id %}"
+                data-toggle="oh-modal-toggle"
+                data-target="#objectUpdateModal"
+                hx-target="#objectUpdateModalTarget"
+                class="oh-btn oh-btn--light-bkg w-24 px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
+            >
+                <ion-icon name="create-outline" style="flex-shrink:0"></ion-icon>
+                {% trans 'Edit' %}
+            </a>
+        {% endif %}
+        {% if perms.leave.delete_leavetype and perms.leave.add_availableleave %}
+            <a
+                hx-confirm="{% trans 'Are you sure you want to delete this leave type?' %}"
+                hx-post="{% url 'type-delete' instance.id %}"
+                hx-target="#listContainer"
+                class="oh-btn oh-btn--danger w-24 px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
+            >
+                <ion-icon name="trash-outline" style="flex-shrink:0"></ion-icon>
+                {% trans 'Delete' %}
+            </a>
+        {% endif %}
     {% endif %}
 {% endif %}
 </div>
