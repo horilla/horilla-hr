@@ -17,6 +17,7 @@ from horilla.decorators import check_manager
 from horilla_api.api_methods.base.methods import reject_reason_from
 from horilla_api.api_methods.base.pagination import HorillaPageNumberPagination
 from horilla_api.api_serializers.leave.serializers import *
+from leave import forecast
 from leave.filters import *
 from leave.methods import (
     decide_leave_cancellation,
@@ -24,6 +25,7 @@ from leave.methods import (
     request_leave_cancellation,
 )
 from leave.models import AvailableLeave, LeaveAllocationRequest, LeaveRequest, LeaveType
+from leave.services import charge_leave_request, refund_leave_days
 from notifications.signals import notify
 
 from ...api_decorators.base.decorators import (
@@ -736,19 +738,7 @@ class LeaveRequestApproveAPIView(APIView):
             raise serializers.ValidationError(e)
 
     def leave_approve_calculation(self, leave_request, available_leave):
-        if leave_request.requested_days > available_leave.available_days:
-            leave = leave_request.requested_days - available_leave.available_days
-            leave_request.approved_available_days = available_leave.available_days
-            available_leave.available_days = 0
-            available_leave.carryforward_days = (
-                available_leave.carryforward_days - leave
-            )
-
-            leave_request.approved_carryforward_days = leave
-        else:
-            temp = available_leave.available_days
-            available_leave.available_days = temp - leave_request.requested_days
-            leave_request.approved_available_days = leave_request.requested_days
+        charge_leave_request(leave_request, available_leave)
         available_leave.save()
 
     def leave_multiple_approve(self, request, leave_request, available_leave):
@@ -824,11 +814,8 @@ class LeaveRequestRejectAPIView(APIView):
         available_leave = AvailableLeave.objects.get(
             leave_type_id=leave_type_id, employee_id=employee_id
         )
-        available_leave.available_days += leave_request.approved_available_days
-        available_leave.carryforward_days += leave_request.approved_carryforward_days
+        refund_leave_days(leave_request, available_leave)
         available_leave.save()
-        leave_request.approved_available_days = 0
-        leave_request.approved_carryforward_days = 0
         leave_request.status = "rejected"
         leave_request.save()
 
@@ -1061,18 +1048,7 @@ class LeaveRequestBulkApproveDeleteAPIview(APIView):
         return leave_requests.filter(pk__in=allowed)
 
     def leave_approve_calculation(self, leave_request, available_leave):
-        if leave_request.requested_days > available_leave.available_days:
-            leave = leave_request.requested_days - available_leave.available_days
-            leave_request.approved_available_days = available_leave.available_days
-            available_leave.available_days = 0
-            available_leave.carryforward_days = (
-                available_leave.carryforward_days - leave
-            )
-            leave_request.approved_carryforward_days = leave
-        else:
-            temp = available_leave.available_days
-            available_leave.available_days = temp - leave_request.requested_days
-            leave_request.approved_available_days = leave_request.requested_days
+        charge_leave_request(leave_request, available_leave)
         available_leave.save()
 
     @manager_permission_required("leave.change_leaverequest")
@@ -1086,10 +1062,12 @@ class LeaveRequestBulkApproveDeleteAPIview(APIView):
             available_leave = AvailableLeave.objects.get(
                 leave_type_id=leave_type_id, employee_id=employee_id
             )
-            total_available_leave = (
-                available_leave.available_days + available_leave.carryforward_days
-            )
-            if total_available_leave >= leave_request.requested_days:
+            if forecast.check(
+                available_leave,
+                leave_request.end_date,
+                leave_request.requested_days,
+                exclude=leave_request,
+            ).ok:
                 self.leave_approve_calculation(leave_request, available_leave)
                 leave_request.status = "approved"
                 leave_request.save()

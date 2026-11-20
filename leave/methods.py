@@ -262,6 +262,7 @@ def decide_leave_cancellation(leave_request_id, approve, employee, reason=""):
     from django.utils.translation import gettext as _
 
     from leave.models import AvailableLeave, LeaveRequest, LeaverequestComment
+    from leave.services import refund_leave_days
 
     with transaction.atomic():
         leave_request = (
@@ -288,13 +289,8 @@ def decide_leave_cancellation(leave_request_id, approve, employee, reason=""):
                 return leave_request, _(
                     "No available leave record found for this employee and leave type."
                 )
-            available_leave.available_days += leave_request.approved_available_days
-            available_leave.carryforward_days += (
-                leave_request.approved_carryforward_days
-            )
+            refund_leave_days(leave_request, available_leave)
             available_leave.save()
-            leave_request.approved_available_days = 0
-            leave_request.approved_carryforward_days = 0
             leave_request.status = "cancelled"
             comment_text = _("Cancellation approved")
         else:
@@ -343,6 +339,22 @@ def reset_available_leave(available_leave, today_date, reset_reason, expiry_reas
     ):
         applied = True
     return applied
+
+
+def reset_balance_now(available_leave, reason, today_date=None):
+    """
+    Reset one balance today instead of on its reset date: the same reset the scheduler makes, with the next reset
+    worked out from today. Saves the balance.
+    """
+    today_date = today_date or timezone.localdate()
+    available_leave.update_carryforward()
+    available_leave.reset_date = available_leave.set_reset_date(
+        assigned_date=today_date, available_leave=available_leave
+    )
+    available_leave._change_reason = reason
+    available_leave.save()
+    # The reason belongs to this save only: whatever is saved on the balance next must not carry it.
+    available_leave._change_reason = None
 
 
 def run_missed_resets(leave_type, reset_reason, expiry_reason, today_date=None):

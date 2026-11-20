@@ -2,6 +2,7 @@ import calendar
 import logging
 import math
 import operator
+import re
 import threading
 from datetime import date, datetime, timedelta
 
@@ -240,6 +241,16 @@ class LeaveTypeCondition(HorillaModel):
             raise ValidationError(
                 {"value": _("A value is required for the selected condition type.")}
             )
+
+
+RESET_RULE_FIELDS = (
+    "reset",
+    "reset_based",
+    "reset_month",
+    "reset_day",
+    "reset_weekend",
+    "custom_reset_days",
+)
 
 
 class LeaveType(HorillaModel):
@@ -514,6 +525,14 @@ class LeaveType(HorillaModel):
         if self.pk and LeaveType.objects.get(id=self.pk).is_compensatory_leave:
             self.is_compensatory_leave = True
 
+        previous_rule = None
+        if self.pk:
+            previous_rule = (
+                LeaveType._base_manager.filter(pk=self.pk)
+                .values(*RESET_RULE_FIELDS)
+                .first()
+            )
+
         previous_expire_date = None
         if self.pk:
             previous_expire_date = (
@@ -542,6 +561,16 @@ class LeaveType(HorillaModel):
 
         super().save()
 
+        # A changed reset rule moves the next reset of the balances along with it.
+        if (
+            previous_rule
+            and self.reset
+            and any(
+                previous_rule[name] != getattr(self, name) for name in RESET_RULE_FIELDS
+            )
+        ):
+            self.resync_reset_dates()
+
         # An admin changing the shared first expiry date applies it to the
         # existing balances too, so every employee expires together.
         if (
@@ -552,6 +581,42 @@ class LeaveType(HorillaModel):
             AvailableLeave.objects.filter(leave_type_id=self).update(
                 expired_date=self.carryforward_expire_date
             )
+
+    def resync_reset_dates(self, today=None):
+        """
+        Point the next reset of every balance of this type at the type's own schedule.
+
+        A balance keeps its next reset date, so one assigned before the schedule was changed would keep resetting
+        on the old dates. A balance whose reset is already due is left for the scheduler to apply first.
+        Returns how many balances moved.
+        """
+        today = today or timezone.localdate()
+        moved = 0
+        # A balance brought forward at an approval has already had the resets up to its leave.
+        ahead = LeaveRequest._base_manager.filter(
+            leave_type_id=self,
+            status__in=["approved", "cancel_requested"],
+            provided_cycle__gt=today,
+        ).values_list("employee_id", flat=True)
+        balances = (
+            AvailableLeave._base_manager.filter(leave_type_id=self)
+            .filter(Q(reset_date__isnull=True) | Q(reset_date__gt=today))
+            .exclude(employee_id__in=list(ahead))
+        )
+        for balance in balances:
+            balance.leave_type_id = self
+            try:
+                following = balance.set_reset_date(
+                    assigned_date=today, available_leave=balance
+                )
+            except (TypeError, ValueError):  # a schedule missing its month or day
+                continue
+            if following != balance.reset_date:
+                AvailableLeave._base_manager.filter(pk=balance.pk).update(
+                    reset_date=following
+                )
+                moved += 1
+        return moved
 
     def __str__(self):
         return self.name
@@ -963,7 +1028,29 @@ class AvailableLeave(HorillaModel):
         Returns a list of dicts: {date, label, credit, debit, balance},
         newest first (matching how the ledger sidebar displays it).
         """
-        history_rows = list(self.history.order_by("history_date"))
+        from leave.services import (
+            PROVIDED_EXPIRY,
+            PROVIDED_RESET,
+            PROVIDED_TAKEN,
+            PROVIDED_UNDONE,
+        )
+
+        history_rows = []
+        for row in self.history.order_by("history_date", "history_id"):
+            reason = row.history_change_reason or ""
+            if reason.startswith(PROVIDED_UNDONE):
+                # An approval that was undone (the balance went back to how it was): the resets it brought
+                # forward, its leave row and this row cancel out, so none of them is listed.
+                if history_rows and (
+                    history_rows[-1].history_change_reason or ""
+                ).startswith(PROVIDED_TAKEN):
+                    history_rows.pop()
+                while history_rows and (
+                    history_rows[-1].history_change_reason or ""
+                ).startswith((PROVIDED_RESET, PROVIDED_EXPIRY)):
+                    history_rows.pop()
+                continue
+            history_rows.append(row)
         if not history_rows:
             return []
 
@@ -1007,6 +1094,7 @@ class AvailableLeave(HorillaModel):
             employee_id=self.employee_id,
             start_date__gte=self.assigned_date,
             status__in=["approved", "cancel_requested"],
+            provided_cycle__isnull=True,  # brought forward at approval: its own "Forecasted leave taken" row
         ):
             approved_snapshot = (
                 request.history.filter(status="approved")
@@ -1019,6 +1107,15 @@ class AvailableLeave(HorillaModel):
                 else request.start_date
             )
             approved_by_date.setdefault(approval_date, []).append(request)
+
+        # Leaves approved ahead of their cycle (the balance was brought forward to it), oldest first.
+        applied_bookings = list(
+            LeaveRequest._base_manager.filter(
+                leave_type_id=self.leave_type_id,
+                employee_id=self.employee_id,
+                provided_cycle__isnull=False,
+            ).order_by("provided_cycle", "start_date", "pk")
+        )
 
         entries = []
         first = history_rows[0]
@@ -1079,8 +1176,20 @@ class AvailableLeave(HorillaModel):
                 )
             ):
                 continue
-            entry_date = as_date(current.history_date)
-            source, by = reason_source(current)
+            reason = current.history_change_reason or ""
+            provided_on = provided_date(
+                reason
+            )  # a reset, expiry or leave brought forward at approval
+            entry_date = provided_on or as_date(current.history_date)
+            source, by = (None, None) if provided_on else reason_source(current)
+            provided_label = None
+            if provided_on and kind == "reset":
+                provided_label = _("Leave Reset")
+            elif provided_on and kind == "carryforward_expired":
+                provided_label = _("Carryforward Expired")
+            elif provided_on and reason.startswith("Forecasted leave refunded"):
+                kind = "refund"
+                provided_label = _("Leave Refunded")
             breakdown = {
                 "available_before": available_before,
                 "available_after": available_after,
@@ -1098,11 +1207,13 @@ class AvailableLeave(HorillaModel):
                         **breakdown,
                         "kind": kind if kind != "other" else "allocation",
                         "date": entry_date,
-                        "label": (
+                        "label": provided_label
+                        or (
                             _(current.history_change_reason)
                             if current.history_change_reason
                             else _("Balance updated")
                         ),
+                        "provided": bool(provided_label),
                         "credit": delta,
                         "debit": 0,
                         "carryforward_amount": 0,
@@ -1111,14 +1222,44 @@ class AvailableLeave(HorillaModel):
                     }
                 )
             else:
-                label = (
+                label = provided_label or (
                     _(current.history_change_reason)
                     if current.history_change_reason
                     else None
                 )
+                carryforward_amount = 0
+                if reason.startswith("Forecasted leave taken"):
+                    # The leave charged to that cycle: the one whose days match, else the first. A leave
+                    # cancelled since has its days zeroed, so the cycle is what identifies it.
+                    same_cycle = [
+                        r for r in applied_bookings if r.provided_cycle == provided_on
+                    ]
+                    booking = next(
+                        (
+                            r
+                            for r in same_cycle
+                            if round(
+                                r.approved_available_days
+                                + r.approved_carryforward_days,
+                                2,
+                            )
+                            == -delta
+                        ),
+                        same_cycle[0] if same_cycle else None,
+                    )
+                    if booking:
+                        applied_bookings.remove(booking)
+                        label = _("Leave taken (%(start)s - %(end)s)") % {
+                            "start": booking.start_date,
+                            "end": booking.end_date or booking.start_date,
+                        }
+                        carryforward_amount = round(
+                            booking.approved_carryforward_days or 0, 2
+                        )
+                    else:
+                        label = _("Leave taken")
                 if not label:
                     matches = approved_by_date.get(entry_date)
-                    carryforward_amount = 0
                     if matches:
                         request = matches.pop(0)
                         label = _("Leave taken (%(start)s - %(end)s)") % {
@@ -1130,12 +1271,12 @@ class AvailableLeave(HorillaModel):
                         )
                     else:
                         label = _("Balance updated")
-                else:
-                    carryforward_amount = 0
                 entries.append(
                     {
                         **breakdown,
                         "kind": kind if kind != "other" else "taken",
+                        "provided": bool(provided_label)
+                        or reason.startswith("Forecasted leave taken"),
                         "date": entry_date,
                         "label": label,
                         "credit": 0,
@@ -1252,6 +1393,24 @@ class AvailableLeave(HorillaModel):
             "balance": forecasted_total,
         }
 
+    def provided_ahead_days(self):
+        """Days of approved leaves charged to cycles that have not started yet (the balance was brought forward)."""
+        today = timezone.localdate()
+        return round(
+            sum(
+                (approved_available or 0) + (approved_carryforward or 0)
+                for approved_available, approved_carryforward in LeaveRequest._base_manager.filter(
+                    employee_id=self.employee_id_id,
+                    leave_type_id=self.leave_type_id_id,
+                    status__in=["approved", "cancel_requested"],
+                    provided_cycle__gt=today,
+                ).values_list(
+                    "approved_available_days", "approved_carryforward_days"
+                )
+            ),
+            2,
+        )
+
     def is_reset_due(self, today_date=None):
         """
         Whether this balance's reset or carryforward expiry date has already passed.
@@ -1330,8 +1489,38 @@ class AvailableLeave(HorillaModel):
         self.carryforward_days = round(max(self.carryforward_days, 0), 3)
 
     def save(self, *args, **kwargs):
+        steps = self.__dict__.pop("_provided_steps", None)
+        if steps:
+            # Resets brought forward at an approval (see services.provide_resets): one history row each, then the
+            # balance goes on to be saved as it is now.
+            final = (
+                self.available_days,
+                self.carryforward_days,
+                getattr(self, "_change_reason", None),
+            )
+            for step in steps:
+                self.available_days = step["available"]
+                self.carryforward_days = step["carryforward"]
+                self._change_reason = step["reason"]
+                self.pre_save_processing()
+                super().save()
+            self.available_days, self.carryforward_days, self._change_reason = final
+            if self._change_reason is None:
+                del self._change_reason
         self.pre_save_processing()
         super().save(*args, **kwargs)
+
+
+PROVIDED_REASON = re.compile(
+    r"^(?:Leave reset provided|Carryforward expired provided|Forecasted leave taken|Forecasted leave refunded)"
+    r": (\d{4}-\d{2}-\d{2})$"
+)
+
+
+def provided_date(reason):
+    """The reset date a history row's reason names when it was brought forward at an approval, or ``None``."""
+    found = PROVIDED_REASON.match(reason or "")
+    return datetime.strptime(found.group(1), "%Y-%m-%d").date() if found else None
 
 
 def restrict_leaves(restri):
@@ -1450,6 +1639,15 @@ class LeaveRequest(HorillaModel):
     )
     approved_available_days = models.FloatField(default=0)
     approved_carryforward_days = models.FloatField(default=0)
+    provided_cycle = models.DateField(
+        null=True,
+        blank=True,
+        editable=False,
+        help_text=_(
+            "The reset that starts the cycle this leave was charged to, when the balance was brought forward "
+            "to it at approval."
+        ),
+    )
     reject_reason = models.TextField(
         blank=True, verbose_name=_("Rejection Reason"), max_length=255
     )
@@ -2161,28 +2359,17 @@ class LeaveRequest(HorillaModel):
                 )
             )
 
-        leave_dates = leave_requested_dates(self.start_date, self.end_date)
-        month_year = [f"{date.year}-{date.strftime('%m')}" for date in leave_dates]
-        today = datetime.today()
-        unique_dates = list(set(month_year))
-        if f"{today.month}-{today.year}" in unique_dates:
-            unique_dates.remove(f"{today.strftime('%m')}-{today.year}")
+        # The balance of the day the leave ends counts, after any reset before it.
+        # Other requests still waiting for a decision are held against it too.
+        from leave import forecast
 
-        forcated_days = available_leave.forcasted_leaves(self.start_date)
-
-        available_days = available_leave.available_days or 0
-        carryforward_days = available_leave.carryforward_days or 0
-        carryforward_max = available_leave.leave_type_id.carryforward_max or 0
-        carryforward_type = available_leave.leave_type_id.carryforward_type
-
-        if carryforward_type in ["carryforward", "carryforward expire"]:
-            carryforward_days = min(carryforward_days, carryforward_max)
-        elif carryforward_type == "no carryforward":
-            carryforward_days = 0
-
-        total_leave_days = available_days + carryforward_days + forcated_days
-
-        if not effective_requested_days <= total_leave_days:
+        if not forecast.check(
+            available_leave,
+            self.end_date,
+            effective_requested_days,
+            exclude=self,
+            include_pending=True,
+        ).ok:
             raise ValidationError(
                 _("Does not have sufficient leave balance for the requested dates.")
             )
@@ -2282,19 +2469,9 @@ class LeaveRequest(HorillaModel):
         available_leave = AvailableLeave.objects.get(
             leave_type_id=leave_type_id, employee_id=employee_id
         )
-        if self.requested_days > available_leave.available_days:
-            leave = self.requested_days - available_leave.available_days
-            self.approved_available_days = available_leave.available_days
-            available_leave.available_days = 0
-            available_leave.carryforward_days = (
-                available_leave.carryforward_days - leave
-            )
-            self.approved_carryforward_days = leave
-        else:
-            available_leave.available_days = (
-                available_leave.available_days - self.requested_days
-            )
-            self.approved_available_days = self.requested_days
+        from leave.services import charge_leave_request
+
+        charge_leave_request(self, available_leave)
         self.status = "approved"
         available_leave.save()
 

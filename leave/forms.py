@@ -3,6 +3,7 @@ This module provides Horilla ModelForms for creating and managing leave-related 
 including leave type, leave request, leave allocation request, holidays and company leaves.
 """
 
+import json
 import re
 import uuid
 from datetime import date, datetime
@@ -201,6 +202,10 @@ class LeaveTypeForm(ConditionForm):
             cleaned_data["reset_based"] = "yearly"
             cleaned_data["reset_month"] = "1"
             cleaned_data["reset_day"] = "1"
+        elif cleaned_data.get("count") is not None:
+            # The form asks for "Total Days" only: the number is days, whatever unit an older record kept.
+            cleaned_data["period_in"] = "day"
+            cleaned_data["total_days"] = cleaned_data["count"]
 
         payment_type = cleaned_data.get("payment_type")
         payment_percentage = cleaned_data.get("payment_percentage")
@@ -308,6 +313,10 @@ class UpdateLeaveTypeForm(ConditionForm):
             cleaned_data["reset_based"] = "yearly"
             cleaned_data["reset_month"] = "1"
             cleaned_data["reset_day"] = "1"
+        elif cleaned_data.get("count") is not None:
+            # The form asks for "Total Days" only: the number is days, whatever unit an older record kept.
+            cleaned_data["period_in"] = "day"
+            cleaned_data["total_days"] = cleaned_data["count"]
 
         payment_type = cleaned_data.get("payment_type")
         payment_percentage = cleaned_data.get("payment_percentage")
@@ -363,6 +372,29 @@ class UpdateLeaveTypeForm(ConditionForm):
 
     def save(self, *args, **kwargs):
         return super().save(*args, **kwargs)
+
+
+BALANCE_FIELDS = (
+    "leave_type_id",
+    "start_date",
+    "end_date",
+    "start_date_breakdown",
+    "end_date_breakdown",
+)
+
+
+def send_own_request_with_balance(form):
+    """
+    A form on an existing request tells the balance widget which request it is, so the forecast does not
+    count that request against itself.
+    """
+    if not form.instance.pk:
+        return
+    for name in BALANCE_FIELDS:
+        if name in form.fields:
+            form.fields[name].widget.attrs["hx-vals"] = json.dumps(
+                {"leave_request": form.instance.pk}
+            )
 
 
 class LeaveRequestCreationForm(BaseModelForm):
@@ -421,6 +453,7 @@ class LeaveRequestCreationForm(BaseModelForm):
                     "hx-get": f"/leave/employee-available-leave-count/",
                 }
             )
+        send_own_request_with_balance(self)
 
     def as_p(self, *args, **kwargs):
         """
@@ -506,6 +539,7 @@ class LeaveRequestUpdationForm(BaseModelForm):
                     "hx-get": "/leave/employee-available-leave-count/",
                 }
             )
+        send_own_request_with_balance(self)
 
     def as_p(self, *args, **kwargs):
         """
@@ -815,6 +849,7 @@ class UserLeaveRequestCreationForm(BaseModelForm):
                     "hx-get": f"/leave/employee-available-leave-count/",
                 }
             )
+        send_own_request_with_balance(self)
         self.fields["employee_id"].initial = employee
 
     class Meta:

@@ -5,6 +5,7 @@ from rest_framework import serializers
 
 from employee.models import Employee
 from horilla import horilla_middlewares
+from leave import forecast
 from leave.methods import calculate_requested_days
 from leave.models import *
 
@@ -90,7 +91,15 @@ def leave_Validations(self, data):
             _("There is a mismatch in the breakdown of the start date and end date.")
         )
 
-    if not effective_requested_days <= total_leave_days:
+    # The balance held now, or failing that the balance of the end date after the resets before it (the same
+    # rule as the web form), with the other waiting requests counted.
+    if not forecast.check(
+        available_leave,
+        end_date,
+        effective_requested_days,
+        exclude=self.instance,
+        include_pending=True,
+    ).ok:
         raise serializers.ValidationError(
             _("Employee doesn't have enough leave days..")
         )
@@ -502,10 +511,12 @@ class LeaveRequestApproveSerializer(serializers.ModelSerializer):
         available_leave = AvailableLeave.objects.get(
             leave_type_id=leave_type_id, employee_id=employee_id
         )
-        total_available_leave = (
-            available_leave.available_days + available_leave.carryforward_days
-        )
-        if not total_available_leave >= leave_request.requested_days:
+        if not forecast.check(
+            available_leave,
+            leave_request.end_date,
+            leave_request.requested_days,
+            exclude=leave_request,
+        ).ok:
             raise serializers.ValidationError(
                 _("%(employee)s don't have enough leave days to approve the request..")
                 % {"employee": employee_id}
