@@ -21,7 +21,7 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 p-2">
                     {% for template in templates %}
                         <div class="shadow-card p-5 bg-white rounded-md border border-dark-50">
-                            <div class="flex justify-between mb-4">
+                            <div class="flex justify-between items-center mb-4">
                                 <h3 class="text-md font-semibold">{{ template.title }}</h3>
                                 {% if perms.base.delete_horillamailtemplate %}
                                     <div class="flex items-center justify-center gap-1">
@@ -52,7 +52,7 @@
                             </div>
 
                             <button
-                                class="px-5 py-2 group text-info-600 text-xs font-medium bg-info-100 rounded-md w-full hover:bg-info-600 hover:text-white transition duration-300 flex items-center justify-center"
+                                class="px-5 py-2 group text-primary-600 text-xs font-medium bg-primary-100 rounded-md w-full hover:bg-primary-600 hover:text-white transition duration-300 flex items-center justify-center"
                                 hx-get="{% url 'mail-template-edit-form' template.id %}"
                                 hx-target="#objectCreateModalTarget"
                                 data-toggle="oh-modal-toggle"

@@ -60,7 +60,7 @@
         id="languageSettingsForm"
         hx-post="{% url 'update-language-settings' %}"
         hx-swap="none"
-        hx-on-htmx-after-request="if (event.detail.successful) { companyLanguageSettings.markSaved(); } setTimeout(() => { reloadMessage(); }, 100);"
+        hx-on-htmx-after-request="if (event.detail.successful) { window.location.reload(); } else { setTimeout(() => { reloadMessage(); }, 100); }"
     >
         {% csrf_token %}
 
@@ -93,14 +93,6 @@
         <div class="lang-footer">
             <span class="lang-unsaved-flag" id="languageUnsavedFlag">{% trans "Unsaved changes" %}</span>
             <div class="flex gap-2" style="margin-left: auto">
-                <button
-                    type="button"
-                    class="lang-btn-cancel"
-                    id="languageCancelBtn"
-                    hx-on:click="companyLanguageSettings.reset()"
-                >
-                    {% trans "Cancel" %}
-                </button>
                 <button type="submit" class="btn">{% trans "Save Changes" %}</button>
             </div>
         </div>

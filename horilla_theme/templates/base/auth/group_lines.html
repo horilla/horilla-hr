@@ -20,9 +20,9 @@
                         value="{{ group.name }}"
                         name="name"
                         size="{{ group.name|length|default:10 }}"
-                        class="font-semibold text-sm text-inherit bg-transparent border-none px-1 m-0 outline-none cursor-pointer focus:cursor-text focus:bg-white focus:ring-1 focus:ring-primary-300 rounded transition-all shrink min-w-0 max-w-[140px]"
+                        class="font-semibold text-sm text-inherit bg-transparent border-none px-1 m-0 outline-none cursor-pointer focus:cursor-text focus:bg-white focus:ring-1 focus:ring-primary-300 rounded transition-all truncate shrink min-w-0 max-w-[180px]"
                         style="field-sizing: content"
-                        title="{% trans 'Click to rename' %}"
+                        title="{{ group.name }} ({% trans 'Click to rename' %})"
                         readonly
                         onclick="this.removeAttribute('readonly'); event.stopPropagation()"
                         onblur="this.setAttribute('readonly', true)"
@@ -47,7 +47,7 @@
                     {% if request.user.is_superuser %}
                         <a
                             href="#"
-                            class="cursor-pointer px-2 py-1 text-[11px] leading-none bg-danger shadow-card text-white rounded inline-flex items-center gap-1 hover:bg-danger-dark transition duration-300 h-6"
+                            class="oh-btn oh-btn--danger px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
                             hx-post="{% url 'user-group-delete' group.id %}"
                             hx-target="#settingsContainer"
                             hx-swap="none"
@@ -55,7 +55,7 @@
                             onclick="event.preventDefault(); event.stopPropagation()"
                             title="{% trans 'Delete role' %}"
                         >
-                            <i class="fa-solid fa-trash text-[10px]"></i>
+                            <ion-icon name="trash-outline"></ion-icon>
                             <span>{% trans "Delete" %}</span>
                         </a>
                     {% endif %}
