@@ -512,7 +512,9 @@ class HorillaListView(ListView):
                 if data_dict.get(key) == [str(hidden)]:
                     data_dict.pop(key)
 
-            data_dict, tag_labels, tag_extras = humanize_filter_tags(data_dict)
+            data_dict, tag_labels, tag_extras = humanize_filter_tags(
+                data_dict, self.filter_class
+            )
             context["filter_dict"] = data_dict
             context["filter_tag_labels"] = tag_labels
             context["filter_tag_extras"] = tag_extras
@@ -1903,7 +1905,9 @@ class HorillaCardView(ListView):
                 if data_dict.get(key) == [str(hidden)]:
                     data_dict.pop(key)
 
-            data_dict, tag_labels, tag_extras = humanize_filter_tags(data_dict)
+            data_dict, tag_labels, tag_extras = humanize_filter_tags(
+                data_dict, self.filter_class
+            )
             context["filter_dict"] = data_dict
             context["filter_tag_labels"] = tag_labels
             context["filter_tag_extras"] = tag_extras

@@ -25,6 +25,7 @@ from django.forms.models import ModelChoiceField
 from django.http import HttpResponse
 from django.template.base import Lexer, TokenType
 from django.template.loader import render_to_string
+from django.utils.encoding import force_str
 from django.utils.translation import gettext as _
 
 from horilla.models import has_xss
@@ -1949,7 +1950,7 @@ def _friendly_date(value):
         return str(value)
 
 
-def humanize_filter_tags(data_dict):
+def humanize_filter_tags(data_dict, filter_class=None):
     """
     Display-only pass over the filter-tag dict built for the active-filter
     tags. The query string and FilterSet are untouched -- this only changes
@@ -1960,7 +1961,10 @@ def humanize_filter_tags(data_dict):
       key is reported in `extras` so removing the tag clears both);
     * `type` / `attendance_status` choices show "Late Arrival" /
       "Early Departure" / "On Time", and `attendance_on_time` shows
-      "On Time" / "Late Arrival" under an "Attendance" label.
+      "On Time" / "Late Arrival" under an "Attendance" label;
+    * any other tag whose filter in `filter_class` has its own label and
+      choices reads as the filter form does ("OT Approved?: Yes"), not as
+      the query key ("Attendance overtime approve: True").
 
     Returns (data_dict, labels, extras): `labels` maps tag key -> label,
     `extras` maps tag key -> the extra key(s) its clear (x) must also clear.
@@ -2016,7 +2020,58 @@ def humanize_filter_tags(data_dict):
         ]
         labels["attendance_on_time"] = FriendlyTagText(_("Attendance"))
 
+    _word_tags_as_filters(data_dict, labels, filter_class)
     return data_dict, labels, extras
+
+
+def _word_tags_as_filters(data_dict, labels, filter_class):
+    """
+    Give each tag not worded above its filter's own label, and its choice's
+    name in place of the raw value, as the filter form shows them.
+    """
+    filters = getattr(filter_class, "base_filters", None) or {}
+    model = getattr(getattr(filter_class, "_meta", None), "model", None)
+    for key, values in data_dict.items():
+        filter_ = filters.get(key)
+        if filter_ is None or key in labels:
+            continue
+        label = _filter_own_label(filter_, model)
+        if label:
+            labels[key] = FriendlyTagText(force_str(label))
+        choices = {
+            str(value): name
+            for value, name in filter_.extra.get("choices") or ()
+            if value not in ("", None)
+        }
+        if choices and isinstance(values, list):
+            data_dict[key] = [
+                (
+                    FriendlyTagText(force_str(choices[value]))
+                    if isinstance(value, str) and value in choices
+                    else value
+                )
+                for value in values
+            ]
+
+
+def _filter_own_label(filter_, model):
+    """
+    The label the filter was given, or None when it is only django-filter's
+    stand-in made from the lookup path ("Employee work info department"),
+    which reads worse than the generic tag label.
+    """
+    from django_filters.utils import label_for_filter
+
+    label = filter_.label
+    if not label or model is None or not filter_.field_name:
+        return label
+    try:
+        made_up = label_for_filter(
+            model, filter_.field_name, filter_.lookup_expr, filter_.exclude
+        )
+    except Exception:  # a lookup django-filter can't name: keep the label
+        return label
+    return None if force_str(label) == force_str(made_up) else label
 
 
 def _is_date_like(value):
