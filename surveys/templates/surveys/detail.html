@@ -37,7 +37,8 @@
                     <ion-icon name="notifications-outline"></ion-icon>{% trans "Remind" %}
                 </button>
             </form>
-            <form method="post" action="{% url 'survey-close' survey.pk %}" onsubmit="return confirm('{% trans 'Close the survey? No more answers will be taken.' %}')">{% csrf_token %}
+            {% trans 'Close the survey? No more answers will be taken.' as close_confirmation %}
+            <form method="post" action="{% url 'survey-close' survey.pk %}" onsubmit="return confirm('{{ close_confirmation|escapejs }}')">{% csrf_token %}
                 <button class="oh-btn oh-btn--secondary">
                     <ion-icon name="lock-closed-outline"></ion-icon>{% trans "Close" %}
                 </button>
