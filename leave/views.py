@@ -1290,6 +1290,39 @@ def leave_request_approve(request, id, emp_id=None):
                 _reset_to_approve(request, available_leave, leave_request)
                 or balance_check
             )
+        if (
+            balance_check.ok
+            and balance_check.ahead
+            and request.method == "GET"
+            and request.headers.get("HX-Request")
+            and not request.GET.get("confirm")
+        ):
+            # A forecasted leave brings the balance forward, so the approver sees the summary first.
+            if request.GET.get("summary"):
+                return render(
+                    request,
+                    "leave/leave_request/forecast_approve_summary.html",
+                    {
+                        "leave_request": leave_request,
+                        "report": _forecast_report(
+                            available_leave,
+                            leave_request.end_date,
+                            leave_request.requested_days,
+                            leave_request.pk,
+                        ),
+                        "approve_url": request.path,
+                    },
+                )
+            response = HttpResponse("", status=200)
+            response["HX-Trigger"] = json.dumps(
+                {
+                    "leaveForecastSummary": {
+                        "title": str(_("Approve Forecasted Leave")),
+                        "url": request.path + "?summary=1",
+                    }
+                }
+            )
+            return response
         if balance_check.ok:
             charge_leave_request(
                 leave_request,
@@ -5169,7 +5202,26 @@ def _forecast_report(available_leave, end_date, needed, own_request_id=None):
     if balance.pending:
         deductions.append((_("Waiting Requests"), "-" + _days(balance.pending)))
     deductions.append((_("This Request"), "-" + _days(needed)))
+    fmt_range = "%d %b %Y"
+    booked = []
+    upcoming = (
+        forecast._employee_requests(available_leave, ("requested", "approved"), own)
+        .filter(end_date__gte=timezone.localdate())
+        .order_by("start_date")[:10]
+    )
+    for other in upcoming:
+        dates = other.start_date.strftime(fmt_range)
+        if other.end_date != other.start_date:
+            dates += " - " + other.end_date.strftime(fmt_range)
+        status = _("Approved") if other.status == "approved" else _("Waiting")
+        if other.provided_cycle:
+            status = "%s · %s" % (status, _("Forecasted"))
+        booked.append(
+            {"dates": dates, "days": _days(other.requested_days or 0), "status": status}
+        )
     return {
+        "available": round(balance.total + balance.pending, 3),
+        "booked": booked,
         "kind": result.kind,
         "policy": _reset_policy(leave_type),
         "steps": steps,
@@ -5178,6 +5230,13 @@ def _forecast_report(available_leave, end_date, needed, own_request_id=None):
         "short_by": _days(result.shortfall),
         "reset_on": balance.cycle_start,
     }
+
+
+def _can_see_forecast(user):
+    """The forecast table is for HR and managers; an employee only sees the balance."""
+    from base.templatetags.basefilters import is_reportingmanager
+
+    return user.has_perm("leave.view_availableleave") or is_reportingmanager(user)
 
 
 @login_required
@@ -5276,6 +5335,8 @@ def employee_available_leave_count(request):
                 effective_requested_days,
                 request.GET.get("leave_request"),
             )
+            # The badge shows the balance this request is judged against, the same figure the forecast ends on.
+            total_leave_days = max(report["available"], 0)
             if report["kind"] != forecast.OK_FORECAST:
                 forcasted_days = (
                     0  # the request comes off what is held now: no forecast to point at
@@ -5316,6 +5377,7 @@ def employee_available_leave_count(request):
         "forcasted_days": forcasted_days,
         "reset_on": reset_on,
         "report": report,
+        "can_see_forecast": _can_see_forecast(request.user),
         "pending_requests": pending_requests_days,
         "effective_requested_days": effective_requested_days,
         "zero_requested_days": effective_requested_days is not None

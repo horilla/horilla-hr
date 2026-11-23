@@ -529,7 +529,7 @@ class ApproveViewTests(ForecastBase):
         url = reverse("request-approve", args=[leave.pk])
         if post:
             return self.client.post(url, post, HTTP_HX_REQUEST="true")
-        return self.client.get(url, HTTP_HX_REQUEST="true")
+        return self.client.get(url, {"confirm": 1}, HTTP_HX_REQUEST="true")
 
     def trigger(self, response):
         return json.loads(response["HX-Trigger"])
@@ -545,6 +545,71 @@ class ApproveViewTests(ForecastBase):
         self.assertEqual(avail.available_days, 7)
         self.assertEqual(avail.reset_date, NEXT_RESET)
         self.assertNotIn("leaveBalanceShort", self.trigger(response))
+
+    def test_a_forecasted_leave_shows_its_summary_before_anything_is_approved(self):
+        avail = self.balance(available=0)
+        leave = self.leave(RESET + timedelta(days=1), RESET + timedelta(days=3))
+        url = reverse("request-approve", args=[leave.pk])
+        response = self.client.get(url, HTTP_HX_REQUEST="true")
+        leave.refresh_from_db()
+        avail.refresh_from_db()
+        summary = self.trigger(response)["leaveForecastSummary"]
+        self.assertEqual(summary["url"], url + "?summary=1")
+        self.assertEqual(
+            (leave.status, avail.available_days, avail.reset_date),
+            ("requested", 0, RESET),
+        )
+        page = self.client.get(summary["url"], HTTP_HX_REQUEST="true")
+        self.assertContains(page, "Monthly Reset")
+        self.assertContains(page, url + "?confirm=1")
+        leave.refresh_from_db()
+        self.assertEqual(leave.status, "requested")
+
+    def test_the_summary_is_only_for_forecasted_requests(self):
+        url_for = lambda leave: reverse("request-approve", args=[leave.pk])
+        # Covered by the balance now, even though it is dated after the reset.
+        self.balance(available=5)
+        covered = self.leave(RESET + timedelta(days=5), RESET + timedelta(days=6))
+        trigger = self.trigger(
+            self.client.get(url_for(covered), HTTP_HX_REQUEST="true")
+        )
+        self.assertNotIn("leaveForecastSummary", trigger)
+        self.assertEqual(LeaveRequest.objects.get(pk=covered.pk).status, "approved")
+        # Not covered by the balance or any reset before it: the alert, never the summary.
+        short = self.leave(TODAY + timedelta(days=1), TODAY + timedelta(days=9))
+        trigger = self.trigger(self.client.get(url_for(short), HTTP_HX_REQUEST="true"))
+        self.assertIn("leaveBalanceShort", trigger)
+        self.assertNotIn("leaveForecastSummary", trigger)
+        # A leave type without a limit always fits the balance now.
+        self.leave_type.limit_leave = False
+        self.leave_type.save()
+        unlimited = self.leave(RESET + timedelta(days=10), RESET + timedelta(days=12))
+        trigger = self.trigger(
+            self.client.get(url_for(unlimited), HTTP_HX_REQUEST="true")
+        )
+        self.assertNotIn("leaveForecastSummary", trigger)
+        self.assertFalse(LeaveRequest.objects.get(pk=unlimited.pk).approves_ahead)
+
+    def test_only_a_forecasted_request_approves_ahead(self):
+        self.balance(available=0)
+        forecasted = self.leave(RESET + timedelta(days=1), RESET + timedelta(days=3))
+        covered = self.leave(
+            TODAY + timedelta(days=1), TODAY + timedelta(days=1), employee=self.admin
+        )
+        AvailableLeave.objects.filter(employee_id=self.admin).delete()
+        self.balance(available=5, employee=self.admin)
+        self.assertTrue(forecasted.approves_ahead)
+        self.assertFalse(LeaveRequest.objects.get(pk=covered.pk).approves_ahead)
+
+    def test_a_leave_in_the_current_cycle_is_approved_without_a_summary(self):
+        self.balance(available=5)
+        leave = self.leave(TODAY + timedelta(days=1), TODAY + timedelta(days=2))
+        response = self.client.get(
+            reverse("request-approve", args=[leave.pk]), HTTP_HX_REQUEST="true"
+        )
+        leave.refresh_from_db()
+        self.assertEqual(leave.status, "approved")
+        self.assertNotIn("leaveForecastSummary", self.trigger(response))
 
     def test_a_leave_in_the_current_cycle_is_still_taken_now(self):
         avail = self.balance(available=5)
@@ -861,6 +926,62 @@ class BalanceWidgetTests(ForecastBase):
         own = self.widget(start, end, leave_request=waiting.pk).context["report"]
         self.assertEqual(other["kind"], forecast.SHORT)
         self.assertEqual(own["kind"], forecast.OK_FORECAST)
+
+    def test_hr_gets_the_forecast_behind_the_balance_pill(self):
+        self.balance(available=1)
+        response = self.widget(RESET + timedelta(days=1), RESET + timedelta(days=3))
+        self.assertTrue(response.context["can_see_forecast"])
+        self.assertContains(response, 'id="forecastReport"')
+        self.assertContains(response, "Leave Count")
+        self.assertNotContains(response, "Allowance")
+
+    def test_the_pill_shows_the_balance_the_forecast_ends_on(self):
+        self.balance(available=1)
+        response = self.widget(
+            NEXT_RESET + timedelta(days=1), NEXT_RESET + timedelta(days=2)
+        )
+        report = response.context["report"]
+        # Judged against the first reset (10 days), not the most any later reset could hold.
+        self.assertEqual(response.context["total_leave_days"], 10)
+        self.assertEqual(report["steps"][-1]["balance"], "10")
+
+    def test_the_forecast_lists_the_dates_already_booked(self):
+        avail = self.balance(available=0)
+        booked = self.leave(RESET + timedelta(days=1), RESET + timedelta(days=3))
+        charge_leave_request(
+            booked,
+            avail,
+            result=forecast.check(avail, booked.end_date, booked.requested_days),
+        )
+        avail.save()
+        LeaveRequest.objects.filter(pk=booked.pk).update(
+            status="approved", provided_cycle=booked.provided_cycle
+        )
+        other = self.leave(RESET + timedelta(days=6), RESET + timedelta(days=6))
+        report = self.widget(
+            RESET + timedelta(days=8), RESET + timedelta(days=9)
+        ).context["report"]
+        self.assertEqual(len(report["booked"]), 2)
+        forecasted = [row for row in report["booked"] if "Forecasted" in row["status"]]
+        waiting = [row for row in report["booked"] if row["status"] == "Waiting"]
+        self.assertEqual(forecasted[0]["days"], "3")
+        self.assertTrue(forecasted[0]["status"].startswith("Approved"))
+        self.assertEqual(waiting[0]["dates"], other.start_date.strftime("%d %b %Y"))
+
+    def test_an_employee_only_sees_the_balance(self):
+        user = make_user("forecast_plain", password="secret123")
+        make_employee(
+            company=self.employee.employee_work_info.company_id,
+            email="forecast_plain@test.horilla",
+            user=user,
+        )
+        self.balance(available=1)
+        self.client.force_login(user)
+        response = self.widget(RESET + timedelta(days=1), RESET + timedelta(days=3))
+        self.assertFalse(response.context["can_see_forecast"])
+        self.assertNotContains(response, 'id="forecastReport"')
+        self.assertNotContains(response, "Click To View The Forecast")
+        self.assertContains(response, "Available Leaves")
 
     def test_no_limit_has_no_report(self):
         self.leave_type.limit_leave = False
