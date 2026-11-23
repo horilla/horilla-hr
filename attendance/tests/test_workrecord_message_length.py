@@ -32,7 +32,7 @@ class WorkRecordMessageLengthTests(TestCase):
             employee_first_name="P",
             employee_last_name="Q",
             email="probe@example.test",
-            phone="1",
+            phone="1234567",
         )
         record = WorkRecords.objects.create(
             employee_id=employee,
