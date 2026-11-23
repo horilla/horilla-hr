@@ -1553,6 +1553,7 @@ class PayslipExportColumnForm(forms.Form):
             "end_date",
             "basic_pay",
             "gross_pay",
+            "deduction",
             "net_pay",
             "status",
         ],
