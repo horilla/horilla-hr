@@ -32,7 +32,7 @@ from django.db import models, transaction
 from django.db.models import F, ProtectedError, Q
 from django.db.models.query import QuerySet
 from django.forms import DateInput, HiddenInput, Select
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
@@ -3296,20 +3296,6 @@ def work_info_import(request):
     )
 
 
-def _to_excel_bold_header(data_frame, response):
-    """Write `data_frame` to `response` as xlsx with a bold header row.
-
-    Newer pandas no longer styles the header row, so bold it with openpyxl.
-    """
-    from openpyxl.styles import Font
-
-    with pd.ExcelWriter(response, engine="openpyxl") as writer:
-        data_frame.to_excel(writer, index=False)
-        bold = Font(bold=True)
-        for cell in writer.sheets["Sheet1"][1]:
-            cell.font = bold
-
-
 @login_required
 @manager_can_enter("employee.view_employee")
 def work_info_export(request):
@@ -3362,14 +3348,40 @@ def work_info_export(request):
             if instance_ids:
                 employees = employees.filter(pk__in=instance_ids)
 
-    prefetch_fields = list(set(f.split("__")[0] for f in selected_fields if "__" in f))
+    # The additional fields the export may carry, as ``{column value: field}``.
+    info_fields = {}
+    if apps.is_installed("additional_info"):
+        from additional_info.integration import export_fields
+
+        info_fields = {
+            column: field
+            for column, field in export_fields().items()
+            if column in selected_fields
+        }
+
+    prefetch_fields = list(
+        set(
+            f.split("__")[0]
+            for f in selected_fields
+            if "__" in f and f not in info_fields
+        )
+    )
     if prefetch_fields:
         employees = employees.select_related(*prefetch_fields)
 
     excel_columns_map = dict(excel_columns)
+    excel_columns_map.update(
+        {column: field.label for column, field in info_fields.items()}
+    )
+    used_names = set()
     for value in selected_fields:
         if value in excel_columns_map:
-            selected_columns.append((value, excel_columns_map[value]))
+            name = str(excel_columns_map[value])
+            # A column is keyed by its heading, so two with one heading would overwrite each other.
+            while name in used_names:
+                name = f"{name} (2)"
+            used_names.add(name)
+            selected_columns.append((value, name))
 
     date_format = "YYYY-MM-DD"
     user = request.user
@@ -3382,8 +3394,19 @@ def work_info_export(request):
                 date_format = company.date_format
 
     employees_data = {column_name: [] for _, column_name in selected_columns}
+    employees = list(employees)
+    info_cells = {}
+    if info_fields:
+        from additional_info.integration import export_cells
+
+        info_cells = export_cells([e.pk for e in employees], info_fields, request)
     for employee in employees:
         for column_value, column_name in selected_columns:
+            if column_value in info_fields:
+                employees_data[column_name].append(
+                    info_cells.get(employee.pk, {}).get(column_value, "")
+                )
+                continue
             if column_value in field_overrides:
                 column_value = field_overrides[column_value]
 
@@ -3417,12 +3440,25 @@ def work_info_export(request):
                 data = _("No")
 
             employees_data[column_name].append(data)
-    data_frame = pd.DataFrame(data=employees_data)
-    response = HttpResponse(content_type="application/ms-excel")
-    response["Content-Disposition"] = 'attachment; filename="employee_export.xlsx"'
-    _to_excel_bold_header(data_frame, response)
+    headers = list(employees_data)
+    if not headers:
+        return HttpResponseBadRequest(_("Select at least one column to export."))
+    rows = [list(row) for row in zip(*employees_data.values())]
 
-    return response
+    # The standard export file's styled header over the rows, without the title block: this is a
+    # list of employees to work with, and every column is as wide as it needs to be.
+    from horilla.horilla_middlewares import ExportOptionsMiddleware
+    from horilla_views.views import render_export_file
+
+    file_name = (
+        ExportOptionsMiddleware._clean_name(
+            request.GET.get("hlv_export_name")
+            or request.POST.get("hlv_export_name")
+            or ""
+        )
+        or "employee_export"
+    )
+    return render_export_file(request, "xlsx", file_name, headers, rows, titled=False)
 
 
 def birthday():

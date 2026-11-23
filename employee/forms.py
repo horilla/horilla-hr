@@ -28,6 +28,7 @@ from datetime import date, datetime
 from typing import Any
 
 from django import forms
+from django.apps import apps
 from django.db.models import Q
 from django.forms import DateInput, TextInput
 from django.template.loader import render_to_string
@@ -693,6 +694,17 @@ class EmployeeExportExcelForm(forms.Form):
             "employee_work_info__company_id",
         ],
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # The additional fields are an admin's to add and remove, so they are read when the form is
+        # built, not when the module is imported.
+        extra = []
+        if apps.is_installed("additional_info"):
+            from additional_info.integration import export_fields
+
+            extra = [(column, field.label) for column, field in export_fields().items()]
+        self.fields["selected_fields"].choices = list(excel_columns) + extra
 
 
 class BulkUpdateFieldForm(forms.Form):
