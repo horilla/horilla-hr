@@ -69,6 +69,17 @@
      After the status colours above, so it is not overridden by them. */
   .dv-split.dv-ahead { background: linear-gradient(to bottom right, var(--h1) 50%, var(--h2) 50%); color: #0f2a5c; }
   body.dark .dv-cell { --cal-upcoming: #2a2a2a; }
+  /* A day just regularised pulses once, so the eye finds the cell that changed. */
+  .dv-cell.dv-flash { z-index: 2; animation: dv-flash-cell 1.2s ease-out; }
+  .dv-cell.dv-flash .dv-chip { animation: dv-flash-chip 1.2s ease-out; }
+  @keyframes dv-flash-cell { 0%, 55% { background-color: #fde3d6; } 100% { background-color: transparent; } }
+  @keyframes dv-flash-chip {
+    0%   { transform: scale(1);    box-shadow: 0 0 0 0 rgba(232, 93, 4, .7); }
+    30%  { transform: scale(1.35); box-shadow: 0 0 0 7px rgba(232, 93, 4, .35); }
+    60%  { transform: scale(1.1);  box-shadow: 0 0 0 10px rgba(232, 93, 4, .12); }
+    100% { transform: scale(1);    box-shadow: 0 0 0 14px rgba(232, 93, 4, 0); }
+  }
+  @media (prefers-reduced-motion: reduce) { .dv-cell.dv-flash, .dv-cell.dv-flash .dv-chip { animation-duration: .01s; } }
   .dv-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px; font-size: .72rem; color: #4b5563; }
   .dv-legend span { display: inline-flex; align-items: center; gap: 5px; }
   .dv-legend i { display: inline-block; width: 14px; height: 14px; border-radius: 3px; }
@@ -210,9 +221,20 @@
     if (!table || !form) return;
     var params = new URLSearchParams(new FormData(form));
     if (table.dataset.page) params.set('page', table.dataset.page);
-    htmx.ajax('GET', "{% url 'attendance-monthly-summary-table' %}?" + params.toString(), {
+    var flash = window._msFlashCell;
+    window._msFlashCell = null;
+    var reloaded = htmx.ajax('GET', "{% url 'attendance-monthly-summary-table' %}?" + params.toString(), {
       target: '#summary-table-container', swap: 'innerHTML',
     });
+    if (flash && reloaded && reloaded.then) {
+      reloaded.then(function () {
+        var cell = document.querySelector('#dvTable td.dv-cell[data-employee="' + flash.employee + '"][data-date="' + flash.date + '"]');
+        if (!cell) return;
+        cell.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        cell.classList.add('dv-flash');
+        setTimeout(function () { cell.classList.remove('dv-flash'); }, 1400);
+      });
+    }
   });
 })();
 </script>
