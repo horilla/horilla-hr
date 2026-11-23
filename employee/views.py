@@ -3067,7 +3067,7 @@ def employee_import(request):
                     user = HorillaUser.objects.create_user(
                         username=email,
                         email=email,
-                        password=str(phone).strip(),
+                        password=generate_random_password(),
                         is_superuser=False,
                     )
                     employee = Employee()
