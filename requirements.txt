@@ -166,7 +166,7 @@ packaging==26.3
 #
 # msgpack arrives via CacheControl. 1.1.2 has an out-of-bounds read that
 # crashes on Unpacker reuse (GHSA-6v7p-g79w-8964); 1.2.1 fixes it.
-msgpack>=1.2.2,<2
+msgpack>=1.2.4,<2
 # setuptools comes from the base image and is required at runtime by spacy
 # and thinc. 70.3.0 carries a path traversal (CVE-2025-47273), and
 # pip install --upgrade pip does not upgrade setuptools, so the image kept
