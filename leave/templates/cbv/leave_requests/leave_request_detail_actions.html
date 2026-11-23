@@ -25,7 +25,9 @@
                 <a href="#"
                     hx-get="{% url 'request-approve' instance.id %}"
                     hx-swap="none"
-                    {% if instance.end_date.month > current_date.month %}
+                    {% if instance.approves_ahead %}
+                        {# The forecast summary that opens first is the confirmation. #}
+                    {% elif instance.end_date.month > current_date.month %}
                         hx-confirm="{% trans "This leave request is for the month of" %} {{ instance.start_date|date:'F' }}. {% trans "Approval depends on the" %} {{ instance.employee_id.get_full_name }} {% trans "having available leave days for this month." %}"
                     {% else %}
                         hx-confirm="{% trans "Do you really want to approve this request?" %}"

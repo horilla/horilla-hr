@@ -43,3 +43,38 @@ document.addEventListener("leaveBalanceShort", function (event) {
     });
   });
 });
+
+// Approving a forecasted leave brings the balance forward, so the server first asks for this summary (the forecast
+// of the request) and the approver approves from it. The summary is loaded into one modal kept on the page body.
+document.addEventListener("leaveForecastSummary", function (event) {
+  var detail = (event && event.detail) || {};
+  var modal = document.getElementById("forecastApproveModal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.className = "oh-modal";
+    modal.id = "forecastApproveModal";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-hidden", "true");
+    modal.style.zIndex = 1030;
+    modal.innerHTML =
+      '<div class="oh-modal__dialog" style="max-width: 720px">' +
+      '<div class="oh-modal__dialog-header">' +
+      '<h2 class="oh-modal__dialog-title"></h2>' +
+      '<button type="button" class="oh-modal__close--custom" aria-label="Close">' +
+      '<ion-icon name="close-outline"></ion-icon></button></div>' +
+      '<div class="oh-modal__dialog-body"></div></div>';
+    document.body.appendChild(modal);
+    modal.querySelector("button").addEventListener("click", function () {
+      modal.classList.remove("oh-modal--show");
+    });
+    modal.addEventListener("click", function (e) {
+      if (e.target === modal) modal.classList.remove("oh-modal--show");
+    });
+  }
+  var body = modal.querySelector(".oh-modal__dialog-body");
+  modal.querySelector(".oh-modal__dialog-title").textContent = detail.title || "";
+  body.innerHTML = "";
+  htmx.ajax("GET", detail.url, { target: body, swap: "innerHTML" }).then(function () {
+    modal.classList.add("oh-modal--show");
+  });
+});

@@ -114,7 +114,9 @@ class MultiLevelApprovalTests(ForecastBase):
     def approve(self, user, leave):
         self.client.force_login(user)
         return self.client.get(
-            reverse("request-approve", args=[leave.pk]), HTTP_HX_REQUEST="true"
+            reverse("request-approve", args=[leave.pk]),
+            {"confirm": 1},
+            HTTP_HX_REQUEST="true",
         )
 
     def test_only_the_last_approval_brings_the_balance_forward(self):
@@ -153,8 +155,8 @@ class WebEdgeCaseTests(ForecastBase):
         avail = self.balance(available=0)
         leave = self.leave(RESET + timedelta(days=1), RESET + timedelta(days=3))
         url = reverse("request-approve", args=[leave.pk])
-        self.client.get(url, HTTP_HX_REQUEST="true")
-        self.client.get(url, HTTP_HX_REQUEST="true")
+        self.client.get(url, {"confirm": 1}, HTTP_HX_REQUEST="true")
+        self.client.get(url, {"confirm": 1}, HTTP_HX_REQUEST="true")
         avail.refresh_from_db()
         self.assertEqual((avail.available_days, avail.reset_date), (7, NEXT_RESET))
         self.assertEqual(
@@ -192,7 +194,9 @@ class WebEdgeCaseTests(ForecastBase):
         )
         self.assertEqual(leave.requested_days, 0.5)
         self.client.get(
-            reverse("request-approve", args=[leave.pk]), HTTP_HX_REQUEST="true"
+            reverse("request-approve", args=[leave.pk]),
+            {"confirm": 1},
+            HTTP_HX_REQUEST="true",
         )
         avail.refresh_from_db()
         self.assertEqual(avail.available_days, 9.5)

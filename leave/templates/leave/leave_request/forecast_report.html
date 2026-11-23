@@ -1,0 +1,160 @@
+{% load i18n %}
+<style>
+.leave-forecast {
+    flex: 1 0 100%;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #fafafa;
+    padding: 8px 12px;
+    font-size: 12px;
+}
+.leave-forecast--modal {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    font-size: 13px;
+}
+.leave-forecast__title {
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+.leave-forecast__policy {
+    color: #6b7280;
+    margin-bottom: 6px;
+}
+.leave-forecast__scroll {
+    max-height: 270px;
+    overflow: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #fff;
+}
+.leave-forecast table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.leave-forecast th {
+    position: sticky;
+    top: 0;
+    background: #f3f4f6;
+    text-align: left;
+    font-weight: 700;
+    padding: 5px 8px;
+    white-space: nowrap;
+}
+.leave-forecast td {
+    padding: 4px 8px;
+    border-top: 1px solid #f1f2f4;
+    color: #374151;
+}
+.leave-forecast .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+.leave-forecast__totals {
+    margin-top: 6px;
+}
+.leave-forecast tr.sum td {
+    background: #fafafa;
+    font-weight: 600;
+}
+.leave-forecast tr.sum td.num {
+    color: #111827;
+}
+.leave-forecast__result {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 6px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-weight: 700;
+}
+.leave-forecast__result--ok {
+    background: #dff0d8;
+    color: #2f5d2c;
+}
+.leave-forecast__result--short {
+    background: rgba(229, 79, 56, 0.17);
+    color: #a32a18;
+}
+.leave-forecast__note {
+    margin-top: 4px;
+    color: #6b7280;
+}
+</style>
+<div class="leave-forecast__policy">{{ report.policy }}</div>
+<div class="leave-forecast__scroll">
+    <table>
+        <thead>
+            <tr>
+                <th>{% trans "Date" %}</th>
+                <th>{% trans "Event" %}</th>
+                <th class="num">{% trans "Leave Count" %}</th>
+                <th class="num">{% trans "Carried Forward" %}</th>
+                <th class="num">{% trans "Balance" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for step in report.steps %}
+                <tr>
+                    <td>{{ step.date }}</td>
+                    <td>{{ step.event }}</td>
+                    <td class="num">{{ step.allowance }}</td>
+                    <td class="num">{{ step.carryforward }}</td>
+                    <td class="num"><strong>{{ step.balance }}</strong></td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% if report.booked %}
+    <div class="leave-forecast__title mt-2">{% trans "Already Booked" %}</div>
+    <div class="leave-forecast__scroll">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "Dates" %}</th>
+                    <th class="num">{% trans "Days" %}</th>
+                    <th>{% trans "Status" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in report.booked %}
+                    <tr>
+                        <td>{{ row.dates }}</td>
+                        <td class="num">{{ row.days }}</td>
+                        <td>{{ row.status }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endif %}
+<table class="leave-forecast__totals">
+    <tbody>
+        {% for label, value in report.deductions %}
+            <tr class="sum">
+                <td>{{ label }}</td>
+                <td class="num">{{ value }}</td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% if report.kind == "short" %}
+    <div class="leave-forecast__result leave-forecast__result--short">
+        <span>{% trans "Short By" %}</span><span>{{ report.short_by }}</span>
+    </div>
+    <div class="leave-forecast__note">{% trans "Not Enough Balance Even After The Forecast, So This Request Cannot Be Saved." %}</div>
+{% else %}
+    <div class="leave-forecast__result leave-forecast__result--ok">
+        <span>{% trans "Left After This Leave" %}</span><span>{{ report.left }}</span>
+    </div>
+    <div class="leave-forecast__note">
+        {% if report.kind == "ok_forecast" %}
+            {% trans "Approving Brings The Balance Forward To The Cycle Starting On" %} {{ report.reset_on|date:"d M Y" }}.
+        {% else %}
+            {% trans "Counted Against The Current Balance." %}
+        {% endif %}
+    </div>
+{% endif %}

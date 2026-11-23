@@ -2268,6 +2268,22 @@ class LeaveRequest(HorillaModel):
                         manager_id=manager,
                     )
 
+    @property
+    def approves_ahead(self):
+        """A waiting request the balance now falls short of: approving it brings the balance forward."""
+        if self.status != "requested" or not self.end_date:
+            return False
+        from leave import forecast
+
+        available = AvailableLeave.objects.filter(
+            employee_id=self.employee_id_id, leave_type_id=self.leave_type_id_id
+        ).first()
+        if not available:
+            return False
+        return forecast.check(
+            available, self.end_date, self.requested_days, exclude=self
+        ).ahead
+
     def clean(self):
         cleaned_data = super().clean()
         leave_type = getattr(self, "leave_type_id", None)
