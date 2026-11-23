@@ -66,6 +66,16 @@
                     <div class="w-6 h-6 rounded-full border-2 border-secondary-200 flex items-center justify-center text-xxs font-semibold">3</div>
                     {% trans "Bank Information" %}
                 </div>
+
+                {% if additional_step %}
+                <div class="w-10 h-px bg-secondary-200"></div>
+
+                <!-- Step 4 -->
+                <div class="flex items-center gap-2 text-dark-100 px-3 py-1.5 text-xs font-medium whitespace-nowrap">
+                    <div class="w-6 h-6 rounded-full border-2 border-secondary-200 flex items-center justify-center text-xxs font-semibold">4</div>
+                    {% trans "Additional Information" %}
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>

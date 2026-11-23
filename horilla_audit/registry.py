@@ -41,6 +41,7 @@ DEFAULT_TRACKED_MODELS = [
     ("employee", "Employee"),
     ("employee", "EmployeeWorkInformation"),
     ("employee", "EmployeeBankDetails"),
+    ("additional_info", "AdditionalInfoValue"),
     # Money. A payslip or contract edit is the highest-consequence change in
     # the product, and salary structure drives every future payslip.
     ("payroll", "Contract"),

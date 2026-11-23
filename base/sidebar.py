@@ -154,6 +154,14 @@ def ldap_accessibility(request, submenu, user_perms, *args, **kwargs):
     )
 
 
+def microsoft_sso_accessibility(request, submenu, user_perms, *args, **kwargs):
+    return apps.is_installed("horilla_sso") and request.user.is_superuser
+
+
+def google_sso_accessibility(request, submenu, user_perms, *args, **kwargs):
+    return apps.is_installed("horilla_sso") and request.user.is_superuser
+
+
 def google_meet_accessibility(request, submenu, user_perms, *args, **kwargs):
     return apps.is_installed("horilla_meet") and request.user.has_perm(
         "horilla_meet.view_googlecloudcredential"
@@ -671,6 +679,62 @@ class IntegrationsSettings:
                 {
                     "text": _("Base DN"),
                     "description": _("LDAP base distinguished name for user search"),
+                },
+            ],
+        },
+        {
+            "label": _("Microsoft Sign-In"),
+            "url": reverse_lazy("microsoft-sso-settings"),
+            "accessibility": microsoft_sso_accessibility,
+            "search_entries": [
+                {
+                    "text": _("Microsoft Sign-In"),
+                    "description": _(
+                        "Let employees sign in with their Microsoft account"
+                    ),
+                },
+                {
+                    "text": _("Microsoft SSO"),
+                    "description": _("Single sign-on with Microsoft Entra ID"),
+                },
+                {
+                    "text": _("Tenant ID"),
+                    "description": _("Microsoft directory (tenant) ID"),
+                },
+                {
+                    "text": _("Microsoft Client ID"),
+                    "description": _("Application (client) ID of the Azure app"),
+                },
+                {
+                    "text": _("Hide Password Sign-In"),
+                    "description": _("Show only the sign-in buttons on the login page"),
+                },
+            ],
+        },
+        {
+            "label": _("Google Sign-In"),
+            "url": reverse_lazy("google-sso-settings"),
+            "accessibility": google_sso_accessibility,
+            "search_entries": [
+                {
+                    "text": _("Google Sign-In"),
+                    "description": _(
+                        "Let employees sign in with their Google Workspace account"
+                    ),
+                },
+                {
+                    "text": _("Google SSO"),
+                    "description": _("Single sign-on with Google Workspace"),
+                },
+                {
+                    "text": _("Google Client ID"),
+                    "description": _(
+                        "Client ID of the OAuth client in Google Cloud Console"
+                    ),
+                },
+                {
+                    "text": _("Allowed Workspace Domains"),
+                    "description": _("Google Workspace domains that may sign in"),
                 },
             ],
         },

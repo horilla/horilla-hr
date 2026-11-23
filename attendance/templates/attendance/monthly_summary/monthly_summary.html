@@ -56,11 +56,14 @@
     font-weight: 500 !important;
     color: hsl(219, 9%, 29%) !important;
     background-color: #fff !important;
-    border: 1px solid hsl(213, 22%, 84%) !important;
+    border: 1px solid var(--primary-500, hsl(213, 22%, 84%)) !important;
     border-radius: 0.375rem !important;
     box-shadow: none !important;
   }
-  .ms-toolbar-row .oh-btn:hover { background-color: hsl(210, 20%, 98%) !important; }
+  .ms-toolbar-row .oh-btn:hover { background-color: hsl(210, 20%, 98%) !important; border-color: var(--primary-600, hsl(8, 77%, 56%)) !important; }
+  /* Same pale theme outline as the search box on every other list toolbar. */
+  .ms-toolbar-row .ms-search .oh-input { border: 1px solid var(--primary-500, #e6e6e6) !important; border-radius: 0.375rem !important; }
+  .ms-toolbar-row .ms-search .oh-input:focus { border-color: var(--primary-600, hsl(8, 77%, 56%)) !important; }
   .ms-toolbar-row .oh-btn.oh-btn--secondary {
     background-color: hsl(8, 77%, 56%) !important;
     border-color: hsl(8, 77%, 56%) !important;
@@ -69,10 +72,12 @@
   .ms-toolbar-row .oh-btn.oh-btn--secondary:hover { background-color: hsl(8, 61%, 50%) !important; }
   body.dark .ms-toolbar-row .oh-btn {
     background-color: #242424 !important;
-    border-color: #3a3a3a !important;
+    border-color: color-mix(in srgb, var(--primary-600, #e54f38) 45%, #1a1a1a) !important;
     color: #e5e7eb !important;
   }
-  body.dark .ms-toolbar-row .oh-btn:hover { background-color: #1a1a1a !important; }
+  body.dark .ms-toolbar-row .oh-btn:hover { background-color: #1a1a1a !important; border-color: var(--primary-600, #e54f38) !important; }
+  body.dark .ms-toolbar-row .ms-search .oh-input { border-color: color-mix(in srgb, var(--primary-600, #e54f38) 45%, #1a1a1a) !important; }
+  body.dark .ms-toolbar-row .ms-search .oh-input:focus { border-color: var(--primary-600, #e54f38) !important; }
 
   /* Filter, once something is actually filtered -- the accent border and
      the count badge the standard toolbar shows on its own Filter button

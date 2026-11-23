@@ -82,7 +82,7 @@ of thing as the first one, in whatever language the form is in.
         <label class="oh-label mb-0">{{ if_amount.label }}</label>
       </div>
       <div>
-        <input type="number" step="any" name="apply_amounts"
+        <input type="number" min="0" step="any" name="apply_amounts"
                class="{{ if_amount.field.widget.attrs.class }} form-control"
                value="{% if rule %}{{ rule.amount|default_if_none:'' }}{% endif %}">
       </div>
@@ -94,7 +94,7 @@ of thing as the first one, in whatever language the form is in.
         <label class="oh-label mb-0">{{ start_range.label }}</label>
       </div>
       <div>
-        <input type="number" step="any" name="apply_starts"
+        <input type="number" min="0" step="any" name="apply_starts"
                class="{{ start_range.field.widget.attrs.class }} form-control"
                value="{% if rule %}{{ rule.start_range|default_if_none:'' }}{% endif %}">
       </div>
@@ -106,7 +106,7 @@ of thing as the first one, in whatever language the form is in.
         <label class="oh-label mb-0">{{ end_range.label }}</label>
       </div>
       <div>
-        <input type="number" step="any" name="apply_ends"
+        <input type="number" min="0" step="any" name="apply_ends"
                class="{{ end_range.field.widget.attrs.class }} form-control"
                value="{% if rule %}{{ rule.end_range|default_if_none:'' }}{% endif %}">
       </div>

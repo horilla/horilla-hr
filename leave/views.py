@@ -3,6 +3,7 @@ views.py
 """
 
 import ast
+import calendar
 import contextlib
 import json
 import math
@@ -67,6 +68,7 @@ from horilla.methods import (
     remove_dynamic_url,
 )
 from horilla.week import week_start
+from leave import forecast
 from leave.decorators import *
 from leave.filters import *
 from leave.forms import *
@@ -80,11 +82,16 @@ from leave.methods import (
     parse_excel_date,
     request_leave_cancellation,
     reset_available_leave,
+    reset_balance_now,
     run_missed_resets,
 )
 from leave.models import *
 from leave.models import leave_requested_dates
-from leave.services import evaluate_leave_type_conditions
+from leave.services import (
+    charge_leave_request,
+    evaluate_leave_type_conditions,
+    refund_leave_days,
+)
 from leave.threading import LeaveMailSendThread
 from notifications.signals import notify
 
@@ -556,23 +563,7 @@ def leave_request_creation(request, type_id=None, emp_id=None):
                 )
                 leave_request.created_by = request.user.employee_get
                 leave_request.save()
-                if leave_request.requested_days > available_leave.available_days:
-                    leave = (
-                        leave_request.requested_days - available_leave.available_days
-                    )
-                    leave_request.approved_available_days = (
-                        available_leave.available_days
-                    )
-                    available_leave.available_days = 0
-                    available_leave.carryforward_days = (
-                        available_leave.carryforward_days - leave
-                    )
-                    leave_request.approved_carryforward_days = leave
-                else:
-                    available_leave.available_days = (
-                        available_leave.available_days - leave_request.requested_days
-                    )
-                    leave_request.approved_available_days = leave_request.requested_days
+                charge_leave_request(leave_request, available_leave)
                 leave_request.status = "approved"
             if save:
                 leave_request.created_by = request.user.employee_get
@@ -1138,6 +1129,76 @@ def leave_request_delete(request, id):
     return redirect(reverse("request-filter"))
 
 
+def _days(value):
+    return f"{round(value or 0, 2):g}"
+
+
+def _leave_shortage(request, leave_request, available_leave, result):
+    """What the "No Available Leave" alert shows when a request does not fit the balance of its end date."""
+    now = forecast.balance_on(
+        available_leave, timezone.localdate(), exclude=leave_request
+    )
+    can_reset = bool(
+        result.can_reset_now
+        and request.user.has_perm("leave.change_availableleave")
+        and leave_request.employee_id != request.user.employee_get
+    )
+    lines = [
+        [_("Employee"), str(leave_request.employee_id)],
+        [_("Leave Type"), str(leave_request.leave_type_id)],
+        [_("Requested Days"), _days(leave_request.requested_days)],
+        [_("Ends On"), leave_request.end_date.strftime("%d %b %Y")],
+        [_("Balance Now"), _days(now.total)],
+    ]
+    if result.balance.resets:
+        lines.append([_("Balance On End Date"), _days(result.balance.total)])
+    lines.append([_("Short By"), _days(result.shortfall)])
+    return {
+        "title": str(_("No Available Leave")),
+        "message": str(
+            _("Reset The Balance Now And Approve This Leave?")
+            if can_reset
+            else _("The Balance Does Not Cover This Leave.")
+        ),
+        "lines": [[str(a), str(b)] for a, b in lines],
+        "can_reset": can_reset,
+        "url": request.path,
+        "confirm": str(_("Reset Now & Approve")),
+        "cancel": str(_("Cancel")),
+    }
+
+
+def _reset_to_approve(request, available_leave, leave_request):
+    """
+    Reset the balance today so a request that doesn't fit can be approved from the fresh one. Rolled back, and
+    ``None`` returned, if it still would not fit. Otherwise returns the new check.
+    """
+    try:
+        with transaction.atomic():
+            reset_balance_now(
+                available_leave, gettext_noop("Leave reset early to approve a request")
+            )
+            result = forecast.check(
+                available_leave,
+                leave_request.end_date,
+                leave_request.requested_days,
+                exclude=leave_request,
+            )
+            if not result.ok:
+                raise ValueError("still short")
+            approver = request.user.employee_get
+            if approver:
+                LeaverequestComment.objects.create(
+                    request_id=leave_request,
+                    employee_id=approver,
+                    comment=_("Balance reset early to approve this request"),
+                )
+            return result
+    except ValueError:
+        available_leave.refresh_from_db()
+        return None
+
+
 @login_required
 @manager_can_enter("leave.change_leaverequest")
 def leave_request_approve(request, id, emp_id=None):
@@ -1206,26 +1267,69 @@ def leave_request_approve(request, id, emp_id=None):
             return response
         return HorillaRedirect(request)
 
-    total_available_leave = (
-        available_leave.available_days + available_leave.carryforward_days
-    )
     send_notification = False
     approved = False
     error_message = ""
+    shortage = None
     if leave_request.status != "approved":
-        if total_available_leave >= leave_request.requested_days:
-            if leave_request.requested_days > available_leave.carryforward_days:
-                leave = leave_request.requested_days - available_leave.carryforward_days
-                leave_request.approved_carryforward_days = (
-                    available_leave.carryforward_days
+        # Judged by the balance of the day the leave ends, after any reset before it.
+        balance_check = forecast.check(
+            available_leave,
+            leave_request.end_date,
+            leave_request.requested_days,
+            exclude=leave_request,
+        )
+        if (
+            not balance_check.ok
+            and request.method == "POST"
+            and request.POST.get("reset_now")
+            and balance_check.can_reset_now
+            and request.user.has_perm("leave.change_availableleave")
+        ):
+            balance_check = (
+                _reset_to_approve(request, available_leave, leave_request)
+                or balance_check
+            )
+        if (
+            balance_check.ok
+            and balance_check.ahead
+            and request.method == "GET"
+            and request.headers.get("HX-Request")
+            and not request.GET.get("confirm")
+        ):
+            # A forecasted leave brings the balance forward, so the approver sees the summary first.
+            if request.GET.get("summary"):
+                return render(
+                    request,
+                    "leave/leave_request/forecast_approve_summary.html",
+                    {
+                        "leave_request": leave_request,
+                        "report": _forecast_report(
+                            available_leave,
+                            leave_request.end_date,
+                            leave_request.requested_days,
+                            leave_request.pk,
+                        ),
+                        "approve_url": request.path,
+                    },
                 )
-                available_leave.carryforward_days = 0
-                available_leave.available_days = available_leave.available_days - leave
-                leave_request.approved_available_days = leave
-            else:
-                temp = available_leave.carryforward_days
-                available_leave.carryforward_days = temp - leave_request.requested_days
-                leave_request.approved_carryforward_days = leave_request.requested_days
+            response = HttpResponse("", status=200)
+            response["HX-Trigger"] = json.dumps(
+                {
+                    "leaveForecastSummary": {
+                        "title": str(_("Approve Forecasted Leave")),
+                        "url": request.path + "?summary=1",
+                    }
+                }
+            )
+            return response
+        if balance_check.ok:
+            charge_leave_request(
+                leave_request,
+                available_leave,
+                carryforward_first=True,
+                result=balance_check,
+            )
             leave_request.status = "approved"
             if not leave_request.multiple_approvals():
                 leave_request.save()
@@ -1298,17 +1402,23 @@ def leave_request_approve(request, id, emp_id=None):
                     )
                     mail_thread.start()
         else:
+            shortage = _leave_shortage(
+                request, leave_request, available_leave, balance_check
+            )
             error_message = str(
                 _(f"{employee_id} dont have enough leave days to approve the request..")
             )
-            messages.error(request, error_message)
+            if not request.headers.get("HX-Request"):
+                messages.error(request, error_message)
     else:
         error_message = str(_("Leave request already approved"))
         messages.error(request, error_message)
     if request.headers.get("HX-Request"):
         response = HttpResponse("", status=200)
         trigger_data = {"reloadLeaveRequestList": {"target": "body"}}
-        if approved:
+        if shortage:
+            trigger_data = {"leaveBalanceShort": shortage}
+        elif approved:
             trigger_data["horillaMessage"] = {
                 "level": "success",
                 "text": str(_("Leave request approved successfully..")),
@@ -1390,10 +1500,7 @@ def _reject_leave_request(request, leave_request, reason):
     available_leave = AvailableLeave.objects.get(
         leave_type_id=leave_type_id, employee_id=employee_id
     )
-    available_leave.available_days += leave_request.approved_available_days
-    available_leave.carryforward_days += leave_request.approved_carryforward_days
-    leave_request.approved_available_days = 0
-    leave_request.approved_carryforward_days = 0
+    refund_leave_days(leave_request, available_leave)
     leave_request.status = "rejected"
     leave_request.leave_clashes_count = 0
 
@@ -3088,23 +3195,7 @@ def user_leave_request(request, id):
                 available_leave = AvailableLeave.objects.get(
                     leave_type_id=leave_type_id, employee_id=employee_id
                 )
-                if leave_request.requested_days > available_leave.available_days:
-                    leave = (
-                        leave_request.requested_days - available_leave.available_days
-                    )
-                    leave_request.approved_available_days = (
-                        available_leave.available_days
-                    )
-                    available_leave.available_days = 0
-                    available_leave.carryforward_days = (
-                        available_leave.carryforward_days - leave
-                    )
-                    leave_request.approved_carryforward_days = leave
-                else:
-                    available_leave.available_days = (
-                        available_leave.available_days - leave_request.requested_days
-                    )
-                    leave_request.approved_available_days = leave_request.requested_days
+                charge_leave_request(leave_request, available_leave)
                 leave_request.status = "approved"
                 available_leave.save()
             if save:
@@ -4139,27 +4230,7 @@ def leave_request_create(request):
                     available_leave = AvailableLeave.objects.get(
                         leave_type_id=leave_type_id, employee_id=employee_id
                     )
-                    if leave_request.requested_days > available_leave.available_days:
-                        leave = (
-                            leave_request.requested_days
-                            - available_leave.available_days
-                        )
-                        leave_request.approved_available_days = (
-                            available_leave.available_days
-                        )
-                        available_leave.available_days = 0
-                        available_leave.carryforward_days = (
-                            available_leave.carryforward_days - leave
-                        )
-                        leave_request.approved_carryforward_days = leave
-                    else:
-                        available_leave.available_days = (
-                            available_leave.available_days
-                            - leave_request.requested_days
-                        )
-                        leave_request.approved_available_days = (
-                            leave_request.requested_days
-                        )
+                    charge_leave_request(leave_request, available_leave)
                     leave_request.status = "approved"
                     available_leave.save()
                 if save:
@@ -5034,6 +5105,140 @@ def user_request_select_filter(request):
     return JsonResponse(context)
 
 
+def _reset_policy(leave_type):
+    """A line saying when a leave type resets, how much it gives and what it carries forward."""
+    if not leave_type.reset:
+        reset = _("Never Resets")
+    elif leave_type.reset_based == "monthly":
+        day = leave_type.reset_day
+        reset = _("Resets Monthly On %(day)s") % {
+            "day": (
+                _("The Last Day") if day == "last day" else _("Day %(n)s") % {"n": day}
+            )
+        }
+    elif leave_type.reset_based == "yearly":
+        day = leave_type.reset_day
+        month = calendar.month_name[int(leave_type.reset_month or 1)]
+        reset = _("Resets Yearly On %(day)s %(month)s") % {
+            "day": _("The Last Day Of") if day == "last day" else day,
+            "month": month,
+        }
+    elif leave_type.reset_based == "weekly":
+        reset = _("Resets Every %(day)s") % {
+            "day": calendar.day_name[int(leave_type.reset_weekend or 0)]
+        }
+    else:
+        reset = _("Resets Every %(n)s Days") % {
+            "n": _days(leave_type.custom_reset_days or 1)
+        }
+    if leave_type.carryforward_type == "no carryforward":
+        carry = _("No Carry Forward")
+    else:
+        carry = _("Carry Forward Up To %(n)s Days") % {
+            "n": _days(leave_type.carryforward_max or 0)
+        }
+        if leave_type.carryforward_type == "carryforward expire":
+            carry += " (" + str(_("Expires")) + ")"
+    allowance = _("%(n)s Days Each Reset") % {"n": _days(leave_type.total_days)}
+    return " · ".join(str(part) for part in (reset, allowance, carry))
+
+
+def _own_leave_request(request_id):
+    """The request a form is editing (so it isn't counted against itself), from its id, or ``None``."""
+    try:
+        return (
+            LeaveRequest.objects.filter(pk=int(request_id)).first()
+            if request_id
+            else None
+        )
+    except (TypeError, ValueError):
+        return None
+
+
+def _forecast_report(available_leave, end_date, needed, own_request_id=None):
+    """
+    The forecast shown on the leave request form: the balance now, each reset on the way to the day the leave
+    ends, what is already taken from that cycle and what is left after this request. Judged the same way the
+    form's validation is.
+    """
+    own = _own_leave_request(own_request_id)
+    result = forecast.check(
+        available_leave, end_date, needed, exclude=own, include_pending=True
+    )
+    balance = result.balance
+    leave_type = available_leave.leave_type_id
+    fmt = "%d %b %Y"
+    now_available = available_leave.available_days or 0
+    now_carryforward = available_leave.carryforward_days or 0
+    steps = [
+        {
+            "date": timezone.localdate().strftime(fmt),
+            "event": _("Balance Now"),
+            "allowance": _days(now_available),
+            "carryforward": _days(now_carryforward),
+            "balance": _days(now_available + now_carryforward),
+        }
+    ]
+    reset_label = (
+        _("%(kind)s Reset") % {"kind": leave_type.get_reset_based_display()}
+        if leave_type.reset_based
+        else _("Reset")
+    )
+    for step in balance.steps:
+        steps.append(
+            {
+                "date": step["date"].strftime(fmt),
+                "event": (
+                    reset_label
+                    if step["kind"] == "reset"
+                    else _("Carry Forward Expiry")
+                ),
+                "allowance": _days(step["allowance"]),
+                "carryforward": _days(step["carryforward"]),
+                "balance": _days(step["allowance"] + step["carryforward"]),
+            }
+        )
+    deductions = []
+    if balance.pending:
+        deductions.append((_("Waiting Requests"), "-" + _days(balance.pending)))
+    deductions.append((_("This Request"), "-" + _days(needed)))
+    fmt_range = "%d %b %Y"
+    booked = []
+    upcoming = (
+        forecast._employee_requests(available_leave, ("requested", "approved"), own)
+        .filter(end_date__gte=timezone.localdate())
+        .order_by("start_date")[:10]
+    )
+    for other in upcoming:
+        dates = other.start_date.strftime(fmt_range)
+        if other.end_date != other.start_date:
+            dates += " - " + other.end_date.strftime(fmt_range)
+        status = _("Approved") if other.status == "approved" else _("Waiting")
+        if other.provided_cycle:
+            status = "%s · %s" % (status, _("Forecasted"))
+        booked.append(
+            {"dates": dates, "days": _days(other.requested_days or 0), "status": status}
+        )
+    return {
+        "available": round(balance.total + balance.pending, 3),
+        "booked": booked,
+        "kind": result.kind,
+        "policy": _reset_policy(leave_type),
+        "steps": steps,
+        "deductions": deductions,
+        "left": _days(balance.total - result.needed),
+        "short_by": _days(result.shortfall),
+        "reset_on": balance.cycle_start,
+    }
+
+
+def _can_see_forecast(user):
+    """The forecast table is for HR and managers; an employee only sees the balance."""
+    from base.templatetags.basefilters import is_reportingmanager
+
+    return user.has_perm("leave.view_availableleave") or is_reportingmanager(user)
+
+
 @login_required
 @hx_request_required
 def employee_available_leave_count(request):
@@ -5109,23 +5314,33 @@ def employee_available_leave_count(request):
     forcasted_days = 0
     pending_requests_days = 0
 
+    reset_on = None
+    report = None
     if available_leave:
-        leave_type = available_leave.leave_type_id
-        total_leave_days = available_leave.total_leave_days
-
-        next_reset = leave_type.leave_type_next_reset_date()
-        if next_reset and start_date >= next_reset:
-            forcasted_days = available_leave.forcasted_leaves(start_date)
-
-            if leave_type.carryforward_type == "no carryforward":
-                total_leave_days = 0
-            elif (
-                leave_type.carryforward_type in ["carryforward", "carryforward expire"]
-                and leave_type.carryforward_max < total_leave_days
-            ):
-                total_leave_days = leave_type.carryforward_max
-
-            total_leave_days += forcasted_days
+        # The most that could be requested for these dates: what is held now, or what a reset before the end leaves.
+        best = forecast.best_balance(available_leave, end_date or start_date)
+        total_leave_days = max(best.total, 0)
+        if best.resets:
+            reset_on = best.cycle_start
+            forcasted_days = available_leave.leave_type_id.total_days or 0
+        if (
+            available_leave.leave_type_id.limit_leave
+            and end_date
+            and end_date >= start_date
+            and effective_requested_days
+        ):
+            report = _forecast_report(
+                available_leave,
+                end_date,
+                effective_requested_days,
+                request.GET.get("leave_request"),
+            )
+            # The badge shows the balance this request is judged against, the same figure the forecast ends on.
+            total_leave_days = max(report["available"], 0)
+            if report["kind"] != forecast.OK_FORECAST:
+                forcasted_days = (
+                    0  # the request comes off what is held now: no forecast to point at
+                )
 
         # Only query pending requests if we have a valid employee
         if available_leave.employee_id_id:
@@ -5160,6 +5375,9 @@ def employee_available_leave_count(request):
         "available_leave": available_leave,
         "total_leave_days": total_leave_days,
         "forcasted_days": forcasted_days,
+        "reset_on": reset_on,
+        "report": report,
+        "can_see_forecast": _can_see_forecast(request.user),
         "pending_requests": pending_requests_days,
         "effective_requested_days": effective_requested_days,
         "zero_requested_days": effective_requested_days is not None
@@ -6809,6 +7027,22 @@ def leave_type_condition_delete(request, leave_type_id, condition_id):
     )
 
 
+def _ledger_context(instance):
+    """What the leave ledger sidebar shows for one balance."""
+    next_reset = instance.forecast_next_reset()
+    return {
+        "instance": instance,
+        "ledger": instance.build_ledger(),
+        "forecast": next_reset,
+        "days_to_reset": (
+            (next_reset["date"] - timezone.localdate()).days if next_reset else None
+        ),
+        "provided_ahead": instance.provided_ahead_days(),
+        "expiry_forecast": instance.forecast_carryforward_expiry(),
+        "reset_due": instance.is_reset_due(),
+    }
+
+
 @login_required
 @hx_request_required
 @permission_required("leave.view_availableleave")
@@ -6823,13 +7057,7 @@ def leave_balance_ledger(request, pk):
     return render(
         request,
         "cbv/assigned_leave/leave_ledger_sidebar.html",
-        {
-            "instance": instance,
-            "ledger": instance.build_ledger(),
-            "forecast": instance.forecast_next_reset(),
-            "expiry_forecast": instance.forecast_carryforward_expiry(),
-            "reset_due": instance.is_reset_due(),
-        },
+        _ledger_context(instance),
     )
 
 
@@ -6858,14 +7086,7 @@ def leave_balance_reset(request, pk):
     return render(
         request,
         "cbv/assigned_leave/leave_ledger_sidebar.html",
-        {
-            "instance": instance,
-            "ledger": instance.build_ledger(),
-            "forecast": instance.forecast_next_reset(),
-            "expiry_forecast": instance.forecast_carryforward_expiry(),
-            "reset_due": instance.is_reset_due(),
-            "after_reset": True,
-        },
+        {**_ledger_context(instance), "after_reset": True},
     )
 
 

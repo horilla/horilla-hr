@@ -36,31 +36,82 @@
         >
             {% trans "Leave type is not assigned for the selected employee." %}
         </div>
-    {% elif total_leave_days == 0.0 %}
+    {% elif total_leave_days == 0.0 or report.kind == "short" %}
         <div
             id="messageDiv"
             class="leave-count-badge text-xs font-bold"
             style="
                 background-color: {{ theme_obj.primary_600|default:'rgba(229, 79, 56, 0.17)' }};
                 border: 2px solid {{ theme_obj.primary_600|default:'hsl(8, 77%, 56%)' }};
+                {% if can_see_forecast and report %}cursor: pointer;{% endif %}
             "
+            {% if can_see_forecast and report %}
+                data-title="{% trans 'Leave Forecast' %}"
+                onclick="showLeaveForecast(this)"
+            {% endif %}
         >
             {% trans "Available Leaves" %} : {{ total_leave_days }}
+            {% if can_see_forecast and report %}
+                <img src="{% static 'images/ui/info.png' %}" title="{% trans 'Click To View The Forecast' %}" />
+            {% endif %}
         </div>
     {% else %}
         <div
             id="messageDiv"
             class="leave-count-badge text-xs font-bold"
-            style="background-color: #dff0d8; border: 2px solid #3c763d;"
+            style="background-color: #dff0d8; border: 2px solid #3c763d;{% if can_see_forecast and report %} cursor: pointer;{% endif %}"
+            {% if can_see_forecast and report %}
+                data-title="{% trans 'Leave Forecast' %}"
+                onclick="showLeaveForecast(this)"
+            {% endif %}
         >
-            {% trans "Available Leaves" %} : {{ total_leave_days }}
-            {% if forcasted_days and forcasted_days > 0 %}
-                <img
-                    src="{% static 'images/ui/info.png' %}"
-                    title="{% trans 'Forecasted available days added to this Available Days (Carryforward Max. + Forcasted Days)' %}"
-                />
+            {% trans "Available Leaves" %} : {% if available_leave.leave_type_id.limit_leave %}{{ total_leave_days }}{% else %}{% trans "No Limit" %}{% endif %}
+            {% if can_see_forecast and report %}
+                <img src="{% static 'images/ui/info.png' %}" title="{% trans 'Click To View The Forecast' %}" />
             {% endif %}
         </div>
+    {% endif %}
+    {% if report and can_see_forecast %}
+        <div id="forecastReport" class="leave-forecast" style="display: none">
+            {% include "leave/leave_request/forecast_report.html" %}
+        </div>
+    {% endif %}
+    {% if report and can_see_forecast %}
+        <script>
+            // The forecast of the leave request form, opened from the balance pill in a standard Horilla modal. The table
+            // is rendered (hidden) by the form's balance widget; this copies it into one modal kept on the page body.
+            window.showLeaveForecast = function (trigger) {
+              var source = document.getElementById("forecastReport");
+              if (!source) return;
+              var modal = document.getElementById("forecastModal");
+              if (!modal) {
+                modal = document.createElement("div");
+                modal.className = "oh-modal";
+                modal.id = "forecastModal";
+                modal.setAttribute("role", "dialog");
+                modal.setAttribute("aria-hidden", "true");
+                modal.style.zIndex = 1030;
+                modal.innerHTML =
+                  '<div class="oh-modal__dialog" style="max-width: 720px">' +
+                  '<div class="oh-modal__dialog-header">' +
+                  '<h2 class="oh-modal__dialog-title"></h2>' +
+                  '<button type="button" class="oh-modal__close--custom" aria-label="Close">' +
+                  '<ion-icon name="close-outline"></ion-icon></button></div>' +
+                  '<div class="oh-modal__dialog-body"></div></div>';
+                document.body.appendChild(modal);
+                modal.querySelector("button").addEventListener("click", function () {
+                  modal.classList.remove("oh-modal--show");
+                });
+                modal.addEventListener("click", function (event) {
+                  if (event.target === modal) modal.classList.remove("oh-modal--show");
+                });
+              }
+              modal.querySelector(".oh-modal__dialog-title").textContent = (trigger && trigger.dataset.title) || "";
+              modal.querySelector(".oh-modal__dialog-body").innerHTML =
+                '<div class="leave-forecast leave-forecast--modal">' + source.innerHTML + "</div>";
+              modal.classList.add("oh-modal--show");
+            };
+        </script>
     {% endif %}
     {% if pending_requests %}
         <div

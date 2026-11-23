@@ -419,6 +419,103 @@ class SalaryStructureFilter(HorillaFilterSet):
         fields = ["title"]
 
 
+class ComponentReportFilter(HorillaFilterSet):
+    """
+    The payslips an allowance or deduction report is worked out from, narrowed by who was paid.
+
+    Dates are the report's own quick filters and are not filtered here. The comboboxes are AJAX
+    searched, like the employee list's filter panel.
+    """
+
+    name_or_badge = django_filters.CharFilter(
+        method="filter_name_or_badge", label=_("Name or Badge ID")
+    )
+    status = django_filters.ChoiceFilter(
+        choices=Payslip._meta.get_field("status").choices,
+        empty_label=_("All"),
+        label=_("Payslip Status"),
+    )
+    employee_id = django_filters.ModelMultipleChoiceFilter(
+        queryset=Employee.objects.all(), label=_("Employee")
+    )
+    department = django_filters.ModelMultipleChoiceFilter(
+        field_name="employee_id__employee_work_info__department_id",
+        queryset=Department.objects.all(),
+        label=_("Department"),
+    )
+    job_position = django_filters.ModelMultipleChoiceFilter(
+        field_name="employee_id__employee_work_info__job_position_id",
+        queryset=JobPosition.objects.all(),
+        label=_("Job Position"),
+    )
+    company = django_filters.ModelMultipleChoiceFilter(
+        field_name="employee_id__employee_work_info__company_id",
+        queryset=Company.objects.all(),
+        label=_("Company"),
+    )
+
+    ajax_fields = {
+        "employee_id": {
+            "key": "component-report-employee",
+            "queryset_fn": lambda request: Employee.objects.all(),
+            "display_fn": lambda obj: obj.get_full_name(),
+            "search_fields": ["employee_first_name", "employee_last_name", "badge_id"],
+            "placeholder": _("Search employee..."),
+        },
+        "department": {
+            "key": "component-report-department",
+            "queryset_fn": lambda request: Department.objects.all(),
+            "display_fn": lambda obj: obj.department,
+            "search_fields": ["department"],
+            "placeholder": _("Select department..."),
+        },
+        "job_position": {
+            "key": "component-report-job-position",
+            "queryset_fn": lambda request: JobPosition.objects.select_related(
+                "department_id"
+            ).all(),
+            "display_fn": lambda obj: str(obj),
+            "search_fields": ["job_position", "department_id__department"],
+            "placeholder": _("Select job position..."),
+        },
+        "company": {
+            "key": "component-report-company",
+            "queryset_fn": lambda request: Company.objects.all(),
+            "display_fn": lambda obj: obj.company,
+            "search_fields": ["company"],
+            "placeholder": _("Select company..."),
+        },
+    }
+
+    class Meta:
+        model = Payslip
+        fields = [
+            "name_or_badge",
+            "status",
+            "employee_id",
+            "department",
+            "job_position",
+            "company",
+        ]
+
+    def filter_name_or_badge(self, queryset, name, value):
+        """The shared comma-separated name or badge search, on the payslip's employee."""
+        return filter_name_or_badge_terms(
+            queryset,
+            value,
+            "employee_id__employee_first_name",
+            "employee_id__employee_last_name",
+            "employee_id__badge_id",
+        )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.form.fields["name_or_badge"].widget.attrs["placeholder"] = _(
+            "e.g. John, PEP01, PEP02"
+        )
+        self.form.fields["status"].widget.attrs["class"] = "oh-select oh-select-2 w-100"
+
+
 class PayslipFilter(HorillaFilterSet):
     """
     Filter set class for payslip model.

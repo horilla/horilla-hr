@@ -35,8 +35,11 @@
             <div class="bg-white rounded-lg border border-secondary-200 px-3 py-2">
                 <p class="text-xs text-dark-100 mb-0.5">{% trans "Current balance" %}</p>
                 <p class="text-lg font-bold text-dark-200">
-                    {{ instance.available_days|add:instance.carryforward_days|floatformat:"-2" }}
+                    {% if instance.leave_type_id.limit_leave %}{{ instance.available_days|add:instance.carryforward_days|floatformat:"-2" }}{% else %}{% trans "No Limit" %}{% endif %}
                 </p>
+                {% if provided_ahead and instance.leave_type_id.limit_leave %}
+                    <p class="text-xs text-dark-100">{% blocktrans with n=provided_ahead|floatformat:"-2" %}After {{ n }} Days Provided Ahead{% endblocktrans %}</p>
+                {% endif %}
             </div>
             <div class="bg-white rounded-lg border border-secondary-200 px-3 py-2">
                 <p class="text-xs text-dark-100 mb-0.5">{% trans "Carryforward" %}</p>
@@ -44,6 +47,16 @@
                     {{ instance.carryforward_days|floatformat:"-2" }}
                 </p>
             </div>
+            {% if forecast %}
+                <div class="bg-white rounded-lg border border-secondary-200 px-3 py-2 col-span-2">
+                    <p class="text-xs text-dark-100 mb-0.5">{% trans "Next Reset" %}</p>
+                    <p class="text-lg font-bold text-dark-200">{{ forecast.date|date:"M j, Y" }}</p>
+                    <p class="text-xs text-dark-100">
+                        {% if days_to_reset < 0 %}{% trans "Overdue" %}{% elif days_to_reset == 0 %}{% trans "Today" %}{% else %}{% blocktrans count n=days_to_reset %}In {{ n }} day{% plural %}In {{ n }} days{% endblocktrans %}{% endif %}
+                        &middot; {% trans "Bal." %} {% if instance.leave_type_id.limit_leave %}{{ forecast.balance|floatformat:"-2" }}{% else %}{% trans "No Limit" %}{% endif %}
+                    </p>
+                </div>
+            {% endif %}
         </div>
     </div>
 
@@ -70,7 +83,7 @@
                         <p class="text-sm font-semibold {% if forecast.credit >= 0 %}text-success-dark{% else %}text-danger-dark{% endif %}">
                             {% if forecast.credit >= 0 %}+{% endif %}{{ forecast.credit|floatformat:"-2" }}
                         </p>
-                        <p class="text-xs text-dark-100">{% trans "Bal." %} {{ forecast.balance|floatformat:"-2" }}</p>
+                        <p class="text-xs text-dark-100">{% trans "Bal." %} {% if instance.leave_type_id.limit_leave %}{{ forecast.balance|floatformat:"-2" }}{% else %}{% trans "No Limit" %}{% endif %}</p>
                     </div>
                 </div>
             {% endif %}
@@ -101,8 +114,10 @@
             {% for row in ledger %}
                 <div class="flex items-center gap-3 py-2.5 {% if not forloop.last %}border-b border-secondary-100{% endif %}">
                     <div class="w-8 h-8 shrink-0 rounded-full flex items-center justify-center
-                        {% if row.credit %}bg-success-light{% else %}bg-danger-light{% endif %}">
-                        {% if row.credit %}
+                        {% if row.provided and row.kind == 'reset' %}bg-secondary-100{% elif row.credit %}bg-success-light{% else %}bg-danger-light{% endif %}">
+                        {% if row.provided and row.kind == 'reset' %}
+                            <ion-icon name="checkmark-done-outline" class="text-dark-100 text-base"></ion-icon>
+                        {% elif row.credit %}
                             <ion-icon name="arrow-up-outline" class="text-success-dark text-base"></ion-icon>
                         {% else %}
                             <ion-icon name="arrow-down-outline" class="text-danger-dark text-base"></ion-icon>
@@ -111,7 +126,12 @@
                     <div class="min-w-0 flex-1">
                         <p class="text-sm font-medium text-dark-200 truncate">{{ row.label }}</p>
                         <p class="text-xs text-dark-100">{{ row.date }}</p>
-                        {% if row.kind == "reset" %}
+                        {% if row.kind == "reset" and row.provided %}
+                            <span class="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-secondary-100 text-dark-100">{% trans "Provided" %}</span>
+                            <p class="text-xs text-dark-100 mt-1">
+                                {% blocktrans with amount=row.carried_forward|floatformat:"-2" %}Brought forward when the leave was approved &middot; Carry forward: {{ amount }}{% endblocktrans %}
+                            </p>
+                        {% elif row.kind == "reset" %}
                             <span class="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary-100 text-primary-600">{% trans "Leave Reset" %}</span>
                             <p class="text-xs text-dark-100 mt-1">
                                 {% blocktrans with before=row.available_before|floatformat:"-2" after=row.available_after|floatformat:"-2" %}Allocation: {{ before }} &rarr; {{ after }}{% endblocktrans %}
@@ -147,7 +167,7 @@
                         <p class="text-sm font-semibold {% if row.credit %}text-success-dark{% else %}text-danger-dark{% endif %}">
                             {% if row.credit %}+{{ row.credit|floatformat:"-2" }}{% elif row.debit %}-{{ row.debit|floatformat:"-2" }}{% else %}0{% endif %}
                         </p>
-                        <p class="text-xs text-dark-100">{% trans "Bal." %} {{ row.balance|floatformat:"-2" }}</p>
+                        <p class="text-xs text-dark-100">{% trans "Bal." %} {% if instance.leave_type_id.limit_leave %}{{ row.balance|floatformat:"-2" }}{% else %}{% trans "No Limit" %}{% endif %}</p>
                     </div>
                 </div>
             {% endfor %}

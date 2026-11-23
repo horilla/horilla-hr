@@ -104,6 +104,8 @@ def ctc_breakdown(payslip):
     The package, what was paid inside it, the employer's contributions and anything outside it,
     or ``None`` when the payslip is not under a CTC Down structure.
     """
+    from payroll.methods.earning_working import working_key
+
     data = payslip.pay_head_data or {}
     context = data.get("component_context") or {}
     ctc = float(context.get("CTC") or 0)
@@ -117,11 +119,17 @@ def ctc_breakdown(payslip):
         # off basic, and the package is short of the CTC by exactly that.
         lop = float(data.get("loss_of_pay") or 0)
     basic = float(payslip.basic_pay or data.get("basic_pay") or 0)
-    inside = [{"title": "Basic Pay", "amount": basic}]
+    inside = [{"title": "Basic Pay", "amount": basic, "key": "basic"}]
     outside = []
     for row in data.get("allowances") or []:
         target = outside if row.get("outside_ctc") else inside
-        target.append({"title": row.get("title", ""), "amount": _amount(row)})
+        target.append(
+            {
+                "title": row.get("title", ""),
+                "amount": _amount(row),
+                "key": working_key(row),
+            }
+        )
 
     employer = []
     taken = []
@@ -129,8 +137,20 @@ def ctc_breakdown(payslip):
         for row in data.get(bucket) or []:
             share = float(row.get("employer_contribution_amount") or 0)
             if share:
-                employer.append({"title": row.get("title", ""), "amount": share})
-            taken.append({"title": row.get("title", ""), "amount": _amount(row)})
+                employer.append(
+                    {
+                        "title": row.get("title", ""),
+                        "amount": share,
+                        "key": working_key(row),
+                    }
+                )
+            taken.append(
+                {
+                    "title": row.get("title", ""),
+                    "amount": _amount(row),
+                    "key": working_key(row),
+                }
+            )
 
     package = ctc - lop
     inside_total = sum(row["amount"] for row in inside)

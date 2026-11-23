@@ -1,17 +1,17 @@
-{% load static %} {% load i18n %}
+{% load static %}
+{% load i18n %}
 <div class="oh-dropdown__filter-body">
-    <div class="oh-accordion">
-        <div class="oh-accordion-header">{% trans "Biometric Devices" %}</div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header">
+            <span class="oh-filter-section-icon"><ion-icon name="finger-print-outline"></ion-icon></span>
+            {% trans "Biometric Devices" %}
+        </div>
         <div class="oh-accordion-body">
             <div class="row">
-                <div class="col-sm-12 col-md-12 col-lg-6">
+                <div class="col-sm-12 col-md-12 col-lg-12">
                     <div class="oh-input-group">
                         <label class="oh-label" for="{{form.machine_type.id_for_label}}">{% trans "Device Type" %}</label>
                         {{form.machine_type}}
-                    </div>
-                    <div class="oh-input-group">
-                        <label class="oh-label" for="{{form.is_scheduler.id_for_label}}">{% trans "Is Scheduled" %}</label>
-                        {{form.is_scheduler}}
                     </div>
                 </div>
                 <div class="col-sm-12 col-md-12 col-lg-6">
@@ -19,6 +19,14 @@
                         <label class="oh-label" for="{{form.is_active.id_for_label}}">{% trans "Active" %}</label>
                         {{form.is_active}}
                     </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-6">
+                    <div class="oh-input-group">
+                        <label class="oh-label" for="{{form.is_scheduler.id_for_label}}">{% trans "Is Scheduled" %}</label>
+                        {{form.is_scheduler}}
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-12 col-lg-6">
                     <div class="oh-input-group">
                         <label class="oh-label" for="{{form.is_live.id_for_label}}">{% trans "Is Live" %}</label>
                         {{form.is_live}}
@@ -27,4 +35,31 @@
             </div>
         </div>
     </div>
+    <div class="oh-accordion{% if modern_filter %} oh-accordion--show{% endif %}">
+        <div class="oh-accordion-header"
+            onclick="event.stopImmediatePropagation();$(this).parent().toggleClass('oh-accordion--show');"
+        >
+            <span class="oh-filter-section-icon"><ion-icon name="options-outline"></ion-icon></span>
+            {% trans "Advanced" %}
+        </div>
+        <div class="oh-accordion-body">
+            <div class="row">
+                <div class="col-sm-12 col-md-12 col-lg-12">
+                    <div class="oh-input-group">
+                        <div id="customFilterRowsContainer-biometric" class="oh-custom-filter-rows"></div>
+                        <button
+                            type="button"
+                            class="oh-custom-filter-add"
+                            onclick="addCustomFilterRow('biometric')"
+                        >+ {% trans "Add filter" %}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+{{ custom_filter_fields|json_script:"customFilterFields-biometric" }}
+{{ custom_filter_rows|json_script:"customFilterRows-biometric" }}
+<script>
+    initCustomFilterBuilder('biometric');
+</script>

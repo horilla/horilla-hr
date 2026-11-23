@@ -208,6 +208,55 @@ class LoadedComponentsComputeTests(TestCase):
         # Gross is 30,000 here, so the ceiling excludes it.
         self.assertEqual(amounts, [0])
 
+    def _esi_amount(self, wage):
+        Contract.objects.filter(employee_id=self.employee).update(wage=wage)
+        data = self._run()
+        return [
+            line["amount"]
+            for bucket in ("pretax_deductions", "post_tax_deductions")
+            for line in data[bucket]
+            if line["title"] == "Employee State Insurance (ESI)"
+        ]
+
+    def test_esi_takes_three_quarters_of_a_percent_under_its_ceiling(self):
+        [esi] = load_components(["in_esi"])
+        esi.specific_employees.add(self.employee)
+        self.assertAlmostEqual(self._esi_amount(18000.0)[0], 135.0, places=2)
+
+    def test_esi_still_applies_at_exactly_the_ceiling(self):
+        [esi] = load_components(["in_esi"])
+        esi.specific_employees.add(self.employee)
+        self.assertAlmostEqual(self._esi_amount(21000.0)[0], 157.5, places=2)
+
+    def _esi_row(self, wage):
+        """The ESI line as it is stored on the payslip, employer share included."""
+        from payroll.methods.methods import payslip_fields
+
+        Contract.objects.filter(employee_id=self.employee).update(wage=wage)
+        fields = payslip_fields(self._run(), self.employee)
+        row = next(
+            line
+            for line in fields["pay_data"]["pretax_deductions"]
+            if line["title"] == "Employee State Insurance (ESI)"
+        )
+        return row, fields["gross_pay"]
+
+    def test_esi_has_no_employer_share_above_its_ceiling(self):
+        """Outside the scheme means outside it for both sides: nothing from the employee, nothing owed by the employer."""
+        [esi] = load_components(["in_esi"])
+        esi.specific_employees.add(self.employee)
+        row, _gross = self._esi_row(30000.0)
+        self.assertEqual(row["amount"], 0)
+        self.assertEqual(row["employer_contribution_amount"], 0)
+
+    def test_esi_has_the_employer_share_under_its_ceiling(self):
+        [esi] = load_components(["in_esi"])
+        esi.specific_employees.add(self.employee)
+        row, gross = self._esi_row(18000.0)
+        self.assertAlmostEqual(
+            row["employer_contribution_amount"], gross * 0.0325, places=2
+        )
+
     def test_professional_tax_is_the_same_in_every_period(self):
         [pt] = load_components(["in_pt"])
         pt.specific_employees.add(self.employee)

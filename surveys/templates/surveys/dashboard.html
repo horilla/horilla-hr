@@ -1,46 +1,209 @@
 {% extends "index.html" %}
 {% load i18n %}
 {% block content %}
-<div class="flex flex-wrap justify-between items-center gap-2 mb-3">
-    <h3 class="text-lg font-semibold">{% trans "Surveys" %}</h3>
-    <a href="{% url 'surveys-view' %}"
-       class="px-4 py-2 bg-white rounded-md text-xs flex items-center gap-2 border border-primary-500 hover:border-primary-600 transition duration-300">
-        <ion-icon name="list-outline"></ion-icon>{% trans "All surveys" %}
-    </a>
+<style>
+    {# Same stat-tile component as the main app dashboard (templates/dashboard.html's
+       .md-kpi-card) -- that one lives in a page-local <style> block there, so it's
+       not reachable from here as shared CSS; reproduced here rather than left
+       looking like a different, ad-hoc card design. #}
+    .md-kpi-card {
+        position: relative;
+        padding: 20px;
+        overflow: hidden;
+        border: 1px solid rgba(128, 128, 128, 0.09);
+        border-radius: 16px;
+        background: #ffffff;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04), 0 4px 14px rgba(0, 0, 0, 0.05);
+        transition: all 0.25s ease;
+    }
+    .md-kpi-card::after {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        width: 80px;
+        height: 80px;
+        transform: translate(20px, 20px);
+        border-radius: 50%;
+        background: currentColor;
+        content: '';
+        opacity: 0.06;
+        pointer-events: none;
+    }
+    body.dark .md-kpi-card {
+        border-color: rgba(255, 255, 255, 0.07);
+        background: #242424;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+    .md-kpi-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.1);
+    }
+    .md-kpi-card:active {
+        transform: scale(0.97);
+    }
+    .md-kpi-card--static:hover {
+        transform: none;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04), 0 4px 14px rgba(0, 0, 0, 0.05);
+        cursor: default;
+    }
+    .md-kpi-card__hit {
+        display: block;
+        color: inherit;
+        text-decoration: none;
+        cursor: pointer;
+    }
+    .md-kpi-card__hit:hover {
+        color: inherit;
+        text-decoration: none;
+    }
+    .md-kpi-card__icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 38px;
+        height: 38px;
+        margin-bottom: 10px;
+        border-radius: 10px;
+        font-size: 18px;
+    }
+    .md-kpi-card__icon--indigo { background: #eef2ff; color: #e54f38; }
+    .md-kpi-card__icon--blue   { background: #dbeafe; color: #3b82f6; }
+    .md-kpi-card__icon--green  { background: #dcfce7; color: #22c55e; }
+    .md-kpi-card__icon--amber  { background: #fef3c7; color: #f59e0b; }
+    body.dark .md-kpi-card__icon--indigo { background: #3b1a14; }
+    body.dark .md-kpi-card__icon--blue   { background: #1e3a8a; }
+    body.dark .md-kpi-card__icon--green  { background: #14532d; }
+    body.dark .md-kpi-card__icon--amber  { background: #78350f; }
+    .md-kpi-card__label {
+        margin-bottom: 6px;
+        font-weight: 600;
+        font-size: 11px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        opacity: 0.6;
+    }
+    .md-kpi-card__value {
+        margin-bottom: 0;
+        font-weight: 800;
+        font-size: 30px;
+        line-height: 1;
+    }
+
+    {# Same chart-card component as the main app dashboard (.md-chart-card),
+       reproduced here for the same reason as .md-kpi-card above. #}
+    .md-chart-card {
+        position: relative;
+        overflow: visible;
+        border: 1px solid rgba(128, 128, 128, 0.09);
+        border-radius: 16px;
+        background: #ffffff;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.05);
+        transition: box-shadow 0.25s ease, transform 0.25s ease;
+    }
+    .md-chart-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.1);
+    }
+    body.dark .md-chart-card {
+        border-color: rgba(255, 255, 255, 0.07);
+        background: #242424;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 4px 20px rgba(0, 0, 0, 0.25);
+    }
+    .md-chart-card::before {
+        position: absolute;
+        top: 0;
+        right: 0;
+        left: 0;
+        height: 3px;
+        border-radius: 16px 16px 0 0;
+        background: linear-gradient(90deg, #e54f38, #a855f7);
+        content: '';
+        pointer-events: none;
+    }
+    .md-chart-card__header {
+        padding: 16px 18px 4px;
+    }
+    .md-chart-card__title {
+        font-weight: 700;
+        font-size: 14px;
+        letter-spacing: -0.01em;
+    }
+    .md-chart-card__body {
+        padding: 4px 16px 16px;
+    }
+
+    {# Same dashboard-header component used by the main app dashboard
+       (.md-header), Attendance (.am-header) and Helpdesk (.hd-header)
+       dashboards -- a bold title plus a live "today's date" line, so
+       this page reads as one of the same family instead of a plain
+       <h3>. #}
+    .sv-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    .sv-header h1 {
+        font-size: 22px;
+        font-weight: 700;
+    }
+    .sv-header__date {
+        margin-top: 2px;
+        font-size: 13px;
+        opacity: 0.6;
+    }
+</style>
+<div class="sv-header">
+    <div>
+        <h1>{% trans "Survey Dashboard" %}</h1>
+        <div class="sv-header__date" id="sv-date"></div>
+    </div>
 </div>
 <div class="grid grid-cols-1 xl:grid-cols-4 md:grid-cols-2 gap-4 mb-4">
-    {% for id, label, icon, tint in tiles %}
-    <div class="bg-white p-6 rounded-md shadow-card">
-        <div class="flex items-center gap-4">
-            <div class="p-3 rounded-md flex" style="background-color:{{ tint }}"><ion-icon name="{{ icon }}" class="text-xl"></ion-icon></div>
-            <div>
-                <p class="text-sm">{{ label }}</p>
-                <p class="text-xl font-bold text-secondary-900" id="{{ id }}">–</p>
-            </div>
-        </div>
+    {% for id, label, icon, color, href in tiles %}
+    <div class="md-kpi-card">
+        <a href="{{ href }}" class="md-kpi-card__hit" id="{{ id }}Hit">
+            <div class="md-kpi-card__icon md-kpi-card__icon--{{ color }}"><ion-icon name="{{ icon }}"></ion-icon></div>
+            <div class="md-kpi-card__label">{{ label }}</div>
+            <div class="md-kpi-card__value" id="{{ id }}">–</div>
+        </a>
     </div>
     {% endfor %}
+    <div class="md-kpi-card md-kpi-card--static" id="kRateCard">
+        <div class="md-kpi-card__icon md-kpi-card__icon--amber"><ion-icon name="trending-up-outline"></ion-icon></div>
+        <div class="md-kpi-card__label">{% trans "Response rate" %}</div>
+        <div class="md-kpi-card__value" id="kRate">–</div>
+    </div>
 </div>
 <div class="grid grid-cols-12 gap-4 mb-4">
-    <div class="xl:col-span-8 col-span-12 bg-white p-6 rounded-md shadow-card">
-        <h3 class="text-md font-semibold mb-2">{% trans "Responses in the last 30 days" %}</h3>
-        <div class="relative" style="height:260px"><canvas id="chartDays"></canvas></div>
+    <div class="xl:col-span-8 col-span-12 md-chart-card">
+        <div class="md-chart-card__header"><span class="md-chart-card__title">{% trans "Responses in the last 30 days" %}</span></div>
+        <div class="md-chart-card__body"><div class="relative" style="height:260px"><canvas id="chartDays"></canvas></div></div>
     </div>
-    <div class="xl:col-span-4 col-span-12 bg-white p-6 rounded-md shadow-card">
-        <h3 class="text-md font-semibold mb-2">{% trans "By department (open surveys)" %}</h3>
-        <div class="relative" style="height:260px"><canvas id="chartDept"></canvas></div>
+    <div class="xl:col-span-4 col-span-12 md-chart-card">
+        <div class="md-chart-card__header"><span class="md-chart-card__title">{% trans "By department (open surveys)" %}</span></div>
+        <div class="md-chart-card__body"><div class="relative" style="height:260px"><canvas id="chartDept"></canvas></div></div>
     </div>
 </div>
-<div class="bg-white p-6 rounded-md shadow-card">
-    <h3 class="text-md font-semibold mb-2">{% trans "Recent surveys" %}</h3>
-    <div id="recent"></div>
+<div class="md-chart-card">
+    <div class="md-chart-card__header"><span class="md-chart-card__title">{% trans "Recent surveys" %}</span></div>
+    <div class="md-chart-card__body"><div id="recent"></div></div>
 </div>
 <script>
+document.getElementById('sv-date').textContent = new Date().toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+});
 fetch("{% url 'surveys-dashboard-data' %}").then(function (r) { return r.json(); }).then(function (d) {
     document.getElementById("kOpen").textContent = d.kpi.open;
     document.getElementById("kInvited").textContent = d.kpi.invited;
     document.getElementById("kAnswered").textContent = d.kpi.answered;
     document.getElementById("kRate").textContent = d.kpi.rate + "%";
+    // The percentage alone hides the actual counts it came from -- shown
+    // as the formula on hover instead, same as recruitment's Conversion/
+    // Acceptance Rate tiles.
+    document.getElementById("kRateCard").title =
+        "{% trans 'Response Rate'|escapejs %} = {% trans 'Answered'|escapejs %} (" + d.kpi.answered + ") / " +
+        "{% trans 'Invited'|escapejs %} (" + d.kpi.invited_all + ") × 100 = " + d.kpi.rate + "%";
     var dark = document.documentElement.classList.contains("dark");
     var textColor = dark ? "#cbd5e1" : "#334155";
     var axes = {

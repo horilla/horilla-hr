@@ -10,6 +10,6 @@
     {% endif %}
     {% if perms.surveys.delete_questionnaire %}
         <a hx-get="{{ questionnaire.get_delete_url }}" hx-target="#deleteConfirmationBody" data-target="#deleteConfirmation" data-toggle="oh-modal-toggle"
-           class="oh-btn oh-btn--danger-bkg oh-btn--sq-sm" title="{% trans 'Delete' %}"><ion-icon name="trash-outline"></ion-icon></a>
+           class="oh-btn oh-btn--danger oh-btn--sq-sm" title="{% trans 'Delete' %}"><ion-icon name="trash-outline"></ion-icon></a>
     {% endif %}
 </div>

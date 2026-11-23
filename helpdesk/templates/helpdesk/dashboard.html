@@ -2,7 +2,7 @@
 {% load static i18n %}
 
 {% block content %}
-<script src="https://cdn.jsdelivr.net/npm/apexcharts@7.8.0/dist/apexcharts.min.js"></script>
+<script src="{% static "cdn/apexcharts/apexcharts.min.js" %}"></script>
 {% include "components/legend_prefs.html" %}
 <style>
     :root { --hd-indigo: var(--primary-600, #E54F38); --hd-green: #22c55e; --hd-amber: #f59e0b; --hd-red: #ef4444; --hd-blue: #3b82f6; --hd-purple: #a855f7; }

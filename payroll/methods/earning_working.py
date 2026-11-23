@@ -342,7 +342,14 @@ def deduction_workings(payslip):
         for row in data.get(bucket) or []:
             amount = float(row.get("amount") or 0)
             component = components.get(row.get("deduction_id"))
-            entry = _working_for(component, row, amount, context)
+            row_context = context
+            if getattr(component, "based_on", "") == "gross_pay":
+                # A CTC Down context holds the whole package as GROSS; the deduction was charged on the pay itself.
+                row_context = {
+                    **context,
+                    "GROSS": float(payslip.gross_pay or context.get("GROSS") or 0),
+                }
+            entry = _working_for(component, row, amount, row_context)
             entry["notes"].append(note)
             if under_ctc_down:
                 entry["notes"].append(

@@ -62,7 +62,9 @@
             hx-swap="none"
             title="{% trans 'Approve' %}"
             class="oh-btn oh-btn--success px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
-            {% if instance.end_date.month > current_date.month %}
+            {% if instance.approves_ahead %}
+                {# The forecast summary that opens first is the confirmation. #}
+            {% elif instance.end_date.month > current_date.month %}
                 hx-confirm="{% trans "This leave request is for the month of" %} {{ instance.start_date|date:'F' }}. {% trans "Approval depends on the" %} {{ instance.employee_id.get_full_name }} {% trans "having available leave days for this month." %}"
             {% else %}
                 hx-confirm='{% trans "Do you really want to approve this request?" %}'

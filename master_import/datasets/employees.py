@@ -35,6 +35,7 @@ from employee.models import Employee, EmployeeBankDetails, EmployeeWorkInformati
 from horilla_auth.models import HorillaUser
 from payroll.models.models import SalaryStructure
 
+from . import additional
 from .base import Checked, Context, Dataset, Field
 from .salary_structure import (
     get_or_create_structure,
@@ -113,6 +114,24 @@ def _text(value):
     return str(value).strip() or None
 
 
+class _FieldList:
+    """``fields`` of the employee sheet: the fixed ones, then a column for each additional info field."""
+
+    def __get__(self, instance, owner):
+        extra = [
+            Field(
+                c.key,
+                group="Additional Info",
+                sample=c.sample,
+                aliases=c.aliases,
+                kind=c.kind,
+                suggest=f"additional:{c.key}" if c.kind == "suggest" else "",
+            )
+            for c in owner.additional_columns()
+        ]
+        return list(owner.BASE_FIELDS) + extra
+
+
 class EmployeesDataset(Dataset):
     key = "employees"
     label = "Employees"
@@ -140,7 +159,7 @@ class EmployeesDataset(Dataset):
         "salary_structures": SalaryStructure,
     }
 
-    fields = [
+    BASE_FIELDS = [
         Field(
             "Badge ID",
             required=True,
@@ -368,6 +387,13 @@ class EmployeesDataset(Dataset):
         Field("Bank City", group="Bank", sample=""),
         Field("Bank Address", group="Bank", sample=""),
     ]
+    fields = _FieldList()
+
+    @classmethod
+    def additional_columns(cls):
+        """The additional info columns, named so that none repeats a fixed column."""
+        taken = {name for f in cls.BASE_FIELDS for name in (f.key, f.label, *f.aliases)}
+        return additional.columns(taken)
 
     def suggestions(self):
         def names(model, column):
@@ -375,7 +401,13 @@ class EmployeesDataset(Dataset):
                 set(model.objects.entire().values_list(column, flat=True)) - {None, ""}
             )
 
+        offered = {
+            f"additional:{c.key}": c.options
+            for c in self.additional_columns()
+            if c.options
+        }
         return {
+            **offered,
             "companies": sorted(Company.objects.values_list("company", flat=True)),
             "departments": names(Department, "department"),
             "job_positions": names(JobPosition, "job_position"),
@@ -495,11 +527,17 @@ class EmployeesDataset(Dataset):
 
         structures = structure_table()
         taken = set(HorillaUser.objects.values_list("username", flat=True))
+        extra_columns = self.additional_columns()
         valid = []
         for row in success:
             too_long = self._too_long(row)
             too_long.update(self._login_problems(row, taken))
             problem = self._bank_problem(row)
+            if extra_columns:
+                row["__additional"], column_problems = (
+                    additional.importing().values_from_row(row, extra_columns)
+                )
+                too_long.update(column_problems)
             if row.get("Salary Structure"):
                 found, why = pick_structure(
                     row["Salary Structure"], row.get("Company"), structures
@@ -678,6 +716,7 @@ class EmployeesDataset(Dataset):
             self._own_company_records(rows, ctx)
             step(94)
             banks_created = self._create_banks(rows)
+            additional_written = self._create_additional(rows)
             structures_set = self._apply_structures(rows)
             step(100)
 
@@ -692,6 +731,7 @@ class EmployeesDataset(Dataset):
         return {
             "employees": len(employees),
             "banks": banks_created,
+            "additional_values": additional_written,
             "structures": structures_set,
             "companies": companies_created,
             "departments": Department.objects.entire().count()
@@ -865,6 +905,26 @@ class EmployeesDataset(Dataset):
             if put_on_contract(employee, structure):
                 done += 1
         return done
+
+    @staticmethod
+    def _create_additional(rows):
+        """The additional info values of the people just created; how many were saved."""
+        wanted = [r for r in rows if r.get("__additional")]
+        if not wanted:
+            return 0
+        employees = {
+            e.badge_id: e
+            for e in Employee.objects.entire().filter(
+                badge_id__in=[r["Badge ID"] for r in wanted]
+            )
+        }
+        return additional.importing().write_values(
+            [
+                (employees[r["Badge ID"]], r["__additional"])
+                for r in wanted
+                if r["Badge ID"] in employees
+            ]
+        )
 
     @staticmethod
     def _create_banks(rows):

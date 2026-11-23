@@ -1,0 +1,8 @@
+{% load i18n %}
+{% comment %}One plain label and value row of the About tab. Context: label, value, cls (extra classes for the value).{% endcomment %}
+<div class="flex items-baseline justify-between gap-3 py-1.5">
+    <dt class="shrink-0 text-[13px] font-semibold text-dark-200">{{ label }}{{ suffix }}</dt>
+    <dd class="min-w-0 break-words text-right text-[13px] {{ cls }} {% if value %}font-normal text-dark-500{% else %}italic text-dark-100{% endif %}">
+        {{ value|default:_("Not set") }}
+    </dd>
+</div>

@@ -138,6 +138,9 @@ BREADCRUMB_URL_NAMES = {
     "standard": "Standard Reports",
     "explorer": "Explorer",
     "work-status": _("Work Status"),
+    "surveys-view": _("All Surveys"),
+    "library": _("Library"),
+    "survey-detail": _("Survey Details"),
 }
 
 # Pages whose crumb is named by the page, not by the URL word it ends in: the steps of a new

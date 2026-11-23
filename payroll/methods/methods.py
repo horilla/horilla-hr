@@ -27,7 +27,7 @@ from base.models import CompanyLeaves, Holidays
 from horilla.methods import get_horilla_model_class
 from payroll.methods.component_formula import ComponentFormulaError
 from payroll.methods.contract_periods import forced_contract
-from payroll.methods.employer_cost import employer_amount
+from payroll.methods.employer_cost import employer_amount, rules_hold
 from payroll.models.models import Contract, Deduction, Payslip
 
 logger = logging.getLogger(__name__)
@@ -1043,6 +1043,8 @@ def calculate_employer_contribution(data):
     # employee-side formulas use, so "(BASIC + DA) * 0.0367" means the same
     # thing on both sides of the component.
     context = pay_head_data.get("component_context") or {}
+    gross = float(data.get("gross_pay") or pay_head_data.get("gross_pay") or 0)
+    taxable_gross = pay_head_data.get("taxable_gross_pay")
 
     for deduction in rows:
         component = components.get(deduction["deduction_id"])
@@ -1064,6 +1066,10 @@ def calculate_employer_contribution(data):
         if result is None:
             continue
         employer_contribution_amount, formula = result
+        # A deduction whose "when it applies" rule fails for this employee (ESI above its gross
+        # ceiling) takes nothing from them, and the employer owes nothing on it either.
+        if not rules_hold(component, gross, context, taxable_gross):
+            employer_contribution_amount = 0.0
         if formula is not None:
             deduction["employer_contribution_formula"] = formula
 

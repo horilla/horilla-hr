@@ -9,7 +9,7 @@
     <span class="oh-info mr-2" title="{% trans " Set initial notice period (in days)" %}">
     </div>
     <div class="flex gap-2">
-        <input type="number" name="notice_period" placeholder="{% trans 'Pagination' %}"  value="{{get_initial_notice_period}}">
+        <input type="number" min="0" name="notice_period" placeholder="{% trans 'Pagination' %}"  value="{{get_initial_notice_period}}">
 
         <button class="btn" type="submit">Save
             Changes</button>

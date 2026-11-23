@@ -1,0 +1,23 @@
+{% load i18n static %}
+
+<div class="oh-inner-sidebar-content border border-[#ebebeb] rounded-md mb-5">
+    <div hx-get="{% url 'additional-info-field-navbar' %}" hx-trigger="load"></div>
+
+    <p class="text-xs text-gray-500 mt-1 ml-2">
+        {% trans "Fields Added Here Appear On The Additional Info Tab Of Every Employee." %}
+    </p>
+
+    <div
+        class="oh-checkpoint-badge mb-2"
+        id="selectedInstances"
+        data-ids="[]"
+        data-clicked=""
+        style="display: none"
+    >
+    </div>
+
+    <div class="oh-wrapper" id="listContainer">
+    </div>
+</div>
+
+<script src="{% static 'cbv/deleteFunc.js' %}"></script>

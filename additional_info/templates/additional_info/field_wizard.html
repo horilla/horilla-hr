@@ -1,0 +1,399 @@
+{% load i18n static %}
+{% comment %}
+    Two step form for an additional info field, included from generic/form.html in three parts (header / step2 /
+    footer). Step 1 is the regular form (the details). Step 2 places the field among the others: the same lift,
+    drop and arrow-key reordering as the stages of the recruitment pipeline form. The step rail, panels and the
+    Back / Save / Next row are the ones the other step forms use; static/src/js/componentForm.js switches the steps.
+{% endcomment %}
+{% if part == "header" %}
+    <div class="aif-wiz-root">
+        <style>
+            /* ---- steps: same as the Allowance, Deduction, Leave Type and Recruitment forms ---- */
+            .oh-steps { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 0 4px; margin-bottom: 1rem; }
+            .oh-steps__step {
+                flex: 1 1 180px; min-width: 0;
+                display: flex; align-items: center; gap: 10px;
+                border: 1px solid #e6e7eb; border-radius: 10px;
+                background: #fff; padding: 10px 12px; cursor: pointer;
+                text-align: left; position: relative;
+            }
+            .oh-steps__step:hover { border-color: #cfd2da; }
+            .oh-steps__num {
+                flex: 0 0 auto; width: 24px; height: 24px; border-radius: 50%;
+                display: inline-flex; align-items: center; justify-content: center;
+                background: #eceef2; color: #6b7280; font-size: 12px; font-weight: 700;
+            }
+            .oh-steps__text { min-width: 0; display: block; }
+            .oh-steps__label {
+                display: block; font-size: 13px; font-weight: 600; color: #1f2430;
+                overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            }
+            .oh-steps__hint {
+                display: block; font-size: 11.5px; color: #9ca3af;
+                overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            }
+            .oh-steps__step.is-current {
+                border-color: var(--primary-600, #e54f38);
+                box-shadow: inset 0 0 0 1px var(--primary-600, #e54f38);
+            }
+            .oh-steps__step.is-current .oh-steps__num { background: var(--primary-600, #e54f38); color: #fff; }
+            .oh-steps__step.is-done .oh-steps__num { background: #d6e9e1; color: #0f7b5f; }
+            .oh-steps__flag {
+                position: absolute; top: 6px; right: 8px;
+                width: 16px; height: 16px; border-radius: 50%;
+                background: #b00020; color: #fff;
+                font-size: 11px; font-weight: 700; line-height: 16px; text-align: center;
+            }
+            .oh-step-panel[hidden] { display: none !important; }
+            .oh-step-nav {
+                display: flex; align-items: center; gap: 8px;
+                width: 100%; margin-top: 14px; padding-top: 14px;
+                border-top: 1px solid #ececf0;
+            }
+            .oh-step-nav__spacer { flex: 1; }
+            .oh-step-nav [hidden] { display: none !important; }
+            @media (max-width: 640px) {
+                .oh-steps__hint { display: none; }
+                .oh-steps__step { flex: 1 1 100%; }
+            }
+
+            /* ---- order step ---- */
+            .aif-wiz-root, .aif-step2 { --aif-primary: var(--primary-600, #e54f38); --aif-soft: var(--primary-300, #fcedeb); }
+            .aif-step2 .aif-intro { font-size: 13px; color: #6b7280; margin-bottom: 12px; }
+            .aif-list { position: relative; display: flex; flex-direction: column; gap: 8px; }
+            .aif-row { display: flex; align-items: center; gap: 10px; border: 1px solid #e6e7eb; border-radius: 10px; padding: 6px 10px; background: #fff; transition: box-shadow .15s ease, border-color .15s ease; }
+            .aif-row.is-current { border-color: var(--aif-primary); background: var(--aif-soft); }
+            .aif-num { width: 22px; height: 22px; flex: 0 0 22px; border-radius: 9999px; background: #eceef2; color: #6b7280; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; cursor: grab; touch-action: none; user-select: none; }
+            .aif-row.is-current .aif-num { background: var(--aif-primary); color: #fff; }
+            .aif-name { flex: 1; min-width: 0; font-size: 14px; color: #1f2430; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .aif-badge { font-size: 11px; padding: 2px 8px; border-radius: 9999px; background: #f3f4f6; color: #374151; white-space: nowrap; }
+            .aif-this { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 9999px; background: var(--aif-primary); color: #fff; white-space: nowrap; }
+            .aif-grip { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 28px; flex: 0 0 22px; border-radius: 6px; color: #9ca3af; cursor: grab; touch-action: none; user-select: none; outline: none; }
+            .aif-grip::before { content: ""; width: 10px; height: 16px; background: radial-gradient(circle, currentColor 1.4px, transparent 1.6px) 0 0 / 5px 5.33px; }
+            .aif-grip:hover { background: #f3f4f6; color: #6b7280; }
+            .aif-grip:focus-visible { background: #f3f4f6; box-shadow: 0 0 0 2px var(--aif-soft), 0 0 0 3px var(--aif-primary); color: #374151; }
+            .aif-list.is-sorting .aif-row:not(.is-lifted) { transition: none; }
+            .aif-row.is-lifted { position: absolute; z-index: 20; box-sizing: border-box; background: #fff; border-color: var(--aif-primary); box-shadow: 0 14px 30px rgba(17, 24, 39, .18), 0 2px 6px rgba(17, 24, 39, .08); cursor: grabbing; }
+            .aif-row.is-lifted .aif-grip, .aif-row.is-lifted .aif-num { cursor: grabbing; }
+            .aif-row.is-settling { transition: top .16s ease, box-shadow .16s ease, border-color .16s ease; box-shadow: 0 1px 2px rgba(17, 24, 39, .06); }
+            .aif-placeholder { box-sizing: border-box; border: 2px dashed var(--aif-primary); border-radius: 10px; background: var(--aif-soft); opacity: .55; }
+            body.aif-grabbing, body.aif-grabbing * { cursor: grabbing !important; user-select: none !important; }
+            .aif-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+            .aif-error { color: #b00020; font-size: 13px; margin: 0 0 10px; }
+            .aif-error:empty { display: none; }
+            .aif-error ul { margin: 0; padding: 0; list-style: none; }
+            body.dark .aif-row, body.dark .aif-row.is-lifted { background: #1c1c1c; border-color: #333; }
+            body.dark .aif-row.is-current { background: #2a1d1a; border-color: var(--aif-primary); }
+            body.dark .aif-name { color: #f1f1f1; }
+            body.dark .aif-num, body.dark .aif-badge { background: #333; color: #ccc; }
+            body.dark .aif-step2 .aif-intro { color: #9ca3af; }
+        </style>
+        <div class="oh-steps" role="tablist" data-steps>
+            <button type="button" class="oh-steps__step" role="tab" data-step-tab="details" aria-controls="step-details">
+                <span class="oh-steps__num">1</span>
+                <span class="oh-steps__text">
+                    <span class="oh-steps__label">{{ form.wizard_details_label }}</span>
+                    <span class="oh-steps__hint">{{ form.wizard_details_hint }}</span>
+                </span>
+                <span class="oh-steps__flag" data-step-flag hidden title="{% trans 'Something on this step needs attention' %}">!</span>
+            </button>
+            <button type="button" class="oh-steps__step" role="tab" data-step-tab="order" aria-controls="step-order">
+                <span class="oh-steps__num">2</span>
+                <span class="oh-steps__text">
+                    <span class="oh-steps__label">{% trans "Order" %}</span>
+                    <span class="oh-steps__hint">{% trans "Where It Sits Among The Others." %}</span>
+                </span>
+                <span class="oh-steps__flag" data-step-flag hidden title="{% trans 'Something on this step needs attention' %}">!</span>
+            </button>
+        </div>
+        <p class="aif-error" data-details-error></p>
+    </div>
+{% elif part == "step2" %}
+    <div class="oh-step-panel aif-step2" id="step-order" data-step-panel="order" role="tabpanel" data-order="{{ form.order_json }}" hidden>
+        <p class="aif-intro">
+            {% trans "Drag A Field Up Or Down, Or Use The Arrow Keys On Its Handle, To Set The Order Employees See. This Field Is Highlighted." %}
+        </p>
+        <div class="aif-list" data-order-rows></div>
+        <p class="aif-sr" role="status" aria-live="polite" data-order-announce></p>
+        <div class="aif-error" data-order-error>{{ form.field_order.errors }}</div>
+    </div>
+{% elif part == "footer" %}
+    <div class="oh-step-nav">
+        <button type="button" class="oh-btn oh-btn--light" data-step-back hidden>
+            <ion-icon name="chevron-back-outline" class="mr-1"></ion-icon>
+            {% trans "Back" %}
+        </button>
+        <span class="oh-step-nav__spacer"></span>
+        <button type="submit" class="oh-btn oh-btn--secondary" data-step-save hidden {{ form.submit_button_attrs|safe }}>
+            {% trans "Save" %}
+        </button>
+        <button type="button" class="oh-btn oh-btn--secondary" data-step-next>
+            {% trans "Next" %}
+            <ion-icon name="chevron-forward-outline" class="ml-1"></ion-icon>
+        </button>
+    </div>
+    {# ?v= is a manual cache-bust, same convention as the other step forms. #}
+    <script src="{% static 'src/js/componentForm.js' %}?v=1"></script>
+    <script>
+        (function () {
+            // Everything is looked up inside this script's own form: the page can hold other forms with the same ids.
+            var form = document.currentScript && document.currentScript.closest("form");
+            if (!form) return;
+            var panel = form.querySelector("[data-step-panel=order]");
+            var details = form.querySelector("[data-step-panel=details]");
+            if (!panel || !details || panel.getAttribute("data-bound")) return;
+            panel.setAttribute("data-bound", "1");
+
+            var listEl = panel.querySelector("[data-order-rows]");
+            var announceEl = panel.querySelector("[data-order-announce]");
+            var orderInput = form.querySelector("[name=field_order]");
+            var labelInput = form.querySelector("[name=label]");
+            var typeInput = form.querySelector("[name=field_type]");
+            var optionsInput = form.querySelector("[name=options]");
+            var saveBtn = form.querySelector("[data-step-save]");
+            var detailsError = form.querySelector("[data-details-error]");
+            var rows = [];
+            try { rows = JSON.parse(panel.getAttribute("data-order") || "[]"); } catch (err) {}
+
+            var words = {
+                thisField: "{% trans 'This Field'|escapejs %}",
+                newField: "{% trans 'New Field'|escapejs %}",
+                reorder: "{% trans 'Reorder Field'|escapejs %}",
+                keys: "{% trans 'Use The Up And Down Arrow Keys, Or Drag.'|escapejs %}",
+                moved: "{% trans 'Moved To Position'|escapejs %}",
+                of: "{% trans 'Of'|escapejs %}"
+            };
+
+            function typeText() {
+                if (!typeInput || typeInput.selectedIndex < 0) return "";
+                return typeInput.options[typeInput.selectedIndex].text;
+            }
+
+            function sync() {
+                if (orderInput) orderInput.value = JSON.stringify(rows.map(function (r) { return r.id; }));
+            }
+
+            function announce(text) { if (announceEl) announceEl.textContent = text; }
+
+            // Moving a row: it is lifted by its handle (grip or number), a dashed placeholder marks where it will
+            // land, and letting go drops it there. Escape puts it back.
+            function startDrag(down, rowEl, fromIndex) {
+                if (down.button !== undefined && down.button !== 0) return;
+                var handle = down.currentTarget;
+                var startX = down.clientX, startY = down.clientY;
+                var begun = false, placeholder = null, offsetY = 0, height = 0;
+                try { handle.setPointerCapture(down.pointerId); } catch (err) {}
+
+                function others() {
+                    return Array.prototype.filter.call(listEl.children, function (c) {
+                        return c !== rowEl && c !== placeholder && c.classList.contains("aif-row");
+                    });
+                }
+
+                function begin() {
+                    begun = true;
+                    var rect = rowEl.getBoundingClientRect();
+                    var list = listEl.getBoundingClientRect();
+                    height = rect.height;
+                    offsetY = startY - rect.top;
+                    placeholder = document.createElement("div");
+                    placeholder.className = "aif-placeholder";
+                    placeholder.style.height = height + "px";
+                    listEl.insertBefore(placeholder, rowEl);
+                    listEl.classList.add("is-sorting");
+                    rowEl.style.width = rect.width + "px";
+                    rowEl.style.left = (rect.left - list.left) + "px";
+                    rowEl.style.top = (rect.top - list.top) + "px";
+                    rowEl.classList.add("is-lifted");
+                    document.body.classList.add("aif-grabbing");
+                }
+
+                function place(clientY) {
+                    var list = listEl.getBoundingClientRect();
+                    var top = Math.max(0, Math.min(clientY - offsetY - list.top, listEl.offsetHeight - height));
+                    rowEl.style.top = top + "px";
+                    var centre = top + height / 2;
+                    var target = null;
+                    others().some(function (r) {
+                        var box = r.getBoundingClientRect();
+                        if (centre <= box.top - list.top + box.height / 2) { target = r; return true; }
+                        return false;
+                    });
+                    var current = placeholder.nextElementSibling;
+                    while (current === rowEl) current = current.nextElementSibling;
+                    if (target !== current) listEl.insertBefore(placeholder, target);
+                }
+
+                function move(e) {
+                    if (!begun) {
+                        if (Math.abs(e.clientX - startX) < 4 && Math.abs(e.clientY - startY) < 4) return;
+                        begin();
+                    }
+                    place(e.clientY);
+                }
+
+                function cleanup() {
+                    handle.removeEventListener("pointermove", move);
+                    handle.removeEventListener("pointerup", up);
+                    handle.removeEventListener("pointercancel", cancel);
+                    document.removeEventListener("keydown", key, true);
+                    try { handle.releasePointerCapture(down.pointerId); } catch (err) {}
+                    document.body.classList.remove("aif-grabbing");
+                    listEl.classList.remove("is-sorting");
+                }
+
+                function up() {
+                    cleanup();
+                    if (!begun) return;
+                    var toIndex = 0;
+                    Array.prototype.some.call(listEl.children, function (c) {
+                        if (c === placeholder) return true;
+                        if (c !== rowEl && c.classList.contains("aif-row")) toIndex += 1;
+                        return false;
+                    });
+                    rowEl.classList.add("is-settling");
+                    rowEl.style.top = placeholder.offsetTop + "px";
+                    setTimeout(function () {
+                        if (toIndex !== fromIndex) {
+                            var moved = rows.splice(fromIndex, 1)[0];
+                            rows.splice(toIndex, 0, moved);
+                            sync();
+                            announce(words.moved + " " + (toIndex + 1) + " " + words.of + " " + rows.length);
+                        }
+                        renderRows();
+                    }, 170);
+                }
+
+                function cancel() {
+                    cleanup();
+                    if (begun) renderRows();
+                }
+
+                function key(e) {
+                    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); cancel(); }
+                }
+
+                handle.addEventListener("pointermove", move);
+                handle.addEventListener("pointerup", up);
+                handle.addEventListener("pointercancel", cancel);
+                document.addEventListener("keydown", key, true);
+            }
+
+            // The same move from the keyboard: Arrow Up / Down on the handle.
+            function nudge(index, delta) {
+                var to = index + delta;
+                if (to < 0 || to >= rows.length) return;
+                var moved = rows.splice(index, 1)[0];
+                rows.splice(to, 0, moved);
+                sync();
+                renderRows(to);
+                announce(words.moved + " " + (to + 1) + " " + words.of + " " + rows.length);
+            }
+
+            function renderRows(focusIndex) {
+                listEl.innerHTML = "";
+                rows.forEach(function (row, i) {
+                    var el = document.createElement("div");
+                    el.className = "aif-row" + (row.current ? " is-current" : "");
+
+                    var grip = document.createElement("span");
+                    grip.className = "aif-grip";
+                    grip.setAttribute("role", "button");
+                    grip.tabIndex = 0;
+                    grip.setAttribute("aria-label", words.reorder + " " + (i + 1) + ". " + words.keys);
+                    grip.addEventListener("keydown", function (e) {
+                        if (e.key === "ArrowUp") { e.preventDefault(); nudge(i, -1); }
+                        else if (e.key === "ArrowDown") { e.preventDefault(); nudge(i, 1); }
+                    });
+
+                    var num = document.createElement("span");
+                    num.className = "aif-num";
+                    num.textContent = i + 1;
+
+                    [grip, num].forEach(function (handle) {
+                        handle.addEventListener("pointerdown", function (e) { startDrag(e, el, i); });
+                    });
+
+                    var name = document.createElement("span");
+                    name.className = "aif-name";
+                    var badge = document.createElement("span");
+                    badge.className = "aif-badge";
+                    if (row.current) {
+                        // The field being made or edited follows what is typed on the first step.
+                        name.textContent = (labelInput && labelInput.value.trim()) || row.label || words.newField;
+                        badge.textContent = typeText() || row.type;
+                    } else {
+                        name.textContent = row.label;
+                        badge.textContent = row.type;
+                    }
+
+                    el.appendChild(grip);
+                    el.appendChild(num);
+                    el.appendChild(name);
+                    el.appendChild(badge);
+                    if (row.current) {
+                        var pill = document.createElement("span");
+                        pill.className = "aif-this";
+                        pill.textContent = words.thisField;
+                        el.appendChild(pill);
+                    }
+                    listEl.appendChild(el);
+                    if (focusIndex === i) grip.focus();
+                });
+            }
+
+            // Save only on the last step, as on the other step forms.
+            function syncSave() { if (saveBtn) saveBtn.hidden = panel.hidden; }
+            new MutationObserver(function () {
+                syncSave();
+                if (!panel.hidden) renderRows();   // pick up the label and type typed on step 1
+            }).observe(panel, { attributes: true, attributeFilter: ["hidden"] });
+            syncSave();
+
+            // Leaving step 1 needs a label, a type and, for a Dropdown, options. Whatever else is wrong (a label
+            // that is taken) comes back from the server on Save, which opens the step it belongs to.
+            function showDetailsError(text) { if (detailsError) detailsError.textContent = text; }
+
+            function detailsProblem() {
+                if (!labelInput || !labelInput.value.trim()) return "{% trans 'Enter A Label For The Field.'|escapejs %}";
+                if (!typeInput || !typeInput.value) return "{% trans 'Choose A Type.'|escapejs %}";
+                if (typeInput.value === "dropdown") {
+                    var lines = optionsInput ? optionsInput.value.split("\n").filter(function (l) { return l.trim(); }) : [];
+                    if (!lines.length) return "{% trans 'Add At Least One Option For A Dropdown.'|escapejs %}";
+                }
+                return "";
+            }
+
+            function gate(e) {
+                if (!form.isConnected) {
+                    document.removeEventListener("click", gate, true);
+                    return;
+                }
+                if (!form.contains(e.target) || details.hidden) return;
+                var next = e.target.closest("[data-step-next]");
+                var tab = e.target.closest("[data-step-tab]");
+                if (!next && !(tab && tab.getAttribute("data-step-tab") !== "details")) return;
+                var problem = detailsProblem();
+                showDetailsError(problem);
+                if (problem) {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                }
+            }
+            document.addEventListener("click", gate, true);
+
+            // Enter must not submit (and so save the field) from step 1.
+            form.addEventListener("keydown", function (e) {
+                if (e.key !== "Enter") return;
+                var tag = e.target.tagName;
+                if (tag === "TEXTAREA" || tag === "BUTTON" || tag === "A" || tag === "SELECT") return;
+                e.preventDefault();
+            });
+
+            // The order travels with the form; the server numbers every field from it.
+            form.addEventListener("submit", sync, true);
+            sync();
+            renderRows();
+        })();
+    </script>
+{% endif %}

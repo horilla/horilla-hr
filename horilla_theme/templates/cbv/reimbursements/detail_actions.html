@@ -1,6 +1,16 @@
 {% load static i18n %}
 
+<style>
+  /* The action row spans the dialog and every button takes an equal share,
+     instead of shrinking to its own label inside a half-width wrapper. */
+  .hdv__foot > div:has(> #reimbDetailActions) { flex: 1 1 100%; }
+  #reimbDetailActions { flex: 1 1 100%; }
+  #reimbDetailActions > button { flex: 1 1 0; min-width: 0; }
+  #reimbDetailActions > button[disabled] { cursor: not-allowed; }
+</style>
+
 <div
+    id="reimbDetailActions"
     class="flex items-center gap-2 flex-wrap"
     hx-get="{% url 'detail-view-reimbursement' instance.id %}"
     hx-trigger="reloadPayrollReimbursements from:body"
@@ -23,7 +33,7 @@
             <button
                 type="button"
                 title="{% trans 'Approve' %}"
-                class="oh-btn oh-btn--light-bkg flex-1 px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
+                class="oh-btn oh-btn--success oh-btn--disabled flex-1 px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
                 disabled
             >
                 <ion-icon name="checkmark-outline"></ion-icon>
@@ -47,7 +57,7 @@
             <button
                 type="button"
                 title="{% trans 'Reject' %}"
-                class="oh-btn oh-btn--light-bkg flex-1 px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
+                class="oh-btn oh-btn--danger oh-btn--disabled flex-1 px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
                 disabled
             >
                 <ion-icon name="close-circle-outline"></ion-icon>

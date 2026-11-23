@@ -8,12 +8,20 @@
     });
 </script>
 <script>
-    $(document).ready(function () {
-        var $leaveType = $("#createTitle").closest("form").find("[name=leave_type_id]");
-        if ($leaveType.length && $leaveType.val()) {
-            $leaveType[0].dispatchEvent(new Event("change"));
+    // Show the balance and forecast of the chosen leave type when the form opens, and again when the form is
+    // drawn anew (a save that failed validation), once htmx has wired the fields.
+    (function () {
+        function showLeaveBalance() {
+            var $leaveType = $("#createTitle").closest("form").find("[name=leave_type_id]");
+            if ($leaveType.length && $leaveType.val() && !$(".available-leave-count").length) {
+                $leaveType[0].dispatchEvent(new Event("change"));
+            }
         }
-    });
+        $(document).off("htmx:afterSettle.leaveBalance").on("htmx:afterSettle.leaveBalance", function (e) {
+            if ($(e.target).find("#createTitle").length) showLeaveBalance();
+        });
+        $(document).ready(showLeaveBalance);
+    })();
 </script>
 
 <script>

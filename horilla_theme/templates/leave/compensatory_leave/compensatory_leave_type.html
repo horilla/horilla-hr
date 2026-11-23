@@ -20,32 +20,6 @@
             hx-target="#genericModalBody"
         >
             <div class="flex gap-5 relative">
-                <div
-                    class="dropdown-wrapper absolute inline-block right-0 -top-1"
-                    onclick="event.stopPropagation()"
-                >
-                    {% if perms.leave.change_leavetype %}
-                        <div
-                            class="cursor-pointer dropdown-toggle w-[20px]"
-                            title="{% trans 'Actions' %}"
-                        >
-                            <i class="fa-solid fa-ellipsis-vertical text-black ms-[10px]"></i>
-                        </div>
-                    {% endif %}
-                    <div class="dropdown-menu absolute right-0 min-w-[100px] bg-[#faf9f9] rounded-lg shadow-card py-2 hidden z-50 transition-all duration-200">
-                        <ul class="text-xs">
-                            <li>
-                                <p class="w-full text-left px-3 py-1 hover:text-primary-600 transition duration-300">
-                                    <a
-                                        href="{% url 'type-update' leave_type.id %}?compensatory=True"
-                                        class="oh-dropdown__link"
-                                    >{% trans "Edit" %}</a>
-                                </p>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-
                 <div class="relative flex items-center w-max">
                     <img
                         src="{{leave_type.get_avatar}}"

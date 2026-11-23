@@ -255,6 +255,8 @@ class ModelForm(forms.ModelForm):
                         "placeholder": label,
                     }
                 )
+                if isinstance(widget, forms.NumberInput):
+                    widget.attrs.setdefault("min", 0)
 
             # Select fields
             elif isinstance(widget, forms.Select):
@@ -333,6 +335,8 @@ class Form(forms.Form):
                     field.widget.attrs.update(
                         {"class": "oh-input w-100", "placeholder": label}
                     )
+                if isinstance(widget, forms.NumberInput):
+                    widget.attrs.setdefault("min", 0)
             elif isinstance(widget, (forms.Select,)):
                 label = ""
                 if field.label is not None:
@@ -1495,6 +1499,7 @@ class RotatingWorkTypeAssignUpdateForm(forms.ModelForm):
             {
                 "class": "w-100 oh-input",
                 "style": " height:50px; border-radius:0;",
+                "min": 0,
             }
         )
         self.fields["based_on"].widget.attrs.update(

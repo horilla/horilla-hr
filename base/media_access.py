@@ -111,8 +111,7 @@ def find_holders(path):
     candidates = [
         (model, field_name)
         for model, field_name, prefix in _registry()
-        if (prefix and path.startswith(prefix))
-        or model._meta.app_label == app_label
+        if (prefix and path.startswith(prefix)) or model._meta.app_label == app_label
         # Fields with no derivable prefix (upload_to="") store at the root.
         or (not prefix and "/" not in path)
     ]

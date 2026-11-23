@@ -428,7 +428,15 @@ class ForcePasswordChangeMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        excluded_paths = ["/change-password", "/login", "/logout"]
+        excluded_paths = [
+            "/change-password",
+            "/login",
+            "/logout",
+            "/login/microsoft",
+            "/login/microsoft/callback",
+            "/login/google",
+            "/login/google/callback",
+        ]
         if request.path.rstrip("/") in excluded_paths:
             return self.get_response(request)
 
@@ -482,6 +490,10 @@ class TwoFactorAuthMiddleware:
             "/logout",
             "/two-factor",
             "/send-otp",
+            "/login/microsoft",
+            "/login/microsoft/callback",
+            "/login/google",
+            "/login/google/callback",
         ]
 
         if request.path.rstrip("/") in excluded_paths:

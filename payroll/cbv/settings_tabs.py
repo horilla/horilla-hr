@@ -20,7 +20,7 @@ from payroll.cbv.salary_structure import SalaryStructureListView
 
 def always_applied_rows(kind):
     """
-    The standard pay items of one kind ("allowance" or "deduction"), for the "Always Applied"
+    The standard pay items of one kind ("allowance" or "deduction"), for the "System Defaults"
     tab. They apply to everybody, whenever the event happens, so they are not rows of the
     Allowances and Deductions lists; the tab is where they are listed, and where their tax
     treatment is still reached.
@@ -105,7 +105,7 @@ class PayrollSettingsTabView(HorillaTabView):
                 "url": f"{reverse('payroll-settings-deduction-tab')}",
             },
             {
-                "title": _("Always Applied"),
+                "title": _("System Defaults"),
                 "url": f"{reverse('payroll-settings-always-applied-tab')}",
             },
             {

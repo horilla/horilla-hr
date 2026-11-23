@@ -38,6 +38,7 @@
       <div class="mi__kpi"><div class="mi__kpi-label">{% trans "With Errors" %}</div><div class="mi__kpi-value {% if summary.error_count %}mi__kpi-value--bad{% endif %}">{{ summary.error_count }}</div></div>
       {% if summary.counts and dataset.key == "employees" %}
       <div class="mi__kpi"><div class="mi__kpi-label">{% if summary.mode == "update" %}{% trans "Bank Accounts Added" %}{% else %}{% trans "Bank Accounts" %}{% endif %}</div><div class="mi__kpi-value">{{ summary.counts.banks }}</div></div>
+      {% if summary.counts.additional_values %}<div class="mi__kpi"><div class="mi__kpi-label">{% trans "Additional Info Values" %}</div><div class="mi__kpi-value">{{ summary.counts.additional_values }}</div></div>{% endif %}
       {% endif %}
     </div>
 

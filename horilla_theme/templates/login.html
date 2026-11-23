@@ -129,7 +129,7 @@
                 <p class="mb-5 text-center text-sm text-color-600">
                     {% trans "Please login to access the dashboard." %}
                 </p>
-                <form method="post" class="oh-form-group">
+                <form method="post" class="oh-form-group" id="passwordLoginForm" {% if hide_password_form and not form_username and not field_errors %}hidden{% endif %}>
                     {% csrf_token %}
                     <div class="mb-3">
                         <label for="username" class="text-sm text-color-600">{% trans "Username" %}</label>
@@ -195,6 +195,7 @@
                         <img src='{% static "horilla_theme/assets/icons/sign.svg" %}' alt=""> {% trans "Sign In" %}
                     </button>
                 </form>
+                {% include "sso_buttons.html" with btn_class="p-3 mt-3 w-full flex gap-3 justify-center items-center rounded-md border border-dark-50 text-sm font-medium text-color-600 hover:bg-[#f5f5f5] [transition:.3s]" %}
                 {% if initialize_database %}
                     <div>
                         <div class="d-flex gap-2">

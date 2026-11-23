@@ -25,17 +25,10 @@ body.dark .group:hover .group-hover\:text-primary-600,
 body.dark .group:hover .group-hover\:text-primary-700 {
   color: var(--primary-600, #e54f38) !important;
 }
-/* .accordion-panel ul li a below is more specific than .text-primary-600
-   above, so it wins the cascade and flattens the active Settings sub-menu
-   item to gray. Re-assert the theme color with matching specificity. */
-body.dark .accordion-panel ul li a.text-primary-600 {
-  color: var(--primary-300, #fcedeb) !important;
-}
-/* The generic `.accordion-panel ul li a` colour (#bbb !important, further
-   down) beats Tailwind's hover:text-primary-600, so Settings sidebar links
-   showed no hover feedback in dark mode. :hover adds specificity, so this
-   wins over the #bbb rule; the active item's rule above still takes
-   precedence for the current page. */
+/* Same as light mode: no pill/bar, just the theme colour on the active item
+   and on hover. Must out-specify the generic `.accordion-panel ul li a`
+   colour (#bbb !important, further down). */
+body.dark .accordion-panel ul li a.text-primary-600,
 body.dark .accordion-panel ul li a:hover {
   color: var(--primary-600, #e54f38) !important;
 }
@@ -74,6 +67,10 @@ body.dark .ansbox {
   background-color: #1b1b1b !important;
 }
 
+/* Neutral borders from the Tailwind utility classes. Deliberately NOT !important:
+   these classes are often only the base of an element that adds an accent
+   border (row status stripe, active tab, card status edge) with its own
+   `!important` rule, and a forced grey here used to wipe that colour. */
 body.dark .border-b-dark-50,
 body.dark .border-r-dark-50,
 body.dark .border-t-dark-50,
@@ -81,6 +78,17 @@ body.dark .border-white,
 body.dark .border-primary-300,
 body.dark .border-dark-50,
 body.dark .border-\[\#ebebeb\],
+body.dark .fixed-table th,
+body.dark .fixed-table td,
+body.dark .border-\[\#eee6e6b9\],
+body.dark .border-\[\#ececec\],
+body.dark .border-\[\#b3bac0\],
+body.dark .border-\[\#e6e6e6\],
+body.dark .border-\[\#ecf3fb\],
+body.dark .border-\[\#f3f3f3\] {
+  border-color: #444444;
+}
+
 body.dark .myform input,
 body.dark .myform select,
 body.dark .myform textarea,
@@ -93,33 +101,23 @@ body.dark
   .select2-container--default
   .select2-search--dropdown
   .select2-search__field,
-body.dark .fixed-table th,
-body.dark .fixed-table td,
 body.dark input,
-body.dark .border-primary-500,
 body.dark .oh-btn-group > *,
 body.dark .usertablist li button,
 body.dark .oh-dropdown__menu,
-body.dark .border-\[\#eee6e6b9\],
+body.dark .oh-tabs__tab,
 body.dark .oh-user-panel,
 body.dark .select2-container--default .select2-selection--multiple,
 body.dark .bg-\[\#e9edf090\],
-body.dark .oh-tabs__tab,
 body.dark .oh-tabs__movable,
 body.dark .oh-tabs__movable-header,
 body.dark .oh-sticky-table__thead,
 body.dark .oh-sticky-table,
 body.dark .oh-dropdown__filter-footer,
-body.dark .border-\[\#ececec\],
-body.dark .border-\[\#b3bac0\],
 body.dark input[type="file"],
-body.dark .border-\[\#e6e6e6\],
 body.dark .oh-profile-section__card,
 body.dark hr,
-body.dark .border-primary-200,
 body.dark .sha,
-body.dark .border-\[\#ecf3fb\],
-body.dark .border-\[\#f3f3f3\],
 body.dark .pvtAxisContainer li span.pvtAttr,
 body.dark #pivot-container,
 body.dark .pvtAxisContainer,
@@ -700,7 +698,10 @@ body.dark .editicon,
 body.dark .deleteicon{
   filter: brightness(0) invert(1);
 }
-body.dark .oh-btn:hover {
+/* Neutral buttons lighten on hover. Solid-colour variants (success, danger, ...)
+   keep their own hover shade, and a disabled button does not react at all --
+   a blanket #2a2a2a here turned a green Approve / red Reject grey under the cursor. */
+body.dark .oh-btn:not(.oh-btn--success):not(.oh-btn--danger):not(.oh-btn--secondary):not(.oh-btn--primary):not(.oh-btn--warning):not(.oh-btn--info):not(:disabled):not(.oh-btn--disabled):hover {
   background-color: #2a2a2a;
 }
 body.dark .oh-btn ion-icon {
@@ -754,6 +755,66 @@ body.dark .oh-btn--view-active {
    reads as near-invisible against the black this rule set above. */
 body.dark .oh-btn--view:not(.oh-btn--view-active) {
   color: #9aa1ab !important;
+}
+/* body.dark .oh-btn--light-bkg (below, pre-existing) forces white text on
+   every light-bkg button -- its extra "body" type selector actually
+   outranks .oh-btn--light-bkg.oh-btn--danger's light-mode red-text combo
+   rule in v1_styles.css despite that one having the same class count, so
+   a light-bkg Delete-style button loses its red in dark mode app-wide.
+   Restored here with one more class than that rule to win back. */
+body.dark .oh-btn--light-bkg.oh-btn--danger {
+  color: hsl(1, 100%, 65%) !important;
+}
+body.dark .oh-btn--light-bkg.oh-btn--danger:hover,
+body.dark .oh-btn--light-bkg.oh-btn--danger:focus,
+body.dark .oh-btn--light-bkg.oh-btn--danger:focus-visible {
+  color: hsl(1, 100%, 72%) !important;
+}
+/* "v2" pivot table/grid restyle (pivot_explorer.css's
+   #pivot-container.oh-report-table-v2) -- dark equivalents for its white
+   card background, light borders, and zebra/hover tints, which would
+   otherwise show up as bright patches against the rest of the dark
+   theme. The added .oh-report-table-v2 class keeps these at the same
+   ID+class specificity as the light-mode rule, so they win over the
+   existing plain #pivot-container dark overrides below without needing
+   extra !important beyond what those already carry. */
+body.dark #pivot-container.oh-report-table-v2 {
+  border-color: #333333 !important;
+}
+body.dark #pivot-container.oh-report-table-v2 .pvtAxisContainer,
+body.dark #pivot-container.oh-report-table-v2 .pvtVals {
+  border-right-color: #333333 !important;
+  background-color: #141414 !important;
+}
+body.dark #pivot-container.oh-report-table-v2 .pvtRendererArea {
+  background-color: #000000 !important;
+}
+body.dark #pivot-container.oh-report-table-v2 .pvtAxisContainer li span.pvtAttr {
+  background-color: #1a1a1a !important;
+  border-color: #333333 !important;
+  color: #d1d5db;
+}
+body.dark #pivot-container.oh-report-table-v2 .pvtTable thead tr th,
+body.dark #pivot-container.oh-report-table-v2 .pvtColLabel {
+  background-color: #262626 !important;
+  color: #f3f4f6 !important;
+  border-color: #3a3a3a !important;
+  border-bottom-color: hsl(8, 77%, 56%) !important;
+}
+body.dark #pivot-container.oh-report-table-v2 .pvtTable td,
+body.dark #pivot-container.oh-report-table-v2 .pvtTable tbody tr th,
+body.dark #pivot-container.oh-report-table-v2 .pvtRowLabel {
+  background-color: #000000 !important;
+  color: #d1d5db !important;
+  border-color: #262626 !important;
+}
+body.dark #pivot-container.oh-report-table-v2 .pvtTable tbody tr:nth-child(even) td,
+body.dark #pivot-container.oh-report-table-v2 .pvtTable tbody tr:nth-child(even) th {
+  background-color: #0d0d0d !important;
+}
+body.dark #pivot-container.oh-report-table-v2 .pvtTable tbody tr:hover td,
+body.dark #pivot-container.oh-report-table-v2 .pvtTable tbody tr:hover th {
+  background-color: rgba(229, 79, 56, 0.12) !important;
 }
 body.dark .pvtAxisContainer.pvtUnused::before,
 body.dark .pvtAxisContainer.pvtRows::before,
@@ -1007,4 +1068,706 @@ body.dark input[type="datetime-local"],
 body.dark input[type="month"],
 body.dark input[type="week"] {
   color-scheme: dark;
+}
+
+/* Pill tabs (.usertablist, e.g. employee profile): the shared #000 rule above
+   made hover/selected pills black or, via per-page rules, pale pink. */
+body.dark .usertablist li button:not(.active):hover {
+  background-color: color-mix(in srgb, var(--primary-600, #e54f38) 16%, #1a1a1a) !important;
+  border-color: var(--primary-600, #e54f38) !important;
+  color: #ffffff !important;
+}
+body.dark .usertablist li button.active {
+  background-color: var(--primary-600, #e54f38) !important;
+  border-color: var(--primary-600, #e54f38) !important;
+  color: #ffffff !important;
+}
+
+/* Light utility surfaces / chips that had no dark counterpart. */
+body.dark .bg-\[\#fafafa\],
+body.dark .bg-\[\#f9f9f9\],
+body.dark .bg-\[\#f8f8f8\] {
+  background-color: #1f1f1f !important;
+}
+body.dark .border-\[\#ebebeb\],
+body.dark .border-\[\#ececec\],
+body.dark .border-\[\#eee\] {
+  border-color: #3a3a3a;
+}
+body.dark .bg-primary-50\/70,
+body.dark .bg-primary-50\/50 {
+  background-color: color-mix(in srgb, var(--primary-600, #e54f38) 14%, #1a1a1a) !important;
+  border-color: color-mix(in srgb, var(--primary-600, #e54f38) 45%, #1a1a1a) !important;
+  color: #f4b8ad !important;
+}
+body.dark .interviewer-chip {
+  background-color: #333333 !important;
+  color: #dddddd !important;
+}
+/* ---- Payslip (individual payslip + summary) ----
+   individual_payslip_summery.html hard-codes light colours (#1f2430 text,
+   #fbfbfc/#f4f5f7 fills) in its own <style>, so on the dark panel the figures
+   were dark-on-dark and the facts/net/total blocks stayed white. */
+body.dark .ps,
+body.dark .ps__net,
+body.dark .ps__fact-value,
+body.dark .ps__pop,
+body.dark .ps__pop-sub {
+  color: #e5e5e5;
+}
+body.dark .ps__facts,
+body.dark .ps__net,
+body.dark .ps__total {
+  background-color: #2e2e2e;
+  border-color: #3a3a3a;
+}
+body.dark .ps__col,
+body.dark .ps__panel {
+  border-color: #3a3a3a;
+}
+body.dark .ps__col-head,
+body.dark .ps__panel-head,
+body.dark .ps__table th {
+  background-color: #333333;
+  border-color: #3a3a3a;
+  color: #bbbbbb;
+}
+body.dark .ps__row,
+body.dark .ps__table td {
+  border-color: #333333;
+}
+body.dark .ps__row--sub {
+  border-color: #3a3a3a;
+  color: #aaaaaa;
+}
+body.dark .ps__row--capped {
+  color: #f0a64a;
+}
+body.dark .ps__fact-label,
+body.dark .ps__fact-note,
+body.dark .ps__net-sum,
+body.dark .ps__sub,
+body.dark .ps__note {
+  color: #9a9a9a;
+}
+body.dark .ps__zero {
+  color: #6b6b6b;
+}
+body.dark .ps__adj {
+  background-color: color-mix(in srgb, #f59e0b 8%, #242424);
+  border-color: color-mix(in srgb, #f59e0b 35%, #242424);
+}
+body.dark .ps__adj-head {
+  background-color: color-mix(in srgb, #f59e0b 16%, #242424);
+  border-color: color-mix(in srgb, #f59e0b 35%, #242424);
+  color: #f0b45c;
+}
+body.dark .ps__adj-cols {
+  color: #c9a066;
+}
+body.dark .ps__short {
+  background-color: color-mix(in srgb, var(--primary-600, #e54f38) 16%, #242424);
+  color: #f4b8ad;
+}
+body.dark .ps__net--short .ps__net-amount {
+  color: #f4b8ad;
+}
+body.dark .ps__pop {
+  background-color: #2e2e2e;
+  border-color: #3a3a3a;
+  border-top-color: var(--primary-600, #e54f38);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6);
+}
+body.dark .ps__pop-note[style] {
+  color: #e5e5e5 !important;
+}
+body.dark .ps__pop-row .lbl {
+  color: #aaaaaa;
+}
+body.dark .ps__pop-rule,
+body.dark .ps__pop-note {
+  border-color: #3a3a3a;
+}
+body.dark .ps__pop-eqn,
+body.dark .ps__pop-note {
+  color: #9a9a9a;
+}
+body.dark .ps__i {
+  color: #9a9a9a;
+}
+/* Header action buttons hard-code bg-[white] */
+body.dark #payslipEditBtn,
+body.dark a[title="Send via mail"] {
+  background-color: #2e2e2e;
+}
+body.dark a[title="Send via mail"] img {
+  filter: brightness(0) invert(1);
+}
+body.dark #payslipEditBtn {
+  color: #e5e5e5;
+}
+/* A disabled button keeps its resting colour under the cursor. */
+body.dark .oh-btn--success:disabled:hover { background-color: hsl(148, 71%, 44%); }
+body.dark .oh-btn--danger:disabled:hover { background-color: hsl(1, 100%, 61%); }
+body.dark .oh-btn--light-bkg:disabled:hover { background-color: #2c2c2c !important; }
+/* ---- Contract detail modal (payroll/cbv/contracts/contract_detail.html) ----
+   Its own <style> hard-codes light fills and #1f2430 text, so on the dark
+   dialog the summary bar stayed white and the term values were dark-on-dark. */
+body.dark .cd__summary { background-color: #2e2e2e; border-color: #3a3a3a; }
+body.dark .cd__chip { color: #aaaaaa; }
+body.dark .cd__chip b,
+body.dark .cd__term-value,
+body.dark .cd__title { color: #f0f0f0; }
+body.dark .cd__status--active { background-color: color-mix(in srgb, #21c06b 22%, #242424); color: #6fe0a4; }
+body.dark .cd__status--other { background-color: #3a3a3a; color: #dddddd; }
+body.dark .cd__muted,
+body.dark .cd__code,
+body.dark .cd__section-count,
+body.dark .cd__empty { color: #8f8f8f; }
+body.dark .cd__tabs { border-color: #3a3a3a; }
+body.dark .cd__tab { color: #aaaaaa; }
+body.dark .cd__tab:hover { color: #e5e5e5; }
+body.dark .cd__tab[aria-selected="true"] { color: var(--primary-600, #e54f38); border-bottom-color: var(--primary-600, #e54f38); }
+body.dark .cd__tab-count { background-color: #3a3a3a; color: #dddddd; }
+body.dark .cd__term { border-color: #333333; }
+body.dark .cd__term-label,
+body.dark .cd__intro { color: #a5a5a5; }
+body.dark .cd__table th { background-color: #242424; border-color: #3a3a3a; color: #aaaaaa; }
+body.dark .cd__table td { border-color: #333333; }
+body.dark .cd__table td.cd__section { background-color: #2e2e2e; border-color: #3a3a3a; color: #cccccc; }
+body.dark .cd__tax,
+body.dark .cd__calc { color: #cccccc; }
+body.dark .cd__type--allowance { color: #6fe0a4; }
+/* Sticky-chrome detail dialogs: the rule above the Edit/Delete row was a near-white hairline. */
+body.dark .hdv--sticky .hdv__foot:not(:empty) { border-top-color: #3a3a3a; }
+/* ---- Salary structure form: component picker (payroll/salary_structure/_component_picker.html) ----
+   Its own <style> hard-codes a #fbfbfc sticky header and #1f2430 names, so the
+   header was white and the component names dark-on-dark. */
+body.dark .ss-form__field label { color: #bbbbbb; }
+body.dark .ss-form__section { color: #aaaaaa; }
+body.dark .ss-form__errors { color: #ff7a8a; }
+body.dark .ss-picker__search { background-color: #1b1b1b; border-color: #3a3a3a; color: #e5e5e5; }
+body.dark .ss-picker__search:focus { border-color: var(--primary-600, #e54f38); }
+body.dark .ss-picker__count,
+body.dark .ss-picker__aside,
+body.dark .ss-picker__empty,
+body.dark .ss-picker__muted,
+body.dark .ss-picker__code,
+body.dark .ss-picker__seq { color: #8f8f8f; }
+body.dark .ss-picker__scroll { border-color: #3a3a3a; }
+body.dark .ss-picker__table thead th { background-color: #2e2e2e; border-color: #3a3a3a; color: #bbbbbb; }
+body.dark .ss-picker__table td { border-color: #333333; }
+body.dark .ss-picker__table tr.is-checked td { background-color: color-mix(in srgb, var(--primary-600, #e54f38) 14%, #242424); }
+body.dark .ss-picker__title { color: #f0f0f0; }
+body.dark .ss-picker__calc { color: #cccccc; }
+body.dark .ss-picker__type--earning { color: #6fe0a4; }
+body.dark .ss-picker__badge { background-color: color-mix(in srgb, #21c06b 22%, #242424); color: #6fe0a4; }
+/* ---- Create/Edit Allowance & Deduction wizard
+   (payroll/component/_component_form.html + _applies_table.html) ----
+   Both hard-code light fills, grey hairlines and near-black text in their own
+   <style>: the "How this works out" callout and the employee table header
+   stayed white, and the row/box borders were near-white lines. */
+body.dark .oh-component-form__heading { color: #aaaaaa; }
+body.dark .oh-component-form__heading .rule,
+body.dark .apply-rule__rule { background-color: #3a3a3a; }
+body.dark .oh-component-form__hint,
+body.dark .oh-steps__hint,
+body.dark .oh-applies__note,
+body.dark .oh-applies__count,
+body.dark .oh-applies__more { color: #9a9a9a; }
+body.dark .apply-rule__and { color: #aaaaaa; }
+body.dark .oh-steps__step { background-color: #242424; border-color: #3a3a3a; }
+body.dark .oh-steps__step:hover { border-color: #555555; }
+body.dark .oh-steps__step.is-current { border-color: var(--primary-600, #e54f38); }
+body.dark .oh-steps__num { background-color: #3a3a3a; color: #cccccc; }
+body.dark .oh-steps__step.is-current .oh-steps__num { background-color: var(--primary-600, #e54f38); color: #ffffff; }
+body.dark .oh-steps__step.is-done .oh-steps__num { background-color: color-mix(in srgb, #21c06b 25%, #242424); color: #6fe0a4; }
+body.dark .oh-steps__label { color: #f0f0f0; }
+body.dark .oh-step-nav { border-top-color: #3a3a3a; }
+body.dark .oh-limit-note {
+  background-color: #2e2e2e; border-color: #3a3a3a;
+  border-left-color: var(--primary-600, #e54f38);
+}
+body.dark .oh-limit-note__head { color: #aaaaaa; }
+body.dark .oh-limit-note__label { color: #cccccc; }
+body.dark .oh-limit-note__dots { border-bottom-color: #555555; }
+body.dark .oh-limit-note__value { color: #f0f0f0; }
+body.dark .oh-limit-note__share,
+body.dark .oh-limit-note__muted,
+body.dark .oh-limit-note__foot { color: #8f8f8f; }
+body.dark .oh-formula-row { background-color: #2e2e2e; }
+body.dark .oh-formula-row__summary { color: #dddddd; }
+body.dark .oh-formula-row__summary.is-empty { color: #8f8f8f; }
+body.dark .condition-row { background-color: #2e2e2e; }
+body.dark .oh-formula-popover__panel { background-color: #242424; }
+body.dark .oh-formula-popover__head,
+body.dark .oh-formula-popover__foot { border-color: #3a3a3a; }
+body.dark .oh-formula-popover__foot { background-color: #2e2e2e; }
+body.dark .oh-formula-popover__head h3 { color: #f0f0f0; }
+body.dark .oh-formula-popover__head p,
+body.dark .oh-formula-popover__x { color: #9a9a9a; }
+body.dark .oh-formula-popover__x:hover { color: #ffffff; }
+/* applies-to table */
+body.dark .oh-applies__search,
+body.dark .oh-applies__modesel { background-color: #1b1b1b; border-color: #3a3a3a; color: #e5e5e5; }
+body.dark .oh-applies__scroll { border-color: #3a3a3a; }
+body.dark .oh-applies__table th { background-color: #2e2e2e; border-color: #3a3a3a; color: #bbbbbb; }
+body.dark .oh-applies__table td { border-color: #333333; }
+body.dark .oh-applies__table tr.is-locked td { background-color: #2a2a2a; color: #bbbbbb; }
+body.dark .oh-applies__auto { background-color: color-mix(in srgb, var(--primary-600, #e54f38) 16%, #242424); color: #f4b8ad; }
+body.dark .oh-applies__pill--structure { background-color: rgba(129, 140, 248, .2); color: #b4bcff; }
+body.dark .oh-applies__pill--outside { background-color: rgba(245, 158, 11, .2); color: #f0b45c; }
+body.dark .oh-applies__none { color: #8f8f8f; }
+/* Tab strips (Recruitment pipeline, etc.) set `scrollbar-width: thin`, which makes
+   Chrome ignore the ::-webkit-scrollbar rules above and draw its native light
+   scrollbar -- a white bar with arrows under the tabs. The standard property
+   needs the standard colour pair. */
+body.dark .oh-tabs__tab-scroll,
+body.dark .oh-tabs__tab-scroll * {
+  scrollbar-color: #555555 #1f1f1f;
+}
+/* ---- Activity history feed (generic/activity_history_feed.html: candidate/employee History tabs) ----
+   The "new value" chip is Tailwind bg-green-50 / text-green-700 / border-green-200,
+   a near-white box on the dark card. The feed's own id-scoped rules draw the
+   row divider and the timeline-dot ring in white, hence !important. */
+body.dark .bg-green-50 {
+  background-color: color-mix(in srgb, #21c06b 18%, #242424) !important;
+  border-color: color-mix(in srgb, #21c06b 40%, #242424) !important;
+}
+body.dark .bg-green-50.text-green-700,
+body.dark .bg-green-50 .text-green-700 { color: #6fe0a4 !important; }
+body.dark .eah-change-row + .eah-change-row { border-top-color: #3a3a3a !important; }
+body.dark .eah-dot { box-shadow: 0 0 0 3px #242424 !important; }
+body.dark .eah-old { text-decoration-color: #777777 !important; }
+body.dark .bg-dark-50.w-0\.5 { background-color: #444444; }
+/* ---- Candidate Rating tab rows (.note-item in candidate/rating_tab.html) ----
+   The row's own hover rule is background #fafafa and the border #e6e6e6; with
+   the dark theme's white text the name vanished the moment the row was hovered. */
+body.dark .note-item { border-color: #3a3a3a; }
+body.dark .note-item:hover { background-color: #2e2e2e; }
+/* ---- Scheduled Interviews rows (.interview-item in cbv/candidates/profile_interview_tab.html
+   and tabs/scheduled_interview.html) ----
+   Same cause as the Rating rows: the row's own hover is #fafafa while the dark
+   theme forces the date/time text to white, so a hovered row went white-on-white. */
+body.dark .interview-item { border-color: #3a3a3a; }
+body.dark .interview-item:hover { background-color: #2e2e2e; }
+/* Dropdown action menus (profile Actions gear, etc.): the light-mode hover is a pale
+   primary fill with primary text (hover:bg-primary-100 hover:text-primary-600). In
+   dark mode the generic .bg-* / text-dark-500 !important rules turned it into a
+   black row with grey/white text. Same idea, dark-tinted fill, theme-colour text. */
+body.dark li > a.hover\:bg-primary-100:hover {
+  background-color: color-mix(in srgb, var(--primary-600, #e54f38) 16%, #242424) !important;
+  color: var(--primary-600, #e54f38) !important;
+}
+/* ---- Standard Reports catalog (report/standard_catalog.html) ----
+   The category and report icon tiles take an inline pastel `background:{{ section.soft }}`,
+   which stays a bright chip on the dark rows (hence !important). Derive the dark tile
+   from the section's own colour instead, and lift the icon so it reads on it.
+   The row tick boxes are native checkboxes: color-scheme makes the browser draw them dark. */
+body.dark .sr-section__icon,
+body.dark .sr-row__icon {
+  background: color-mix(in srgb, currentColor 22%, #242424) !important;
+}
+/* The inline icon colour is a dark shade picked for the pastel tile; lift it. */
+body.dark .sr-section__icon ion-icon,
+body.dark .sr-row__icon ion-icon {
+  filter: brightness(2.6) saturate(1.2);
+}
+body.dark .sr-row__check .oh-input__checkbox,
+body.dark .sr-bulk-check {
+  color-scheme: dark;
+}
+/* ---- Pivot report builders (employee/asset/attendance/leave/payroll/pms/recruitment reports) ----
+   The ROWS / COLUMNS / AVAILABLE FIELDS boxes get a header strip from
+   report/css/pivot_explorer.css that is a hard-coded #f4f5f7 bar -- a white band
+   across the dark builder (and the whole folded Available Fields strip). */
+body.dark #pivot-container .oh-fields-toggle-header {
+  background-color: #2a2a2a;
+  border-bottom-color: #3a3a3a;
+  color: #bbbbbb;
+}
+body.dark #pivot-container .oh-fields-toggle-header:hover {
+  background-color: color-mix(in srgb, var(--primary-600, #e54f38) 16%, #2a2a2a);
+  color: #ffffff;
+}
+/* Light primary tint (initial avatars, status pills, e.g. the employee Projects tab):
+   bg-primary-100 had no dark counterpart, so the chips stayed pale pink/white. */
+body.dark .bg-primary-100 {
+  background-color: color-mix(in srgb, var(--primary-600, #e54f38) 20%, #242424) !important;
+}
+body.dark .bg-primary-100.text-primary-600,
+body.dark .bg-primary-100.text-primary-700,
+body.dark .bg-primary-100 .text-primary-600,
+body.dark .bg-primary-100 .text-primary-700 {
+  color: #f4b8ad !important;
+}
+
+/* Theme toggle: no element animates its colours while the class flips. */
+html.theme-switching,
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+  transition: none !important;
+  animation-duration: 0s !important;
+}
+
+/* Natively drawn checkboxes/radios (e.g. the biometric card select box) ignore
+   background-color and rendered as bright white squares on dark surfaces. */
+body.dark input[type="checkbox"],
+body.dark input[type="radio"] {
+  color-scheme: dark;
+}
+
+/* Focus / hover rings: Tailwind's `focus:border-primary-600` (specificity 0,2,0)
+   loses to the neutral `body.dark .border-dark-50` above (0,2,1). */
+
+body.dark .focus\:border-primary-600:focus,
+body.dark .focus-visible\:border-primary-600:focus-visible,
+body.dark .focus-within\:border-primary-600:focus-within {
+  border-color: var(--primary-600, #e54f38) !important;
+}
+body.dark .hover\:border-primary-600:hover {
+  border-color: var(--primary-600, #e54f38) !important;
+}
+
+/* ---- Theme-coloured outlines and chips (kept from light mode) ----
+   Search / Filter / Actions buttons, the card-status legend chips, view toggles
+   and pagination carry a pale theme-colour outline (border-primary-500) in light
+   mode. Dark mode flattened them to plain grey, so the toolbar lost its accent.
+   Same outline, darkened toward the surface. The active-tab and hover rules set
+   their own border with !important / higher specificity and still win. */
+body.dark .border-primary-500,
+body.dark .border-primary-200 {
+  border-color: color-mix(in srgb, var(--primary-600, #e54f38) 45%, #1a1a1a);
+}
+
+/* "Filters:" label and the clear-all button above the list are solid theme-colour
+   chips in light mode; the generic .oh-titlebar__tag rules turned them dark grey. */
+body.dark .oh-titlebar__tag.oh-titlebar__tag--custom {
+  background-color: var(--primary-600, #e54f38) !important;
+  color: #ffffff !important;
+}
+
+/* ---- Hover states that the dark !important colour/background rules were killing ----
+   `body.dark .x { color/background: ... !important }` out-specifies the light
+   `.x:hover { ... }`, so these elements never reacted to the pointer in dark mode.
+   Each rule restores the light-mode hover in dark-appropriate colours. */
+body.dark .oh-dropdown__link:hover,
+body.dark .breadcrumb li a:hover {
+  color: var(--primary-600, #e54f38) !important;
+}
+body.dark .oh-btn--light:hover,
+body.dark .oh-btn--light:focus,
+body.dark .oh-btn--light:focus-visible {
+  background-color: #3a3a3a !important;
+  color: color-mix(in srgb, var(--primary-600, #e54f38) 55%, #ffffff) !important;
+}
+body.dark .oh-accordion-header {
+  background-color: color-mix(in srgb, var(--primary-600, #e54f38) 11%, #1a1a1a) !important;
+}
+body.dark .oh-accordion-header:hover {
+  background-color: color-mix(in srgb, var(--primary-600, #e54f38) 20%, #1a1a1a) !important;
+}
+body.dark .oh-user-panel:hover,
+body.dark .oh-activity-sidebar__qa-item:hover,
+body.dark .oh-titlebar__tag:not(.oh-titlebar__tag--custom):hover {
+  background-color: #2a2a2a !important;
+}
+
+/* ---- Tailwind hover utilities that the dark !important colour rules were overriding ----
+   `body.dark .text-primary-600 / .bg-primary-100 / p { ... !important }` (0,2,1) beat Tailwind's
+   `.hover\:...:hover` (0,2,0), so solid-fill hovers (bg-primary-100 -> hover:bg-primary-600),
+   link colour hovers and red delete hovers never fired in dark mode. */
+body.dark .hover\:bg-primary-100:hover {
+  background-color: color-mix(in srgb, var(--primary-600, #e54f38) 22%, #1a1a1a) !important;
+}
+body.dark .hover\:bg-primary-600:hover,
+body.dark .hover\:bg-brand-600:hover,
+body.dark .group:hover .group-hover\:bg-primary-600 {
+  background-color: var(--primary-600, #e54f38) !important;
+}
+body.dark .hover\:bg-primary-700:hover,
+body.dark .hover\:bg-brand-700:hover {
+  background-color: var(--primary-700, var(--primary-600, #e54f38)) !important;
+}
+body.dark .hover\:bg-primary-800:hover,
+body.dark .hover\:bg-brand-800:hover {
+  background-color: var(--primary-800, var(--primary-600, #e54f38)) !important;
+}
+body.dark .hover\:text-white:hover,
+body.dark .group:hover .group-hover\:text-white {
+  color: #ffffff !important;
+}
+body.dark .hover\:text-primary-600:hover,
+body.dark .hover\:text-primary-700:hover,
+body.dark .hover\:text-primary-800:hover,
+body.dark .hover\:text-brand-600:hover,
+body.dark .hover\:text-\[\#ac3b2a\]:hover {
+  color: var(--primary-600, #e54f38) !important;
+}
+body.dark .hover\:text-red-500:hover,
+body.dark .hover\:text-danger:hover {
+  color: #ef4444 !important;
+}
+/* red-500 -> red-600 darkens in light mode; on a dark surface lighten instead so it still reacts */
+body.dark .hover\:text-red-600:hover,
+body.dark .hover\:text-danger-dark:hover {
+  color: #ff7b7b !important;
+}
+/* Non-Tailwind elements with the same problem */
+body.dark .oh-hover-btn__small:hover {
+  background-color: var(--primary-600, #e54f38);
+  border-color: var(--primary-600, #e54f38);
+  color: #ffffff;
+}
+body.dark .oh-btn--danger:not(:disabled):not(.oh-btn--disabled):hover {
+  background-color: hsl(1, 100%, 54%) !important;
+}
+body.dark .oh-btn--light-bkg:not(:disabled):not(.oh-btn--disabled):hover {
+  background-color: #3a3a3a !important;
+}
+body.dark .oh-titlebar__tag.oh-titlebar__tag--custom:hover {
+  background-color: color-mix(in srgb, var(--primary-600, #e54f38) 82%, #000000) !important;
+}
+body.dark .filter-pill:not(.active):hover {
+  border-color: var(--oh-filter-accent, var(--primary-600, #e54f38));
+  color: #ffffff;
+}
+body.dark .oh-tabs__movable:hover {
+  background-color: color-mix(in srgb, var(--primary-600, #e54f38) 14%, #000000) !important;
+}
+body.dark select[class*="dimension-select"]:hover {
+  border-color: var(--primary-600, #e54f38) !important;
+}
+
+/* ---- Theme-tinted headers / chips (Settings menu accordions, icon avatars, small badges) ----
+   Light mode: `bg-primary-100|200 text-primary-600` = pale theme tint with theme-coloured text.
+   Dark mode flattened the fill to neutral grey and the text to near-white, so the Settings menu
+   (and every similar chip) lost its theme colour. Re-tint toward the dark surface instead.
+   Pipeline column headers, accordion headers and the main header icons carry their own rules. */
+body.dark .bg-primary-100.text-primary-600:not(:hover):not(.oh-tabs__movable-header):not(.oh-accordion-header):not(.oh-main-header *),
+body.dark .bg-primary-200.text-primary-600:not(:hover):not(.oh-tabs__movable-header):not(.oh-accordion-header):not(.oh-main-header *) {
+  background-color: color-mix(in srgb, var(--primary-600, #e54f38) 16%, #1a1a1a) !important;
+  color: color-mix(in srgb, var(--primary-600, #e54f38) 55%, #ffffff) !important;
+}
+body.dark .accordion-btn-stng:hover {
+  background-color: color-mix(in srgb, var(--primary-600, #e54f38) 26%, #1a1a1a) !important;
+}
+body.dark .accordion-item.border-primary-300 {
+  border-color: color-mix(in srgb, var(--primary-600, #e54f38) 40%, #1a1a1a);
+}
+
+/* Neutral icon buttons (edit / view in list rows) were pure black on the dark panels --
+   the light mode equivalent is a soft grey chip. */
+body.dark .oh-btn--light-bkg {
+  background-color: #2c2c2c !important;
+}
+/* Disabled pagination arrows are dimmed in light mode (text-[#ccc]); dark mode left them
+   as bright as the active ones, so first/prev looked clickable on page 1. */
+body.dark .hlv-pagination button.cursor-not-allowed,
+body.dark .hlv-pagination button.cursor-not-allowed i {
+  color: #5a5a5a !important;
+  background-color: transparent !important;
+}
+
+/* Search bars / inputs that carry a pale theme outline in light mode (`border-primary-500`, etc.)
+   were flattened to neutral grey: the generic `body.dark input { border-color: ... !important }`
+   rule out-ranks the non-important outline colour above. Re-assert the same darkened theme
+   outline on form controls; focus rings (`focus:border-primary-600`, 0,3,1) still win. */
+body.dark input.border-primary-500,
+body.dark input.border-primary-300,
+body.dark input.border-primary-200,
+body.dark textarea.border-primary-500,
+body.dark textarea.border-primary-300,
+body.dark select.border-primary-500,
+body.dark select.border-primary-300 {
+  border-color: color-mix(in srgb, var(--primary-600, #e54f38) 45%, #1a1a1a) !important;
+}
+
+/* ---- Master Data Import wizard (master_import/*) ----
+   The wizard ships its own stylesheet with hard-coded white / pale-grey surfaces and a custom
+   `--mi-*` token set, so none of the generic dark rules reached it. Re-point the tokens and
+   override each hard-coded surface. */
+body.dark .mi {
+  --mi-line: #444444;
+  --mi-soft: #262626;
+  --mi-muted: #a8a8a8;
+  --mi-ink: #f2f2f2;
+  --mi-ok: #4ade80;
+  --mi-warn: #fbbf24;
+  --mi-bad: #f87171;
+}
+/* white surfaces */
+body.dark .mi__steps,
+body.dark .mi__card,
+body.dark .mi__card-head--sticky,
+body.dark .mi__modal-box,
+body.dark .mi__confirm-box,
+body.dark .mi__scroll .mi__std thead,
+body.dark .mi__std th,
+body.dark .mi__g-head,
+body.dark .mi__kpi,
+body.dark .mi__mode,
+body.dark .mi__records .mi__std th:first-child,
+body.dark .mi__records .mi__std td:first-child {
+  background-color: #1f1f1f;
+}
+body.dark .mi__confirm { background-color: rgba(20, 20, 20, .85); }
+body.dark .mi__btn,
+body.dark .mi__icon-btn,
+body.dark .mi__select,
+body.dark .mi__pick-select,
+body.dark .mi__field {
+  background-color: #2a2a2a;
+  border-color: #555555;
+  color: #e5e5e5;
+}
+body.dark .mi__btn:hover,
+body.dark .mi__icon-btn:hover {
+  background-color: #333333;
+  border-color: #777777;
+  color: #ffffff;
+}
+body.dark .mi__btn--primary {
+  background-color: var(--primary-600, #e54f38);
+  border-color: var(--primary-600, #e54f38);
+  color: #ffffff;
+}
+body.dark .mi__btn--primary:hover {
+  background-color: var(--primary-700, var(--primary-600, #e54f38));
+  border-color: var(--primary-700, var(--primary-600, #e54f38));
+  color: #ffffff;
+}
+/* pale tinted chips / wells */
+body.dark .mi__dot,
+body.dark .mi__ds-icon,
+body.dark .mi__seg,
+body.dark .mi__pill--skip,
+body.dark .mi__unused span,
+body.dark .mi__bar,
+body.dark .mi__group td,
+body.dark .mi__x:hover {
+  background-color: #2e2e2e;
+  color: #c8c8c8;
+}
+body.dark .mi__bar { background-color: #333333; }
+body.dark .mi__seg-opt input:checked + span {
+  background-color: #3a3a3a;
+  color: #ffffff;
+  box-shadow: none;
+}
+body.dark .mi__step--done .mi__dot { background-color: rgba(74, 222, 128, .16); color: #4ade80; }
+body.dark .mi__pill--ok { background-color: rgba(74, 222, 128, .16); color: #4ade80; }
+body.dark .mi__pill--miss { background-color: rgba(248, 113, 113, .16); color: #f87171; }
+body.dark .mi__tag { background-color: rgba(251, 191, 36, .16); color: #fbbf24; }
+body.dark .mi__chip { background-color: rgba(129, 140, 248, .16); color: #a5b4fc; }
+body.dark .mi__ds--on,
+body.dark .mi__mode:has(input:checked),
+body.dark .mi__field--req,
+body.dark .mi__drop:hover,
+body.dark .mi__drop--over {
+  background-color: color-mix(in srgb, var(--primary-600, #e54f38) 16%, #1f1f1f);
+}
+body.dark .mi__ds--on { border-color: color-mix(in srgb, var(--primary-600, #e54f38) 45%, #1f1f1f); }
+body.dark .mi__field--req { color: color-mix(in srgb, var(--primary-600, #e54f38) 55%, #ffffff); border-color: var(--primary-600, #e54f38); }
+body.dark .mi__drop { border-color: #555555; }
+body.dark .mi__drop:hover,
+body.dark .mi__drop--over { border-color: var(--primary-600, #e54f38); }
+body.dark .mi__drop.mi__drop--has { background-color: rgba(74, 222, 128, .08); border-color: #4ade80; }
+body.dark .mi__alert--bad { background-color: rgba(248, 113, 113, .12); color: #fca5a5; border-color: rgba(248, 113, 113, .4); }
+body.dark .mi__alert--ok { background-color: rgba(74, 222, 128, .12); color: #86efac; border-color: rgba(74, 222, 128, .4); }
+/* editable review cells */
+body.dark .mi__cell:hover,
+body.dark .mi__cell:focus { background-color: #2a2a2a; border-color: #666666; }
+body.dark .mi__cell:focus { border-color: var(--primary-600, #e54f38); }
+body.dark .mi__cell--bad { background-color: rgba(248, 113, 113, .14); border-color: rgba(248, 113, 113, .5); }
+body.dark .mi__cell--edited,
+body.dark .mi__cell--edited:focus { background-color: rgba(245, 158, 11, .16); border-color: #f59e0b; color: #fde68a; }
+/* text and hairlines */
+body.dark .mi__g-item,
+body.dark .mi__change { color: #d0d0d0; border-bottom-color: #333333; }
+body.dark .mi__table td { border-bottom-color: #333333; }
+body.dark .mi__table th { background-color: #262626; }
+body.dark .mi__g-head:hover { background-color: #262626; }
+body.dark .mi__ds:hover { background-color: #262626; }
+body.dark .mi__std th { color: #f2f2f2; }
+body.dark .mi__search,
+body.dark .mi__find { background-color: #1a1a1a; border-color: #555555; color: #e5e5e5; }
+body.dark .mi__x:hover { color: #ffffff; }
+body.dark .mi__step--on .mi__dot { background-color: var(--primary-600, #e54f38); color: #ffffff; }
+
+/* The toolbar search box (`ps-8 ... placeholder:text-xs`) is declared with `border-primary-500` on
+   some views and neutral `border-dark-50` on others, so in dark mode some searches had the theme
+   outline (matching the Filter button next to them) and others a plain grey one. Give every
+   toolbar search the same themed outline; the focus ring (0,3,1) still takes over on focus. */
+body.dark input.ps-8.placeholder\:text-xs {
+  border-color: color-mix(in srgb, var(--primary-600, #e54f38) 45%, #1a1a1a) !important;
+}
+
+/* ---- Payslip "Edit payslip components" modal (payroll/payslip/edit_components_modal.html) ----
+   The preview card, tax breakdown and the add-a-line box hard-code near-white fills and dark ink. */
+body.dark .pe__preview {
+  background-color: #1f1f1f;
+  border-color: #444444;
+}
+body.dark .pe__preview-label,
+body.dark .pe__stat-label,
+body.dark .pe__head-sub,
+body.dark .pe__adj-note,
+body.dark .pe__new-note,
+body.dark .pe__tax > summary,
+body.dark .pe__calc-toggle,
+body.dark .pe__section-title { color: #a8a8a8; }
+body.dark .pe__stat-value,
+body.dark .pe__new-summary { color: #f2f2f2; }
+body.dark .pe__stat-value--net { color: var(--primary-600, #e54f38); }
+body.dark .pe__short { color: #fbbf24; }
+body.dark .pe__tax > div { background-color: #262626; color: #d0d0d0; }
+body.dark .pe__new { border-color: #444444; }
+body.dark .pe__title { color: #e5e5e5; }
+body.dark .pe__title--locked { color: #8a8a8a; }
+body.dark .pe__row { border-bottom-color: #333333; }
+body.dark .pe__amount,
+body.dark .pe__select,
+body.dark .pe__new-title { background-color: #1a1a1a; border-color: #555555; color: #f2f2f2; }
+body.dark .pe__amount:disabled,
+body.dark .pe__adj.is-off .pe__amount { background-color: #262626; color: #777777; }
+body.dark .pe__why { background-color: #444444; color: #cccccc; }
+
+/* ---- Collapsible group "tabs" (.oh-tabs__movable: skill zone, pipelines, objectives, documents ...) ----
+   Light mode: a pale theme-tinted header row on a white panel. Dark mode made the header flat
+   black/grey and the panel pure black, so the groups lost their theme colour and sat darker than
+   every other card. Same tint as the accordion headers; the hover tint on the whole group
+   (body.dark .oh-tabs__movable:hover above) still wins while the pointer is over it. */
+body.dark .oh-tabs__movable {
+  background-color: #1f1f1f !important;
+}
+body.dark .oh-tabs__movable-header {
+  background-color: color-mix(in srgb, var(--primary-600, #e54f38) 11%, #1f1f1f) !important;
+}
+body.dark .oh-tabs__movable-header:hover {
+  background-color: color-mix(in srgb, var(--primary-600, #e54f38) 20%, #1f1f1f) !important;
+}
+
+/* `.oh-btn--light` icon buttons (resume / view in list rows) were pure black; same soft grey chip as
+   `.oh-btn--light-bkg` above. */
+body.dark .oh-btn--light {
+  background-color: #2c2c2c !important;
+}
+body.dark .oh-btn--light:hover,
+body.dark .oh-btn--light:focus,
+body.dark .oh-btn--light:focus-visible {
+  background-color: #3a3a3a !important;
+}
+
+/* Hover preview of a long description (resignation requests, ...): the popup hard-codes `background: white`,
+   and the rich text inside often carries its own inline white background / grey colour. */
+body.dark .full-description {
+  background: #242424;
+  border-color: #444444;
+  color: #e5e5e5;
+}
+body.dark .full-description * {
+  background-color: transparent !important;
+  color: inherit !important;
 }

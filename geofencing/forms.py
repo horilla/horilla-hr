@@ -12,3 +12,8 @@ class GeoFencingSetupForm(ModelForm):
     class Meta:
         model = GeoFencing
         exclude = ["company_id"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field_name in ("latitude", "longitude"):
+            self.fields[field_name].widget.attrs.pop("min", None)

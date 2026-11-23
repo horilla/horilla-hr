@@ -1,0 +1,212 @@
+{% load i18n static %}
+{% comment %}
+The Horilla nav bar for the report pages: the title on the left, and on the right search, the kind switch, the
+slide-over Filter panel (the one the employee list uses) and Actions. The quick date filters are _ranges.html, beside the period line.
+Needs: title, kind, range, search, form, period_start, period_end, filter_count, base_query, kind_query; show_kinds on the summary
+page; can_export for the Actions menu, which opens the export dialog (_export_modal.html).
+{% endcomment %}
+{% include 'generic/modern_filter_panel.html' %}
+<script>
+    // Filters, quick filters and search reload only the results (htmx). What sits outside them follows here:
+    // the filter count and the range and dates in the panel.
+    if (!window.componentReportMetaBound) {
+        window.componentReportMetaBound = true;
+        document.addEventListener('htmx:afterSettle', function () {
+            var meta = document.getElementById('componentReportMeta');
+            if (!meta) return;
+            var count = parseInt(meta.dataset.count, 10) || 0;
+            document.querySelectorAll('.js-filter-count-badge').forEach(function (badge) {
+                badge.textContent = count;
+                badge.classList.toggle('oh-filter-count-badge--hidden', !count);
+            });
+            var fields = {componentReportRange: meta.dataset.range, componentReportFrom: meta.dataset.from, componentReportTo: meta.dataset.to};
+            Object.keys(fields).forEach(function (id) {
+                var input = document.getElementById(id);
+                if (input) input.value = fields[id];
+            });
+            // A filter whose tag was removed is cleared in the panel too, or the next apply would bring it back.
+            var applied = (meta.dataset.applied || '').split(',');
+            var form = document.getElementById('componentReportForm');
+            ['search', 'name_or_badge', 'status', 'employee_id', 'department', 'job_position', 'company'].forEach(function (name) {
+                if (applied.indexOf(name) !== -1) return;
+                form.querySelectorAll('[name="' + name + '"]').forEach(function (el) {
+                    if (el.tagName === 'SELECT' && window.jQuery) {
+                        // change.select2 repaints the box without firing the live-apply handlers.
+                        window.jQuery(el).val(el.multiple ? [] : '').trigger('change.select2');
+                    } else {
+                        el.value = '';
+                    }
+                });
+            });
+        });
+    }
+</script>
+<div class="flex flex-wrap justify-between items-center mb-2">
+    <h3 class="text-lg font-semibold">{{ title }}</h3>
+    <div class="flex flex-wrap gap-1">
+        <form method="get" action="{{ request.path }}" autocomplete="off" id="componentReportForm" class="flex flex-wrap gap-1 navFilterForm"
+              hx-get="{{ request.path }}" hx-trigger="submit, keyup[key!='Enter'] changed delay:500ms from:#componentReportSearch"
+              hx-target="#componentReportContent" hx-select="#componentReportContent" hx-swap="outerHTML" hx-push-url="true">
+            <input type="hidden" name="kind" value="{{ kind }}">
+            <input type="hidden" name="range" id="componentReportRange" value="{{ range }}">
+
+            <div class="relative">
+                <input
+                    type="text"
+                    class="text-color-600 ps-8 p-1.5 pb-2 placeholder:text-xs w-full border border-primary-500 rounded-md focus-visible:outline-0 placeholder:text-dark-100 text-sm [transition:.3s] focus:border-primary-600"
+                    name="search"
+                    id="componentReportSearch"
+                    value="{{ search }}"
+                    aria-label="{% trans 'Search Input' %}"
+                    placeholder="{{ search_placeholder|default:_('Search') }}"
+                    autocomplete="off"
+                >
+                <i class="fas fa-search absolute left-3 top-[1px] bottom-0 m-auto flex items-center opacity-50 text-xs"></i>
+            </div>
+
+            {% if show_kinds %}
+            <div class="flex">
+                {% for value, label in kinds %}
+                    <a href="?{{ kind_query }}&kind={{ value }}"
+                       hx-get="?{{ kind_query }}&kind={{ value }}" hx-target="#componentReportPage" hx-select="#componentReportPage" hx-swap="outerHTML" hx-push-url="true"
+                       class="px-4 py-2 text-xs flex items-center border border-primary-500 transition duration-300 {% if forloop.first %}rounded-l-md{% else %}rounded-r-md border-l-0{% endif %} {% if value == kind %}bg-primary-100 text-primary-600 font-semibold{% else %}bg-[white] hover:border-primary-600{% endif %}">{{ label }}</a>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="relative dropdown-wrapper oh-filter-modern" id="filterDropdownWrapper">
+                <button
+                    type="button"
+                    id="modernFilterTrigger"
+                    onclick="toggleModernFilterPanel(true)"
+                    class="px-5 py-2 h-full bg-[white] rounded-md text-xs flex items-center gap-2 border border-primary-500 hover:border-primary-600 transition duration-300 cursor-pointer"
+                >
+                    <img src="{% static 'horilla_theme/assets/img/icons/sort.svg' %}" alt="{% trans 'Filter' %}" width="15" class="mt-[-1px]">
+                    {% trans "Filter" %}
+                    <span class="oh-filter-count-badge js-filter-count-badge{% if not filter_count %} oh-filter-count-badge--hidden{% endif %}" id="modernFilterCountBadge">{{ filter_count|default:0 }}</span>
+                </button>
+                <div class="oh-filter-backdrop" id="modernFilterBackdrop" onclick="toggleModernFilterPanel(false)"></div>
+                <div class="oh-filter-panel" id="modernFilterPanel">
+                    <div class="oh-filter-panel__header">
+                        <h3>
+                            {% trans "Filter" %}
+                            <span class="oh-filter-count-badge oh-filter-count-badge--header js-filter-count-badge{% if not filter_count %} oh-filter-count-badge--hidden{% endif %}">{{ filter_count|default:0 }}</span>
+                        </h3>
+                        <button type="button" class="oh-filter-panel__close" onclick="toggleModernFilterPanel(false)" aria-label="{% trans 'Close' %}">
+                            <ion-icon name="close-outline"></ion-icon>
+                        </button>
+                    </div>
+                    <div class="oh-filter-panel__search">
+                        <input type="text" id="modernFilterFieldSearch" placeholder="{% trans 'Find a filter' %}" oninput="filterModernPanelFields(this.value)" autocomplete="off">
+                    </div>
+                    <div class="oh-filter-panel__body">
+                        <div class="accordion-wrapper space-y-2">
+                            <div class="oh-dropdown__filter-body">
+                                <div class="row">
+                                    <div class="col-sm-12 col-md-12 col-lg-12">
+                                        <div class="oh-input-group">
+                                            <label class="oh-label" for="{{ form.name_or_badge.id_for_label }}">{% trans "Name or Badge ID" %}</label>
+                                            {{ form.name_or_badge }}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="oh-accordion oh-accordion--show">
+                                    <div class="oh-accordion-header">
+                                        <span class="oh-filter-section-icon"><ion-icon name="receipt-outline"></ion-icon></span>
+                                        {% trans "Payslip" %}
+                                    </div>
+                                    <div class="oh-accordion-body">
+                                        <div class="row">
+                                            <div class="col-sm-12 col-md-12 col-lg-12">
+                                                <div class="oh-input-group">
+                                                    <label class="oh-label" for="{{ form.status.id_for_label }}">{% trans "Payslip Status" %}</label>
+                                                    {{ form.status }}
+                                                </div>
+                                            </div>
+                                            <div class="col-sm-12 col-md-12 col-lg-12">
+                                                <div class="oh-input-group">
+                                                    <label class="oh-label" for="{{ form.employee_id.id_for_label }}">{% trans "Employee" %}</label>
+                                                    {{ form.employee_id }}
+                                                </div>
+                                            </div>
+                                            <div class="col-sm-6">
+                                                <div class="oh-input-group">
+                                                    <label class="oh-label" for="componentReportFrom">{% trans "From" %}</label>
+                                                    <input type="date" name="from_date" id="componentReportFrom" class="oh-input w-100" value="{{ period_start|date:'Y-m-d' }}"
+                                                           onchange="document.getElementById('componentReportRange').value = 'custom'">
+                                                </div>
+                                            </div>
+                                            <div class="col-sm-6">
+                                                <div class="oh-input-group">
+                                                    <label class="oh-label" for="componentReportTo">{% trans "To" %}</label>
+                                                    <input type="date" name="to_date" id="componentReportTo" class="oh-input w-100" value="{{ period_end|date:'Y-m-d' }}"
+                                                           onchange="document.getElementById('componentReportRange').value = 'custom'">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="oh-accordion oh-accordion--show">
+                                    <div class="oh-accordion-header">
+                                        <span class="oh-filter-section-icon"><ion-icon name="briefcase-outline"></ion-icon></span>
+                                        {% trans "Work Info" %}
+                                    </div>
+                                    <div class="oh-accordion-body">
+                                        <div class="row">
+                                            <div class="col-sm-12 col-md-12 col-lg-12">
+                                                <div class="oh-input-group">
+                                                    <label class="oh-label" for="{{ form.company.id_for_label }}">{% trans "Company" %}</label>
+                                                    {{ form.company }}
+                                                </div>
+                                            </div>
+                                            <div class="col-sm-12 col-md-12 col-lg-12">
+                                                <div class="oh-input-group">
+                                                    <label class="oh-label" for="{{ form.department.id_for_label }}">{% trans "Department" %}</label>
+                                                    {{ form.department }}
+                                                </div>
+                                            </div>
+                                            <div class="col-sm-12 col-md-12 col-lg-12">
+                                                <div class="oh-input-group">
+                                                    <label class="oh-label" for="{{ form.job_position.id_for_label }}">{% trans "Job Position" %}</label>
+                                                    {{ form.job_position }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="oh-filter-panel__footer">
+                        <a href="{{ request.path }}?kind={{ kind }}&range={{ range }}" class="oh-filter-panel__clear">
+                            <ion-icon name="close-outline"></ion-icon>
+                            {% trans "Clear all" %}
+                        </a>
+                        <button type="submit" class="oh-filter-panel__apply filterButton" id="applyFilter">
+                            <ion-icon name="checkmark-outline"></ion-icon>
+                            {% trans "Apply" %}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+
+        {% if can_export %}
+        <div class="relative dropdown-wrapper">
+            <button type="button" class="px-5 py-2 h-full bg-[white] rounded-md text-xs flex items-center gap-2 border border-primary-500 hover:border-primary-600 transition duration-300">
+                <img src="{% static 'horilla_theme/assets/img/icons/setting-line.svg' %}" alt="{% trans 'Actions' %}" width="15" class="mt-[-1px]">
+                {% trans "Actions" %}
+            </button>
+            <div class="dropdown-content absolute z-30 bg-white rounded-lg [box-shadow:0px_0px_20px_0px_rgb(0_0_0_/_8%)] min-w-[150px] py-2 right-0">
+                <ul class="text-sm">
+                    <li>
+                        <a href="#" data-toggle="oh-modal-toggle" data-target="#componentReportExportModal" class="px-4 py-1.5 hover:text-primary-600 transition duration-300 text-xs gap-4 items-center flex w-full">{% trans "Export" %}</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>

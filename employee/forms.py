@@ -22,6 +22,7 @@ class YourForm(forms.Form):
 """
 
 import logging
+import os
 import re
 from datetime import date, datetime
 from typing import Any
@@ -55,6 +56,19 @@ from horilla_widgets.widgets.horilla_multi_select_field import HorillaMultiSelec
 from horilla_widgets.widgets.select_widgets import HorillaMultiSelectWidget
 
 logger = logging.getLogger(__name__)
+
+# Uploads with these extensions are refused (executable / active content).
+BLOCKED_UPLOAD_EXTENSIONS = {
+    ".html",
+    ".htm",
+    ".js",
+    ".svg",
+    ".xml",
+    ".php",
+    ".py",
+    ".sh",
+    ".exe",
+}
 
 
 class ModelForm(forms.ModelForm):
@@ -128,6 +142,8 @@ class ModelForm(forms.ModelForm):
                         "placeholder": _(field.label.title()) if field.label else "",
                     }
                 )
+                if isinstance(widget, forms.NumberInput):
+                    widget.attrs.setdefault("min", 0)
 
             # Select fields
             elif isinstance(widget, forms.Select):
@@ -713,6 +729,20 @@ class EmployeeNoteForm(ModelForm):
         self.fields["note_files"] = MultipleFileField(label="files")
         self.fields["note_files"].required = False
 
+    def clean_note_files(self):
+        """
+        Reject executable / active-content uploads, matching the check the
+        add-more-files route applies to the same NoteFiles storage.
+        """
+        for uploaded in self.files.getlist("note_files"):
+            ext = os.path.splitext(uploaded.name)[1].lower()
+            if ext in BLOCKED_UPLOAD_EXTENSIONS:
+                raise forms.ValidationError(
+                    _("File type %(ext)s is not allowed for security reasons.")
+                    % {"ext": ext}
+                )
+        return self.cleaned_data.get("note_files")
+
     def save(self, commit: bool = ...) -> Any:
         attachement = []
         multiple_attachment_ids = []
@@ -855,6 +885,10 @@ class BonusPointAddForm(ModelForm):
         widgets = {
             "reason": forms.TextInput(attrs={"required": "required"}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["points"].widget.attrs.pop("min", None)
 
 
 class BonusPointRedeemForm(ModelForm):

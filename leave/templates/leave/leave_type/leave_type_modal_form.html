@@ -305,10 +305,10 @@ between steps.
         yesNo.forEach(function (p) { f(p[1]).val(f(p[0]).is(":checked") ? "yes" : "no"); });
     });
 
-    // Total days (hidden) follows count and unit
-    f("#id_period_in, #id_count").on("change", function () {
-        var days = {day: 1, month: 30, year: 365}[f("#id_period_in").val()] || 0;
-        f("#id_total_days").val(days * (f("#id_count").val() || 0));
+    // Total days (hidden) is the number of days asked for: the form has no unit to choose.
+    f("#id_count").on("change", function () {
+        f("#id_period_in").val("day");
+        f("#id_total_days").val(f("#id_count").val() || 0);
     });
 
     field("limit_leave").on("change", syncLimit);
@@ -320,7 +320,15 @@ between steps.
     syncResetFields(); syncLimit(); syncPayment();
 
     if ($.fn.select2) {
-        f("select").select2({width: "100%", dropdownParent: $form.closest(".oh-modal__dialog")});
+        // Attach each dropdown to its own field wrapper (not the modal dialog):
+        // the scrolling element is the outer .oh-modal, so a dialog-level parent
+        // mispositions upward-opening lists by the modal's scroll distance.
+        f("select").each(function () {
+            var $s = $(this), $w = $s.closest(".form-input-items");
+            if (!$w.length) $w = $s.parent();
+            $w.css("position", "relative");
+            $s.select2({width: "100%", dropdownParent: $w});
+        });
     }
 
     // ── Step validation ──

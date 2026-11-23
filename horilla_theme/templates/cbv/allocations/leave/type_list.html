@@ -9,11 +9,11 @@
                     <h5 class="font-semibold text-sm">{{ type.leave_type_id.name }}</h5>
                     <p class="text-xs text-dark-200">
                         {% trans "Available Days" %}:
-                        {{ type.leave_type_id.employee_available_leave.first.available_days }}
+                        {% if type.leave_type_id.limit_leave %}{{ type.leave_type_id.employee_available_leave.first.available_days }}{% else %}{% trans "No Limit" %}{% endif %}
                     </p>
                     <p class="text-xs text-dark-200">
                         {% trans "Total Days" %}:
-                        {{ type.leave_type_id.employee_available_leave.first.total_leave_days }}
+                        {% if type.leave_type_id.limit_leave %}{{ type.leave_type_id.employee_available_leave.first.total_leave_days }}{% else %}{% trans "No Limit" %}{% endif %}
                     </p>
                 </div>
             </div>

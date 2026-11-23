@@ -442,7 +442,7 @@ reloadSelectedCount($('.count_msAttendance'),'selectedInstances');">
   <div class="flex flex-nowrap items-center gap-3" style="display:flex;flex-wrap:wrap;">
     <!-- Pagination — identical markup/classes to generic/quick_actions.html -->
     {% if rows.has_previous or rows.has_next %}
-      <div class="inline-flex items-center gap-0.5 bg-white border border-[#e6e6e6] rounded-md p-1 flex-shrink-0">
+      <div class="inline-flex items-center gap-0.5 bg-white border border-primary-500 rounded-md p-1 flex-shrink-0">
         <button
             class="w-6 h-6 flex items-center justify-center rounded text-[10px] transition duration-300 {% if rows.has_previous %}text-[#666] hover:bg-[#f5f5f5]{% else %}text-[#ccc] cursor-not-allowed{% endif %}"
             {% if rows.has_previous %}

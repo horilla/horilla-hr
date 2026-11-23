@@ -1657,10 +1657,21 @@ def employee_view_new(request):
     work_form = EmployeeWorkInformationForm()
     bank_form = EmployeeBankDetailsForm()
     filter_obj = EmployeeFilter(queryset=Employee.objects.all())
+    additional_step = False
+    if apps.is_installed("additional_info"):
+        from additional_info.integration import has_step
+
+        additional_step = has_step(request)
     return render(
         request,
         "employee/create_form/form_view.html",
-        {"form": form, "work_form": work_form, "bank_form": bank_form, "f": filter_obj},
+        {
+            "form": form,
+            "work_form": work_form,
+            "bank_form": bank_form,
+            "f": filter_obj,
+            "additional_step": additional_step,
+        },
     )
 
 
@@ -1749,6 +1760,7 @@ def employee_view_update(request, obj_id, **kwargs):
         bank_form = EmployeeBankDetailsForm(
             instance=EmployeeBankDetails.objects.filter(employee_id=employee).first()
         )
+        additional_form = None
         if request.POST:
             if request.POST.get("form") == "personal":
                 form = EmployeeForm(request.POST, instance=employee)
@@ -1794,6 +1806,19 @@ def employee_view_update(request, obj_id, **kwargs):
                     instance.employee_id = employee
                     instance.save()
                     messages.success(request, _("Employee bank details updated."))
+            elif request.POST.get("form") == "additional" and apps.is_installed(
+                "additional_info"
+            ):
+                from additional_info.integration import save_form
+
+                additional_form, saved = save_form(request, employee)
+                if saved:
+                    messages.success(request, _("Employee additional info updated."))
+                    additional_form = None
+        if additional_form is None and apps.is_installed("additional_info"):
+            from additional_info.integration import edit_form
+
+            additional_form = edit_form(request, employee)
         # Remember the page the edit form was opened from (list or a profile),
         # so Back returns there; later requests from the form itself reuse it.
         back_session_key = f"employee_edit_back_{obj_id}"
@@ -1824,7 +1849,9 @@ def employee_view_update(request, obj_id, **kwargs):
         )
         submitted_form = request.POST.get("form", "") if request.POST else ""
         active_tab = (
-            submitted_form if submitted_form in ("personal", "work", "bank") else ""
+            submitted_form
+            if submitted_form in ("personal", "work", "bank", "additional")
+            else ""
         )
         response = render(
             request,
@@ -1834,6 +1861,7 @@ def employee_view_update(request, obj_id, **kwargs):
                 "form": form,
                 "work_form": work_form,
                 "bank_form": bank_form,
+                "additional_form": additional_form,
                 "work_info_history": work_info_history,
                 "container_mode": container_mode,
                 "active_tab": active_tab,
@@ -3039,7 +3067,7 @@ def employee_import(request):
                     user = HorillaUser.objects.create_user(
                         username=email,
                         email=email,
-                        password=str(phone).strip(),
+                        password=generate_random_password(),
                         is_superuser=False,
                     )
                     employee = Employee()

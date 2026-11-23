@@ -37,6 +37,34 @@ the asset and what state it is in after that line.
 <style>
     /* The dialog holds a wide table, so it is wider than the 700px the generic modal body allows. */
     #genericModalBody:has(#assetLedger) { max-width: min(1240px, 94vw); }
+    /* A chosen chip or toggle uses the theme's primary colour. */
+    #assetLedgerForm .peer:checked + .ledger-active {
+        background: var(--primary-600, #E54F38);
+        border-color: var(--primary-600, #E54F38);
+        color: #fff;
+    }
+    /* Dark theme: the tinted tiles and pills become translucent tints with light text, and the white rings and dividers follow the panel. */
+    body.dark #assetLedger .bg-blue-50 { background: rgba(59, 130, 246, .18) !important; }
+    body.dark #assetLedger .bg-green-50 { background: rgba(34, 197, 94, .16) !important; }
+    body.dark #assetLedger .bg-red-50 { background: rgba(239, 68, 68, .18) !important; }
+    body.dark #assetLedger .bg-amber-50 { background: rgba(245, 158, 11, .18) !important; }
+    body.dark #assetLedger .bg-violet-50 { background: rgba(139, 92, 246, .2) !important; }
+    body.dark #assetLedger .bg-sky-50 { background: rgba(14, 165, 233, .18) !important; }
+    body.dark #assetLedger .bg-gray-100 { background: #333 !important; }
+    body.dark #assetLedger .bg-gray-800 { background: #555 !important; }
+    body.dark #assetLedger .text-blue-700, body.dark #assetLedger .text-blue-700 * { color: #93c5fd !important; }
+    body.dark #assetLedger .text-green-700, body.dark #assetLedger .text-green-700 * { color: #86efac !important; }
+    body.dark #assetLedger .text-red-700, body.dark #assetLedger .text-red-700 * { color: #fca5a5 !important; }
+    body.dark #assetLedger .text-amber-700 { color: #fcd34d !important; }
+    body.dark #assetLedger .text-violet-700, body.dark #assetLedger .text-violet-600 { color: #c4b5fd !important; }
+    body.dark #assetLedger .text-sky-700 { color: #7dd3fc !important; }
+    body.dark #assetLedger .text-gray-400 { color: #8a8a8a !important; }
+    body.dark #assetLedger .ring-white, body.dark [data-holders-panel] .ring-white { --tw-ring-color: #242424 !important; }
+    body.dark #assetLedger .ring-green-100 { --tw-ring-color: rgba(34, 197, 94, .25) !important; }
+    body.dark #assetLedger .divide-gray-100 > :not([hidden]) ~ :not([hidden]), body.dark #assetLedger .border-gray-100 { border-color: #3a3a3a !important; }
+    body.dark #assetLedger tbody tr { border-color: #3a3a3a !important; }
+    body.dark #assetLedger .hover\:bg-gray-50:hover, body.dark #assetLedger .hover\:bg-gray-50\/70:hover, body.dark [data-holders-panel] .hover\:bg-gray-50:hover { background: #333 !important; }
+    body.dark #assetLedger .hover\:border-gray-800:hover { border-color: #888 !important; }
     /* The filter controls on the right all share one height. */
     #assetLedgerForm .select2-container .select2-selection--single { height: 32px; display: flex; align-items: center; }
     #assetLedgerForm .select2-container .select2-selection__rendered { line-height: 30px; padding-top: 0; padding-bottom: 0; }
@@ -57,6 +85,8 @@ the asset and what state it is in after that line.
             </button>
         </div>
 
+        {% comment %}Unit counts only tell something when the asset has several units to compare.{% endcomment %}
+        {% if not single %}
         <div class="grid grid-cols-2 md:grid-cols-5 gap-2 mb-2">
             <div class="rounded-lg bg-gray-50 px-3 py-2">
                 <p class="text-[10.5px] font-semibold text-gray-500">{% trans "Total Units" %}</p>
@@ -79,6 +109,7 @@ the asset and what state it is in after that line.
                 <p class="text-lg font-bold text-gray-700 leading-tight">{{ units.lost }}</p>
             </div>
         </div>
+        {% endif %}
 
         <div class="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">
             <div class="rounded-lg border border-gray-100 px-3 py-2">
@@ -110,7 +141,7 @@ the asset and what state it is in after that line.
                     <label class="cursor-pointer">
                         <input type="checkbox" name="kind" value="{{ key }}" class="peer sr-only" {% if key in chosen %}checked{% endif %}
                                hx-get="{{ asset.ledger_url }}" hx-trigger="change" hx-include="closest form" hx-target="#genericModalBody">
-                        <span class="inline-flex items-center gap-1 rounded-full border border-gray-200 px-2.5 py-1 text-[11px] font-semibold text-gray-600 peer-checked:bg-gray-800 peer-checked:text-white peer-checked:border-gray-800">
+                        <span class="inline-flex items-center gap-1 rounded-full border border-gray-200 px-2.5 py-1 text-[11px] font-semibold text-gray-600 ledger-active">
                             {{ label }} <span class="opacity-70">{{ count }}</span>
                         </span>
                     </label>
@@ -135,7 +166,7 @@ the asset and what state it is in after that line.
                             <label class="cursor-pointer h-full">
                                 <input type="radio" name="view" value="{{ value }}" class="peer sr-only" {% if view == value %}checked{% endif %}
                                        hx-get="{{ asset.ledger_url }}" hx-trigger="change" hx-include="closest form" hx-target="#genericModalBody">
-                                <span class="flex items-center h-full px-3 text-gray-600 peer-checked:bg-gray-800 peer-checked:text-white">{{ label }}</span>
+                                <span class="flex items-center h-full px-3 text-gray-600 ledger-active">{{ label }}</span>
                             </label>
                         {% endfor %}
                     </div>

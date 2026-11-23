@@ -1,4 +1,14 @@
 {% load static i18n %}
+{% if perms.payroll.view_payslip %}
+    <a
+        href="{% url 'payroll-component-report-detail' 'allowance' instance.id %}"
+        onclick="event.stopPropagation()"
+        class="oh-btn oh-btn--light-bkg w-24 px-4 py-2 rounded-md text-xs flex items-center justify-center gap-2 transition duration-300"
+    >
+        <ion-icon name="bar-chart-outline"></ion-icon>
+        {% trans 'Report' %}
+    </a>
+{% endif %}
 {% if perms.payroll.change_allowance %}
     <!-- Start of Edit a Tag -->
     <a

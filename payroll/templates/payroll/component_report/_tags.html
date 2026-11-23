@@ -1,0 +1,23 @@
+{% load i18n %}
+{% comment %}
+The applied-filter tags, in the look of the shared list tag bar. Each remove link drops one filter; they are htmx links
+so the results refresh in place. Needs: applied_filters, clear_all_query.
+{% endcomment %}
+{% if applied_filters %}
+<div class="flex flex-wrap items-center justify-end gap-1 mb-2">
+    <span class="oh-titlebar__tag oh-titlebar__tag--custom">{% trans "Filters" %}:</span>
+    {% for tag in applied_filters %}
+        <span class="oh-titlebar__tag filter-field">
+            {{ tag.label }}: &nbsp;<span class="filter-value">{{ tag.value }}</span>
+            <a class="oh-titlebar__tag-close" title="{% trans 'Remove' %}"
+               href="?{{ tag.remove }}" hx-get="?{{ tag.remove }}" hx-target="#componentReportContent" hx-select="#componentReportContent" hx-swap="outerHTML" hx-push-url="true">
+                <ion-icon name="close-outline" class="close-icon"></ion-icon>
+            </a>
+        </span>
+    {% endfor %}
+    <a class="oh-titlebar__tag oh-titlebar__tag--custom clear-all" title="{% trans 'Clear All' %}"
+       href="?{{ clear_all_query }}" hx-get="?{{ clear_all_query }}" hx-target="#componentReportContent" hx-select="#componentReportContent" hx-swap="outerHTML" hx-push-url="true">
+        <ion-icon class="close-icon" name="close-outline"></ion-icon>
+    </a>
+</div>
+{% endif %}

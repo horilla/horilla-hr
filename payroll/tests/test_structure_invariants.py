@@ -125,6 +125,20 @@ class StructureRuleTests(SimpleTestCase):
             [],
         )
 
+    def test_a_deduction_after_the_balance_is_not_a_problem(self):
+        """Deductions run in their own pass after gross, so their sequence is not the balance's concern."""
+        self.assertEqual(
+            structure_problems(
+                "ctc_down",
+                [
+                    Stub(is_basic_pay=True, sequence=10),
+                    Stub(based_on="balance", sequence=90),
+                ],
+                [Stub(sequence=110, title="ESI")],
+            ),
+            [],
+        )
+
     def test_a_missing_mode_reads_as_gross_up(self):
         """Every structure predating the mode field has it empty."""
         self.assertEqual(structure_problems(None, [Stub()]), [])

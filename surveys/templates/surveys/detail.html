@@ -14,29 +14,31 @@
     {% if can_manage %}
     <div class="flex flex-wrap gap-1">
         <a hx-get="{% url 'survey-edit' survey.pk %}" hx-target="#genericModalBody" data-target="#genericModal" data-toggle="oh-modal-toggle"
-           class="px-4 py-2 bg-white rounded-md text-xs flex items-center gap-2 border border-primary-500 hover:border-primary-600 transition duration-300 cursor-pointer">
+           class="px-5 py-2 h-full bg-[white] rounded-md text-xs flex items-center gap-2 border border-primary-500 hover:border-primary-600 transition duration-300">
             <ion-icon name="create-outline"></ion-icon>{% trans "Edit" %}
         </a>
         {% if can_save_to_library %}
         <a hx-get="{% url 'survey-save-to-library' survey.pk %}" hx-target="#genericModalBody" data-target="#genericModal" data-toggle="oh-modal-toggle"
-           class="px-4 py-2 bg-white rounded-md text-xs flex items-center gap-2 border border-primary-500 hover:border-primary-600 transition duration-300 cursor-pointer">
+           class="px-5 py-2 h-full bg-[white] rounded-md text-xs flex items-center gap-2 border border-primary-500 hover:border-primary-600 transition duration-300">
             <ion-icon name="library-outline"></ion-icon>{% trans "Save to library" %}
         </a>
         {% endif %}
         {% if survey.status != "open" %}
-            <form method="post" action="{% url 'survey-open' survey.pk %}" onsubmit="return confirm('{% trans 'Open the survey and send the invitations?' %}')">{% csrf_token %}
-                <button class="px-4 py-2 bg-brand-600 text-white rounded-md text-xs flex items-center gap-2 hover:bg-brand-800 transition duration-300">
+            <form method="post" action="{% url 'survey-open' survey.pk %}"
+                  onsubmit="return ohConfirmAndLoad(this, '{% trans 'Open the survey and send the invitations?'|escapejs %}', '{% trans 'Sending invitations…'|escapejs %}')">{% csrf_token %}
+                <button class="oh-btn oh-btn--secondary">
                     <ion-icon name="paper-plane-outline"></ion-icon>{% if survey.status == "closed" %}{% trans "Reopen" %}{% else %}{% trans "Open and send" %}{% endif %}
                 </button>
             </form>
         {% else %}
-            <form method="post" action="{% url 'survey-remind' survey.pk %}" onsubmit="return confirm('{% trans 'Remind everyone who has not answered?' %}')">{% csrf_token %}
-                <button class="px-4 py-2 bg-white rounded-md text-xs flex items-center gap-2 border border-primary-500 hover:border-primary-600 transition duration-300">
+            <form method="post" action="{% url 'survey-remind' survey.pk %}"
+                  onsubmit="return ohConfirmAndLoad(this, '{% trans 'Remind everyone who has not answered?'|escapejs %}', '{% trans 'Sending reminders…'|escapejs %}')">{% csrf_token %}
+                <button class="px-5 py-2 h-full bg-[white] rounded-md text-xs flex items-center gap-2 border border-primary-500 hover:border-primary-600 transition duration-300">
                     <ion-icon name="notifications-outline"></ion-icon>{% trans "Remind" %}
                 </button>
             </form>
             <form method="post" action="{% url 'survey-close' survey.pk %}" onsubmit="return confirm('{% trans 'Close the survey? No more answers will be taken.' %}')">{% csrf_token %}
-                <button class="px-4 py-2 bg-brand-600 text-white rounded-md text-xs flex items-center gap-2 hover:bg-brand-800 transition duration-300">
+                <button class="oh-btn oh-btn--secondary">
                     <ion-icon name="lock-closed-outline"></ion-icon>{% trans "Close" %}
                 </button>
             </form>
@@ -64,4 +66,39 @@
 <div hx-get="{% url 'survey-tabs' survey.pk %}" hx-trigger="load"></div>
 {# the question form reloads the Questions tab through this button #}
 <button id="reloadQuestions" hidden onclick="htmx.trigger(document.body, 'reloadQuestions')"></button>
+<script>
+    // Open/Reopen and Remind are plain (non-htmx) form posts that send
+    // invitation emails to every matching employee, so they can take a
+    // noticeable moment -- without feedback the button just sits there
+    // looking unresponsive (and invites a second click) for that whole
+    // stretch.
+    //
+    // This can't be done with a plain `if (!confirm(question)) return
+    // false;` guard: this app globally overrides window.confirm (see
+    // static/index/index.js) to show a SweetAlert dialog ASYNCHRONOUSLY
+    // and return undefined immediately, not a real blocking boolean --
+    // so that guard always reads "cancelled" and returns before the
+    // button is ever touched, no matter what the user clicks. Driving
+    // the same Swal dialog directly here, and submitting the form
+    // ourselves once the user actually confirms, sidesteps that
+    // entirely and lets the spinner show for the real wait.
+    function ohConfirmAndLoad(form, question, loadingText) {
+        Swal.fire({
+            text: question,
+            icon: "question",
+            showCancelButton: true,
+            confirmButtonColor: "#008000",
+            cancelButtonColor: "#6c757d",
+            confirmButtonText: i18nMessages.confirm,
+            cancelButtonText: i18nMessages.cancel,
+        }).then(function (result) {
+            if (!result.isConfirmed) return;
+            var btn = form.querySelector("button");
+            btn.disabled = true;
+            btn.innerHTML = '<ion-icon name="sync-outline" class="animate-spin"></ion-icon>' + loadingText;
+            form.submit();
+        });
+        return false;
+    }
+</script>
 {% endblock %}

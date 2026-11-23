@@ -5,7 +5,7 @@
         {% trans "How dates are displayed across the system for the selected company." %}
     </p>
     <div class="flex gap-2 pb-5 pt-2 items-center">
-        <div class="flex-1">
+        <div class="flex-1 min-w-0">
             <select id="dateFormat" name="dateFormat" class="oh-select oh-select-2">
                 <option value="">--------------</option>
                 <option value="DD-MM-YYYY">{% trans "Day, Month, Year (e.g., 30-12-2023)" %}</option>
@@ -31,7 +31,7 @@
         {% trans "How times are displayed across the system for the selected company." %}
     </p>
     <div class="flex gap-2 pb-5 pt-2 items-center">
-        <div class="flex-1">
+        <div class="flex-1 min-w-0">
             <select id="timeFormat" name="timeFormat" class="oh-select oh-select-2">
                 <option value="">--------------</option>
                 <option value="hh:mm A">{% trans "12 Hr. (e.g., 06:00 AM or 06:00 PM)" %}</option>

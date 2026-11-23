@@ -110,8 +110,15 @@
         })
         .then(response => {
         if (response.status === 204) {
-            const isDark = document.documentElement.classList.toggle("dark");
+            // Freeze every transition while the theme flips, otherwise elements
+            // with their own `transition` (links, buttons, cards) fade slowly
+            // while the rest switch instantly and the page looks half-themed.
+            const root = document.documentElement;
+            root.classList.add("theme-switching");
+            const isDark = root.classList.toggle("dark");
             document.body.classList.toggle("dark", isDark);
+            void root.offsetWidth; // flush styles with transitions disabled
+            requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove("theme-switching")));
 
             const icon = btn.querySelector("i");
             if (icon) {

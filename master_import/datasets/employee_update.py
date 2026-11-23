@@ -26,6 +26,7 @@ from employee.models import Employee, EmployeeBankDetails, EmployeeWorkInformati
 from horilla_auth.models import HorillaUser
 from payroll.models.models import SalaryStructure
 
+from . import additional
 from .base import Checked
 from .salary_structure import (
     contract_of,
@@ -149,6 +150,17 @@ class EmployeeUpdater:
             if b
         }
         total = len(rows) or 1
+        # Only the additional info columns the sheet fills in are looked at, with what people have now in one query.
+        extra_columns = [
+            c
+            for c in self.dataset.additional_columns()
+            if any(r.get(c.key) for r in rows)
+        ]
+        current = (
+            additional.importing().current_values(None, extra_columns)
+            if extra_columns
+            else {}
+        )
 
         for position, row in enumerate(rows, start=1):
             if progress and (position % 10 == 0 or position == total):
@@ -174,6 +186,10 @@ class EmployeeUpdater:
                     new_badges,
                     errors,
                 )
+                if extra_columns:
+                    self._additional(
+                        row, employee, current, extra_columns, changes, apply, errors
+                    )
             else:
                 changes, apply = [], {}
 
@@ -193,6 +209,24 @@ class EmployeeUpdater:
         if progress:
             progress(100)
         return result
+
+    @staticmethod
+    def _additional(row, employee, current, columns, changes, apply, errors):
+        """Additional info values the sheet changes for this person; a blank cell leaves the value as it is."""
+        tools = additional.importing()
+        values, problems = tools.values_from_row(row, columns)
+        if problems:
+            errors.update(problems)
+            return
+        by_pk = {c.field.pk: c for c in columns}
+        delta = tools.changes_for(current.get(employee.pk, {}), values, columns)
+        for pk, old, new in delta:
+            column = by_pk[pk]
+            changes.append(
+                f"{column.key}: {tools.show(column.field, old)} → {tools.show(column.field, new)}"
+            )
+        if delta:
+            apply["additional"] = {pk: new for pk, _old, new in delta}
 
     @staticmethod
     def _match(row, match_keys, index, errors):
@@ -494,6 +528,7 @@ class EmployeeUpdater:
     # -------------------------------------------------------------- commit
     def commit(self, rows, ctx) -> dict:
         updated = banks = 0
+        pending = []
         structures_before = SalaryStructure.objects.entire().count()
         made_structures = {}
         with transaction.atomic():
@@ -591,10 +626,16 @@ class EmployeeUpdater:
                         EmployeeBankDetails.objects.entire().filter(
                             employee_id=emp
                         ).update(**apply["bank"])
+                if apply.get("additional"):
+                    pending.append((emp, apply["additional"]))
                 updated += 1
+            additional_written = (
+                additional.importing().write_values(pending) if pending else 0
+            )
         return {
             "updated": updated,
             "banks": banks,
+            "additional_values": additional_written,
             "salary_structures": SalaryStructure.objects.entire().count()
             - structures_before,
         }

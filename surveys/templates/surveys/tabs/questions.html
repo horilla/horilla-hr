@@ -12,7 +12,7 @@ replace the modal's body instead of filling it.
     <p class="text-xs text-[#666] mb-0">{% trans "Drag the handle to reorder. Employees see the questions in this order." %}</p>
     {% if can_manage %}
     <a hx-get="{% url 'survey-question-add' %}?survey={{ survey.pk }}" hx-target="#genericModalBody" data-target="#genericModal" data-toggle="oh-modal-toggle"
-       class="px-4 py-2 bg-brand-600 text-white rounded-md text-xs flex items-center gap-2 hover:bg-brand-800 transition duration-300 cursor-pointer">
+       class="oh-btn oh-btn--secondary">
         <ion-icon name="add-outline"></ion-icon>{% trans "Add question" %}
     </a>
     {% endif %}
@@ -41,7 +41,7 @@ replace the modal's body instead of filling it.
             <a hx-get="{% url 'survey-question-edit' q.pk %}" hx-target="#genericModalBody" data-target="#genericModal" data-toggle="oh-modal-toggle"
                class="oh-btn oh-btn--light-bkg oh-btn--sq-sm" title="{% trans 'Edit' %}"><ion-icon name="create-outline"></ion-icon></a>
             <form method="post" action="{% url 'survey-question-delete' q.pk %}" onsubmit="return confirm('{% trans 'Delete this question?' %}')">{% csrf_token %}
-                <button class="oh-btn oh-btn--danger-bkg oh-btn--sq-sm" title="{% trans 'Delete' %}"><ion-icon name="trash-outline"></ion-icon></button>
+                <button class="oh-btn oh-btn--danger oh-btn--sq-sm" title="{% trans 'Delete' %}"><ion-icon name="trash-outline"></ion-icon></button>
             </form>
         </div>
         {% endif %}

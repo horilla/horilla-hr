@@ -6,15 +6,15 @@
 
 <style>
     /* Dark mode: the header action-icon chips use .bg-primary-100, which the
-       global dark theme paints #1a1a1a — darker than the #242424 header, so the
-       buttons read as recessed holes and their icons lose contrast. Give them a
-       subtly raised neutral surface instead, keep the glyph bright, and restore
-       the accent hover (the global !important resting rule otherwise kills it). */
+       global dark theme paints #1a1a1a -- darker than the #242424 header, so the
+       buttons read as recessed holes. Keep the theme tint they have in light mode
+       (pale primary fill + primary glyph), darkened: a raised, theme-tinted
+       surface with a light-primary glyph, and the accent hover below. */
     body.dark .oh-main-header .bg-primary-100 {
-        background-color: rgba(255, 255, 255, 0.12) !important;
+        background-color: color-mix(in srgb, {{ theme_obj.primary_600|default:'#e54f38' }} 22%, #2a2a2a) !important;
     }
     body.dark .oh-main-header .bg-primary-100 i {
-        color: #ffffff;
+        color: color-mix(in srgb, {{ theme_obj.primary_600|default:'#e54f38' }} 55%, #ffffff);
     }
     body.dark .oh-main-header .bg-primary-100:hover {
         background-color: {{ theme_obj.primary_600|default:'#e54f38' }} !important;

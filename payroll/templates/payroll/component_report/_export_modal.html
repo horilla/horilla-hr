@@ -1,0 +1,74 @@
+{% load i18n %}
+{% comment %}
+The export dialog, in the layout of the standard one (generic/export_fields_modal.html): file name, format, the columns
+to include. It sits inside the swapped results so its columns follow the table on screen. The form posts to the page's
+own filters (export_url). Needs: can_export, export_url, export_scope, export_columns, export_formats,
+export_default_name; component_id on a component page.
+{% endcomment %}
+{% if can_export %}
+<div class="oh-modal" id="componentReportExportModal" role="dialog" aria-labelledby="componentReportExportTitle" aria-hidden="true">
+    <div class="oh-modal__dialog">
+        <div class="oh-modal__dialog-header">
+            <h2 class="oh-modal__dialog-title" id="componentReportExportTitle">{% trans "Export" %} {{ export_default_name }}</h2>
+            <button type="button" onclick="$(this).closest('.oh-modal--show').removeClass('oh-modal--show')" class="oh-modal__close" aria-label="{% trans 'Close' %}">
+                <ion-icon name="close-outline"></ion-icon>
+            </button>
+        </div>
+        <div class="oh-modal__dialog-body">
+            <form method="post" action="{{ export_url }}" id="componentReportExportForm"
+                  onsubmit="var picked = $(this).find('input[name=selected_fields]:checked').map(function () { return [[$(this).attr('data-label'), this.value]]; }).get(); $(this).find('[name=columns]').val(JSON.stringify(picked));">
+                {% csrf_token %}
+                <input type="hidden" name="columns">
+                <input type="hidden" name="scope" value="{{ export_scope }}">
+                {% if component_id %}<input type="hidden" name="component_id" value="{{ component_id }}">{% endif %}
+
+                <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin:0 0 16px">
+                    <div>
+                        <label for="componentReportExportName" style="display:block;margin-bottom:4px;font-size:13px;color:#6b7280;">{% trans "File name" %}</label>
+                        <input type="text" id="componentReportExportName" name="export_file_name" value="{{ export_default_name }}" maxlength="100" autocomplete="off"
+                               placeholder="{% trans 'Leave blank for the default name' %}"
+                               style="width:100%;box-sizing:border-box;height:38px;border:1px solid #e5e7eb;border-radius:6px;padding:8px 10px;font-size:14px;background:#fff;color:#374151;outline:none;">
+                    </div>
+                    <div>
+                        <label for="componentReportExportFormat" style="display:block;margin-bottom:4px;font-size:13px;color:#6b7280;">{% trans "Format" %}</label>
+                        <select id="componentReportExportFormat" name="format"
+                                style="width:100%;box-sizing:border-box;height:38px;border:1px solid #e5e7eb;border-radius:6px;padding:8px 10px;font-size:14px;background:#fff;color:#374151;outline:none;">
+                            {% for format in export_formats %}
+                                <option value="{{ format.0 }}">{{ format.1 }} (.{{ format.0 }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-sm-12 col-md-12 col-lg-12">
+                        <div class="oh-input-group d-flex justify-content-between" style="align-items: center">
+                            <label class="oh-label">
+                                <input type="checkbox" checked
+                                       onchange="$(this).closest('form').find('input[name=selected_fields]').prop('checked', $(this).is(':checked'))">
+                                {% trans "Select All" %}
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    {% for label, key in export_columns %}
+                        <div class="col-sm-12 col-md-6 col-lg-4">
+                            <div class="oh-input-group">
+                                <label class="oh-label" for="componentReportCol_{{ key }}">
+                                    <input type="checkbox" data-label="{{ label }}" name="selected_fields" value="{{ key }}" id="componentReportCol_{{ key }}" checked>
+                                    {% trans label %}
+                                </label>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <div class="oh-modal__dialog-footer p-0 mt-3">
+                    <button type="submit" onclick="$(this).closest('.oh-modal--show').removeClass('oh-modal--show')" class="oh-btn oh-btn--secondary oh-btn--shadow">{% trans "Export" %}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}

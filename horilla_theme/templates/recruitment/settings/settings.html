@@ -77,15 +77,23 @@
                     <label class="text-sm font-medium mb-2 block" for="default_probation_period">
                         {% trans "Default Probation Period (Days)" %}
                     </label>
-                    <input
-                        type="number"
-                        min="0"
-                        id="default_probation_period"
-                        class="oh-input"
-                        style="max-width: 160px;"
-                        value="{{ get_default_probation_period }}"
-                        onchange="defaultProbationPeriod($(this))"
-                    />
+                    <div class="flex gap-2">
+                        <input
+                            type="number"
+                            min="0"
+                            id="default_probation_period"
+                            class="oh-input"
+                            style="max-width: 160px;"
+                            value="{{ get_default_probation_period }}"
+                        />
+                        <button
+                            type="button"
+                            class="oh-btn oh-btn--secondary h-[35px]"
+                            onclick="defaultProbationPeriod($('#default_probation_period'))"
+                        >
+                            {% trans "Save" %}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

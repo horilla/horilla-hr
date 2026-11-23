@@ -93,11 +93,12 @@ def structure_problems(structure_mode, allowances, deductions=()):
     if mode == "ctc_down" and len(balances) > 1:
         problems.append(_("Only one earning may absorb the balance of the CTC."))
 
-    # A balance earning has to run last: it can only see what has already been
-    # worked out, so anything after it is simply left out of the remainder.
+    # A balance earning has to run last among the earnings: it can only see what has
+    # already been worked out, so a later earning is left out of the remainder.
+    # Deductions have their own pass after gross, so their sequence does not count.
     if balances:
         last = max(
-            (getattr(c, "sequence", 0) or 0 for c in allowances + deductions),
+            (getattr(c, "sequence", 0) or 0 for c in allowances),
             default=0,
         )
         trailing = [

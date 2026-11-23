@@ -1,0 +1,53 @@
+{% extends 'settings.html' %}
+{% load i18n static %}
+{% block settings %}
+    <div class="border border-[#ebebeb] rounded-md overflow-hidden mb-5">
+        <h2 class="text-sm font-semibold bg-[#f3f3f3] px-4 py-3 text-[#333]">
+            {% if provider.key == "google" %}{% trans "Google Sign-In" %}{% else %}{% trans "Microsoft Sign-In" %}{% endif %}
+        </h2>
+        <div class="p-4 pb-0">
+            <p class="text-xs text-gray-500 mb-3">
+                {% if provider.key == "google" %}
+                    {% trans "Let Employees Sign In With Their Google Workspace Account. They Must Already Exist As Employees, Matched By Email, And Belong To One Of The Allowed Domains." %}
+                {% else %}
+                    {% trans "Let Employees Sign In With Their Microsoft Work Account. They Must Already Exist As Employees, Matched By Email." %}
+                {% endif %}
+            </p>
+            <div class="mb-4 p-3 rounded-md bg-[#f9fafb] border border-[#ebebeb]">
+                <p class="text-xs text-gray-500 mb-1">{% if provider.key == "google" %}{% trans "Authorized Redirect URI (Add This To The OAuth Client In Google Cloud Console)" %}{% else %}{% trans "Redirect URI (Add This To The App Registration In Azure)" %}{% endif %}</p>
+                <code class="text-sm break-all select-all">{{ redirect_uri }}</code>
+            </div>
+        </div>
+        <div class="px-4 pb-4">
+            <form method="post">
+                {% csrf_token %}
+                {{ form.as_p }}
+            </form>
+            {% if has_secret %}
+                <p class="text-xs text-gray-500 mt-2">{% trans "A Client Secret Is Saved. It Is Stored Encrypted." %}</p>
+            {% endif %}
+        </div>
+    </div>
+    <script>
+        (function () {
+            var input = document.getElementById("id_client_secret");
+            if (!input) return;
+            var wrap = document.createElement("div");
+            wrap.style.position = "relative";
+            input.parentNode.insertBefore(wrap, input);
+            wrap.appendChild(input);
+            input.style.paddingRight = "40px";
+            var toggle = document.createElement("span");
+            toggle.setAttribute("role", "button");
+            toggle.title = "{% trans 'Show Secret' %}";
+            toggle.style.cssText = "position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:18px;display:flex;color:#666";
+            toggle.innerHTML = '<ion-icon name="eye-outline"></ion-icon>';
+            wrap.appendChild(toggle);
+            toggle.addEventListener("click", function () {
+                var show = input.type === "password";
+                input.type = show ? "text" : "password";
+                toggle.innerHTML = '<ion-icon name="' + (show ? "eye-off-outline" : "eye-outline") + '"></ion-icon>';
+            });
+        })();
+    </script>
+{% endblock settings %}

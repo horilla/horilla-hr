@@ -46,6 +46,7 @@ from leave.filters import LeaveRequestFilter
 from leave.forms import LeaveRequestCreationForm, LeaveRequestExportForm
 from leave.methods import filter_conditional_leave_request
 from leave.models import AvailableLeave, LeaveRequest, LeaveType
+from leave.services import charge_leave_request
 from leave.threading import LeaveMailSendThread
 from leave.views import multiple_approvals_check
 from notifications.signals import notify
@@ -691,27 +692,7 @@ class LeaveRequestFormView(EmployeeScopeMixin, HorillaFormView):
                     )
                     leave_request.created_by = self.request.user.employee_get
                     leave_request.save()
-                    if leave_request.requested_days > available_leave.available_days:
-                        leave = (
-                            leave_request.requested_days
-                            - available_leave.available_days
-                        )
-                        leave_request.approved_available_days = (
-                            available_leave.available_days
-                        )
-                        available_leave.available_days = 0
-                        available_leave.carryforward_days = (
-                            available_leave.carryforward_days - leave
-                        )
-                        leave_request.approved_carryforward_days = leave
-                    else:
-                        available_leave.available_days = (
-                            available_leave.available_days
-                            - leave_request.requested_days
-                        )
-                        leave_request.approved_available_days = (
-                            leave_request.requested_days
-                        )
+                    charge_leave_request(leave_request, available_leave)
                     leave_request.status = "approved"
                     available_leave.save()
                 if save:

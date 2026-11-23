@@ -61,7 +61,7 @@ class ConfigurationListsTests(TestCase):
 
 
 class AlwaysAppliedTabTests(TestCase):
-    """The Always Applied tab lists the standard earnings and deductions together."""
+    """The System Defaults tab lists the standard earnings and deductions together."""
 
     def setUp(self):
         user = make_user("aaadmin", is_superuser=True)
@@ -120,7 +120,7 @@ class AlwaysAppliedTabTests(TestCase):
     def test_the_tab_has_the_nav_bar_with_search_only(self):
         html = self._get("payroll-settings-always-applied-tab")
         self.assertIn("bg-[#f3f3f3]", html)
-        self.assertRegex(html, r"<span>\s*Always Applied\s*</span>")
+        self.assertRegex(html, r"<span>\s*System Defaults\s*</span>")
         self.assertIn('id="alwaysAppliedSearch"', html)
         for control in ("Filter", "Create", "Actions"):
             self.assertNotRegex(html, r">\s*" + control + r"\s*<", control)
@@ -150,7 +150,7 @@ class AlwaysAppliedTabTests(TestCase):
         from payroll.cbv.settings_tabs import all_always_applied_rows
 
         html = self._get("payroll-settings-tab-view")
-        self.assertIn("Always Applied", html)
+        self.assertIn("System Defaults", html)
         self.assertIn(reverse("payroll-settings-always-applied-tab"), html)
         self.assertGreater(len(all_always_applied_rows()), 0)
 

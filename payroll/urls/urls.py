@@ -21,6 +21,7 @@ from payroll.models.models import Contract, Payslip
 from payroll.models.payroll_batch import PayrollBatch
 from payroll.views import (
     batch_views,
+    component_report_views,
     contract_components,
     contribution_views,
     payslip_edit_views,
@@ -497,6 +498,22 @@ urlpatterns = [
         "contributions/<int:component_id>/",
         contribution_views.contribution_detail,
         name="payroll-contribution-detail",
+    ),
+    # The allowance and deduction report, opened from the Actions menu of those two tabs.
+    path(
+        "component-report/",
+        component_report_views.component_report_home,
+        name="payroll-component-report",
+    ),
+    path(
+        "component-report/export/",
+        component_report_views.component_report_export,
+        name="payroll-component-report-export",
+    ),
+    path(
+        "component-report/<str:kind>/<int:component_id>/",
+        component_report_views.component_report_detail,
+        name="payroll-component-report-detail",
     ),
     path(
         "contributions/export/",

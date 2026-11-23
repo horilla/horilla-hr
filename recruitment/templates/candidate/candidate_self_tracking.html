@@ -5,6 +5,7 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8">
+        {% include "public_theme/bootstrap.html" %}
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link href="{% static 'horilla_theme/assets/css/tailwind.css' %}" rel="stylesheet">
         <title>
@@ -34,6 +35,10 @@
         <link
             rel="stylesheet"
             href="/static/horilla_theme/assets/css/global.css"
+        >
+        <link
+            rel="stylesheet"
+            href="/static/horilla_theme/assets/css/dark.css?v=53"
         >
         <link
             rel="stylesheet"
@@ -127,9 +132,30 @@
                 cursor: default !important;
                 pointer-events: none;
             }
+
+            /* Dark mode (public light/dark switch). This page hard-codes warm off-white fills as
+               arbitrary Tailwind values, which the shared dark stylesheet cannot know about. */
+            html.dark { background: #000000; color-scheme: dark; }
+            /* Native scrollbars (the stage strip, interview and document lists) were drawing a light track. */
+            body.dark .tracking-scroll { scrollbar-color: #555555 #1a1a1a; }
+            /* Stage connector lines and the current-stage ring were near-white. */
+            body.dark #trackingRoot .bg-dark-50 { background-color: #444444; }
+            /* Card outlines and dividers: theme `dark-50` is near-white, which drew bright lines on the dark cards. */
+            body.dark [class*="border-dark-50"],
+            body.dark [class*="divide-dark-50"] > * { border-color: #3a3a3a; }
+            body.dark #trackingRoot .ring-primary-400 { --tw-ring-color: color-mix(in srgb, {{ theme_obj.primary_600|default:'#E54F38' }} 40%, #1a1a1a); }
+            body.dark { background-color: #000000; }
+            body.dark .note-card { background-color: #2a2a2a; color: #e5e5e5; }
+            body.dark .note-card * { color: inherit; }
+            body.dark .bg-\[\#f1ede9\] { background-color: #333333; color: #c8c8c8; }
+            body.dark .bg-\[\#f8f5f2\] { background-color: #1a1a1a; border-color: #555555; }
+            body.dark .bg-\[\#fdf1d4\] { background-color: rgba(245, 158, 11, .16); color: #fbbf24; }
+            body.dark .text-\[\#7b6f6a\],
+            body.dark .placeholder\:text-\[\#8f8681\]::placeholder { color: #a8a8a8; }
         </style>
     </head>
     <body class="bg-[{{theme_obj.primary_50}}] font-[Plus_Jakarta_Sans,_sans-serif] text-dark-600">
+        {% include "public_theme/body_sync.html" %}
         {% now "Y-m-d" as now %}
         <div id="reloadMessages">{% include "generic/messages.html" %}</div>
         <button
@@ -159,6 +185,7 @@
                     <span class="hidden sm:inline text-[18.75px] text-[#7b6f6a] -ml-[2px]">/ {% trans "Application Tracking" %}</span>
                 </div>
                 <div class="flex items-center gap-[12px] shrink-0">
+                    {% include "public_theme/toggle.html" with button_class="w-[46px] h-[46px] rounded-full" %}
                     <div class="flex items-center gap-[10px] h-[46px] pl-[9px] pr-[16px] rounded-full border border-dark-50 text-[18.75px]">
                         <span class="w-[32px] h-[32px] rounded-full bg-primary-400 text-primary-700 text-[13px] font-semibold flex items-center justify-center">{{ candidate_initials }}</span>
                         <span class="hidden sm:inline">{{ candidate.get_full_name|title }}</span>

@@ -1,0 +1,46 @@
+{% load i18n %}
+{# Round light/dark switch for public pages. Optional `button_class` overrides the sizing/shape classes. #}
+<button
+    type="button"
+    id="publicThemeToggle"
+    class="{{ button_class|default:'w-10 h-10 rounded-full' }} shrink-0 bg-primary-100 text-primary-600 hover:bg-primary-600 hover:text-white flex items-center justify-center [transition:.2s]"
+    title="{% trans 'Switch between light and dark mode' %}"
+    aria-label="{% trans 'Toggle theme' %}"
+    data-session-theme="{{ request.session.theme|default:'light' }}"
+    data-authenticated="{% if request.user.is_authenticated %}1{% else %}0{% endif %}"
+>
+    <i class="fa-solid fa-moon" data-theme-icon></i>
+</button>
+<script>
+    (function () {
+        var btn = document.getElementById("publicThemeToggle");
+        if (!btn) return;
+        var icon = btn.querySelector("[data-theme-icon]");
+        function paint(dark) {
+            var root = document.documentElement;
+            root.classList.add("theme-switching");
+            root.classList.toggle("dark", dark);
+            document.body.classList.toggle("dark", dark);
+            void root.offsetWidth;
+            requestAnimationFrame(function () { requestAnimationFrame(function () { root.classList.remove("theme-switching"); }); });
+            if (icon) {
+                icon.classList.toggle("fa-moon", !dark);
+                icon.classList.toggle("fa-lightbulb", dark);
+            }
+            btn.setAttribute("aria-pressed", dark ? "true" : "false");
+        }
+        paint(document.documentElement.classList.contains("dark"));
+        btn.addEventListener("click", function () {
+            var dark = !document.documentElement.classList.contains("dark");
+            paint(dark);
+            try { localStorage.setItem("horilla-public-theme", dark ? "dark" : "light"); } catch (e) {}
+            // A signed-in user's saved app theme follows, so the rest of the app opens in the same mode.
+            if (btn.dataset.authenticated === "1" && (btn.dataset.sessionTheme === "dark") !== dark) {
+                fetch("{% url 'toggle_theme' %}", {
+                    method: "POST",
+                    headers: { "X-CSRFToken": "{{ csrf_token }}", "X-Requested-With": "XMLHttpRequest" },
+                }).then(function (r) { if (r.status === 204) btn.dataset.sessionTheme = dark ? "dark" : "light"; }).catch(function () {});
+            }
+        });
+    })();
+</script>

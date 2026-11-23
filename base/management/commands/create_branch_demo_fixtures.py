@@ -1689,7 +1689,7 @@ class ExtrasMixin:
                     "limit_leave": True,
                     "total_days": total,
                     "count": total,
-                    "period_in": "year",
+                    "period_in": "day",
                     "reset": True,
                     "reset_based": "yearly",
                     "reset_month": str(reset_month),
