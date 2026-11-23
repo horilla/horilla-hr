@@ -30,6 +30,7 @@ from django.views.decorators.http import require_POST
 from openpyxl import Workbook
 from openpyxl.drawing.image import Image
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.utils import get_column_letter
 from xhtml2pdf import pisa
 
 from base.methods import eval_validate, has_export_access
@@ -873,13 +874,58 @@ def _export_part_allowed(user, part):
     return True
 
 
+_PLAIN_XLSX_MAX_WIDTH = 50
+
+
+def _plain_xlsx(file_name, headers, rows):
+    """An Excel file of just the styled header and the rows, each column as wide as its longest entry."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Export"
+    center = Alignment(horizontal="center", vertical="center")
+    fill = PatternFill(start_color="FFD700", fill_type="solid")
+    thin = Side(style="thin")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    widths = [len(str(header)) for header in headers]
+    for col, header in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col)
+        cell.value = header
+        cell.fill = fill
+        cell.font = Font(bold=True)
+        cell.border = border
+        cell.alignment = center
+    for r_idx, row in enumerate(rows, start=2):
+        for c_idx, val in enumerate(row, start=1):
+            # Text carried through from user-entered data can execute when the workbook is opened.
+            ws.cell(row=r_idx, column=c_idx).value = safe_cell(val)
+            widths[c_idx - 1] = max(
+                widths[c_idx - 1], len(str(val if val is not None else ""))
+            )
+    for col, width in enumerate(widths, start=1):
+        ws.column_dimensions[get_column_letter(col)].width = min(
+            width + 2, _PLAIN_XLSX_MAX_WIDTH
+        )
+    ws.freeze_panes = "A2"
+    buf = BytesIO()
+    wb.save(buf)
+    response = HttpResponse(
+        buf.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = f'attachment; filename="{file_name}.xlsx"'
+    return response
+
+
 def render_export_file(
-    request, export_format, file_name, headers, final_rows, date_range=None
+    request, export_format, file_name, headers, final_rows, date_range=None, titled=True
 ):
     """
     The standard export file for headers and rows that are already worked out: Excel, PDF or CSV, with
     the company, the title and the date range at the top. ``export_data`` builds its rows from a model;
     an export with its own rows, like the allowance and deduction report, ends here too.
+
+    ``titled=False`` leaves that block off an Excel or CSV file: the styled header is the first row and each
+    column is as wide as its heading and content need. For an export that is a list of records to work with.
     """
     if date_range is None:
         date_range = request.session.get("report_date_range", "")
@@ -899,6 +945,9 @@ def render_export_file(
     # =====================================================
     # XLSX EXPORT (FIXED WIDTH – PERFORMANCE SAFE)
     # =====================================================
+    if export_format == "xlsx" and not titled:
+        return _plain_xlsx(file_name, headers, final_rows)
+
     if export_format == "xlsx":
         wb = Workbook()
         ws = wb.active
@@ -997,10 +1046,11 @@ def render_export_file(
     response["Content-Disposition"] = f'attachment; filename="{file_name}.csv"'
 
     writer = csv.writer(response)
-    writer.writerow([company_name])
-    writer.writerow([file_name])
-    writer.writerow([date_range])
-    writer.writerow([])
+    if titled:
+        writer.writerow([company_name])
+        writer.writerow([file_name])
+        writer.writerow([date_range])
+        writer.writerow([])
     writer.writerow(headers)
     writer.writerows(final_rows)
 
