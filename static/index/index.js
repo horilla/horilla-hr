@@ -2776,6 +2776,10 @@ $(document).on("click", "[data-toggle='oh-modal-toggle']", function () {
         ".hlv-export-pane-body>.row{margin:0!important}" +
         form + " .hlv-export-pane--left " + picker + "{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:0 12px!important}" +
         ".hlv-export-pane-body>.row:has(input[id^=select-all]){border-bottom:1px solid #f3f4f6;margin-bottom:4px!important}" +
+        // Select All lines up with the column checkboxes below it: no side padding from the grid column, no label margin
+        ".hlv-export-pane-body>.row:has(input[id^=select-all])>[class*=col-]{padding:0!important}" +
+        ".hlv-export-pane-body>.row:has(input[id^=select-all]) .oh-input-group{margin:0!important;padding:5px 0}" +
+        ".hlv-export-pane-body>.row:has(input[id^=select-all]) .oh-label{margin:0!important}" +
         ".hlv-export-hint{display:flex;align-items:center;gap:6px;margin:0;padding:8px 12px 0;font-size:12px;color:#9ca3af}" +
         ".hlv-export-hint ion-icon{font-size:14px;flex-shrink:0}" +
         ".hlv-export-list{list-style:none;margin:0;padding:8px 12px 10px;overflow-y:auto;flex:1}" +
