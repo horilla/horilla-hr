@@ -9,7 +9,53 @@ The week-off days are the employee's own: their roster for the period it was ass
 company's week-off days outside it (see ``employee_week_off_dates``).
 """
 
+from contextlib import contextmanager
+from contextvars import ContextVar
+
 from base.methods import get_company_leave_dates, get_holiday_dates
+
+_shared = ContextVar("calendar_shared_data", default=None)
+
+
+@contextmanager
+def shared_calendar_data():
+    """Inside it, what does not depend on the employee is loaded once, not once per employee."""
+    token = _shared.set({})
+    try:
+        yield
+    finally:
+        _shared.reset(token)
+
+
+def shared(key, load):
+    """``load()``, kept for the rest of the ``shared_calendar_data`` block when there is one."""
+    cache = _shared.get()
+    if cache is None:
+        return load()
+    if key not in cache:
+        cache[key] = load()
+    return cache[key]
+
+
+def preload(key, table):
+    """Hand the block ``table`` (``{employee pk: rows}``) for ``preloaded(key, ...)`` to find."""
+    cache = _shared.get()
+    if cache is not None:
+        cache[("bulk",) + tuple(key)] = table
+
+
+def preloaded(key, employee, load):
+    """
+    One employee's rows from a ``preload`` made for the whole page, else ``load()``.
+
+    The fallback keeps every caller outside the day-wise view, and any employee or range the
+    preload did not cover, working as it always did, one query for that employee.
+    """
+    cache = _shared.get()
+    table = cache.get(("bulk",) + tuple(key)) if cache is not None else None
+    if table is None or employee.pk not in table:
+        return load()
+    return table[employee.pk]
 
 
 def employee_week_off_dates(roster_rows, company_dates, start, end):
@@ -36,22 +82,38 @@ def employee_week_off_dates(roster_rows, company_dates, start, end):
 
 def company_week_off_dates(start, end):
     """The company's week-off days between two dates."""
-    raw = set(get_company_leave_dates(start.year)) | set(
-        get_company_leave_dates(end.year)
-    )
-    return {d for d in raw if start <= d <= end}
+
+    def load():
+        raw = set(get_company_leave_dates(start.year)) | set(
+            get_company_leave_dates(end.year)
+        )
+        return frozenset(d for d in raw if start <= d <= end)
+
+    return set(shared(("company_week_off", start, end), load))
 
 
 def exclusion_sets(employee, start, end):
     """``(holidays, week_offs)`` for one employee between two dates: what a leave may exclude."""
     from base.models import Roster
 
-    holidays = {d for d in get_holiday_dates(start, end, employee) if start <= d <= end}
+    def own_holidays():
+        return get_holiday_dates(start, end, employee)
+
+    def own_rows():
+        return list(
+            Roster.objects.filter(
+                employee_id=employee, date__range=(start, end)
+            ).values("date", "is_off")
+        )
+
+    holidays = {
+        d
+        for d in preloaded(("holiday_dates", start, end), employee, own_holidays)
+        if start <= d <= end
+    }
     rows = [
         (r["date"], r["is_off"])
-        for r in Roster.objects.filter(
-            employee_id=employee, date__range=(start, end)
-        ).values("date", "is_off")
+        for r in preloaded(("roster", start, end), employee, own_rows)
     ]
     return holidays, employee_week_off_dates(
         rows, company_week_off_dates(start, end), start, end
