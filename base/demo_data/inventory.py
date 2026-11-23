@@ -34,6 +34,7 @@ SIDEBAR_DEMO_MODELS: tuple[tuple[str, str], ...] = (
     ("asset", "AssetAssignment"),
     ("helpdesk", "Ticket"),
     ("report", "ReportTemplate"),
+    ("surveys", "Survey"),
     ("base", "ShiftRequest"),
     ("base", "WorkTypeRequest"),
     ("base", "Holidays"),

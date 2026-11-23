@@ -109,9 +109,16 @@ jobs:
 
       - name: Trivy image scan
         run: |
-          IMAGE=$(docker compose -f "$COMPOSE_FILE" images -q web | head -n1)
+          CONTAINER_IDS=$(docker compose -f "$COMPOSE_FILE" ps -q web)
+          CONTAINER_ID=${CONTAINER_IDS%%$'\n'*}
+          if [ -z "$CONTAINER_ID" ]; then
+            echo "::error::No running Compose web container found"
+            exit 1
+          fi
+
+          IMAGE=$(docker inspect --type container --format '{{.Config.Image}}' "$CONTAINER_ID")
           if [ -z "$IMAGE" ]; then
-            echo "::error::No web image id found; the build step did not produce an image"
+            echo "::error::No image reference found for the Compose web container"
             exit 1
           fi
 

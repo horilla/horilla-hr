@@ -39,7 +39,7 @@ django-mathfilters==1.0.0
 django-model-utils==5.0.0
 django-redis==5.4.0
 django-simple-history==3.13.0
-django-storages==1.14.6
+django-storages[s3]==1.14.6
 django-widget-tweaks==1.5.1
 
 # REST API
