@@ -386,6 +386,18 @@ def unique_breadcrumbs(breadcrumbs):
     return unique
 
 
+@register.filter(name="crumb_url")
+def crumb_url(url):
+    """
+    A crumb's link, marked as a crumb click (``breadcrumb_nav=true``) so the
+    trail steps back to it instead of adding the page as a new step.
+    """
+    url = str(url or "")
+    if not url or "breadcrumb_nav=" in url:
+        return url
+    return f"{url}{'&' if '?' in url else '?'}breadcrumb_nav=true"
+
+
 @register.filter(name="collapse_breadcrumbs")
 def collapse_breadcrumbs(crumbs, threshold=4):
     """
