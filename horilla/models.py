@@ -211,12 +211,28 @@ class HorillaModel(models.Model, metaclass=HorillaModelBase):
                         _("Potential XSS content detected.")
                     )
 
-        # Run Django's own field validation too (validators=[...], choices, blank
-        # rules); skipping it left every model-level validator inert.
-        try:
-            super().clean_fields(exclude=exclude)
-        except ValidationError as e:
-            errors = e.update_error_dict(errors)
+        # Run each field's own validators too (validators=[...]); skipping them
+        # left every model-level validator inert.
+        #
+        # Only validators, and only on values that were given. Whether a field
+        # is required is for a form to say, and the allowed values of a field
+        # are not always its model `choices`: code creates incomplete rows on
+        # purpose (the global attendance setting and the default payroll
+        # settings have no company, `Company(company=...)` is saved without an
+        # icon in nearly every test), and `resolution` takes values such as
+        # "split:P+UL" that are not in its choices. Django's full pass reported
+        # all of these, which made the login page of a fresh install answer 500
+        # and left the demo seed without a company.
+        for field in self._meta.concrete_fields:
+            if field.name in total_exclude or not field.validators:
+                continue
+            value = getattr(self, field.attname, None)
+            if value in field.empty_values:
+                continue
+            try:
+                field.run_validators(field.to_python(value))
+            except ValidationError as e:
+                errors[field.name] = e
 
         if errors:
             raise ValidationError(errors)
