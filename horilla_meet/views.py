@@ -180,7 +180,11 @@ if apps.is_installed("recruitment"):
         start_time = datetime.combine(
             interview.interview_date, interview.interview_time
         )
-        attendees = [employee.get_mail() for employee in interview.employee_id.all()]
+        attendees = [
+            employee.get_mail()
+            for employee in interview.employee_id.all()
+            if employee.get_mail()
+        ]
         attendees.append(interview.candidate_id.get_email())
 
         interview_meeting_link = InterviewMeetingLink.objects.filter(
@@ -241,7 +245,9 @@ if apps.is_installed("pms"):
         start_time = meeting.date
         description = f"Meeting for {meeting.title}"
         employees = meeting.employee_id.all() | meeting.manager.all()
-        attendees = [employee.get_mail() for employee in employees]
+        attendees = [
+            employee.get_mail() for employee in employees if employee.get_mail()
+        ]
 
         pms_meeting_link = PmsMeetingLink.objects.filter(meeting=meeting).first()
 

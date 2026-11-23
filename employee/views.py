@@ -2581,6 +2581,9 @@ def employee_send_invitation(request, emp_id):
     if not employee.employee_user_id:
         messages.error(request, _("This employee has no linked login account."))
         return HorillaRedirect(request)
+    if not employee.get_mail():
+        messages.error(request, _("This employee has no email address."))
+        return HorillaRedirect(request)
 
     sent = send_employee_invitation(employee, request.get_host(), request.is_secure())
     if sent:
@@ -4543,7 +4546,9 @@ def employee_get_mail_log(request, pk=None):
     if not employee:
         messages.error(request, _("Employee not found."))
         return HorillaRedirect(request)
-    tracked_mails = EmailLog.objects.filter(to__icontains=employee.email)
+    tracked_mails = EmailLog.objects.none()
+    if employee.email:
+        tracked_mails = EmailLog.objects.filter(to__icontains=employee.email)
     try:
         if employee.employee_work_info and employee.employee_work_info.email:
             tracked_mails = tracked_mails | EmailLog.objects.filter(

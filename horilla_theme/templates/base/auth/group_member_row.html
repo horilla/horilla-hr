@@ -17,7 +17,7 @@
                 {{ user.employee_get.get_full_name }}
             </p>
             <p class="text-[11px] text-dark-200 truncate">
-                {{ user.employee_get.get_mail }}
+                {{ user.employee_get.get_mail|default:"" }}
             </p>
             {% if company_scoped %}
                 <div class="flex flex-wrap gap-1 mt-1">

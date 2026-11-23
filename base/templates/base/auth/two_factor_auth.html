@@ -53,6 +53,14 @@
                     <h1 class="oh-onboarding-card__title oh-onboarding-card__title--h2 text-center my-3">
                         {% trans "Two Factor Authentication" %}
                     </h1>
+                    {% if no_email %}
+                    <p class="text-muted text-center">
+                        {% trans "Two-factor sign-in needs an email address on your profile. Ask an administrator to add one." %}
+                    </p>
+                    <div class="oh-modal__dialog-footer p-0 mt-3 justify-content-center">
+                        <a href="{% url 'logout' %}" class="oh-btn oh-btn--secondary-outline m-2">{% trans "Logout" %}</a>
+                    </div>
+                    {% else %}
                     <p class="text-muted text-center">
                         {% trans "Enter the OTP send to your email: " %}
                         <b>{{ request.user.employee_get.get_mail }}</b>.
@@ -140,6 +148,7 @@
                             </form>
                         {% endif %}
                     </div>
+                    {% endif %}
                 </div>
                 <img
                     src="{% if white_label_company.icon %}

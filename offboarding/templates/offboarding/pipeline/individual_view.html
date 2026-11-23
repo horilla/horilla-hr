@@ -69,7 +69,7 @@
             <div class="oh-timeoff-modal__stats-container">
                 <div class="oh-timeoff-modal__stat">
                     <span class="oh-timeoff-modal__stat-title">{% trans "Email" %}</span>
-                    <span class="oh-timeoff-modal__stat-count">{{ employee.employee_id.email }}</span>
+                    <span class="oh-timeoff-modal__stat-count">{{ employee.employee_id.email|default:"" }}</span>
                 </div>
                 <div class="oh-timeoff-modal__stat">
                     <span class="oh-timeoff-modal__stat-title">{% trans "Job Position" %}</span>
