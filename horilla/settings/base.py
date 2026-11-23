@@ -451,7 +451,10 @@ DJANGO_NOTIFICATIONS_CONFIG = {
 # ========================================
 # HORILLA-SPECIFIC SETTINGS
 # ========================================
-WHITE_LABELLING = False
+# Show the company's name and icon instead of Horilla's in the page title,
+# favicon, login screens and emails. Read from the environment so a deployment
+# from the published image can turn it on without a local_settings.py.
+WHITE_LABELLING = env.bool("WHITE_LABELLING", default=False)
 NESTED_SUBORDINATE_VISIBILITY = False
 TWO_FACTORS_AUTHENTICATION = False
 # When True, /ready/ returns 503 until run_scheduler has registered jobs.
