@@ -24,7 +24,7 @@ from additional_info.models import (
 
 # The lookups a filter may use for each column.
 LOOKUPS = {
-    "value_text": {"exact", "iexact", "icontains", "in"},
+    "value_text": {"exact", "iexact", "icontains", "istartswith", "in"},
     "value_number": {"exact", "gt", "gte", "lt", "lte"},
     "value_date": {"exact", "gt", "gte", "lt", "lte"},
     "value_bool": {"exact"},

@@ -482,6 +482,48 @@ class EmployeeFilter(HorillaFilterSet):
         super().__init__(*args, **kwargs)
         self._apply_ajax_selects()
 
+    # The built-in entries are fixed, but the additional fields are an admin's to add and remove, so
+    # they are read from the database each time the list is asked for. This class is also built once
+    # at import (the nav keeps an instance), when the database must not be touched and the entries
+    # could not stay current.
+    @property
+    def custom_filter_fields(self):
+        return (
+            list(self._base_custom_filter_fields)
+            + self._additional_info_filter_fields()
+        )
+
+    @custom_filter_fields.setter
+    def custom_filter_fields(self, value):
+        self._base_custom_filter_fields = value
+
+    def _additional_info_filter_fields(self):
+        from django.apps import apps
+        from django.db import DatabaseError
+
+        if not apps.is_installed("additional_info"):
+            return []
+        from additional_info.integration import filter_fields
+
+        try:
+            entries = filter_fields()
+        except DatabaseError:
+            return []
+        for entry in entries:
+            entry["lookups"] = [
+                [lk, str(label)]
+                for lk, label in self.CUSTOM_FILTER_LOOKUPS[entry["type"]]
+            ]
+        return entries
+
+    def _apply_special_custom_filter(self, queryset, config, lookup, value):
+        key = config.get("additional_info")
+        if not key:
+            return None
+        from additional_info.integration import apply_filter
+
+        return apply_filter(queryset, key, lookup, value)
+
     def _build_custom_filter_fields(self):
         """
         Registry backing the Advanced section's "+ Add filter" builder --
