@@ -171,7 +171,7 @@ msgpack>=1.2.2,<2
 # and thinc. 70.3.0 carries a path traversal (CVE-2025-47273), and
 # pip install --upgrade pip does not upgrade setuptools, so the image kept
 # the old one. Neither spacy nor thinc caps the version.
-setuptools==84.1.0
+setuptools==84.2.1
 
 # Testing
 coverage>=7.0
