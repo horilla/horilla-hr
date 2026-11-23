@@ -68,6 +68,7 @@ class Command(BaseCommand):
                     "givenName": user.employee_first_name or "",
                     "sn": user.employee_last_name or "",
                     "cn": f"{user.employee_first_name} {user.employee_last_name}",
+                    # Without an email, the username is the uid
                     "uid": user.email or user.employee_user_id.username,
                     "telephoneNumber": user.phone or "",
                     "userPassword": hashed_password,  # Securely store password
