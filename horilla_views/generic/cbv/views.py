@@ -48,6 +48,7 @@ from horilla_views import models
 from horilla_views.cbv_methods import (  # update_initial_cache,
     SESSION_CACHE_TIMEOUT,
     WEEK,
+    apply_default_saved_filter,
     assign_related,
     dedupe_single_value_params,
     export_xlsx,
@@ -295,19 +296,9 @@ class HorillaListView(ListView):
                 elif cached_filter:
                     query_dict = cached_filter["query_dict"]
 
-                if not bool(query_dict):
-                    default_filter = models.SavedFilter.objects.filter(
-                        saved_filter_path_query(self.request),
-                        created_by=self.request.user,
-                        is_default=True,
-                    ).first()
-                    if default_filter:
-                        data = eval_validate(default_filter.filter)
-                        query_dict = QueryDict("", mutable=True)
-                        for key, value in data.items():
-                            query_dict[key] = value
-
-                        query_dict._mutable = False
+                query_dict = apply_default_saved_filter(
+                    self.request, query_dict, self.filter_class
+                )
                 self._saved_filters = query_dict
                 self.request.exclude_filter_form = True
                 if not filtered:
@@ -1839,23 +1830,14 @@ class HorillaCardView(ListView):
                         "query_dict"
                     ]
 
+                query_dict = apply_default_saved_filter(
+                    self.request, query_dict, self.filter_class
+                )
                 self._saved_filters = query_dict
                 self.request.exclude_filter_form = True
                 self.queryset = self.filter_class(
                     query_dict, queryset=self.queryset, request=self.request
                 ).qs
-                default_filter = models.SavedFilter.objects.filter(
-                    saved_filter_path_query(self.request),
-                    created_by=self.request.user,
-                    is_default=True,
-                ).first()
-                if not bool(query_dict) and default_filter:
-                    data = eval_validate(default_filter.filter)
-                    query_dict = QueryDict("", mutable=True)
-                    for key, value in data.items():
-                        query_dict[key] = value
-
-                    query_dict._mutable = False
 
         return self.queryset
 

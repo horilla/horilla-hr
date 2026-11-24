@@ -470,6 +470,8 @@
 
         setTimeout(() => {
             var $activeViewBtn = $inlineNavForm.find(".oh-view-btn--active");
+            // Flags this first load, so the view applies the user's default saved filter.
+            var $defaultFilter = $('<input type="hidden" name="default_filter" value="on">').appendTo($inlineNavForm);
             {% if apply_first_filter %}
             // Content is already loaded, so adopt the view's URL without
             // clicking (which would refetch).
@@ -487,6 +489,7 @@
                 $inlineNavForm.find("#applyFilter").click()
             }
             {% endif %}
+            $defaultFilter.remove();
         }, 100);
 
         let debounceTimer;

@@ -521,12 +521,15 @@
         setTimeout(() => {
             // Skip on htmx history restore, which reinserts an already-loaded list.
             if (htmxShouldLoadOnce('{{search_swap_target|default:"#listContainer"|escapejs}}', ohNavScriptEl)) {
+                // Flags this first load, so the view applies the user's default saved filter.
+                var $defaultFilter = $('<input type="hidden" name="default_filter" value="on">').appendTo("#filterForm");
                 $(".oh-view-btn--active").click();
                 {% if apply_first_filter %}
                 if (!$(".oh-view-btn--active").length) {
                     $("#applyFilter").click()
                 }
                 {% endif %}
+                $defaultFilter.remove();
             }
         }, 100);
         $(document).ready(function () {
