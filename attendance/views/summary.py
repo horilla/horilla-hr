@@ -47,7 +47,7 @@ from attendance.methods.leave_days import (  # noqa: F401  (re-exported: the wee
     shared,
     shared_calendar_data,
 )
-from attendance.methods.utils import format_time, real_overtime_seconds
+from attendance.methods.utils import format_time, real_overtime_seconds, strtime_seconds
 from attendance.models import (
     Attendance,
     AttendanceDailyHours,
@@ -155,6 +155,32 @@ def overtime_eligibility(overtime_seconds, condition):
         else 0
     )
     return overtime_seconds > 0 and overtime_seconds >= minimum, minimum
+
+
+def day_hours(row):
+    """
+    ``(worked, required)``: the seconds an attendance row is judged by, its time at work
+    against its minimum hours. ``row`` holds an attendance's ``_CAL_ATTENDANCE_FIELDS``.
+    """
+    worked = row.get("at_work_second") or 0
+    required = strtime_seconds(row["minimum_hour"]) if row.get("minimum_hour") else 0
+    return worked, required
+
+
+def day_type(worked, required, grace, clocked_out):
+    """
+    How much of a day was worked: "full", "half" (half the required hours or more, less
+    the grace time), "short", or "mo" (short with no clock-out: a missing punch). A day
+    with no required hours is always "full".
+    """
+    if required <= 0:
+        return "full"
+    effective = max(0, required - grace)
+    if worked >= effective:
+        return "full"
+    if worked >= effective / 2:
+        return "half"
+    return "short" if clocked_out else "mo"
 
 
 def _day_overtime(emp, day, attendance, cap):
@@ -832,16 +858,10 @@ def build_monthly_summary(from_date, to_date, employee_qs):
         _date = _r["attendance_date"]
         _worked = _r["at_work_second"] or 0
         _min_secs = _strtime_secs(_r["minimum_hour"]) if _r.get("minimum_hour") else 0
-        if _min_secs > 0:
-            _eff_min = max(0, _min_secs - grace_secs)
-            if _worked >= _eff_min:
-                _val = 1.0
-            elif _worked >= _eff_min / 2:
-                _val = 0.5
-            else:
-                _val = 0.0  # hours too low — attendance exists but doesn't count
-        else:
-            _val = 1.0
+        # Hours too low: the attendance exists but doesn't count.
+        _val = {"full": 1.0, "half": 0.5}.get(
+            day_type(*day_hours(_r), grace_secs, _r["attendance_clock_out"]), 0.0
+        )
         att_dates_map[_pk].add(_date)
         att_clock_map[_pk][_date] = (
             _r["attendance_clock_in"],
@@ -2250,40 +2270,22 @@ def attendance_monthly_summary_detail(request):
                 attendance_date__range=(from_date, to_date),
             )
             .order_by("attendance_date")
-            .values(
-                "attendance_date",
-                "attendance_clock_in",
-                "attendance_clock_out",
-                "at_work_second",
-                "minimum_hour",
-                "overtime_second",
-                "attendance_overtime_approve",
-            )
+            .values(*_CAL_ATTENDANCE_FIELDS)
         )
         for _r in raw:
             _worked = _r["at_work_second"] or 0
-            _min_secs = _ss(_r["minimum_hour"]) if _r.get("minimum_hour") else 0
-            if _min_secs > 0:
-                _eff = max(0, _min_secs - _grace)
-                if _worked >= _eff:
-                    _r["day_type"] = "full"
-                elif _worked >= _eff / 2:
-                    _r["day_type"] = "half"
-                else:
-                    # Distinguish: no clock-out → genuinely missing out
-                    #              has clock-out → worked short hours
-                    if _r["attendance_clock_out"]:
-                        _r["day_type"] = "short"
-                    else:
-                        _r["day_type"] = "mo"
-            else:
-                _r["day_type"] = "full"
+            _judged, _min_secs = day_hours(_r)
+            # No clock-out is a missing punch ("mo"); with one, short hours.
+            _r["day_type"] = day_type(
+                _judged, _min_secs, _grace, _r["attendance_clock_out"]
+            )
             # human-readable worked / required / OT labels
             _wh, _wm = _worked // 3600, (_worked % 3600) // 60
             _r["at_work_label"] = f"{_wh}h {_wm:02d}m" if _worked > 0 else ""
             if _min_secs > 0:
+                _jh, _jm = _judged // 3600, (_judged % 3600) // 60
                 _mh, _mm = _min_secs // 3600, (_min_secs % 3600) // 60
-                _r["worked_label"] = f"{_wh}h{_wm:02d}m / {_mh}h{_mm:02d}m"
+                _r["worked_label"] = f"{_jh}h{_jm:02d}m / {_mh}h{_mm:02d}m"
             else:
                 _r["worked_label"] = ""
             _ot_secs = _r.get("overtime_second") or 0
@@ -2433,7 +2435,6 @@ def attendance_monthly_summary_detail(request):
         _half_absent_days -= {d for d in _half_absent_days if d in resolution_map}
 
         # A day worked for less than half the shift is a short-hours day, counted as absent too.
-        from attendance.methods.utils import strtime_seconds as _ss_abs
         from attendance.models import GraceTime as _GT_abs
 
         _dg_abs = _GT_abs.objects.filter(is_default=True, is_active=True).first()
@@ -2448,18 +2449,16 @@ def attendance_monthly_summary_detail(request):
         _short_days = {}
         for _row in Attendance.objects.filter(
             employee_id=emp, attendance_date__range=(from_date, to_date)
-        ).values("attendance_date", "at_work_second", "minimum_hour"):
+        ).values(*_CAL_ATTENDANCE_FIELDS):
             _d = _row["attendance_date"]
-            _min = _ss_abs(_row["minimum_hour"]) if _row.get("minimum_hour") else 0
-            _worked = _row["at_work_second"] or 0
+            _worked, _min = day_hours(_row)
             if (
-                _min > 0
+                day_type(_worked, _min, _grace_abs, True) == "short"
                 and _d not in resolution_map
                 and _d not in off_set
                 and _d not in _holiday_abs
                 and _d not in leave_dates
                 and _d not in _part
-                and _worked < max(0, _min - _grace_abs) / 2
             ):
                 _short_days[_d] = (
                     f"{_worked // 3600}h {(_worked % 3600) // 60:02d}m / {_min // 3600}h {(_min % 3600) // 60:02d}m"
@@ -2492,14 +2491,7 @@ def attendance_monthly_summary_detail(request):
                 attendance_date__range=(from_date, to_date),
             )
             .order_by("attendance_date")
-            .values(
-                "attendance_date",
-                "at_work_second",
-                "minimum_hour",
-                "attendance_clock_in",
-                "attendance_clock_out",
-                "shift_id_id",
-            )
+            .values(*_CAL_ATTENDANCE_FIELDS)
         )
         att_by_date = {r["attendance_date"]: r for r in att_rows}
 
@@ -2612,17 +2604,7 @@ def attendance_monthly_summary_detail(request):
         for att_date in sorted(att_by_date):
             r = att_by_date[att_date]
             _worked = r["at_work_second"] or 0
-            _min_secs = _ss(r["minimum_hour"]) if r.get("minimum_hour") else 0
-            if _min_secs > 0:
-                _eff = max(0, _min_secs - _grace)
-                if _worked >= _eff:
-                    day_type = "full"
-                elif _worked >= _eff / 2:
-                    day_type = "half"
-                else:
-                    day_type = "short" if r["attendance_clock_out"] else "mo"
-            else:
-                day_type = "full"
+            _day_type = day_type(*day_hours(r), _grace, r["attendance_clock_out"])
 
             if att_date in leave_date_info or att_date in half_leave_info:
                 lt_name, lt_payment = (
@@ -2644,7 +2626,7 @@ def attendance_monthly_summary_detail(request):
             conflict_records.append(
                 {
                     "date": att_date,
-                    "day_type": day_type,
+                    "day_type": _day_type,
                     "clock_in": r["attendance_clock_in"],
                     "clock_out": r["attendance_clock_out"],
                     "worked_h": _wh,
@@ -3130,28 +3112,24 @@ def _build_calendar_context(emp, from_date, to_date, show_future_leave=False):
             )
             clock_in = r["attendance_clock_in"]
             clock_out = r["attendance_clock_out"]
-
-            if min_secs > 0:
-                effective_min = max(0, min_secs - grace_secs)
-                if worked >= effective_min:
-                    att_status = "present"
-                elif worked >= effective_min / 2:
-                    att_status = "half_present"
-                else:
-                    att_status = "short" if clock_out else "absent"
-            else:
-                att_status = "present"
+            judged, required = day_hours(r)
+            att_status = {
+                "full": "present",
+                "half": "half_present",
+                "short": "short",
+                "mo": "absent",
+            }[day_type(judged, required, grace_secs, clock_out)]
 
             detail = ""
             if clock_in:
                 detail = str(clock_in)
                 if clock_out:
                     detail += f" – {clock_out}"
-            if att_status in ("half_present", "short", "absent") and min_secs > 0:
-                worked_h = worked // 3600
-                worked_m = (worked % 3600) // 60
-                min_h = min_secs // 3600
-                min_m = (min_secs % 3600) // 60
+            if att_status in ("half_present", "short", "absent") and required > 0:
+                worked_h = judged // 3600
+                worked_m = (judged % 3600) // 60
+                min_h = required // 3600
+                min_m = (required % 3600) // 60
                 detail += f" ({worked_h}h{worked_m:02d}m / {min_h}h{min_m:02d}m)"
 
             # Determine conflict type
@@ -3657,15 +3635,7 @@ def attendance_monthly_summary_conflict_resolve(request):
     # ── GET: build resolve panel context (handles all day types) ────────────
     att_row = (
         Attendance.objects.filter(employee_id=emp, attendance_date=date)
-        .values(
-            "attendance_clock_in",
-            "attendance_clock_out",
-            "at_work_second",
-            "minimum_hour",
-            "overtime_second",
-            "attendance_overtime_approve",
-            "shift_id_id",
-        )
+        .values(*_CAL_ATTENDANCE_FIELDS)
         .first()
     )
     att_ot_approved = bool(att_row and att_row.get("attendance_overtime_approve"))
@@ -3675,7 +3645,7 @@ def attendance_monthly_summary_conflict_resolve(request):
     if _dg:
         _grace = _dg.allowed_time_in_secs or 0
 
-    day_type = None
+    _day_type = None
     worked_h = 0
     worked_m = 0
     regular_h = 0
@@ -3692,16 +3662,9 @@ def attendance_monthly_summary_conflict_resolve(request):
         _min_secs = _ss(att_row["minimum_hour"]) if att_row.get("minimum_hour") else 0
         _shift_min_secs = _min_secs
         _att_ot_sec = att_row.get("overtime_second") or 0
-        if _min_secs > 0:
-            _eff = max(0, _min_secs - _grace)
-            if _worked >= _eff:
-                day_type = "full"
-            elif _worked >= _eff / 2:
-                day_type = "half"
-            else:
-                day_type = "short" if att_row["attendance_clock_out"] else "mo"
-        else:
-            day_type = "full"
+        _day_type = day_type(
+            *day_hours(att_row), _grace, att_row["attendance_clock_out"]
+        )
         worked_h = _worked // 3600
         worked_m = (_worked % 3600) // 60
         _reg_sec = min(_worked, _min_secs) if _min_secs > 0 else _worked
@@ -3827,16 +3790,16 @@ def attendance_monthly_summary_conflict_resolve(request):
         "week_off_ot",
     ):
         natural_halves_day = natural_halves(
-            part_leave_day, day_type in ("full", "half")
+            part_leave_day, _day_type in ("full", "half")
         )
-    elif day_type == "half" and conflict_type == "":
+    elif _day_type == "half" and conflict_type == "":
         # Half the shift or more, not all of it: half present, half short on hours.
         natural_halves_day = ("P", "SH")
 
     if natural_halves_day:
         day_status = "split_natural"
     elif att_row:
-        day_status = day_type
+        day_status = _day_type
     elif conflict_type in ("paid_leave", "unpaid_leave"):
         day_status = conflict_type
     elif conflict_type == "holiday":
@@ -4114,7 +4077,7 @@ def attendance_monthly_summary_conflict_resolve(request):
         "from_date": from_date,
         "to_date": to_date,
         "att_row": att_row,
-        "day_type": day_type,
+        "day_type": _day_type,
         "day_status": day_status,
         "natural_status_label": natural_status_label,
         "natural_split": bool(natural_halves_day),
