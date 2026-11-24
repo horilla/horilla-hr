@@ -2220,11 +2220,13 @@ def mail_server_test_email(request):
             # Plain text content (fallback for email clients that do not support HTML)
             text_content = strip_tags(html_content)
 
-            email_backend = ConfiguredEmailBackend()
             emailconfig = DynamicEmailConfiguration.objects.filter(
                 id=instance_id
             ).first()
-            email_backend.configuration = emailconfig
+            # Connect with the server being tested, and report its errors
+            # even when it is set to fail silently: that is the test.
+            email_backend = ConfiguredEmailBackend(configuration=emailconfig)
+            email_backend.fail_silently = False
 
             try:
                 msg = EmailMultiAlternatives(
@@ -2242,9 +2244,12 @@ def mail_server_test_email(request):
                         msg_img.add_header("Content-ID", "<company_logo>")
                         msg.attach(msg_img)
 
-                msg.send()
+                sent = msg.send()
             except Exception as e:
                 messages.error(request, " ".join([_("Something went wrong :"), str(e)]))
+                return HorillaRedirect(request)
+            if not sent:
+                messages.error(request, _("The mail server did not accept the mail."))
                 return HorillaRedirect(request)
 
             messages.success(request, _("Mail sent successfully"))
