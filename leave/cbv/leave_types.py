@@ -30,19 +30,10 @@ from horilla_views.generic.cbv.views import (
 )
 from leave.filters import LeaveTypeFilter
 from leave.forms import AssignLeaveForm, LeaveOneAssignForm
-from leave.models import AvailableLeave, LeaveGeneralSetting, LeaveType
+from leave.methods import exclude_disabled_compensatory_leave
+from leave.models import AvailableLeave, LeaveType
 from leave.services import evaluate_leave_type_conditions
 from notifications.signals import notify
-
-
-def _exclude_disabled_compensatory_leave(queryset):
-    """Hide the Compensatory Leave type unless the feature is actually
-    enabled.
-    """
-    setting = LeaveGeneralSetting.objects.first()
-    if setting and setting.compensatory_leave:
-        return queryset
-    return queryset.exclude(is_compensatory_leave=True)
 
 
 @method_decorator(login_required, name="dispatch")
@@ -79,7 +70,7 @@ class LeaveTypeListView(HorillaListView):
         queryset = super().get_queryset(queryset, filtered, *args, **kwargs)
         # Assigned back so callers that read self.queryset afterwards (like
         # LeaveTypeAllocationList) also get the filtered queryset.
-        self.queryset = _exclude_disabled_compensatory_leave(queryset)
+        self.queryset = exclude_disabled_compensatory_leave(queryset)
         return self.queryset
 
     columns = [
@@ -271,7 +262,7 @@ class LeaveTypeCardView(HorillaCardView):
         self.search_url = reverse("leave-type-card-view")
 
     def get_queryset(self):
-        return _exclude_disabled_compensatory_leave(super().get_queryset())
+        return exclude_disabled_compensatory_leave(super().get_queryset())
 
     details = {
         "image_src": "get_avatar",
