@@ -391,6 +391,18 @@ class Attendance(HorillaModel):
             context={"instance": self},
         )
 
+    def attendance_status_col(self):
+        """
+        On Time or Late Arrival, and Early Departure, as the Attendance Status
+        filter reads them: late or early when the day has that record, on
+        time when it has no late arrival record.
+        """
+        kinds = {record.type for record in self.late_come_early_out.all()}
+        return render_template(
+            path="cbv/attendances/attendance_status.html",
+            context={"late": "late_come" in kinds, "early": "early_out" in kinds},
+        )
+
     def penalty_col(self):
         """
         Penalty badges of the late come / early out records of this attendance.
