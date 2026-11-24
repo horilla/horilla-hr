@@ -4540,7 +4540,12 @@ class Command(ExtrasMixin, BaseCommand):
                     recruitment_id=recruitment,
                     job_position_id=position,
                     stage_id=stages[stage_type],
-                    email=f"{first}.{last}.{recruitment.pk}.{i}@example.com".lower(),
+                    # A last name such as "Müller" is not valid in an address.
+                    email=(
+                        f"{re.sub(r'[^a-z]', '', first.lower())}."
+                        f"{re.sub(r'[^a-z]', '', last.lower())}."
+                        f"{recruitment.pk}.{i}@example.com"
+                    ),
                     mobile=f"{location[2]}{recruitment.pk % 100:02d}{i:02d}{(i * 37) % 1000:03d}",
                     gender="female" if (i + r) % 2 else "male",
                     source=RECRUITMENT_SOURCES[(i + r) % len(RECRUITMENT_SOURCES)],
