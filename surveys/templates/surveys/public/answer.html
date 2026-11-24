@@ -73,14 +73,16 @@
     </div>
 </form>
 
+{% trans 'Saved' as saved_message %}
+{% trans 'Not saved - check your connection' as not_saved_message %}
 <script>
     function surveySaved(event) {
         var el = document.getElementById("savedAt");
         if (event.detail.successful) {
-            try { el.textContent = "{% trans 'Saved' %} " + (JSON.parse(event.detail.xhr.responseText).at || ""); }
-            catch (e) { el.textContent = "{% trans 'Saved' %}"; }
+            try { el.textContent = "{{ saved_message|escapejs }} " + (JSON.parse(event.detail.xhr.responseText).at || ""); }
+            catch (e) { el.textContent = "{{ saved_message|escapejs }}"; }
         } else {
-            el.textContent = "{% trans 'Not saved - check your connection' %}";
+            el.textContent = "{{ not_saved_message|escapejs }}";
         }
         var boxes = document.querySelectorAll("[data-question]"), done = 0;
         boxes.forEach(function (box) {

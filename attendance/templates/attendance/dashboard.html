@@ -69,19 +69,8 @@
         }
         .am-sidebar {
             display: flex;
-            position: sticky;
-            top: 90px;
             flex-direction: column;
             gap: 16px;
-            max-height: calc(100vh - 90px - 24px);
-            overflow-y: auto;
-        }
-        .am-sidebar::-webkit-scrollbar {
-            width: 3px;
-        }
-        .am-sidebar::-webkit-scrollbar-thumb {
-            border-radius: 3px;
-            background: rgba(128, 128, 128, 0.2);
         }
 
         /* ── KPI ── */
@@ -567,6 +556,16 @@
             font-size: 12px;
             text-align: right;
         }
+        .am-absentee-item--late .am-absentee-item__avatar {
+            background: #fef3c7;
+            color: var(--am-amber);
+        }
+        .dark .am-absentee-item--late .am-absentee-item__avatar {
+            background: #78350f;
+        }
+        .am-absentee-item--late .am-absentee-item__days {
+            color: var(--am-amber);
+        }
 
         /* ── Period picker (mirrors onboarding/recruitment) ── */
         .am-period-picker {
@@ -848,11 +847,6 @@
         @media (max-width: 1280px) {
             .am-layout {
                 grid-template-columns: 1fr;
-            }
-            .am-sidebar {
-                position: static;
-                max-height: none;
-                overflow-y: visible;
             }
             .am-info-panel__body {
                 max-height: 300px;
@@ -1481,6 +1475,50 @@
                         >
                     </div>
                     <div class="am-info-panel__body" id="am-absentees">
+                        <div class="am-info-panel__empty">
+                            {% trans "Loading..." %}
+                        </div>
+                    </div>
+                </div>
+                <div class="am-info-panel">
+                    <div class="am-info-panel__header am-info-panel__header--stacked">
+                        <div class="am-info-panel__title">
+                            {% trans "Frequent Late Arrivals" %}<span
+                                id="am-late-count"
+                                class="am-count-badge"
+                                hidden
+                                >0</span
+                            >
+                        </div>
+                        <span
+                            class="am-info-panel__sub"
+                            id="am-late-month"
+                            >{% trans "This month" %}</span
+                        >
+                    </div>
+                    <div class="am-info-panel__body" id="am-late">
+                        <div class="am-info-panel__empty">
+                            {% trans "Loading..." %}
+                        </div>
+                    </div>
+                </div>
+                <div class="am-info-panel">
+                    <div class="am-info-panel__header am-info-panel__header--stacked">
+                        <div class="am-info-panel__title">
+                            {% trans "Frequent Early Departures" %}<span
+                                id="am-early-count"
+                                class="am-count-badge"
+                                hidden
+                                >0</span
+                            >
+                        </div>
+                        <span
+                            class="am-info-panel__sub"
+                            id="am-early-month"
+                            >{% trans "This month" %}</span
+                        >
+                    </div>
+                    <div class="am-info-panel__body" id="am-early">
                         <div class="am-info-panel__empty">
                             {% trans "Loading..." %}
                         </div>
@@ -3171,6 +3209,82 @@
             }
             loadTopAbsentees();
 
+            // ─── FREQUENT LATE ARRIVALS / EARLY DEPARTURES ───
+            // Days with a late come (or early out) record in the period, per
+            // employee. Each name opens that employee's records for the period.
+            const lateEarlyUrl = "{% url 'late-come-early-out-view' %}";
+            function loadFrequentLateEarly(key, url, type, detail, empty) {
+                const el = document.getElementById(`am-${key}`);
+                const showEmpty = () => {
+                    el.innerHTML =
+                        '<div class="am-info-panel__empty">' + empty + "</div>";
+                };
+                fetchP(url)
+                    .then((r) => r.json())
+                    .then((data) => {
+                        document.getElementById(`am-${key}-month`).textContent =
+                            data.month;
+                        const badge = document.getElementById(`am-${key}-count`);
+                        badge.textContent = data.employees.length;
+                        badge.hidden = !data.employees.length;
+                        if (!data.employees.length) return showEmpty();
+                        el.innerHTML = data.employees
+                            .map((a) => {
+                                // Letters only: they go into the inline onerror.
+                                const initials =
+                                    (a.name || "")
+                                        .split(" ")
+                                        .map((w) => w.replace(/[^\p{L}\p{N}]/gu, "")[0] || "")
+                                        .join("")
+                                        .slice(0, 2)
+                                        .toUpperCase() || "?";
+                                const avatarInner = a.avatar
+                                    ? `<img src="${escHtml(a.avatar)}" alt="" onerror="this.parentElement.textContent='${initials}'">`
+                                    : initials;
+                                const href =
+                                    `${lateEarlyUrl}?` +
+                                    new URLSearchParams({
+                                        employee_id: a.id,
+                                        type: type,
+                                        attendance_date__gte: data.from_date,
+                                        attendance_date__lte: data.to_date,
+                                        filter_applied: "true",
+                                    });
+                                return `
+                    <a href="${escHtml(href)}" class="am-absentee-item am-absentee-item--late">
+                        <div class="am-absentee-item__avatar">${avatarInner}</div>
+                        <div class="am-absentee-item__info">
+                            <div class="am-absentee-item__name">${escHtml(a.name)}</div>
+                            <div class="am-absentee-item__detail">${a.days}/${a.attended_days} ${detail}</div>
+                        </div>
+                        <div class="am-absentee-item__days">${a.days}d</div>
+                    </a>`;
+                            })
+                            .join("");
+                    })
+                    .catch(showEmpty);
+            }
+            function loadFrequentLate() {
+                loadFrequentLateEarly(
+                    "late",
+                    "{% url 'attendance-dashboard-frequent-late' %}",
+                    "late_come",
+                    '{% trans "days late"|escapejs %}',
+                    '{% trans "No late arrivals in this period"|escapejs %}',
+                );
+            }
+            function loadFrequentEarly() {
+                loadFrequentLateEarly(
+                    "early",
+                    "{% url 'attendance-dashboard-frequent-early' %}",
+                    "early_out",
+                    '{% trans "days left early"|escapejs %}',
+                    '{% trans "No early departures in this period"|escapejs %}',
+                );
+            }
+            loadFrequentLate();
+            loadFrequentEarly();
+
             // ─── ATTENDANCE DAILY OVERVIEW ───
             // Same chart as the main dashboard: today's on-time / late / early-out split of each
             // department (100% columns). The chips under it are the departments; click one to take
@@ -3266,6 +3380,8 @@
                 loadAbsencePct();
                 loadAvgHours();
                 loadTopAbsentees();
+                loadFrequentLate();
+                loadFrequentEarly();
                 loadAttendanceOverview();
             }
         })();

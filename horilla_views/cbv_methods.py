@@ -51,7 +51,12 @@ from horilla.config import logger
 from horilla.export_safety import safe_cell
 from horilla.horilla_middlewares import _thread_locals
 from horilla.methods import handle_no_permission
-from horilla.week import first_day_of_week, week_start  # noqa: F401 (re-exported)
+from horilla.week import (  # noqa: F401 (first_day_of_week, week_start re-exported)
+    WEEKDAY_NAMES,
+    first_day_of_week,
+    week_start,
+    weekday_position,
+)
 from horilla_views.templatetags.generic_template_filters import getattribute
 
 FIELD_WIDGET_MAP = {
@@ -656,6 +661,38 @@ def getmodelattribute(value: models.Model, attr: str):
     return result
 
 
+def weekday_sort_key(model, sort_key: str):
+    """
+    For a sort key that ends on a day-of-week choice field, return a function
+    giving each stored value's place in the week (from first_day_of_week()),
+    so the column sorts Mon, Tue, ... Sun rather than alphabetically.
+    Returns None for any other sort key.
+
+    Day-of-week fields store either the day's name ("monday", as on
+    EmployeeShiftDay.day) or "0" to "6" with Monday = 0 (WEEK_DAYS).
+    """
+    field = None
+    for part in sort_key.split("__"):
+        try:
+            field = model._meta.get_field(part)
+        except (AttributeError, FieldDoesNotExist):
+            return None
+        model = field.related_model
+    keys = {str(key).lower() for key, _label in getattr(field, "flatchoices", [])}
+    if keys == set(WEEKDAY_NAMES):
+        days = {name: number for number, name in enumerate(WEEKDAY_NAMES)}
+    elif keys == {str(number) for number in range(7)}:
+        days = {str(number): number for number in range(7)}
+    else:
+        return None
+
+    def position(value):
+        number = days.get(str(value).lower())
+        return 7 if number is None else weekday_position(number)
+
+    return position
+
+
 def sortby(
     query_dict, queryset, key: str, page: str = "page", is_first_sort: bool = False
 ):
@@ -684,10 +721,14 @@ def sortby(
         none_ids = list(none_queryset.values_list("id", flat=True))
         queryset = queryset.exclude(id__in=none_ids)
 
+    weekday = weekday_sort_key(model, sort_key)
+
     def _sortby(object):
         result = getattribute(object, attr=sort_key)
         if result is None:
             none_ids.append(object.pk)
+        elif weekday:
+            result = weekday(result)
         elif isinstance(result, models.Model):
             result = str(result)
         if isinstance(result, str):

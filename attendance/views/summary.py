@@ -42,6 +42,10 @@ from attendance.methods.leave_days import (  # noqa: F401  (re-exported: the wee
     employee_week_off_dates,
     excluded_dates,
     exclusion_sets,
+    preload,
+    preloaded,
+    shared,
+    shared_calendar_data,
 )
 from attendance.methods.utils import real_overtime_seconds
 from attendance.models import (
@@ -1817,18 +1821,20 @@ def build_daily_rows(employees, from_date, to_date):
         for i in range((to_date - from_date).days + 1)
     ]
     rows = []
-    for emp in employees:
-        context = _build_calendar_context(emp, from_date, to_date)
-        by_date = {
-            c["date"]: c
-            for m in context["months"]
-            for w in m["weeks"]
-            for c in w
-            if c and c["status"] != "out_of_range"
-        }
-        rows.append(
-            {"employee": emp, "cells": [daily_cell(by_date.get(d)) for d in dates]}
-        )
+    with shared_calendar_data():
+        _preload_calendar_rows(employees, from_date, to_date)
+        for emp in employees:
+            context = _build_calendar_context(emp, from_date, to_date)
+            by_date = {
+                c["date"]: c
+                for m in context["months"]
+                for w in m["weeks"]
+                for c in w
+                if c and c["status"] != "out_of_range"
+            }
+            rows.append(
+                {"employee": emp, "cells": [daily_cell(by_date.get(d)) for d in dates]}
+            )
     return rows
 
 
@@ -2719,6 +2725,129 @@ def attendance_monthly_summary_detail(request):
     return render(request, "attendance/monthly_summary/detail_popover.html", context)
 
 
+_CAL_ATTENDANCE_FIELDS = (
+    "attendance_date",
+    "attendance_clock_in",
+    "attendance_clock_out",
+    "at_work_second",
+    "minimum_hour",
+    "overtime_second",
+    "attendance_overtime_approve",
+    "shift_id_id",
+)
+
+
+def _preload_calendar_rows(employees, from_date, to_date):
+    """
+    Every employee-specific row the calendar context reads, for a whole page of employees, in
+    a query per kind instead of a query per kind per employee.
+    """
+    from attendance.models import AttendanceConflictResolution
+    from base.methods import get_date_range
+    from employee.models import EmployeeWorkInformation
+    from leave.models import LeaveRequest
+
+    ids = [e.pk for e in employees]
+
+    def grouped(rows, owner):
+        table = {pk: [] for pk in ids}
+        for row in rows:
+            table[owner(row)].append(row)
+        return table
+
+    def by_key(name):
+        return lambda row: row[name]
+
+    preload(
+        ("attendance", from_date, to_date),
+        grouped(
+            Attendance.objects.filter(
+                employee_id__in=ids, attendance_date__range=(from_date, to_date)
+            ).values(*_CAL_ATTENDANCE_FIELDS, "employee_id_id"),
+            by_key("employee_id_id"),
+        ),
+    )
+    live = ["approved", "cancel_requested"]
+    preload(
+        ("leave_range", from_date, to_date),
+        grouped(
+            LeaveRequest.objects.filter(
+                employee_id__in=ids,
+                status__in=live,
+                start_date__lte=to_date,
+                end_date__isnull=False,
+                end_date__gte=from_date,
+            ).select_related("leave_type_id"),
+            lambda lr: lr.employee_id_id,
+        ),
+    )
+    preload(
+        ("leave_single", from_date, to_date),
+        grouped(
+            LeaveRequest.objects.filter(
+                employee_id__in=ids,
+                status__in=live,
+                start_date__range=(from_date, to_date),
+                end_date__isnull=True,
+            ).select_related("leave_type_id"),
+            lambda lr: lr.employee_id_id,
+        ),
+    )
+    preload(
+        ("roster", from_date, to_date),
+        grouped(
+            Roster.objects.filter(
+                employee_id__in=ids, date__range=(from_date, to_date)
+            ).values("date", "is_off", "employee_id"),
+            by_key("employee_id"),
+        ),
+    )
+    preload(
+        ("resolutions", from_date, to_date),
+        grouped(
+            AttendanceConflictResolution.objects.filter(
+                employee_id__in=ids, date__range=(from_date, to_date)
+            ),
+            lambda r: r.employee_id_id,
+        ),
+    )
+    preload(
+        ("work_info", from_date, to_date),
+        grouped(
+            EmployeeWorkInformation.objects.filter(employee_id__in=ids).values(
+                "shift_id_id", "employee_id_id"
+            ),
+            by_key("employee_id_id"),
+        ),
+    )
+    preload(
+        ("daily_hours", from_date, to_date),
+        grouped(
+            AttendanceDailyHours.objects.filter(
+                employee_id__in=ids, date__range=(from_date, to_date)
+            ).values("date", "hours_second", "is_manually_edited", "employee_id_id"),
+            by_key("employee_id_id"),
+        ),
+    )
+    # A holiday reaches an employee when it is for everyone or names the employee.
+    holidays = list(
+        Holidays.objects.filter(
+            start_date__lte=to_date, end_date__gte=from_date
+        ).prefetch_related("employees")
+    )
+    dates_for = {pk: set() for pk in ids}
+    for holiday in holidays:
+        span = get_date_range(start_date=holiday.start_date, end_date=holiday.end_date)
+        named = {e.pk for e in holiday.employees.all()}
+        for pk in ids:
+            if not holiday.is_specific or pk in named:
+                dates_for[pk].update(span)
+    preload(
+        ("holiday_dates", from_date, to_date),
+        {pk: list(dates) for pk, dates in dates_for.items()},
+    )
+
+
 def _build_calendar_context(emp, from_date, to_date, show_future_leave=False):
     """
     Build the full context dict for the calendar modal template.
@@ -2735,25 +2864,25 @@ def _build_calendar_context(emp, from_date, to_date, show_future_leave=False):
 
     # -- Grace time -----------------------------------------------------------
     grace_secs = 0
-    default_grace = GraceTime.objects.filter(is_default=True, is_active=True).first()
+    default_grace = shared(
+        "default_grace",
+        lambda: GraceTime.objects.filter(is_default=True, is_active=True).first(),
+    )
     if default_grace:
         grace_secs = default_grace.allowed_time_in_secs or 0
 
     # -- Attendance records {date: {...}} ------------------------------------
     att_map = {
         r["attendance_date"]: r
-        for r in Attendance.objects.filter(
-            employee_id=emp,
-            attendance_date__range=(from_date, to_date),
-        ).values(
-            "attendance_date",
-            "attendance_clock_in",
-            "attendance_clock_out",
-            "at_work_second",
-            "minimum_hour",
-            "overtime_second",
-            "attendance_overtime_approve",
-            "shift_id_id",
+        for r in preloaded(
+            ("attendance", from_date, to_date),
+            emp,
+            lambda: list(
+                Attendance.objects.filter(
+                    employee_id=emp,
+                    attendance_date__range=(from_date, to_date),
+                ).values(*_CAL_ATTENDANCE_FIELDS)
+            ),
         )
     }
 
@@ -2765,19 +2894,31 @@ def _build_calendar_context(emp, from_date, to_date, show_future_leave=False):
         leave_to = to_date.replace(
             day=calendar.monthrange(to_date.year, to_date.month)[1]
         )
-    qs_range = LeaveRequest.objects.filter(
-        employee_id=emp,
-        status__in=["approved", "cancel_requested"],
-        start_date__lte=leave_to,
-        end_date__isnull=False,
-        end_date__gte=from_date,
-    ).select_related("leave_type_id")
-    qs_single = LeaveRequest.objects.filter(
-        employee_id=emp,
-        status__in=["approved", "cancel_requested"],
-        start_date__range=(from_date, leave_to),
-        end_date__isnull=True,
-    ).select_related("leave_type_id")
+    qs_range = preloaded(
+        ("leave_range", from_date, leave_to),
+        emp,
+        lambda: list(
+            LeaveRequest.objects.filter(
+                employee_id=emp,
+                status__in=["approved", "cancel_requested"],
+                start_date__lte=leave_to,
+                end_date__isnull=False,
+                end_date__gte=from_date,
+            ).select_related("leave_type_id")
+        ),
+    )
+    qs_single = preloaded(
+        ("leave_single", from_date, leave_to),
+        emp,
+        lambda: list(
+            LeaveRequest.objects.filter(
+                employee_id=emp,
+                status__in=["approved", "cancel_requested"],
+                start_date__range=(from_date, leave_to),
+                end_date__isnull=True,
+            ).select_related("leave_type_id")
+        ),
+    )
     leaves = list(chain(qs_range, qs_single))
     _hol, _wo = exclusion_sets(emp, from_date, leave_to)
     part_leave, paid_full, unpaid_full = partial_leave_days(
@@ -2801,15 +2942,24 @@ def _build_calendar_context(emp, from_date, to_date, show_future_leave=False):
 
     # -- Holiday dates --------------------------------------------------------
     holiday_map = {}
-    for h in Holidays.objects.filter(start_date__lte=leave_to, end_date__gte=from_date):
+    for h in shared(
+        ("holidays", from_date, leave_to),
+        lambda: list(
+            Holidays.objects.filter(start_date__lte=leave_to, end_date__gte=from_date)
+        ),
+    ):
         for d in _iter_dates(max(h.start_date, from_date), min(h.end_date, leave_to)):
             holiday_map[d] = h.name
 
     # -- Week-off dates -------------------------------------------------------
-    roster_entries = list(
-        Roster.objects.filter(
-            employee_id=emp, date__range=(from_date, leave_to)
-        ).values("date", "is_off")
+    roster_entries = preloaded(
+        ("roster", from_date, leave_to),
+        emp,
+        lambda: list(
+            Roster.objects.filter(
+                employee_id=emp, date__range=(from_date, leave_to)
+            ).values("date", "is_off")
+        ),
     )
     week_off_dates = employee_week_off_dates(
         [(e["date"], e["is_off"]) for e in roster_entries],
@@ -2821,9 +2971,15 @@ def _build_calendar_context(emp, from_date, to_date, show_future_leave=False):
     # -- Existing resolutions {date: "attendance"|"leave"} -------------------
     resolutions_map = {
         r.date: r.resolution
-        for r in AttendanceConflictResolution.objects.filter(
-            employee_id=emp,
-            date__range=(from_date, to_date),
+        for r in preloaded(
+            ("resolutions", from_date, to_date),
+            emp,
+            lambda: list(
+                AttendanceConflictResolution.objects.filter(
+                    employee_id=emp,
+                    date__range=(from_date, to_date),
+                )
+            ),
         )
     }
 
@@ -2874,18 +3030,39 @@ def _build_calendar_context(emp, from_date, to_date, show_future_leave=False):
         "saturday",
         "sunday",
     ]
-    _wi_row = _EWI.objects.filter(employee_id=emp).values("shift_id_id").first()
+    _wi_row = next(
+        iter(
+            preloaded(
+                ("work_info", from_date, to_date),
+                emp,
+                lambda: list(
+                    _EWI.objects.filter(employee_id=emp).values("shift_id_id")[:1]
+                ),
+            )
+        ),
+        None,
+    )
     _cal_shift_pk = _wi_row["shift_id_id"] if _wi_row else None
     cal_shift_secs = {}  # {day_name: seconds}
     cal_shift_times = {}  # {(shift, day_name): (start, end)}
     _cal_shift_ids = {
         r["shift_id_id"] for r in att_map.values() if r.get("shift_id_id")
     } | {_cal_shift_pk}
-    for _ss in _ESS.objects.filter(
-        shift_id__in=[i for i in _cal_shift_ids if i]
-    ).values(
-        "shift_id_id", "day__day", "minimum_working_hour", "start_time", "end_time"
+    _wanted_shifts = {i for i in _cal_shift_ids if i}
+    for _ss in shared(
+        "shift_schedules",
+        lambda: list(
+            _ESS.objects.values(
+                "shift_id_id",
+                "day__day",
+                "minimum_working_hour",
+                "start_time",
+                "end_time",
+            )
+        ),
     ):
+        if _ss["shift_id_id"] not in _wanted_shifts:
+            continue
         if _ss["shift_id_id"] == _cal_shift_pk and _ss["minimum_working_hour"]:
             cal_shift_secs[_ss["day__day"]] = strtime_seconds(
                 _ss["minimum_working_hour"]
@@ -2902,10 +3079,16 @@ def _build_calendar_context(emp, from_date, to_date, show_future_leave=False):
 
     # -- Per-day manual hours from calendar editor ----------------------------
     cal_daily_hours_map = {}  # {date: (hours_second, is_manually_edited)}
-    for _dh in AttendanceDailyHours.objects.filter(
-        employee_id=emp,
-        date__range=(from_date, to_date),
-    ).values("date", "hours_second", "is_manually_edited"):
+    for _dh in preloaded(
+        ("daily_hours", from_date, to_date),
+        emp,
+        lambda: list(
+            AttendanceDailyHours.objects.filter(
+                employee_id=emp,
+                date__range=(from_date, to_date),
+            ).values("date", "hours_second", "is_manually_edited")
+        ),
+    ):
         cal_daily_hours_map[_dh["date"]] = (
             _dh["hours_second"],
             _dh["is_manually_edited"],

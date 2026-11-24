@@ -1219,6 +1219,12 @@ def two_factor_auth(request):
         logger.exception("two_factor_auth: could not read OTP from session")
         otp = None
 
+    employee = getattr(request.user, "employee_get", None)
+    if settings.TWO_FACTORS_AUTHENTICATION and employee and not employee.get_mail():
+        # The code goes by email, so without an address the user cannot get
+        # past this page until an administrator adds one.
+        return render(request, "base/auth/two_factor_auth.html", {"no_email": True})
+
     if request.method == "POST":
         user_otp = request.POST.get("otp") or ""
         if otp is not None and hmac.compare_digest(str(user_otp), str(otp)):
@@ -1267,6 +1273,8 @@ def send_otp(request):
         return redirect("/login/")
 
     email = employee.get_mail()
+    if not email:
+        return redirect("two-factor")
     email_backend = ConfiguredEmailBackend()
     display_email_name = email_backend.dynamic_from_email_with_display_name
 

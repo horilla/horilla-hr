@@ -2,10 +2,10 @@
 {% load i18n %}
 {% block content %}
 <style>
-    {# Same stat-tile component as the main app dashboard (templates/dashboard.html's
+    {% comment %} Same stat-tile component as the main app dashboard (templates/dashboard.html's
        .md-kpi-card) -- that one lives in a page-local <style> block there, so it's
        not reachable from here as shared CSS; reproduced here rather than left
-       looking like a different, ad-hoc card design. #}
+       looking like a different, ad-hoc card design. {% endcomment %}
     .md-kpi-card {
         position: relative;
         padding: 20px;
@@ -89,8 +89,8 @@
         line-height: 1;
     }
 
-    {# Same chart-card component as the main app dashboard (.md-chart-card),
-       reproduced here for the same reason as .md-kpi-card above. #}
+    {% comment %} Same chart-card component as the main app dashboard (.md-chart-card),
+       reproduced here for the same reason as .md-kpi-card above. {% endcomment %}
     .md-chart-card {
         position: relative;
         overflow: visible;
@@ -132,11 +132,11 @@
         padding: 4px 16px 16px;
     }
 
-    {# Same dashboard-header component used by the main app dashboard
+    {% comment %} Same dashboard-header component used by the main app dashboard
        (.md-header), Attendance (.am-header) and Helpdesk (.hd-header)
        dashboards -- a bold title plus a live "today's date" line, so
        this page reads as one of the same family instead of a plain
-       <h3>. #}
+       <h3>. {% endcomment %}
     .sv-header {
         display: flex;
         justify-content: space-between;

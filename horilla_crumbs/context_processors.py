@@ -820,6 +820,17 @@ def breadcrumbs(request):
                     existing = existing[: position + 1]
                     request.session["breadcrumbs"] = existing
                     break
+            else:
+                if "HTTP_HX_REQUEST" in request.META:
+                    # A fragment the page loads (the Employees list) can
+                    # repeat the page's own query, flag included: it is not
+                    # the page, so it must not reshape the trail.
+                    return {"breadcrumbs": existing}
+                # A crumb that redirects (Employee goes to its dashboard) lands
+                # on a page that is not in the trail: the trail starts again
+                # from that page, as the crumb was a step back, not forward.
+                existing = build_breadcrumbs(request)
+                request.session["breadcrumbs"] = existing
             return {"breadcrumbs": existing}
 
         local_trail = build_breadcrumbs(request)
@@ -879,11 +890,21 @@ def breadcrumbs(request):
         return {"breadcrumbs": fallback}
 
 
+def _redirect_keeping_query(request, url_name):
+    """
+    Redirect to ``url_name`` with the request's query string, so a crumb's
+    ``breadcrumb_nav=true`` reaches the page the section redirects to.
+    """
+    url = reverse(url_name)
+    query = request.META.get("QUERY_STRING", "")
+    return redirect(f"{url}?{query}" if query else url)
+
+
 def _section_redirect(url_name):
     """Return a named redirect view that stores its destination for breadcrumb permission checks."""
 
     def _redirect(request):
-        return redirect(url_name)
+        return _redirect_keeping_query(request, url_name)
 
     _redirect._redirect_to = url_name
     return _redirect
@@ -891,8 +912,8 @@ def _section_redirect(url_name):
 
 def _leave_redirect(request):
     if request.user.has_perm("leave.view_leaverequest"):
-        return redirect("leave-dashboard")
-    return redirect("user-request-view")
+        return _redirect_keeping_query(request, "leave-dashboard")
+    return _redirect_keeping_query(request, "user-request-view")
 
 
 def _attendance_redirect(request):
@@ -903,8 +924,8 @@ def _attendance_redirect(request):
         or request.user.has_perm("attendance.view_attendance")
         or is_reportingmanager(request.user)
     ):
-        return redirect("attendance-dashboard")
-    return redirect("attendance-view")
+        return _redirect_keeping_query(request, "attendance-dashboard")
+    return _redirect_keeping_query(request, "attendance-view")
 
 
 def _employee_redirect(request):
@@ -913,8 +934,8 @@ def _employee_redirect(request):
     if request.user.has_perm("employee.view_employee") or is_reportingmanager(
         request.user
     ):
-        return redirect("employee-dashboard")
-    return redirect("ess-dashboard")
+        return _redirect_keeping_query(request, "employee-dashboard")
+    return _redirect_keeping_query(request, "ess-dashboard")
 
 
 urlpatterns.append(path("recruitment/", _section_redirect("recruitment-dashboard")))

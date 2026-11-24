@@ -540,7 +540,7 @@ class EmployeeSortingTests(TestCase):
         from django.urls import reverse
 
         SalaryStructure.objects.filter(pk=self.structure.pk).update(structure_mode=mode)
-        self._employee(f"{mode}@test.horilla", 30000)
+        self._employee("Headers", 30000)
         panel = self.client.get(
             reverse("salary-structure-employees", kwargs={"pk": self.structure.pk}),
             HTTP_HX_REQUEST="true",

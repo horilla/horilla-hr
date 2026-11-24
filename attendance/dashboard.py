@@ -858,6 +858,84 @@ def attendance_top_absentees(request):
     )
 
 
+def _frequent_late_early(request, kind):
+    """
+    Top 10 employees with the most days recorded as `kind` ("late_come" or
+    "early_out") in the selected period, with the days they attended.
+    """
+    from attendance.models import Attendance, AttendanceLateComeEarlyOut
+
+    from_date, to_date = _parse_period(request)
+    today = min(to_date, date.today())
+    rows = []
+
+    try:
+        employees = _scoped_employees(request)
+        flagged = dict(
+            AttendanceLateComeEarlyOut.objects.filter(
+                type=kind,
+                employee_id__in=employees,
+                # As the Late Come / Early Out list, which each name opens.
+                attendance_id__shift_id__isnull=False,
+                attendance_id__attendance_date__gte=from_date,
+                attendance_id__attendance_date__lte=today,
+            )
+            .order_by()
+            .values("employee_id")
+            .annotate(days=Count("attendance_id", distinct=True))
+            .values_list("employee_id", "days")
+        )
+        attended = dict(
+            Attendance.objects.filter(
+                employee_id__in=list(flagged),
+                attendance_date__gte=from_date,
+                attendance_date__lte=today,
+            )
+            .order_by()
+            .values("employee_id")
+            .annotate(days=Count("id"))
+            .values_list("employee_id", "days")
+        )
+        for emp in employees.filter(id__in=list(flagged)):
+            days = flagged[emp.id]
+            attended_days = max(attended.get(emp.id, 0), days)
+            rows.append(
+                {
+                    "id": emp.id,
+                    "name": emp.get_full_name(),
+                    "avatar": emp.get_avatar(),
+                    "days": days,
+                    "attended_days": attended_days,
+                    "rate": round(days / attended_days * 100, 1),
+                }
+            )
+        rows.sort(key=lambda x: (-x["days"], -x["rate"], x["name"]))
+    except Exception:
+        # An empty list from a failed query would read as "nobody late".
+        logger.exception("Frequent %s query failed", kind)
+
+    return JsonResponse(
+        {
+            "employees": rows[:10],
+            "month": _period_label(from_date, today),
+            "from_date": from_date.isoformat(),
+            "to_date": today.isoformat(),
+        }
+    )
+
+
+@login_required
+def attendance_frequent_late(request):
+    """Top 10 employees with the most late arrivals in the period."""
+    return _frequent_late_early(request, "late_come")
+
+
+@login_required
+def attendance_frequent_early(request):
+    """Top 10 employees with the most early departures in the period."""
+    return _frequent_late_early(request, "early_out")
+
+
 @login_required
 def attendance_calendar_heatmap(request):
     """Attendance rate per day (or per ISO week for longer ranges).

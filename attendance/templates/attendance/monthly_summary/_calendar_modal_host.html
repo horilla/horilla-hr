@@ -912,6 +912,8 @@ body.dark #cal-modal-close:hover { background: #2e2e2e; color: #ffffff; }
 
     var csrf = document.cookie.replace(/(?:(?:^|.*;\s*)csrftoken\s*=\s*([^;]*).*$)|^.*$/, '$1');
     var send = function () {
+      // The day-wise grid pulses this cell once it has reloaded.
+      window._msFlashCell = { employee: String(ctx.empId), date: dateInput.value };
       var finish = function () {
         if (statusChanged) { window.msCalResolveChoice(conflictType); }
         else { window.msCalRefreshCalendar(); }

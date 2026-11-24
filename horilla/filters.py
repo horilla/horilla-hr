@@ -490,6 +490,10 @@ class HorillaFilterSet(FilterSet):
             }
             if lookup not in allowed_lookups:
                 continue
+            special = self._apply_special_custom_filter(queryset, config, lookup, value)
+            if special is not None:
+                queryset = special
+                continue
             filter_name = config.get("filter_name")
             if filter_name:
                 declared_filter = self.filters.get(filter_name)
@@ -508,6 +512,13 @@ class HorillaFilterSet(FilterSet):
                         continue
                 queryset = queryset.filter(**{f'{config["field"]}__{lookup}': value})
         return queryset
+
+    def _apply_special_custom_filter(self, queryset, config, lookup, value):
+        """
+        The queryset narrowed by a builder entry that is not a plain model path, or None when this
+        entry is not one. A subclass that registers such entries overrides this.
+        """
+        return None
 
     @staticmethod
     def _is_safe_search_path(model, path):

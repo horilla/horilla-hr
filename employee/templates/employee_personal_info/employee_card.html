@@ -56,7 +56,7 @@
 
           <div class="oh-kanban-card__details">
             <span class="oh-kanban-card__title" {% if emp.email|length >= 30 %}title = "{{emp}}" {% endif %}>{{emp|truncatechars:30}}</span>
-            <span class="oh-kanban-card__subtitle" {% if emp.email|length >= 35 %}title = "{{emp.email}}" {% endif %}>{{emp.email|truncatechars:35}}</span><br>
+            <span class="oh-kanban-card__subtitle" {% if emp.email|length >= 35 %}title = "{{emp.email}}" {% endif %}>{{emp.email|default:""|truncatechars:35}}</span><br>
             <span class="oh-kanban-card__subtitle">{{emp.employee_work_info.job_position_id}}</span>
             <div class="oh-kanban-card__subtitle">
               {% if "attendance"|app_installed and request|is_check_in_enabled %}
