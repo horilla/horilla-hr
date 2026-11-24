@@ -620,10 +620,11 @@ def _group_attendance_stats(request, group_field):
     """Expected vs. attended employee-days per group, current month so far.
 
     `group_field` is an Employee lookup (department / shift / work type name).
-    "Expected" days are as in _expected_work_days. Absence is clamped at zero
-    per employee (attendance recorded on a non-working day can't offset
-    someone else's absence). Returns {group: {"expected": int, "absent": int}}
-    for groups with at least one expected day.
+    "Expected" days are as in _expected_attendance_days. Only attendance on
+    an expected day counts as present (as top absentees): a day worked on a
+    weekend, a holiday or a leave day doesn't make up for a weekday missed.
+    Returns {group: {"expected": int, "absent": int}} for groups with at
+    least one expected day.
     """
     from attendance.models import Attendance
 
@@ -636,30 +637,25 @@ def _group_attendance_stats(request, group_field):
         return {}
     expected_days = _expected_attendance_days(employees, month_start, month_end)
 
-    present_by_employee = {
-        row["employee_id"]: row["days"]
-        for row in (
-            Attendance.objects.filter(
-                attendance_date__gte=month_start,
-                attendance_date__lte=month_end,
-                employee_id__is_active=True,
-                employee_id__in=employees,
-            )
-            .order_by()
-            .values("employee_id")
-            .annotate(days=Count("attendance_date", distinct=True))
-        )
-    }
+    attended = {}
+    for row in Attendance.objects.filter(
+        attendance_date__gte=month_start,
+        attendance_date__lte=month_end,
+        employee_id__is_active=True,
+        employee_id__in=employees,
+    ).values("employee_id", "attendance_date"):
+        attended.setdefault(row["employee_id"], set()).add(row["attendance_date"])
 
     stats = {}
     for emp in rows:
         group = emp[group_field]
         if not group:
             continue
-        expected = len(expected_days.get(emp["id"], []))
-        absent = max(0, expected - present_by_employee.get(emp["id"], 0))
+        expected = expected_days.get(emp["id"], [])
+        present = attended.get(emp["id"], set())
+        absent = sum(1 for d in expected if d not in present)
         bucket = stats.setdefault(group, {"expected": 0, "absent": 0})
-        bucket["expected"] += expected
+        bucket["expected"] += len(expected)
         bucket["absent"] += absent
 
     return {g: v for g, v in stats.items() if v["expected"] > 0}
