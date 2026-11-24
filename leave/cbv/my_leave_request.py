@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Any
 
 from django.contrib import messages
+from django.db import transaction
 from django.db.models import Q
 from django.http import HttpResponse
 from django.shortcuts import render
@@ -460,44 +461,58 @@ class MyLeaveRequestForm(HorillaFormView):
                         if leave_request.leave_type_id.require_approval == "no":
                             employee_id = leave_request.employee_id
                             leave_type_id = leave_request.leave_type_id
-                            available_leave = AvailableLeave.objects.get(
-                                leave_type_id=leave_type_id, employee_id=employee_id
-                            )
-                            charge_leave_request(leave_request, available_leave)
-                            leave_request.status = "approved"
-                            available_leave.save()
+                            with transaction.atomic():
+                                available_leave = (
+                                    AvailableLeave.objects.select_for_update().get(
+                                        leave_type_id=leave_type_id,
+                                        employee_id=employee_id,
+                                    )
+                                )
+                                # requested_days is still None here: it is
+                                # only populated by LeaveRequest.save().
+                                # Compute it first so the auto-approval
+                                # charges the days the saved request will
+                                # carry instead of 0 (#1415).
+                                leave_request.requested_days = (
+                                    leave_request.calculate_effective_requested_days()
+                                )
+                                charge_leave_request(leave_request, available_leave)
+                                leave_request.status = "approved"
+                                leave_request.created_by = (
+                                    self.request.user.employee_get
+                                )
+                                available_leave.save()
+                                leave_request.save()
+                            save = False
                         if save:
                             leave_request.created_by = self.request.user.employee_get
                             leave_request.save()
-                            messages.success(
-                                self.request,
-                                _("Leave request created successfully"),
+                        messages.success(
+                            self.request,
+                            _("Leave request created successfully"),
+                        )
+                        with contextlib.suppress(Exception):
+                            notify.send(
+                                self.request.user.employee_get,
+                                recipient=leave_request.employee_id.employee_work_info.reporting_manager_id.employee_user_id,
+                                verb=gettext_noop(
+                                    "New leave request created for %(employee)s."
+                                ),
+                                verb_params={
+                                    "employee": str(leave_request.employee_id)
+                                },
+                                icon="people-circle",
+                                redirect=reverse("request-view")
+                                + f"?id={leave_request.id}",
                             )
-                            with contextlib.suppress(Exception):
-                                notify.send(
-                                    self.request.user.employee_get,
-                                    recipient=leave_request.employee_id.employee_work_info.reporting_manager_id.employee_user_id,
-                                    verb=gettext_noop(
-                                        "New leave request created for %(employee)s."
-                                    ),
-                                    verb_params={
-                                        "employee": str(leave_request.employee_id)
-                                    },
-                                    icon="people-circle",
-                                    redirect=reverse("request-view")
-                                    + f"?id={leave_request.id}",
-                                )
-                            mail_thread = LeaveMailSendThread(
-                                self.request, leave_request, type="request"
-                            )
-                            mail_thread.start()
-                            form = UserLeaveRequestCreationForm(employee=emp)
-                            if (
-                                len(LeaveRequest.objects.filter(employee_id=emp_id))
-                                == 1
-                            ):
-                                return _done()
-                            form.save(commit=False)
+                        mail_thread = LeaveMailSendThread(
+                            self.request, leave_request, type="request"
+                        )
+                        mail_thread.start()
+                        form = UserLeaveRequestCreationForm(employee=emp)
+                        if len(LeaveRequest.objects.filter(employee_id=emp_id)) == 1:
+                            return _done()
+                        form.save(commit=False)
 
                         return _done()
                 else:
@@ -619,40 +634,44 @@ class MyLeaveRequestSingleForm(HorillaFormView):
                 if leave_request.leave_type_id.require_approval == "no":
                     employee_id = leave_request.employee_id
                     leave_type_id = leave_request.leave_type_id
-                    available_leave = AvailableLeave.objects.get(
-                        leave_type_id=leave_type_id, employee_id=employee_id
-                    )
-                    charge_leave_request(leave_request, available_leave)
-                    leave_request.status = "approved"
-                    available_leave.save()
+                    with transaction.atomic():
+                        available_leave = (
+                            AvailableLeave.objects.select_for_update().get(
+                                leave_type_id=leave_type_id,
+                                employee_id=employee_id,
+                            )
+                        )
+                        # requested_days is still None here: it is only
+                        # populated by LeaveRequest.save(). Compute it
+                        # first so the auto-approval charges the days
+                        # the saved request will carry instead of 0 (#1415).
+                        leave_request.requested_days = (
+                            leave_request.calculate_effective_requested_days()
+                        )
+                        charge_leave_request(leave_request, available_leave)
+                        leave_request.status = "approved"
+                        leave_request.created_by = employee
+                        available_leave.save()
+                        leave_request.save()
+                    save = False
                 if save:
+                    # Approval-required path: the request has not been
+                    # saved yet. (save is False only when the
+                    # auto-approval branch above already saved it.)
                     leave_request.created_by = employee
                     leave_request.save()
-                    messages.success(
-                        self.request, _("Leave request created successfully")
+                messages.success(self.request, _("Leave request created successfully"))
+                with contextlib.suppress(Exception):
+                    notify.send(
+                        self.request.user.employee_get,
+                        recipient=leave_request.employee_id.employee_work_info.reporting_manager_id.employee_user_id,
+                        verb=gettext_noop("You have a new leave request to validate."),
+                        icon="people-circle",
+                        redirect=reverse("request-view") + f"?id={leave_request.id}",
                     )
-                    with contextlib.suppress(Exception):
-                        notify.send(
-                            self.request.user.employee_get,
-                            recipient=leave_request.employee_id.employee_work_info.reporting_manager_id.employee_user_id,
-                            verb=gettext_noop(
-                                "You have a new leave request to validate."
-                            ),
-                            icon="people-circle",
-                            redirect=reverse("request-view")
-                            + f"?id={leave_request.id}",
-                        )
-                    if self.request.META.get("HTTP_HX_REQUEST"):
-                        return self.HttpResponse(
-                            targets_to_reload=["#userRequestReload"]
-                        )
-                    return HorillaRedirect(self.request)
-                else:
-                    form.add_error(
-                        None,
-                        _("You don't have enough leave days to make the request"),
-                    )
-                    return self.form_invalid(form)
+                if self.request.META.get("HTTP_HX_REQUEST"):
+                    return self.HttpResponse(targets_to_reload=["#userRequestReload"])
+                return HorillaRedirect(self.request)
             else:
                 return self.form_invalid(form)
         return super().form_valid(form)

@@ -49,6 +49,8 @@ def leave_Validations(self, data):
         end_date=end_date,
         leave_type_id=leave_type_id,
         requested_days=requested_days,
+        start_date_breakdown=start_date_breakdown,
+        end_date_breakdown=end_date_breakdown,
     )
 
     total_leave_days = (
