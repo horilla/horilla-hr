@@ -343,7 +343,7 @@ def attendance_kpi_data(request):
             employee_id__in=employees,
         ).count()
     except Exception:
-        pass
+        logger.exception("Pending overtime query failed")
 
     # ids (not just the count) so the dashboard tile can link straight to
     # the Employee list pre-filtered to exactly these people via repeated
@@ -424,7 +424,7 @@ def attendance_late_early_data(request):
             if dept:
                 early_data.append({"department": dept, "count": item["count"]})
     except Exception:
-        pass
+        logger.exception("Late and early query failed")
 
     return JsonResponse(
         {
@@ -560,7 +560,7 @@ def attendance_hours_distribution(request):
                     }
                 )
     except Exception:
-        pass
+        logger.exception("Hours distribution query failed")
 
     return JsonResponse({"departments": departments[:10]})
 
@@ -728,7 +728,7 @@ def _rate_by_dimension(request, rate_of):
         for item in items:
             item["id"] = ids.get(item["label"])
     except Exception:
-        pass
+        logger.exception("Attendance rate by %s query failed", dimension)
     return JsonResponse({"dimension": dimension, "items": items, **meta})
 
 
@@ -794,7 +794,7 @@ def attendance_avg_working_hours(request):
 
         departments.sort(key=lambda x: x["avg_hours_per_day"], reverse=True)
     except Exception:
-        pass
+        logger.exception("Average working hours query failed")
 
     return JsonResponse(
         {
@@ -848,7 +848,7 @@ def attendance_top_absentees(request):
 
         absentees.sort(key=lambda x: x["absent_days"], reverse=True)
     except Exception:
-        pass
+        logger.exception("Top absentees query failed")
 
     return JsonResponse(
         {
@@ -1125,7 +1125,7 @@ def attendance_overview(request):
             late_series.append(late_count)
             early_series.append(early_count)
     except Exception:
-        pass
+        logger.exception("Attendance overview query failed")
 
     data_set = [
         {"label": _("On Time"), "data": on_time_series},
