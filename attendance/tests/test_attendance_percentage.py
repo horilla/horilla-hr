@@ -10,7 +10,14 @@ from django.urls import reverse
 
 from attendance.models import Attendance
 from base.models import Department, EmployeeShift
-from horilla.testkit.factories import make_company, make_employee, make_user
+from horilla.testkit.factories import (
+    make_company,
+    make_employee,
+    make_leave_request,
+    make_leave_type,
+    make_user,
+)
+from leave.models import LeaveRequest
 
 MONDAY = date(2026, 10, 5)
 FRIDAY, SATURDAY = MONDAY + timedelta(days=4), MONDAY + timedelta(days=5)
@@ -45,6 +52,7 @@ class TestAttendancePercentage(TestCase):
         make_employee(company=company, email="manager@pct.test", department=workshop)
         cls.boss = make_user("boss", is_superuser=True)
         make_employee(company=company, email="boss@pct.test", user=cls.boss)
+        cls.annual = make_leave_type("Annual")
 
     def rate(self, name):
         self.client.force_login(self.boss)
@@ -72,3 +80,29 @@ class TestAttendancePercentage(TestCase):
         for n in range(5):
             clock_in(self.worker, MONDAY + timedelta(days=n))
         self.assertEqual(self.rate("attendance-dashboard-percentage"), (100.0, 0, 5))
+
+    def take_half_day(self, day):
+        leave = make_leave_request(
+            employee=self.worker,
+            leave_type=self.annual,
+            start_date=day,
+            end_date=day,
+            status="approved",
+        )
+        LeaveRequest.objects.filter(id=leave.id).update(
+            start_date_breakdown="first_half", end_date_breakdown="first_half"
+        )
+
+    def test_in_for_the_other_half_of_a_half_day_leave(self):
+        # Half-day leave on Monday and in for the other half; Tuesday missed.
+        self.take_half_day(MONDAY)
+        for n in (0, 2, 3, 4):
+            clock_in(self.worker, MONDAY + timedelta(days=n))
+        self.assertEqual(self.rate("attendance-dashboard-percentage"), (80.0, 1, 5))
+
+    def test_not_in_for_the_other_half_of_a_half_day_leave(self):
+        # Monday isn't counted either way: not expected, so not absent.
+        self.take_half_day(MONDAY)
+        for n in range(1, 5):
+            clock_in(self.worker, MONDAY + timedelta(days=n))
+        self.assertEqual(self.rate("attendance-dashboard-percentage"), (100.0, 0, 4))
