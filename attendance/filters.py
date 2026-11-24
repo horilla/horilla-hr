@@ -654,6 +654,13 @@ class AttendanceActivityFilter(HorillaFilterSet):
         )
 
 
+ATTENDANCE_STATUS_CHOICES = [
+    ("on_time", _("On Time")),
+    ("late_come", _("Late Arrival")),
+    ("early_out", _("Early Departure")),
+]
+
+
 class AttendanceFilters(HorillaFilterSet):
     """
     Filter set class for Attendance model
@@ -727,17 +734,16 @@ class AttendanceFilters(HorillaFilterSet):
         empty_label=None,
         widget=forms.RadioSelect,
     )
-    # Mirrors the "On Time" dashboard KPI's own definition (attendance/
-    # dashboard.py::attendance_kpi_data): an attendance has no "on time"
-    # column of its own, it's only ever the absence of a "late_come"
-    # AttendanceLateComeEarlyOut record for that day -- so this has to be
-    # a method filter rather than a plain field lookup.
-    attendance_on_time = django_filters.ChoiceFilter(
-        method="filter_on_time",
-        label=_("On Time?"),
-        choices=[("", _("Any")), (True, _("Yes")), (False, _("No"))],
-        empty_label=None,
-        widget=forms.RadioSelect,
+    # Same label and choices as the Employees page's Attendance Status
+    # filter. An attendance has no status column of its own: it's late or
+    # early when it has that AttendanceLateComeEarlyOut record, and on time
+    # (as the dashboard's "On Time" KPI counts it) when it has no
+    # "late_come" record -- so this has to be a method filter.
+    attendance_status = django_filters.ChoiceFilter(
+        method="filter_status",
+        label=_("Attendance Status"),
+        choices=ATTENDANCE_STATUS_CHOICES,
+        widget=forms.Select(attrs={"class": "oh-select oh-select-2 w-100"}),
     )
 
     # HorillaFilterSet.ajax_fields (generic AJAX-loaded combobox mechanism,
@@ -900,16 +906,16 @@ class AttendanceFilters(HorillaFilterSet):
             id__in=[attendance.id for attendance in filtered_attendance]
         )
 
-    def filter_on_time(self, queryset, name, value):
+    def filter_status(self, queryset, name, value):
         """
-        Same "on time" definition as attendance_kpi_data's `on_time =
-        present_today - late_come`: an attendance counts as on time as
-        long as it isn't also tagged with a "late_come" record.
+        "on_time" uses attendance_kpi_data's definition (`on_time =
+        present_today - late_come`): an attendance counts as on time as
+        long as it isn't also tagged with a "late_come" record. The other
+        choices are the AttendanceLateComeEarlyOut type itself.
         """
-        is_on_time = str(value) == "True"
-        if is_on_time:
+        if value == "on_time":
             return queryset.exclude(late_come_early_out__type="late_come")
-        return queryset.filter(late_come_early_out__type="late_come")
+        return queryset.filter(late_come_early_out__type=value)
 
     def _build_custom_filter_fields(self):
         """
@@ -1381,13 +1387,6 @@ def get_expected_to_check_in(queryset, _name, value):
         .exclude(id__in=on_leave_ids)
         .distinct()
     )
-
-
-ATTENDANCE_STATUS_CHOICES = [
-    ("on_time", _("On Time")),
-    ("late_come", _("Late Arrival")),
-    ("early_out", _("Early Departure")),
-]
 
 
 def filter_attendance_status(self, queryset, _name, value):
