@@ -106,3 +106,18 @@ class TestAttendancePercentage(TestCase):
         for n in range(1, 5):
             clock_in(self.worker, MONDAY + timedelta(days=n))
         self.assertEqual(self.rate("attendance-dashboard-percentage"), (100.0, 0, 4))
+
+    def test_the_period_shown_ends_today(self):
+        """Days still to come aren't counted, so the subtitle and link stop at today."""
+        today = date.today()
+        self.client.force_login(self.boss)
+        data = self.client.get(
+            reverse("attendance-dashboard-percentage"),
+            {
+                "dimension": "department",
+                "from_date": (today - timedelta(days=40)).isoformat(),
+                "to_date": (today + timedelta(days=40)).isoformat(),
+            },
+        ).json()
+        self.assertEqual(data["to_date"], today.isoformat())
+        self.assertIn(today.strftime("%b %d, %Y"), data["month"])

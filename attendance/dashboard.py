@@ -693,6 +693,8 @@ def _group_attendance_stats(request, group_field):
 
 def _group_rate_payload(request, stats, label_key, rate_of):
     month_start, month_end = _parse_period(request)
+    # The period counted, as in _group_attendance_stats: up to today.
+    month_end = max(month_start, min(month_end, date.today()))
     items = []
     for group, v in stats.items():
         absent_pct = round(v["absent"] / v["expected"] * 100, 1)
