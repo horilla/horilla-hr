@@ -47,7 +47,7 @@ from attendance.methods.leave_days import (  # noqa: F401  (re-exported: the wee
     shared,
     shared_calendar_data,
 )
-from attendance.methods.utils import real_overtime_seconds
+from attendance.methods.utils import format_time, real_overtime_seconds
 from attendance.models import (
     Attendance,
     AttendanceDailyHours,
@@ -3964,7 +3964,7 @@ def attendance_monthly_summary_conflict_resolve(request):
 
     _ph, _pm = panel_hours_sec // 3600, (panel_hours_sec % 3600) // 60
     panel_hours_label = f"{_ph}h {_pm:02d}m"
-    panel_hours_input = f"{_ph}:{_pm:02d}"
+    panel_hours_input = format_time(panel_hours_sec)
 
     resolution_value = existing.resolution if existing else None
     if resolution_value == "partial_hours":
@@ -4074,9 +4074,6 @@ def attendance_monthly_summary_conflict_resolve(request):
         min_source = "default"
     _effective_min = _shift_min_secs or _schedule_min or 28800  # 8h default
 
-    def _hm(secs):
-        return f"{secs // 3600}:{(secs % 3600) // 60:02d}"
-
     # A holiday/week-off day that HR has regularized (Full Present/Half Day)
     # is no longer treated as 100% overtime — it gets the normal
     # regular/OT split, same as build_monthly_summary and the calendar totals.
@@ -4172,16 +4169,16 @@ def attendance_monthly_summary_conflict_resolve(request):
         and _ot_sec > 0
         and not _ot_eligible,
         "ot_is_approved": bool(att_row) and att_ot_approved and _ot_sec > 0,
-        "ot_approve_min_label": _hm(_ot_min_approve),
+        "ot_approve_min_label": format_time(_ot_min_approve),
         "effective_min_secs": _effective_min,
         "shift_name": shift_name,
         "min_source": min_source,
-        "min_required_label": _hm(_effective_min),
-        "ot_cutoff_label": _hm(_ot_cutoff_sec) if _ot_cutoff_sec else "",
+        "min_required_label": format_time(_effective_min),
+        "ot_cutoff_label": format_time(_ot_cutoff_sec) if _ot_cutoff_sec else "",
         "ot_holiday_cap_label": (
-            _hm(_effective_min + _ot_cutoff_sec) if _ot_cutoff_sec else ""
+            format_time(_effective_min + _ot_cutoff_sec) if _ot_cutoff_sec else ""
         ),
-        "grace_label": _hm(_grace) if _grace else "",
+        "grace_label": format_time(_grace) if _grace else "",
         "ot_cutoff_sec": _ot_cutoff_sec,
         "is_ot_day": _is_ot_day,
         "excess_h": excess_h,
@@ -4488,7 +4485,7 @@ def attendance_monthly_summary_daily_hours_edit(request):
                 total_sec = int(float(raw) * 3600)
         except (ValueError, IndexError):
             return HttpResponse(
-                _("Enter the hours as H:MM, for example 8:30."), status=400
+                _("Enter the hours as HH:MM, for example 08:30."), status=400
             )
         if total_sec < 0:
             return HttpResponse(_("Hours cannot be negative."), status=400)
@@ -4589,7 +4586,7 @@ def attendance_monthly_summary_daily_hours_edit(request):
         "date": date,
         "from_date": from_date,
         "to_date": to_date,
-        "hours_input": f"{h}:{m:02d}",
+        "hours_input": format_time(display_sec),
         "hours_label": f"{h}h {m:02d}m",
         "hours_second": display_sec,
         "computed_sec": computed_sec,
