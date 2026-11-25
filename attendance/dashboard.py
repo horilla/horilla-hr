@@ -616,14 +616,42 @@ def _expected_work_days(employees, start, end):
     return expected
 
 
+def _half_day_leave_days(employees, start, end):
+    """
+    {employee id: {dates}} in [start, end] that are only half a day of an
+    approved leave (half_day_leave_q): the first or last day of a leave
+    split into halves.
+    """
+    from leave.models import LeaveRequest
+
+    halves = ("first_half", "second_half")
+    days = {}
+    for leave in LeaveRequest.objects.filter(
+        status__in=["approved", "cancel_requested"],
+        employee_id__in=employees,
+        start_date__lte=end,
+    ).filter(Q(end_date__gte=start) | Q(end_date__isnull=True, start_date__gte=start)):
+        last = leave.end_date or leave.start_date
+        for day, breakdown in (
+            (leave.start_date, leave.start_date_breakdown),
+            (last, leave.end_date_breakdown),
+        ):
+            if breakdown in halves and start <= day <= end:
+                days.setdefault(leave.employee_id_id, set()).add(day)
+    return days
+
+
 def _group_attendance_stats(request, group_field):
     """Expected vs. attended employee-days per group, current month so far.
 
     `group_field` is an Employee lookup (department / shift / work type name).
-    "Expected" days are as in _expected_work_days. Absence is clamped at zero
-    per employee (attendance recorded on a non-working day can't offset
-    someone else's absence). Returns {group: {"expected": int, "absent": int}}
-    for groups with at least one expected day.
+    "Expected" days are as in _expected_attendance_days. Only attendance on
+    an expected day counts as present (as top absentees): a day worked on a
+    weekend, a holiday or a leave day doesn't make up for a weekday missed.
+    A half-day leave day is expected when the employee came in for the other
+    half, as on the Daily Attendance Rate chart, and not counted otherwise.
+    Returns {group: {"expected": int, "absent": int}} for groups with at
+    least one expected day.
     """
     from attendance.models import Attendance
 
@@ -636,30 +664,28 @@ def _group_attendance_stats(request, group_field):
         return {}
     expected_days = _expected_attendance_days(employees, month_start, month_end)
 
-    present_by_employee = {
-        row["employee_id"]: row["days"]
-        for row in (
-            Attendance.objects.filter(
-                attendance_date__gte=month_start,
-                attendance_date__lte=month_end,
-                employee_id__is_active=True,
-                employee_id__in=employees,
-            )
-            .order_by()
-            .values("employee_id")
-            .annotate(days=Count("attendance_date", distinct=True))
-        )
-    }
+    attended = {}
+    for row in Attendance.objects.filter(
+        attendance_date__gte=month_start,
+        attendance_date__lte=month_end,
+        employee_id__is_active=True,
+        employee_id__in=employees,
+    ).values("employee_id", "attendance_date"):
+        attended.setdefault(row["employee_id"], set()).add(row["attendance_date"])
+    half_days = _half_day_leave_days(employees, month_start, month_end)
 
     stats = {}
     for emp in rows:
         group = emp[group_field]
         if not group:
             continue
-        expected = len(expected_days.get(emp["id"], []))
-        absent = max(0, expected - present_by_employee.get(emp["id"], 0))
+        present = attended.get(emp["id"], set())
+        expected = set(expected_days.get(emp["id"], ())) | (
+            present & half_days.get(emp["id"], set())
+        )
+        absent = sum(1 for d in expected if d not in present)
         bucket = stats.setdefault(group, {"expected": 0, "absent": 0})
-        bucket["expected"] += expected
+        bucket["expected"] += len(expected)
         bucket["absent"] += absent
 
     return {g: v for g, v in stats.items() if v["expected"] > 0}
@@ -667,6 +693,8 @@ def _group_attendance_stats(request, group_field):
 
 def _group_rate_payload(request, stats, label_key, rate_of):
     month_start, month_end = _parse_period(request)
+    # The period counted, as in _group_attendance_stats: up to today.
+    month_end = max(month_start, min(month_end, date.today()))
     items = []
     for group, v in stats.items():
         absent_pct = round(v["absent"] / v["expected"] * 100, 1)
