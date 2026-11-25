@@ -20,6 +20,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
+from django.utils.translation import pgettext
 from django.views.decorators.http import require_POST
 from xlsxwriter.utility import xl_range
 
@@ -1748,6 +1749,19 @@ _DAILY_CODES = {
     "future": "",
 }
 
+# A week off or holiday someone worked on: the hours are overtime, so the day shows "OT".
+_WORKED_OFF_DAY = {"week_off_ot": "week_off", "holiday_ot": "holiday"}
+
+
+def _worked_off_day_label(kind, pending):
+    if kind == "holiday":
+        if pending:
+            return _("Holiday Overtime, Pending Approval")
+        return _("Holiday Overtime")
+    if pending:
+        return _("Week Off Overtime, Pending Approval")
+    return _("Week Off Overtime")
+
 
 def _daily_status_labels():
     return {
@@ -1782,7 +1796,15 @@ def daily_cell(cell):
         }
     status = cell["status"]
     labels = _daily_status_labels()
-    if status == "split":
+    worked_off = (
+        _WORKED_OFF_DAY.get(cell.get("conflict_with"))
+        if status in ("week_off", "holiday")
+        else None
+    )
+    if worked_off:
+        code = pgettext("summary code", "OT")
+        label = _worked_off_day_label(worked_off, cell.get("ot_pending"))
+    elif status == "split":
         code = "/".join(cell.get("halves") or ())
         label = cell.get("split_label") or labels["split"]
     elif cell.get("future_part"):
@@ -1809,6 +1831,7 @@ def daily_cell(cell):
         "title": title,
         "style": cell.get("split_style") or "",
         "ahead": bool(cell.get("future_part")),
+        "worked_off": bool(worked_off),
         "conflict": bool(cell.get("is_conflict")),
         "resolved": bool(cell.get("resolution")) and not cell.get("is_conflict"),
     }
