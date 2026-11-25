@@ -2996,8 +2996,8 @@
                 p.set('created_date_from', fromInput.value);
                 p.set('created_date_till', toInput.value);
                 p.set('filter_applied', 'on');
-                // 3rd tab = All Tickets (managers / ticket viewers), rather than My Tickets.
-                p.set('open_tab', '3');
+                // All Tickets (managers / ticket viewers), rather than My Tickets.
+                p.set('open_tab', 'All Tickets');
                 return "{% url 'ticket-view' %}?" + p.toString();
             };
             function loadTicketPriority() {
@@ -3827,15 +3827,15 @@
                         <div class="md-pending-card__count">${p.leave_requests}</div>
                         <div class="md-pending-card__label">{% trans "Leave"|escapejs %}</div>
                     </a>
-                    <a href="{% url 'request-attendance-view' %}?open_tab=1&is_validate_request_approved=False&filter_applied=1" class="md-pending-card md-pending-card--blue">
+                    <a href="{% url 'request-attendance-view' %}?open_tab=Requested%20Attendances&is_validate_request_approved=False&filter_applied=1" class="md-pending-card md-pending-card--blue">
                         <div class="md-pending-card__count">${p.attendance_requests}</div>
                         <div class="md-pending-card__label">{% trans "Attendance"|escapejs %}</div>
                     </a>
-                    <a href="{% url 'asset-request-allocation-view' %}?open_tab=2&asset_request_status=Requested&filter_applied=1" class="md-pending-card md-pending-card--green">
+                    <a href="{% url 'asset-request-allocation-view' %}?open_tab=Asset%20Request&asset_request_status=Requested&filter_applied=1" class="md-pending-card md-pending-card--green">
                         <div class="md-pending-card__count">${p.asset_requests}</div>
                         <div class="md-pending-card__label">{% trans "Assets"|escapejs %}</div>
                     </a>
-                    <a href="{% url 'shift-request-view' %}?open_tab=1&status=requested&filter_applied=1" class="md-pending-card md-pending-card--teal">
+                    <a href="{% url 'shift-request-view' %}?open_tab=Shift%20Requests&status=requested&filter_applied=1" class="md-pending-card md-pending-card--teal">
                         <div class="md-pending-card__count" style="color:#0d9488;">${p.shift_requests}</div>
                         <div class="md-pending-card__label">{% trans "Shift"|escapejs %}</div>
                     </a>
@@ -3843,7 +3843,7 @@
                         <div class="md-pending-card__count" style="color:#4f46e5;">${p.work_type_requests}</div>
                         <div class="md-pending-card__label">{% trans "Work Type"|escapejs %}</div>
                     </a>
-                    <a href="{% url 'view-reimbursement' %}?open_tab=1&status=requested&type=reimbursement&filter_applied=1" class="md-pending-card md-pending-card--purple">
+                    <a href="{% url 'view-reimbursement' %}?open_tab=Reimbursements&status=requested&type=reimbursement&filter_applied=1" class="md-pending-card md-pending-card--purple">
                         <div class="md-pending-card__count">${p.reimbursements}</div>
                         <div class="md-pending-card__label">{% trans "Reimbursements"|escapejs %}</div>
                     </a>

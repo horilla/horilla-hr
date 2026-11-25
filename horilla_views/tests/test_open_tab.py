@@ -10,6 +10,26 @@ from horilla.testkit import make_company, make_employee, make_user
 
 HX = {"HTTP_HX_REQUEST": "true"}
 
+# Every tab a dashboard (or redirect) opens by title: (tab view, title).
+LINKED_TABS = [
+    ("attendances-tab-view", "OT Attendances"),
+    ("attendances-tab-view", "Validated Attendances"),
+    ("attendance-request-tab", "Requested Attendances"),
+    ("tab-asset-request-allocation", "Asset Request"),
+    ("tab-asset-request-allocation", "Service Request"),
+    ("tab-asset-request-allocation", "Asset Allocation"),
+    ("tab-objectives-view", "My Objectives"),
+    ("ticket-tab", "All Tickets"),
+    ("time-sheet-tab-view", "All Timesheets"),
+    ("leave-allocation-request-filter", "Leave Allocation Requests"),
+    ("compensatory-tab-view", "Compensatory Leave Requests"),
+    ("loan-generic-tab-view", "Loan"),
+    ("tab-reimbursement", "Reimbursements"),
+    ("payslip-batch-tabs", "Batches"),
+    ("feedback-generic-tab", "Feedbacks to Review"),
+    ("shift-request-tab", "Shift Requests"),
+]
+
 
 class OpenTabTests(TestCase):
     @classmethod
@@ -61,6 +81,22 @@ class OpenTabTests(TestCase):
         self.assertNotEqual(shown, "Validated Attendances")
         self.assertEqual(self.opened(shown, "de"), validated)
         self.assertEqual(self.opened("Validated Attendances", "de"), validated)
+
+    def test_every_title_a_link_uses_names_a_tab(self):
+        from leave.models import LeaveGeneralSetting
+
+        # Compensatory leave pages open only while it's enabled.
+        LeaveGeneralSetting.objects.update_or_create(
+            id=1, defaults={"compensatory_leave": True}
+        )
+        for view, title in LINKED_TABS:
+            with self.subTest(view=view, title=title):
+                page = self.client.get(reverse(view), {"open_tab": title}, **HX)
+                index = page.context["view"].open_tab_index(title)
+                self.assertIsNotNone(index)
+                tabs = page.context["tabs"]
+                with translation.override(None):
+                    self.assertEqual(str(tabs[index - 1]["title"]).strip(), title)
 
     def test_an_unknown_title_opens_no_particular_tab(self):
         self.assertIsNone(self.opened("No Such Tab"))
