@@ -146,9 +146,9 @@ def _leave_type_saved_response():
     """
     from horilla_views.generic.cbv.views import HorillaFormView
 
-    response = HorillaFormView.HttpResponse()
-    response["HX-Trigger"] = json.dumps({"reloadLeaveTypeList": {"target": "body"}})
-    return response
+    # HttpResponse() already reloads the open list (.reload-record), keeping
+    # its search and filters.
+    return HorillaFormView.HttpResponse()
 
 
 @login_required
