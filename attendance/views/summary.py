@@ -1793,7 +1793,8 @@ def daily_cell(cell):
         code = _DAILY_CODES.get(status, "")
         label = labels.get(status, status)
     title = f"{cell['date']:%d %b %Y} \u2014 {label}"
-    if cell.get("detail") and status not in ("split",) and not cell.get("future_part"):
+    # The day's clock times, split days included.
+    if cell.get("detail") and not cell.get("future_part"):
         title += f" ({cell['detail']})"
     if cell.get("conflict_reason"):
         title += f" \u26a0 {cell['conflict_reason']}"

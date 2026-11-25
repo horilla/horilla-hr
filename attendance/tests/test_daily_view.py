@@ -790,3 +790,45 @@ class DefaultRangeTests(DailyViewMixin, TestCase):
             400,
         )
         self.assertEqual(self.client.post(url, {"mode": "custom"}).status_code, 400)
+
+
+class SplitDayTimesTests(DailyViewMixin, TestCase):
+    """A split day shows its clock times on hover, as a present day does."""
+
+    def test_a_worked_split_day_shows_its_clock_times(self):
+        """A morning on leave and the afternoon worked: half leave, half present."""
+        from leave.models import LeaveRequest, LeaveType
+
+        leave_type = LeaveType.objects.create(name="Split Paid", payment="paid")
+        LeaveRequest.objects.bulk_create(
+            [
+                LeaveRequest(
+                    employee_id=self.employee,
+                    leave_type_id=leave_type,
+                    start_date=DAY,
+                    end_date=DAY,
+                    start_date_breakdown="first_half",
+                    end_date_breakdown="first_half",
+                    requested_days=0.5,
+                    description="Test",
+                    status="approved",
+                )
+            ]
+        )
+        self.punch(clock_in=time(13, 0), clock_out=time(18, 0), worked="05:00")
+        response = self.get(DAY, DAY)
+        cell = [
+            r for r in response.context["rows"] if r["employee"].pk == self.employee.pk
+        ][0]["cells"][0]
+        self.assertEqual(cell["status"], "split")
+        self.assertIn("13:00:00 – 18:00:00", cell["title"])
+        calendar = self.client.get(
+            reverse("attendance-monthly-summary-calendar"),
+            {
+                "employee_id": self.employee.pk,
+                "from_date": DAY.isoformat(),
+                "to_date": DAY.isoformat(),
+            },
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertContains(calendar, "(13:00:00 – 18:00:00")
