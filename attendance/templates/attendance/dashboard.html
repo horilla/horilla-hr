@@ -2562,6 +2562,19 @@
                                             const day =
                                                 data.days[config.dataPointIndex];
                                             if (!day || !day.from_date) return;
+                                            // A day opens who was counted present,
+                                            // as the Checked In Today card does; a
+                                            // week opens that week's attendance.
+                                            if (data.aggregate !== "weekly") {
+                                                navigate(
+                                                    "{% url 'employee-view' %}",
+                                                    {
+                                                        checked_in_on: day.from_date,
+                                                        is_active: "True",
+                                                    },
+                                                );
+                                                return;
+                                            }
                                             navigate(
                                                 "{% url 'attendance-view' %}",
                                                 {
@@ -2629,11 +2642,20 @@
                                                         day.day +
                                                         " — "
                                                     : "";
+                                            if (v === null || v === undefined) {
+                                                return (
+                                                    prefix +
+                                                    '{% trans "Nobody expected"|escapejs %}'
+                                                );
+                                            }
+                                            // Present of those expected (employee-days for a week).
                                             return (
                                                 prefix +
                                                 v +
                                                 "% (" +
                                                 day.count +
+                                                "/" +
+                                                day.expected +
                                                 " " +
                                                 '{% trans "present"|escapejs %}' +
                                                 ")"

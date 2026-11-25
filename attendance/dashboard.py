@@ -936,44 +936,98 @@ def attendance_frequent_early(request):
     return _frequent_late_early(request, "early_out")
 
 
+def _daily_present_expected(employees, start, end):
+    """
+    {date: (present, expected)} employee counts for each day in [start, end],
+    by the "Checked In Today" card's rule, so today's rate matches the card:
+
+    - present: employees with attendance that day, less anyone on a full-day
+      approved leave (as attendance.filters.get_checked_in_on);
+    - expected: employees with a shift, on their working days
+      (_expected_work_days: no weekends, holidays, leave or days before
+      joining), plus whoever is present anyway (someone without a shift who
+      clocked in, the other half of a half-day leave, a Saturday), so the
+      rate never goes over 100%.
+    """
+    from attendance.models import Attendance
+    from leave.models import LeaveRequest
+
+    halves = ("first_half", "second_half")
+    full_day_leave = {}
+    for leave in LeaveRequest.objects.filter(
+        status__in=["approved", "cancel_requested"],
+        employee_id__in=employees,
+        start_date__lte=end,
+    ).filter(Q(end_date__gte=start) | Q(end_date__isnull=True, start_date__gte=start)):
+        first, last = leave.start_date, leave.end_date or leave.start_date
+        d = max(first, start)
+        while d <= min(last, end):
+            half = (d == first and leave.start_date_breakdown in halves) or (
+                d == last and leave.end_date_breakdown in halves
+            )
+            if not half:
+                full_day_leave.setdefault(d, set()).add(leave.employee_id_id)
+            d += timedelta(days=1)
+
+    present = {}
+    for row in Attendance.objects.filter(
+        attendance_date__gte=start,
+        attendance_date__lte=end,
+        employee_id__in=employees,
+    ).values("employee_id", "attendance_date"):
+        d = row["attendance_date"]
+        if row["employee_id"] not in full_day_leave.get(d, ()):
+            present.setdefault(d, set()).add(row["employee_id"])
+
+    expected = {}
+    with_shift = employees.filter(employee_work_info__shift_id__isnull=False)
+    for emp_id, dates in _expected_work_days(with_shift, start, end).items():
+        for d in dates:
+            expected.setdefault(d, set()).add(emp_id)
+
+    counts = {}
+    d = start
+    while d <= end:
+        here = present.get(d, set())
+        counts[d] = (len(here), len(expected.get(d, set()) | here))
+        d += timedelta(days=1)
+    return counts
+
+
 @login_required
 def attendance_calendar_heatmap(request):
     """Attendance rate per day (or per ISO week for longer ranges).
 
-    For ≤ 31 days the chart shows one bar per day. Beyond that, daily bars
-    cram together — so we aggregate to one bar per ISO week and use the
-    week's average rate.
-    """
-    from attendance.models import Attendance
+    The rate is present / expected, as in _daily_present_expected. A day
+    when nobody was expected (a weekend, a holiday, a day still to come) has
+    no rate (null) rather than 0%.
 
+    For ≤ 31 days the chart shows one bar per day. Beyond that, daily bars
+    cram together — so we aggregate to one bar per ISO week: the week's
+    present / expected employee-days.
+    """
     from_date, to_date = _parse_period(request)
     span = (to_date - from_date).days
     days = []
     aggregate = "daily"
+
+    def rate_of(present, expected):
+        return round(present / expected * 100, 1) if expected else None
+
     try:
         employees = _scoped_employees(request)
-        total = employees.count()
-        counts = {
-            row["attendance_date"]: row["c"]
-            for row in (
-                Attendance.objects.filter(
-                    attendance_date__gte=from_date,
-                    attendance_date__lte=to_date,
-                    attendance_validated=True,
-                    employee_id__is_active=True,
-                    employee_id__in=employees,
-                )
-                .order_by()
-                .values("attendance_date")
-                .annotate(c=Count("employee_id", distinct=True))
-            )
-        }
+        # Nobody has attended a day still to come.
+        last = min(to_date, date.today())
+        counts = (
+            _daily_present_expected(employees, from_date, last)
+            if from_date <= last
+            else {}
+        )
 
         if span <= 31:
             d = from_date
             while d <= to_date:
-                c = counts.get(d, 0)
-                rate = round((c / total * 100), 1) if total > 0 else 0
+                c, expected = counts.get(d, (0, 0))
                 days.append(
                     {
                         "date": d.isoformat(),
@@ -987,7 +1041,8 @@ def attendance_calendar_heatmap(request):
                             else d.day
                         ),
                         "count": c,
-                        "rate": rate,
+                        "expected": expected,
+                        "rate": rate_of(c, expected),
                     }
                 )
                 d += timedelta(days=1)
@@ -998,18 +1053,13 @@ def attendance_calendar_heatmap(request):
                 week_end = week_start + timedelta(days=6)
                 actual_start = max(week_start, from_date)
                 actual_end = min(week_end, to_date)
-                rates = []
-                bucket_total = 0
+                present_days = expected_days = 0
                 d = actual_start
                 while d <= actual_end:
-                    c = counts.get(d, 0)
-                    bucket_total += c
-                    if total > 0:
-                        rates.append((c / total) * 100)
+                    c, expected = counts.get(d, (0, 0))
+                    present_days += c
+                    expected_days += expected
                     d += timedelta(days=1)
-                avg_rate = round(sum(rates) / len(rates), 1) if rates else 0
-                bucket_days = (actual_end - actual_start).days + 1
-                avg_count = round(bucket_total / bucket_days) if bucket_days > 0 else 0
                 days.append(
                     {
                         "date": actual_start.isoformat(),
@@ -1018,13 +1068,15 @@ def attendance_calendar_heatmap(request):
                         "day": actual_start.strftime("%b %d"),
                         "dom": actual_start.day,
                         "label": actual_start.strftime("%b %d"),
-                        "count": avg_count,
-                        "rate": avg_rate,
+                        "count": present_days,
+                        "expected": expected_days,
+                        "rate": rate_of(present_days, expected_days),
                     }
                 )
                 week_start += timedelta(days=7)
     except Exception:
-        pass
+        # An empty chart from a failed query would read as "no attendance".
+        logger.exception("Daily attendance rate query failed")
 
     if from_date.year == to_date.year and from_date.month == to_date.month:
         period_label = from_date.strftime("%B %Y")
