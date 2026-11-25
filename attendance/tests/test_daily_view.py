@@ -831,4 +831,20 @@ class SplitDayTimesTests(DailyViewMixin, TestCase):
             },
             HTTP_HX_REQUEST="true",
         )
-        self.assertContains(calendar, "(13:00:00 – 18:00:00")
+        self.assertContains(calendar, "(13:00:00 – 18:00:00)")
+        # Just the clock times: the hours are on the day itself.
+        self.assertNotIn("8h00m", cell["title"])
+        self.assertNotContains(calendar, "5h00m / 8h00m")
+
+    def test_a_split_day_is_named_in_one_translatable_phrase(self):
+        from unittest.mock import patch
+
+        from attendance.views import summary
+
+        def translate(message):
+            return {"Half %(status)s": "%(status)s (half)"}.get(message, message)
+
+        with patch.object(summary, "_", translate):
+            label = summary.split_label("split:P+SH")
+        present, short = (str(summary.SPLIT_HALVES[c][1]) for c in ("P", "SH"))
+        self.assertEqual(label, f"{present} (half) + {short} (half)")

@@ -134,7 +134,10 @@ def split_label(resolution):
     halves = parse_split(resolution)
     if not halves:
         return str(resolution)
-    return " + ".join(f"{_('Half')} {SPLIT_HALVES[code][1]}" for code in halves)
+    # One phrase, so a language can put "half" where it goes, or leave it out.
+    return " + ".join(
+        str(_("Half %(status)s") % {"status": SPLIT_HALVES[code][1]}) for code in halves
+    )
 
 
 def regularizes(resolution):
@@ -3148,12 +3151,6 @@ def _build_calendar_context(emp, from_date, to_date, show_future_leave=False):
                 detail = str(clock_in)
                 if clock_out:
                     detail += f" – {clock_out}"
-            if att_status in ("half_present", "short", "absent") and min_secs > 0:
-                worked_h = worked // 3600
-                worked_m = (worked % 3600) // 60
-                min_h = min_secs // 3600
-                min_m = (min_secs % 3600) // 60
-                detail += f" ({worked_h}h{worked_m:02d}m / {min_h}h{min_m:02d}m)"
 
             # Determine conflict type
             raw_conflict = None
