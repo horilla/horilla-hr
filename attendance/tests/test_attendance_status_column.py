@@ -67,16 +67,27 @@ class AttendanceStatusColumnTests(TestCase):
         self.assertEqual(self.cell("leaver"), ["On Time", "Early Departure"])
         self.assertEqual(self.cell("both"), ["Late Arrival", "Early Departure"])
 
-    def test_shown_by_default_after_check_out(self):
-        fields = [column[1] for column in AttendancesListView.default_columns]
+    def test_offered_after_check_out_but_not_shown_by_default(self):
+        fields = [column[1] for column in AttendancesListView.columns]
         self.assertEqual(
-            fields[fields.index("attendance_clock_out") + 1], "attendance_status_col"
+            fields[fields.index("attendance_clock_out_date") + 1],
+            "attendance_status_col",
         )
+        defaults = [column[1] for column in AttendancesListView.default_columns]
+        self.assertNotIn("attendance_status_col", defaults)
 
-    def test_the_validated_list_shows_it(self):
+    def test_the_validated_list_shows_it_once_chosen(self):
+        from horilla_views.models import ToggleColumn
+
+        path = reverse("validated-attendance-tab")
         self.client.force_login(self.user)
-        page = self.client.get(
-            reverse("validated-attendance-tab"), HTTP_HX_REQUEST="true"
+        page = self.client.get(path, HTTP_HX_REQUEST="true")
+        self.assertNotContains(page, "attendance-status-badge--late")
+        # Choosing columns saves the ones left out; bulk_create because
+        # ToggleColumn.save() wants the request it was saved in.
+        ToggleColumn.objects.bulk_create(
+            [ToggleColumn(user_id=self.user, path=path, excluded_columns=["shift_id"])]
         )
+        page = self.client.get(path, HTTP_HX_REQUEST="true")
         self.assertContains(page, "Attendance Status")
         self.assertContains(page, "attendance-status-badge--late", count=2)

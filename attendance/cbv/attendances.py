@@ -99,7 +99,6 @@ class AttendancesListView(HorillaListView):
         (_("Date"), "attendance_date"),
         (_("Check-In"), "attendance_clock_in"),
         (_("Check-Out"), "attendance_clock_out"),
-        (_("Attendance Status"), "attendance_status_col"),
         (_("Shift"), "shift_id"),
         (_("At Work"), "attendance_worked_hour"),
     ]
