@@ -1,0 +1,50 @@
+{% extends 'settings.html' %}
+{% load i18n %}
+{% block settings %}
+    <div class="border border-[#ebebeb] rounded-md overflow-hidden mb-5">
+        <h2 class="text-sm font-semibold bg-[#f3f3f3] px-4 py-3 text-[#333]">{% trans "Firma E-Signature" %}</h2>
+        <div class="p-4 pb-0">
+            <p class="text-xs text-gray-500 mb-3">
+                {% trans "Send offer letters to candidates for electronic signature with Firma (firma.dev). Create an API key in the Firma dashboard under Settings, API Keys. The signed document is stored on the candidate's E-Signatures tab." %}
+            </p>
+            <div class="mb-4 p-3 rounded-md bg-[#f9fafb] border border-[#ebebeb]">
+                <p class="text-xs text-gray-500 mb-1">{% trans "Webhook URL (registered in Firma with Register Webhook)" %}</p>
+                <code class="text-sm break-all select-all">{{ webhook_url }}</code>
+                {% if config.webhook_id %}
+                    <p class="text-xs text-gray-500 mt-1">{% trans "Registered Firma webhook:" %} {{ config.webhook_id }}</p>
+                {% endif %}
+            </div>
+            <div class="mb-4 p-3 rounded-md bg-yellow-50 border border-yellow-200 text-xs text-yellow-800">
+                {{ enable_webhooks_notice }}
+            </div>
+        </div>
+        <div class="px-4 pb-4">
+            <form method="post">
+                {% csrf_token %}
+                {{ form.as_p }}
+                {% if has_api_key %}
+                    <p class="text-xs text-gray-500 mt-2">{% trans "An API key is saved. It is stored encrypted." %}</p>
+                {% endif %}
+                {% if has_webhook_secret %}
+                    <p class="text-xs text-gray-500 mt-1">{% trans "A webhook signing secret is saved. It is stored encrypted." %}</p>
+                {% endif %}
+                <div class="flex flex-wrap gap-2 mt-4">
+                    <button type="submit" name="action" value="save"
+                        class="px-6 py-2 bg-primary-600 rounded-lg text-sm font-medium text-white hover:bg-primary-700 transition-colors shadow-sm">
+                        {% trans "Save" %}
+                    </button>
+                    {% if has_api_key %}
+                        <button type="submit" name="action" value="test" formnovalidate
+                            class="px-4 py-2 bg-transparent border border-primary-600 text-primary-600 rounded-md text-xs hover:bg-primary-600 hover:text-white transition duration-300">
+                            {% trans "Test Connection" %}
+                        </button>
+                        <button type="submit" name="action" value="register" formnovalidate
+                            class="px-4 py-2 bg-transparent border border-primary-600 text-primary-600 rounded-md text-xs hover:bg-primary-600 hover:text-white transition duration-300">
+                            {% trans "Register Webhook" %}
+                        </button>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+{% endblock settings %}
