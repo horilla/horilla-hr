@@ -1547,7 +1547,13 @@ def leave_requested_dates(start_date, end_date):
 
 
 def cal_effective_requested_days(
-    start_date, end_date, leave_type_id, requested_days, employee=None
+    start_date,
+    end_date,
+    leave_type_id,
+    requested_days,
+    employee=None,
+    start_date_breakdown="full_day",
+    end_date_breakdown="full_day",
 ):
     """
     Calculates the effective requested leave days by accounting for
@@ -1570,7 +1576,20 @@ def cal_effective_requested_days(
     ):
         total_leaves = holidays.union(company_leave_dates)
         total_leave_count = sum(date in total_leaves for date in requested_dates)
-        return requested_days - total_leave_count
+        # Mirror LeaveRequest.exclude_all_leaves(): a half-day endpoint that
+        # is itself an off day was counted as 0.5 but a full 1 is subtracted
+        # for it, so add the 0.5 back once per such end date. Without this the
+        # validation gate under-measures by 0.5 against what save() stores
+        # (horilla/horilla-hr#1415).
+        half_off_days = {
+            day
+            for day, breakdown in (
+                (start_date, start_date_breakdown),
+                (end_date, end_date_breakdown),
+            )
+            if day in total_leaves and breakdown != "full_day"
+        }
+        return requested_days - total_leave_count + 0.5 * len(half_off_days)
 
     if leave_type_id.exclude_holiday == "yes":
         holiday_count = sum(date in holidays for date in requested_dates)
@@ -2202,7 +2221,22 @@ class LeaveRequest(HorillaModel):
 
         return overlapping_requests
 
-    def save(self, *args, **kwargs):
+    def calculate_effective_requested_days(self):
+        """
+        Effective requested days for this request, exactly as ``save()``
+        will store them in ``requested_days`` -- without writing to the
+        database.
+
+        This reuses the same calculation ``save()`` performs (raw days from
+        the date breakdowns, minus excluded holidays and company days off,
+        including the half-day adjustment for an endpoint that is itself
+        an off day), so a caller that needs the days before the first
+        save -- the self-service auto-approval paths, where
+        ``requested_days`` is still ``None`` on the unsaved instance
+        (horilla/horilla-hr#1415) -- charges exactly what the saved
+        request will carry. Sets ``self.requested_days`` in memory;
+        nothing is saved.
+        """
         self.requested_days = calculate_requested_days(
             self.start_date,
             self.end_date,
@@ -2216,6 +2250,10 @@ class LeaveRequest(HorillaModel):
             self.exclude_all_leaves()
         else:
             self.exclude_leaves()
+        return self.requested_days
+
+    def save(self, *args, **kwargs):
+        self.calculate_effective_requested_days()
 
         if self.status in ["cancelled", "rejected"]:
             self.leave_clashes_count = 0
@@ -2364,6 +2402,8 @@ class LeaveRequest(HorillaModel):
             leave_type_id=leave_type,
             requested_days=requested_days,
             employee=self.employee_id,
+            start_date_breakdown=self.start_date_breakdown,
+            end_date_breakdown=self.end_date_breakdown,
         )
 
         if effective_requested_days <= 0:

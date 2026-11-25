@@ -5292,6 +5292,8 @@ def employee_available_leave_count(request):
                 leave_type_id=leave_type,
                 requested_days=requested_days,
                 employee=employee_id,
+                start_date_breakdown=start_date_breakdown,
+                end_date_breakdown=end_date_breakdown,
             )
 
     if not leave_type_id or not start_date:
