@@ -3040,8 +3040,8 @@ msgstr "تمت التسوية كـ"
 msgid "A day cannot have more than 24 hours."
 msgstr "لا يمكن أن يزيد اليوم عن 24 ساعة."
 
-msgid "Enter the hours as H:MM, for example 8:30."
-msgstr "أدخل الساعات بصيغة H:MM، مثل 8:30."
+msgid "Enter the hours as HH:MM, for example 08:30."
+msgstr "أدخل الساعات بصيغة HH:MM، مثل 08:30."
 
 msgid "More than 15 hours in a day"
 msgstr "أكثر من 15 ساعة في اليوم"

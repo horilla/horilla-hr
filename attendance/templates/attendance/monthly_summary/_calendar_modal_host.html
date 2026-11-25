@@ -784,7 +784,7 @@ body.dark #cal-modal-close:hover { background: #2e2e2e; color: #ffffff; }
       });
   };
   // ── The panel's one Save: status and hours together ───────────────────────
-  // Hours are read as H:MM (or decimal hours) and checked before anything is sent.
+  // Hours are read as HH:MM (or decimal hours) and checked before anything is sent.
   function _crpParseHours(raw) {
     raw = (raw || '').trim();
     if (!raw) return NaN;
@@ -819,7 +819,7 @@ body.dark #cal-modal-close:hover { background: #2e2e2e; color: #ffffff; }
   // uses: on a holiday or week off it is all overtime, otherwise regular stops at the shift
   // and overtime at the cap. Anything beyond the cap is shown apart.
   function _crpFmt(secs) {
-    return Math.floor(secs / 3600) + ':' + ('0' + Math.floor((secs % 3600) / 60)).slice(-2);
+    return String(Math.floor(secs / 3600)).padStart(2, '0') + ':' + ('0' + Math.floor((secs % 3600) / 60)).slice(-2);
   }
   window.msCalHoursCompute = function () {
     var calc = document.getElementById('crp-hours-calc');

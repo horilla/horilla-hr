@@ -3298,7 +3298,7 @@ msgstr "已正常化為"
 msgid "A day cannot have more than 24 hours."
 msgstr ""
 
-msgid "Enter the hours as H:MM, for example 8:30."
+msgid "Enter the hours as HH:MM, for example 08:30."
 msgstr ""
 
 msgid "More than 15 hours in a day"

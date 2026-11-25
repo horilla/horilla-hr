@@ -358,7 +358,7 @@ body.dark .crp-hist-meta strong { color: #bbbbbb; }
     <div class="crp-hours-row">
       <input type="text" id="crp-hours-input" class="crp-hours-input"
              value="{{ panel_hours_input }}" data-initial="{{ panel_hours_input }}"
-             placeholder="H:MM" inputmode="numeric" autocomplete="off"
+             placeholder="HH:MM" inputmode="numeric" autocomplete="off"
              oninput="msCalUpdateSave()">
       <span class="crp-hours-unit">{% trans "hours : minutes" %}</span>
     </div>
@@ -452,7 +452,7 @@ body.dark .crp-hist-meta strong { color: #bbbbbb; }
   <!-- ── The one Save button, at the foot of everything the panel can change ── -->
   <div class="crp-foot"
        data-over24="{% trans 'A day cannot have more than 24 hours.' %}"
-       data-badformat="{% trans 'Enter the hours as H:MM, for example 8:30.' %}"
+       data-badformat="{% trans 'Enter the hours as HH:MM, for example 08:30.' %}"
        data-warn-title="{% trans 'More than 15 hours in a day' %}"
        data-warn-text="{% trans 'You entered' %}"
        data-warn-tail="{% trans 'for one day. Save it anyway?' %}"
