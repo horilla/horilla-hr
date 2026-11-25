@@ -3148,9 +3148,9 @@ def _build_calendar_context(emp, from_date, to_date, show_future_leave=False):
 
             detail = ""
             if clock_in:
-                detail = str(clock_in)
+                detail = f"{clock_in:%H:%M}"
                 if clock_out:
-                    detail += f" – {clock_out}"
+                    detail += f" – {clock_out:%H:%M}"
 
             # Determine conflict type
             raw_conflict = None

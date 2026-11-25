@@ -821,7 +821,7 @@ class SplitDayTimesTests(DailyViewMixin, TestCase):
             r for r in response.context["rows"] if r["employee"].pk == self.employee.pk
         ][0]["cells"][0]
         self.assertEqual(cell["status"], "split")
-        self.assertIn("13:00:00 – 18:00:00", cell["title"])
+        self.assertIn("13:00 – 18:00", cell["title"])
         calendar = self.client.get(
             reverse("attendance-monthly-summary-calendar"),
             {
@@ -831,7 +831,7 @@ class SplitDayTimesTests(DailyViewMixin, TestCase):
             },
             HTTP_HX_REQUEST="true",
         )
-        self.assertContains(calendar, "(13:00:00 – 18:00:00)")
+        self.assertContains(calendar, "(13:00 – 18:00)")
         # Just the clock times: the hours are on the day itself.
         self.assertNotIn("8h00m", cell["title"])
         self.assertNotContains(calendar, "5h00m / 8h00m")
