@@ -1,5 +1,5 @@
 ﻿{% extends "index.html" %}
-{% load static i18n %}
+{% load static i18n leavefilters %}
 
 {% block content %}
 <style>
@@ -29,7 +29,7 @@
     .ld-btn-back:hover { border-color: var(--ld-indigo); color: var(--ld-indigo); text-decoration: none; }
 
     /* KPI Grid */
-    .ld-kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+    .ld-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 20px; }
     .ld-kpi-card {
         border-radius: 12px; padding: 18px; background: #ffffff;
         border: 1px solid rgba(128,128,128,0.12); transition: all 0.2s;
@@ -643,7 +643,9 @@
             const baseUrl = "{% url 'request-view' %}";
             const pendingUrl = `${baseUrl}?status=requested&filter_applied=on`;
             const allocationUrl = "{% url 'leave-allocation-request-view' %}?status=requested&filter_applied=on&open_tab=2";
+            {% if request.user|is_compensatory %}
             const compUrl = "{% url 'view-compensatory-leave' %}?status=requested&filter_applied=on&open_tab=2";
+            {% endif %}
             const onLeaveTodayUrl = `${baseUrl}?status=approved&from_date=${data.today}&to_date=${data.today}&filter_applied=on`;
             document.getElementById('ld-kpi-grid').innerHTML = `
                 <a href="${pendingUrl}" class="ld-kpi-card">
@@ -656,11 +658,13 @@
                     <div class="ld-kpi-card__label">{% trans "Pending Allocation Requests"|escapejs %}</div>
                     <div class="ld-kpi-card__value">${data.pending_allocations}</div>
                 </a>
+                {% if request.user|is_compensatory %}
                 <a href="${compUrl}" class="ld-kpi-card">
                     <div class="ld-kpi-card__icon ld-kpi-card__icon--blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
                     <div class="ld-kpi-card__label">{% trans "Pending Compensatory Requests"|escapejs %}</div>
                     <div class="ld-kpi-card__value">${data.pending_comp}</div>
                 </a>
+                {% endif %}
                 <a href="${onLeaveTodayUrl}" class="ld-kpi-card">
                     <div class="ld-kpi-card__icon ld-kpi-card__icon--blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
                     <div class="ld-kpi-card__label">{% trans "On Leave Today"|escapejs %}</div>
