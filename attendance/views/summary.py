@@ -1742,9 +1742,10 @@ _DAILY_CODES = {
     "absent": "A",
     "paid_leave": "PL",
     "unpaid_leave": "UL",
-    "week_off": "WO",
+    # A week off is left blank, like a day still to come: nobody is expected in.
+    "week_off": "",
     "holiday": "H",
-    "weekend": "WO",
+    "weekend": "",
     "future": "",
 }
 
