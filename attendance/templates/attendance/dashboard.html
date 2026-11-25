@@ -2073,7 +2073,7 @@
                         <div class="am-kpi-card__label">{% trans "Checked In Today"|escapejs %}</div>
                         <div class="am-kpi-card__value">${data.present_today}</div>
                     </a>
-                    <a href="{% url 'request-attendance-view' %}?open_tab=2&attendance_date=${data.date}&attendance_on_time=True&filter_applied=on" class="am-kpi-card">
+                    <a href="{% url 'request-attendance-view' %}?open_tab=All%20Attendances&attendance_date=${data.date}&attendance_on_time=True&filter_applied=on" class="am-kpi-card">
                         <div class="am-kpi-card__icon am-kpi-card__icon--blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
                         <div class="am-kpi-card__label">{% trans "On Time"|escapejs %}</div>
                         <div class="am-kpi-card__value">${data.on_time}</div>
