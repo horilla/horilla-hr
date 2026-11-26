@@ -772,12 +772,24 @@ class Attendance(HorillaModel):
 
     def adjust_minimum_hour(self):
         """
-        Set minimum_hour to 00:00 if the attendance date falls on a holiday or company leave.
+        Set minimum_hour to the shift's standard minimum instead of 00:00,
+        even if the attendance date falls on a holiday or company leave,
+        to properly evaluate part-day working hours.
         """
         if is_holiday(self.attendance_date, self.employee_id) or is_company_leave(
             self.attendance_date
         ):
-            self.minimum_hour = "00:00"
+            # Fetch standard minimum hour from shift schedule instead of hardcoding "00:00"
+            standard_min_hour = "00:00"
+            if self.shift_id:
+                day_name = self.attendance_date.strftime("%A").lower()
+                schedule = self.shift_id.employeeshiftschedule_set.filter(
+                    day__day=day_name
+                ).first()
+                if schedule and schedule.minimum_working_hour:
+                    standard_min_hour = str(schedule.minimum_working_hour)
+
+            self.minimum_hour = standard_min_hour
             self.is_holiday = True
         else:
             self.is_holiday = False
