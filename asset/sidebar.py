@@ -90,6 +90,10 @@ def lot_accessibility(request, subment, user_perms, *args, **kwargs):
 
 
 def asset_rule_accessibility(request, submenu, user_perms, *args, **kwargs):
+    """
+    Determine if the user has the necessary permissions to access the
+    Asset Rule settings page.
+    """
     return request.user.has_perm(
         "asset.change_assetgeneralsetting"
     ) or request.user.has_perm("asset.view_assetgeneralsetting")
@@ -97,6 +101,10 @@ def asset_rule_accessibility(request, submenu, user_perms, *args, **kwargs):
 
 @settings_menu.register
 class AssetSettings:
+    """
+    Registers the Assets section and its items in the Settings sidebar.
+    """
+
     title = _("Assets")
     order = 9
     condition = lambda self, request: apps.is_installed("asset")

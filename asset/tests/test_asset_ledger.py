@@ -19,11 +19,14 @@ from horilla.testkit import make_company, make_employee, make_user
 
 HX = {"HTTP_HX_REQUEST": "true"}
 PNG = base64.b64decode(
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAA"
+    "AABJRU5ErkJggg=="
 )
 
 
 class Fixture(TestCase):
+    """Shared setup: two employees at the same company, and one asset."""
+
     def setUp(self):
         self.user = make_user("ledger-admin", password="pw", is_superuser=True)
         company = make_company("Ledger Co")
@@ -80,6 +83,8 @@ class Fixture(TestCase):
 
 
 class LedgerOrderTests(Fixture):
+    """The ledger's events come out oldest first, each with its state after it."""
+
     def test_events_run_in_order_with_the_state_after_each(self):
         self.allocate(self.first, "2026-02-01", returned="2026-03-01")
         second = self.allocate(
@@ -413,6 +418,8 @@ class LedgerUnitTests(Fixture):
 
 
 class LedgerViewTests(Fixture):
+    """The ledger modal: its figures, filters, paging and the timeline view."""
+
     def url(self):
         return reverse("asset-ledger", kwargs={"pk": self.asset.pk})
 

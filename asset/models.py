@@ -66,6 +66,9 @@ class AssetGeneralSetting(HorillaModel):
     objects = HorillaCompanyManager()
 
     def company_col(self):
+        """
+        This method for get custom column for company.
+        """
         if self.company_id:
             return self.company_id.company
         return "All Company"
@@ -131,6 +134,9 @@ class AssetLot(HorillaModel):
         )
 
     def detail_actions(self):
+        """
+        This method for get custom column for detail view actions.
+        """
         return render_template(
             path="cbv/asset_batch_no/detail_actions.html",
             context={"instance": self},
@@ -214,6 +220,7 @@ class Asset(HorillaModel):
 
     @property
     def is_expired(self):
+        """Whether the asset's expiry date has passed."""
         return bool(self.expiry_date and self.expiry_date < timezone.now().date())
 
     def current_assignees(self):
@@ -238,6 +245,10 @@ class Asset(HorillaModel):
         return self.asset_items.filter(status="Available").count()
 
     class Meta:
+        """
+        Meta class for Asset model.
+        """
+
         ordering = ["-created_at"]
         verbose_name = _("Asset")
         verbose_name_plural = _("Assets")
@@ -246,6 +257,9 @@ class Asset(HorillaModel):
         return f"{self.asset_tracking_id}-{self.asset_name}"
 
     def asset_name_display(self):
+        """
+        This method for get custom column for asset name.
+        """
         return self.asset_name
 
     def action_column(self):
@@ -263,7 +277,12 @@ class Asset(HorillaModel):
 
         if self.quantity > 1:
             label = self.get_asset_status_display()
-            label = f"<span class='whitespace-nowrap'>{label}<span class='text-[0.8rem] text-gray-500 ms-1' title='{self.available_count} of {self.quantity} Available'>· {self.available_count}/{self.quantity}</span></span>"
+            label = (
+                f"<span class='whitespace-nowrap'>{label}"
+                f"<span class='text-[0.8rem] text-gray-500 ms-1' "
+                f"title='{self.available_count} of {self.quantity} Available'>"
+                f"· {self.available_count}/{self.quantity}</span></span>"
+            )
             return label
         return self.get_asset_status_display()
 
@@ -479,6 +498,10 @@ class AssetDocuments(HorillaModel):
     objects = models.Manager()
 
     class Meta:
+        """
+        Meta class for AssetDocuments model.
+        """
+
         verbose_name = _("Asset Document")
         verbose_name_plural = _("Asset Documents")
 
@@ -739,9 +762,14 @@ class AssetAssignment(HorillaModel):
         """
         Return subtitle containing both department and job position information.
         """
-        return f"{self.assigned_to_employee_id.get_department()} / {self.assigned_to_employee_id.get_job_position()}"
+        department = self.assigned_to_employee_id.get_department()
+        job_position = self.assigned_to_employee_id.get_job_position()
+        return f"{department} / {job_position}"
 
     def status_display(self):
+        """
+        This method for get custom column for asset status.
+        """
         status = self.asset_id.get_asset_status_display()
         color_class = "oh-dot--warning"  # Adjust based on your status
         return format_html(
@@ -752,6 +780,9 @@ class AssetAssignment(HorillaModel):
         )
 
     def assigned_date_display(self):
+        """
+        This method for get custom column for assigned date.
+        """
         date_col = self.assigned_date
         color_class = "oh-dot--success"  # Adjust based on your status
         return format_html(
@@ -762,10 +793,17 @@ class AssetAssignment(HorillaModel):
         )
 
     def get_asset_of_offboarding_employee(self):
-        url = f"{reverse('asset-request-allocation-view')}?assigned_to_employee_id={self.assigned_to_employee_id.id}"
-        return url
+        """
+        This method for get custom column for the offboarding employee's asset link.
+        """
+        base_url = reverse("asset-request-allocation-view")
+        employee_id = self.assigned_to_employee_id.id
+        return f"{base_url}?assigned_to_employee_id={employee_id}"
 
     def get_send_mail_employee_link(self):
+        """
+        This method for get custom column for the send-mail action link.
+        """
         if not self.assigned_to_employee_id:
             return ""
         url = reverse(
@@ -791,6 +829,9 @@ class AssetAssignment(HorillaModel):
         return html
 
     def days_left_display(self):
+        """
+        This method for get custom column for days left until expiry.
+        """
         expiry = self.asset_id.expiry_date
         if not expiry:
             return "—"
@@ -807,6 +848,9 @@ class AssetAssignment(HorillaModel):
         return format_html("<span class='link-success'>{} days left</span>", delta)
 
     def reassign_action(self):
+        """
+        This method for get custom column for the reassign action.
+        """
         url = reverse("asset-reassign", kwargs={"pk": self.pk})
         return format_html(
             "<a class='oh-btn oh-btn--secondary oh-btn--sm'"
@@ -903,7 +947,9 @@ class AssetRequest(HorillaModel):
         """
         Return subtitle containing both department and job position information.
         """
-        return f"{self.requested_employee_id.get_department()} / {self.requested_employee_id.get_job_position()}"
+        department = self.requested_employee_id.get_department()
+        job_position = self.requested_employee_id.get_job_position()
+        return f"{department} / {job_position}"
 
     def detail_view_asset_request(self):
         """
@@ -930,6 +976,9 @@ class AssetRequestComment(HorillaModel):
         return f"{self.comment}"
 
     def status_html_class(self):
+        """
+        This method for get custom column for status.
+        """
         COLOR_CLASS = {
             "Approved": "oh-dot--success",
             "Requested": "oh-dot--info",
@@ -1127,8 +1176,9 @@ class AssetServiceRequestNote(HorillaModel):
 
 class AssetEvent(HorillaModel):
     """
-    Something in an asset's life that the other tables do not keep: a move to or from another asset, a service
-    request taken in hand, or who processed a return. The ledger merges these with what the tables hold.
+    Something in an asset's life that the other tables do not keep: a move to
+    or from another asset, a service request taken in hand, or who processed
+    a return. The ledger merges these with what the tables hold.
     """
 
     TYPES = [

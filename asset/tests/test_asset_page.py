@@ -20,6 +20,8 @@ HX = {"HTTP_HX_REQUEST": "true"}
 
 
 class AssetPageTests(TestCase):
+    """The Assets page: it opens even with no categories, and the asset form."""
+
     def setUp(self):
         self.user = make_user("assets-admin", password="pw", is_superuser=True)
         make_employee(

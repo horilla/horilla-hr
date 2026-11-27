@@ -49,6 +49,10 @@ class AssetForm(ModelForm):
     """
 
     class Meta:
+        """
+        Metadata options for the AssetForm.
+        """
+
         model = Asset
         fields = "__all__"
         exclude = ["is_active", "owner"]
@@ -84,6 +88,9 @@ class AssetForm(ModelForm):
     }
 
     def __init__(self, *args, **kwargs):
+        """
+        Set up batch-number choices and per-field widget ids for the AssetForm.
+        """
         request = getattr(_thread_locals, "request", None)
         instance = kwargs.get("instance")
 
@@ -117,6 +124,10 @@ class AssetForm(ModelForm):
         self.fields["asset_description"] = self.fields.pop("asset_description")
 
     def clean(self):
+        """
+        Reject an asset_status change on an in-use asset, and reject a duplicate
+        asset_tracking_id.
+        """
         instance = self.instance
         prev_instance = Asset.objects.filter(id=instance.pk).first()
         if instance.pk:
@@ -148,6 +159,10 @@ class AssetItemForm(forms.ModelForm):
     """
 
     class Meta:
+        """
+        Metadata options for the AssetItemForm.
+        """
+
         model = AssetItem
         fields = ["tracking_id", "status"]
         widgets = {
@@ -156,6 +171,9 @@ class AssetItemForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        """
+        Restrict the status choices so "In use" can only be kept, never hand-set.
+        """
         super().__init__(*args, **kwargs)
         current_status = self.instance.status if self.instance.pk else None
         # "In use" only ever comes from an actual assignment - never hand-set here.
@@ -336,6 +354,10 @@ class AssetRequestForm(ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        """
+        Scope the requested_employee_id choices to the requesting user unless
+        they have asset.add_assetrequest.
+        """
         # user = kwargs.pop("user", None)
         request = getattr(_thread_locals, "request", None)
         user = request.user
@@ -372,6 +394,10 @@ class AssetAllocationForm(ModelForm):
     }
 
     def __init__(self, *args, **kwargs):
+        """
+        Scope asset_id to the currently available assets and default
+        assigned_by_employee_id to the requesting user.
+        """
         request = getattr(_thread_locals, "request", None)
         user = request.user
         super(AssetAllocationForm, self).__init__(*args, **kwargs)
@@ -420,6 +446,10 @@ class AssetAllocationForm(ModelForm):
                 self.fields["asset_id"].widget.attrs.pop(attr, None)
 
     def clean(self):
+        """
+        Auto-pick the sole available asset item when one isn't chosen, and
+        validate that a chosen item belongs to the chosen asset.
+        """
         cleaned_data = super().clean()
         asset = cleaned_data.get("asset_id")
         asset_item = cleaned_data.get("asset_item_id")
@@ -534,6 +564,9 @@ class AssetReturnForm(ModelForm):
         self.fields["return_images"].widget.attrs["required"] = "required"
 
     def clean(self):
+        """
+        Require return_images unless the asset is being reported Lost.
+        """
         cleaned_data = super().clean()
         if cleaned_data.get("return_status") != "Lost" and not (
             self.files and self.files.getlist("return_images")
@@ -572,6 +605,10 @@ class AssetServiceRequestForm(ModelForm):
     cols = {"issue_description": 12, "assignment_id": 12}
 
     class Meta:
+        """
+        Metadata options for the AssetServiceRequestForm.
+        """
+
         model = AssetServiceRequest
         fields = ["assignment_id", "issue_description"]
         widgets = {
@@ -589,6 +626,10 @@ class AssetServiceRequestForm(ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        """
+        Scope the assignment_id queryset to the requesting employee's own
+        allocations, unless they have asset.change_assetassignment.
+        """
         request = getattr(_thread_locals, "request", None)
         employee = request.user.employee_get
         super().__init__(*args, **kwargs)
@@ -618,6 +659,9 @@ class AssetServiceRequestForm(ModelForm):
             self.fields["assignment_id"].initial = assignment_id
 
     def clean_assignment_id(self):
+        """
+        Reject an assignment that already has an open service request.
+        """
         assignment = self.cleaned_data.get("assignment_id")
         if (
             assignment
@@ -631,6 +675,9 @@ class AssetServiceRequestForm(ModelForm):
         return assignment
 
     def save(self, commit=True):
+        """
+        Derive requested_employee_id from the assignment before saving.
+        """
         instance = super().save(commit=False)
         instance.requested_employee_id = instance.assignment_id.assigned_to_employee_id
         if commit:
@@ -668,6 +715,10 @@ class AssetReassignForm(ModelForm):
     """
 
     class Meta:
+        """
+        Metadata options for the AssetReassignForm.
+        """
+
         model = AssetAssignment
         fields = ["asset_id"]
         labels = {"asset_id": _("Replacement Asset")}
@@ -676,6 +727,9 @@ class AssetReassignForm(ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        """
+        Scope asset_id to available assets in the same category as the current one.
+        """
         super().__init__(*args, **kwargs)
         if self.instance and self.instance.pk:
             self.fields["asset_id"].queryset = (

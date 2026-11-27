@@ -556,6 +556,9 @@ class AssetAllocationFilter(CustomFilterSet):
     held = django_filters.BooleanFilter(method="filter_held", label=_("Currently held"))
 
     def filter_held(self, queryset, _name, value):
+        """
+        Filter to assignments not yet returned when the "Currently held" box is checked.
+        """
         return queryset.filter(return_status__isnull=True) if value else queryset
 
     # HorillaFilterSet.ajax_fields (generic AJAX-loaded combobox mechanism)
@@ -690,6 +693,10 @@ class AssetCategoryFilter(CustomFilterSet):
     search = django_filters.CharFilter(method="search_method")
 
     class Meta:
+        """
+        Specifies the model and fields to be used for filtering AssetCategory instances.
+        """
+
         model = AssetCategory
         fields = "__all__"
 
@@ -957,15 +964,27 @@ class AssetRenewalFilter(HorillaFilterSet):
     )
 
     class Meta:
+        """
+        Specifies the model and fields to be used for filtering AssetAssignment
+        instances due for renewal.
+        """
+
         model = AssetAssignment
         fields = "__all__"
 
 
 class AssetBatchNoFilter(FilterSet):
+    """
+    Filter set for AssetLot instances, searched by batch/lot number.
+    """
 
     search = django_filters.CharFilter(field_name="lot_number", lookup_expr="icontains")
 
     class Meta:
+        """
+        Specifies the model and fields to be used for filtering AssetLot instances.
+        """
+
         model = AssetLot
         fields = [
             "lot_number",

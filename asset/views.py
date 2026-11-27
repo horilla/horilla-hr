@@ -302,7 +302,8 @@ def asset_item_bulk_edit(request, asset_id):
             messages.success(request, _("Asset items updated"))
             return HttpResponse(
                 """<script>$("#reloadMessagesButton").click();
-                document.getElementById("relatedObjectModal").classList.remove("oh-modal--show");</script>"""
+                document.getElementById("relatedObjectModal")
+                    .classList.remove("oh-modal--show");</script>"""
             )
 
     context = {"asset": asset, "formset": formset}
@@ -818,6 +819,10 @@ def asset_request_approve(request, req_id):
 
 
 def reject_request_return(request, asset_request, req_id):
+    """
+    Rejects an asset's pending return request and refreshes whichever
+    page container the rejection was triggered from.
+    """
     if not request.META.get("HTTP_HX_REQUEST"):
         return HorillaRedirect(request)
 
@@ -1916,6 +1921,10 @@ def asset_dashboard_requests(request):
 @hx_request_required
 @permission_required(perm="asset.view_assetassignment")
 def asset_dashboard_allocates(request):
+    """
+    List currently allocated assets held by active employees, for the
+    asset dashboard's allocated-assets panel.
+    """
     asset_allocations = AssetAssignment.objects.filter(
         asset_id__asset_status="In use", assigned_to_employee_id__is_active=True
     )

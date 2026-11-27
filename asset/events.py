@@ -10,7 +10,7 @@ def log_event(
     employee=None,
     assignment=None,
     service_request=None,
-    description=""
+    description="",
 ):
     """Record one event on an asset. Who did it is stamped from the request by the model."""
     return AssetEvent.objects.create(

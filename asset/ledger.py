@@ -1,4 +1,7 @@
-"""The ledger of one asset: every event in its life in order, with who holds it and its status after each."""
+"""
+The ledger of one asset: every event in its life in order, with who holds
+it and its status after each.
+"""
 
 from django.utils.formats import date_format
 from django.utils.translation import gettext_lazy as _
@@ -49,8 +52,9 @@ def _who(user):
 
 def _entry(day, seq, kind, label, **extra):
     """
-    One ledger line. ``seq`` orders lines of the same day: an allocation, what happened under it and its
-    return stay together and in that order, and a later allocation comes after an earlier return.
+    One ledger line. ``seq`` orders lines of the same day: an allocation,
+    what happened under it and its return stay together and in that order,
+    and a later allocation comes after an earlier return.
     """
     return {
         "date": day,
@@ -107,7 +111,10 @@ def collect_entries(asset):
     sole = items[0].pk if len(items) == 1 else None
 
     def unit_of(assignment):
-        """The unit an allocation is of: its own, or the only one the asset has; None when it is not known."""
+        """
+        The unit an allocation is of: its own, or the only one the asset
+        has; None when it is not known.
+        """
         return (
             assignment.asset_item_id_id
             if assignment.asset_item_id_id in item_pks
@@ -354,10 +361,12 @@ def collect_entries(asset):
 
 def build_ledger(asset, unit=None, entries=None):
     """
-    The asset's events oldest first, each with ``holders`` (who has it after the event) and ``status`` (what
-    state it is in after the event). With ``unit`` (an asset item's id) only that unit's events and the
-    asset's own (purchase, warranty, reports) are kept, and the running columns follow that one unit.
-    ``entries`` is what ``collect_entries`` returned, when it is already at hand.
+    The asset's events oldest first, each with ``holders`` (who has it
+    after the event) and ``status`` (what state it is in after the
+    event). With ``unit`` (an asset item's id) only that unit's events
+    and the asset's own (purchase, warranty, reports) are kept, and the
+    running columns follow that one unit. ``entries`` is what
+    ``collect_entries`` returned, when it is already at hand.
     """
     entries = collect_entries(asset) if entries is None else entries
     entries = [dict(e) for e in entries]
@@ -375,8 +384,9 @@ def build_ledger(asset, unit=None, entries=None):
     open_service = set()
     removed = 0
     last_removed = ""
-    # A unit that came back damaged or lost leaves the pool for good. Taking one out lowers the quantity, except
-    # for the last unit, which leaves the asset Not-Available with its quantity unchanged.
+    # A unit that came back damaged or lost leaves the pool for good. Taking
+    # one out lowers the quantity, except for the last unit, which leaves
+    # the asset Not-Available with its quantity unchanged.
     gone = sum(1 for e in entries if e["effect"] in ("damaged", "lost"))
     original = asset.quantity + gone
     if gone and asset.quantity == 1 and asset.asset_status == "Not-Available":
@@ -445,8 +455,9 @@ def summarize(ledger, asset):
 
 def unit_summary(asset, entries):
     """
-    How many units the asset has and how many are in use, available, damaged or lost, each worked out from
-    that unit's own history. ``units`` lists them with their serial number and state.
+    How many units the asset has and how many are in use, available,
+    damaged or lost, each worked out from that unit's own history.
+    ``units`` lists them with their serial number and state.
     """
     items = list(asset.asset_items.order_by("pk"))
     counts = {"in_use": 0, "available": 0, "damaged": 0, "lost": 0}
@@ -461,7 +472,8 @@ def unit_summary(asset, entries):
         counts[state] += 1
         units.append({"pk": item.pk, "serial": item.tracking_id, "status": state})
 
-    # Allocations that name no unit on an asset with several: they take their units from the available ones.
+    # Allocations that name no unit on an asset with several: they take
+    # their units from the available ones.
     if len(items) > 1:
         held = {}
         for entry in sorted(entries, key=lambda e: (e["date"], e["seq"])):
