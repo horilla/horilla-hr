@@ -157,6 +157,15 @@ def overtime_eligibility(overtime_seconds, condition):
     return overtime_seconds > 0 and overtime_seconds >= minimum, minimum
 
 
+def day_has_happened(day):
+    """
+    Whether ``day`` has happened: today or before. A day after today is still to come: the
+    summary draws it as Upcoming and doesn't count what is on it yet, apart from leave,
+    holidays and week offs, which are known ahead.
+    """
+    return day <= datetime.date.today()
+
+
 def _day_overtime(emp, day, attendance, cap):
     """The overtime a day really has: all the hours on a day off, else what was worked beyond the minimum."""
     holidays, week_offs = exclusion_sets(emp, day, day)
@@ -1029,7 +1038,6 @@ def build_monthly_summary(from_date, to_date, employee_qs):
     emp_computed_hours = {}  # {emp_pk: hours_second} — filled per employee below
     hours_upsert = []  # AttendanceSummaryHours instances to bulk-upsert
 
-    _today_d = datetime.date.today()
     for emp in employee_qs.select_related(
         "employee_work_info__department_id",
         "employee_work_info__job_position_id",
@@ -1168,19 +1176,21 @@ def build_monthly_summary(from_date, to_date, employee_qs):
                 paid_leave += _part[0]
                 unpaid_leave += _part[1]
                 _rest = 1.0 - _part[0] - _part[1]
+                _happened = day_has_happened(d)
                 if _rest > 0:
-                    _got = min(_att_vals.get(d, 0.0), _rest)
+                    _got = min(_att_vals.get(d, 0.0), _rest) if _happened else 0.0
                     present += _got
                     absent += _rest - _got
-                    if d > _today_d:
+                    if not _happened:
                         upcoming_days += _rest - _got
-                _day_manual = _daily_hrs.get(d)
-                hours_second += (
-                    _day_manual if _day_manual is not None else _att_secs.get(d, 0)
-                )
+                if _happened:
+                    _day_manual = _daily_hrs.get(d)
+                    hours_second += (
+                        _day_manual if _day_manual is not None else _att_secs.get(d, 0)
+                    )
                 continue
 
-            if d in _att_vals:
+            if d in _att_vals and day_has_happened(d):
                 val = _att_vals[d]
                 if d in holiday_dates_set:
                     holiday_c += 1.0  # HO — attendance on holiday
@@ -1211,7 +1221,7 @@ def build_monthly_summary(from_date, to_date, employee_qs):
                 week_off += 1.0
             elif d not in off_set:
                 absent += 1.0  # working day with no activity
-                if d > _today_d:
+                if not day_has_happened(d):
                     upcoming_days += 1.0  # ...that has not happened yet
 
         # Conflict detection (uses raw data, not overrides). Attendance on a
@@ -2405,7 +2415,7 @@ def attendance_monthly_summary_detail(request):
             if p[0] + p[1] < 1
             and d not in off_set
             and d not in present_dates
-            and d <= datetime.date.today()
+            and day_has_happened(d)
         }
 
         # Base absent set: working days with no attendance and no approved leave
@@ -3252,7 +3262,7 @@ def _build_calendar_context(emp, from_date, to_date, show_future_leave=False):
             return "unpaid_leave", unpaid_map[d], None, None, False
         _pl = part_leave.get(d)
         if _pl and d not in holiday_map and d not in week_off_dates:
-            if d > datetime.date.today():
+            if not day_has_happened(d):
                 # Nothing to judge the other half by yet: show the leave, not an absence.
                 future_part[d] = _pl
                 return (
@@ -3312,11 +3322,22 @@ def _build_calendar_context(emp, from_date, to_date, show_future_leave=False):
                         status, detail, conflict_with, resolution_badge, is_conflict = (
                             day_info(d)
                         )
-                        # A day that has not happened yet with nothing on it is not
-                        # absence: it is drawn greyed out and left out of the counts.
-                        # Leave, holidays and week-offs dated ahead keep their colour.
-                        if status == "absent" and d > today:
+                        # A day that has not happened yet is not absence, nor anything
+                        # else it may look like so far: it is drawn greyed out and left
+                        # out of the counts. Leave, holidays and week-offs dated ahead
+                        # keep their colour.
+                        if not day_has_happened(d) and status not in (
+                            "paid_leave",
+                            "unpaid_leave",
+                            "holiday",
+                            "week_off",
+                        ):
                             status, detail = "future", ""
+                            conflict_with, resolution_badge, is_conflict = (
+                                None,
+                                None,
+                                False,
+                            )
 
                         # Per-day hours computation
                         _halves = (
@@ -3371,9 +3392,10 @@ def _build_calendar_context(emp, from_date, to_date, show_future_leave=False):
                         # The overtime of the day, shown whether or not the day was regularized.
                         _ot_kind = None
                         _ot_pending = False
-                        if d in att_map and conflict_with not in (
-                            "paid_leave",
-                            "unpaid_leave",
+                        if (
+                            d in att_map
+                            and status != "future"
+                            and conflict_with not in ("paid_leave", "unpaid_leave")
                         ):
                             _a = att_map[d]
                             _res = resolutions_map.get(d)
