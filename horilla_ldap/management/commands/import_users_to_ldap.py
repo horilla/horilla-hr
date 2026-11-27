@@ -1,6 +1,3 @@
-import base64
-import hashlib
-
 from django.core.management.base import BaseCommand
 from ldap3 import ALL, ALL_ATTRIBUTES, Connection, Server
 
@@ -52,14 +49,6 @@ class Command(BaseCommand):
 
                 dn = f"uid={user.employee_user_id.username},{base_dn}"
 
-                # Securely hash the password using SHA
-                hashed_password = (
-                    "{SHA}"
-                    + base64.b64encode(
-                        hashlib.sha1(user.phone.encode()).digest()
-                    ).decode()
-                )
-
                 if user.employee_last_name is None:
                     user.employee_last_name = " "
 
@@ -68,10 +57,11 @@ class Command(BaseCommand):
                     "givenName": user.employee_first_name or "",
                     "sn": user.employee_last_name or "",
                     "cn": f"{user.employee_first_name} {user.employee_last_name}",
-                    # Without an email, the username is the uid
-                    "uid": user.email or user.employee_user_id.username,
+                    "uid": user.employee_user_id.username,
                     "telephoneNumber": user.phone or "",
-                    "userPassword": hashed_password,  # Securely store password
+                    # No userPassword is set on purpose: passwords must never be
+                    # derived from employee data. The entry cannot bind until a
+                    # password is set through the directory's own reset process.
                 }
                 if user.email:
                     attributes["mail"] = user.email
