@@ -32,9 +32,12 @@ class DefaultHorillaMailBackend(EmailBackend):
         timeout=None,
         ssl_keyfile=None,
         ssl_certfile=None,
+        configuration=None,
         **kwargs,
     ):
-        self.configuration = self.get_dynamic_email_config()
+        # configuration: a DynamicEmailConfiguration to connect with instead
+        # of the signed-in user's company (or primary) one, e.g. to test it.
+        self.configuration = configuration or self.get_dynamic_email_config()
         ssl_keyfile = (
             getattr(self.configuration, "ssl_keyfile", None)
             if self.configuration
