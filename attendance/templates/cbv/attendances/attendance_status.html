@@ -1,0 +1,26 @@
+{% load i18n %}
+{% comment %}
+    Attendance Status cell (Attendance.attendance_status_col), in
+    generic/penalty_badge.html's badge markup and the dashboard's late/early
+    colours: Late Arrival amber, Early Departure red.
+    Context: late, early.
+{% endcomment %}
+<div class="flex flex-wrap gap-1">
+    {% if late %}
+        <span class="attendance-status-badge--late inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-warning/30 bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning-dark">
+            <ion-icon name="time-outline"></ion-icon>
+            {% trans "Late Arrival" %}
+        </span>
+    {% else %}
+        <span class="penalty-badge--success inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-success/30 bg-success/10 px-2 py-0.5 text-xs font-medium text-success-dark">
+            <ion-icon name="checkmark-circle-outline"></ion-icon>
+            {% trans "On Time" %}
+        </span>
+    {% endif %}
+    {% if early %}
+        <span class="penalty-badge--danger inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-danger/30 bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger-dark">
+            <ion-icon name="exit-outline"></ion-icon>
+            {% trans "Early Departure" %}
+        </span>
+    {% endif %}
+</div>

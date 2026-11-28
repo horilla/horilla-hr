@@ -86,6 +86,7 @@ class AttendancesListView(HorillaListView):
         (_("In Date"), "attendance_clock_in_date"),
         (_("Check-Out"), "attendance_clock_out"),
         (_("Out Date"), "attendance_clock_out_date"),
+        (_("Attendance Status"), "attendance_status_col"),
         (_("Shift"), "shift_id"),
         (_("Work Type"), "work_type_id"),
         (_("Min Hour"), "minimum_hour"),

@@ -1021,6 +1021,9 @@ body.dark .penalty-badge--danger {
 body.dark .penalty-badge--success {
   color: #4ade80;
 }
+body.dark .attendance-status-badge--late {
+  color: #fbbf24;
+}
 body.dark #jobFilterBtn:hover {
   background-color: #333333 !important;
 }
