@@ -1960,8 +1960,7 @@ def humanize_filter_tags(data_dict, filter_class=None):
       readable date or date range, stored under the `__gte` key (the `__lte`
       key is reported in `extras` so removing the tag clears both);
     * `type` / `attendance_status` choices show "Late Arrival" /
-      "Early Departure" / "On Time", and `attendance_on_time` shows
-      "On Time" / "Late Arrival" under an "Attendance" label;
+      "Early Departure" / "On Time" under an "Attendance" label;
     * any other tag whose filter in `filter_class` has its own label and
       choices reads as the filter form does ("OT Approved?: Yes"), not as
       the query key ("Attendance overtime approve: True").
@@ -2012,13 +2011,6 @@ def humanize_filter_tags(data_dict, filter_class=None):
                 FriendlyTagText(_(_ATTENDANCE_CONDITION_LABELS[v])) for v in values
             ]
             labels[key] = FriendlyTagText(_("Attendance"))
-
-    on_time = data_dict.get("attendance_on_time")
-    if on_time and on_time[0] in ("True", "False"):
-        data_dict["attendance_on_time"] = [
-            FriendlyTagText(_("On Time") if on_time[0] == "True" else _("Late Arrival"))
-        ]
-        labels["attendance_on_time"] = FriendlyTagText(_("Attendance"))
 
     _word_tags_as_filters(data_dict, labels, filter_class)
     return data_dict, labels, extras
