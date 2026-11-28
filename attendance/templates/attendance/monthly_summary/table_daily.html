@@ -39,6 +39,8 @@
   .dv-week_off, .dv-weekend { background: #c4b5fd; color: #4c1d95; }
   .dv-holiday { background: #5eead4; color: #134e4a; }
   .dv-future { background: #eef1f5; color: #94a3b8; }
+  /* Worked on a week off or holiday: in the Present colour, so the day reads as worked. */
+  .dv-chip.dv-worked-off, .dv-legend i.dv-worked-off { background: #86efac; color: #14532d; }
   .dv-none { background: transparent; }
   /* Hover: the row and the column of the day under the pointer, marked by accent lines along
      their edges. Lines, not a tint over the cells: a tint dulls every colour it covers. */
@@ -148,7 +150,7 @@
                   title="{{ cell.title }}"
                   {% if cell.date %}data-day-popover="1" data-employee="{{ row.employee.pk }}" data-date="{{ cell.date }}" data-from="{{ from_date }}" data-to="{{ to_date }}" data-conflict-type="{{ cell.conflict_with }}"{% endif %}>
                 {% if cell.status != "none" %}
-                  <span class="dv-chip dv-{{ cell.status }}{% if cell.ahead %} dv-split dv-ahead{% endif %}"{% if cell.style %} style="{{ cell.style }}"{% endif %}>{{ cell.code }}</span>
+                  <span class="dv-chip dv-{{ cell.status }}{% if cell.worked_off %} dv-worked-off{% endif %}{% if cell.ahead %} dv-split dv-ahead{% endif %}"{% if cell.style %} style="{{ cell.style }}"{% endif %}>{{ cell.code }}</span>
                 {% endif %}
                 {% if cell.conflict %}<span class="dv-dot dv-dot--conflict"></span>{% elif cell.resolved %}<span class="dv-dot dv-dot--resolved"></span>{% endif %}
               </td>
@@ -169,6 +171,7 @@
     <span><i class="dv-unpaid_leave"></i>{% trans "Unpaid Leave" %} (UL)</span>
     <span><i class="dv-week_off"></i>{% trans "Week Off" %} (WO)</span>
     <span><i class="dv-holiday"></i>{% trans "Holiday" %} (H)</span>
+    <span><i class="dv-worked-off"></i>{% trans "Worked On A Week Off Or Holiday" %} ({% translate "OT" context "summary code" %})</span>
     <span><i class="dv-future"></i>{% trans "Upcoming" %}</span>
     <span><i class="dv-dot dv-dot--conflict" style="position:static;border-radius:50%;width:9px;height:9px;"></i>{% trans "Conflict" %}</span>
   </div>
