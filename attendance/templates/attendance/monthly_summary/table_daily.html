@@ -36,7 +36,8 @@
   .dv-short, .dv-absent { background: #fca5a5; color: #7f1d1d; }
   .dv-paid_leave { background: #93c5fd; color: #1e3a8a; }
   .dv-unpaid_leave { background: #fdba74; color: #7c2d12; }
-  .dv-week_off, .dv-weekend { background: #c4b5fd; color: #4c1d95; }
+  /* A week off is an empty square, like a day still to come: nobody is expected in. */
+  .dv-week_off, .dv-weekend { background: transparent; box-shadow: inset 0 0 0 1px #e5e7eb; }
   .dv-holiday { background: #5eead4; color: #134e4a; }
   .dv-future { background: #eef1f5; color: #94a3b8; }
   /* Worked on a week off or holiday: in the Present colour, so the day reads as worked. */
@@ -91,6 +92,7 @@
   body.dark .dv-emp-name { color: #dfdfdf; }
   body.dark .dv-day.weekend { background: #2a2a2a !important; }
   body.dark .dv-future { background: #2a2a2a; color: #6b7280; }
+  body.dark .dv-week_off, body.dark .dv-weekend { box-shadow: inset 0 0 0 1px #3a3a3a; }
   body.dark .dv-cell { background: #1a1a1a; }
   body.dark .dv-dot { border-color: #1a1a1a; }
   body.dark .dv-table th, body.dark .dv-table td { border-color: #333; }
@@ -169,7 +171,7 @@
     <span><i class="dv-absent"></i>{% trans "Absent / Short Hours" %} (A / SH)</span>
     <span><i class="dv-paid_leave"></i>{% trans "Paid Leave" %} (PL)</span>
     <span><i class="dv-unpaid_leave"></i>{% trans "Unpaid Leave" %} (UL)</span>
-    <span><i class="dv-week_off"></i>{% trans "Week Off" %} (WO)</span>
+    <span><i class="dv-week_off"></i>{% trans "Week Off" %}</span>
     <span><i class="dv-holiday"></i>{% trans "Holiday" %} (H)</span>
     <span><i class="dv-worked-off"></i>{% trans "Worked On A Week Off Or Holiday" %} ({% translate "OT" context "summary code" %})</span>
     <span><i class="dv-future"></i>{% trans "Upcoming" %}</span>
