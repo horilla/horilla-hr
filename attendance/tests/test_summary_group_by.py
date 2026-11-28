@@ -116,9 +116,13 @@ class TreeTests(SimpleTestCase):
 
 class GroupedPageTests(TestCase):
     def setUp(self):
+        from base.models import EmployeeShift
+
         self.company = make_company("Group Co")
+        # The summary lists employees with a shift (and anyone who attended).
+        shift = EmployeeShift.objects.create(employee_shift="Day")
         self.employees = [
-            make_employee(company=self.company, email=f"g{i}@test.horilla")
+            make_employee(company=self.company, email=f"g{i}@test.horilla", shift=shift)
             for i in range(3)
         ]
         user = make_user("hr-group", is_superuser=True)

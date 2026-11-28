@@ -24,8 +24,14 @@ class DailyViewMixin:
     """Shared setUp and helpers; the test classes below mix it in so each test runs once."""
 
     def setUp(self):
+        from base.models import EmployeeShift
+
         company = make_company("Daily View Co")
-        self.employee = make_employee(company=company, email="daily@test.horilla")
+        # The summary lists employees with a shift (and anyone who attended).
+        shift = EmployeeShift.objects.create(employee_shift="Day")
+        self.employee = make_employee(
+            company=company, email="daily@test.horilla", shift=shift
+        )
         user = make_user("daily-admin", is_superuser=True)
         make_employee(company=company, email="daily-admin@test.horilla", user=user)
         self.client.force_login(user)

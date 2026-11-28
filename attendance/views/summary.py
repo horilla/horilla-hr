@@ -1417,6 +1417,19 @@ def build_monthly_summary(from_date, to_date, employee_qs):
 # ---------------------------------------------------------------------------
 
 
+def expected_employees(employee_qs, from_date, to_date):
+    """
+    The employees the summary lists: those with a shift, plus anyone without one who has
+    attendance in the range. Someone with no shift is never expected in, so listing them
+    would only show a row of absences. The dashboards' rule (expected_employee_ids).
+    """
+    from attendance.dashboard import expected_employee_ids
+
+    return employee_qs.filter(
+        pk__in=expected_employee_ids(employee_qs, from_date, to_date)
+    )
+
+
 def _parse_date(value, fallback):
     try:
         return datetime.date.fromisoformat(value)
@@ -1923,6 +1936,9 @@ def attendance_monthly_summary_table(request):
         )
 
     employee_qs = employee_qs.distinct()
+    # Employees picked by name are shown whatever their shift.
+    if not emp_ids:
+        employee_qs = expected_employees(employee_qs, from_date, to_date)
 
     view = summary_view(request)
     if view == "daily":
@@ -2052,6 +2068,8 @@ def attendance_monthly_summary_export(request):
         emp_id = request.GET.get("employee_id")
         if emp_id:
             employee_qs = employee_qs.filter(pk=emp_id)
+        else:
+            employee_qs = expected_employees(employee_qs, from_date, to_date)
 
     rows, total_working, _extra = build_monthly_summary(from_date, to_date, employee_qs)
 
