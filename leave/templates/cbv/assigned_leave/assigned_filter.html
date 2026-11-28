@@ -1,4 +1,5 @@
-{% load i18n %}
+{% load i18n leavefilters %}
+{% carryforward_in_use as show_carryforward %}
 <div class="oh-dropdown__filter-body">
     <!-- Outside any accordion (always visible, not collapsible) -- same
          placement as every other modernized filter panel this session:
@@ -46,20 +47,20 @@
                         {{form.available_days}}
                     </div>
                 </div>
+                {% if show_carryforward %}
                 <div class="col-sm-12 col-md-12 col-lg-6">
                     <div class="oh-input-group">
                         <label class="oh-label">{% trans "Carryforward Days" %}</label>
                         {{form.carryforward_days}}
                     </div>
                 </div>
-            </div>
-            <div class="row">
                 <div class="col-sm-12 col-md-12 col-lg-6">
                     <div class="oh-input-group">
                         <label class="oh-label">{% trans "Total Leave Days" %}</label>
                         {{form.total_leave_days}}
                     </div>
                 </div>
+                {% endif %}
                 <div class="col-sm-12 col-md-12 col-lg-6">
                     <div class="oh-input-group">
                         <label class="oh-label">{% trans "Assigned Date" %}</label>
@@ -93,6 +94,7 @@
                     </div>
                 </div>
             </div>
+            {% if show_carryforward %}
             <div class="row">
                 <div class="col-sm-12 col-md-12 col-lg-6">
                     <div class="oh-input-group">
@@ -129,6 +131,7 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
         </div>
     </div>
 </div>

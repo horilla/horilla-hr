@@ -71,6 +71,7 @@
             >{{ form.available_days.label }}</label>
             {{ form.available_days }} {{ form.available_days.errors }}
         </div>
+        {% if "carryforward_days" in form.fields %}
         <div class="oh-modal__dialog-body pb-2">
             <label
                 for="{{form.carryforward_days.id_for_label}}"
@@ -78,6 +79,7 @@
             >{{ form.carryforward_days.label }}</label>
             {{ form.carryforward_days }} {{ form.carryforward_days.errors }}
         </div>
+        {% endif %}
         <div class="oh-modal__dialog-footer pb-3">
             <button type="submit" class="oh-btn oh-btn--secondary oh-btn--shadow">
                 {% trans "Save" %}
