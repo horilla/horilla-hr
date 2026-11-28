@@ -1,0 +1,99 @@
+{% load i18n %}
+<div id="firmaSignatures" class="pr-3">
+    <div class="mt-4 mb-3 flex items-center justify-between flex-wrap gap-2">
+        <span class="text-md font-semibold">{% trans "E-Signatures" %}</span>
+        {% if configured and can_send %}
+            <button type="button"
+                class="px-4 py-2 bg-transparent border border-primary-600 text-primary-600 rounded-md text-xs hover:bg-primary-600 hover:text-white transition duration-300"
+                hx-get="{% url 'firma-send-form' pk=candidate.pk %}"
+                hx-target="#firmaSendForm"
+                hx-swap="innerHTML">
+                {% trans "Send for Signature" %}
+            </button>
+        {% endif %}
+    </div>
+
+    {% if result %}
+        <div class="mb-3 p-3 rounded-md text-sm border
+            {% if result.level == 'success' %}border-green-300 bg-green-50 text-green-800
+            {% elif result.level == 'warning' %}border-yellow-300 bg-yellow-50 text-yellow-800
+            {% else %}border-red-300 bg-red-50 text-red-800{% endif %}"
+            role="status">
+            {{ result.message }}
+        </div>
+    {% endif %}
+
+    {% if not configured %}
+        <p class="text-sm text-gray-500 mb-3">
+            {% trans "Firma e-signature is switched off. An administrator can set it up in Settings, E-Signature." %}
+        </p>
+    {% endif %}
+
+    <div id="firmaSendForm"></div>
+
+    {% if records %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-xs border border-[#e6e6e6] rounded-md">
+                <thead class="bg-[#f3f3f3] text-left">
+                    <tr>
+                        <th class="px-3 py-2">{% trans "Title" %}</th>
+                        <th class="px-3 py-2">{% trans "Status" %}</th>
+                        <th class="px-3 py-2">{% trans "Recipient" %}</th>
+                        <th class="px-3 py-2">{% trans "Sent At" %}</th>
+                        <th class="px-3 py-2">{% trans "Signed At" %}</th>
+                        <th class="px-3 py-2">{% trans "Signed Document" %}</th>
+                        <th class="px-3 py-2">{% trans "Actions" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in records %}
+                        <tr class="border-t border-[#e6e6e6] align-top">
+                            <td class="px-3 py-2">
+                                <div class="font-medium">{{ record.title }}</div>
+                                <div class="text-gray-500">
+                                    {% if record.source == "template" %}{{ record.firma_template_name|default:record.get_source_display }}{% else %}{{ record.get_source_display }}{% if record.mail_template_title %} ({{ record.mail_template_title }}){% endif %}{% endif %}
+                                </div>
+                                {% if record.message %}
+                                    <div class="text-gray-500 mt-1">{{ record.message }}</div>
+                                {% endif %}
+                            </td>
+                            <td class="px-3 py-2 whitespace-nowrap">{{ record.get_status_display }}</td>
+                            <td class="px-3 py-2">{{ record.recipient_name }}<br><span class="text-gray-500">{{ record.recipient_email }}</span></td>
+                            <td class="px-3 py-2 whitespace-nowrap">{{ record.sent_at|default:"" }}</td>
+                            <td class="px-3 py-2 whitespace-nowrap">{{ record.completed_at|default:"" }}</td>
+                            <td class="px-3 py-2">
+                                {% if record.signed_document %}
+                                    <a href="{{ record.signed_document.url }}" target="_blank" rel="noopener" class="text-primary-600 underline">{% trans "Download" %}</a>
+                                {% endif %}
+                            </td>
+                            <td class="px-3 py-2">
+                                {% if record.firma_id and can_send %}
+                                    <button type="button" class="text-primary-600 underline"
+                                        hx-post="{% url 'firma-refresh' pk=record.pk %}"
+                                        hx-target="#firmaSignatures"
+                                        hx-swap="outerHTML">
+                                        {% trans "Refresh" %}
+                                    </button>
+                                {% endif %}
+                                {% if record.status == uncertain_status and can_link %}
+                                    <form class="mt-1 flex gap-1"
+                                        hx-post="{% url 'firma-link' pk=record.pk %}"
+                                        hx-target="#firmaSignatures"
+                                        hx-swap="outerHTML">
+                                        {% csrf_token %}
+                                        <input type="text" name="firma_id" maxlength="64" required
+                                            class="border border-[#e6e6e6] rounded px-2 py-1 text-xs"
+                                            placeholder="{% trans 'Firma signing request ID' %}">
+                                        <button type="submit" class="text-primary-600 underline">{% trans "Link" %}</button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="text-sm text-gray-500">{% trans "No documents have been sent to this candidate for signature." %}</p>
+    {% endif %}
+</div>

@@ -101,6 +101,7 @@ INSTALLED_APPS = [
     "horilla_ldap",
     "additional_info",
     "horilla_sso",
+    "horilla_firma",
     "horilla_dbtemplate",
     "horilla_tour",
     "master_import",
