@@ -622,6 +622,53 @@ def saved_filter_path_query(request):
     return path_query
 
 
+def apply_default_saved_filter(request, query_dict, filter_class):
+    """
+    The filter a list or card view should use: `query_dict`, with the
+    user's default saved filter applied when the request doesn't filter.
+
+    A view opened from its nav bar gets the nav's blank filter form, flagged
+    with "default_filter" on that first load only, so "Clear all" still
+    shows everything. A view loaded with no querystring gets it too.
+    The default is read from the saved urlencode, which keeps every value
+    of a multi-value field. The flag itself is dropped.
+    """
+    from django.http import QueryDict
+
+    from base.methods import eval_validate
+    from horilla_views.models import SavedFilter
+
+    first_load = not query_dict or query_dict.get("default_filter")
+    if "default_filter" in query_dict:
+        query_dict = query_dict.copy()
+        del query_dict["default_filter"]
+    fields = set(filter_class.base_filters) | {"search", "search_field"}
+    if not first_load or any(
+        value not in ("", "unknown")
+        for key in fields
+        for value in query_dict.getlist(key)
+    ):
+        return query_dict
+
+    default_filter = SavedFilter.objects.filter(
+        saved_filter_path_query(request),
+        created_by=request.user,
+        is_default=True,
+    ).first()
+    if not default_filter:
+        return query_dict
+    if default_filter.urlencode:
+        saved = QueryDict(default_filter.urlencode)
+    else:
+        saved = QueryDict("", mutable=True)
+        for key, value in eval_validate(default_filter.filter).items():
+            saved[key] = value
+    query_dict = query_dict.copy()
+    for key in fields & set(saved):
+        query_dict.setlist(key, saved.getlist(key))
+    return query_dict
+
+
 def get_short_uuid(length: int, prefix: str = "hlv"):
     """
     Short uuid generating method
@@ -790,6 +837,7 @@ SAVED_FILTER_CACHE_VOLATILE_PARAMS = {
     "view_id",
     "field",
     "nested_fields",
+    "default_filter",
 }
 
 
