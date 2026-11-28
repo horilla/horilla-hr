@@ -7,7 +7,8 @@
  *
  * Depends on:
  *   - driver.js  (already on window.driver.js.driver)
- *   - window.HORILLA_TOUR  set by footer_scripts.html
+ *   - window.HORILLA_TOUR  set by footer_scripts.html (its optional `docs`
+ *     entry adds a Documentation link below the tours)
  */
 (function () {
   'use strict';
@@ -175,6 +176,7 @@
       empty.style.cssText = 'padding:20px 16px;font-size:12px;color:#9ca3af;text-align:center;';
       empty.textContent = 'No tours available for this page.';
       panel.appendChild(empty);
+      renderDocs(panel);
       return;
     }
 
@@ -226,6 +228,38 @@
     });
 
     panel.appendChild(list);
+    renderDocs(panel);
+  }
+
+  // Link to the user guide, under its own header below the tours.
+  function renderDocs(panel) {
+    var docs = CFG.docs;
+    if (!docs || !docs.url) return;
+
+    var hdr = document.createElement('div');
+    hdr.style.cssText = 'padding:10px 12px 8px;border-top:1px solid #f3f4f6;border-bottom:1px solid #f3f4f6;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;';
+    hdr.textContent = docs.heading;
+    panel.appendChild(hdr);
+
+    var link = document.createElement('a');
+    link.href = docs.url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.style.cssText = 'display:flex;align-items:center;gap:10px;margin:4px 0;padding:9px 12px;font-size:13px;color:#374151;text-decoration:none;transition:background .15s;';
+    link.onmouseover = function () { link.style.background = '#f0f9ff'; };
+    link.onmouseout = function () { link.style.background = 'none'; };
+
+    var iconEl = document.createElement('ion-icon');
+    iconEl.setAttribute('name', 'open-outline');
+    iconEl.style.cssText = 'font-size:16px;color:#2563eb;flex-shrink:0;';
+
+    var labelEl = document.createElement('span');
+    labelEl.style.cssText = 'line-height:1.3;';
+    labelEl.textContent = docs.label;
+
+    link.appendChild(iconEl);
+    link.appendChild(labelEl);
+    panel.appendChild(link);
   }
 
   function openPanel() {
