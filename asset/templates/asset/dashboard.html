@@ -1086,7 +1086,7 @@
                 },
             });
             const assetAllocationUrl = "{% url 'asset-request-allocation-view' %}";
-            const assetAllocationUrlFor = id => id ? `${assetAllocationUrl}?assigned_to_employee_id=${id}&open_tab=2` : '#';
+            const assetAllocationUrlFor = id => id ? `${assetAllocationUrl}?assigned_to_employee_id=${id}&open_tab=Asset%20Allocation` : '#';
 
             document.getElementById('as-date').textContent = new Date().toLocaleDateString('en-US', {
                 weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
@@ -1290,13 +1290,13 @@
                     <div class="as-kpi-card__value">${data.total_assets}</div>
                     <div class="as-kpi-card__sub"><span class="as-badge as-badge--green">${data.in_use} {% trans "In Use"|escapejs %}</span> <span class="as-badge as-badge--amber">${data.available} {% trans "Available"|escapejs %}</span> <span class="as-badge as-badge--red">${data.not_available} {% trans "Not Available"|escapejs %}</span></div>
                 </a>
-                <a href="{% url 'asset-request-allocation-view' %}?open_tab=2&asset_request_status=Requested&custom_field=asset_request_date&custom_lookup=gte&custom_value=${data.period_from_date}&custom_field=asset_request_date&custom_lookup=lte&custom_value=${data.period_to_date}&filter_applied=1" class="as-kpi-card">
+                <a href="{% url 'asset-request-allocation-view' %}?open_tab=Asset%20Request&asset_request_status=Requested&custom_field=asset_request_date&custom_lookup=gte&custom_value=${data.period_from_date}&custom_field=asset_request_date&custom_lookup=lte&custom_value=${data.period_to_date}&filter_applied=1" class="as-kpi-card">
                     <div class="as-kpi-card__icon as-kpi-card__icon--amber"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg></div>
                     <div class="as-kpi-card__label">{% trans "Pending Requests"|escapejs %}</div>
                     <div class="as-kpi-card__value">${data.pending_requests}</div>
                     <div class="as-kpi-card__sub"><span class="as-badge as-badge--amber">{% trans "Awaiting Approval"|escapejs %}</span></div>
                 </a>
-                <a href="{% url 'asset-request-allocation-view' %}?open_tab=4&status=Requested&filter_applied=1" class="as-kpi-card">
+                <a href="{% url 'asset-request-allocation-view' %}?open_tab=Service%20Request&status=Requested&filter_applied=1" class="as-kpi-card">
                     <div class="as-kpi-card__icon as-kpi-card__icon--green"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div>
                     <div class="as-kpi-card__label">{% trans "Service Requests"|escapejs %}</div>
                     <div class="as-kpi-card__value">${data.service_requests}</div>
@@ -1352,7 +1352,7 @@
                         chart: { type: 'donut', height: 300, background: 'transparent', fontFamily: 'inherit',
                             events: { dataPointSelection: (e, ctx, config) => {
                                 const status = data.statuses[config.dataPointIndex].status;
-                                window.location.href = "{% url 'asset-request-allocation-view' %}?open_tab=2&asset_request_status=" + encodeURIComponent(status) + "&filter_applied=1";
+                                window.location.href = "{% url 'asset-request-allocation-view' %}?open_tab=Asset%20Request&asset_request_status=" + encodeURIComponent(status) + "&filter_applied=1";
                             }}
                         },
                         labels: data.statuses.map(s => s.label),
@@ -1589,14 +1589,14 @@
                         events: { dataPointSelection: (e, ctx, config) => {
                             const deptId = rows[config.dataPointIndex] && rows[config.dataPointIndex].department_id;
                             const url = "{% url 'asset-request-allocation-view' %}";
-                            // open_tab=3 -- "Asset Allocation" is the destination's 3rd tab; without
-                            // it, whichever tab was last active there (persisted per user) wins
+                            // open_tab names the "Asset Allocation" tab; without it,
+                            // whichever tab was last active there (persisted per user) wins
                             // instead, landing on "Asset" or "Asset Request" where this filter means
                             // nothing.
                             // held=true: the bar counts assets still out, not returned ones.
                             window.location.href = deptId
-                                ? url + "?open_tab=3&assigned_to_employee_id__employee_work_info__department_id=" + deptId + "&held=true&filter_applied=1"
-                                : url + "?open_tab=3&held=true";
+                                ? url + "?open_tab=Asset%20Allocation&assigned_to_employee_id__employee_work_info__department_id=" + deptId + "&held=true&filter_applied=1"
+                                : url + "?open_tab=Asset%20Allocation&held=true";
                         }}
                     },
                     colors: rows.map(d => d.color),

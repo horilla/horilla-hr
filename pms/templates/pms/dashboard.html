@@ -1412,7 +1412,7 @@
                     <div class="pm-kpi-card__value">${data.at_risk}</div>
                     <div class="pm-kpi-card__sub"><span class="pm-badge pm-badge--red">{% trans "Objectives Need Attention"|escapejs %}</span></div>
                 </a>
-                <a href="{% url 'feedback-view' %}?open_tab=3" class="pm-kpi-card">
+                <a href="{% url 'feedback-view' %}?open_tab=Feedbacks%20to%20Review" class="pm-kpi-card">
                     <div class="pm-kpi-card__icon pm-kpi-card__icon--amber"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></div>
                     <div class="pm-kpi-card__label">{% trans "Feedback"|escapejs %}</div>
                     <div class="pm-kpi-card__value">${data.total_feedbacks}</div>
@@ -1575,7 +1575,7 @@
                             events: { mounted: (chart) => pills.attach(chart), dataPointSelection: (e, ctx, config) => {
                                 if (!isRealSelection('fb-status', e)) return;
                                 const status = data.statuses[config.dataPointIndex].status;
-                                window.location.href = "{% url 'feedback-view' %}?status=" + encodeURIComponent(status) + "&open_tab=3";
+                                window.location.href = "{% url 'feedback-view' %}?status=" + encodeURIComponent(status) + "&open_tab=Feedbacks%20to%20Review";
                             }}
                         },
                         labels: data.statuses.map(s => s.label),

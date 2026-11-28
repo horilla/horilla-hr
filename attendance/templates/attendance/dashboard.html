@@ -2073,7 +2073,7 @@
                         <div class="am-kpi-card__label">{% trans "Checked In Today"|escapejs %}</div>
                         <div class="am-kpi-card__value">${data.present_today}</div>
                     </a>
-                    <a href="{% url 'request-attendance-view' %}?open_tab=2&attendance_date=${data.date}&attendance_on_time=True&filter_applied=on" class="am-kpi-card">
+                    <a href="{% url 'request-attendance-view' %}?open_tab=All%20Attendances&attendance_date=${data.date}&attendance_on_time=True&filter_applied=on" class="am-kpi-card">
                         <div class="am-kpi-card__icon am-kpi-card__icon--blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
                         <div class="am-kpi-card__label">{% trans "On Time"|escapejs %}</div>
                         <div class="am-kpi-card__value">${data.on_time}</div>
@@ -2089,7 +2089,7 @@
                         <div class="am-kpi-card__value">${data.expected_to_check_in}</div>
 
                     </a>
-                    <a href="{% url 'attendance-view' %}?open_tab=2&attendance_overtime_approve=False&attendance_validated=True&attendance_date=${data.date}&filter_applied=on" class="am-kpi-card">
+                    <a href="{% url 'attendance-view' %}?open_tab=OT%20Attendances&attendance_overtime_approve=False&attendance_validated=True&attendance_date=${data.date}&filter_applied=on" class="am-kpi-card">
                         <div class="am-kpi-card__icon am-kpi-card__icon--amber"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
                         <div class="am-kpi-card__label">{% trans "Pending OT Requests"|escapejs %}</div>
                         <div class="am-kpi-card__value">${data.pending_overtime}</div>
@@ -2314,8 +2314,8 @@
                                             if (!dept) return;
                                             // Series order: 0 Approved, 1 Pending
                                             // (see the `series` array above).
-                                            // open_tab: 2 = "OT Attendances" (see
-                                            // AttendancesTabView), which already
+                                            // "OT Attendances" (see
+                                            // AttendancesTabView) already
                                             // scopes to validated rows with
                                             // overtime > 0 -- the natural landing
                                             // spot for this chart, not the plain
@@ -2328,7 +2328,7 @@
                                             navigate(
                                                 "{% url 'attendance-view' %}",
                                                 {
-                                                    open_tab: 2,
+                                                    open_tab: "OT Attendances",
                                                     field: "employee_id",
                                                     department: dept,
                                                     attendance_date__gte:
@@ -2578,7 +2578,7 @@
                                             navigate(
                                                 "{% url 'attendance-view' %}",
                                                 {
-                                                    open_tab: 3,
+                                                    open_tab: "Validated Attendances",
                                                     attendance_validated: "True",
                                                     attendance_date__gte: day.from_date,
                                                     attendance_date__lte: day.to_date,
@@ -2817,7 +2817,7 @@
                                 const item = items[config.dataPointIndex];
                                 if (!item || !item.id) return;
                                 navigate(attendanceUrl, {
-                                    open_tab: 3,
+                                    open_tab: "Validated Attendances",
                                     attendance_validated: "True",
                                     [cfg.filterParam]: item.id,
                                     attendance_date__gte: data.from_date,

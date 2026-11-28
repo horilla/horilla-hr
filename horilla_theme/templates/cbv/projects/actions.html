@@ -4,7 +4,7 @@
     {% if perms.project.view_timesheet or request.user|is_project_manager_or_member:instance %}
     <a
         class="oh-btn oh-btn--sq-sm"
-        href="{% url 'view-time-sheet' %}?project_id={{ instance.id }}&open_tab=2"
+        href="{% url 'view-time-sheet' %}?project_id={{ instance.id }}&open_tab=All%20Timesheets"
         onclick="event.stopPropagation()"
         title="{% trans 'Timesheets' %}"
     >

@@ -695,13 +695,13 @@ function pdInit() {
                     <div class="pd-kpi-card__value">${fmtMoneyHtml(data.total_deductions)}</div>
                     <div class="pd-kpi-card__sub"><span class="pd-badge pd-badge--blue">${data.month}</span></div>
                 </a>
-                <a href="{% url 'view-loan' %}?open_tab=1&settled=False&filter_applied=1" class="pd-kpi-card">
+                <a href="{% url 'view-loan' %}?open_tab=Loan&settled=False&filter_applied=1" class="pd-kpi-card">
                     <div class="pd-kpi-card__icon pd-kpi-card__icon--amber"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg></div>
                     <div class="pd-kpi-card__label">{% trans "Active Loans"|escapejs %}</div>
                     <div class="pd-kpi-card__value">${data.active_loans}</div>
                     <div class="pd-kpi-card__sub">${data.loan_amount > 0 ? '<span class="pd-badge pd-badge--amber">' + fmtMoneyHtml(data.loan_amount) + ' {% trans "Total"|escapejs %}</span>' : '<span class="pd-badge pd-badge--green">{% trans "No Active Loans"|escapejs %}</span>'}</div>
                 </a>
-                <a href="{% url 'view-reimbursement' %}?open_tab=1&status=requested&type=reimbursement&filter_applied=1" class="pd-kpi-card">
+                <a href="{% url 'view-reimbursement' %}?open_tab=Reimbursements&status=requested&type=reimbursement&filter_applied=1" class="pd-kpi-card">
                     <div class="pd-kpi-card__icon pd-kpi-card__icon--purple"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
                     <div class="pd-kpi-card__label">{% trans "Reimbursements"|escapejs %}</div>
                     <div class="pd-kpi-card__value">${data.pending_reimbursements}</div>
@@ -822,7 +822,7 @@ function pdInit() {
                     events: { dataPointSelection: (event, ctx, opts) => {
                         const t = statuses[opts.dataPointIndex];
                         const base = "{% url 'view-reimbursement' %}";
-                        window.location.href = t ? base + "?open_tab=1&type=reimbursement&status=" + encodeURIComponent(t.status) + "&filter_applied=1" : base;
+                        window.location.href = t ? base + "?open_tab=Reimbursements&type=reimbursement&status=" + encodeURIComponent(t.status) + "&filter_applied=1" : base;
                     }}
                 },
                 labels: statuses.map(t => t.label),

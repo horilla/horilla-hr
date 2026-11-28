@@ -94,7 +94,7 @@ def batch_home(request):
     aggregate queries to draw one row of numbers.
     """
     # The batches are the second tab of the payslips page.
-    return redirect(f"{reverse('view-payslip')}?open_tab=2")
+    return redirect(f"{reverse('view-payslip')}?open_tab=Batches")
 
 
 @login_required

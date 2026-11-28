@@ -944,7 +944,7 @@
             const resignationUrl = "{% url 'resignation-request-view' %}";
             const resignationUrlFor = id => id ? `${resignationUrl}?employee_id=${id}` : '#';
             const assetAllocationUrl = "{% url 'asset-request-allocation-view' %}";
-            const assetAllocationUrlFor = id => id ? `${assetAllocationUrl}?assigned_to_employee_id=${id}&open_tab=3&filter_applied=on` : '#';
+            const assetAllocationUrlFor = id => id ? `${assetAllocationUrl}?assigned_to_employee_id=${id}&open_tab=Asset%20Allocation&filter_applied=on` : '#';
             // offboarding-pipeline-shell is an htmx-only fragment (no page
             // chrome -- no header/sidebar) meant to be loaded inside the
             // tab view below, not visited directly. Linking straight to it

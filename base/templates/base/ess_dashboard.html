@@ -1200,7 +1200,7 @@
                     kpiCard('purple', iconGoals, '{% trans "Open Goals"|escapejs %}',
                             d.open_objectives,
                             '<span class="ess-badge ess-badge--purple">' + '{% trans "active objectives"|escapejs %}' + '</span>',
-                            '{% url "objective-list-view" %}?open_tab=1&archive=false');
+                            '{% url "objective-list-view" %}?open_tab=My%20Objectives&archive=false');
                 })
                 .catch(function () {});
             }

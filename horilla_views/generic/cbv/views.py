@@ -1697,6 +1697,27 @@ class HorillaTabView(TemplateView):
             self.view_id = get_short_uuid(3, "htv")
         # update_initial_cache(request, CACHE, HorillaTabView)
 
+    def open_tab_index(self, open_tab):
+        """
+        The 1-based position of the tab ?open_tab= names: its number, or its
+        title. A title matches as shown or as written in the code (English),
+        ignoring case and spaces at either end, so a link can name the tab in
+        any language and keeps working when tabs are added or moved.
+        """
+        open_tab = open_tab.strip()
+        if open_tab.isdigit():
+            return int(open_tab)
+        wanted = open_tab.casefold()
+        if not wanted:
+            return None
+        for index, tab in enumerate(self.tabs, start=1):
+            title = tab.get("title", "")
+            with translation.override(None):
+                source = str(title)
+            if wanted in (str(title).strip().casefold(), source.strip().casefold()):
+                return index
+        return None
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         if self.request.user:
@@ -1706,11 +1727,11 @@ class HorillaTabView(TemplateView):
             if active_tab:
                 context["active_target"] = active_tab.tab_target
 
-        # ?open_tab=<1-based index> forces a tab open on first load, overriding the last-active tab.
+        # ?open_tab= forces a tab open on first load, overriding the last-active tab.
         # No tag name in the selector: the tab is a <li> in horilla_tabs.html but a <button> in the theme override.
-        open_tab = self.request.GET.get("open_tab")
-        if open_tab and open_tab.isdigit():
-            context["active_target"] = f'[data-target="#{self.view_id}{open_tab}"]'
+        index = self.open_tab_index(self.request.GET.get("open_tab", ""))
+        if index:
+            context["active_target"] = f'[data-target="#{self.view_id}{index}"]'
 
         # Must be a QueryDict, not a plain dict, or multi-valued params (e.g. nested_fields) collapse to their last value.
         extra_params = self.request.GET.copy()

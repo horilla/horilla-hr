@@ -12,7 +12,7 @@
 {% endif %}
 
 {% if perms.project.view_timesheet or request.user|task_crud_perm:instance %}
-    <a href="{% url 'view-time-sheet' %}?task={{ instance.id }}&open_tab=2"
+    <a href="{% url 'view-time-sheet' %}?task={{ instance.id }}&open_tab=All%20Timesheets"
         class="oh-btn oh-btn--info flex-fill"
         style="background-color:green"
     >
