@@ -488,7 +488,7 @@ msgid "Asset Request Date"
 msgstr "资产请求日期"
 
 msgid "e.g. John, PEP01, PEP02"
-msgstr ""
+msgstr "例如：John、PEP01、PEP02"
 
 #, fuzzy
 #| msgid "Currently"
@@ -600,7 +600,7 @@ msgid "Not-Available"
 msgstr "不可用"
 
 msgid "Quantity"
-msgstr ""
+msgstr "数量"
 
 msgid "Notify Before (days)"
 msgstr "提前通知 (天數)"
@@ -614,7 +614,7 @@ msgid "Damaged"
 msgstr "图像"
 
 msgid "Lost"
-msgstr ""
+msgstr "丢失"
 
 #, fuzzy
 #| msgid "Asset Batches"
@@ -708,11 +708,11 @@ msgstr "服务请求"
 
 #, python-format
 msgid "The Asset '%(asset_name)s' expires in %(notify_before)s days"
-msgstr ""
+msgstr "资产「%(asset_name)s」将在 %(notify_before)s 天后到期"
 
 #, python-format
 msgid "The document ' %(title)s ' expires in %(notify_before)s days"
-msgstr ""
+msgstr "文档「 %(title)s 」将在 %(notify_before)s 天后到期"
 
 msgid "Dashboard"
 msgstr "仪表盘"
@@ -743,7 +743,7 @@ msgid "Delete"
 msgstr "刪除"
 
 msgid "trash outline"
-msgstr ""
+msgstr "删除图标"
 
 msgid "Close"
 msgstr "关闭"
@@ -758,7 +758,7 @@ msgid "Import Assets"
 msgstr "匯入資源"
 
 msgid "close outline"
-msgstr ""
+msgstr "关闭图标"
 
 msgid "Uploading..."
 msgstr "上传中..."
@@ -779,10 +779,10 @@ msgid "Upload"
 msgstr "上傳"
 
 msgid "chevron back outline"
-msgstr ""
+msgstr "返回箭头"
 
 msgid "chevron forward outline"
-msgstr ""
+msgstr "前进箭头"
 
 #, fuzzy
 #| msgid "Available"
@@ -893,7 +893,7 @@ msgid "Customize"
 msgstr "风俗"
 
 msgid "In use, available, unavailable"
-msgstr ""
+msgstr "使用中、可用、不可用"
 
 #, fuzzy
 #| msgid "Asset Request / Status"
@@ -944,7 +944,7 @@ msgid "Fleet age distribution"
 msgstr "员工缴纳部分"
 
 msgid "Expiring Soon"
-msgstr ""
+msgstr "即将到期"
 
 #, fuzzy
 #| msgid "Upcoming holidays in this year."
@@ -1012,7 +1012,7 @@ msgid "Warranty Expiring Soon"
 msgstr "即将到期的合同数量"
 
 msgid "Could not load KPIs"
-msgstr ""
+msgstr "无法加载 KPI"
 
 #, fuzzy
 #| msgid "asset"
@@ -1020,7 +1020,7 @@ msgid "No assets"
 msgstr "資源"
 
 msgid "Could not load data"
-msgstr ""
+msgstr "无法加载数据"
 
 #, fuzzy
 #| msgid "New Requests"
@@ -1134,7 +1134,7 @@ msgid "Apply"
 msgstr "申请"
 
 msgid "ellipsis vertical sharp"
-msgstr ""
+msgstr "更多操作图标"
 
 msgid "Returned date"
 msgstr "歸還日期"
@@ -1889,7 +1889,7 @@ msgid "Validated?"
 msgstr "已验证？"
 
 msgid "Any"
-msgstr ""
+msgstr "不限"
 
 msgid "Yes"
 msgstr "是"
@@ -2393,7 +2393,7 @@ msgid "Hours (seconds)"
 msgstr "工时账户"
 
 msgid "Manually Edited"
-msgstr ""
+msgstr "手动编辑"
 
 #, fuzzy
 #| msgid "Attendance Days"
@@ -2949,7 +2949,7 @@ msgid "Overview"
 msgstr "加班"
 
 msgid "Alerts"
-msgstr ""
+msgstr "提醒"
 
 #, fuzzy
 #| msgid "Overtime"
@@ -2977,7 +2977,7 @@ msgid "Pending OT Requests"
 msgstr "待处理休假申请"
 
 msgid "Unable to load KPIs"
-msgstr ""
+msgstr "无法加载 KPI"
 
 #, fuzzy
 #| msgid "department"
@@ -2995,10 +2995,10 @@ msgid "early"
 msgstr "年度"
 
 msgid "No late/early records"
-msgstr ""
+msgstr "无迟到／早退记录"
 
 msgid "Unable to load"
-msgstr ""
+msgstr "无法加载"
 
 #, fuzzy
 #| msgid "One time date"
@@ -3074,7 +3074,7 @@ msgid "employees"
 msgstr "员工"
 
 msgid "Avg Hrs/Day"
-msgstr ""
+msgstr "日均工时"
 
 #, fuzzy
 #| msgid "Joining this week"
@@ -3128,13 +3128,13 @@ msgid "No employees are currently taking a break."
 msgstr "当前没有员工在休息。"
 
 msgid "checkmark outline"
-msgstr ""
+msgstr "对勾图标"
 
 msgid "No overtime records pending validation."
 msgstr "没有待验证的加班记录。"
 
 msgid "caret back outline"
-msgstr ""
+msgstr "收起箭头"
 
 msgid "No pending attendance to validate."
 msgstr "没有待验证的考勤记录。"
@@ -3193,7 +3193,7 @@ msgid "No penalties found."
 msgstr "未找到处罚记录。"
 
 msgid "information circle outline"
-msgstr ""
+msgstr "信息图标"
 
 #, fuzzy
 #| msgid "Employees not found"
@@ -3204,10 +3204,10 @@ msgid "Select Row"
 msgstr "选择行"
 
 msgid "Regular"
-msgstr ""
+msgstr "正常"
 
 msgid "Regular OT"
-msgstr ""
+msgstr "正常加班"
 
 #, fuzzy
 #| msgid "Weekly Off Day"
@@ -3346,7 +3346,7 @@ msgid " — Ctrl/Shift-click to select multiple days"
 msgstr ""
 
 msgid "Leave conflict — click to regularize"
-msgstr ""
+msgstr "休假冲突 — 点击补正"
 
 #, fuzzy
 #| msgid "Holiday Name"
@@ -3374,7 +3374,7 @@ msgid "Overtime, Pending Approval"
 msgstr "等待批准"
 
 msgid "Resolved — click to undo or change"
-msgstr ""
+msgstr "已解决 — 点击撤销或修改"
 
 #, fuzzy
 #| msgid "Present"
@@ -3390,10 +3390,10 @@ msgid "Upcoming (not counted)"
 msgstr "未找到文档"
 
 msgid "Leave Conflict (click to regularize)"
-msgstr ""
+msgstr "休假冲突（点击补正）"
 
 msgid "Resolved (click to undo)"
-msgstr ""
+msgstr "已解决（点击撤销）"
 
 #, fuzzy
 #| msgid "Overdue"
@@ -3433,7 +3433,7 @@ msgid "Worked on a day off"
 msgstr "工作秒数"
 
 msgid "Mark this day as"
-msgstr ""
+msgstr "将此日标记为"
 
 #, fuzzy
 #| msgid "Approve Overtime"
@@ -3549,7 +3549,7 @@ msgid "Hours set to"
 msgstr "已用工时"
 
 msgid "Regularized as"
-msgstr ""
+msgstr "补正为"
 
 msgid "A day cannot have more than 24 hours."
 msgstr ""
@@ -3599,19 +3599,19 @@ msgid "Present Records"
 msgstr "受保护记录"
 
 msgid "Regularized"
-msgstr ""
+msgstr "已补正"
 
 msgid "OT"
-msgstr ""
+msgstr "加班"
 
 msgid "HALF DAY"
-msgstr ""
+msgstr "半天"
 
 msgid "SHORT HOURS"
-msgstr ""
+msgstr "工时不足"
 
 msgid "MISSING OUT"
-msgstr ""
+msgstr "漏签"
 
 #, fuzzy
 #| msgid "No records found."
@@ -3629,10 +3629,10 @@ msgid "Full"
 msgstr "全天"
 
 msgid "Half"
-msgstr ""
+msgstr "半天"
 
 msgid "Short"
-msgstr ""
+msgstr "不足"
 
 #, fuzzy
 #| msgid "Missing option"
@@ -3640,16 +3640,16 @@ msgid "Missing Out"
 msgstr "缺少选项"
 
 msgid "FULL"
-msgstr ""
+msgstr "全勤"
 
 msgid "HALF"
-msgstr ""
+msgstr "半天"
 
 msgid "SHORT"
-msgstr ""
+msgstr "不足"
 
 msgid "MO"
-msgstr ""
+msgstr "漏签"
 
 #, fuzzy
 #| msgid "No records found."
@@ -3672,10 +3672,10 @@ msgid "No absent days found."
 msgstr "未找到任务。"
 
 msgid "APPROVED"
-msgstr ""
+msgstr "已批准"
 
 msgid "PENDING"
-msgstr ""
+msgstr "待处理"
 
 #, fuzzy
 #| msgid "Leave Records"
@@ -4042,7 +4042,7 @@ msgid "Badge ID"
 msgstr "工牌ID"
 
 msgid "No columns match your search"
-msgstr ""
+msgstr "没有匹配搜索的列"
 
 #, fuzzy
 #| msgid "Group By"
@@ -4060,7 +4060,7 @@ msgid "Collapse All"
 msgstr "折叠"
 
 msgid "Undo"
-msgstr ""
+msgstr "撤销"
 
 #, fuzzy
 #| msgid "No attendance activities selected for deletion."
@@ -4186,7 +4186,7 @@ msgid "Add / View Comment"
 msgstr "添加/查看评论"
 
 msgid "newspaper outline"
-msgstr ""
+msgstr "新闻图标"
 
 msgid "Cancel / Reject"
 msgstr "取消/拒绝"
@@ -4278,7 +4278,7 @@ msgid "Not-Validated"
 msgstr "未验证"
 
 msgid "Check-In Restricted: Your current network is not authorized "
-msgstr ""
+msgstr "签到受限：您当前使用的网络未获授权 "
 
 msgid ""
 "Check-In Unavailable: Your employee profile or work information is "
@@ -4293,7 +4293,7 @@ msgid ""
 msgstr "签到/签退功能未启用。"
 
 msgid "Check-Out Restricted: Your current network is not authorized"
-msgstr ""
+msgstr "签出受限：您当前使用的网络未获授权"
 
 msgid "No validated Overtimes were found"
 msgstr "未找到已验证的加班记录。"
@@ -4843,7 +4843,7 @@ msgstr "%(employee)s %(date)s 出勤已验证。"
 
 #, python-format
 msgid "%(employee)s requested revalidation for %(attendance_date)s attendance"
-msgstr ""
+msgstr "%(employee)s 申请重新验证 %(attendance_date)s 的考勤"
 
 msgid "You cannot approve your own overtime."
 msgstr "您无法批准自己的加班。"
@@ -4860,7 +4860,7 @@ msgstr "%(employee)s 的 %(objective)s 已删除"
 
 #, python-format
 msgid "Overtime approved for %(attendance_date)s's attendance"
-msgstr ""
+msgstr "已批准 %(attendance_date)s 考勤的加班"
 
 #, python-brace-format
 msgid " {} Overtime approved"
@@ -4979,7 +4979,7 @@ msgid "IP addresses saved successfully"
 msgstr "Python 代码保存成功！"
 
 msgid "All provided IP addresses are already in the allowed list."
-msgstr ""
+msgstr "所提供的 IP 地址均已存在于允许列表中。"
 
 #, fuzzy
 #| msgid "Key result removed successfully."
@@ -5368,7 +5368,7 @@ msgid "Penalty added"
 msgstr "罚款/罚金已添加。"
 
 msgid "Roster Planner"
-msgstr ""
+msgstr "排班台"
 
 #, fuzzy
 #| msgid "Import Assets"
@@ -5382,7 +5382,7 @@ msgstr "已发布"
 
 #, python-format
 msgid "Roster published for %(dept)s (%(range)s)."
-msgstr ""
+msgstr "已发布 %(dept)s 的排班（%(range)s）。"
 
 #, python-format
 msgid "Nothing to publish for %(dept)s (%(range)s)."
@@ -5390,7 +5390,7 @@ msgstr ""
 
 #, python-format
 msgid "Roster published for %(count)s employee(s)."
-msgstr ""
+msgstr "已为 %(count)s 名员工发布排班。"
 
 msgid "No file uploaded."
 msgstr "未上传任何文件。"
@@ -5401,10 +5401,10 @@ msgid "Please upload a valid .xlsx file."
 msgstr "请上传有效的 XLSX 文件。"
 
 msgid "Could not read the file. Please upload the unmodified template."
-msgstr ""
+msgstr "无法读取文件，请上传未经修改的模板。"
 
 msgid "Could not read date headers. Please use the downloaded template."
-msgstr ""
+msgstr "无法读取日期表头，请使用下载的模板。"
 
 msgid "Shift 1"
 msgstr "轮班 1"
@@ -5667,10 +5667,10 @@ msgid "Add your first employee to bring everything together."
 msgstr "添加首位员工以完成整体设置。"
 
 msgid "Add your company profile — name, logo and timezone."
-msgstr ""
+msgstr "添加公司资料——名称、Logo 和时区。"
 
 msgid "Create the departments your employees will belong to."
-msgstr ""
+msgstr "创建员工所属的部门。"
 
 msgid "Job Positions"
 msgstr "职位"
@@ -5681,13 +5681,13 @@ msgid "Define named roles within each department."
 msgstr "部门名称"
 
 msgid "Define working schedules — Morning, Evening, Night."
-msgstr ""
+msgstr "定义班次时段 — 早班、晚班、夜班。"
 
 msgid "Set day-wise timings for each shift."
-msgstr ""
+msgstr "为每个班次设置每日上下班时间。"
 
 msgid "Set engagement types — Full Time, Part Time, Contract."
-msgstr ""
+msgstr "设置雇佣类型——全职、兼职、合同制。"
 
 msgid "Mail Server"
 msgstr "邮件服务器"
@@ -5719,7 +5719,7 @@ msgid "Exits in last 6 months ÷ Active employees × 100"
 msgstr ""
 
 msgid "All exits — see Standard Report for detail"
-msgstr ""
+msgstr "全部离职——详情见标准报表"
 
 msgid "Your account is not linked to an employee record."
 msgstr "您的帐户未链接到员工记录。"
@@ -5797,7 +5797,7 @@ msgid "Group name"
 msgstr "分組依據"
 
 msgid "Give this group a clear name, e.g. HR Managers or Finance Team."
-msgstr ""
+msgstr "为该组取一个明确的名称，例如 HR 经理或财务团队。"
 
 #, fuzzy
 #| msgid "Stage Managers"
@@ -5805,7 +5805,7 @@ msgid "e.g. HR Managers"
 msgstr "阶段负责人"
 
 msgid "Search and select who should belong to this group."
-msgstr ""
+msgstr "搜索并选择应属于该组的员工。"
 
 #, fuzzy
 #| msgid "Invalid Recruitment ID"
@@ -5829,7 +5829,7 @@ msgid ""
 msgstr ""
 
 msgid "You cannot assign this group for companies you do not manage."
-msgstr ""
+msgstr "您无法为不归您管理的公司分配该组。"
 
 msgid "File size should be less than 5MB."
 msgstr "文件大小应小于 5MB。"
@@ -6011,10 +6011,10 @@ msgid ""
 msgstr ""
 
 msgid "Allowed IP Addresses or Network Prefixes"
-msgstr ""
+msgstr "允许的 IP 地址或网络前缀"
 
 msgid "Enter multiple IP addresses or network prefixes, separated by commas."
-msgstr ""
+msgstr "输入多个 IP 地址或网络前缀，用逗号分隔。"
 
 msgid "End date should not be earlier than the start date."
 msgstr "结束日期不应早于开始日期。"
@@ -6090,7 +6090,7 @@ msgid "An employee related to this user's credentials does not exist."
 msgstr "与该用户凭证相关的员工不存在。"
 
 msgid "You must change your password before continuing."
-msgstr ""
+msgstr "继续之前，您必须先修改密码。"
 
 msgid "Invalid time, excepted HH:MM"
 msgstr "时间无效，应为 HH:MM 格式"
@@ -6202,19 +6202,19 @@ msgid "Published"
 msgstr "已发布"
 
 msgid "Visible to the employee once published."
-msgstr ""
+msgstr "发布后对员工可见。"
 
 msgid "Day Off"
-msgstr ""
+msgstr "休息日"
 
 msgid "Planned weekly rest day."
-msgstr ""
+msgstr "每周计划的休息日。"
 
 msgid "Created By"
 msgstr "创建者"
 
 msgid "Roster Entry"
-msgstr ""
+msgstr "排班记录"
 
 #, fuzzy
 #| msgid "log entries"
@@ -6240,7 +6240,7 @@ msgid "Roster Publish Log"
 msgstr "已发布"
 
 msgid "Roster Publish Logs"
-msgstr ""
+msgstr "排班发布日志"
 
 msgid "Requesting Work Type"
 msgstr "申请工作类型"
@@ -6497,7 +6497,7 @@ msgid "Shift Changes notification"
 msgstr "作为通知发送"
 
 msgid "Shift changes notification, Requested date expired."
-msgstr ""
+msgstr "班次变更通知：申请日期已过期。"
 
 #, fuzzy
 #| msgid "Work Types"
@@ -6505,7 +6505,7 @@ msgid "Work Type Changes notification"
 msgstr "工作类型"
 
 msgid "Work type changes notification, Requested date expired."
-msgstr ""
+msgstr "工作类型变更通知，申请日期已过期。"
 
 msgid "General"
 msgstr "通用"
@@ -6767,7 +6767,7 @@ msgid "Use Dynamic Display Name"
 msgstr "使用动态显示名称"
 
 msgid "Use the triggering user's name as the sender display name"
-msgstr ""
+msgstr "使用触发操作的用户名作为发件人显示名称"
 
 msgid "Email Templates"
 msgstr "邮件模板"
@@ -7045,7 +7045,7 @@ msgstr ""
 
 #, python-format
 msgid "You have %(attempts)s login attempt(s) left before a temporary ban."
-msgstr ""
+msgstr "您还有 %(attempts)s 次登录尝试，之后将被临时封禁。"
 
 msgid "Create "
 msgstr "创建"
@@ -7182,7 +7182,7 @@ msgid ""
 msgstr ""
 
 msgid "Choose which companies these settings should be applied to."
-msgstr ""
+msgstr "选择这些设置应用于哪些公司。"
 
 #, fuzzy
 #| msgid "Leave Type Condition"
@@ -7239,7 +7239,7 @@ msgid ""
 msgstr ""
 
 msgid "What can this group do? (optional)"
-msgstr ""
+msgstr "该组可以做什么？（可选）"
 
 #, fuzzy
 #| msgid "Create "
@@ -7314,7 +7314,7 @@ msgid "Assign"
 msgstr "分配"
 
 msgid "caret down outline"
-msgstr ""
+msgstr "下拉箭头"
 
 msgid "Can create"
 msgstr "可创建"
@@ -7537,7 +7537,7 @@ msgid "View Leave Request"
 msgstr "查看請假請求"
 
 msgid "Unsubscribe here"
-msgstr ""
+msgstr "在此取消订阅"
 
 #, fuzzy, python-format
 #| msgid "Test mail from Horilla"
@@ -7612,13 +7612,13 @@ msgid "Languages"
 msgstr "语言"
 
 msgid "My Roster"
-msgstr ""
+msgstr "我的排班"
 
 msgid "No published roster entries for the next 14 days."
-msgstr ""
+msgstr "未来 14 天没有已发布的排班。"
 
 msgid "Leave blank to publish all entries from start date"
-msgstr ""
+msgstr "留空则发布自开始日期起的全部条目"
 
 msgid ""
 "All unpublished roster entries in this range will be made visible to "
@@ -7631,7 +7631,7 @@ msgid "Publish"
 msgstr "已发布"
 
 msgid "OFF"
-msgstr ""
+msgstr "休"
 
 #, fuzzy
 #| msgid "No records found."
@@ -7644,7 +7644,7 @@ msgid "No Records Found"
 msgstr "未找到记录"
 
 msgid "No employees or roster entries match the current filter."
-msgstr ""
+msgstr "没有符合当前筛选条件的员工或排班记录。"
 
 #, fuzzy
 #| msgid "Confirm Password"
@@ -7672,10 +7672,10 @@ msgid "End date cannot be before start date."
 msgstr "结束日期不能早于开始日期。"
 
 msgid "No Entries Imported"
-msgstr ""
+msgstr "未导入任何条目"
 
 msgid "All rows were either blank, skipped, or had errors."
-msgstr ""
+msgstr "所有行要么为空、要么被跳过、要么存在错误。"
 
 #, fuzzy
 #| msgid "Import Employee"
@@ -7689,7 +7689,7 @@ msgid "Updated"
 msgstr "更新时间"
 
 msgid "Skipped"
-msgstr ""
+msgstr "已跳过"
 
 #, python-format
 msgid "%(n)s error"
@@ -7777,7 +7777,7 @@ msgid "Employees Imported Successfully"
 msgstr "员工目标创建成功"
 
 msgid "You have"
-msgstr ""
+msgstr "您有"
 
 #, fuzzy
 #| msgid "Do you want to download the template?"
@@ -7785,10 +7785,10 @@ msgid "errors. Do you want to download the error list?"
 msgstr "您是否要下载模板？"
 
 msgid "Download error list & Skip Import"
-msgstr ""
+msgstr "下载错误列表并跳过导入"
 
 msgid "Download error list & Continue Import"
-msgstr ""
+msgstr "下载错误列表并继续导入"
 
 #, fuzzy
 #| msgid "Rotating Shift Assign Updated Successfully"
@@ -7852,7 +7852,7 @@ msgid ""
 msgstr ""
 
 msgid "Define recurring company-wide off days based on the week and weekday."
-msgstr ""
+msgstr "按周次和星期定义公司范围内的周期性休息日。"
 
 msgid "Select Date Format:"
 msgstr "选择日期格式："
@@ -7918,7 +7918,7 @@ msgid ""
 msgstr "控制当前所选公司的默认数据导出行为"
 
 msgid "Allow All Users to Export Data"
-msgstr ""
+msgstr "允许所有用户导出数据"
 
 msgid ""
 "When enabled, every user of this company can export data from any module. "
@@ -7927,7 +7927,7 @@ msgid ""
 msgstr ""
 
 msgid "Allow every user of this company to export data from any module."
-msgstr ""
+msgstr "允许该公司的每位用户导出任意模块的数据。"
 
 #, fuzzy
 #| msgid "Are you sure you want to allow all employees to edit their profiles?"
@@ -7944,7 +7944,7 @@ msgid ""
 msgstr "您确定要限制所有员工编辑其个人资料吗？"
 
 msgid "Define company-observed public holidays and recurring holiday dates."
-msgstr ""
+msgstr "定义公司遵循的法定节假日和周期性节假日日期。"
 
 msgid "Import Holidays"
 msgstr "导入假期"
@@ -8025,7 +8025,7 @@ msgid "Horilla HR"
 msgstr "霍里拉机器人"
 
 msgid "Quote this version when reporting a problem."
-msgstr ""
+msgstr "反馈问题时请注明此版本号。"
 
 #, fuzzy
 #| msgid "Close"
@@ -8033,7 +8033,7 @@ msgid "Release notes"
 msgstr "关闭"
 
 msgid "HR setup checklist"
-msgstr ""
+msgstr "HR 设置清单"
 
 msgid "Get started with Horilla HR"
 msgstr "开始使用 Horilla HR"
@@ -8044,10 +8044,10 @@ msgid "Finish setup to unlock your full HR system"
 msgstr "完成设置以解锁完整的 HR 系统"
 
 msgid "Dismiss setup checklist"
-msgstr ""
+msgstr "关闭设置清单"
 
 msgid "Setup steps"
-msgstr ""
+msgstr "设置步骤"
 
 #, fuzzy
 #| msgid "Next Step"
@@ -8178,7 +8178,7 @@ msgid "Test email"
 msgstr "测试电子邮件"
 
 msgid "at-circle-outline"
-msgstr ""
+msgstr "圆圈图标"
 
 msgid "Do you want to delete this mail server configuration?"
 msgstr "您确定要删除此邮件服务器配置吗？"
@@ -9310,7 +9310,7 @@ msgid "view-time-sheet"
 msgstr "查看报销"
 
 msgid "task-all"
-msgstr ""
+msgstr "任务图标"
 
 msgid "project-view"
 msgstr "限制视图"
@@ -9331,13 +9331,13 @@ msgid "task-view"
 msgstr "标签查看"
 
 msgid "backup"
-msgstr ""
+msgstr "备份图标"
 
 msgid "gdrive"
-msgstr ""
+msgstr "Google Drive 图标"
 
 msgid "horilla-theme"
-msgstr ""
+msgstr "Horilla 主题图标"
 
 msgid "color-settings"
 msgstr "设置"
@@ -9355,7 +9355,7 @@ msgid "attendance-report"
 msgstr "考勤查看"
 
 msgid "leave-report"
-msgstr ""
+msgstr "休假报表图标"
 
 msgid "payroll-report"
 msgstr "薪资"
@@ -9381,7 +9381,7 @@ msgid "whatsapp-credential-view"
 msgstr "WhatsApp 凭据"
 
 msgid "meet"
-msgstr ""
+msgstr "Google Meet 图标"
 
 #, fuzzy
 #| msgid "request-view"
@@ -9404,7 +9404,7 @@ msgid "survey-template-preview"
 msgstr "问题模板查看"
 
 msgid "theme"
-msgstr ""
+msgstr "主题图标"
 
 #, fuzzy
 #| msgid "objective-list-view"
@@ -9412,7 +9412,7 @@ msgid "objective-template-list-view"
 msgstr "目标列表查看"
 
 msgid "roster"
-msgstr ""
+msgstr "排班"
 
 #, fuzzy
 #| msgid "Biometric Devices"
@@ -9569,18 +9569,18 @@ msgstr "发生错误：%(e)s"
 
 #, python-format
 msgid "Enterprise demo seeder could not finish: %(error)s"
-msgstr ""
+msgstr "企业版演示数据初始化未能完成：%(error)s"
 
 msgid "Database loaded successfully."
 msgstr "数据库加载成功。"
 
 #, python-format
 msgid "Assigned demo roles to %(count)s employee memberships."
-msgstr ""
+msgstr "已为 %(count)s 条员工归属分配演示角色。"
 
 #, python-format
 msgid "Demo roles could not be assigned: %(error)s"
-msgstr ""
+msgstr "演示角色分配失败：%(error)s"
 
 msgid "Database Authentication Failed"
 msgstr "数据库认证失败"
@@ -9614,7 +9614,7 @@ msgid "Password reset link sent to %(email)s"
 msgstr "密码重置链接已成功发送"
 
 msgid "If your account exists, a password reset link has been sent"
-msgstr ""
+msgstr "如果您的账号存在，重置密码链接已发送"
 
 msgid "Something went wrong....."
 msgstr "出了点问题......"
@@ -9629,7 +9629,7 @@ msgid "OTP expired. Please request a new one."
 msgstr "一次性密码已过期。请索取一份新的。"
 
 msgid "Too many incorrect attempts. Request a new OTP."
-msgstr ""
+msgstr "尝试次数过多。请重新获取一次性验证码。"
 
 msgid "Invalid OTP."
 msgstr "一次性密码无效。"
@@ -9655,7 +9655,7 @@ msgid "Name updated"
 msgstr "阶段已更新。"
 
 msgid "At least 4 characters required"
-msgstr ""
+msgstr "至少需要 4 个字符"
 
 #, fuzzy
 #| msgid "All filter cleared"
@@ -9686,7 +9686,7 @@ msgid "Employee removed from the group."
 msgstr "员工已分配至群组"
 
 msgid "Company removed from the employee's assignment."
-msgstr ""
+msgstr "已从该员工的归属中移除公司。"
 
 #, fuzzy
 #| msgid "Are you sure want to remove this employee from this action?"
@@ -10063,7 +10063,7 @@ msgstr "时间格式无法保存。您不在公司中。"
 
 #, python-format
 msgid "Settings updated and assigned to %(count)s company(ies)."
-msgstr ""
+msgstr "设置已更新并分配给 %(count)s 家公司。"
 
 msgid "Settings updated."
 msgstr "设置已更新。"
@@ -10175,7 +10175,7 @@ msgid "Dashboard charts updated successfully"
 msgstr "任务状态已成功更改。"
 
 msgid "Use Customize on the modern dashboard to reorder charts."
-msgstr ""
+msgstr "请在新版看板上使用「自定义」调整图表顺序。"
 
 msgid "The biometric attendance feature has been activated successfully."
 msgstr "生物识别考勤功能已成功激活。"
@@ -10814,7 +10814,7 @@ msgid "Asset request raised for selected categories"
 msgstr "资产请求已被拒绝。"
 
 msgid "Select categories to request, or requests already exist"
-msgstr ""
+msgstr "选择要申请的类别，或已存在申请"
 
 #, fuzzy
 #| msgid "An error occured"
@@ -10944,7 +10944,7 @@ msgstr "文件上传成功"
 
 #, python-format
 msgid "%(employee_get)s uploaded a document"
-msgstr ""
+msgstr "%(employee_get)s 上传了一份文档"
 
 msgid "Bulk Approve Requests"
 msgstr "批量批准请求"
@@ -11365,7 +11365,7 @@ msgid "The uploaded file is empty, Not contain records."
 msgstr "上传的文件为空，不包含记录。"
 
 msgid "Enter a valid phone number (7-20 characters, optional +)."
-msgstr ""
+msgstr "请输入有效的电话号码（7-20 个字符，可带 +）。"
 
 msgid "Profile Image"
 msgstr "个人资料图片"
@@ -11458,7 +11458,7 @@ msgid "less than or equal"
 msgstr "小于或等于"
 
 msgid "Use negative numbers to reduce points."
-msgstr ""
+msgstr "使用负数可扣减积分。"
 
 msgid "Warning"
 msgstr "警告"
@@ -11847,7 +11847,7 @@ msgid "Hire vs Turnover"
 msgstr "員工類型"
 
 msgid "New hires vs exits — last 6 months"
-msgstr ""
+msgstr "新员工与离职 —— 最近 6 个月"
 
 #, fuzzy
 #| msgid "Not Hired"
@@ -11855,7 +11855,7 @@ msgid "New Hires"
 msgstr "未录用"
 
 msgid "Exits"
-msgstr ""
+msgstr "离职"
 
 #, fuzzy
 #| msgid "Overall Leave"
@@ -11906,7 +11906,7 @@ msgid "Charts"
 msgstr "图表"
 
 msgid "6-month turnover rate"
-msgstr ""
+msgstr "6 个月离职率"
 
 #, fuzzy
 #| msgid "There is no department at this moment."
@@ -12232,7 +12232,7 @@ msgid "Processing"
 msgstr "邮件处理"
 
 msgid "Mail will be sent in the background"
-msgstr ""
+msgstr "邮件将在后台发送"
 
 msgid "Back"
 msgstr "返回"
@@ -12356,7 +12356,7 @@ msgid "Are you sure you want to remove this attachment?"
 msgstr "您确定要移除该部门经理吗？"
 
 msgid "copy outline"
-msgstr ""
+msgstr "复制图标"
 
 #, fuzzy
 #| msgid "Do you want to delete this project?"
@@ -12530,7 +12530,7 @@ msgid "Add points"
 msgstr "积分"
 
 msgid "ellipsis vertical"
-msgstr ""
+msgstr "竖排省略号图标"
 
 msgid "Balance points to redeem:"
 msgstr "可兑换的积分余额："
@@ -12639,7 +12639,7 @@ msgid "No document uploaded yet"
 msgstr "未上传任何文件"
 
 msgid "Upload a file to preview it here."
-msgstr ""
+msgstr "上传文件后可在此预览。"
 
 msgid "No Limit"
 msgstr "无限制"
@@ -12693,7 +12693,7 @@ msgid "Create asset request"
 msgstr "创建资产请求"
 
 msgid "add sharp"
-msgstr ""
+msgstr "添加图标"
 
 msgid "New attendance request"
 msgstr "新考勤请求"
@@ -13349,13 +13349,13 @@ msgid "FAQs"
 msgstr "常见问题"
 
 msgid "Assign managers responsible for helpdesk tickets per department."
-msgstr ""
+msgstr "按部门分配负责工单的经理。"
 
 msgid "Create tags for classifying tickets."
 msgstr ""
 
 msgid "Define categories of helpdesk tickets."
-msgstr ""
+msgstr "定义工单的类别。"
 
 msgid "No records found."
 msgstr "未找到记录。"
@@ -13555,7 +13555,7 @@ msgid "Attach Files"
 msgstr "静态文件"
 
 msgid "Type something..."
-msgstr ""
+msgstr "请输入内容……"
 
 msgid "Send Message"
 msgstr "发送消息"
@@ -13727,7 +13727,7 @@ msgid "File type(s) %(ext)s are not allowed."
 msgstr "出于安全原因，不允许使用文件类型 %(ext)s。"
 
 msgid "Please add a comment or upload at least one file."
-msgstr ""
+msgstr "请添加评论或至少上传一个文件。"
 
 msgid "A new comment has been created."
 msgstr "已创建新评论。"
@@ -13767,7 +13767,7 @@ msgstr "报销申请已成功拒绝。"
 
 #, python-format
 msgid "Your claim request is rejected for Ticket-%(ticket)s"
-msgstr ""
+msgstr "您针对工单-%(ticket)s 的报销申请已被拒绝"
 
 #, fuzzy
 #| msgid "No %(verbose_name)s found matching the query"
@@ -13797,7 +13797,7 @@ msgid "Ticket type can not delete"
 msgstr "无法删除工单类型"
 
 msgid "Default FAQs could not be loaded. Please contact support."
-msgstr ""
+msgstr "无法加载默认常见问题。请联系支持人员。"
 
 #, fuzzy, python-format
 #| msgid "Question created successfully."
@@ -13828,7 +13828,7 @@ msgid "The database is already initialized."
 msgstr "反馈已开始"
 
 msgid "Verify the database initialization password to continue."
-msgstr ""
+msgstr "请验证数据库初始化密码以继续。"
 
 #, fuzzy
 #| msgid "Please enable the Track Late Come & Early Out from settings"
@@ -13839,7 +13839,7 @@ msgid "Please activate the biometric attendance feature in the settings menu."
 msgstr "请在设置菜单中激活生物识别考勤功能。"
 
 msgid "Is exactly"
-msgstr ""
+msgstr "精确等于"
 
 #, fuzzy
 #| msgid "Get started with Django"
@@ -13896,7 +13896,7 @@ msgstr "您无权执行重复操作。"
 
 #, python-format
 msgid "Canceled %(model)s can't perform this action "
-msgstr ""
+msgstr "已取消的 %(model)s 无法执行此操作 "
 
 #, fuzzy
 #| msgid "Permissions"
@@ -13969,7 +13969,7 @@ msgid "%(employee)s don't have enough leave days to approve the request.."
 msgstr "您的可用假期天数不足以提交此请求。"
 
 msgid "If 'is_fixed' is True, 'amount' must be a positive number."
-msgstr ""
+msgstr "如果 'is_fixed' 为 True，'amount' 必须是正数。"
 
 #, fuzzy
 #| msgid ""
@@ -14004,7 +14004,7 @@ msgid ""
 msgstr "基于条件判断时，所有字段（字段、值、条件）必须填写。"
 
 msgid "If 'has_max_limit' is True, 'maximum_amount' is required."
-msgstr ""
+msgstr "如果 'has_max_limit' 为 True，则必须填写 'maximum_amount'。"
 
 #, fuzzy
 #| msgid "Not enough available days to redeem"
@@ -14082,7 +14082,7 @@ msgid "Mail template not found."
 msgstr "未找到该员工。"
 
 msgid "Too many failed login attempts. Try again later."
-msgstr ""
+msgstr "登录失败次数过多。请稍后再试。"
 
 #, fuzzy
 #| msgid "Invalid request"
@@ -14175,7 +14175,7 @@ msgid "RotatingWorkType not found"
 msgstr "未找到轮班工作类型分配。"
 
 msgid "Already request exits on same date"
-msgstr ""
+msgstr "同一天已有离职申请"
 
 #, fuzzy
 #| msgid "Permissions"
@@ -14253,7 +14253,7 @@ msgid "Comment not found"
 msgstr "未找到文档"
 
 msgid "ticket_id or comment_id required"
-msgstr ""
+msgstr "需要提供 ticket_id 或 comment_id"
 
 #, fuzzy
 #| msgid "Attendance not found"
@@ -14399,10 +14399,10 @@ msgid "You do not have permission to view this payslip."
 msgstr "您无权更新当前值"
 
 msgid "Payslip missing start_date or end_date"
-msgstr ""
+msgstr "工资条缺少 start_date 或 end_date"
 
 msgid "PDF generation not available on server. Install pdfkit/wkhtmltopdf."
-msgstr ""
+msgstr "服务器上无法生成 PDF。请安装 pdfkit/wkhtmltopdf。"
 
 #, fuzzy
 #| msgid "Period not found."
@@ -14581,11 +14581,11 @@ msgstr "添加字段"
 
 #, python-format
 msgid "updated %(first)s and %(second)s"
-msgstr ""
+msgstr "已更新 %(first)s 和 %(second)s"
 
 #, python-format
 msgid "updated %(field)s and %(count)s other fields"
-msgstr ""
+msgstr "已更新 %(field)s 及其他 %(count)s 个字段"
 
 #, fuzzy
 #| msgid "Unknown"
@@ -14728,7 +14728,7 @@ msgid ""
 msgstr ""
 
 msgid "Per-model Field Selection"
-msgstr ""
+msgstr "按模型选择字段"
 
 #, fuzzy
 #| msgid "All Tickets"
@@ -14744,7 +14744,7 @@ msgid "Why this change?"
 msgstr "为何进行此更改？"
 
 msgid "All changes made to this record"
-msgstr ""
+msgstr "对此记录所做的全部变更"
 
 #, fuzzy
 #| msgid "Default pagination updated."
@@ -14758,7 +14758,7 @@ msgstr "未找到邮件服务器配置。"
 
 #, python-format
 msgid "Tracked fields updated for %(model)s."
-msgstr ""
+msgstr "已更新 %(model)s 的追踪字段。"
 
 #, fuzzy
 #| msgid "Horilla Bot"
@@ -14865,7 +14865,7 @@ msgid ""
 msgstr ""
 
 msgid "OK"
-msgstr ""
+msgstr "确定"
 
 msgid "Not Added"
 msgstr "未添加"
@@ -14883,7 +14883,7 @@ msgid "Trigger"
 msgstr "触发器"
 
 msgid "Default mail automations could not be loaded. Please contact support."
-msgstr ""
+msgstr "无法加载默认邮件自动化。请联系支持人员。"
 
 #, fuzzy, python-format
 #| msgid "Automations refreshed successfully."
@@ -14892,7 +14892,7 @@ msgstr "自动化刷新成功。"
 
 #, python-format
 msgid "Automation '%(automation_obj_title)s' already exists."
-msgstr ""
+msgstr "自动化「%(automation_obj_title)s」已存在。"
 
 #, fuzzy
 #| msgid "No rating found."
@@ -14919,7 +14919,7 @@ msgid "Enable to backup all media files to server."
 msgstr "启用定期自动备份"
 
 msgid "Enable to automate the backup in a period of seconds."
-msgstr ""
+msgstr "启用后可按秒为周期自动执行备份。"
 
 #, fuzzy
 #| msgid "Schedule an automatic backup at a fixed time each day"
@@ -14961,7 +14961,7 @@ msgid "Please provide a valid OAuth credentials file."
 msgstr "请提供有效的 OAuth 凭据文件。"
 
 msgid "Specify the path in the server were the backup files should keep"
-msgstr ""
+msgstr "指定服务器上存放备份文件的路径"
 
 msgid ""
 "Make sure your file is in JSON format and contains your Google OAuth 2.0 "
@@ -14974,16 +14974,16 @@ msgid ""
 msgstr ""
 
 msgid "OAuth access token (automatically managed)"
-msgstr ""
+msgstr "OAuth 访问令牌（自动管理）"
 
 msgid "OAuth refresh token (automatically managed)"
-msgstr ""
+msgstr "OAuth 刷新令牌（自动管理）"
 
 msgid "Token expiry time (automatically managed)"
-msgstr ""
+msgstr "令牌过期时间（自动管理）"
 
 msgid "Only work with postgresql database."
-msgstr ""
+msgstr "仅支持 PostgreSQL 数据库。"
 
 msgid "gdrive backup automation setup updated."
 msgstr "Google Drive 备份自动化设置已更新。"
@@ -15060,7 +15060,7 @@ msgid "Template syntax error: %s"
 msgstr "模板已保存"
 
 msgid "'Active until' must be after 'Active from'."
-msgstr ""
+msgstr "「生效截止」必须晚于「生效起始」。"
 
 #, fuzzy
 #| msgid "Points History"
@@ -15106,10 +15106,10 @@ msgid "Lock Status"
 msgstr "工作状态"
 
 msgid "Save the template first to enable live preview."
-msgstr ""
+msgstr "请先保存模板以启用实时预览。"
 
 msgid "Opens in a new tab. Uses a dummy/empty context."
-msgstr ""
+msgstr "在新标签页中打开。使用虚拟/空上下文。"
 
 #, fuzzy
 #| msgid "Preview"
@@ -15124,7 +15124,7 @@ msgstr ""
 
 #, python-format
 msgid "Template '%(name)s' restored to version %(v)d."
-msgstr ""
+msgstr "模板「%(name)s」已恢复到版本 %(v)d。"
 
 #, fuzzy
 #| msgid "Question Template"
@@ -15138,21 +15138,21 @@ msgstr "无可用记录。"
 
 #, python-format
 msgid "Template Diff — %(name)s"
-msgstr ""
+msgstr "模板差异对比——%(name)s"
 
 #, python-format
 msgid "Live Preview — %(name)s"
-msgstr ""
+msgstr "实时预览——%(name)s"
 
 msgid "Only a superuser or the locking user can force-unlock."
-msgstr ""
+msgstr "只有超级用户或锁定该模板的用户才能强制解锁。"
 
 #, python-format
 msgid "Template '%(name)s' unlocked."
-msgstr ""
+msgstr "模板「%(name)s」已解锁。"
 
 msgid "✅ Set selected templates to ACTIVE"
-msgstr ""
+msgstr "✅ 将所选模板设为启用"
 
 #, python-format
 msgid "%(n)d template set to Active."
@@ -15160,7 +15160,7 @@ msgid_plural "%(n)d templates set to Active."
 msgstr[0] ""
 
 msgid "🗄️ Archive selected templates"
-msgstr ""
+msgstr "🗄️ 归档所选模板"
 
 #, fuzzy, python-format
 #| msgid "Employee archived"
@@ -15169,7 +15169,7 @@ msgid_plural "%(n)d templates archived."
 msgstr[0] "员工已归档"
 
 msgid "📝 Set selected templates to DRAFT"
-msgstr ""
+msgstr "📝 将所选模板设为草稿"
 
 #, python-format
 msgid "%(n)d template set to Draft."
@@ -15177,7 +15177,7 @@ msgid_plural "%(n)d templates set to Draft."
 msgstr[0] ""
 
 msgid "🗑️ Invalidate cache of selected templates"
-msgstr ""
+msgstr "🗑️ 使所选模板的缓存失效"
 
 #, python-format
 msgid "Cache of %(n)d template invalidated."
@@ -15185,7 +15185,7 @@ msgid_plural "Cache of %(n)d templates invalidated."
 msgstr[0] ""
 
 msgid "♻️ Repopulate cache for selected templates"
-msgstr ""
+msgstr "♻️ 为所选模板重建缓存"
 
 #, python-format
 msgid "Cache repopulated for %(n)d template."
@@ -15193,11 +15193,11 @@ msgid_plural "Cache repopulated for %(n)d templates."
 msgstr[0] ""
 
 msgid "🔍 Check syntax of selected templates"
-msgstr ""
+msgstr "🔍 检查所选模板的语法"
 
 #, python-format
 msgid "Syntax errors in %(n)d template(s): %(names)s"
-msgstr ""
+msgstr "%(n)d 个模板存在语法错误：%(names)s"
 
 #, fuzzy, python-format
 #| msgid "No template have been established yet."
@@ -15205,10 +15205,10 @@ msgid "%(n)d template(s) have valid syntax."
 msgstr "尚未建立任何模板。"
 
 msgid "🔓 Force-unlock selected templates"
-msgstr ""
+msgstr "🔓 强制解锁所选模板"
 
 msgid "Only superusers can force-unlock templates."
-msgstr ""
+msgstr "只有超级用户可以强制解锁模板。"
 
 #, python-format
 msgid "%(n)d template unlocked."
@@ -15216,10 +15216,10 @@ msgid_plural "%(n)d templates unlocked."
 msgstr[0] ""
 
 msgid "📥 Export selected templates as JSON fixture"
-msgstr ""
+msgstr "📥 将所选模板导出为 JSON 数据文件"
 
 msgid "Size"
-msgstr ""
+msgstr "大小"
 
 #, fuzzy
 #| msgid "Update Template"
@@ -15232,7 +15232,7 @@ msgid "name"
 msgstr "用户名"
 
 msgid "Example: 'flatpages/default.html'"
-msgstr ""
+msgstr "示例：'flatpages/default.html'"
 
 #, fuzzy
 #| msgid "content type"
@@ -15245,10 +15245,10 @@ msgid "state"
 msgstr "州/省"
 
 msgid "Only ACTIVE templates are served by the DB template loader."
-msgstr ""
+msgstr "数据库模板加载器只会提供启用状态的模板。"
 
 msgid "sites"
-msgstr ""
+msgstr "站点"
 
 #, fuzzy
 #| msgid "Languages"
@@ -15260,10 +15260,10 @@ msgid ""
 msgstr ""
 
 msgid "tags"
-msgstr ""
+msgstr "标签"
 
 msgid "Comma-separated tags. E.g. 'email,onboarding,pdf'"
-msgstr ""
+msgstr "用逗号分隔的标签。例如 'email,onboarding,pdf'"
 
 #, fuzzy
 #| msgid "End date from"
@@ -15275,7 +15275,7 @@ msgid ""
 msgstr ""
 
 msgid "active until"
-msgstr ""
+msgstr "生效截止"
 
 msgid ""
 "Stop serving this template after this datetime. Leave blank = no restriction."
@@ -15297,7 +15297,7 @@ msgid "Access Count"
 msgstr "面部数量"
 
 msgid "Last Accessed At"
-msgstr ""
+msgstr "最后访问时间"
 
 msgid "Updated At"
 msgstr "更新时间"
@@ -15312,7 +15312,7 @@ msgstr "模板"
 
 #, python-format
 msgid "Template syntax error: %(error)s"
-msgstr ""
+msgstr "模板语法错误：%(error)s"
 
 #, fuzzy
 #| msgid "Template"
@@ -15340,14 +15340,14 @@ msgid "Template Diff"
 msgstr "模板"
 
 msgid "Home"
-msgstr ""
+msgstr "首页"
 
 msgid "Diff"
-msgstr ""
+msgstr "差异对比"
 
 #, python-format
 msgid "Diff — %(name)s"
-msgstr ""
+msgstr "差异对比——%(name)s"
 
 #, fuzzy
 #| msgid "Group Permissions"
@@ -15355,7 +15355,7 @@ msgid "From Version"
 msgstr "群组权限"
 
 msgid "To Version"
-msgstr ""
+msgstr "目标版本"
 
 #, fuzzy
 #| msgid "Companies"
@@ -15369,7 +15369,7 @@ msgstr "更新模板"
 
 #, python-format
 msgid "Preview — %(name)s"
-msgstr ""
+msgstr "预览——%(name)s"
 
 #, fuzzy
 #| msgid "File Error"
@@ -15387,7 +15387,7 @@ msgid "Refresh"
 msgstr "刷新令牌"
 
 msgid "Restore Version"
-msgstr ""
+msgstr "恢复版本"
 
 #, python-format
 msgid "Restore \"%(name)s\" to Version %(v)s"
@@ -15539,10 +15539,10 @@ msgid "Enable Google meet"
 msgstr "启用 Google Meet"
 
 msgid "Enable this to integrate Google meet to Horilla."
-msgstr ""
+msgstr "启用后将 Google Meet 集成到 Horilla。"
 
 msgid "Schedule and join Google Meet video calls directly from Horilla."
-msgstr ""
+msgstr "直接在 Horilla 中安排并加入 Google Meet 视频会议。"
 
 msgid "Google Cloud Credential not found."
 msgstr "未找到 Google Cloud 凭据。"
@@ -15616,7 +15616,7 @@ msgid "Clear Filters"
 msgstr "清除篩選"
 
 msgid "This will clear all filters you have applied."
-msgstr ""
+msgstr "这将清除您已应用的所有筛选条件。"
 
 #, fuzzy
 #| msgid "The employees selected here will receive the email as Cc."
@@ -15763,7 +15763,7 @@ msgid "Role members"
 msgstr "任务成员"
 
 msgid "Server error."
-msgstr ""
+msgstr "服务器错误。"
 
 #, fuzzy
 #| msgid "File name:"
@@ -15774,16 +15774,16 @@ msgid "Members"
 msgstr "成员"
 
 msgid "People in this role get all of its permissions."
-msgstr ""
+msgstr "该角色中的成员拥有其全部权限。"
 
 msgid "Search members by name, email or company..."
-msgstr ""
+msgstr "按姓名、邮箱或公司搜索成员……"
 
 msgid "No members match your search."
-msgstr ""
+msgstr "没有符合搜索条件的成员。"
 
 msgid "No one is in this role yet."
-msgstr ""
+msgstr "该角色暂无成员。"
 
 msgid ""
 "Pick a module on the left, then turn Create / View / Edit / Delete on. Use "
@@ -15791,7 +15791,7 @@ msgid ""
 msgstr ""
 
 msgid "Click to rename"
-msgstr ""
+msgstr "点击重命名"
 
 #, fuzzy
 #| msgid "Permissions"
@@ -15831,7 +15831,7 @@ msgstr "下一页"
 
 #, python-format
 msgid "Remove %(cname)s from %(name)s's assignment?"
-msgstr ""
+msgstr "要将 %(cname)s 从 %(name)s 的归属中移除吗？"
 
 #, fuzzy
 #| msgid "Select the company."
@@ -15844,11 +15844,11 @@ msgid "No company assignments"
 msgstr "轮班已分配。"
 
 msgid "Edit this employee's companies"
-msgstr ""
+msgstr "编辑该员工所属的公司"
 
 #, python-format
 msgid "Remove %(name)s from this group?"
-msgstr ""
+msgstr "要将 %(name)s 移出该组吗？"
 
 #, fuzzy
 #| msgid "Remove from allowance"
@@ -15895,7 +15895,7 @@ msgid "Employees to add"
 msgstr "员工标签"
 
 msgid "Use search or filters to find people quickly."
-msgstr ""
+msgstr "使用搜索或筛选快速找到人员。"
 
 #, fuzzy
 #| msgid "Save Changes"
@@ -15914,7 +15914,7 @@ msgid "User Permissions"
 msgstr "用户权限"
 
 msgid "Review or assign permissions directly to individual employees."
-msgstr ""
+msgstr "直接为单个员工审查或分配权限。"
 
 msgid ""
 "Permissions assigned directly to an employee here apply in all companies. "
@@ -15922,7 +15922,7 @@ msgid ""
 msgstr ""
 
 msgid "Search module or feature…"
-msgstr ""
+msgstr "搜索模块或功能……"
 
 #, fuzzy
 #| msgid "User Permissions"
@@ -15935,7 +15935,7 @@ msgid "selected"
 msgstr "已选择"
 
 msgid "No features match your search."
-msgstr ""
+msgstr "没有符合搜索条件的功能。"
 
 msgid ""
 "Permissions from this employee's groups in the selected company (plus any "
@@ -15943,7 +15943,7 @@ msgid ""
 msgstr ""
 
 msgid "Only allow viewing"
-msgstr ""
+msgstr "仅允许查看"
 
 #, fuzzy
 #| msgid "View policy"
@@ -15951,7 +15951,7 @@ msgid "View only"
 msgstr "查看政策"
 
 msgid "Allow create, view, edit, delete and other actions"
-msgstr ""
+msgstr "允许创建、查看、编辑、删除及其他操作"
 
 #, fuzzy
 #| msgid "access"
@@ -15979,7 +15979,7 @@ msgid "Can export"
 msgstr "可编辑"
 
 msgid "Extra actions defined for this feature"
-msgstr ""
+msgstr "为此功能定义的额外操作"
 
 #, fuzzy
 #| msgid "Select all users"
@@ -16022,7 +16022,7 @@ msgid "Back to listings"
 msgstr "更新模板"
 
 msgid "Careers"
-msgstr ""
+msgstr "招聘"
 
 #, fuzzy
 #| msgid "Open Job Listings"
@@ -16035,7 +16035,7 @@ msgid "Applying for"
 msgstr "导出假期"
 
 msgid "About the role"
-msgstr ""
+msgstr "职位说明"
 
 #, fuzzy
 #| msgid "No IDs provided."
@@ -16093,7 +16093,7 @@ msgid "Up to 5MB"
 msgstr "高达 5MB"
 
 msgid "e.g. New York"
-msgstr ""
+msgstr "例如：纽约"
 
 #, fuzzy
 #| msgid "e.g. 611 293"
@@ -16133,7 +16133,7 @@ msgid "Referral & Status"
 msgstr "录用状态"
 
 msgid "Sort"
-msgstr ""
+msgstr "排序"
 
 msgid "Newest first"
 msgstr ""
@@ -16460,7 +16460,7 @@ msgid "Loan Details"
 msgstr "银行信息"
 
 msgid "Installment schedule & repayment status"
-msgstr ""
+msgstr "分期计划与还款状态"
 
 msgid "Total Amount"
 msgstr "总金额"
@@ -16593,7 +16593,7 @@ msgid "with"
 msgstr "与"
 
 msgid "Sl No."
-msgstr ""
+msgstr "序号"
 
 #, fuzzy
 #| msgid "No rating found."
@@ -16674,7 +16674,7 @@ msgid "Do You really want to reject the request?"
 msgstr "您确定要拒绝该请求吗？"
 
 msgid "Cannot edit: reimbursement is no longer in requested status"
-msgstr ""
+msgstr "无法编辑：报销单已不在申请状态"
 
 msgid ""
 "By approving the request employee will added to the offboarding pipeline"
@@ -16735,7 +16735,7 @@ msgid "Conversion Rate"
 msgstr "转化率"
 
 msgid "Conversion Rate = ( Total Hired Candidates / Total Candidates ) * 100"
-msgstr ""
+msgstr "转化率 = （已录用候选人总数 / 候选人总数）* 100"
 
 msgid "Offer Acceptance Rate"
 msgstr "录用接受率 (OAR)"
@@ -16769,7 +16769,7 @@ msgid "My Onboarding Tasks"
 msgstr "我的入职任务"
 
 msgid "arrow-back-outline"
-msgstr ""
+msgstr "返回箭头"
 
 msgid "Total employee objectives"
 msgstr "员工目标总数"
@@ -16837,7 +16837,7 @@ msgid "Add New Employee"
 msgstr "添加员工"
 
 msgid "Enter the details to create a new employee profile."
-msgstr ""
+msgstr "填写详细信息以创建新的员工个人资料。"
 
 #, fuzzy
 #| msgid "Employee Reports"
@@ -16845,10 +16845,10 @@ msgid "Employee photo"
 msgstr "员工报表"
 
 msgid "Upload JPG, PNG or SVG"
-msgstr ""
+msgstr "上传 JPG、PNG 或 SVG"
 
 msgid "max 5MB"
-msgstr ""
+msgstr "最大 5MB"
 
 #, fuzzy
 #| msgid "Remove"
@@ -16922,7 +16922,7 @@ msgid "Create tags used to group and filter employees."
 msgstr "创建标签对审核日志记录进行分类"
 
 msgid "Manage employee categories such as permanent or contract."
-msgstr ""
+msgstr "管理员工类别，例如正式员工或合同工。"
 
 #, fuzzy
 #| msgid "There are no rotating shift assigned to this employee."
@@ -16935,13 +16935,13 @@ msgid "Set up rotating work type patterns for employees."
 msgstr "该员工未分配轮班工作类型。"
 
 msgid "Configure day-wise schedules linked to each shift."
-msgstr ""
+msgstr "配置与各班次关联的每日时间表。"
 
 msgid "Create and manage shift definitions used across the organization."
-msgstr ""
+msgstr "创建并管理全公司通用的班次定义。"
 
 msgid "Define work modes such as office, remote, or hybrid."
-msgstr ""
+msgstr "定义工作模式，例如坐班、远程或混合。"
 
 #, fuzzy
 #| msgid "Feedback"
@@ -17131,7 +17131,7 @@ msgid "Send reset link"
 msgstr "发送密码重置链接"
 
 msgid "Reset link will be sent to your registered email"
-msgstr ""
+msgstr "重置链接将发送到您注册的邮箱"
 
 #, fuzzy
 #| msgid "Search Queries"
@@ -17149,7 +17149,7 @@ msgid "Select this entry"
 msgstr "选择所有用户"
 
 msgid "more"
-msgstr ""
+msgstr "更多"
 
 #, fuzzy
 #| msgid "Show All"
@@ -17162,16 +17162,16 @@ msgid "Restore previous state"
 msgstr "恢复之前的状态"
 
 msgid "This will revert the object to a previous state."
-msgstr ""
+msgstr "这会将对象还原到之前的状态。"
 
 msgid "Yes, revert it"
-msgstr ""
+msgstr "是的，还原"
 
 msgid "Revert"
 msgstr "显示"
 
 msgid "Show, hide, or reorder"
-msgstr ""
+msgstr "显示、隐藏或重新排序"
 
 #, fuzzy
 #| msgid "Search In"
@@ -17184,7 +17184,7 @@ msgid "Select all columns"
 msgstr "选择所有列"
 
 msgid "Drag rows to reorder columns"
-msgstr ""
+msgstr "拖动行以调整列顺序"
 
 msgid "Delete Confirmation"
 msgstr "删除确认"
@@ -17229,7 +17229,7 @@ msgid "Remove filter"
 msgstr "保存筛选器"
 
 msgid "Lookup"
-msgstr ""
+msgstr "查找"
 
 #, fuzzy
 #| msgid "Selected"
@@ -17237,7 +17237,7 @@ msgid "Select a field first"
 msgstr "已选择"
 
 msgid "Save And Add Another"
-msgstr ""
+msgstr "保存并新增"
 
 msgid "Assign Leave"
 msgstr "分配请假"
@@ -17261,7 +17261,7 @@ msgid "Import Records"
 msgstr "导出记录"
 
 msgid "sub-group"
-msgstr ""
+msgstr "子分组"
 
 #, fuzzy
 #| msgid "Show managing records"
@@ -17292,16 +17292,16 @@ msgid "Forwarded to"
 msgstr "转发至"
 
 msgid "Choose or Drop Files Here"
-msgstr ""
+msgstr "在此选择或拖放文件"
 
 msgid "Edit Ticket"
 msgstr "更新工单"
 
 msgid "Toggle Rich Text"
-msgstr ""
+msgstr "切换富文本"
 
 msgid "Write your message here..."
-msgstr ""
+msgstr "在此输入您的消息……"
 
 msgid "Do you want to delete the automation?"
 msgstr "您想删除自动化吗？"
@@ -17370,10 +17370,10 @@ msgid "Reorder Dashboard Charts"
 msgstr "员工图表"
 
 msgid "Lock sidebar open"
-msgstr ""
+msgstr "固定侧边栏"
 
 msgid "Unlock sidebar (auto-collapses on hover-out)"
-msgstr ""
+msgstr "取消固定侧边栏（鼠标移出时自动收起）"
 
 msgid "My Company"
 msgstr "我的公司"
@@ -17440,19 +17440,19 @@ msgid "e.g. Adam"
 msgstr "例如喀拉拉邦"
 
 msgid "e.g. Luis"
-msgstr ""
+msgstr "例如：Luis"
 
 msgid "e.g. adam.luis@horilla.com"
-msgstr ""
+msgstr "例如 adam.luis@horilla.com"
 
 msgid "e.g. 9865324512"
-msgstr ""
+msgstr "例如：9865324512"
 
 msgid "e.g. PEP001"
-msgstr ""
+msgstr "例如：PEP001"
 
 msgid "Use alphanumeric characters"
-msgstr ""
+msgstr "请使用字母和数字字符"
 
 msgid "Secure Sign-up"
 msgstr "安全注册"
@@ -17868,7 +17868,7 @@ msgid "There are no assignees for this objective at the moment."
 msgstr "目前此目标暂无分配人员。"
 
 msgid "Oops..."
-msgstr ""
+msgstr "哎呀……"
 
 #, fuzzy
 #| msgid "Current Value"
@@ -17928,25 +17928,25 @@ msgid "Welcome Aboard!"
 msgstr "重新分配至"
 
 msgid "Hey there, welcome to our team. Let's get you started."
-msgstr ""
+msgstr "你好，欢迎加入我们的团队。我们开始吧。"
 
 msgid "Zoom in"
-msgstr ""
+msgstr "放大"
 
 msgid "Zoom out"
-msgstr ""
+msgstr "缩小"
 
 msgid "Pan up"
-msgstr ""
+msgstr "向上平移"
 
 msgid "Pan left"
-msgstr ""
+msgstr "向左平移"
 
 msgid "Pan right"
-msgstr ""
+msgstr "向右平移"
 
 msgid "Pan down"
-msgstr ""
+msgstr "向下平移"
 
 #, fuzzy
 #| msgid "No Candidates available."
@@ -18284,10 +18284,10 @@ msgid "Add a note"
 msgstr "添加备注"
 
 msgid "Example: Candidate requested interview reschedule to Friday 3 PM."
-msgstr ""
+msgstr "示例：候选人要求把面试改到周五下午 3 点。"
 
 msgid "Type your update, then click Add note."
-msgstr ""
+msgstr "输入您的更新内容，然后点击「添加备注」。"
 
 #, fuzzy
 #| msgid "Add notes"
@@ -18314,7 +18314,7 @@ msgid ""
 msgstr "目前没有任何纪律处分类型。"
 
 msgid "Record and track disciplinary incidents for employees."
-msgstr ""
+msgstr "记录和追踪员工的违纪事件。"
 
 #, fuzzy
 #| msgid "Track late arrivals and early departures of employees"
@@ -18323,7 +18323,7 @@ msgid ""
 msgstr "跟踪员工迟到和早退"
 
 msgid "Create and manage company policies shared with employees."
-msgstr ""
+msgstr "创建并管理与员工共享的公司制度。"
 
 #, fuzzy
 #| msgid "View attachment"
@@ -18374,7 +18374,7 @@ msgstr "兑现设置"
 
 #, python-format
 msgid "%(applied)s applied of %(capacity)s capacity"
-msgstr ""
+msgstr "已申请 %(applied)s，容量 %(capacity)s"
 
 #, fuzzy
 #| msgid "View File"
@@ -18393,7 +18393,7 @@ msgid "No open positions match your search."
 msgstr "选择开放职位"
 
 msgid "There are no open positions right now. Please check back soon."
-msgstr ""
+msgstr "目前没有空缺职位。请稍后再来看看。"
 
 #, fuzzy
 #| msgid "Posted on"
@@ -18402,7 +18402,7 @@ msgstr "发布于"
 
 #, python-format
 msgid "%(time)s ago"
-msgstr ""
+msgstr "%(time)s 前"
 
 #, fuzzy
 #| msgid "Employees not found"
@@ -18461,7 +18461,7 @@ msgid "Asset Reports"
 msgstr "資源報告"
 
 msgid "Expand"
-msgstr ""
+msgstr "展开"
 
 #, fuzzy
 #| msgid "Add more shift.."
@@ -18479,7 +18479,7 @@ msgid "Template name"
 msgstr "模板已保存"
 
 msgid "Save Current Arrangement"
-msgstr ""
+msgstr "保存当前排列"
 
 #, fuzzy
 #| msgid "No documents have been uploaded yet."
@@ -18490,13 +18490,13 @@ msgid "Export Table"
 msgstr "导出表格"
 
 msgid "As PDF"
-msgstr ""
+msgstr "导出为 PDF"
 
 msgid "As Excel"
-msgstr ""
+msgstr "导出为 Excel"
 
 msgid "As CSV"
-msgstr ""
+msgstr "导出为 CSV"
 
 #, fuzzy
 #| msgid "View FAQs"
@@ -18523,7 +18523,7 @@ msgid "Nothing to save yet."
 msgstr "没什么可拒绝的。"
 
 msgid "Click to expand or collapse"
-msgstr ""
+msgstr "点击展开或收起"
 
 #, fuzzy
 #| msgid "Available days"
@@ -18531,7 +18531,7 @@ msgid "Available Fields"
 msgstr "可用天数"
 
 msgid "Rows"
-msgstr ""
+msgstr "行"
 
 #, fuzzy
 #| msgid "Total"
@@ -18564,7 +18564,7 @@ msgid "Not Equals"
 msgstr "不等于 (!=)"
 
 msgid "Is Empty"
-msgstr ""
+msgstr "为空"
 
 #, fuzzy
 #| msgid "Greater Than (>)"
@@ -18577,7 +18577,7 @@ msgid "Less Than"
 msgstr "小于 (<)"
 
 msgid "Between"
-msgstr ""
+msgstr "介于"
 
 #, fuzzy
 #| msgid "Last Day"
@@ -18600,13 +18600,13 @@ msgid "Select one or more"
 msgstr "选择日期格式："
 
 msgid "OR"
-msgstr ""
+msgstr "或"
 
 msgid "AND"
-msgstr ""
+msgstr "与"
 
 msgid "Click to toggle AND/OR"
-msgstr ""
+msgstr "点击切换「与/或」"
 
 #, fuzzy
 #| msgid "Enter a title"
@@ -18823,7 +18823,7 @@ msgid "Candidates"
 msgstr "候选人"
 
 msgid "Browse"
-msgstr ""
+msgstr "浏览"
 
 #, fuzzy
 #| msgid "Audit log"
@@ -18831,7 +18831,7 @@ msgid "Audit"
 msgstr "审计日志"
 
 msgid "Explorer"
-msgstr ""
+msgstr "探索器"
 
 #, fuzzy
 #| msgid "Search settings…"
@@ -18839,13 +18839,13 @@ msgid "Search reports…"
 msgstr "搜索设置…"
 
 msgid "Domain order"
-msgstr ""
+msgstr "域顺序"
 
 msgid "Name (A–Z)"
-msgstr ""
+msgstr "名称（A–Z）"
 
 msgid "Name (Z–A)"
-msgstr ""
+msgstr "名称（Z–A）"
 
 #, fuzzy
 #| msgid "Document request"
@@ -18893,7 +18893,7 @@ msgid "Saved views"
 msgstr "可查看"
 
 msgid "My favorites"
-msgstr ""
+msgstr "我的收藏"
 
 #, fuzzy
 #| msgid "Delete image"
@@ -18912,7 +18912,7 @@ msgstr[0] ""
 
 #, python-format
 msgid "%(t)s ago"
-msgstr ""
+msgstr "%(t)s 前"
 
 #, fuzzy
 #| msgid "Write"
@@ -18920,10 +18920,10 @@ msgid "Favorite"
 msgstr "写入"
 
 msgid "No reports match your search."
-msgstr ""
+msgstr "没有与搜索条件匹配的报表。"
 
 msgid "Select a report to see details."
-msgstr ""
+msgstr "选择一份报表以查看详情。"
 
 #, fuzzy
 #| msgid "No Question templates are available."
@@ -18936,7 +18936,7 @@ msgid "View name"
 msgstr "文件名："
 
 msgid "e.g. Q3 board pack"
-msgstr ""
+msgstr "例如：Q3 董事会材料"
 
 #, fuzzy
 #| msgid "Scheduled from"
@@ -19009,7 +19009,7 @@ msgid "reports selected"
 msgstr "未选择任何记录"
 
 msgid "report(s) queued — check your email shortly."
-msgstr ""
+msgstr "报表已排队，请稍后查收邮件。"
 
 #, fuzzy
 #| msgid "No records selected"
@@ -19027,7 +19027,7 @@ msgid "schedule(s) created."
 msgstr "轮班表已创建。"
 
 msgid "skipped (no access)."
-msgstr ""
+msgstr "已跳过（无权限）。"
 
 #, fuzzy
 #| msgid "The password you entered is incorrect. Please try again."
@@ -19045,7 +19045,7 @@ msgid "Please enter a name for the new view."
 msgstr "请输入不同的名称"
 
 msgid "View created and reports added."
-msgstr ""
+msgstr "已创建视图并添加报表。"
 
 #, fuzzy
 #| msgid "The password you entered is incorrect. Please try again."
@@ -19053,7 +19053,7 @@ msgid "Could not create the view. Please try again."
 msgstr "您输入的密码不正确。请重试。"
 
 msgid "That view no longer exists."
-msgstr ""
+msgstr "该视图已不存在。"
 
 #, fuzzy
 #| msgid "Added on"
@@ -19061,7 +19061,7 @@ msgid "Added to view."
 msgstr "添加于"
 
 msgid "Could not add to that view. Please try again."
-msgstr ""
+msgstr "无法添加到该视图，请重试。"
 
 #, fuzzy
 #| msgid "Save filter"
@@ -19069,7 +19069,7 @@ msgid "Saved filters"
 msgstr "保存筛选器"
 
 msgid "— Select a preset —"
-msgstr ""
+msgstr "— 选择预设 —"
 
 #, fuzzy
 #| msgid "Load Faqs"
@@ -19102,13 +19102,13 @@ msgid "More filters"
 msgstr "添加更多轮班..."
 
 msgid "Favorited"
-msgstr ""
+msgstr "已收藏"
 
 msgid "Subscribe"
-msgstr ""
+msgstr "订阅"
 
 msgid "Open in Explorer"
-msgstr ""
+msgstr "在探索器中打开"
 
 #, fuzzy
 #| msgid "Export"
@@ -19131,7 +19131,7 @@ msgid "ZIP"
 msgstr "IP地址"
 
 msgid "Scoped to all companies in this session"
-msgstr ""
+msgstr "本次会话范围涵盖所有公司"
 
 #, fuzzy
 #| msgid "Key Results"
@@ -19144,7 +19144,7 @@ msgid "Detail data"
 msgstr "详情"
 
 msgid "Subscribe to this report"
-msgstr ""
+msgstr "订阅此报表"
 
 msgid ""
 "Email the current filters on a schedule. Recipients can be any comma-"
@@ -19166,7 +19166,7 @@ msgid "Create subscription"
 msgstr "创建职位"
 
 msgid "Drill-down"
-msgstr ""
+msgstr "下钻"
 
 #, fuzzy
 #| msgid "Priority"
@@ -19174,7 +19174,7 @@ msgid "Prior"
 msgstr "优先级"
 
 msgid "rows"
-msgstr ""
+msgstr "行"
 
 #, fuzzy
 #| msgid "Tomorrow"
@@ -19187,10 +19187,10 @@ msgid "sample of"
 msgstr "上传照片"
 
 msgid "partial list"
-msgstr ""
+msgstr "部分列表"
 
 msgid "Click to drill down"
-msgstr ""
+msgstr "点击下钻"
 
 #, fuzzy
 #| msgid "File Upload"
@@ -19253,7 +19253,7 @@ msgid "Hide filters"
 msgstr "保存筛选器"
 
 msgid "Name this filter preset"
-msgstr ""
+msgstr "为此筛选预设命名"
 
 #, fuzzy
 #| msgid "Do you want to delete this template"
@@ -19261,7 +19261,7 @@ msgid "Delete this saved filter preset?"
 msgstr "您要删除此模板吗？"
 
 msgid "Add at least one recipient email."
-msgstr ""
+msgstr "请至少添加一个收件人邮箱。"
 
 #, fuzzy
 #| msgid "Deduction created."
@@ -19274,10 +19274,10 @@ msgid "Open subscriptions list?"
 msgstr "开放职位列表"
 
 msgid "System"
-msgstr ""
+msgstr "系统"
 
 msgid "SELECTED REPORT"
-msgstr ""
+msgstr "已选报表"
 
 msgid "PDF · Excel"
 msgstr ""
@@ -19328,7 +19328,7 @@ msgid "Report ID"
 msgstr "報告"
 
 msgid "Data rows"
-msgstr ""
+msgstr "数据行"
 
 #, fuzzy
 #| msgid "Clear Filter"
@@ -19365,7 +19365,7 @@ msgid "No rows"
 msgstr "未找到记录。"
 
 msgid "Confidential — for internal use only"
-msgstr ""
+msgstr "机密 — 仅供内部使用"
 
 #, fuzzy
 #| msgid "Generate"
@@ -19379,13 +19379,13 @@ msgstr "分頁"
 
 #, python-format
 msgid "PDF shows the first %(limit)s rows. Use Excel for a fuller extract."
-msgstr ""
+msgstr "PDF 仅显示前 %(limit)s 行。如需更完整的数据，请使用 Excel。"
 
 msgid "Print Excel"
-msgstr ""
+msgstr "打印 Excel"
 
 msgid "Print PDF"
-msgstr ""
+msgstr "打印 PDF"
 
 #, fuzzy
 #| msgid "You are don't have permissions."
@@ -19393,16 +19393,16 @@ msgid "You can view this report but do not have export permission."
 msgstr "您没有权限。"
 
 msgid "Review document upload requests and submit required files from HR."
-msgstr ""
+msgstr "查看文件上传申请，并提交人力资源部要求的文件。"
 
 msgid "Requests from colleagues asking you to cover or take over their shifts."
-msgstr ""
+msgstr "同事请你代班或接班的申请。"
 
 msgid "Submit and manage your shift change requests for approval."
-msgstr ""
+msgstr "提交并管理你的换班申请，等待审批。"
 
 msgid "Submit and manage requests to change your work type assignment."
-msgstr ""
+msgstr "提交并管理更改工作类型分配的申请。"
 
 #, python-format
 msgid ""
@@ -19458,7 +19458,7 @@ msgid "Organisation settings"
 msgstr "分页设置视图"
 
 msgid "You are currently setting these settings for all companies."
-msgstr ""
+msgstr "你当前正在为所有公司设置这些配置。"
 
 msgid "Search settings…"
 msgstr "搜索设置…"
@@ -19472,7 +19472,7 @@ msgid "Enable Linkedin"
 msgstr "启用人脸识别"
 
 msgid "Enable this to integrate linkedin to Horilla."
-msgstr ""
+msgstr "启用此项即可将 LinkedIn 集成到 Horilla。"
 
 msgid ""
 "Post job openings directly to LinkedIn and manage applicants from Horilla."
@@ -19594,7 +19594,7 @@ msgid ""
 msgstr ""
 
 msgid "Showing combined group permissions across assigned companies."
-msgstr ""
+msgstr "正在显示已分配公司的合并群组权限。"
 
 #, fuzzy, python-format
 #| msgid "No projects assigned to this employee."
@@ -19667,7 +19667,7 @@ msgid "Default Theme"
 msgstr "默认宽限时间"
 
 msgid "Set as default for login page"
-msgstr ""
+msgstr "设为登录页默认主题"
 
 #, fuzzy
 #| msgid "Is default"
@@ -19680,7 +19680,7 @@ msgid "No themes available"
 msgstr "不可用"
 
 msgid "Select a theme to customize the appearance of your application"
-msgstr ""
+msgstr "选择主题以自定义应用的界面外观"
 
 msgid "Personal Timesheet of"
 msgstr "个人时间表："
@@ -19715,7 +19715,7 @@ msgid "No active company found"
 msgstr "未找到处罚记录。"
 
 msgid "Theme changed successfully and set as default for login page"
-msgstr ""
+msgstr "主题已成功更换，并设为登录页默认主题"
 
 #, fuzzy
 #| msgid "Username changed successfully"
@@ -19733,19 +19733,19 @@ msgid "An error occurred while changing the theme"
 msgstr "删除津贴时发生错误"
 
 msgid "Theme removed as default for login page"
-msgstr ""
+msgstr "已取消该主题作为登录页默认主题"
 
 msgid "Theme set as default for login page"
-msgstr ""
+msgstr "主题已设为登录页默认主题"
 
 msgid "Product Tours"
 msgstr "产品参观"
 
 msgid "Everyone"
-msgstr ""
+msgstr "所有人"
 
 msgid "Admins / Superusers"
-msgstr ""
+msgstr "管理员 / 超级用户"
 
 #, fuzzy
 #| msgid "Reporting manager"
@@ -19758,13 +19758,13 @@ msgid "Employees (non-managers)"
 msgstr "员工标签"
 
 msgid "Auto-start once, then on demand"
-msgstr ""
+msgstr "首次自动启动，之后按需启动"
 
 msgid "Only from the Help launcher"
-msgstr ""
+msgstr "仅从帮助启动器启动"
 
 msgid "URL name (exact)"
-msgstr ""
+msgstr "URL 名称（精确匹配）"
 
 #, fuzzy
 #| msgid "Get started with Django"
@@ -19777,7 +19777,7 @@ msgid "Key"
 msgstr "API密钥"
 
 msgid "Stable identifier used in code/seed data, e.g. 'getting-started'."
-msgstr ""
+msgstr "用于代码/种子数据的固定标识符，例如 'getting-started'。"
 
 msgid ""
 "Where this tour applies. With 'URL name' enter the resolver name (e.g. "
@@ -19796,10 +19796,10 @@ msgid "Audience"
 msgstr "序列"
 
 msgid "Unpublished tours are drafts and never shown to users."
-msgstr ""
+msgstr "未发布的引导属于草稿，不会向用户显示。"
 
 msgid "Higher priority tours auto-start first when several match a page."
-msgstr ""
+msgstr "当多个引导匹配同一页面时，优先级更高的先自动启动。"
 
 #, fuzzy
 #| msgid "Progress Bar"
@@ -19812,13 +19812,13 @@ msgid "Allow close"
 msgstr "津贴"
 
 msgid "ion-icon name shown in the Help launcher."
-msgstr ""
+msgstr "在帮助启动器中显示的 ion-icon 图标名称。"
 
 msgid "Leave blank for a global tour shared by every company."
-msgstr ""
+msgstr "留空表示这是一个所有公司共用的全局引导。"
 
 msgid "Tour"
-msgstr ""
+msgstr "引导"
 
 #, fuzzy
 #| msgid "Hours"
@@ -19831,10 +19831,10 @@ msgid "Top"
 msgstr "到"
 
 msgid "Bottom"
-msgstr ""
+msgstr "底部"
 
 msgid "Left"
-msgstr ""
+msgstr "左侧"
 
 #, fuzzy
 #| msgid "midnight"
@@ -19847,7 +19847,7 @@ msgid "Center (no element)"
 msgstr "创建公告"
 
 msgid "Center"
-msgstr ""
+msgstr "居中"
 
 #, fuzzy
 #| msgid "and"
@@ -19858,7 +19858,7 @@ msgid "Order"
 msgstr "排序"
 
 msgid "Element selector"
-msgstr ""
+msgstr "元素选择器"
 
 msgid ""
 "CSS selector of the element to highlight (e.g. '#notificationIcon'). Leave "
@@ -19866,10 +19866,10 @@ msgid ""
 msgstr ""
 
 msgid "Align"
-msgstr ""
+msgstr "对齐"
 
 msgid "Step page"
-msgstr ""
+msgstr "步骤所在页面"
 
 msgid ""
 "Optional: for multi-page tours, the URL name this step lives on. Leave blank "
@@ -19890,7 +19890,7 @@ msgid "In progress"
 msgstr "進行中"
 
 msgid "Last step index"
-msgstr ""
+msgstr "最后一步序号"
 
 #, fuzzy
 #| msgid "Completed"
@@ -19954,7 +19954,7 @@ msgid "Delete this step?"
 msgstr "您确定要删除此阶段吗？"
 
 msgid "No steps yet. Add the first one below."
-msgstr ""
+msgstr "还没有步骤，请在下方添加第一步。"
 
 msgid ""
 "Create guided walkthroughs that appear for the right users on the right "
@@ -19962,7 +19962,7 @@ msgid ""
 msgstr ""
 
 msgid "Manage tour drafts and published walkthroughs from this list."
-msgstr ""
+msgstr "在此列表中管理引导草稿和已发布的操作指引。"
 
 #, fuzzy
 #| msgid "Create "
@@ -20066,7 +20066,7 @@ msgid "Matching query does not exists."
 msgstr "匹配的查询不存在。"
 
 msgid "Show Error Details"
-msgstr ""
+msgstr "显示错误详情"
 
 msgid "Allocation"
 msgstr "分配"
@@ -20104,10 +20104,10 @@ msgid "There are no %(label)s to display."
 msgstr "没有可显示的考勤记录。"
 
 msgid "library outline"
-msgstr ""
+msgstr "书库图标"
 
 msgid "arrow back circle outline"
-msgstr ""
+msgstr "返回箭头"
 
 #, fuzzy
 #| msgid "Carryforward Expire in"
@@ -20145,10 +20145,10 @@ msgid "No Penalties"
 msgstr "无处罚"
 
 msgid "Design Homepage"
-msgstr ""
+msgstr "设计首页"
 
 msgid "Create wireframes and mockups for the new homepage design."
-msgstr ""
+msgstr "为新首页设计制作线框图和效果图。"
 
 #, fuzzy
 #| msgid "Priority"
@@ -20161,7 +20161,7 @@ msgid "Update Documentation"
 msgstr "更新薪酬"
 
 msgid "Review and update the API documentation for v2.0 release."
-msgstr ""
+msgstr "审阅并更新 v2.0 版本的 API 文档。"
 
 #, fuzzy
 #| msgid "Priority"
@@ -20182,7 +20182,7 @@ msgid "New Task"
 msgstr "任务"
 
 msgid "Click to edit this task description."
-msgstr ""
+msgstr "点击编辑此任务描述。"
 
 msgid "Filter Saved"
 msgstr "过滤器已保存"
@@ -20275,7 +20275,7 @@ msgid "filter"
 msgstr "筛选"
 
 msgid "Page 1 of 1"
-msgstr ""
+msgstr "第 1 页，共 1 页"
 
 msgid "Taken Leaves"
 msgstr "请假中"
@@ -20367,7 +20367,7 @@ msgstr ""
 
 #, python-format
 msgid "Leave allocated for %(count)s employee(s)"
-msgstr ""
+msgstr "已为 %(count)s 名员工分配休假"
 
 #, fuzzy
 #| msgid "Available Leaves"
@@ -20507,7 +20507,7 @@ msgid "A value is required for the selected condition type."
 msgstr "所选条件类型需要一个值。"
 
 msgid "Payment percentage is required for Custom payment type."
-msgstr ""
+msgstr "选择自定义付款类型时必须填写付款百分比。"
 
 #, fuzzy
 #| msgid "Day percentage must be between 0.0 and 1.0"
@@ -20562,7 +20562,7 @@ msgid "This leave request has no pending cancellation request."
 msgstr "您的请假申请已被取消"
 
 msgid "No available leave record found for this employee and leave type."
-msgstr ""
+msgstr "未找到该员工和该休假类型的可用休假记录。"
 
 #, fuzzy
 #| msgid "Cancellation Reason"
@@ -20775,7 +20775,7 @@ msgstr ""
 
 #, python-brace-format
 msgid "This leave type is restricted to employees with grade: {grade}."
-msgstr ""
+msgstr "此休假类型仅限职级为 {grade} 的员工申请。"
 
 msgid "My Leave Requests"
 msgstr "我的請假請求"
@@ -20923,7 +20923,7 @@ msgid "Are you sure you want to proceed with the request?"
 msgstr "您确定要继续此请求吗？"
 
 msgid "Would you like to proceed?"
-msgstr ""
+msgstr "是否继续？"
 
 msgid "Allocated days"
 msgstr "分配天数"
@@ -21271,22 +21271,22 @@ msgid "Leave Request Report"
 msgstr "請假請求更新"
 
 msgid "COMPANY:"
-msgstr ""
+msgstr "公司："
 
 msgid "ADDRESS:"
-msgstr ""
+msgstr "地址："
 
 msgid "CITY:"
-msgstr ""
+msgstr "城市："
 
 msgid "STATE:"
-msgstr ""
+msgstr "州/省："
 
 msgid "ZIP:"
-msgstr ""
+msgstr "邮编："
 
 msgid "LEAVE REPORT"
-msgstr ""
+msgstr "休假报表"
 
 #, fuzzy
 #| msgid "Leave"
@@ -21299,7 +21299,7 @@ msgid "Leave Periods"
 msgstr "创建周期"
 
 msgid "Used"
-msgstr ""
+msgstr "已用"
 
 #, fuzzy
 #| msgid "Warning"
@@ -21322,7 +21322,7 @@ msgid "Period 3"
 msgstr "期间"
 
 msgid "* New hire (joined within the last year)"
-msgstr ""
+msgstr "* 新员工（入职不满一年）"
 
 #, fuzzy
 #| msgid "Theme Management"
@@ -21393,10 +21393,10 @@ msgid "Do you need to exclude public holidays from the requested leave days?"
 msgstr "是否需要从申请的请假天数中排除公共假期？"
 
 msgid "Eligibility conditions"
-msgstr ""
+msgstr "资格条件"
 
 msgid "Eligibility conditions can be configured after saving the leave type."
-msgstr ""
+msgstr "保存休假类型后即可配置资格条件。"
 
 msgid "No leave types have been created yet."
 msgstr "尚未创建任何假期类型。"
@@ -21831,7 +21831,7 @@ msgstr "您无法删除状态为 {} 的请假请求"
 
 #, python-format
 msgid "%(employee)s's leave request has received a comment."
-msgstr ""
+msgstr "%(employee)s 的休假申请收到了一条评论。"
 
 #, fuzzy
 #| msgid "Your Leave request has been approved"
@@ -22134,7 +22134,7 @@ msgid "Data"
 msgstr ""
 
 msgid "When"
-msgstr ""
+msgstr "时间"
 
 #, fuzzy
 #| msgid "Error"
@@ -22480,7 +22480,7 @@ msgstr "添加员工"
 
 #, python-format
 msgid "You have been added to the %(stage)s of %(offboarding_id)s"
-msgstr ""
+msgstr "你已被添加到 %(offboarding_id)s 的 %(stage)s 阶段"
 
 msgid "Create Offboarding"
 msgstr "创建离职流程"
@@ -22575,10 +22575,10 @@ msgid "Work Handover"
 msgstr "工作交接"
 
 msgid "FNF"
-msgstr ""
+msgstr "离职结算"
 
 msgid "Farewell"
-msgstr ""
+msgstr "告别"
 
 msgid "Planned To Leave On"
 msgstr "计划离职日期"
@@ -22612,7 +22612,7 @@ msgstr "您无法编辑已被拒绝/批准的请求"
 
 #, python-format
 msgid "%(get_full_name)s requested for resignation."
-msgstr ""
+msgstr "%(get_full_name)s 提交了辞职申请。"
 
 msgid "Ongoing"
 msgstr "进行中"
@@ -22639,7 +22639,7 @@ msgid "tasks"
 msgstr "任务"
 
 msgid "A rejected resignation letter cannot be modified."
-msgstr ""
+msgstr "已拒绝的辞职信无法修改。"
 
 msgid ""
 "A resignation letter for this employee is already in 'Requested' or "
@@ -22690,7 +22690,7 @@ msgid "Quick filter (%(counter)s)"
 msgstr "快速筛选（%(counter)s）"
 
 msgid "checkmark"
-msgstr ""
+msgstr "对勾图标"
 
 msgid "Planned to resign"
 msgstr "计划辞职"
@@ -22869,7 +22869,7 @@ msgid "No notice periods ending in the next 30 days"
 msgstr "今年即将到来的假日。"
 
 msgid "Ended"
-msgstr ""
+msgstr "已结束"
 
 #, fuzzy
 #| msgid "Asset Return"
@@ -22902,10 +22902,10 @@ msgid "There is no offboardings at this moment."
 msgstr "目前没有离职流程。"
 
 msgid "list outline"
-msgstr ""
+msgstr "列表图标"
 
 msgid "grid outline"
-msgstr ""
+msgstr "网格图标"
 
 msgid " Send Mail"
 msgstr "发送邮件"
@@ -22920,7 +22920,7 @@ msgid "No resignation has been created yet."
 msgstr "尚未创建任何辞职记录。"
 
 msgid "Configure how employees exit the organization."
-msgstr ""
+msgstr "配置员工离职的流程方式。"
 
 #, fuzzy
 #| msgid ""
@@ -23406,7 +23406,7 @@ msgid "No pending tasks"
 msgstr "待处理"
 
 msgid "done"
-msgstr ""
+msgstr "已完成"
 
 msgid "candidates in this task"
 msgstr "此任务中的候选人"
@@ -23565,7 +23565,7 @@ msgid "Profile picture updated successfully.."
 msgstr "个人资料图片更新成功.."
 
 msgid "Please create your account first before continuing employee creation."
-msgstr ""
+msgstr "请先创建你的账户，然后再继续创建员工。"
 
 msgid "Employee with email id already exists."
 msgstr "使用该电子邮箱的员工已存在。"
@@ -24069,7 +24069,7 @@ msgstr "邮件服务器已成功创建。"
 
 #, python-format
 msgid "%(title)s (copy)"
-msgstr ""
+msgstr "%(title)s（副本）"
 
 #, fuzzy
 #| msgid "Duplicate Template"
@@ -25725,7 +25725,7 @@ msgid "Total installments"
 msgstr "总分期数"
 
 msgid "From the start date deduction will apply"
-msgstr ""
+msgstr "从开始日期起将适用扣款"
 
 msgid "Installment start date"
 msgstr "分期开始日期"
@@ -25959,7 +25959,7 @@ msgid "Payroll Batch Lines"
 msgstr "薪资记录"
 
 msgid "Suffix"
-msgstr ""
+msgstr "后缀"
 
 msgid "Tax Rate"
 msgstr "税率"
@@ -26197,7 +26197,7 @@ msgid "Loan Filter"
 msgstr "贷款筛选"
 
 msgid "Configure allowances for your company."
-msgstr ""
+msgstr "配置你公司的津贴。"
 
 msgid ""
 "Applied To Everyone Whenever It Happens, So They Are Not Added Or Removed. "
@@ -26225,7 +26225,7 @@ msgid "Configure deductions for your company."
 msgstr "公司的标志或图标"
 
 msgid "Configure reusable salary structures for your company."
-msgstr ""
+msgstr "配置你公司可复用的薪资结构。"
 
 msgid "Do you want to sent the payslip by mail?"
 msgstr "您是否要通过电子邮件发送工资单？"
@@ -26278,7 +26278,7 @@ msgid "No Attachments."
 msgstr "没有附件。"
 
 msgid "Remove this allowance from the salary structure?"
-msgstr ""
+msgstr "确定要从薪资结构中移除此津贴吗？"
 
 #, fuzzy
 #| msgid "Attachments added"
@@ -26314,7 +26314,7 @@ msgid "No components yet. Add an allowance or a deduction to this structure."
 msgstr ""
 
 msgid "Remove this deduction from the salary structure?"
-msgstr ""
+msgstr "确定要从薪资结构中移除此扣款吗？"
 
 #, fuzzy
 #| msgid "No deduction has been included."
@@ -27506,7 +27506,7 @@ msgid "Payroll Cost Trend"
 msgstr "薪资记录"
 
 msgid "Gross, deductions & net — last 6 months"
-msgstr ""
+msgstr "应发、扣款与实发 — 近 6 个月"
 
 #, fuzzy
 #| msgid "Create Department"
@@ -27644,7 +27644,7 @@ msgid "No contracts ending soon"
 msgstr "本月没有合同到期"
 
 msgid "No active loans"
-msgstr ""
+msgstr "无有效贷款"
 
 msgid "No records available."
 msgstr "无可用记录。"
@@ -28023,7 +28023,7 @@ msgid ""
 msgstr ""
 
 msgid "Custom Payment Leave Details"
-msgstr ""
+msgstr "自定义发放休假明细"
 
 #, fuzzy, python-format
 #| msgid "Payment"
@@ -28766,7 +28766,7 @@ msgid "Allowance removed from the salary structure"
 msgstr "员工已分配至群组"
 
 msgid "Deduction removed from the salary structure"
-msgstr ""
+msgstr "已从薪资结构中移除该扣款"
 
 #, python-format
 msgid "%(emp_count)s payslip saved as draft"
@@ -28791,7 +28791,7 @@ msgid "The end date must be greater than or equal to the start date."
 msgstr "结束日期必须大于或等于开始日期"
 
 msgid "Payslip data not found for the specified employee and date range."
-msgstr ""
+msgstr "未找到指定员工和日期范围内的工资条数据。"
 
 msgid "Mail processing"
 msgstr "邮件处理"
@@ -29363,7 +29363,7 @@ msgstr "您已被添加到轮班制"
 
 #, python-format
 msgid "You have been added as an answerable employee for the meeting %(title)s"
-msgstr ""
+msgstr "你已被添加为会议 %(title)s 的应答员工"
 
 msgid "Add Response"
 msgstr "添加回复"
@@ -29633,13 +29633,13 @@ msgid "Question template is required when answer employees are choosed"
 msgstr "选择回答员工时，问题模板为必填项"
 
 msgid "For Objective and Key Result, 'Applicable For' must be 'Owner'."
-msgstr ""
+msgstr "对于目标和关键成果，「适用对象」必须为「负责人」。"
 
 msgid "For Objective and Key Result, 'Bonus For' must be 'Closing'."
-msgstr ""
+msgstr "对于目标和关键成果，「奖励对象」必须为「完成」。"
 
 msgid "For Task and Project, 'Applicable For' must be 'Members' or 'Managers'."
-msgstr ""
+msgstr "对于任务和项目，「适用对象」必须为「成员」或「经理」。"
 
 msgid "Bonus point must be greater than zero"
 msgstr "奖励积分必须大于零"
@@ -29840,7 +29840,7 @@ msgid "Create and manage reusable objective templates for performance cycles."
 msgstr "创建和管理可重用的权限角色"
 
 msgid "Configure review periods that define key result tracking timelines."
-msgstr ""
+msgstr "配置评估周期，定义关键成果的跟踪时间范围。"
 
 msgid "Do you want to delete the question?"
 msgstr "您确定要删除此问题吗？"
@@ -30096,7 +30096,7 @@ msgid "Department Performance"
 msgstr "部门经理"
 
 msgid "Avg objective progress by department"
-msgstr ""
+msgstr "各部门平均目标进度"
 
 #, fuzzy
 #| msgid "Progress Bar"
@@ -30104,7 +30104,7 @@ msgid "OKR Progress Overview"
 msgstr "进度"
 
 msgid "Top objectives with key result breakdown"
-msgstr ""
+msgstr "关键成果明细靠前的目标"
 
 #, fuzzy
 #| msgid "Performance"
@@ -30549,7 +30549,7 @@ msgid "To Do"
 msgstr "待办"
 
 msgid "Please create a project first."
-msgstr ""
+msgstr "请先创建一个项目。"
 
 #, fuzzy
 #| msgid "Project not found"
@@ -30805,7 +30805,7 @@ msgid "Top Active Projects"
 msgstr "项目总数"
 
 msgid "In progress — by task count"
-msgstr ""
+msgstr "进行中 — 按任务数"
 
 #, fuzzy
 #| msgid " Time sheet"
@@ -30894,7 +30894,7 @@ msgid "No completed tasks in this period"
 msgstr "本月没有请假请求"
 
 msgid "No upcoming deadlines"
-msgstr ""
+msgstr "没有即将到期的截止日期"
 
 msgid "Import Project"
 msgstr "导入项目"
@@ -30942,7 +30942,7 @@ msgid " Are you sure you want to delete this stage?"
 msgstr "您确定要删除此阶段吗？"
 
 msgid "Empty"
-msgstr ""
+msgstr "空"
 
 msgid "Create task"
 msgstr "创建任务"
@@ -31674,7 +31674,7 @@ msgid "Profile"
 msgstr "個人資料"
 
 msgid "e.g. Jane Doe"
-msgstr ""
+msgstr "例如：李小明"
 
 msgid "Open Recruitment"
 msgstr "开放招聘"
@@ -31827,10 +31827,10 @@ msgid "Max size"
 msgstr "最大大小（MB）"
 
 msgid "Example: Candidate requested salary details before next round."
-msgstr ""
+msgstr "示例：候选人在下一轮面试前询问了薪资细节。"
 
 msgid "Write clear notes for future follow-up with the hiring team."
-msgstr ""
+msgstr "撰写清晰的备注，便于日后与招聘团队跟进。"
 
 #, fuzzy
 #| msgid "No notes have been added for this candidate"
@@ -31838,7 +31838,7 @@ msgid "No notes yet for this candidate"
 msgstr "该候选人尚未添加任何备注"
 
 msgid "Add a quick note above to keep the team aligned."
-msgstr ""
+msgstr "在上方快速添加一条备注，让团队保持一致。"
 
 msgid "Are you sure you want to remove this interviewer?"
 msgstr "您确定要移除该面试官吗？"
@@ -31880,7 +31880,7 @@ msgid ""
 msgstr ""
 
 msgid "Regards,"
-msgstr ""
+msgstr "此致"
 
 msgid "There are no ratings to display at the moment."
 msgstr "目前没有可显示的评分。"
@@ -31910,10 +31910,10 @@ msgstr "申请已保存。"
 
 #, python-format
 msgid "Thanks, %(name)s, your"
-msgstr ""
+msgstr "谢谢你，%(name)s，你的"
 
 msgid "Your"
-msgstr ""
+msgstr "你的"
 
 #, python-format
 msgid ""
@@ -31927,7 +31927,7 @@ msgid "application has been received."
 msgstr "您的操作已获批准。"
 
 msgid "We'll be in touch if there's a match. Feel free to close this window."
-msgstr ""
+msgstr "如有合适的岗位，我们会与你联系。你可以关闭此窗口。"
 
 #, fuzzy
 #| msgid "Choose Open Position"
@@ -32009,10 +32009,10 @@ msgid "No jobs"
 msgstr ""
 
 msgid "Define reasons for rejecting a candidate."
-msgstr ""
+msgstr "定义拒绝候选人的原因。"
 
 msgid "Manage the list of skills available for candidates and employees."
-msgstr ""
+msgstr "管理候选人和员工可用的技能列表。"
 
 #, fuzzy
 #| msgid "Allow candidates to track their recruitment pipeline status"
@@ -32084,7 +32084,7 @@ msgid "Confirm Stage Change"
 msgstr "批量阶段变更"
 
 msgid "Don't show this again in this session"
-msgstr ""
+msgstr "本次会话中不再显示"
 
 #, fuzzy
 #| msgid "Total vacancies"
@@ -32092,7 +32092,7 @@ msgid "Total vacancy is"
 msgstr "总空缺职位"
 
 msgid "Ok"
-msgstr ""
+msgstr "确定"
 
 msgid "candidates"
 msgstr "候选人"
@@ -32110,7 +32110,7 @@ msgid "Send Mail to Multiple Candidates"
 msgstr "向多位候选人发送邮件"
 
 msgid "Congrats..."
-msgstr ""
+msgstr "恭喜..."
 
 #, fuzzy
 #| msgid "Switch to Closed Recruitments"
@@ -32118,7 +32118,7 @@ msgid "Unable to load preview"
 msgstr "切换到已关闭的招聘"
 
 msgid "Example: Candidate asked to reschedule interview to Friday."
-msgstr ""
+msgstr "示例：候选人要求把面试改到周五。"
 
 msgid ""
 "Notes are shared with your hiring team. Enable candidate visibility per note "
@@ -32131,7 +32131,7 @@ msgid "Visible to candidate"
 msgstr "邮件发送给候选人"
 
 msgid "Attach files to this note"
-msgstr ""
+msgstr "为这条备注添加附件"
 
 #, fuzzy
 #| msgid "Attachments"
@@ -32378,7 +32378,7 @@ msgid "candidate(s)"
 msgstr "候选人"
 
 msgid "Dear"
-msgstr ""
+msgstr "尊敬的"
 
 #, fuzzy
 #| msgid "Good"
@@ -32408,7 +32408,7 @@ msgid ""
 msgstr ""
 
 msgid "Welcome aboard! We look forward to having you on our team."
-msgstr ""
+msgstr "欢迎加入！期待你成为我们团队的一员。"
 
 #, fuzzy
 #| msgid "Manager"
@@ -32558,10 +32558,10 @@ msgstr "添加更多选项.."
 
 #, python-format
 msgid "%(name)s's Survey"
-msgstr ""
+msgstr "%(name)s 的问卷"
 
 msgid "A few extra questions for"
-msgstr ""
+msgstr "几个额外问题，面向"
 
 msgid "Survey Filter"
 msgstr "调查筛选器"
@@ -32584,7 +32584,7 @@ msgid "Submit Survey"
 msgstr "招聘调查"
 
 msgid "Answer every required question to submit."
-msgstr ""
+msgstr "请回答所有必答问题后提交。"
 
 #, fuzzy
 #| msgid "Asset Return"
@@ -32689,7 +32689,7 @@ msgstr "您无法删除此备注。"
 
 #, python-format
 msgid "You are removed from stage managers from stage %(stage_obj)s"
-msgstr ""
+msgstr "你已被从 %(stage_obj)s 阶段的阶段负责人中移除"
 
 msgid "Stage manager removed successfully."
 msgstr "阶段经理移除成功。"
@@ -32751,7 +32751,7 @@ msgid "You cannot delete this stage while it's in use for {}"
 msgstr "无法删除此阶段，因为它正在用于 {}"
 
 msgid "The required permission was not found. Please contact an administrator."
-msgstr ""
+msgstr "未找到所需权限，请联系管理员。"
 
 #, fuzzy
 #| msgid "An error occurred while deleting the allowance"
@@ -32893,7 +32893,7 @@ msgid "Recruitment ID missing."
 msgstr "缺少招聘 ID"
 
 msgid "Pipeline cache expired."
-msgstr ""
+msgstr "流水线缓存已过期。"
 
 msgid "Vaccancy is filled"
 msgstr "职位空缺已填补"
@@ -33130,7 +33130,7 @@ msgstr "候选人不存在。"
 
 #, python-format
 msgid "%(label)s has added a note on the candidate %(candidate)s"
-msgstr ""
+msgstr "%(label)s 在候选人 %(candidate)s 上添加了一条备注"
 
 msgid "Candidate rejection deleted successfully"
 msgstr "候选人拒绝已成功删除"
@@ -33143,7 +33143,7 @@ msgstr "删除拒绝的候选人时发生错误"
 
 #, python-format
 msgid "Horilla report ready: %(name)s"
-msgstr ""
+msgstr "Horilla 报表已生成：%(name)s"
 
 #, python-format
 msgid ""
@@ -33155,7 +33155,7 @@ msgstr ""
 
 #, python-format
 msgid "Horilla report export failed: %(name)s"
-msgstr ""
+msgstr "Horilla 报表导出失败：%(name)s"
 
 #, python-format
 msgid ""
@@ -33227,11 +33227,11 @@ msgid "Comparison"
 msgstr "公司"
 
 msgid "Attached is your scheduled Horilla report:"
-msgstr ""
+msgstr "附件是您订阅的 Horilla 报表："
 
 #, python-format
 msgid "Showing first %(n)s rows."
-msgstr ""
+msgstr "正在显示前 %(n)s 行。"
 
 #, fuzzy
 #| msgid "Period"
@@ -33259,7 +33259,7 @@ msgid "Offer letter status"
 msgstr "录用通知书状态："
 
 msgid "Confidential - for internal use only"
-msgstr ""
+msgstr "机密 - 仅供内部使用"
 
 #, fuzzy
 #| msgid "Charts"
@@ -33387,7 +33387,7 @@ msgid "Exit date"
 msgstr "离职率"
 
 msgid "Tenure (years)"
-msgstr ""
+msgstr "司龄（年）"
 
 #, fuzzy
 #| msgid "Last Activity"
@@ -33415,7 +33415,7 @@ msgid "In period"
 msgstr "选择无效"
 
 msgid "Models touched"
-msgstr ""
+msgstr "涉及的数据模型"
 
 #, fuzzy
 #| msgid "Job position"
@@ -33438,7 +33438,7 @@ msgid "Action=delete"
 msgstr "自动化已删除"
 
 msgid "Events"
-msgstr ""
+msgstr "事件"
 
 #, fuzzy
 #| msgid "Employee Details"
@@ -33456,7 +33456,7 @@ msgid "contract_end_date"
 msgstr "合同结束日期"
 
 msgid "Document (visa-like title)"
-msgstr ""
+msgstr "文件（类签证标题）"
 
 #, fuzzy
 #| msgid "Document"
@@ -33469,7 +33469,7 @@ msgid "Contracts & Document Expiry"
 msgstr "合同文件"
 
 msgid "No contracts or documents with expiry in the selected window."
-msgstr ""
+msgstr "所选时间范围内没有即将到期的合同或文件。"
 
 #, fuzzy
 #| msgid "Contracts Ending "
@@ -33487,19 +33487,19 @@ msgid "Visa-like documents"
 msgstr "禁用评论"
 
 msgid "Title/request contains visa/passport/permit"
-msgstr ""
+msgstr "标题/申请中包含签证/护照/许可"
 
 msgid "Other expiring documents"
-msgstr ""
+msgstr "其他即将到期的文件"
 
 msgid "Not classified as visa-like"
-msgstr ""
+msgstr "未归类为类签证"
 
 msgid "Rows listed"
-msgstr ""
+msgstr "已列出行数"
 
 msgid "Capped"
-msgstr ""
+msgstr "已截断"
 
 #, fuzzy
 #| msgid "Expiry Date"
@@ -33507,7 +33507,7 @@ msgid "Expiry mix"
 msgstr "到期日"
 
 msgid "Visa-like docs"
-msgstr ""
+msgstr "类签证文件"
 
 #, fuzzy
 #| msgid "Others"
@@ -33515,7 +33515,7 @@ msgid "Other docs"
 msgstr "其他"
 
 msgid "Kind"
-msgstr ""
+msgstr "类型"
 
 #, fuzzy
 #| msgid "Expired"
@@ -33553,10 +33553,10 @@ msgid "Currently assigned"
 msgstr "當前使用者"
 
 msgid "Handed out, not yet returned"
-msgstr ""
+msgstr "已发放，尚未归还"
 
 msgid "Held over 180 days"
-msgstr ""
+msgstr "持有超过 180 天"
 
 #, fuzzy
 #| msgid "User group assigned."
@@ -33574,7 +33574,7 @@ msgid "Assets by Status"
 msgstr "资产状态"
 
 msgid "Assignment Ageing (days held)"
-msgstr ""
+msgstr "分配时长（持有天数）"
 
 #, fuzzy
 #| msgid "Assignees"
@@ -33592,7 +33592,7 @@ msgid "Days Held"
 msgstr "天"
 
 msgid "Ageing"
-msgstr ""
+msgstr "时长"
 
 #, fuzzy
 #| msgid "Work Information"
@@ -33600,10 +33600,10 @@ msgid "Workforce Composition"
 msgstr "工作信息"
 
 msgid "Headcount, FTE proxy, and distribution by dept/type/job/location."
-msgstr ""
+msgstr "员工人数、FTE 估算值，以及按部门/类型/职位/地点分布。"
 
 msgid "Diversity Snapshot"
-msgstr ""
+msgstr "多元化概览"
 
 msgid ""
 "DEI / representation — gender and age bands plus leadership mix. Authorized "
@@ -33611,7 +33611,7 @@ msgid ""
 msgstr ""
 
 msgid "Tenure & Longevity"
-msgstr ""
+msgstr "司龄与在职时长"
 
 #, fuzzy
 #| msgid "Attendance date from"
@@ -33619,7 +33619,7 @@ msgid "Average tenure and tenure bands by department."
 msgstr "考勤起始日期"
 
 msgid "Turnover (All Exits)"
-msgstr ""
+msgstr "离职率（全部离职）"
 
 msgid ""
 "Hires vs all exits (offboarding / resignation / inactive fallback), period "
@@ -33637,10 +33637,10 @@ msgid ""
 msgstr ""
 
 msgid "Present days, late comes, overtime, and department breakdown."
-msgstr ""
+msgstr "出勤天数、迟到、加班，以及按部门细分。"
 
 msgid "Absenteeism Rate"
-msgstr ""
+msgstr "缺勤率"
 
 msgid ""
 "Unscheduled absence vs calendar expected days (holidays/company leaves "
@@ -33658,7 +33658,7 @@ msgid ""
 msgstr ""
 
 msgid "Leave Planning (Used vs Entitlement)"
-msgstr ""
+msgstr "休假规划（已用与额度）"
 
 msgid ""
 "Planner ratio of period-approved leave days to the current entitlement "
@@ -33770,10 +33770,10 @@ msgid ""
 msgstr ""
 
 msgid "Span of Control"
-msgstr ""
+msgstr "管理幅度"
 
 msgid "Manager count, average span, and manager-to-headcount ratio."
-msgstr ""
+msgstr "经理人数、平均管理幅度，以及经理与员工人数之比。"
 
 #, fuzzy
 #| msgid "Pipeline"
@@ -33801,13 +33801,13 @@ msgid "Document Expiry Aging"
 msgstr "公告到期"
 
 msgid "Overdue and upcoming horilla_documents expiry buckets (90-day horizon)."
-msgstr ""
+msgstr "horilla_documents 的已逾期与即将到期分档（90 天范围）。"
 
 msgid "Headcount Bridge"
-msgstr ""
+msgstr "员工人数变动桥"
 
 msgid "Opening headcount + joiners − leavers = closing bridge for the period."
-msgstr ""
+msgstr "期初员工人数 + 入职 − 离职 = 本期期末人数变动。"
 
 #, fuzzy
 #| msgid "Exit Ratio"
@@ -33820,10 +33820,10 @@ msgid ""
 msgstr ""
 
 msgid "New-Hire 90-Day Attrition"
-msgstr ""
+msgstr "新员工 90 天流失率"
 
 msgid "Share of period joiners who exit within 90 days of joining."
-msgstr ""
+msgstr "本期入职员工在入职 90 天内离职的比例。"
 
 #, fuzzy
 #| msgid "Unschedule"
@@ -33841,7 +33841,7 @@ msgid ""
 msgstr ""
 
 msgid "Quality of Hire (90-day retention)"
-msgstr ""
+msgstr "招聘质量（90 天留存）"
 
 msgid ""
 "90-day retention of hires with joining_date in period — not a performance "
@@ -33884,7 +33884,7 @@ msgid ""
 msgstr ""
 
 msgid "With ≥1 report"
-msgstr ""
+msgstr "至少有 1 份报表"
 
 #, fuzzy
 #| msgid " Days"
@@ -33902,7 +33902,7 @@ msgid "Manager ratio"
 msgstr "经理"
 
 msgid "Managers / active headcount"
-msgstr ""
+msgstr "经理人数 / 在职人数"
 
 #, fuzzy
 #| msgid "Penalty amount"
@@ -33920,7 +33920,7 @@ msgid "Direct reports"
 msgstr "資源報告"
 
 msgid "No open candidates in pipeline."
-msgstr ""
+msgstr "招聘流程中没有进行中的候选人。"
 
 #, fuzzy
 #| msgid "View candidates"
@@ -33933,7 +33933,7 @@ msgid "Stale 31+ days"
 msgstr "总天数"
 
 msgid "Aging risk"
-msgstr ""
+msgstr "滞留风险"
 
 #, fuzzy
 #| msgid "Available days"
@@ -33951,7 +33951,7 @@ msgid "Age since application"
 msgstr "申请表"
 
 msgid "Avg age since application by stage"
-msgstr ""
+msgstr "按阶段统计的自申请以来的平均时长"
 
 #, fuzzy
 #| msgid " Days"
@@ -33964,7 +33964,7 @@ msgid "Age (days)"
 msgstr "[days] 天"
 
 msgid "Unspecified / other"
-msgstr ""
+msgstr "未指定 / 其他"
 
 #, fuzzy
 #| msgid "candidates"
@@ -33977,7 +33977,7 @@ msgid "Sources"
 msgstr "来源"
 
 msgid "Mutually exclusive"
-msgstr ""
+msgstr "互斥"
 
 #, fuzzy
 #| msgid "Resource"
@@ -33985,7 +33985,7 @@ msgid "Best source"
 msgstr "资源"
 
 msgid "In period (no double-count)"
-msgstr ""
+msgstr "统计周期内（不重复计数）"
 
 #, fuzzy
 #| msgid "Create Candidate"
@@ -34013,16 +34013,16 @@ msgid "0–30 days"
 msgstr "[days] 天"
 
 msgid "31–60 days"
-msgstr ""
+msgstr "31–60 天"
 
 msgid "61–90 days"
-msgstr ""
+msgstr "61–90 天"
 
 msgid "Items tracked"
-msgstr ""
+msgstr "跟踪项数"
 
 msgid "≤90 days / overdue"
-msgstr ""
+msgstr "≤90 天 / 已逾期"
 
 #, fuzzy
 #| msgid "Next Holiday"
@@ -34036,7 +34036,7 @@ msgstr "資源檢視"
 
 #, python-format
 msgid "Sample — %(shown)s of %(total)s"
-msgstr ""
+msgstr "抽样 — %(total)s 中的 %(shown)s"
 
 #, fuzzy
 #| msgid "Completed"
@@ -34079,7 +34079,7 @@ msgid "Share"
 msgstr "分享链接"
 
 msgid "Top OT hours (named — confidential)"
-msgstr ""
+msgstr "加班时长最多者（含姓名 —— 保密）"
 
 #, fuzzy
 #| msgid "Total Hires"
@@ -34087,7 +34087,7 @@ msgid "Total OT hours"
 msgstr "总招聘人数"
 
 msgid "Top 5 share"
-msgstr ""
+msgstr "前 5 名占比"
 
 #, fuzzy
 #| msgid "Django Documentation"
@@ -34105,7 +34105,7 @@ msgid "Employees with OT"
 msgstr "员工标签"
 
 msgid "Names hidden unless include_names + change_attendance"
-msgstr ""
+msgstr "除非 include_names + change_attendance，否则隐藏姓名"
 
 #, fuzzy
 #| msgid "payslips"
@@ -34113,10 +34113,10 @@ msgid "Period payslips"
 msgstr "工资单"
 
 msgid "Gross (employer cost proxy)"
-msgstr ""
+msgstr "应发合计（雇主成本近似值）"
 
 msgid "≈ gross until employer contribs modeled"
-msgstr ""
+msgstr "≈ 应发合计，直至雇主缴纳部分建模"
 
 #, fuzzy
 #| msgid "Payroll Records"
@@ -34129,7 +34129,7 @@ msgid "Gross by Department"
 msgstr "创建部门"
 
 msgid "Gross (unsplit)"
-msgstr ""
+msgstr "应发合计（未拆分）"
 
 #, fuzzy
 #| msgid "Deduction not found"
@@ -34142,7 +34142,7 @@ msgid "Allowances total"
 msgstr "津贴于"
 
 msgid "Unsplit gross — pay_head_data missing structured lists"
-msgstr ""
+msgstr "未拆分的应发合计 —— pay_head_data 缺少结构化列表"
 
 #, fuzzy
 #| msgid "payslips"
@@ -34155,7 +34155,7 @@ msgid "Deductions total"
 msgstr "扣除"
 
 msgid "Unsplit deduction field — not componentized"
-msgstr ""
+msgstr "未拆分的扣款字段 —— 未按组成项细分"
 
 #, fuzzy
 #| msgid "Allowance on"
@@ -34163,7 +34163,7 @@ msgid "Allowance components"
 msgstr "津贴于"
 
 msgid "Unsplit fallback"
-msgstr ""
+msgstr "未拆分兜底值"
 
 #, fuzzy
 #| msgid "Deduction not found"
@@ -34181,10 +34181,10 @@ msgid "Top Deductions"
 msgstr "总扣除额"
 
 msgid "Cost per head (proxy)"
-msgstr ""
+msgstr "人均成本（近似值）"
 
 msgid "Gross / active headcount — not hours-based FTE"
-msgstr ""
+msgstr "应发合计 / 在职人数 —— 非按工时折算的全职当量"
 
 #, fuzzy
 #| msgid " Days"
@@ -34207,13 +34207,13 @@ msgid "Cost per Head by Department"
 msgstr "创建部门"
 
 msgid "Cost / head"
-msgstr ""
+msgstr "人均成本"
 
 msgid "Avg Net"
-msgstr ""
+msgstr "平均实发"
 
 msgid "Cost / Head"
-msgstr ""
+msgstr "人均成本"
 
 #, fuzzy
 #| msgid "Gross Pay"
@@ -34226,7 +34226,7 @@ msgid "Shown rows"
 msgstr "显示选项"
 
 msgid "Capped for display"
-msgstr ""
+msgstr "显示时已封顶"
 
 #, fuzzy
 #| msgid "Badge ID"
@@ -34234,7 +34234,7 @@ msgid "Badge"
 msgstr "工牌ID"
 
 msgid "Missing dimension value."
-msgstr ""
+msgstr "缺少维度值。"
 
 #, fuzzy, python-format
 #| msgid "Payslip Report"
@@ -34277,7 +34277,7 @@ msgid "Cannot be paid"
 msgstr "创建阶段"
 
 msgid "Missing bank details or an active contract"
-msgstr ""
+msgstr "缺少银行信息或有效合同"
 
 #, fuzzy
 #| msgid "Bank Details"
@@ -34295,14 +34295,14 @@ msgid "No contract in 'active' status"
 msgstr "本月没有合同到期"
 
 msgid "Ready to pay"
-msgstr ""
+msgstr "可发放"
 
 #, python-format
 msgid "%(ready)s of %(total)s active employees"
-msgstr ""
+msgstr "%(total)s 名在职员工中的 %(ready)s 名"
 
 msgid "Ready"
-msgstr ""
+msgstr "就绪"
 
 #, fuzzy
 #| msgid "blocked"
@@ -34315,10 +34315,10 @@ msgid "Running"
 msgstr "警告"
 
 msgid "Outstanding balance"
-msgstr ""
+msgstr "未结清余额"
 
 msgid "Unrecovered principal at period end"
-msgstr ""
+msgstr "期末未回收本金"
 
 #, fuzzy
 #| msgid "Import Assets"
@@ -34326,7 +34326,7 @@ msgid "Total issued"
 msgstr "匯入資源"
 
 msgid "Principal advanced to date"
-msgstr ""
+msgstr "截至目前已预支本金"
 
 #, fuzzy
 #| msgid "Hour account"
@@ -34359,7 +34359,7 @@ msgid "Pending amount"
 msgstr "待处理工时"
 
 msgid "Claims still in 'requested'"
-msgstr ""
+msgstr "仍处于「已申请」状态的申请"
 
 #, fuzzy
 #| msgid "Claim"
@@ -34367,7 +34367,7 @@ msgid "Claims"
 msgstr "报销"
 
 msgid "Raised in period (by created date)"
-msgstr ""
+msgstr "统计周期内提交（按创建日期）"
 
 #, fuzzy
 #| msgid "Total Vacancies"
@@ -34375,10 +34375,10 @@ msgid "Total claimed"
 msgstr "总空缺职位"
 
 msgid "Approval date not stored; ageing uses created date"
-msgstr ""
+msgstr "未存储审批日期；账龄按创建日期计算"
 
 msgid "Claim Amount by Status"
-msgstr ""
+msgstr "按状态统计的申请金额"
 
 #, fuzzy
 #| msgid "Raised on"
@@ -34391,7 +34391,7 @@ msgid "Hired / candidates"
 msgstr "已录用候选人"
 
 msgid "Stage snapshot — not sequential conversion"
-msgstr ""
+msgstr "阶段快照 —— 非逐阶段转化率"
 
 #, fuzzy
 #| msgid "Open Job Listings"
@@ -34419,10 +34419,10 @@ msgid "Avg days to hire"
 msgstr "可折现的天数"
 
 msgid "Application → joining (candidate-weighted)"
-msgstr ""
+msgstr "申请 → 入职（按候选人加权）"
 
 msgid "Median days to hire"
-msgstr ""
+msgstr "招聘中位天数"
 
 #, fuzzy
 #| msgid "Application Tracking"
@@ -34435,10 +34435,10 @@ msgid "Hires measured"
 msgstr "录用日期"
 
 msgid "With joining_date + created_at"
-msgstr ""
+msgstr "含 joining_date + created_at"
 
 msgid "Oldest open (days)"
-msgstr ""
+msgstr "最早未处理（天数）"
 
 #, fuzzy
 #| msgid " Days"
@@ -34451,7 +34451,7 @@ msgid "Avg Days"
 msgstr "天"
 
 msgid "Open Age (days)"
-msgstr ""
+msgstr "未处理时长（天）"
 
 #, fuzzy
 #| msgid "Offer letter"
@@ -34459,7 +34459,7 @@ msgid "Offers touched"
 msgstr "录用通知书"
 
 msgid "Sent or decided"
-msgstr ""
+msgstr "已发送或已决定"
 
 #, fuzzy
 #| msgid "Accepted"
@@ -34482,7 +34482,7 @@ msgid "Onboarding app is not installed."
 msgstr "薪资应用未安装"
 
 msgid "Onboardees (period)"
-msgstr ""
+msgstr "入职者（统计周期）"
 
 #, fuzzy
 #| msgid "Onboarding Candidates"
@@ -34495,7 +34495,7 @@ msgid "Task completion"
 msgstr "完成中"
 
 msgid "Tasks for period onboardees only"
-msgstr ""
+msgstr "仅统计周期内入职者的任务"
 
 #, fuzzy
 #| msgid "Total Days"
@@ -34523,7 +34523,7 @@ msgid "Status / Stage"
 msgstr "状态已更新"
 
 msgid "In period (org-scoped)"
-msgstr ""
+msgstr "统计周期内（按组织范围）"
 
 #, fuzzy
 #| msgid "On Track"
@@ -34531,7 +34531,7 @@ msgid "On track"
 msgstr "按计划进行"
 
 msgid "Behind / at risk"
-msgstr ""
+msgstr "滞后 / 有风险"
 
 #, fuzzy
 #| msgid "Objective created"
@@ -34569,7 +34569,7 @@ msgid "90-day retention"
 msgstr "人脸检测"
 
 msgid "No exit within 90 days of joining"
-msgstr ""
+msgstr "入职 90 天内未离职"
 
 #, fuzzy
 #| msgid "Date joining"
@@ -34577,7 +34577,7 @@ msgid "With joining_date"
 msgstr "入职日期"
 
 msgid "Retained"
-msgstr ""
+msgstr "已留存"
 
 #, fuzzy
 #| msgid "Early Out"
@@ -34590,10 +34590,10 @@ msgid "≤ 90 days"
 msgstr "[days] 天"
 
 msgid "90-day outcomes"
-msgstr ""
+msgstr "90 天结果"
 
 msgid "Outcome"
-msgstr ""
+msgstr "结果"
 
 #, fuzzy
 #| msgid "Rating"
@@ -34646,10 +34646,10 @@ msgid "Latest month rate"
 msgstr "重置月份"
 
 msgid "Unscheduled absence / calendar expected days"
-msgstr ""
+msgstr "未排班缺勤 / 日历应出勤天数"
 
 msgid "6-month avg"
-msgstr ""
+msgstr "6 个月平均"
 
 #, fuzzy
 #| msgid "Average"
@@ -34657,10 +34657,10 @@ msgid "Average rate"
 msgstr "一般"
 
 msgid "Denominator base"
-msgstr ""
+msgstr "分母基数"
 
 msgid "Absent days (latest)"
-msgstr ""
+msgstr "缺勤天数（最新）"
 
 #, fuzzy
 #| msgid "An approved leave exists"
@@ -34703,7 +34703,7 @@ msgid "Approved overtime"
 msgstr "批准加班？"
 
 msgid "With OT"
-msgstr ""
+msgstr "含加班"
 
 #, fuzzy
 #| msgid "The related field of the employees"
@@ -34716,10 +34716,10 @@ msgid "OT concentrated in the top 10 employees"
 msgstr "员工的相关字段"
 
 msgid "Period used / entitlement"
-msgstr ""
+msgstr "周期内已用 / 可用额度"
 
 msgid "Planner ratio — period approved days ÷ current entitlement snapshot"
-msgstr ""
+msgstr "排班台比率 —— 周期内已批准天数 ÷ 当前额度快照"
 
 #, fuzzy
 #| msgid "Invalid selection"
@@ -34732,13 +34732,13 @@ msgid "Approved leave in period"
 msgstr "已批准的请求"
 
 msgid "Entitlement snapshot"
-msgstr ""
+msgstr "额度快照"
 
 msgid "Current total_leave_days (not period accrual)"
-msgstr ""
+msgstr "当前 total_leave_days（非周期内累积）"
 
 msgid "Used vs entitlement by type"
-msgstr ""
+msgstr "按类型统计的已用与可用额度"
 
 #, fuzzy
 #| msgid "Invalid selection"
@@ -34761,10 +34761,10 @@ msgid "Open balance (days)"
 msgstr "考勤日"
 
 msgid "Available + carry forward — not currency liability"
-msgstr ""
+msgstr "可用 + 结转 —— 不构成货币负债"
 
 msgid "With balances"
-msgstr ""
+msgstr "含余额"
 
 #, fuzzy
 #| msgid "Employees not found"
@@ -34783,7 +34783,7 @@ msgstr "天"
 
 #, python-format
 msgid "Dept: %(d)s"
-msgstr ""
+msgstr "部门：%(d)s"
 
 #, fuzzy
 #| msgid "Scheduled Interview"
@@ -34796,7 +34796,7 @@ msgid "Absent days"
 msgstr "缺勤"
 
 msgid "Expected − present − approved leave"
-msgstr ""
+msgstr "应出勤 − 实出勤 − 已批准休假"
 
 #, fuzzy
 #| msgid "Extra days"
@@ -34819,11 +34819,11 @@ msgid "Excluded from unscheduled"
 msgstr "从扣款中排除"
 
 msgid "Monthly rate (present-gap proxy)"
-msgstr ""
+msgstr "月度比率（出勤缺口近似值）"
 
 #, python-format
 msgid "Open balance · %(type)s"
-msgstr ""
+msgstr "未结余额 · %(type)s"
 
 #, fuzzy
 #| msgid "Total leaves available"
@@ -34861,7 +34861,7 @@ msgid "Active employees"
 msgstr "已归档员工"
 
 msgid "FTE (proxy)"
-msgstr ""
+msgstr "全职当量（近似值）"
 
 #, fuzzy
 #| msgid "To employee "
@@ -34869,7 +34869,7 @@ msgid "From employee type"
 msgstr "转为员工"
 
 msgid "With active staff"
-msgstr ""
+msgstr "含在职员工"
 
 #, fuzzy
 #| msgid "Job position"
@@ -34877,7 +34877,7 @@ msgid "Job positions"
 msgstr "职位"
 
 msgid "Top roles shown in table"
-msgstr ""
+msgstr "表中显示的主要职位"
 
 #, fuzzy
 #| msgid "Create Department"
@@ -34900,22 +34900,22 @@ msgid "No active employees."
 msgstr "已归档员工"
 
 msgid "Under 25"
-msgstr ""
+msgstr "25 岁以下"
 
 msgid "25–34"
-msgstr ""
+msgstr "25–34 岁"
 
 msgid "35–44"
-msgstr ""
+msgstr "35–44 岁"
 
 msgid "45–54"
-msgstr ""
+msgstr "45–54 岁"
 
 msgid "55+"
-msgstr ""
+msgstr "55 岁以上"
 
 msgid "Leadership gender"
-msgstr ""
+msgstr "管理层性别"
 
 #, fuzzy
 #| msgid "Male"
@@ -34943,7 +34943,7 @@ msgid "Gender Distribution"
 msgstr "缴纳款项"
 
 msgid "Age Bands"
-msgstr ""
+msgstr "年龄段"
 
 msgid "%"
 msgstr ""
@@ -34969,7 +34969,7 @@ msgid "3–5 years"
 msgstr "年数"
 
 msgid "5–10 years"
-msgstr ""
+msgstr "5–10 年"
 
 #, fuzzy
 #| msgid "Years"
@@ -34977,7 +34977,7 @@ msgid "10+ years"
 msgstr "年数"
 
 msgid "Avg tenure (yrs)"
-msgstr ""
+msgstr "平均司龄（年）"
 
 #, fuzzy
 #| msgid "Archived Employees"
@@ -34990,10 +34990,10 @@ msgid "With joining date"
 msgstr "入职日期"
 
 msgid "Included in calculation"
-msgstr ""
+msgstr "计入计算"
 
 msgid "Under 1 year"
-msgstr ""
+msgstr "1 年以下"
 
 #, fuzzy
 #| msgid "No new joiners"
@@ -35001,13 +35001,13 @@ msgid "New joiners band"
 msgstr "本月无新人"
 
 msgid "Long-tenure cohort"
-msgstr ""
+msgstr "长期在职群体"
 
 msgid "Tenure Bands"
-msgstr ""
+msgstr "司龄段"
 
 msgid "Avg Tenure (yrs)"
-msgstr ""
+msgstr "平均司龄（年）"
 
 #, fuzzy
 #| msgid "Projects due in this month"
@@ -35020,19 +35020,19 @@ msgid ""
 msgstr ""
 
 msgid "Turnover rate (6m)"
-msgstr ""
+msgstr "离职率（6 个月）"
 
 msgid "Exits ÷ average month-end headcount"
-msgstr ""
+msgstr "离职人数 ÷ 月末平均在职人数"
 
 msgid "Exits (6m)"
-msgstr ""
+msgstr "离职人数（6 个月）"
 
 msgid "Offboarding / resignation / inactive fallback"
-msgstr ""
+msgstr "离职流程 / 辞职 / 非在职兜底"
 
 msgid "Hires (6m)"
-msgstr ""
+msgstr "入职人数（6 个月）"
 
 #, fuzzy
 #| msgid "Projects due in this month"
@@ -35040,17 +35040,17 @@ msgid "Joined in window"
 msgstr "本月到期的项目"
 
 msgid "First-year exits"
-msgstr ""
+msgstr "入职首年离职"
 
 msgid "Tenure ≤ 1 year at exit_date"
-msgstr ""
+msgstr "离职日期时司龄 ≤ 1 年"
 
 msgid "Hires vs Exits"
-msgstr ""
+msgstr "入职与离职对比"
 
 #, python-format
 msgid "Dept exit: %(dept)s"
-msgstr ""
+msgstr "部门离职：%(dept)s"
 
 #, fuzzy
 #| msgid "Joined"
@@ -35078,16 +35078,16 @@ msgid "Leavers"
 msgstr "请假"
 
 msgid "Joiners − leavers"
-msgstr ""
+msgstr "入职人数 − 离职人数"
 
 msgid "Closing HC (proxy)"
-msgstr ""
+msgstr "期末人数（近似值）"
 
 msgid "Joined on/before period end (active filter)"
-msgstr ""
+msgstr "在周期结束前入职（在职筛选）"
 
 msgid "Headcount Trend"
-msgstr ""
+msgstr "人数趋势"
 
 #, fuzzy
 #| msgid "Penalty amount"
@@ -35100,7 +35100,7 @@ msgid "Joined before period start"
 msgstr "通知期开始"
 
 msgid "(+) Joiners"
-msgstr ""
+msgstr "(+) 入职人数"
 
 #, fuzzy
 #| msgid "Joining this week"
@@ -35113,7 +35113,7 @@ msgid "(−) Leavers"
 msgstr "请假"
 
 msgid "Shared exit sources"
-msgstr ""
+msgstr "共用的离职来源"
 
 #, fuzzy
 #| msgid "Closing"
@@ -35121,7 +35121,7 @@ msgid "Closing (bridge)"
 msgstr "关闭"
 
 msgid "Opening + joiners − leavers"
-msgstr ""
+msgstr "期初 + 入职人数 − 离职人数"
 
 #, fuzzy
 #| msgid "New Projects"
@@ -35129,11 +35129,11 @@ msgid "Closing (active proxy)"
 msgstr "新项目"
 
 msgid "Joined on/before period end · active filter"
-msgstr ""
+msgstr "在周期结束前入职 · 在职筛选"
 
 #, python-format
 msgid "Leaver source: %(s)s"
-msgstr ""
+msgstr "离职来源：%(s)s"
 
 #, fuzzy
 #| msgid "Openings"
@@ -35166,7 +35166,7 @@ msgid "< 90 days"
 msgstr "[days] 天"
 
 msgid "90 days – 1 year"
-msgstr ""
+msgstr "90 天 – 1 年"
 
 #, fuzzy
 #| msgid "Years"
@@ -35189,13 +35189,13 @@ msgid "Top source"
 msgstr "资源"
 
 msgid "With exits"
-msgstr ""
+msgstr "含离职记录"
 
 msgid "Exits by source"
-msgstr ""
+msgstr "按来源统计的离职"
 
 msgid "Tenure at exit"
-msgstr ""
+msgstr "离职时司龄"
 
 #, fuzzy
 #| msgid "Notify Before (days)"
@@ -35208,10 +35208,10 @@ msgid "No joiners in the selected period."
 msgstr "本周新入职"
 
 msgid "90-day attrition"
-msgstr ""
+msgstr "90 天流失率"
 
 msgid "Early exits ÷ period joiners"
-msgstr ""
+msgstr "早期离职人数 ÷ 周期内入职人数"
 
 #, fuzzy
 #| msgid "No new joiners"
@@ -35219,10 +35219,10 @@ msgid "Cohort joiners"
 msgstr "本月无新人"
 
 msgid "Exit ≤ 90 days after joining"
-msgstr ""
+msgstr "入职后 ≤ 90 天离职"
 
 msgid "Retained past 90d (proxy)"
-msgstr ""
+msgstr "超过 90 天留存（近似值）"
 
 #, fuzzy
 #| msgid "No records selected"
@@ -35230,7 +35230,7 @@ msgid "No recorded early exit"
 msgstr "未选择任何记录"
 
 msgid "Cohort outcomes"
-msgstr ""
+msgstr "同期群体结果"
 
 #, fuzzy
 #| msgid "Early Out"
@@ -35267,7 +35267,7 @@ msgid "Exits · %(month)s"
 msgstr ""
 
 msgid "Exits · Rolling 6 months"
-msgstr ""
+msgstr "离职 · 滚动 6 个月"
 
 #, python-format
 msgid "Hires · %(month)s"
@@ -35289,7 +35289,7 @@ msgid "Joiners in period"
 msgstr "通知期"
 
 msgid "New hires who left within 90 days"
-msgstr ""
+msgstr "90 天内离职的新员工"
 
 #, fuzzy
 #| msgid "Activate"
@@ -35312,10 +35312,10 @@ msgid "Visibility"
 msgstr "评级可见度"
 
 msgid "Standard Report Layout"
-msgstr ""
+msgstr "标准报表布局"
 
 msgid "Marks layouts seeded for standard enterprise reports."
-msgstr ""
+msgstr "为标注标准企业报表而预置的布局。"
 
 #, fuzzy
 #| msgid "Description"
@@ -35323,7 +35323,7 @@ msgid "Subscription Name"
 msgstr "描述"
 
 msgid "Optional filter overrides (department_id, relative period)."
-msgstr ""
+msgstr "可选的筛选覆盖项（department_id、相对周期）。"
 
 #, fuzzy
 #| msgid "Return Description"
@@ -35331,7 +35331,7 @@ msgid "Report Subscription"
 msgstr "歸還描述"
 
 msgid "Report Favorite"
-msgstr ""
+msgstr "报表收藏"
 
 #, fuzzy
 #| msgid "Export Worktypes"
@@ -35359,7 +35359,7 @@ msgid "Preset Name"
 msgstr "项目名称"
 
 msgid "period_preset, dates, and report-specific filter keys."
-msgstr ""
+msgstr "period_preset、日期及报表专属筛选键。"
 
 #, fuzzy
 #| msgid "Clear Filter"
@@ -35367,7 +35367,7 @@ msgid "Report Filter Preset"
 msgstr "清除篩選"
 
 msgid "Report Filter Presets"
-msgstr ""
+msgstr "报表筛选预设"
 
 #, fuzzy
 #| msgid "Report"
@@ -35385,16 +35385,16 @@ msgid "Report slug"
 msgstr "報告"
 
 msgid "Leave blank to apply to a whole domain (or all reports)."
-msgstr ""
+msgstr "留空则应用于整个领域（或全部报表）。"
 
 msgid "Domain"
-msgstr ""
+msgstr "领域"
 
 msgid "workforce, time_leave, payroll, talent, compliance — or blank."
-msgstr ""
+msgstr "workforce、time_leave、payroll、talent、compliance —— 或留空。"
 
 msgid "Blank = any authenticated user (still subject to permission)."
-msgstr ""
+msgstr "留空 = 任何已认证用户（仍受权限限制）。"
 
 #, fuzzy
 #| msgid "Permissions"
@@ -35402,7 +35402,7 @@ msgid "Permission"
 msgstr "權限"
 
 msgid "Optional Django permission codename, e.g. employee.view_employee."
-msgstr ""
+msgstr "可选的 Django 权限代号，例如 employee.view_employee。"
 
 #, fuzzy
 #| msgid "Can create"
@@ -35421,18 +35421,18 @@ msgstr "通知期"
 
 #, python-format
 msgid "Compared with %(label)s (%(from)s → %(to)s)."
-msgstr ""
+msgstr "与 %(label)s 对比（%(from)s → %(to)s）。"
 
 #, python-format
 msgid "Key changes: %(changes)s."
-msgstr ""
+msgstr "关键变化：%(changes)s。"
 
 msgid "No material KPI movement versus the comparison period."
-msgstr ""
+msgstr "与对比周期相比，KPI 无重大变化。"
 
 #, python-format
 msgid "%(title)s highlights — %(top)s."
-msgstr ""
+msgstr "%(title)s 亮点 —— %(top)s。"
 
 #, fuzzy
 #| msgid "Work Info"
@@ -35455,7 +35455,7 @@ msgid "Compliance"
 msgstr "投诉"
 
 msgid "report_slug, name and config are all required."
-msgstr ""
+msgstr "report_slug、name 和 config 均为必填项。"
 
 #, fuzzy
 #| msgid "Template saved"
@@ -35478,7 +35478,7 @@ msgid "Invalid report list."
 msgstr "无效请求"
 
 msgid "You already have a saved view with that name."
-msgstr ""
+msgstr "你已有一个使用该名称的已保存视图。"
 
 #, fuzzy
 #| msgid "You dont have permission to update the current value"
@@ -35496,14 +35496,14 @@ msgstr ""
 
 #, python-format
 msgid "Export started. You will receive an email at %(email)s when ready."
-msgstr ""
+msgstr "导出已开始。完成后我们会向 %(email)s 发送邮件。"
 
 msgid "This report does not support drill-down."
-msgstr ""
+msgstr "本报表不支持下钻查看。"
 
 #, python-format
 msgid "Pin limit reached (%(n)s). Unpin a report first."
-msgstr ""
+msgstr "已达钉选上限（%(n)s）。请先取消钉选一份报表。"
 
 #, fuzzy
 #| msgid "Description is required."
@@ -35551,7 +35551,7 @@ msgid "Report emailed."
 msgstr "测试电子邮件"
 
 msgid "Could not send subscription."
-msgstr ""
+msgstr "无法发送订阅。"
 
 #, fuzzy
 #| msgid "Stage not found"
@@ -35569,7 +35569,7 @@ msgid "Return to the main page"
 msgstr "歸還狀況圖片"
 
 msgid "Method Not Allowed!"
-msgstr ""
+msgstr "方法不允许！"
 
 #, fuzzy
 #| msgid "The request entry cannot be deleted."
@@ -35577,13 +35577,13 @@ msgid "Oops! The request method is not allowed."
 msgstr "请求条目无法删除。"
 
 msgid "Please make sure you are sending a proper request."
-msgstr ""
+msgstr "请确认你发送的是正确的请求。"
 
 msgid "Trying to connect..."
 msgstr "正在尝试连接..."
 
 msgid "KPIs span all companies you can access"
-msgstr ""
+msgstr "KPI 涵盖你可访问的所有公司"
 
 #, fuzzy
 #| msgid "No rating found."
@@ -35591,7 +35591,7 @@ msgid "Active company scope"
 msgstr "未找到处罚记录。"
 
 msgid "Scope"
-msgstr ""
+msgstr "范围"
 
 #, fuzzy
 #| msgid "My Dashboard"
@@ -35684,7 +35684,7 @@ msgid "New Announcement"
 msgstr "公告"
 
 msgid "Birthdays & Anniversaries"
-msgstr ""
+msgstr "生日与周年纪念"
 
 msgid "Birthdays and work anniversaries this month, closest to today first"
 msgstr ""
@@ -35843,7 +35843,7 @@ msgid "No shortlisting data"
 msgstr "轮班日"
 
 msgid "yr anniversary"
-msgstr ""
+msgstr "周年"
 
 #, fuzzy
 #| msgid "Projects due in this month"
@@ -35882,10 +35882,10 @@ msgid "You don't have permission to the feature"
 msgstr "您没有访问此功能的权限"
 
 msgid "Setting Up Your Workspace"
-msgstr ""
+msgstr "正在设置你的工作区"
 
 msgid "Loading demo database, please wait…"
-msgstr ""
+msgstr "正在加载演示数据库，请稍候…"
 
 msgid "Authenticate with your password to load demo database"
 msgstr "使用密码认证以加载演示数据库"
@@ -35924,16 +35924,16 @@ msgid ""
 msgstr "请联系您的管理员以获取帮助。"
 
 msgid "Jan 03, 2023, at 11:13AM"
-msgstr ""
+msgstr "2023 年 1 月 3 日上午 11:13"
 
 msgid "Jan 01, 2023, at 05:13PM"
-msgstr ""
+msgstr "2023 年 1 月 1 日下午 5:13"
 
 msgid "Dec 31, 2022, at 02:00PM"
-msgstr ""
+msgstr "2022 年 12 月 31 日下午 2:00"
 
 msgid "Dec 31, 2022, at 10:27AM"
-msgstr ""
+msgstr "2022 年 12 月 31 日上午 10:27"
 
 #, fuzzy
 #| msgid "View Comment"
@@ -35976,7 +35976,7 @@ msgid "View all notifications"
 msgstr "查看所有通知"
 
 msgid "Registration Success - OpenHRMS Dashboard"
-msgstr ""
+msgstr "注册成功 - OpenHRMS 看板"
 
 #, fuzzy
 #| msgid "Password changed successfully"
@@ -36093,7 +36093,7 @@ msgid "message not send"
 msgstr "未找到阶段"
 
 msgid "This token is used to connect webhook to the server"
-msgstr ""
+msgstr "此令牌用于将 webhook 连接到服务器"
 
 #, fuzzy
 #| msgid "API Secret"
@@ -36111,7 +36111,7 @@ msgid "WhatsApp Integration"
 msgstr "WhatsApp 集成"
 
 msgid "Enable this to integrate WhatsApp to Horilla."
-msgstr ""
+msgstr "启用此项即可将 WhatsApp 集成到 Horilla。"
 
 msgid ""
 "Send HR notifications and updates directly through WhatsApp for better "

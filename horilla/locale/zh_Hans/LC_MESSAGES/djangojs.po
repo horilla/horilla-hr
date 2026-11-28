@@ -53,7 +53,7 @@ msgid "Employees Imported Successfully"
 msgstr "导入成功！"
 
 msgid "You have"
-msgstr ""
+msgstr "您有"
 
 #, fuzzy
 #| msgid "Do you want to download the template?"
@@ -61,22 +61,22 @@ msgid "errors. Do you want to download the error list?"
 msgstr "要下载模板吗？"
 
 msgid "Download error list & Skip Import"
-msgstr ""
+msgstr "下载错误列表并跳过导入"
 
 msgid "Download error list & Continue Import"
-msgstr ""
+msgstr "下载错误列表并继续导入"
 
 msgid "Invalid File"
-msgstr ""
+msgstr "文件无效"
 
 msgid "Please upload a valid XLSX file."
-msgstr ""
+msgstr "请上传有效的 XLSX 文件。"
 
 msgid "Stage updated"
 msgstr "阶段已更新"
 
 msgid "Failed to update sequence: "
-msgstr ""
+msgstr "更新顺序失败："
 
 #, fuzzy
 #| msgid "Stage updated"
@@ -106,13 +106,13 @@ msgid "Employees"
 msgstr "员工姓名"
 
 msgid "Number of days"
-msgstr ""
+msgstr "天数"
 
 msgid "Draft"
-msgstr ""
+msgstr "草稿"
 
 msgid "Review Ongoing"
-msgstr ""
+msgstr "审核进行中"
 
 #, fuzzy
 #| msgid "Confirm"
@@ -120,10 +120,10 @@ msgid "Confirmed"
 msgstr "确认"
 
 msgid "Paid"
-msgstr ""
+msgstr "已发放"
 
 msgid "Leave count"
-msgstr ""
+msgstr "休假次数"
 
 msgid "Do you wish to create a Leave Report?"
 msgstr "要创建请假报表吗？"
@@ -156,13 +156,13 @@ msgid "Amount"
 msgstr "金额"
 
 msgid "Objective"
-msgstr ""
+msgstr "目标"
 
 msgid "Key Result"
-msgstr ""
+msgstr "关键结果"
 
 msgid "Feedback"
-msgstr ""
+msgstr "反馈"
 
 msgid "Upload Completed!"
 msgstr "上传完成！"
@@ -346,25 +346,25 @@ msgid "Candidate management options"
 msgstr "候选人管理选项"
 
 msgid "visible"
-msgstr ""
+msgstr "可见"
 
 msgid "bgcolor"
 msgstr ""
 
 msgid "bordercolor"
-msgstr ""
+msgstr "边框颜色"
 
 msgid "borderwidth"
-msgstr ""
+msgstr "边框宽度"
 
 msgid "thickness"
-msgstr ""
+msgstr "粗细"
 
 msgid "autorange"
-msgstr ""
+msgstr "自动范围"
 
 msgid "range"
-msgstr ""
+msgstr "范围"
 
 msgid "x"
 msgstr ""
@@ -376,19 +376,19 @@ msgid "minor"
 msgstr ""
 
 msgid "label"
-msgstr ""
+msgstr "标签"
 
 msgid "arrowlen"
-msgstr ""
+msgstr "箭头长度"
 
 msgid "source"
-msgstr ""
+msgstr "源"
 
 msgid "target"
-msgstr ""
+msgstr "目标"
 
 msgid "value"
-msgstr ""
+msgstr "值"
 
 msgid "line.color"
 msgstr ""
@@ -400,16 +400,16 @@ msgid "hoverinfo"
 msgstr ""
 
 msgid "hovertemplate"
-msgstr ""
+msgstr "悬停模板"
 
 msgid "color"
 msgstr ""
 
 msgid "hovercolor"
-msgstr ""
+msgstr "悬停颜色"
 
 msgid "customdata"
-msgstr ""
+msgstr "自定义数据"
 
 msgid "All your company and base configurations"
 msgstr "所有公司和基础配置"
@@ -427,40 +427,40 @@ msgid "Selected settings view"
 msgstr "所选设置视图"
 
 msgid "Project: "
-msgstr ""
+msgstr "项目："
 
 msgid "watchFile"
-msgstr ""
+msgstr "监视文件"
 
 msgid "watchDirectory"
-msgstr ""
+msgstr "监视目录"
 
 msgid "getCompletionsAtPosition: getCompletionEntriesFromSymbols: "
 msgstr ""
 
 msgid "placeOpenBraceOnNewLineForControlBlocks"
-msgstr ""
+msgstr "控制块的大括号另起一行"
 
 msgid "placeOpenBraceOnNewLineForFunctions"
-msgstr ""
+msgstr "函数的大括号另起一行"
 
 msgid "punc"
-msgstr ""
+msgstr "标点"
 
 msgid "name"
-msgstr ""
+msgstr "名称"
 
 msgid "keyword"
-msgstr ""
+msgstr "关键字"
 
 msgid "arrow"
-msgstr ""
+msgstr "箭头"
 
 msgid "operator"
-msgstr ""
+msgstr "运算符"
 
 msgid "Expected "
-msgstr ""
+msgstr "预期 "
 
 msgid "I"
 msgstr ""
@@ -475,52 +475,52 @@ msgid "B"
 msgstr ""
 
 msgid "Invalid generatedCharacter found"
-msgstr ""
+msgstr "发现无效的 generatedCharacter"
 
 msgid "Invalid sourceIndex found"
-msgstr ""
+msgstr "发现无效的 sourceIndex"
 
 msgid "Unsupported Format: No entries after sourceIndex"
-msgstr ""
+msgstr "不支持的格式：sourceIndex 之后没有条目"
 
 msgid "Invalid sourceLine found"
-msgstr ""
+msgstr "发现无效的 sourceLine"
 
 msgid "Unsupported Format: No entries after sourceLine"
-msgstr ""
+msgstr "不支持的格式：sourceLine 之后没有条目"
 
 msgid "Invalid sourceCharacter found"
-msgstr ""
+msgstr "发现无效的 sourceCharacter"
 
 msgid "Invalid nameIndex found"
-msgstr ""
+msgstr "发现无效的 nameIndex"
 
 msgid "Unsupported Error Format: Entries after nameIndex"
-msgstr ""
+msgstr "不支持的格式：nameIndex 之后仍有条目"
 
 msgid "collectAutoImports"
-msgstr ""
+msgstr "收集自动导入"
 
 msgid "continuePreviousIncompleteResponse"
-msgstr ""
+msgstr "继续上一个未完成的响应"
 
 msgid "TypeRoots version has changed; provide new program"
-msgstr ""
+msgstr "TypeRoots 版本已变更，请提供新的程序"
 
 msgid "getIndentationAtPosition: getCurrentSourceFile: "
-msgstr ""
+msgstr "在指定位置获取缩进：获取当前源文件："
 
 msgid "getIndentationAtPosition: computeIndentation  : "
-msgstr ""
+msgstr "在指定位置获取缩进：计算缩进："
 
 msgid "Program"
-msgstr ""
+msgstr "程序"
 
 msgid "BlockStatement"
-msgstr ""
+msgstr "块语句"
 
 msgid "close"
-msgstr ""
+msgstr "关闭"
 
 msgid "Confirm"
 msgstr "确认"
@@ -572,16 +572,16 @@ msgid ""
 msgstr "您确定将候选人从%(from)s阶段更改为%(to)s阶段吗"
 
 msgid "Retry"
-msgstr ""
+msgstr "重试"
 
 msgid "Something went wrong while loading this data."
-msgstr ""
+msgstr "加载此数据时出错。"
 
 msgid "Request failed (status %(status)s)."
-msgstr ""
+msgstr "请求失败（状态 %(status)s）。"
 
 msgid "The request took too long to respond."
-msgstr ""
+msgstr "请求响应时间过长。"
 
 #~ msgid "Some selected requests have already been approved."
 #~ msgstr "部分已选申请已获批准。"
