@@ -10,6 +10,16 @@ from employee.models import Employee
 from horilla.methods import get_horilla_model_class
 
 
+def exclude_disabled_compensatory_leave(queryset):
+    """Hide the Compensatory Leave type unless the feature is actually
+    enabled.
+    """
+    setting = apps.get_model("leave", "LeaveGeneralSetting").objects.first()
+    if setting and setting.compensatory_leave:
+        return queryset
+    return queryset.exclude(is_compensatory_leave=True)
+
+
 def calculate_requested_days(
     start_date, end_date, start_date_breakdown, end_date_breakdown
 ):

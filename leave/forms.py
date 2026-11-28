@@ -32,7 +32,7 @@ from horilla_views.generic.cbv.views import HorillaFormView
 from horilla_widgets.forms import HorillaForm, HorillaModelForm
 from horilla_widgets.widgets.horilla_multi_select_field import HorillaMultiSelectField
 from horilla_widgets.widgets.select_widgets import HorillaMultiSelectWidget
-from leave.methods import get_leave_day_attendance
+from leave.methods import exclude_disabled_compensatory_leave, get_leave_day_attendance
 from leave.models import (
     AvailableLeave,
     LeaveAllocationRequest,
@@ -1160,6 +1160,9 @@ class AssignLeaveForm(HorillaForm):
             {"required": True, "id": uuid.uuid4()}
         ),
         self.fields["leave_type_id"].label = "Leave Type"
+        self.fields["leave_type_id"].queryset = exclude_disabled_compensatory_leave(
+            self.fields["leave_type_id"].queryset
+        )
 
 
 class LeaverequestcommentForm(BaseModelForm):

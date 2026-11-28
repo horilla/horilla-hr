@@ -37,6 +37,7 @@ from horilla.filters import (
 from horilla.week import week_start
 from horilla_views.templatetags.generic_template_filters import getattribute
 
+from .methods import exclude_disabled_compensatory_leave
 from .models import (
     AvailableLeave,
     LeaveAllocationRequest,
@@ -142,7 +143,9 @@ class AssignedLeaveFilter(HorillaFilterSet):
         },
         "leave_type_id": {
             "key": "assigned-leave-leave-type",
-            "queryset_fn": lambda request: LeaveType.objects.all(),
+            "queryset_fn": lambda request: exclude_disabled_compensatory_leave(
+                LeaveType.objects.all()
+            ),
             "display_fn": lambda obj: obj.name,
             "search_fields": ["name"],
             "placeholder": _("Select leave type..."),
