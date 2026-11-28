@@ -55,16 +55,5 @@
 
 <script src="{% static '/candidate/bulk.js' %}"></script>
 <script src="{% static 'cbv/deleteFunc.js' %}"></script>
-<script>
-  function refreshLeaveTypeListContainer() {
-    if (typeof htmx === "undefined") return;
-    var query = window.location.search || "";
-    var url = "{% url 'leave-type-list' %}" + query;
-    htmx.ajax("GET", url, { target: "#listContainer", swap: "innerHTML" });
-  }
-  document.addEventListener("reloadLeaveTypeList", function () {
-    refreshLeaveTypeListContainer();
-  });
-</script>
 
 {% endblock content %}
