@@ -126,7 +126,7 @@ def after_reset(leave_type, available, carryforward):
     if leave_type.carryforward_type == "no carryforward":
         carryforward = 0
     else:
-        carryforward = min(total, leave_type.carryforward_max or 0)
+        carryforward = leave_type.capped_carryforward(total)
     return float(leave_type.total_days or 0), float(carryforward)
 
 
