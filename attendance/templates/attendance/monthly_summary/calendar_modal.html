@@ -490,7 +490,7 @@
                data-date="{{ cell.date|date:'Y-m-d' }}"
                data-groups="{{ cell.groups }}"
                data-halves="{{ cell.halves_data }}"
-               title="{{ cell.date|date:'d M Y' }}{% if cell.split_label %} — {{ cell.split_label }}{% elif cell.detail %} — {{ cell.detail }}{% endif %}{% if cell.conflict_with == 'paid_leave' or cell.conflict_with == 'unpaid_leave' %} ⚠ {% if cell.conflict_reason %}{{ cell.conflict_reason }}{% else %}conflicts with {{ cell.conflict_with }}{% endif %}{% elif cell.conflict_with == 'holiday_ot' %} HO — Holiday Overtime{% elif cell.conflict_with == 'week_off_ot' %} WO — Week Off Overtime{% elif cell.conflict_with == 'regular_ot' %} OT — Overtime{% elif cell.resolution %} ✓ resolved{% endif %}{% if not readonly %}{% trans ' — Ctrl/Shift-click to select multiple days' %}{% endif %}"
+               title="{{ cell.date|date:'d M Y' }}{% if cell.split_label %} — {{ cell.split_label }}{% elif cell.detail %} — {{ cell.detail }}{% endif %}{% if cell.conflict_with == 'paid_leave' or cell.conflict_with == 'unpaid_leave' %} ⚠ {% if cell.conflict_reason %}{{ cell.conflict_reason }}{% else %}conflicts with {{ cell.conflict_with }}{% endif %}{% elif cell.conflict_with == 'holiday_ot' %} {% translate "HO" context "summary code" %} — {% trans 'Holiday Overtime' %}{% elif cell.conflict_with == 'week_off_ot' %} {% translate "WO" context "summary code" %} — {% trans 'Week Off Overtime' %}{% elif cell.conflict_with == 'regular_ot' %} {% translate "OT" context "summary code" %} — {% trans 'Overtime' %}{% elif cell.resolution %} ✓ resolved{% endif %}{% if not readonly %}{% trans ' — Ctrl/Shift-click to select multiple days' %}{% endif %}"
                {% if not readonly %}onclick="msCalCellClick(event, this, '{{ cell.date|date:'Y-m-d' }}', '{{ cell.conflict_with|default:'' }}', '{{ cell.detail|default:''|escapejs }}')"{% endif %}
                {% if cell.split_style %}style="{{ cell.split_style }}{% if readonly %};cursor:default{% endif %}"{% elif readonly %}style="cursor:default;"{% endif %}>
             <div class="cal-day-num">{{ cell.day }}</div>
@@ -499,11 +499,11 @@
               <div class="cal-conflict-dot" title="{% trans 'Leave conflict — click to regularize' %}"></div>
             {% else %}
               {% if cell.ot_kind == "holiday" %}
-                <div class="cal-ot-badge{% if cell.ot_pending %} pending{% endif %}" title="{% if cell.ot_pending %}{% trans 'Holiday Overtime, Pending Approval' %}{% else %}{% trans 'Holiday Overtime' %}{% endif %}">HO</div>
+                <div class="cal-ot-badge{% if cell.ot_pending %} pending{% endif %}" title="{% if cell.ot_pending %}{% trans 'Holiday Overtime, Pending Approval' %}{% else %}{% trans 'Holiday Overtime' %}{% endif %}">{% translate "HO" context "summary code" %}</div>
               {% elif cell.ot_kind == "week_off" %}
-                <div class="cal-ot-badge wo{% if cell.ot_pending %} pending{% endif %}" title="{% if cell.ot_pending %}{% trans 'Week Off Overtime, Pending Approval' %}{% else %}{% trans 'Week Off Overtime' %}{% endif %}">WO</div>
+                <div class="cal-ot-badge wo{% if cell.ot_pending %} pending{% endif %}" title="{% if cell.ot_pending %}{% trans 'Week Off Overtime, Pending Approval' %}{% else %}{% trans 'Week Off Overtime' %}{% endif %}">{% translate "WO" context "summary code" %}</div>
               {% elif cell.ot_kind == "regular" %}
-                <div class="cal-ot-badge reg{% if cell.ot_pending %} pending{% endif %}" title="{% if cell.ot_pending %}{% trans 'Overtime, Pending Approval' %}{% else %}{% trans 'Overtime' %}{% endif %}">OT</div>
+                <div class="cal-ot-badge reg{% if cell.ot_pending %} pending{% endif %}" title="{% if cell.ot_pending %}{% trans 'Overtime, Pending Approval' %}{% else %}{% trans 'Overtime' %}{% endif %}">{% translate "OT" context "summary code" %}</div>
               {% endif %}
               {% if cell.resolution %}
                 <div class="cal-resolved-dot{% if cell.ot_kind %} with-ot{% endif %}" title="{% trans 'Resolved — click to undo or change' %}"></div>
@@ -537,11 +537,11 @@
   <div class="cal-legend-item"><div class="cal-legend-dot cal-holiday"></div> {% trans "Holiday" %}</div>
   <div class="cal-legend-item"><div class="cal-legend-dot cal-weekend"></div> {% trans "Upcoming (not counted)" %}</div>
   <div class="cal-legend-item">
-    <span style="font-size:.62rem;font-weight:800;padding:1px 4px;border-radius:3px;background:#0f766e;color:#fff;line-height:1.4;">HO</span>
+    <span style="font-size:.62rem;font-weight:800;padding:1px 4px;border-radius:3px;background:#0f766e;color:#fff;line-height:1.4;">{% translate "HO" context "summary code" %}</span>
     {% trans "Holiday Overtime" %}
   </div>
   <div class="cal-legend-item">
-    <span style="font-size:.62rem;font-weight:800;padding:1px 4px;border-radius:3px;background:#be185d;color:#fff;line-height:1.4;">WO</span>
+    <span style="font-size:.62rem;font-weight:800;padding:1px 4px;border-radius:3px;background:#be185d;color:#fff;line-height:1.4;">{% translate "WO" context "summary code" %}</span>
     {% trans "Week Off Overtime" %}
   </div>
 {% if not readonly %}
