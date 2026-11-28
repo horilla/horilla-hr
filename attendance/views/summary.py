@@ -134,7 +134,10 @@ def split_label(resolution):
     halves = parse_split(resolution)
     if not halves:
         return str(resolution)
-    return " + ".join(f"{_('Half')} {SPLIT_HALVES[code][1]}" for code in halves)
+    # One phrase, so a language can put "half" where it goes, or leave it out.
+    return " + ".join(
+        str(_("Half %(status)s") % {"status": SPLIT_HALVES[code][1]}) for code in halves
+    )
 
 
 def regularizes(resolution):
@@ -1793,7 +1796,8 @@ def daily_cell(cell):
         code = _DAILY_CODES.get(status, "")
         label = labels.get(status, status)
     title = f"{cell['date']:%d %b %Y} \u2014 {label}"
-    if cell.get("detail") and status not in ("split",) and not cell.get("future_part"):
+    # The day's clock times, split days included.
+    if cell.get("detail") and not cell.get("future_part"):
         title += f" ({cell['detail']})"
     if cell.get("conflict_reason"):
         title += f" \u26a0 {cell['conflict_reason']}"
@@ -3144,15 +3148,9 @@ def _build_calendar_context(emp, from_date, to_date, show_future_leave=False):
 
             detail = ""
             if clock_in:
-                detail = str(clock_in)
+                detail = f"{clock_in:%H:%M}"
                 if clock_out:
-                    detail += f" – {clock_out}"
-            if att_status in ("half_present", "short", "absent") and min_secs > 0:
-                worked_h = worked // 3600
-                worked_m = (worked % 3600) // 60
-                min_h = min_secs // 3600
-                min_m = (min_secs % 3600) // 60
-                detail += f" ({worked_h}h{worked_m:02d}m / {min_h}h{min_m:02d}m)"
+                    detail += f" – {clock_out:%H:%M}"
 
             # Determine conflict type
             raw_conflict = None
