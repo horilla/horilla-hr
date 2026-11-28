@@ -45,6 +45,7 @@ from horilla_views.cbv_methods import (
     hx_request_required,
     login_required,
     merge_dicts,
+    referrer_path,
 )
 from horilla_views.forms import SavedFilterForm
 from horilla_views.generic.cbv.views import HorillaFormView, HorillaListView
@@ -308,10 +309,7 @@ class SavedFilter(HorillaFormView):
 
     def get_context_data(self, **kwargs) -> dict:
         context = super().get_context_data(**kwargs)
-        referrer = self.request.GET.get("referrer", "")
-        if referrer:
-            # Remove the protocol and domain part
-            referrer = "/" + "/".join(referrer.split("/")[3:])
+        referrer = referrer_path(self.request.GET.get("referrer", ""))
         context["path"] = self.request.GET.get("path", "")
         context["referrer"] = referrer
         return context

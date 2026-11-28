@@ -8,7 +8,7 @@ import uuid
 from datetime import timedelta
 from io import BytesIO
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 from django import forms, template
 from django.apps import apps
@@ -573,6 +573,20 @@ def dedupe_single_value_params(query_dict):
     return cleaned
 
 
+def referrer_path(referrer):
+    """
+    The page part of a "referrer" value. Some callers pass the full
+    HTTP_REFERER URL and others a path already, so only drop a scheme and
+    host when there is one: cutting the first three "/"-separated parts off
+    a path leaves just "/".
+    """
+    parts = urlsplit(referrer)
+    if not parts.netloc:
+        return referrer
+    path = parts.path or "/"
+    return f"{path}?{parts.query}" if parts.query else path
+
+
 def saved_filter_path_query(request):
     """
     SavedFilter rows are keyed by the request path that was active when they
@@ -600,9 +614,7 @@ def saved_filter_path_query(request):
     if nav_url:
         path_query |= models.Q(path=nav_url)
 
-    referrer = request.GET.get("referrer", "")
-    if referrer:
-        referrer = "/" + "/".join(referrer.split("/")[3:])
+    referrer = referrer_path(request.GET.get("referrer", ""))
     if referrer:
         app_prefix = "/" + request.path.strip("/").split("/")[0] + "/"
         path_query |= models.Q(referrer=referrer, path__startswith=app_prefix)
